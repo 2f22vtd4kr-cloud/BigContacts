@@ -1,4 +1,3 @@
-import { apexOrientationFor } from "./apex-bureau-orientation";
 import { resolveGroqBossModel, generateGroqBossText } from "./groq-boss";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
@@ -280,8 +279,8 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
       visits: parsed.visits,
       findings: Array.isArray(parsed.findings) ? parsed.findings.slice(-8) : [],
       modelFindings: Array.isArray(parsed.modelFindings) ? parsed.modelFindings.slice(-6) : [],
-      targetInvestigation: parsed.targetInvestigation && typeof parsed.targetInvestigation === "object" ? parsed.targetInvestigation : null,
-      latestObservations: Array.isArray(parsed.openQuestions) ? parsed.openQuestions.slice(-4) : [],
+      targetInvestigation: parsed.targetInvestigation && typeof parsed.targetInvestigation === "object" ? JSON.stringify(parsed.targetInvestigation).slice(0, 1_200) : null,
+      latestQuestions: Array.isArray(parsed.openQuestions) ? parsed.openQuestions.slice(-4) : [],
     }, null, 2);
   } catch {
     investigatorReport = rawInvestigatorReport.slice(0, 2400);
