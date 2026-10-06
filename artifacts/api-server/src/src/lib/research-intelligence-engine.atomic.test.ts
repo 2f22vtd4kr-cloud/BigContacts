@@ -10,7 +10,7 @@ describe("research intelligence atomic evidence", () => {
       executionId: "old",
       facts: [{ claim: "Ada Example email jane@example.com", evidenceIds: ["search-evidence"], sources: ["serper.dev"] }],
       hypotheses: [{ id: "h1", label: "Ada Example is founder", entity: "Ada Example", score: 0.9, supportingEvidenceIds: ["search-evidence"], contradictingEvidenceIds: [], missingDiscriminators: [], status: "alternative" }],
-      contacts: [{ personName: "Ada Example", value: "jane@example.com", vector: "email", state: "ATTRIBUTED", sourceUrls: ["https://serper.dev/search"], sourceHosts: ["serper.dev"], attributionStrength: 0.9 }],
+      contacts: [{ personName: "Ada Example", value: "jane@example.com", vector: "email", state: "ATTRIBUTED", sourceUrls: ["https://serper.dev/search"], sourceHosts: ["serper.dev"], firstSeen: "", lastSeen: "", attributionStrength: 0.9 }],
       evidenceCount: 1,
       sourceQualitySummary: [{ sourceClass: "SEARCH_RESULT", count: 1 }],
       atomicEvidence: [{ evidenceId: "search-evidence", kind: "observation", claim: "Observed source https://serper.dev/search", sourceUrl: "https://serper.dev/search", sourceHost: "serper.dev", sourceClass: "SEARCH_RESULT", passage: "Ada Example — founder — jane@example.com", attribution: null }],
