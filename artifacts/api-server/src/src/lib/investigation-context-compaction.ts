@@ -248,7 +248,7 @@ export function compactInvestigationContext(input: {
 /** Bound an auxiliary model-state section without deleting the durable state behind it. */
 export function boundInvestigatorPromptSection(value: string, maxChars = 6_000): string {
   const normalized = typeof value === "string" ? value.trim() : "";
-  const bounded = Math.max(1_000, Math.min(12_000, Math.floor(maxChars)));
+  const bounded = Math.max(1_000, Math.min(20_000, Math.floor(maxChars)));
   if (normalized.length <= bounded) return normalized;
   const marker = "[AUXILIARY CONTEXT BOUND: omitted middle detail remains durable outside this prompt]";
   const available = Math.max(0, bounded - marker.length - 2);
