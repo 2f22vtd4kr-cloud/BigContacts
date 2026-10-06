@@ -91,6 +91,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
   let visits = 0;
   let lastStatus: CoreResult["status"] = "completed";
   let error: string | undefined;
+  const searchQueriesUsed = [...new Set((input.priorSearchQueries ?? []).map((query) => String(query).trim()).filter(Boolean))];
   const intelligence = new ResearchIntelligenceEngine({ executionId, target: input.targetName, objective: input.objective || `Research ${input.targetName}` });
   const durableIntelligence = await loadDurableIntelligenceState(input.caseId);
   if (durableIntelligence) intelligence.restoreContext(durableIntelligence);
@@ -99,11 +100,13 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     const remaining = deadline - Date.now();
     if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, error: `hard timeout ${requestedHardTimeout}ms`, executionId };
     const perActTimeout = Math.max(30_000, Math.min(55_000, remaining));
-    const actInput: RunInput = { ...input, cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, records), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); return !job || job.status !== "running"; }, onLiveStep: (step) => input.onLiveStep?.(step) };
+    const actInput: RunInput = { ...input, cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, records), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); return !job || job.status !== "running"; }, onLiveStep: (step) => input.onLiveStep?.(step) };
     const actResult = await core.runAgenticWebResearch(actInput);
     model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error;
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
     if (raw) {
+      if (raw.action === "web_search" && typeof raw.args?.query === "string") searchQueriesUsed.push(raw.args.query);
+      if (raw.action === "parallel_web_search" && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
       const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, { ...raw, turn: actionTurn }]) };
       recordResult(intelligence, normalizedRecord, records);
       records = [...records, normalizedRecord];
