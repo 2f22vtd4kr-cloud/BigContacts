@@ -204,7 +204,7 @@ export class ResearchIntelligenceEngine {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
     const newHostCount = this.countNewHosts(urls);
     // Only a positively completed tool execution can contribute positive findings. An errored/failed tool result may be recorded as a negative finding, but it can never become a finding/contact merely because a caller supplied model output alongside the failure.
-    const findings = input.execution === "success" ? (input.findings ?? []) : [];
+    const findings = input.execution === "success" && !["web_search", "parallel_web_search"].includes(input.action) ? (input.findings ?? []) : [];
     let useful = false;
     for (const finding of findings) {
       const value = String(finding.value ?? "").trim();
