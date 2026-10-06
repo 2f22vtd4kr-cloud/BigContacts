@@ -104,7 +104,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error;
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
     if (raw) {
-      const normalizedRecord = { ...raw, turn: actionTurn };
+      const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, { ...raw, turn: actionTurn }]) };
       recordResult(intelligence, normalizedRecord, records);
       records = [...records, normalizedRecord];
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
@@ -242,7 +242,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
 
          if (raw) {
-           const normalizedRecord = { ...raw, turn: actionTurn };
+           const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, { ...raw, turn: actionTurn }]) };
            const groundedTerminalFindings = raw.action === "done"
              ? groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord])
              : [];
