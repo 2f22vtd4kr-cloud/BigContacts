@@ -196,7 +196,15 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     "A good next move should maximize expected information gain, identity discrimination, source independence, or contact relevance relative to cost.",
   ].join("\n"));
 
-  sections.push("LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)"));
+  if (records.length) {
+    const latestRecord = records[records.length - 1];
+    sections.push(
+      "LATEST TRAJECTORY RECORD (must remain visible to the next Investigator)\n" +
+      compactRecord(latestRecord, budget.recentObservationChars, Math.min(900, Math.max(700, Math.floor(budget.maxChars * 0.18)))),
+    );
+  } else {
+    sections.push("LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)"));
+  }
 
   if (recent.length) {
     sections.push(
