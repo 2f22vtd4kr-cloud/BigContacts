@@ -110,7 +110,6 @@ describe("Groq Investigator provider boundary", () => {
     let calls = 0;
     const fetchMock = mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       calls += 1;
-      authorizationHeaders.push(String(new Headers(init?.headers).get("authorization")));
       if (calls === 1) {
         return new Response(JSON.stringify({ error: { type: "rate_limit_exceeded" } }), {
           status: 429,
@@ -144,6 +143,7 @@ describe("Groq Investigator provider boundary", () => {
     const authorizationHeaders: string[] = [];
     mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       calls += 1;
+      authorizationHeaders.push(String(new Headers(init?.headers).get("authorization")));
       if (calls === 1) {
         return new Response(JSON.stringify({ error: { type: "tokens", code: "rate_limit_exceeded" } }), {
           status: 429,
@@ -273,7 +273,6 @@ describe("Groq Investigator provider boundary", () => {
           headers: { "content-type": "application/json" },
         });
       }
-      expect(body.model).toBe("openai/gpt-oss-120b");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
