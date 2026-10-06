@@ -51,6 +51,15 @@ describe("Groq Investigator runtime contract", () => {
     expect(rankGroqModelsForTask(models, "final_adjudication")[0]).toBe("openai/gpt-oss-120b");
   });
 
+  it("keeps the active Groq Investigator models on the same structured action contract", () => {
+    for (const model of ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"]) {
+      const body = buildGroqInvestigatorRequestBody({ model, prompt: "choose the next research action", cognitiveTask: "identity_resolution" });
+      expect(body.model).toBe(model);
+      expect(body.response_format).toBeDefined();
+      expect(body).not.toHaveProperty("reasoning_format");
+    }
+  });
+
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
     expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2"]);
     expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
