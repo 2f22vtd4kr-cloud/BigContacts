@@ -25,6 +25,7 @@ const checks = [
   ["canonical Atlas fails closed on invalid Right-hand oversight JSON", /rightHandRaw\.status === ["\']completed["\'][\s\S]{0,800}JSON\.parse/.test(atlas)],
   ["discovery-only completion requires Investigator terminal done", /discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE"/.test(atlas)],
   ["resource-limited discovery remains reviewable", /durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" \? "complete" : "review"/.test(atlas)],
+  ["full Atlas completion requires evidence-backed Investigator terminal state", /const evidenceBackedTerminal =/.test(atlas)&&/const finalIncomplete = investigatorResourceLimited \|\| priorAction !== "stop" \|\| !evidenceBackedTerminal/.test(atlas)],
 ];
 let failed = false; for (const [label, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (!ok) failed = true; }
 if (failed) { console.error("Atlas control durability guard failed."); process.exit(1); }
