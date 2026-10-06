@@ -7,17 +7,20 @@ describe("target-act oversight prompt compaction", () => {
       turn: 7,
       model: "groq-investigator-1",
       action: "visit",
-      args: { url: "https://example.com", purpose: "verify identity", extra: "ignored" },
+      args: { url: "https://example.com", purpose: "verify identity", extra: "ignored", giant: "A".repeat(5_000) },
       execution: "success",
-      observation: "OBSERVATION ".repeat(5_000),
+      observation: "DECISIVE_HEAD " + "X".repeat(5_000) + " DECISIVE_TAIL",
       observedUrls: ["https://example.com/page", "https://example.com/other"],
-      findings: Array.from({ length: 30 }, (_, i) => ({ value: "finding-" + i })),
+      findings: Array.from({ length: 30 }, (_, i) => ({ value: "finding-" + i + " " + "V".repeat(1_000), note: "N".repeat(1_000), sourceUrls: ["https://example.com/source/" + i] })),
       providerFallback: [],
       stopReason: undefined,
     });
-    expect(JSON.stringify(compact).length).toBeLessThan(4_000);
+    expect(JSON.stringify(compact).length).toBeLessThan(6_000);
     expect(compact.action).toBe("visit");
     expect(compact.observedUrls).toContain("https://example.com/page");
+    expect(String(compact.observation)).toContain("DECISIVE_HEAD");
+    expect(String(compact.observation)).toContain("DECISIVE_TAIL");
+    expect(JSON.stringify(compact)).not.toContain("V".repeat(900));
   });
 
   it("bounds shared case context before it is sent to per-act control models", () => {
