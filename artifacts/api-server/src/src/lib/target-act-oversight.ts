@@ -16,7 +16,18 @@ function compactOversightArgs(args: Record<string, unknown>): Record<string, unk
   return Object.fromEntries(ranked.slice(0, 6));
 }
 
-function compactOversightText(value: string | undefined, max: number): string | null {\n  if (typeof value !== "string") return null;\n  const normalized = value.trim();\n  if (normalized.length <= max) return normalized;\n  const marker = "\\n[ACT OBSERVATION MIDDLE OMITTED; DURABLE ACT RETAINS IT]\\n";\n  const available = Math.max(0, max - marker.length);\n  const head = Math.ceil(available * 0.55);\n  const tail = Math.max(0, available - head);\n  return normalized.slice(0, head).trimEnd() + marker + (tail > 0 ? normalized.slice(-tail).trimStart() : "");\n}\n\nfunction compactOversightFindings(findings: unknown[]): unknown[] {
+function compactOversightText(value: string | undefined, max: number): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  if (normalized.length <= max) return normalized;
+  const marker = "\n[ACT OBSERVATION MIDDLE OMITTED; DURABLE ACT RETAINS IT]\n";
+  const available = Math.max(0, max - marker.length);
+  const head = Math.ceil(available * 0.55);
+  const tail = Math.max(0, available - head);
+  return normalized.slice(0, head).trimEnd() + marker + (tail > 0 ? normalized.slice(-tail).trimStart() : "");
+}
+
+function compactOversightFindings(findings: unknown[]): unknown[] {
   if (findings.length <= 6) return findings;
   return [...findings.slice(0, 3), "[MIDDLE FINDINGS OMITTED; DURABLE ACT RETAINS THEM]", ...findings.slice(-2)];
 }
