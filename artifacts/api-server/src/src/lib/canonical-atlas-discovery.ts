@@ -355,6 +355,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await clearActiveJobIfOwned(lockKey, atlasJobId);
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
       }
+      finalControlAction = decision.action;
       if (decision.action === "stop") break;
       priorAction = decision.action; priorCandidate = decision.candidateName;
       if (decision.action === "research_candidate" || decision.action === "revisit_candidate") {
