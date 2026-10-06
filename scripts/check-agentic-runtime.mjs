@@ -15,7 +15,7 @@ assert(/include_reasoning:\s*false/.test(source) && !/reasoning_format:\s*"hidde
 assert(/targetType:\s*\{/.test(source) && /profile:\s*\{/.test(source) && /locale:\s*\{/.test(source) && /market:\s*\{/.test(source), "strict Investigator action schema exposes all parsed action fields");
 assert(/inferResearchCognitiveTask/.test(source) && /const cognitiveTask = input\.cognitiveTask \?\? inferResearchCognitiveTask/.test(source), "Investigator reasoning mode is routed from live cognitive state");
 assert(/const MAX_ITER = 64/.test(source), "Investigator iteration count has the bounded runtime ceiling");
-assert(/Math\.min\(requestedIterations,\s*MAX_ITER\)/.test(source), "caller input is bounded by the runtime action ceiling");
+assert(/Math\.min\(Math\.max\(0, requestedIterations\), MAX_ITER\)/.test(source), "caller input is bounded by the runtime action ceiling");
 assert(/Math\.min\(Math\.max\(0, requestedIterations\), MAX_ITER\)/.test(source), "caller iteration input is clamped fail-closed to the bounded runtime action ceiling");
 assert(/new AbortController\(\)/.test(source) && /input\.signal\?\.addEventListener\("abort", abortExternal/.test(source), "run-scoped cancellation is wired");
 assert(/setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/.test(source), "hard timeout aborts the run");
