@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const target = path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
-const source = fs.readFileSync(target, "utf8");
+const source = fs.readFileSync(target, "utf8");\nconst telemetry = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/agentic-llm-telemetry.ts"), "utf8");
 
 const required = [
   'from "./agentic-llm-telemetry"',
@@ -14,14 +14,14 @@ const required = [
   "response.status === 429",
   "investigatorCapabilityKeyName(selectedInvestigatorLlm)",
   "fallback: []",
-  "investigatorCapabilityKeyName(investigatorCapability)",
+  "investigatorCapabilityKeyName(investigatorCapability)",\n  "promptTokens: data.usage?.prompt_tokens",\n  "cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens",
 ];
 for (const marker of required) {
   if (!source.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: missing ${marker}`);
 }
 
 const telemetryCount = (source.match(/recordAgenticLlmAttempt\(\{/g) || []).length;
-if (telemetryCount < 2) throw new Error(`agentic LLM efficiency guard failed: expected provider success+failure telemetry, found ${telemetryCount}`);
+if (!/promptTokens\?: number/.test(telemetry) || !/cachedPromptTokens\?: number/.test(telemetry)) throw new Error("agentic LLM efficiency guard failed: token telemetry fields are missing");\n\nif (telemetryCount < 2) throw new Error(`agentic LLM efficiency guard failed: expected provider success+failure telemetry, found ${telemetryCount}`);
 
 // Provider choice is fixed by the Boss-selected Investigator adapter.
 // Routing may choose among Groq models, but it must never change provider role.
