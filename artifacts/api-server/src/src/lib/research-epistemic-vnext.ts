@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { isAggregatorHost } from "./source-corroboration";
 
 export type ThinkingLevel = "minimal" | "low" | "medium" | "high";
 export type SourceSpan = { text: string; start: number; end: number; subjectMatched: boolean; valueMatched: boolean; exact: boolean };
@@ -50,6 +51,7 @@ export class SourceLineageGraph {
     for (const rootId of roots) {
       const root = this.nodes.get(rootId);
       if (!root) continue;
+      if (isAggregatorHost(root.host)) continue;
       independentPublishers.add(root.publisher?.trim().toLowerCase() || root.host.trim().toLowerCase());
     }
     return independentPublishers.size;
