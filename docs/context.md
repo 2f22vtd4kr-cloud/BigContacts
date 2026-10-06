@@ -1,7 +1,7 @@
 # Apex Atlas / BigContacts — Living Context
 
 > **Updated:** 2026-10-06  
-> **Canonical branch:** `main)  
+> **Canonical branch:** `main`  
 > **Status:** active architecture handoff; static correctness is not production/live-research certification.
 
 ## 1. Current architecture
@@ -170,7 +170,7 @@ ZENROWS_API_KEY
 
 Additional role-scoped Groq Boss, Right-hand, and Investigator suffix slots may be configured and are handled by their runtime registries. They are separate capabilities/credentials, not aliases for the base key.
 
-Never request or print GitHub credentials, `DATABASE_URL), retired Gemini/Mistral/DeepSeek control-plane credentials, WHOIS/WHOXY credentials, or secret values in chat.
+Never request or print GitHub credentials, `DATABASE_URL`, retired Gemini/Mistral/DeepSeek control-plane credentials, WHOIS/WHOXY credentials, or secret values in chat.
 
 ## 11. Research-quality program
 
