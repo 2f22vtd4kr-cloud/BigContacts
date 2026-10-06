@@ -39,8 +39,8 @@ export function compactOversightAct(record:ActRecord):Record<string,unknown>{
     action: record.action,
     args: compactOversightArgs(record.args ?? {}),
     execution: record.execution,
-    observation: typeof record.observation === "string" ? record.observation.slice(0, 2_200) : null,
-    observedUrls: record.observedUrls.slice(0, 6),
+    observation: compactOversightText(record.observation, 2_200),
+    observedUrls: headTail(record.observedUrls, 6),
     findings: compactOversightFindings(record.findings),
     stopReason: record.stopReason ?? null,
   };
