@@ -77,6 +77,13 @@ describe("research epistemic vNext", () => {
     expect(graph.independentUnitCount([first.sourceId, second.sourceId, other.sourceId])).toBe(2);
   });
 
+  it("does not count known aggregator hosts as independent terminal sources", () => {
+    const graph = new SourceLineageGraph();
+    const aggregator = graph.register({ canonicalUrl: "https://crunchbase.com/profile/example", host: "crunchbase.com", originSourceId: null, publisher: null, citedSourceIds: [], contentFingerprint: "aggregator" });
+    const primary = graph.register({ canonicalUrl: "https://company.example/team/jane", host: "company.example", originSourceId: null, publisher: null, citedSourceIds: [], contentFingerprint: "primary" });
+    expect(graph.independentUnitCount([aggregator.sourceId, primary.sourceId])).toBe(1);
+  });
+
   it("rejects terminal completion when evidence requirements are not met", () => {
     const result = evaluateTerminalGate(
       { evidenceCount: 2, independentSourceUnits: 1, exactSpanBindings: 1, openQuestions: 1, highSeverityContradictions: 0, falsificationSatisfied: false },
