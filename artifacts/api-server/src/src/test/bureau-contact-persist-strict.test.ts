@@ -10,7 +10,15 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: {},
 }));
 
-import { observedSourceBackedBureauContacts, sourceBackedBureauContacts } from "../lib/bureau-contact-persist-strict";
+import { isAcceptedImmutablePromotionControlRole, observedSourceBackedBureauContacts, sourceBackedBureauContacts } from "../lib/bureau-contact-persist-strict";
+
+describe("canonical immutable promotion control role", () => {
+  it("accepts canonical Groq oversight and retains legacy Gemini compatibility", () => {
+    expect(isAcceptedImmutablePromotionControlRole("groq_boss")).toBe(true);
+    expect(isAcceptedImmutablePromotionControlRole("gemini_boss")).toBe(true);
+    expect(isAcceptedImmutablePromotionControlRole("right_hand")).toBe(false);
+  });
+});
 
 describe("strict bureau contact persistence boundary", () => {
   it("drops findings with no source URL", () => {
