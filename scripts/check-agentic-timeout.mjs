@@ -11,7 +11,7 @@ const ok =
   source.includes("clearTimeout(timer)") &&
   source.includes("runController.abort()") &&
   source.includes("const MAX_ITER = 64") &&
-  source.includes("Math.min(requestedIterations, MAX_ITER)") &&
+  source.includes("Math.min(Math.max(0, requestedIterations), MAX_ITER)") &&
   pkg.scripts?.build?.includes("check-agentic-timeout-abort-safety.mjs");
 
 if (!ok) {
