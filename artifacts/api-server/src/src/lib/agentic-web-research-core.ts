@@ -39,7 +39,6 @@ function isSafeHttpUrl(value: string): boolean { return /^https?:\/\//i.test(val
 function normalizedUrl(value: string): string | null { try { const u = new URL(value); return /^https?:$/i.test(u.protocol) ? u.href : null; } catch { return null; } }
 
 const DISCOVERY_FAME_TERMS = /\b(?:billionaire|billionaires|richest|wealthiest|celebrity|celebrities|famous|forbes|bloomberg|net[ -]?worth|top[ -]?richest)\b/i;
-const DISCOVERY_GEOGRAPHY_TERMS = /\b(?:slovenia|slovenian|croatia|croatian|austria|austrian|italy|italian|germany|german|france|french|switzerland|swiss|spain|spanish|portugal|portuguese|netherlands|dutch|belgium|belgian|luxembourg|uk|united kingdom|britain|british|ireland|irish|norway|norwegian|sweden|swedish|denmark|danish|finland|finnish|iceland|poland|polish|czech|slovakia|slovak|estonia|latvia|lithuania|united states|usa|canada|australia|new zealand|japan|japanese|south korea|singapore|uae|dubai)\b/i;
 const DISCOVERY_ROLE_TERMS = /\b(?:founder|co[ -]?founder|owner|operator|ceo|chief executive|director|managing director|chairman|chairwoman|chair|principal|partner|managing partner|general partner|president|shareholder|beneficial owner|officer|board)\b/i;
 const DISCOVERY_SECTOR_TERMS = /\b(?:casino|gaming|gambling|hotel|resort|hospitality|restaurant|construction|manufacturing|software|technology|saas|fintech|healthcare|pharma|biotech|logistics|shipping|aviation|real estate|property|energy|industrial|automotive|retail|food|beverage|media|telecom|investment|private equity|venture capital|family office|asset management|insurance|banking|agriculture|tourism|travel)\b/i;
 const DISCOVERY_SOURCE_TERMS = /(?:\b(?:site:|registry|registr(?:y|ies)|filing|filings|annual report|press release|trade publication|business journal|interview|company profile|team page|official)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i;
@@ -49,10 +48,12 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
   if (priorQueries.some((prior) => normalizeDiscoverySearchQuery(prior) === normalized)) return { allowed: false, reason: "Duplicate discovery search query blocked; pivot using new evidence or a different hypothesis." };
-  const geography = DISCOVERY_GEOGRAPHY_TERMS.test(normalized), role = DISCOVERY_ROLE_TERMS.test(normalized), sector = DISCOVERY_SECTOR_TERMS.test(normalized), source = DISCOVERY_SOURCE_TERMS.test(normalized), organization = DISCOVERY_ORG_TERMS.test(normalized), fame = DISCOVERY_FAME_TERMS.test(normalized);
-  const concreteSignals = Number(geography) + Number(role) + Number(sector) + Number(source) + Number(organization);
-  if (fame && concreteSignals < 2) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete business, sector, geography, role, registry, or source anchor before searching." };
-  if (concreteSignals < 2) return { allowed: false, reason: "Discovery search is underspecified. Choose a concrete sector/business context plus a geography, role, named organization, source type, or registry before spending a search call." };
+  const role = DISCOVERY_ROLE_TERMS.test(normalized), sector = DISCOVERY_SECTOR_TERMS.test(normalized), source = DISCOVERY_SOURCE_TERMS.test(normalized), organization = DISCOVERY_ORG_TERMS.test(normalized), fame = DISCOVERY_FAME_TERMS.test(normalized);
+  const concreteSignals = Number(role) + Number(sector) + Number(source) + Number(organization);
+  const tokenCount = normalized.split(/\s+/).filter(Boolean).length;
+  const hasConcreteAnchor = source || organization;
+  if (fame && !hasConcreteAnchor) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete named organization, geography, business context, registry, or source anchor before searching." };
+  if (concreteSignals < 1 || tokenCount < 2) return { allowed: false, reason: "Discovery search is underspecified. Add a concrete business/sector/role plus a named context, geography, organization, source type, or registry before spending a search call." };
   return { allowed: true };
 }
 export type BoundModelFinding = { finding: AgenticFinding; sourceUrl: string; sourceRecord: AgenticTrajectoryRecord; passage: string };
