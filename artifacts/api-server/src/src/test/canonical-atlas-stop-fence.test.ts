@@ -48,4 +48,11 @@ describe("canonical Atlas stop fence", () => {
     expect(source).toContain("refusing Boss opening event after cancellation");
     expect(source).toContain("refusing Right-hand opening event after cancellation");
   });
+
+  it("keeps discovery lock cleanup inside the claim-owned failure boundary", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-discovery.ts"), "utf8");
+    expect(source).toContain("await setActiveJob("case-bureau-discovery", jobId);");
+    expect(source).toContain("await releaseCanonicalJob("atlas-run", jobId).catch");
+    expect(source).toContain("try {");
+  });
 });
