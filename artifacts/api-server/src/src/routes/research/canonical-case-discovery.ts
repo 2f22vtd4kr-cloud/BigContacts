@@ -28,11 +28,27 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   if (existingJobId) { const existing = await getJob(existingJobId); if (existing?.status === "running" || existing?.status === "queued") { res.status(409).json({ error: "A bureau discovery investigation is already running.", jobId: existingJobId }); return; } }
   const activeAtlasJobId = await getActiveJob("atlas-run");
   if (activeAtlasJobId) { const activeAtlasJob = await getJob(activeAtlasJobId); if (activeAtlasJob?.status === "running" || activeAtlasJob?.status === "queued") { res.status(409).json({ error: "A canonical Atlas investigation is already running.", jobId: activeAtlasJobId }); return; } }
-  const jobId = await createJob("case-bureau-discovery");
-  const atlasClaimed = await claimCanonicalJob("atlas-run", jobId);
-  if (!atlasClaimed) { await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Canonical discovery launch rejected: another Atlas instance owns the distributed execution lock.", finishedAt: new Date().toISOString() }); res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId }); return; }
+  let jobId: string | null = null;
+  let atlasClaimed = false;
   try {
+    jobId = await createJob("case-bureau-discovery");
+    atlasClaimed = await claimCanonicalJob("atlas-run", jobId);
+    if (!atlasClaimed) {
+      await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Canonical discovery launch rejected: another Atlas instance owns the distributed execution lock.", finishedAt: new Date().toISOString() });
+      res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId });
+      return;
+    }
     await setActiveJob("case-bureau-discovery", jobId);
+  } catch (error) {
+    if (jobId) {
+      await updateJob(jobId, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Canonical discovery lock acquisition failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
+      await clearActiveJobIfOwned("case-bureau-discovery", jobId).catch(() => undefined);
+      if (atlasClaimed) await releaseCanonicalJob("atlas-run", jobId).catch(() => undefined);
+    }
+    res.status(503).json({ error: error instanceof Error ? error.message : "Canonical discovery lock acquisition failed.", jobId });
+    return;
+  }
+  try {
     await db.transaction(async (tx) => {
       const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
       if (!locked || locked.caseType !== "discovery") throw new Error("Discovery case disappeared or changed type before job binding.");
