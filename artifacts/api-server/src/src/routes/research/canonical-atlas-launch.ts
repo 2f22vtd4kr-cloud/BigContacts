@@ -14,7 +14,12 @@ const router = Router();
 
 async function fenceStaleCanonicalCases(currentJobId: string): Promise<void> {
   await db.update(researchCasesTable)
-    .set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() })
+    .set({
+      status: "review",
+      currentAction: "canonical-lease-lost",
+      caseFile: sql`jsonb_set(jsonb_set(${researchCasesTable.caseFile}::jsonb, '{atlasJobId}', to_jsonb(${currentJobId}::text), true), '{jobId}', to_jsonb(${currentJobId}::text), true)::text`,
+      updatedAt: new Date(),
+    })
     .where(and(
       eq(researchCasesTable.status, "active"),
       or(
