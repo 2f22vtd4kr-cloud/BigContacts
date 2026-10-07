@@ -4,6 +4,7 @@ import { generateGroqBossText } from "../lib/groq-boss";
 describe("Groq Boss token-window recovery", () => {
   afterEach(() => {
     delete process.env.GROQ_BOSS_API_KEY;
+    for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
     vi.restoreAllMocks();
   });
 
