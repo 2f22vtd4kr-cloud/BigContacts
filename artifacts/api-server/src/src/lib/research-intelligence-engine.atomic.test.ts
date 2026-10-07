@@ -84,7 +84,7 @@ describe("research intelligence atomic evidence", () => {
     engine.recordAction({
       turn: 2,
       action: "web_search",
-      args: { provider: "tavily", query: "Ada Example company" },
+      args: { provider: "tavily", query: "Ada Example founder" },
       execution: "success",
       observation: "A different organization appears in the result set.",
       urls: ["https://two.example/other"],
