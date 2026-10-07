@@ -44,6 +44,9 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     expect(oversight).toContain("jobId:jobId??null");
     expect(oversight).toContain("target-oversight:case:");
     expect(oversight).toContain(":job:");
+    expect(oversight).toContain("persistActOversight(input.caseId,input.controlTurn,input.act,unavailable,runId,input.intelligenceState,input.jobId)");
+    expect(strictPersist).toContain("await db.transaction(async(tx)=>");
+    expect(strictPersist).toContain(".for("update")");
   });
 
   it("binds promoted contact provenance to both job ownership and the supporting observed source", () => {
