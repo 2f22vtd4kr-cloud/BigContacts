@@ -86,6 +86,23 @@ async function assertAtlasJobActive(jobId: string): Promise<void> {
   if (job.status === "failed") throw new Error("Canonical Atlas job already failed; refusing further control-plane work.");
 }
 
+async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number): Promise<void> {
+  const job = await getJob(jobId);
+  if (!job || job.status === "cancelled") {
+    await db.update(researchCasesTable)
+      .set({ status: "review", currentAction: "canonical-atlas-cancelled", updatedAt: new Date() })
+      .where(and(
+        eq(researchCasesTable.id, caseId),
+        eq(researchCasesTable.status, "active"),
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`,
+      ));
+    throw new Error("Canonical Atlas job cancelled; discovery case creation raced operator stop.");
+  }
+  if (job.status === "failed") {
+    throw new Error("Canonical Atlas job already failed; refusing further discovery control-plane work.");
+  }
+}
+
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
   const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 3) || 3)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   const discoveryObjective = opts.discoveryObjective?.trim() || "Discover real named people for subsequent target-scoped public-contact research. Start from a concrete business or operating context and a plausible geography, sector, company ecosystem, transaction, registry, filing, trade publication, official company surface, or other evidence-bearing anchor selected from the live case objective. Avoid defaulting to celebrities, billionaire/richest-person lists, generic wealth searches, or context-free famous names. Write each search from the current hypothesis and observed evidence, pivot when results are generic or repetitive, and choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.";
@@ -159,25 +176,49 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       investigatorLlm: boss.investigatorLlm,
       directorModel: boss.model,
     });
-    await assertAtlasJobActive(atlasJobId);
-    await db.insert(researchCaseEventsTable).values({
-      caseId: discoveryCaseId,
-      iteration: 0,
-      actorRole: "groq_boss",
-      eventType: "assignment",
-      status: "recorded",
-      summary: "Groq Boss opened the canonical Atlas discovery case and selected the Investigator.",
-      correlationKey: `${atlasJobId}:boss-opening`,
-      payload: JSON.stringify({
-        jobId: atlasJobId,
-        investigatorLlm: boss.investigatorLlm,
-        model: boss.model,
-        report: boss.report,
-        nextDirections: boss.nextDirections,
-        uncertainties: boss.uncertainties,
-        mode: "discovery",
-        controlPlane: "canonical-atlas-discovery",
-      }),
+    // Case creation is separate from the Redis job state. Reconcile immediately
+    // after creation so a stop that won the check-before-create race cannot leave
+    // an active orphan discovery case.
+    await reconcileDiscoveryCaseCancellation(atlasJobId, discoveryCaseId);
+    await db.transaction(async (tx) => {
+      // Serialize the opening event against the durable cancellation fence.
+      // Whichever transaction acquires the case row first wins the ordering;
+      // a cancelled case can never receive a new opening event afterward.
+      const [lockedCase] = await tx.select({
+        status: researchCasesTable.status,
+        currentAction: researchCasesTable.currentAction,
+      })
+        .from(researchCasesTable)
+        .where(eq(researchCasesTable.id, discoveryCaseId))
+        .for("update")
+        .limit(1);
+      if (
+        !lockedCase ||
+        lockedCase.status !== "active" ||
+        lockedCase.currentAction === "canonical-atlas-cancelled" ||
+        lockedCase.currentAction === "canonical-lease-lost"
+      ) {
+        throw new Error("Canonical Atlas discovery case is no longer active; refusing assignment event after cancellation.");
+      }
+      await tx.insert(researchCaseEventsTable).values({
+        caseId: discoveryCaseId,
+        iteration: 0,
+        actorRole: "groq_boss",
+        eventType: "assignment",
+        status: "recorded",
+        summary: "Groq Boss opened the canonical Atlas discovery case and selected the Investigator.",
+        correlationKey: `${atlasJobId}:boss-opening`,
+        payload: JSON.stringify({
+          jobId: atlasJobId,
+          investigatorLlm: boss.investigatorLlm,
+          model: boss.model,
+          report: boss.report,
+          nextDirections: boss.nextDirections,
+          uncertainties: boss.uncertainties,
+          mode: "discovery",
+          controlPlane: "canonical-atlas-discovery",
+        }),
+      });
     });
 
     // Boss first, independent Right-hand second. The Right-hand reviews the
