@@ -234,10 +234,8 @@ describe("Groq Right-hand model policy", () => {
 
   it("recovers from a 54.547-second token-window reset within the bounded wait and overall deadline", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-token-54547ms-test-key");
-    const timeoutSpy = vi.spyOn(globalThis, "setTimeout").mockImplementation(((handler: (...args: any[]) => void) => {
-      handler();
-      return {} as ReturnType<typeof setTimeout>;
-    }) as typeof setTimeout);
+    vi.useFakeTimers();
+    const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
 
     let chatCalls = 0;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
