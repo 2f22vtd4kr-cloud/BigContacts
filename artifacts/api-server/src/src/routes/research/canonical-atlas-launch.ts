@@ -23,7 +23,7 @@ async function fenceStaleCanonicalCases(currentJobId: string): Promise<void> {
       eq(researchCasesTable.status, "active"),
       or(
         sql`(${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId') IS NOT NULL AND ${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' <> ${currentJobId}`,
-        sql`(${researchCasesTable.caseFile}::jsonb ->> 'caseType') = 'discovery' AND (${researchCasesTable.caseFile}::jsonb ->> 'jobId') IS NOT NULL AND ${researchCasesTable.caseFile}::jsonb ->> 'jobId' <> ${currentJobId} AND ((${researchCasesTable.caseFile}::jsonb -> 'runIds') IS NOT NULL OR (${researchCasesTable.caseFile}::jsonb ->> 'runId') IS NULL)`,
+        sql`(${researchCasesTable.caseFile}::jsonb ->> 'caseType') = 'discovery' AND (${researchCasesTable.caseFile}::jsonb ->> 'jobId') IS NOT NULL AND ${researchCasesTable.caseFile}::jsonb ->> 'jobId' <> ${currentJobId}`,
       ),
     ));
 }
