@@ -60,8 +60,14 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       } catch { return false; }
     });
     if (!supported) continue;
-    const existingRows = await db.select({ id: entitiesTable.id }).from(entitiesTable).where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(1);
-    const existing = existingRows[0]; let entityId = existing?.id ?? null;
+    const existingRows = await db.select({ id: entitiesTable.id, metadata: entitiesTable.metadata }).from(entitiesTable).where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(16);
+    // Never bind a common-name discovery candidate to an unrelated pre-existing entity.
+    // Materialized discovery entities carry their owning discoveryCaseId in metadata;
+    // only that durable case binding is eligible for this canonical research path.
+    const existing = existingRows.find((row) => {
+      try { const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; return Number(metadata.discoveryCaseId) === input.discoveryCaseId; } catch { return false; }
+    });
+    let entityId = existing?.id ?? null;
     if (!entityId) { const [created] = await db.insert(entitiesTable).values({ name, type: "HNWI", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId: input.discoveryCaseId }) }).returning({ id: entitiesTable.id }); entityId = created?.id ?? null; if (entityId) materialized += 1; }
     if (!entityId) continue;
     const supportingEvent = caseEvents.find((event) => { if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false; try { const payload = JSON.parse(event.payload) as { action?: string; execution?: string; observedUrls?: unknown[]; runId?: string; observation?: string }; const directSourceAction = payload.action === "visit" || payload.action === "browser_fetch"; return payload.runId === input.discoveryRunId && candidateIdentityObserved(name, payload.observation) && directSourceAction && payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => normalizeSourceUrl(String(url)) === normalizedSource); } catch { return false; } });
@@ -381,8 +387,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "research_candidate" || decision.action === "revisit_candidate") {
         await assertAtlasJobActive(atlasJobId);
         const name = decision.candidateName; if (!name) continue;
-        const [entity] = await db.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable).where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(1);
-        if (!entity) continue; if (decision.action === "research_candidate" && researchedNames.has(name.toLowerCase())) continue;
+        const entityRows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata }).from(entitiesTable).where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(16);
+        const entity = entityRows.find((row) => {
+          try { const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; return Number(metadata.discoveryCaseId) === discoveryCaseId; } catch { return false; }
+        });
+        if (!entity) { phaseSummary[`control_${controlTurns}_candidate_binding`] = `No durable entity binding for admitted candidate ${name}; refusing ambiguous same-name target research.`; continue; } if (decision.action === "research_candidate" && researchedNames.has(name.toLowerCase())) continue;
         const before = await db.select({ email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1); const beforeCard = before[0] ?? null;
         await assertAtlasJobActive(atlasJobId);
         const targetBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (targetBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for target investigation.");
