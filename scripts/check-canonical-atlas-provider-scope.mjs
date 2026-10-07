@@ -22,6 +22,8 @@ const checks = [
   [targetContinuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical target continuation must bind both control and resumed Investigator calls to the unique Atlas job scope."],
   [!/gemini/i.test(targetContinuation), "Canonical target continuation must not retain retired Gemini control labels or state transitions."],
   [!/gemini/i.test(targetControl), "Canonical target control must not retain retired Gemini control labels or state transitions."],
+  [targetControl.includes("compactControlContext(input.contextDocument)"), "Canonical target control must bound durable context before both control-plane model calls."],
+  [targetControl.includes("compactTrajectory(input.trajectoryRecords ?? [])"), "Canonical target control must use a bounded trajectory projection rather than serializing durable trajectory wholesale."],
   [investigator.includes("isLocalProviderQuotaError(error)"), "Investigator must recognize local provider-gate quota failures."],
   [investigator.includes("if (isLocalProviderQuotaError(error)) return null;"), "Investigator must stop futile same-provider fallback after a local gate block."],
   [boss.includes("isLocalProviderQuotaError(error)"), "Boss must recognize local provider-gate quota failures."],
