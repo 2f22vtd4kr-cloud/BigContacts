@@ -277,24 +277,26 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       throw new Error(`Groq Right-hand returned invalid oversight: ${rightHand.error}`);
     }
 
-    await db.insert(researchCaseEventsTable).values({
-      caseId: discoveryCaseId,
-      iteration: 0,
-      actorRole: "right_hand",
-      eventType: "observation",
-      status: "recorded",
-      summary: "Groq Right-hand reviewed the Boss opening decision before Investigator execution.",
-      correlationKey: `${atlasJobId}:right-hand-opening`,
-      payload: JSON.stringify({
-        jobId: atlasJobId,
-        bossModel: boss.model,
-        investigatorLlm: boss.investigatorLlm,
-        decision: rightHand.decision,
-        reason: rightHand.reason,
-        focusLanes: rightHand.focusLanes,
-        confidence: rightHand.confidence,
-      }),
-    });
+    await db.transaction(async (tx) => {
+      const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
+        .from(researchCasesTable)
+        .where(eq(researchCasesTable.id, discoveryCaseId))
+        .for("update")
+        .limit(1);
+      if (!lockedCase || lockedCase.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(lockedCase.currentAction ?? ""))) {
+        throw new Error("Canonical Atlas discovery case was cancelled before Right-hand opening event.");
+      }
+      await tx.insert(researchCaseEventsTable).values({
+        caseId: discoveryCaseId,
+        iteration: 0,
+        actorRole: "right_hand",
+        eventType: "observation",
+        status: "recorded",
+        summary: "Groq Right-hand reviewed the Boss opening decision before Investigator execution.",
+        correlationKey: `${atlasJobId}:right-hand-opening`,
+        payload: JSON.stringify({ jobId: atlasJobId, bossModel: boss.model, investigatorLlm: boss.investigatorLlm, decision: rightHand.decision, reason: rightHand.reason, focusLanes: rightHand.focusLanes, confidence: rightHand.confidence }),
+      });
+    }, { isolationLevel: "serializable" });
 
     await assertAtlasJobActive(atlasJobId);
     await updateJob(atlasJobId, {
@@ -303,16 +305,26 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`,
       result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }),
     });
-    await db.insert(researchCaseEventsTable).values({
-      caseId: discoveryCaseId,
-      iteration: 0,
-      actorRole: "head_investigator",
-      eventType: "assignment",
-      status: "recorded",
-      summary: "Canonical discovery Investigator mounted after Boss opening and Right-hand review.",
-      correlationKey: `${atlasJobId}:discovery-assignment`,
-      payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, mode: "discovery", controlPlane: "canonical-atlas-discovery" }),
-    });
+    await db.transaction(async (tx) => {
+      const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
+        .from(researchCasesTable)
+        .where(eq(researchCasesTable.id, discoveryCaseId))
+        .for("update")
+        .limit(1);
+      if (!lockedCase || lockedCase.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(lockedCase.currentAction ?? ""))) {
+        throw new Error("Canonical Atlas discovery case was cancelled before Investigator assignment event.");
+      }
+      await tx.insert(researchCaseEventsTable).values({
+        caseId: discoveryCaseId,
+        iteration: 0,
+        actorRole: "head_investigator",
+        eventType: "assignment",
+        status: "recorded",
+        summary: "Canonical discovery Investigator mounted after Boss opening and Right-hand review.",
+        correlationKey: `${atlasJobId}:discovery-assignment`,
+        payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, mode: "discovery", controlPlane: "canonical-atlas-discovery" }),
+      });
+    }, { isolationLevel: "serializable" });
     await assertAtlasJobActive(atlasJobId);
     const openingDiscoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (openingDiscoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for discovery Investigator.");
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: discoveryObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: openingDiscoveryBudget });
