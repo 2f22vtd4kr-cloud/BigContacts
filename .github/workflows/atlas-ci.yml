@@ -58,7 +58,7 @@ jobs:
         run: pnpm --filter @workspace/api-server typecheck
 
       - name: API regression suite (non-live)
-        run: pnpm --filter @workspace/api-server test -- --exclude src/test/smoke.test.ts
+        run: pnpm --filter @workspace/api-server test
 
       - name: API build
         run: pnpm --filter @workspace/api-server build
