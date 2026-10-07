@@ -17,8 +17,8 @@ describe("research intelligence atomic evidence", () => {
     });
     const context = engine.buildContext();
     expect(context.atomicEvidence).toHaveLength(0);
-    expect(context.facts[0]?.evidenceIds).toHaveLength(0);
-    expect(context.hypotheses[0]?.supportingEvidenceIds).toHaveLength(0);
+    expect(context.facts).toHaveLength(0);
+    expect(context.hypotheses).toHaveLength(0);
     expect(context.contacts).toHaveLength(0);
   });
 
@@ -74,8 +74,8 @@ describe("research intelligence atomic evidence", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "test", target: "Ada Example", objective: "Resolve identity" });
     engine.recordAction({
       turn: 1,
-      action: "web_search",
-      args: { provider: "serper", query: "Ada Example company" },
+      action: "visit",
+      args: { url: "https://one.example/source" },
       execution: "success",
       observation: "Ada Example founded Example Labs.",
       urls: ["https://one.example/source"],
