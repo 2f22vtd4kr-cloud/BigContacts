@@ -140,7 +140,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     if (atlasJobId) {
       await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }).catch(() => undefined);
     }
-    if (lockClaimed && atlasJobId) {
+    if (atlasJobId) {
       await releaseCanonicalJob("atlas-run", atlasJobId).catch(() => undefined);
     }
     if (!res.headersSent) res.status(503).json({ error: message, jobId: atlasJobId });
