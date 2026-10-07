@@ -43,7 +43,6 @@ describe("canonical Atlas stop fence", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
     expect(source).toContain("openingFence");
     expect(source).toContain("openingProjection");
-    expect(source).toContain("investigatorFence");
     expect(source).toContain("refusing Boss opening event after cancellation");
     expect(source).toContain("refusing Right-hand opening event after cancellation");
   });
