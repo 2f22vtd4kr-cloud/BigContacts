@@ -102,6 +102,7 @@ async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number)
   if (job.status === "failed") {
     throw new Error("Canonical Atlas job already failed; refusing further discovery control-plane work.");
   }
+  if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw new Error("Canonical Atlas lease was lost; refusing further discovery control-plane work.");
 }
 
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
