@@ -83,6 +83,7 @@ function catalogCandidates(payload:unknown):string[] {
  return [GROQ_RIGHT_HAND_MODEL,...GROQ_RIGHT_HAND_FALLBACK_MODELS].filter((m,i,a)=>available.includes(m)&&a.indexOf(m)===i);
 }
 const catalogCache=new Map<string,{expiresAt:number;models:string[]}>();
+export function resetGroqRightHandModelCatalogCacheForTests(): void { catalogCache.clear(); }
 function fingerprint(key:string){return createHash("sha256").update(key,"utf8").digest("hex");}
 async function resolveModelChain(apiKeyOverride?:string):Promise<string[]> {
  const apiKey=apiKeyOverride?.trim()||key(); if(!apiKey)return [];
