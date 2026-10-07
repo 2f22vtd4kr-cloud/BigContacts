@@ -15,7 +15,7 @@ const failures = [];
 
 function inspect(file) {
   const source = fs.readFileSync(file, "utf8");
-  if (/(?:from|import\\s*\\(|require\\s*\\()\\s*["'][^"']*(?:gemini|mistral)[^"']*["']/i.test(source)) {
+  if (/(?:from|import\s*\(|require\s*\()\s*["'][^"']*(?:gemini|mistral)[^"']*["']/i.test(source)) {
     failures.push(file);
   }
 }
@@ -25,7 +25,7 @@ function walk(dir) {
     if (entry.isDirectory()) {
       if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "test" || entry.name === "tests") continue;
       walk(full);
-    } else if (/\\.(?:ts|tsx|mts|mjs|js)$/.test(entry.name)) inspect(full);
+    } else if (/\.(?:ts|tsx|mts|mjs|js)$/.test(entry.name)) inspect(full);
   }
 }
 for (const root of roots) {
