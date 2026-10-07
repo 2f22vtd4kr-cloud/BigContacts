@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateGroqBossText } from "../lib/groq-boss";
 
 describe("Groq Boss token-window recovery", () => {
