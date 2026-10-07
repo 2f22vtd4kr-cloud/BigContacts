@@ -84,6 +84,7 @@ async function assertAtlasJobActive(jobId: string): Promise<void> {
   const job = await getJob(jobId);
   if (!job || job.status === "cancelled") throw new Error("Canonical Atlas job cancelled; refusing further control-plane work.");
   if (job.status === "failed") throw new Error("Canonical Atlas job already failed; refusing further control-plane work.");
+  if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw new Error("Canonical Atlas lease was lost; refusing further control-plane work.");
 }
 
 async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number): Promise<void> {
