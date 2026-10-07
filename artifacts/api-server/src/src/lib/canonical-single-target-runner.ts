@@ -232,6 +232,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       sharedContext: contextDocument,
       act: currentAct,
       recentActs: recentActs.slice(-4),
+      jobId: atlasJobId,
     });
     recentActs.push(currentAct);
     if (recentActs.length > 4) recentActs.splice(0, recentActs.length - 4);
