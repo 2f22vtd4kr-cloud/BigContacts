@@ -11,7 +11,7 @@ const checks = [
   ["recovery uses the existing canonical lock path", continuation.includes('claimCanonicalJob("atlas-run",jobId)')],
   ["recovery uses the durable cancellation fence", continuation.includes("cancellationFenceSql(caseId)")],
   ["recovery starts from durable shared context", continuation.includes("contextOf(file)")],
-  ["recovery validates Right-hand output before Boss", continuation.includes("validateAtlasRightHandControl(parsed)")],
+  ["recovery validates Right-hand output before Boss", continuation.includes("validateContinuationRightHand(parsed)")],
   ["recovery fails closed before Boss when Right-hand is unavailable or invalid", continuation.includes('if(rightHand.status!=="completed"||rightHand.error)') && continuation.indexOf('if(rightHand.status!=="completed"||rightHand.error)') < continuation.indexOf("const boss=await runGroqBossDiscovery")],
   ["control-unavailable recovery is parked at a recoverable canonical action", continuation.includes('code:"ATLAS_CONTROL_UNAVAILABLE"') && continuation.includes('controlUnavailable?"canonical-control-unavailable"')],
 
