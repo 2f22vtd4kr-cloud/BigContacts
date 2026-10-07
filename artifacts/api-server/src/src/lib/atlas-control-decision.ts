@@ -214,7 +214,7 @@ export function formatAtlasBossGenerationFailure(generated: { model: string; err
 }
 
 type TrajectoryRecordInput = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: string; observation?: string; observedUrls: string[]; findings: CompactionFinding[]; providerFallback?: string[]; stopReason?: string };
-export function buildAtlasControlEventPayload(input: { decision: AtlasControlDecision; controlTurn: number }): {
+export function buildAtlasControlEventPayload(input: { decision: AtlasControlDecision; controlTurn: number; jobId?: string | null }): {
   action: AtlasControlAction;
   status: AtlasControlDecision["status"];
   candidateName: string | null;
@@ -237,6 +237,7 @@ export function buildAtlasControlEventPayload(input: { decision: AtlasControlDec
     bossError: input.decision.error,
     rightHand: input.decision.rightHand,
     controlTurn: input.controlTurn,
+    jobId: input.jobId ?? null,
   };
 }
 
@@ -246,7 +247,7 @@ async function persistControlDecision(input: { caseId: number; controlTurn: numb
       const [caseRow] = await tx.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, input.caseId)).for("update").limit(1);
       if (!caseRow) throw new Error(`Atlas discovery case ${input.caseId} does not exist.`);
       if (caseRow.status !== "active") throw new Error(`Atlas discovery case ${input.caseId} is no longer active; refusing stale control persistence.`); if (input.jobId) { let durableFile: Record<string, unknown>; try { durableFile = JSON.parse(caseRow.caseFile ?? "{}") as Record<string, unknown>; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); } if (String(durableFile.jobId ?? durableFile.atlasJobId ?? "") !== input.jobId) throw new Error(`Atlas discovery case ${input.caseId} is owned by another job; refusing stale control persistence.`); }
-      const payload = buildAtlasControlEventPayload({ decision: input.decision, controlTurn: input.controlTurn });
+      const payload = buildAtlasControlEventPayload({ decision: input.decision, controlTurn: input.controlTurn, jobId: input.jobId });
       const payloadJson = JSON.stringify(payload);
       const correlationKey = `atlas-control:case:${input.caseId}:job:${input.jobId ?? "legacy"}:turn:${input.controlTurn}`;
       const [existingEvent] = await tx.select({ payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, input.caseId), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
@@ -255,7 +256,9 @@ async function persistControlDecision(input: { caseId: number; controlTurn: numb
       let caseFile: Record<string, unknown> = {};
       try { caseFile = caseRow.caseFile ? JSON.parse(caseRow.caseFile) as Record<string, unknown> : {}; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); }
       const history = Array.isArray(caseFile.atlasControlDecisions) ? caseFile.atlasControlDecisions : [];
-      if (!history.some((item) => item && typeof item === "object" && (item as Record<string, unknown>).controlTurn === input.controlTurn)) history.push({ ...payload, recordedAt: new Date().toISOString() });
+      const sameProjection = history.find((item) => item && typeof item === "object" && Number((item as Record<string, unknown>).controlTurn) === input.controlTurn);
+      if (sameProjection && String((sameProjection as Record<string, unknown>).jobId ?? "") !== String(input.jobId ?? "")) throw new Error(`Atlas control projection replay collision for case ${input.caseId}, turn ${input.controlTurn}.`);
+      if (!sameProjection) history.push({ ...payload, recordedAt: new Date().toISOString() });
       history.splice(0, Math.max(0, history.length - 32));
       caseFile.atlasControlDecisions = history;
       await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(caseFile), updatedAt: new Date() }).where(eq(researchCasesTable.id, input.caseId));
