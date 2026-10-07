@@ -19,6 +19,7 @@ const checks = [
   [providerGate.includes('APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE",80,1,80'), "Atlas scope budget must remain bounded at 80 by default/max."],
   [launch.includes("withProviderScope(`atlas-run:${atlasJobId}`"), "Canonical launch must bind all provider calls to the unique Atlas job scope."],
   [continuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical continuation/recovery must bind provider calls to the unique Atlas job scope."],
+  [continuation.includes("validateContinuationRightHand"), "Canonical discovery continuation must validate its own Right-hand response schema rather than reuse the Atlas control schema."],
   [targetContinuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical target continuation must bind both control and resumed Investigator calls to the unique Atlas job scope."],
   [targetContinuation.includes("latestControlTurn"), "Canonical target continuation must derive control turns from durable target-control history so continuation runs remain monotonic."],
   [!/gemini/i.test(targetContinuation), "Canonical target continuation must not retain retired Gemini control labels or state transitions."],
