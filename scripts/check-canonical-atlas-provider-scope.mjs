@@ -41,7 +41,7 @@ const checks = [
   [boss.includes('provider: "groq"'), "Canonical Boss provider must be Groq."],
   [rightHand.includes('provider: "groq"'), "Canonical Right-hand provider must be Groq."],
   [/if \(response\.status === 429\) \{[\s\S]*?\n\s*break;\n\s*\}/.test(boss), "Groq Boss HTTP 429 handling must fall through to the bounded model/key fallback chain rather than terminate the whole control call."],
-  [/if\(response\.status===429&&hardRateLimit[\s\S]*?\n\s*failures\.push\(diagnostic\);break;\}/.test(rightHand), "Groq Right-hand hard HTTP 429 handling must fall through to the bounded model/key fallback chain rather than terminate the whole control call."],
+  [(() => { const start = rightHand.indexOf("if(response.status===429&&hardRateLimit"); const end = rightHand.indexOf("if(response.status===429&&retry429", start); const block = start >= 0 && end > start ? rightHand.slice(start, end) : ""; return block.includes("failures.push(diagnostic);break;"); })(), "Groq Right-hand hard HTTP 429 handling must fall through to the bounded model/key fallback chain rather than terminate the whole control call."],
   [rightHand.includes('if(response.status===429)break;'), "Groq Right-hand generic HTTP 429 handling must advance to the next bounded candidate after its retry budget is exhausted."],
   [!rightHand.includes('withProviderScope("atlas-right-hand"'), "Right-hand transport must preserve the caller's canonical Atlas provider scope rather than replacing it with a shared scope."],
   [investigator.includes("getAvailableInvestigatorCapabilities") && investigator.includes("investigatorCapabilityKeyName"), "Canonical Investigator selection must use the runtime capability registry."],
