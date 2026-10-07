@@ -20,7 +20,7 @@ const checks = [
   ["control decision records control turn", /controlTurn:\s*input\.controlTurn/.test(control)],
   ["control decision persistence is transactional", /await db\.transaction\(async \(tx\) =>/.test(control) && /await tx\.insert\(researchCaseEventsTable\)/.test(control) && /await tx\.update\(researchCasesTable\)/.test(control)],
   ["control case row is locked while persisting", /\.from\(researchCasesTable\)\.where\(eq\(researchCasesTable\.id, input\.caseId\)\)\.for\(\"update\"\)/.test(control)],
-  ["control replay uses an exact case/turn correlation key", /atlas-control:case:\$\{input\.caseId\}:turn:\$\{input\.controlTurn\}/.test(control)],
+  ["control replay uses an exact case/job/turn correlation key", /atlas-control:case:\$\{input\.caseId\}:job:\$\{input\.jobId \?\? "legacy"\}:turn:\$\{input\.controlTurn\}/.test(control)],
   ["control replay collision is fail-closed", /Atlas control replay collision/.test(control) && /existingEvent\.payload !== payloadJson/.test(control)],
   ["control decision persistence catches storage failure", /catch\s*\(error\).*logger\.error[\s\S]*return false/.test(control)],
   ["control decision persistence exposes durable failure", /Failed to persist Atlas control decision/.test(control)],
