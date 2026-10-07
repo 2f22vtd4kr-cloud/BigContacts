@@ -102,7 +102,7 @@ describe("Apex Atlas prompt budget optimization", () => {
     });
     expect(right.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_PROMPT_BUDGET);
     expect(boss.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
-    expect(right.length).toBeLessThan(12_000);
-    expect(boss.length).toBeLessThan(12_000);
+    expect(right.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_PROMPT_BUDGET);
+    expect(boss.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
   });
 });
