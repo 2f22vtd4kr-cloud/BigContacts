@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
 import { createJob, getActiveJob, getJob, setActiveJob, clearActiveJobIfOwned, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
@@ -79,7 +79,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         lockKey: "case-bureau-discovery",
       }));
     } catch {
-      await db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-discovery-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+      await db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-discovery-error", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`));
       await clearActiveJobIfOwned("case-bureau-discovery", jobId!);
     } finally {
       await releaseCanonicalJob("atlas-run", jobId!).catch(() => undefined);
