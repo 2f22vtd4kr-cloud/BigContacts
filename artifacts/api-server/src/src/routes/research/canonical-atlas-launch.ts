@@ -36,6 +36,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         code: "DATABASE_SCHEMA_INCOMPATIBLE",
         missingTables: schema.missingTables,
         missingColumns: schema.missingColumns,
+        missingInvariants: schema.missingInvariants,
         remediation: "Run the repository's explicit schema initialization command, then restart the canonical API workflow.",
       });
       return;
