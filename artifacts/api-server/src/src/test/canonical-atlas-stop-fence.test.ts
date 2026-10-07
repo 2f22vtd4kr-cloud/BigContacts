@@ -51,8 +51,14 @@ describe("canonical Atlas stop fence", () => {
 
   it("keeps discovery lock cleanup inside the claim-owned failure boundary", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-discovery.ts"), "utf8");
-    expect(source).toContain("await setActiveJob("case-bureau-discovery", jobId);");
-    expect(source).toContain("await releaseCanonicalJob("atlas-run", jobId).catch");
+    expect(source).toContain('await setActiveJob("case-bureau-discovery", jobId);');
+    expect(source).toContain('await releaseCanonicalJob("atlas-run", jobId).catch');
     expect(source).toContain("try {");
+  });
+
+  it("releases the target continuation lock if active-job binding fails", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-target-continuation.ts"), "utf8");
+    expect(source).toContain('await setActiveJob("atlas-run", jobId);');
+    expect(source).toContain('await releaseCanonicalJob("atlas-run", jobId).catch');
   });
 });
