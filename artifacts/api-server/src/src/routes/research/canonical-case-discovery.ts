@@ -31,8 +31,8 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   const jobId = await createJob("case-bureau-discovery");
   const atlasClaimed = await claimCanonicalJob("atlas-run", jobId);
   if (!atlasClaimed) { await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Canonical discovery launch rejected: another Atlas instance owns the distributed execution lock.", finishedAt: new Date().toISOString() }); res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId }); return; }
-  await setActiveJob("case-bureau-discovery", jobId);
   try {
+    await setActiveJob("case-bureau-discovery", jobId);
     await db.transaction(async (tx) => {
       const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
       if (!locked || locked.caseType !== "discovery") throw new Error("Discovery case disappeared or changed type before job binding.");
