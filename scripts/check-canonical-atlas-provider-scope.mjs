@@ -20,6 +20,7 @@ const checks = [
   [launch.includes("withProviderScope(`atlas-run:${atlasJobId}`"), "Canonical launch must bind all provider calls to the unique Atlas job scope."],
   [continuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical continuation/recovery must bind provider calls to the unique Atlas job scope."],
   [targetContinuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical target continuation must bind both control and resumed Investigator calls to the unique Atlas job scope."],
+  [targetContinuation.includes("latestControlTurn"), "Canonical target continuation must derive control turns from durable target-control history so continuation runs remain monotonic."],
   [!/gemini/i.test(targetContinuation), "Canonical target continuation must not retain retired Gemini control labels or state transitions."],
   [!/gemini/i.test(targetControl), "Canonical target control must not retain retired Gemini control labels or state transitions."],
   [targetControl.includes("compactControlContext(input.contextDocument)"), "Canonical target control must bound durable context before both control-plane model calls."],
