@@ -28,11 +28,11 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     expect(targetRunner).toContain("caseFile}::jsonb ->> 'atlasJobId'");
     expect(targetRunner).toContain("currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')");
     const launch = read("src/src/routes/research/canonical-atlas-launch.ts");
-    expect(launch).toContain("currentAction: "canonical-lease-lost"");
+    expect(launch).toContain('currentAction: "canonical-lease-lost"');
     expect(launch).not.toContain("'{atlasJobId}', to_jsonb");
     expect(launch).toContain("caseFile}::jsonb ->> 'jobId'");
     const discoveryRoute = read("src/src/routes/research/canonical-case-discovery.ts");
-    expect(discoveryRoute).toContain("currentAction: "canonical-discovery-error"");
+    expect(discoveryRoute).toContain('currentAction: "canonical-discovery-error"');
     expect(discoveryRoute).toContain("caseFile}::jsonb ->> 'jobId'");
     const contactPersist = read("src/src/lib/bureau-contact-persist-strict.ts");
     expect(contactPersist).toContain("Contact evidence persistence lost durable Atlas job ownership");
