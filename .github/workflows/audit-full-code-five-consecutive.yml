@@ -20,6 +20,7 @@ concurrency:
 
 env:
   PNPM_VERSION: 9.15.9
+  RUN_LIVE_API_TESTS: "true"
 
 jobs:
   audit-1:
