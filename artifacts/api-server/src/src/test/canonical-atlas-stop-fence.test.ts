@@ -62,4 +62,13 @@ describe("canonical Atlas stop fence", () => {
     expect(source).toContain('await setActiveJob("atlas-run", jobId);');
     expect(source).toContain('await releaseCanonicalJob("atlas-run", jobId).catch');
   });
+
+  it("propagates live lease ownership into canonical control and Investigator cancellation fences", () => {
+    const lock = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/canonical-job-lock.ts"), "utf8");
+    const discovery = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+    const agentic = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
+    expect(lock).toContain("isCanonicalJobOwner");
+    expect(discovery).toContain('isCanonicalJobOwner("atlas-run", jobId)');
+    expect(agentic).toContain("isCanonicalJobOwner(lockType, input.jobId)");
+  });
 });
