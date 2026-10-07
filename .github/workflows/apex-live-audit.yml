@@ -1,6 +1,6 @@
 name: Apex Live Bureau Audit
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
 jobs:
   live-bureau-audit:
     runs-on: ubuntu-latest
@@ -71,9 +71,11 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { ref: ${{ github.sha }} }
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version: 22 }
+        with:
+          node-version: 22
       - run: npm install -g pnpm@9.15.9
       - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
       - name: Build canonical application
