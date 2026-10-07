@@ -7,6 +7,11 @@ const continuationChecks = [
   ["discovery continuation iteration is not allocated from an unlocked snapshot", !/const iteration=Number\\(current\\.iteration\\?\\?0\\)\\+1/.test(continuation)],
   ["discovery continuation allocates iteration from locked durable case row", /iteration=Number\\(locked\\.iteration\\?\\?0\\)\\+1/.test(continuation) && /\\.for\\("update"\\)/.test(continuation)],
 ];
+const targetContinuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts", "utf8");
+const targetContinuationChecks = [
+  ["target continuation reads durable control_decision history", /eventType, "control_decision"/.test(targetContinuation) && /orderBy\(desc\(researchCaseEventsTable\.id\)\)/.test(targetContinuation)],
+  ["target continuation persists the allocated control turn to the case projection", /currentAction: `groq-\$\{decision\.action\}`[\s\S]*iteration: controlTurn/.test(targetContinuation)],
+];
 const checks = [
   ["control decision imports durable case tables", /researchCasesTable/.test(control) && /researchCaseEventsTable/.test(control)],
   ["control decision writes a durable control_decision event", /eventType:\s*[\"']control_decision[\"']/.test(control)],
