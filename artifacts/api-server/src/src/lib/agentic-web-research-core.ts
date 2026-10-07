@@ -932,7 +932,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "ACTION CONTRACT: domain_lookup requires provider=rdap or whoisjson; browser_fetch requires provider=scrapfly, zenrows, browserless, or playwright; footprint_spiderfoot requires target, targetType, and profile. The harness will fail closed when a capability is unavailable.",
+    "ACTION CONTRACT: web_search={query,provider}; parallel_web_search={searches:[{query,provider,locale,market,purpose},...]} with 2–4 searches; visit={url}; browser_fetch={url,provider}; registry_search={query,registry}; domain_lookup={domain,provider}; harvest_domain={domain}; footprint_email={email}; footprint_username_maigret={username}; footprint_username_sherlock={username}; footprint_spiderfoot={target,targetType,profile}; done={findings}. Use only the provider values exposed by the action contract. The harness will fail closed when a capability is unavailable.",
     "For parallel_web_search, provide 2–4 independent search objects. For other actions, searches must be empty. Return ONE JSON action object matching the structured response contract.",
   ].join("\n");
   const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length);
