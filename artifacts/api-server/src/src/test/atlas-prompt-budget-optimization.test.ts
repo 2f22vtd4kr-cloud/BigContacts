@@ -60,7 +60,7 @@ describe("Apex Atlas prompt budget optimization", () => {
       objective: "Resolve identity and public contact routes.",
       history: Array.from({ length: 50 }, (_, i) => "history " + i + " ".repeat(400)),
       trajectoryRecords: Array.from({ length: 40 }, (_, i) => ({
-        turn: i + 1, action: "visit", execution: "success",
+        turn: i + 1, model: "groq-test", action: "visit", args: {}, execution: "success",
         observedUrls: ["https://source-" + i + ".example/page"], observation: "observation ".repeat(800), findings: [],
       })),
       lastObservation: "latest ".repeat(2_000),
