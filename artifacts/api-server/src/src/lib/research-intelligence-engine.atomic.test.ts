@@ -89,6 +89,14 @@ describe("research intelligence atomic evidence", () => {
       observation: "A different organization appears in the result set.",
       urls: ["https://two.example/other"],
     });
+    engine.recordAction({
+      turn: 3,
+      action: "web_search",
+      args: { provider: "serper", query: "Ada Example founder" },
+      execution: "success",
+      observation: "Another result family appears.",
+      urls: ["https://three.example/other"],
+    });
     const context = engine.buildContext();
     expect(context.atomicEvidence.length).toBeGreaterThan(0);
     expect(context.atomicEvidence[0]?.sourceUrl).toContain("example");
