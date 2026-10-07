@@ -60,6 +60,33 @@ describe("agentic terminal verification", () => {
     expect(result.allowed).toBe(true);
   });
 
+  it("allows validated multi-source terminal attribution when identity and contact are observed on separate pages", () => {
+    const result = discoveryTerminalGate([
+      visit("Jane Example is Founder."),
+      {
+        turn: 2,
+        model: "groq",
+        action: "visit",
+        args: { url: "https://example.com/contact" },
+        execution: "success",
+        observation: "Public contact: jane@example.com",
+        observedUrls: ["https://example.com/contact"],
+        findings: [],
+      },
+      {
+        turn: 3,
+        model: "groq",
+        action: "done",
+        args: {},
+        execution: "success",
+        observation: "Terminal summary",
+        observedUrls: [],
+        findings: [finding({ sourceUrls: ["https://example.com/team/jane", "https://example.com/contact"] })],
+      },
+    ]);
+    expect(result.allowed).toBe(true);
+  });
+
   it("never treats a failed source as grounding even when the text contains the claimed value", () => {
     const result = discoveryTerminalGate([
       {
