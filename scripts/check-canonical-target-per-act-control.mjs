@@ -66,7 +66,7 @@ const checks=[
 ["legacy enrichment routes remain retired",/RETIRED_MUTATING_ENRICHMENT_PATHS/.test(mutationGuard)&&/status\(410\)/.test(mutationGuard)],
 ];
 checks.push(["structured intelligence only receives grounded Investigator findings",/groundedFindingsForTrajectory/.test(agentic)&&/recordResult\(intelligence, normalizedRecord, records\)/.test(agentic)]);
-["durable target trajectory replay excludes search findings",/const rawFindings = Array\.isArray\(payload\.findings\) && !\["web_search", "parallel_web_search"\]\.includes\(action\)/.test(runner)],
+checks.push(["durable target trajectory replay excludes search findings",/const rawFindings = Array\.isArray\(payload\.findings\) && !\["web_search", "parallel_web_search"\]\.includes\(action\)/.test(runner)],);
 checks.push(["canonical target unexpected failures close the durable case",/catch \(error\)/.test(runner)&&/investigator-execution-failed/.test(runner)&&/status: "review"/.test(runner)]);
 checks.push(["child target runner does not terminalize parent Atlas job",/manageJobLifecycle\?: boolean/.test(runner)&&/const manageJobLifecycle = options\.manageJobLifecycle !== false/.test(runner)&&/if \(manageJobLifecycle\) await updateJob/.test(runner)&&/manageJobLifecycle: false/.test(atlas)]);
 let failed=false;for(const[name,ok]of checks){console.log(`${ok?"PASS":"FAIL"} ${name}`);if(!ok)failed=true;}if(failed)process.exit(1);
