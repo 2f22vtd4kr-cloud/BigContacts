@@ -22,6 +22,7 @@ import {
   describeThrownProviderError,
   digestDiagnosticText,
   summarizeProviderBody,
+  providerErrorCode,
   type ProviderFailureClass,
 } from "./provider-error-diagnostics";
 export { getAgenticLlmHealth };
@@ -561,12 +562,7 @@ function groqHardRequestQuota(response: Response, body: string): boolean {
   if (response.status !== 429) return false;
   const remainingRequests = Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
   if (Number.isFinite(remainingRequests) && remainingRequests === 0) return true;
-  try {
-    const parsed = JSON.parse(body) as { error?: { code?: unknown } };
-    return parsed.error?.code === "quota_exceeded" || parsed.error?.code === "insufficient_quota";
-  } catch {
-    return false;
-  }
+  return providerErrorCode(body) === "quota_exceeded" || providerErrorCode(body) === "insufficient_quota";
 }
 
 async function callGroqJson(
