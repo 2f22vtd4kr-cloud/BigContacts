@@ -211,7 +211,8 @@ export class ResearchIntelligenceEngine {
       if (!value) continue;
       useful = true;
       const vector = String(finding.vectorType ?? "other");
-      const findingUrls = [...new Set([...(finding.sourceUrls ?? []), ...urls].map(canonicalUrl).filter((v): v is string => Boolean(v)))];
+      const observedUrlSet = new Set(urls);
+      const findingUrls = [...new Set((finding.sourceUrls ?? []).map(canonicalUrl).filter((v): v is string => Boolean(v)).filter((url) => observedUrlSet.has(url)))];
       const claim = finding.personName ? finding.personName + " " + vector + " " + value : this.input.target + " " + vector + " " + value;
       // Preserve every observed source supporting a multi-source finding. The
       // intelligence projection is compacted later, but collapsing the claim
