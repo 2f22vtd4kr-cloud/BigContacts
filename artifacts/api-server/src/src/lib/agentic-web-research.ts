@@ -6,6 +6,7 @@ import { getAgenticExecutionScope, withAgenticExecutionScope } from "./agentic-e
 import { validateResearchObjective } from "./research-objective";
 import { reviewTargetInvestigationAct, loadTargetActOversightContext, type TargetActOversight } from "./target-act-oversight";
 import { getJob } from "./job-queue";
+import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
 import { shouldCheckpointResearchEpisode } from "./research-episode-policy";
 import { inferResearchCognitiveTask } from "./research-cognitive-routing";
@@ -101,7 +102,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     const remaining = deadline - Date.now();
     if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, error: `hard timeout ${requestedHardTimeout}ms`, executionId };
     const perActTimeout = Math.max(30_000, Math.min(55_000, remaining));
-    const actInput: RunInput = { ...input, cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, records), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); return !job || job.status !== "running"; }, onLiveStep: (step) => input.onLiveStep?.(step) };
+    const actInput: RunInput = { ...input, cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, records), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); if (!job || job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; try { return !(await isCanonicalJobOwner(lockType, input.jobId)); } catch { return true; } }, onLiveStep: (step) => input.onLiveStep?.(step) };
     const actResult = await core.runAgenticWebResearch(actInput);
     model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error;
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
