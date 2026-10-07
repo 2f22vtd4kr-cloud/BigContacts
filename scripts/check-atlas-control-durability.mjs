@@ -4,8 +4,8 @@ const control = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-
 const atlas = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
 const continuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts", "utf8");
 const continuationChecks = [
-  ["discovery continuation iteration is not allocated from an unlocked snapshot", !/const iteration=Number\\(current\\.iteration\\?\\?0\\)\\+1/.test(continuation)],
-  ["discovery continuation allocates iteration from locked durable case row", /iteration=Number\\(locked\\.iteration\\?\\?0\\)\\+1/.test(continuation) && /\\.for\\("update"\\)/.test(continuation)],
+  ["discovery continuation iteration is not allocated from an unlocked snapshot", !/const iteration=Number\(current\.iteration\?\?0\)\+1/.test(continuation)],
+  ["discovery continuation allocates iteration from locked durable case row", /iteration=Number\(locked\.iteration\?\?0\)\+1/.test(continuation) && /\\.for\\("update"\\)/.test(continuation)],
 ];
 const targetContinuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts", "utf8");
 const targetContinuationChecks = [
