@@ -23,7 +23,7 @@ const checks = [
   [continuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical continuation/recovery must bind provider calls to the unique Atlas job scope."],
   [continuation.includes("validateContinuationRightHand"), "Canonical discovery continuation must validate its own Right-hand response schema rather than reuse the Atlas control schema."],
   [targetContinuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical target continuation must bind both control and resumed Investigator calls to the unique Atlas job scope."],
-  [canonicalCaseDiscovery.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical discovery-case route must bind the pipeline to the unique Atlas job provider scope."],
+  [canonicalCaseDiscovery.includes("withProviderScope(`atlas-run:${jobId!}`"), "Canonical discovery-case route must bind the pipeline to the unique Atlas job provider scope."],
   [canonicalCaseDiscovery.includes("locked.status === \"complete\"") && canonicalCaseDiscovery.includes("canonical-continuation-cancelled"), "Canonical discovery-case route must fence durable terminal/cancelled cases before reopening them."],
   [canonicalAtlasDiscovery.includes("latestControlEvent") && canonicalAtlasDiscovery.includes("orderBy(desc(researchCaseEventsTable.id))"), "Canonical Atlas discovery control turns must resume from durable control-event history rather than resetting on case reruns."],
   [targetContinuation.includes("latestControlTurn"), "Canonical target continuation must derive control turns from durable target-control history so continuation runs remain monotonic."],
