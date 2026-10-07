@@ -14,7 +14,6 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
       "artifacts/api-server/src/src/lib/agentic-web-research.ts",
       "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts",
       "artifacts/api-server/src/src/lib/target-contact-agent.ts",
-      "artifacts/api-server/src/src/lib/target-act-oversight.ts",
       "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts",
       "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts",
     ].map((file) => source(file));
