@@ -168,16 +168,20 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         await publishJob( { status: "failed", progress: 1, outcome: "incomplete", message: "Groq Right-hand opening review was invalid for " + target.name + "; Investigator execution blocked.", result: JSON.stringify({ caseId: caseRow.id, opening, rightHand: rightHandRaw }), finishedAt: new Date().toISOString() });
         return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review" };
       }
-      await db.insert(researchCaseEventsTable).values({
-        caseId: caseRow.id,
-        iteration: 0,
-        actorRole: "right_hand",
-        eventType: "observation",
-        status: "recorded",
-        summary: "Groq Right-hand reviewed the Boss opening assignment before Investigator execution.",
-        correlationKey: `${atlasJobId}:target-right-hand-opening:${caseRow.id}`,
-        payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, bossModel: opening.model, investigatorLlm, rightHandOpening }),
-      });
+       await db.transaction(async (tx) => {
+         const [locked] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(eq(researchCasesTable.id, caseRow.id)).for("update").limit(1);
+         if (!locked || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? ""))) throw new Error("Canonical Atlas target case is no longer active; refusing Right-hand opening event after cancellation.");
+         await tx.insert(researchCaseEventsTable).values({
+          caseId: caseRow.id,
+          iteration: 0,
+          actorRole: "right_hand",
+          eventType: "observation",
+          status: "recorded",
+          summary: "Groq Right-hand reviewed the Boss opening assignment before Investigator execution.",
+          correlationKey: `${atlasJobId}:target-right-hand-opening:${caseRow.id}`,
+          payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, bossModel: opening.model, investigatorLlm, rightHandOpening }),
+         });
+       });
       caseState.rightHandOpening = rightHandOpening;
       caseState.currentAction = "investigator-act-1";
       await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseState), directorMode: "groq_boss_active", directorModel: opening.model, currentAction: "investigator-act-1", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active")));
