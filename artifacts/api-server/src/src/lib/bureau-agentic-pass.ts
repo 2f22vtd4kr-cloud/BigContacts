@@ -71,7 +71,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
   const offsetRecords=rawRecords.map((record)=>({...record,turn:priorIteration+Math.max(1,Number(record.turn)||1)}));
   const renumberedTrajectory=rawTrajectory.map((line)=>{
     if(typeof line!=="string")return line;
-    return line.replace(/^step(\\d+):/i,(_match:string,numberString:string)=>`step${priorIteration+Number(numberString)}:`);
+    return line.replace(/^step(\d+):/i,(_match:string,numberString:string)=>`step${priorIteration+Number(numberString)}:`);
   });
   let durableEvidenceState=current.evidenceState;
   const intelligenceLine=[...rawTrajectory].reverse().find((line)=>typeof line==="string"&&line.startsWith("INTELLIGENCE_STATE:"));
