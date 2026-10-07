@@ -54,7 +54,7 @@ function compactTrajectory(records: TrajectoryRecord[], maxChars = 5000): string
   }
   return JSON.stringify([minimal[0]]).slice(0, maxChars);
 }
-function compactRightHandAdvice(advice: typeof rightHand): string {
+function compactRightHandAdvice(advice: { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null }): string {
   return JSON.stringify({
     status: advice.status,
     model: clipControlText(advice.model, 80),
