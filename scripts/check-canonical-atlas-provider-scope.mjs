@@ -12,7 +12,7 @@ const targetControl = read("./artifacts/api-server/src/src/lib/target-control-de
 const investigator = read("./artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const boss = read("./artifacts/api-server/src/src/lib/groq-boss.ts");
 const rightHand = read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts");
-const activeControlFiles = [boss, rightHand, investigator, caseBureau, targetControl].join("\n");
+const activeControlFiles = [boss, rightHand, investigator, caseBureau, targetControl, targetContinuation].join("\n");
 
 const checks = [
   [providerGate.includes('scope.startsWith("atlas-run:")'), "Atlas jobs must receive a distinct provider-gate scope."],
@@ -20,6 +20,8 @@ const checks = [
   [launch.includes("withProviderScope(`atlas-run:${atlasJobId}`"), "Canonical launch must bind all provider calls to the unique Atlas job scope."],
   [continuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical continuation/recovery must bind provider calls to the unique Atlas job scope."],
   [targetContinuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical target continuation must bind both control and resumed Investigator calls to the unique Atlas job scope."],
+  [!/gemini[-_]/i.test(targetContinuation), "Canonical target continuation must not retain retired Gemini control labels or state transitions."],
+  [!/gemini[-_]/i.test(targetControl), "Canonical target control must not retain retired Gemini control labels or state transitions."],
   [investigator.includes("isLocalProviderQuotaError(error)"), "Investigator must recognize local provider-gate quota failures."],
   [investigator.includes("if (isLocalProviderQuotaError(error)) return null;"), "Investigator must stop futile same-provider fallback after a local gate block."],
   [boss.includes("isLocalProviderQuotaError(error)"), "Boss must recognize local provider-gate quota failures."],
