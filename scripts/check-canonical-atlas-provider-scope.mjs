@@ -26,6 +26,7 @@ const checks = [
   [boss.includes("Groq Boss local provider gate blocked further attempts"), "Boss must fail fast and emit a privacy-safe local-gate diagnostic."],
   [boss.includes('provider: "groq"'), "Canonical Boss provider must be Groq."],
   [rightHand.includes('provider: "groq"'), "Canonical Right-hand provider must be Groq."],
+  [!rightHand.includes('withProviderScope("atlas-right-hand"'), "Right-hand transport must preserve the caller's canonical Atlas provider scope rather than replacing it with a shared scope."],
   [investigator.includes("getAvailableInvestigatorCapabilities") && investigator.includes("investigatorCapabilityKeyName"), "Canonical Investigator selection must use the runtime capability registry."],
   [investigator.includes("classifyExternalProvider") && investigator.includes("gatedSafeOutboundFetch") && investigator.includes("runProviderCall({ provider, account, signal: init.signal"), "Canonical Investigator web/search egress must pass through the provider gate."],
   [investigator.includes("gatedSafeOutboundFetch(url") && !investigator.includes("safeOutboundFetch(url, { signal"), "Canonical page visits must not bypass the provider gate."],
