@@ -14,7 +14,7 @@ function contextOf(file: Record<string, any>): string {
   const context = typeof file.contextDocument === "string" ? file.contextDocument.trim() : "";
   if (!context) throw new Error("Target case has no durable context document; refusing context-free continuation.");
   if (context.length <= 28000) return context;
-  return `${context.slice(0, 14000)}\\n\\n[CONTROL CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\\n\\n${context.slice(-14000)}`;
+  return `${context.slice(0, 14000)}\n\n[CONTROL CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n${context.slice(-14000)}`;
 }
 router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, res): Promise<void> => {
   try { await enablePermanentRedis(); } catch (error) { res.status(503).json({ error: error instanceof Error ? error.message : "Permanent Redis is unavailable for canonical target continuation." }); return; }
