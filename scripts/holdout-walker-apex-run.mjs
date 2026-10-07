@@ -6,9 +6,9 @@
  */
 import { writeFileSync } from "node:fs";
 
-const TAVILY = process.env.TAVILY_API_KEY || "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";
-const SERP = process.env.SERPAPI_KEY || "e1322cb7cf19d21e48e7fb857693e6fa86ef8b227863b80aa13a88859bdf843c";
-const WHOIS = process.env.WHOISJSON_KEY || "b3eb211b528c1dce4f4b7b8400ed430a3f138de36e4cdb9f8cbba84dc4bc87bd";
+const TAVILY = process.env.TAVILY_API_KEY || "";
+const SERP = process.env.SERPAPI_KEY || "";
+const WHOIS = process.env.WHOISJSON_KEY || "";
 
 const TARGET = {
   name: "Walker Tool & Die, Inc.",
@@ -216,6 +216,15 @@ function extractFromSnippets(items) {
 }
 
 async function main() {
+  const missingKeys = [
+    ["TAVILY_API_KEY", TAVILY],
+    ["SERPAPI_KEY", SERP],
+    ["WHOISJSON_KEY", WHOIS],
+  ].filter(([, value]) => !value).map(([name]) => name);
+  if (missingKeys.length) {
+    console.error(`Missing required holdout credentials: ${missingKeys.join(", ")}`);
+    process.exit(2);
+  }
   const out = {
     ts: new Date().toISOString(),
     product: "Apex Atlas",
