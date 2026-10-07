@@ -356,23 +356,81 @@ async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa
 }
 
 async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null }> { try { const response = await gatedSafeOutboundFetch(url, { signal: signal ?? AbortSignal.timeout(15_000), headers: { "User-Agent": "Apex-Atlas/1.0", Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8" }, redirect: "manual" }); const location = response.headers.get("location"); if (!response.ok) return { observation: `HTTP ${response.status} from ${url}${location ? `\nREDIRECT_LOCATION: ${location}` : ""}`, status: "http_error", observedUrl: null }; const raw = await readResponseTextCapped(response, signal); const facts = extractContactFactsFromHtml(raw); const body = stripHtml(raw); const boundedBody = body.slice(0, MAX_OBS); return { observation: `${facts.length ? `CONTACT FACTS (observed, not attributed):\n${facts.join("\n")}\n\n` : ""}PAGE ${url}\n${boundedBody}${body.length > MAX_OBS ? "\n[PAGE OBSERVATION TRUNCATED; SOURCE URL RETAINED FOR REVISIT]" : ""}`, status: "success", observedUrl: normalizedUrl(url) }; } catch (error) { if (signal?.aborted) return { observation: `visit cancelled for ${url}`, status: "cancelled", observedUrl: null }; const diagnostic = describeThrownProviderError(error); const timed = classifyThrownProviderError(error) === "timeout"; return { observation: `visit failed for ${url}: ${timed ? "timeout" : "request error"} (error=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`, status: timed ? "timeout" : "error", observedUrl: null }; } }
-function extractJsonObject(raw: string): string | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); return start >= 0 && end > start ? source.slice(start, end + 1) : null; }
+function extractBalancedJsonObject(source: string): string | null {
+  const startCandidates = [...source.matchAll(/\{/g)].map((match) => match.index ?? -1).filter((index) => index >= 0);
+  for (const start of startCandidates) {
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < source.length; index += 1) {
+      const char = source[index]!;
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (char === "\\") escaped = true;
+        else if (char === '"') inString = false;
+        continue;
+      }
+      if (char === '"') { inString = true; continue; }
+      if (char === "{") depth += 1;
+      else if (char === "}") {
+        depth -= 1;
+        if (depth === 0) return source.slice(start, index + 1);
+        if (depth < 0) break;
+      }
+    }
+  }
+  return null;
+}
+function extractJsonObject(raw: string): string | null {
+  const fenced = raw.match(/\`\`\`(?:json)?\s*([\\s\\S]*?)\`\`\`/i)?.[1]?.trim();
+  return extractBalancedJsonObject(fenced || raw.trim());
+}
+function describeInvalidActionArguments(action: string, value: Record<string, unknown>): string {
+  const textField = (name: string, max: number) => cleanText(value[name], max);
+  const provider = textField("provider", 30);
+  if (action === "web_search") {
+    if (!textField("query", 300)) return "invalid_action_arguments action=web_search missing=query";
+    if (!["serper", "tavily", "exa"].includes(provider)) return "invalid_action_arguments action=web_search invalid=provider";
+  } else if (action === "parallel_web_search") {
+    if (!Array.isArray(value.searches)) return "invalid_action_arguments action=parallel_web_search missing=searches";
+    if (value.searches.length < 2) return "invalid_action_arguments action=parallel_web_search searches_min=2";
+    const valid = value.searches.filter((item) => item && typeof item === "object").map((item) => item as Record<string, unknown>);
+    if (valid.length < 2 || valid.some((item) => !textField.call(null, "", 0))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
+  } else if (action === "visit" && !isSafeHttpUrl(textField("url", 500))) return "invalid_action_arguments action=visit invalid=url";
+  else if (action === "browser_fetch") {
+    if (!isSafeHttpUrl(textField("url", 500))) return "invalid_action_arguments action=browser_fetch invalid=url";
+    if (!["scrapfly", "zenrows", "browserless", "playwright"].includes(provider)) return "invalid_action_arguments action=browser_fetch invalid=provider";
+  } else if (action === "footprint_email" && !textField("email", 120).includes("@")) return "invalid_action_arguments action=footprint_email invalid=email";
+  else if ((action === "footprint_username_maigret" || action === "footprint_username_sherlock") && textField("username", 80).replace(/^@/, "").length < 2) return `invalid_action_arguments action=${action} invalid=username`;
+  else if (action === "domain_lookup") {
+    if (!textField("domain", 120).includes(".")) return "invalid_action_arguments action=domain_lookup invalid=domain";
+    if (!["rdap", "whoisjson"].includes(provider)) return "invalid_action_arguments action=domain_lookup invalid=provider";
+  } else if (action === "registry_search") {
+    if (textField("query", 200).length < 2) return "invalid_action_arguments action=registry_search invalid=query";
+    if (!textField("registry", 60)) return "invalid_action_arguments action=registry_search missing=registry";
+  } else if (action === "harvest_domain" && !textField("domain", 120).includes(".")) return "invalid_action_arguments action=harvest_domain invalid=domain";
+  else if (action === "footprint_spiderfoot") {
+    const targetType = textField("targetType", 20).toLowerCase();
+    const profile = textField("profile", 40).toLowerCase();
+    if (!textField("target", 300)) return "invalid_action_arguments action=footprint_spiderfoot missing=target";
+    if (!["domain","hostname","ip","email","username","person","asn"].includes(targetType)) return "invalid_action_arguments action=footprint_spiderfoot invalid=targetType";
+    if (!["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(profile)) return "invalid_action_arguments action=footprint_spiderfoot invalid=profile";
+  }
+  return `invalid_action_arguments action=${action}`;
+}
 export function describeAgentActionParseFailure(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return "empty_response";
   const json = extractJsonObject(raw);
   if (!json) return `no_json_object chars=${raw.length} digest=${digestDiagnosticText(raw)}`;
   let value: Record<string, unknown>;
-  try {
-    value = JSON.parse(json) as Record<string, unknown>;
-  } catch {
-    return `invalid_json chars=${json.length} digest=${digestDiagnosticText(json)}`;
-  }
+  try { value = JSON.parse(json) as Record<string, unknown>; }
+  catch { return `invalid_json chars=${json.length} digest=${digestDiagnosticText(json)}`; }
   const action = cleanText(value.action, 40).toLowerCase();
   if (!action) return "missing_action";
-  const allowed = new Set(["web_search", "parallel_web_search", "visit", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "domain_lookup", "registry_search", "harvest_domain", "footprint_spiderfoot", "browser_fetch", "done"]);
+  const allowed = new Set(["web_search","parallel_web_search","visit","footprint_email","footprint_username_maigret","footprint_username_sherlock","domain_lookup","registry_search","harvest_domain","footprint_spiderfoot","browser_fetch","done"]);
   if (!allowed.has(action)) return `unsupported_action action=${action}`;
-  return `invalid_action_arguments action=${action}`;
+  return describeInvalidActionArguments(action, value);
 }
 
 function parseAction(raw: string): AgentAction | null { const json = extractJsonObject(raw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined }; if (action === "parallel_web_search" && Array.isArray(value.searches)) { const searches = value.searches.map((item) => item && typeof item === "object" ? item as Record<string, unknown> : null).filter(Boolean).map((item) => ({ query: cleanText(item!.query, 300), provider: cleanText(item!.provider, 20), locale: cleanText(item!.locale, 16) || undefined, market: cleanText(item!.market, 16) || undefined, purpose: cleanText(item!.purpose, 500) || undefined })).filter((item) => item.query && ["serper","tavily","exa"].includes(item.provider)).slice(0, 4) as Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; if (searches.length >= 2) return { action: "parallel_web_search", searches, thought: cleanText(value.thought, 500) || undefined, ...meta }; } if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: cleanText(value.locale, 16) || undefined, market: cleanText(value.market, 16) || undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".") && ["rdap","whoisjson"].includes(cleanText(value.provider, 30))) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, provider: cleanText(value.provider, 30) as "rdap" | "whoisjson", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) return { action: "registry_search", query: cleanText(value.query, 200), registry: cleanText(value.registry, 60).toLowerCase(), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500)) && ["scrapfly","zenrows","browserless","playwright"].includes(cleanText(value.provider, 30))) return { action: "browser_fetch", url: cleanText(value.url, 500), provider: cleanText(value.provider, 30) as "scrapfly" | "zenrows" | "browserless" | "playwright", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") { const findings: AgenticFinding[] = []; for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) { if (!rawFinding || typeof rawFinding !== "object") continue; const f = rawFinding as Record<string, unknown>; const vector = cleanText(f.vectorType, 30).toLowerCase(); const valueText = cleanText(f.value, 500); const sourceUrls = filterClaimUrls(Array.isArray(f.sourceUrls) ? f.sourceUrls.filter((u): u is string => typeof u === "string") : []).map(normalizedUrl).filter((u): u is string => Boolean(u)); if (!valueText || !["email", "phone", "linkedin", "website", "social", "other"].includes(vector) || (vector !== "other" && sourceUrls.length === 0)) continue; let finalValue = valueText; if (vector === "email") { const e = sanitizePublicEmail(valueText); if (!e || isTrashContactValue("email", e)) continue; finalValue = e; } if (vector === "phone") { const p = sanitizePublicPhone(valueText); if (!p || isTrashContactValue("phone", p)) continue; finalValue = p; } if (vector === "website" && !isSafeHttpUrl(finalValue)) continue; findings.push({ vectorType: vector as AgenticFinding["vectorType"], value: finalValue, personName: typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null, role: typeof f.role === "string" ? f.role.trim().slice(0, 120) : null, scope: f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown", sourceUrls, note: cleanText(f.note, 400) || "Investigator-authored finding", promotionDecision: f.promotionDecision === "promote" || f.promotionDecision === "reject" ? f.promotionDecision : undefined, promotionReason: cleanText(f.promotionReason, 500) || undefined }); } return { action: "done", findings, thought: cleanText(value.thought, 500) || undefined, ...meta }; } } catch { return null; } return null; }
