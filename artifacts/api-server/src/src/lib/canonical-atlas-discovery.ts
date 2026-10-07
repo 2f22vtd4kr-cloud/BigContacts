@@ -192,7 +192,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         currentAction: researchCasesTable.currentAction,
       })
         .from(researchCasesTable)
-        .where(eq(researchCasesTable.id, discoveryCaseId))
+        .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
         .for("update")
         .limit(1);
       if (
@@ -267,20 +267,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     if (rightHandRaw.status !== "completed") {
       await db.update(researchCasesTable)
         .set({ status: "review", currentAction: "groq-right-hand-unavailable", updatedAt: new Date() })
-        .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active")));
+        .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
       throw new Error(`Groq Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
     }
     if (rightHand.error) {
       await db.update(researchCasesTable)
         .set({ status: "review", currentAction: "groq-right-hand-invalid", updatedAt: new Date() })
-        .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active")));
+        .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
       throw new Error(`Groq Right-hand returned invalid oversight: ${rightHand.error}`);
     }
 
     await db.transaction(async (tx) => {
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
         .from(researchCasesTable)
-        .where(eq(researchCasesTable.id, discoveryCaseId))
+        .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
         .for("update")
         .limit(1);
       if (!lockedCase || lockedCase.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(lockedCase.currentAction ?? ""))) {
@@ -308,7 +308,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await db.transaction(async (tx) => {
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
         .from(researchCasesTable)
-        .where(eq(researchCasesTable.id, discoveryCaseId))
+        .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
         .for("update")
         .limit(1);
       if (!lockedCase || lockedCase.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(lockedCase.currentAction ?? ""))) {
