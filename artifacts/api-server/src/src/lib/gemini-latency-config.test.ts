@@ -51,9 +51,9 @@ describe("Apex control-plane latency configuration", () => {
     const rightHand = getGroqRightHandLatencyConfig();
     const groq = getGroqBossLatencyConfig();
     expect(rightHand.requestTimeoutMs).toBe(5000);
-    expect(rightHand.overallTimeoutMs).toBe(5000);
+    expect(rightHand.overallTimeoutMs).toBe(30000);
     expect(rightHand.overallTimeoutClamped).toBe(true);
     expect(groq.requestTimeoutMs).toBe(5000);
-    expect(groq.overallTimeoutMs).toBe(5000);
+    expect(groq.overallTimeoutMs).toBe(30000);
   });
 });
