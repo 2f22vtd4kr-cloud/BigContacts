@@ -286,7 +286,12 @@ export class ResearchIntelligenceEngine {
         firstSeen: new Date(0).toISOString(), lastSeen: new Date(0).toISOString() });
     }
     const knownEvidenceIds = new Set([...this.evidence.values()].map((evidence) => evidence.id));
-    for (const hypothesis of context.hypotheses) this.hypotheses.set(hypothesis.id, { ...hypothesis, supportingEvidenceIds: [...hypothesis.supportingEvidenceIds].filter((id) => knownEvidenceIds.has(id)), contradictingEvidenceIds: [...hypothesis.contradictingEvidenceIds].filter((id) => knownEvidenceIds.has(id)), missingDiscriminators: [...hypothesis.missingDiscriminators] });
+    for (const hypothesis of context.hypotheses) {
+      const supportingEvidenceIds = [...hypothesis.supportingEvidenceIds].filter((id) => knownEvidenceIds.has(id));
+      const contradictingEvidenceIds = [...hypothesis.contradictingEvidenceIds].filter((id) => knownEvidenceIds.has(id));
+      if ((hypothesis.supportingEvidenceIds.length > 0 || hypothesis.contradictingEvidenceIds.length > 0) && !supportingEvidenceIds.length && !contradictingEvidenceIds.length) continue;
+      this.hypotheses.set(hypothesis.id, { ...hypothesis, supportingEvidenceIds, contradictingEvidenceIds, missingDiscriminators: [...hypothesis.missingDiscriminators] });
+    }
     for (const contact of context.contacts) {
       const sourceUrls = [...new Set(contact.sourceUrls)].filter((url) => sourceClassForHost(hostOf(url)) !== "SEARCH_RESULT");
       if (!sourceUrls.length) continue;
