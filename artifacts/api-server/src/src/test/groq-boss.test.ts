@@ -79,7 +79,8 @@ describe("Groq Boss token-window recovery", () => {
 
     expect(result.raw).toBeNull();
     expect(result.error).toContain("HTTP 429");
-    expect(calls).toBe(1);
+    expect(result.error).toContain("openai/gpt-oss-20b");
+    expect(calls).toBe(2);
     expect(fetchMock.mock.calls[0]?.[1]).toBeTruthy();
   });
 });
