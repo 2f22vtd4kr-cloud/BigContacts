@@ -22,16 +22,25 @@ function compactControlContext(value: string, maxChars = 10000): string {
 function compactTrajectory(records: TrajectoryRecord[], maxChars = 5000): string {
   const compact = records.map((record) => ({
     turn: record.turn,
-    model: record.model,
-    action: record.action,
-    execution: record.execution,
+    model: clipControlText(record.model, 120),
+    action: clipControlText(record.action, 120),
+    execution: clipControlText(record.execution, 80),
     observation: clipControlText(record.observation, 420),
-    observedUrls: (record.observedUrls ?? []).slice(0, 4),
+    observedUrls: (record.observedUrls ?? []).slice(0, 4).map((url) => clipControlText(url, 220)),
     findingCount: Array.isArray(record.findings) ? record.findings.length : 0,
-    stopReason: record.stopReason ?? null,
+    stopReason: clipControlText(record.stopReason, 120) || null,
   }));
-  const raw = JSON.stringify(compact);
-  return compactControlContext(raw, maxChars);
+  if (!compact.length) return "[]";
+  if (JSON.stringify(compact).length <= maxChars) return JSON.stringify(compact);
+  let selected = compact;
+  while (selected.length > 1) {
+    const head = Math.ceil(selected.length / 2);
+    const tail = Math.floor(selected.length / 2);
+    const candidate = [...selected.slice(0, head), ...selected.slice(-tail)];
+    if (JSON.stringify(candidate).length <= maxChars) return JSON.stringify(candidate);
+    selected = candidate;
+  }
+  return JSON.stringify(selected).slice(0, maxChars);
 }
 function parseObject(raw: string | null | undefined): Record<string, unknown> | null { if (!raw) return null; const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"); const end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const parsed = JSON.parse(source.slice(start, end + 1)); return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null; } catch { return null; } }
 function clampConfidence(value: unknown): number | null { return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null; }
