@@ -26,6 +26,7 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     expect(discoveryContinuation).toContain("caseFile}::jsonb ->> 'jobId'");
     expect(targetContinuation).toContain("caseFile}::jsonb ->> 'atlasJobId'");
     expect(targetRunner).toContain("caseFile}::jsonb ->> 'atlasJobId'");
+    expect(targetRunner).toContain("currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')");
   });
 
   it("binds promoted contact provenance to both job ownership and the supporting observed source", () => {
