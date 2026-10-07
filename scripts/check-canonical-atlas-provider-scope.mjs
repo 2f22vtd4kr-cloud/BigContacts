@@ -8,6 +8,7 @@ const caseBureau = read("./artifacts/api-server/src/src/lib/case-bureau.ts");
 const launch = read("./artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts");
 const continuation = read("./artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts");
 const targetContinuation = read("./artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts");
+const canonicalCaseDiscovery = read("./artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts");
 const targetControl = read("./artifacts/api-server/src/src/lib/target-control-decision.ts");
 const investigator = read("./artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const boss = read("./artifacts/api-server/src/src/lib/groq-boss.ts");
@@ -21,6 +22,7 @@ const checks = [
   [continuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical continuation/recovery must bind provider calls to the unique Atlas job scope."],
   [continuation.includes("validateContinuationRightHand"), "Canonical discovery continuation must validate its own Right-hand response schema rather than reuse the Atlas control schema."],
   [targetContinuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical target continuation must bind both control and resumed Investigator calls to the unique Atlas job scope."],
+  [canonicalCaseDiscovery.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical discovery-case route must bind the pipeline to the unique Atlas job provider scope."],
   [targetContinuation.includes("latestControlTurn"), "Canonical target continuation must derive control turns from durable target-control history so continuation runs remain monotonic."],
   [!/gemini/i.test(targetContinuation), "Canonical target continuation must not retain retired Gemini control labels or state transitions."],
   [!/gemini/i.test(targetControl), "Canonical target control must not retain retired Gemini control labels or state transitions."],
