@@ -31,7 +31,7 @@ describe("Boss fallback diagnostics", () => {
     ];
 
     expect(formatGeminiBossAttemptSummary(attempts)).toBe(
-      "openai/gpt-oss-120b=HTTP 503, openai/gpt-oss-20b=HTTP 429 (rate_limit_exceeded), openai/gpt-oss-120b=HTTP 503",
+      "openai/gpt-oss-120b=HTTP 503 [provider_unavailable], openai/gpt-oss-20b=HTTP 429 (rate_limit_exceeded) [rate_limited], openai/gpt-oss-120b=HTTP 503 [provider_unavailable]",
     );
   });
 
@@ -45,7 +45,7 @@ describe("Boss fallback diagnostics", () => {
     }];
 
     const summary = formatGeminiBossAttemptSummary(attempts);
-    expect(summary).toBe("openai/gpt-oss-20b=HTTP 503");
+    expect(summary).toBe("openai/gpt-oss-20b=HTTP 503 [provider_unavailable]");
     expect(summary).not.toContain("GROQ_API_KEY_12");
   });
 });
