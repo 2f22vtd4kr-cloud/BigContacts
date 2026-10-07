@@ -2,7 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import { eq } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
 
-const CANCELLED_ACTIONS = new Set(["canonical-atlas-cancelled", "canonical-lease-lost"]);
+const CANCELLED_ACTIONS = new Set(["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"]);
 
 /**
  * A cancelled canonical case is terminal. The continuation handlers predate
