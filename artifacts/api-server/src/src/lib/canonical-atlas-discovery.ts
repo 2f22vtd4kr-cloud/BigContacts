@@ -164,7 +164,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (opts.discoveryCaseId) {
         await db.update(researchCasesTable)
           .set({ status: "review", currentAction: "groq-boss-unavailable", updatedAt: new Date() })
-          .where(eq(researchCasesTable.id, opts.discoveryCaseId));
+          .where(and(eq(researchCasesTable.id, opts.discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
       }
       await clearActiveJobIfOwned(lockKey, atlasJobId);
       return { phase: 1, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
