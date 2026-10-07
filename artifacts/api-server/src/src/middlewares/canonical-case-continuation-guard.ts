@@ -22,8 +22,8 @@ export async function canonicalCaseContinuationGuard(req: Request, res: Response
     .where(eq(researchCasesTable.id, caseId))
     .limit(1);
   if (!current) { next(); return; }
-  if (current.status === "cancelled" || (current.status === "review" && CANCELLED_ACTIONS.has(String(current.currentAction ?? "")))) {
-    res.status(409).json({ error: "This canonical case is durably cancelled and cannot be resumed. Start a new investigation instead." });
+  if (current.status === "complete" || current.status === "cancelled" || (current.status === "review" && CANCELLED_ACTIONS.has(String(current.currentAction ?? "")))) {
+    res.status(409).json({ error: current.status === "complete" ? "This canonical case is durably complete and cannot be resumed. Start a new investigation instead." : "This canonical case is durably cancelled and cannot be resumed. Start a new investigation instead." });
     return;
   }
   next();
