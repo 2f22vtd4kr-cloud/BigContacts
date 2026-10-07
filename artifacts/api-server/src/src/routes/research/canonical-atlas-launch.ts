@@ -17,7 +17,6 @@ async function fenceStaleCanonicalCases(currentJobId: string): Promise<void> {
     .set({
       status: "review",
       currentAction: "canonical-lease-lost",
-      caseFile: sql`jsonb_set(jsonb_set(${researchCasesTable.caseFile}::jsonb, '{atlasJobId}', to_jsonb(${currentJobId}::text), true), '{jobId}', to_jsonb(${currentJobId}::text), true)::text`,
       updatedAt: new Date(),
     })
     .where(and(
