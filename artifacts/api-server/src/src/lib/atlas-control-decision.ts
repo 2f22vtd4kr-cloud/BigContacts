@@ -225,6 +225,7 @@ export function buildAtlasControlEventPayload(input: { decision: AtlasControlDec
   bossError: string | null;
   rightHand: AtlasControlDecision["rightHand"];
   controlTurn: number;
+  jobId: string | null;
 } {
   return {
     action: input.decision.action,
