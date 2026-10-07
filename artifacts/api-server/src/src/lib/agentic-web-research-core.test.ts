@@ -113,7 +113,9 @@ describe("Investigator prompt architecture", () => {
     expect(describeAgentActionParseFailure("{")).toMatch(/^no_json_object chars=\d+ digest=/);
     expect(describeAgentActionParseFailure('{"foo":"bar"}')).toBe("missing_action");
     expect(describeAgentActionParseFailure('{"action":"invented"}')).toBe("unsupported_action action=invented");
-    expect(describeAgentActionParseFailure('{"action":"visit"}')).toBe("invalid_action_arguments action=visit");
+    expect(describeAgentActionParseFailure('{"action":"visit"}')).toBe("invalid_action_arguments action=visit invalid=url");
+    expect(describeAgentActionParseFailure('{"action":"web_search","query":"anchor","provider":"serper"} trailing text {"noise":true}')).toBe("invalid_action_arguments action=web_search");
+    expect(describeAgentActionParseFailure('{"action":"parallel_web_search","searches":[{"query":"anchor","provider":"serper"}]}')).toBe("invalid_action_arguments action=parallel_web_search searches_min=2");
   });
 
 });
