@@ -268,7 +268,8 @@ describe("Groq Right-hand model policy", () => {
     expect(chatCalls).toHaveLength(1);
   });
 
-  it("fails closed on a hard model 429 instead of advancing to another model", async () => {
+  it("falls back on a hard model 429 within the bounded same-role model policy", { timeout: 15_000 }, async () => {
+    vi.useFakeTimers();
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-fallback-test-key");
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
