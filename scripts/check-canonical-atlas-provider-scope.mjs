@@ -24,6 +24,7 @@ const checks = [
   [!/gemini/i.test(targetControl), "Canonical target control must not retain retired Gemini control labels or state transitions."],
   [targetControl.includes("compactControlContext(input.contextDocument)"), "Canonical target control must bound durable context before both control-plane model calls."],
   [targetControl.includes("compactTrajectory(input.trajectoryRecords ?? [])"), "Canonical target control must use a bounded trajectory projection rather than serializing durable trajectory wholesale."],
+  [targetControl.includes("compactRightHandAdvice(rightHand)"), "Canonical target control must bound model-generated Right-hand advice before embedding it in the Boss prompt."],
   [investigator.includes("isLocalProviderQuotaError(error)"), "Investigator must recognize local provider-gate quota failures."],
   [investigator.includes("if (isLocalProviderQuotaError(error)) return null;"), "Investigator must stop futile same-provider fallback after a local gate block."],
   [boss.includes("isLocalProviderQuotaError(error)"), "Boss must recognize local provider-gate quota failures."],
