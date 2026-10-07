@@ -101,6 +101,7 @@ async function reconcileTargetCaseCancellation(atlasJobId: string, caseId: numbe
     throw new Error("Canonical Atlas job cancelled; target case creation raced operator stop.");
   }
   if (job.status === "failed") throw new Error("Canonical Atlas job already failed; refusing further target control-plane work.");
+  if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing further target control-plane work.");
 }
 function openingContext(target: { name: string; type: string }, companyName: string | null, caseId: number, objective: string, prior: string): string { return compactInvestigationContext({ raw: ["# Apex Atlas — Investigation Context", `Case: ${caseId}`, `Target: ${target.name}`, `Target type: ${target.type}`, `Company: ${companyName ?? "not established"}`, "## Bureau operating law", "Groq Boss is Boss. Groq Right-hand is Right Hand Advisor. the selected Investigator capability owns the research trajectory. The Investigator owns the research trajectory. Deterministic code validates safety, provenance, budgets, lifecycle and promotion integrity; it does not prescribe research hops.", "## Objective", objective, "## Prior durable context", prior || "No prior target-scoped investigation context exists."].join("\n\n") }); }
 export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, targetId: number, options: CanonicalSingleTargetOptions = {}): Promise<{ investigatorIterationsUsed: number; resourceLimited: boolean; status: "complete" | "review" | "cancelled" }> {
