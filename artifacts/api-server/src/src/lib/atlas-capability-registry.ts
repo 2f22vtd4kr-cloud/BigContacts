@@ -67,6 +67,6 @@ export function capabilityForAction(action: string): AtlasCapability[] {
  */
 export function renderAtlasCapabilityGuidanceCompact(capabilities: readonly AtlasCapability[] = ATLAS_CAPABILITIES): string {
   return capabilities.map((c) =>
-    `- ${c.id}: ${c.action}; purpose=${c.purpose}; when=${c.usefulWhen.slice(0, 2).join(" | ")}; prerequisites=${c.prerequisites.join(" | ") || "none"}; cost=${c.typicalCost}; limits=${c.limitations.slice(0, 2).join(" | ")}`,
+    `- ${c.id}: ${c.action}; provider=${c.action === "web_search" ? "serper|tavily|exa" : c.action === "browser_fetch" ? "scrapfly|zenrows|browserless|playwright" : c.action === "domain_lookup" ? "rdap|whoisjson" : c.action === "registry_search" ? "registry field" : "n/a"}; purpose=${c.purpose}; when=${c.usefulWhen.slice(0, 2).join(" | ")}; prerequisites=${c.prerequisites.join(" | ") || "none"}; cost=${c.typicalCost}; limits=${c.limitations.slice(0, 2).join(" | ")}`,
   ).join("\n");
 }
