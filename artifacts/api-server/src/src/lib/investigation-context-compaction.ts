@@ -136,8 +136,11 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     budget.maxChars = Math.min(MAX_MAX_CHARS, Math.max(1_000, Math.floor(input.maxChars)));
   }
   const records = [...input.trajectoryRecords].sort((a, b) => a.turn - b.turn);
-  const recent = records.slice(Math.max(0, records.length - budget.recentFullRecords));
-  const older = records.slice(0, Math.max(0, records.length - budget.recentFullRecords));
+  const latestRecordCount = records.length ? 1 : 0;
+  const recentStart = Math.max(0, records.length - budget.recentFullRecords - latestRecordCount);
+  const recentEnd = Math.max(0, records.length - latestRecordCount);
+  const recent = records.slice(recentStart, recentEnd);
+  const older = records.slice(0, recentStart);
   const sections: string[] = [];
 
   sections.push([
