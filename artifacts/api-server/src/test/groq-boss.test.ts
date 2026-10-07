@@ -8,6 +8,10 @@ import {
 describe("Groq Boss control-plane adapter", () => {
   const originalKey = process.env.GROQ_BOSS_API_KEY;
 
+  beforeEach(() => {
+    for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     if (originalKey === undefined) delete process.env.GROQ_BOSS_API_KEY;
