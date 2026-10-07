@@ -39,6 +39,7 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     const targetControl = read("src/src/lib/target-control-decision.ts");
     expect(targetControl).toContain("refusing stale control event persistence");
     const oversight = read("src/src/lib/target-act-oversight.ts");
+    const strictPersist = read("src/src/lib/bureau-contact-persist-strict.ts");
     expect(oversight).toContain("jobId?:string|null");
     expect(oversight).toContain("refusing stale oversight event persistence");
     expect(oversight).toContain("jobId:jobId??null");
