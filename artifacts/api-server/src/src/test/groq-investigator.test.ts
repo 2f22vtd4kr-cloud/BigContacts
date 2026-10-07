@@ -198,8 +198,9 @@ describe("Groq Investigator provider boundary", () => {
     });
 
     expect(["unavailable", "error"]).toContain(result.status);
-    expect(calls).toBe(1);
+    expect(calls).toBe(2);
     expect(result.trajectoryRecords[0]?.action).toBe("investigator_provider_error");
+    expect(result.trajectoryRecords[0]?.observation).toContain("upstream_token_window_wait_exceeded");
   });
 
   it("does not rotate the selected Investigator capability after a transient 429 retry is exhausted", async () => {
