@@ -10,11 +10,15 @@ import { withProviderScope } from "../../lib/provider-gate";
 const router = Router();
 const cancellationFenceSql = (caseId: number) => sql`NOT (status = 'cancelled' OR (status = 'review' AND current_action IN ('canonical-atlas-cancelled','canonical-lease-lost'))) AND id = ${caseId}`;
 function parseFile(raw: string | null): Record<string, any> | null { try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; } }
+const CONTROL_CONTEXT_BOUND_MARKER = "\n\n[CONTROL CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n";
 function contextOf(file: Record<string, any>): string {
   const context = typeof file.contextDocument === "string" ? file.contextDocument.trim() : "";
   if (!context) throw new Error("Target case has no durable context document; refusing context-free continuation.");
   if (context.length <= 28000) return context;
-  return `${context.slice(0, 14000)}\n\n[CONTROL CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n${context.slice(-14000)}`;
+  const available = Math.max(0, 28000 - CONTROL_CONTEXT_BOUND_MARKER.length);
+  const head = Math.floor(available / 2);
+  const tail = available - head;
+  return context.slice(0, head) + CONTROL_CONTEXT_BOUND_MARKER + context.slice(-tail);
 }
 router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, res): Promise<void> => {
   try { await enablePermanentRedis(); } catch (error) { res.status(503).json({ error: error instanceof Error ? error.message : "Permanent Redis is unavailable for canonical target continuation." }); return; }
