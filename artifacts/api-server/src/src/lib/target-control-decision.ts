@@ -14,7 +14,7 @@ function clipControlText(value: unknown, maxChars: number): string {
 function compactControlContext(value: string, maxChars = 10000): string {
   if (value.length <= maxChars) return value;
   const head = Math.floor(maxChars / 2);
-  return `${value.slice(0, head)}\\n\\n[CONTROL CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\\n\\n${value.slice(-head)}`;
+  return `${value.slice(0, head)}\n\n[CONTROL CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n${value.slice(-head)}`;
 }
 function compactTrajectory(records: TrajectoryRecord[], maxChars = 5000): string {
   const compact = records.map((record) => ({
