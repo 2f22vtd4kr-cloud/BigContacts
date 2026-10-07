@@ -30,6 +30,9 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     const oversight = read("src/src/lib/target-act-oversight.ts");
     expect(oversight).toContain("jobId?:string|null");
     expect(oversight).toContain("refusing stale oversight persistence");
+    expect(oversight).toContain("jobId:jobId??null");
+    expect(oversight).toContain("target-oversight:case:");
+    expect(oversight).toContain(":job:");
   });
 
   it("binds promoted contact provenance to both job ownership and the supporting observed source", () => {
