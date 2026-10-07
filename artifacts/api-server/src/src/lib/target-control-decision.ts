@@ -11,10 +11,13 @@ function clipControlText(value: unknown, maxChars: number): string {
   const text = typeof value === "string" ? value.trim() : "";
   return text.length <= maxChars ? text : `${text.slice(0, Math.max(0, maxChars - 1))}…`;
 }
+const CONTROL_CONTEXT_BOUND_MARKER = "\n\n[CONTROL CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n";
 function compactControlContext(value: string, maxChars = 10000): string {
   if (value.length <= maxChars) return value;
-  const head = Math.floor(maxChars / 2);
-  return `${value.slice(0, head)}\n\n[CONTROL CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n${value.slice(-head)}`;
+  const available = Math.max(0, maxChars - CONTROL_CONTEXT_BOUND_MARKER.length);
+  const head = Math.floor(available / 2);
+  const tail = available - head;
+  return value.slice(0, head) + CONTROL_CONTEXT_BOUND_MARKER + value.slice(-tail);
 }
 function compactTrajectory(records: TrajectoryRecord[], maxChars = 5000): string {
   const compact = records.map((record) => ({
