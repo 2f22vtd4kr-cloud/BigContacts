@@ -3,9 +3,11 @@ import fs from "node:fs";
 const lock = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-job-lock.ts", "utf8");
 const launch = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts", "utf8");
 const targetRunner = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
+const targetContinuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts", "utf8");
 const jobQueue = fs.readFileSync("artifacts/api-server/src/src/lib/job-queue.ts", "utf8");
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
+assert(/runCanonicalSingleTargetInvestigation[\s\S]*finally \{[\s\S]*releaseCanonicalJob\("atlas-run", jobId!\)/.test(targetContinuation), "target continuation background runner must release its canonical Atlas lease on exit");
 
 assert(lock.includes("export async function claimCanonicalJob"), "canonical job claim helper missing");
 assert(lock.includes("NX"), "canonical job claim is not an atomic NX acquisition");
