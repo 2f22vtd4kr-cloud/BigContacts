@@ -3,12 +3,12 @@ import { db } from "@workspace/db";
 
 const REQUIRED_COLUMNS: Record<string, readonly string[]> = {
   research_cases: ["id", "target_entity_id", "case_type", "status", "case_file", "current_action", "iteration"],
-  research_case_events: ["id", "case_id", "correlation_key", "payload"],
-  entities: ["id"],
-  research_sessions: ["id"],
+  research_case_events: ["id", "case_id", "iteration", "actor_role", "event_type", "status", "summary", "correlation_key", "payload"],
+  entities: ["id", "name", "type", "phone", "phone_source", "email", "metadata", "contact_confidence", "contact_outcome"],
+  research_sessions: ["id", "target_entity_id", "winning_path", "safe_use_status", "crm_status"],
   research_run_events: ["id"],
-  research_evidence: ["id"],
-  contact_evidence: ["id"],
+  research_evidence: ["id", "session_id", "entity_id", "claim_type", "claim", "status", "confidence", "observed_at", "freshness_score", "metadata"],
+  contact_evidence: ["id", "entity_id", "vector_type", "value", "source", "source_url", "source_reliability", "identity_match", "recency_score", "directness_score", "independent_corroboration", "validation_status", "observed_at", "metadata"],
 };
 
 export type SchemaReadiness = {
