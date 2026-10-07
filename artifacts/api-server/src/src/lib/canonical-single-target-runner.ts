@@ -137,16 +137,20 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       const opening = await runGroqBossDiscovery({ objective: `${caseRow.objective}\n\nSHARED CASE CONTEXT:\n${contextDocument}`, motivation: "Select the Investigator capability for one target-scoped free-ReAct investigation. Groq Boss is not the researcher and must not prescribe a tool sequence.", geography: "Target-specific public web and official sources", exclusions: ["Do not browse.", "Do not invent evidence, contacts, relationships or URLs.", "Do not prescribe a fixed search/tool/provider/query sequence.", "Select one currently available Investigator capability from the runtime capability registry. Do not prescribe a tool, provider, query, or research sequence."], startingLane: "exact target assignment from shared case context" });
       investigatorLlm = opening.investigatorLlm; if (!investigatorLlm) { await db.update(researchCasesTable).set({ status: "review", currentAction: "groq-boss-opening-assignment-failed", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)); await publishJob( { status: "failed", progress: 1, message: `Groq Boss did not select a usable Investigator for ${target.name}; no fallback permitted.`, result: JSON.stringify({ caseId: caseRow.id, opening }) }); return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review" }; }
       contextDocument = compactInvestigationContext({ raw: `${contextDocument}\n\n## Groq Boss opening state\nmodel=${opening.model}\nselectedInvestigator=${investigatorLlm}\nreport=${opening.report}\nnextDirections=${opening.nextDirections.join(" | ")}\nuncertainties=${opening.uncertainties.join(" | ")}` }); caseState.contextDocument = contextDocument; caseState.investigatorLlm = investigatorLlm; const [openingProjection] = await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseState), directorMode: "groq_boss_active", directorModel: opening.model, currentAction: "investigator-act-1", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)).returning({ id: researchCasesTable.id }); if (!openingProjection?.id) throw new Error("Canonical Atlas target case was cancelled before Boss opening projection.");
-      await db.insert(researchCaseEventsTable).values({
-        caseId: caseRow.id,
-        iteration: 0,
-        actorRole: "groq_boss",
-        eventType: "assignment",
-        status: "recorded",
-        summary: "Groq Boss opened target investigation and selected the Investigator.",
-        correlationKey: `${atlasJobId}:target-boss-opening:${caseRow.id}`,
-        payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, model: opening.model, investigatorLlm, report: opening.report, nextDirections: opening.nextDirections, uncertainties: opening.uncertainties }),
-      });
+       await db.transaction(async (tx) => {
+         const [locked] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(eq(researchCasesTable.id, caseRow.id)).for("update").limit(1);
+         if (!locked || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? ""))) throw new Error("Canonical Atlas target case is no longer active; refusing Boss opening event after cancellation.");
+         await tx.insert(researchCaseEventsTable).values({
+          caseId: caseRow.id,
+          iteration: 0,
+          actorRole: "groq_boss",
+          eventType: "assignment",
+          status: "recorded",
+          summary: "Groq Boss opened target investigation and selected the Investigator.",
+          correlationKey: `${atlasJobId}:target-boss-opening:${caseRow.id}`,
+          payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, model: opening.model, investigatorLlm, report: opening.report, nextDirections: opening.nextDirections, uncertainties: opening.uncertainties }),
+         });
+       });
       caseState.currentAction = "groq-right-hand-opening-review";
       const rightHandPrompt = "Review Groq Boss opening target assignment before the Investigator starts. Target: " + target.name + " (" + target.type + "). Objective: " + caseRow.objective + ". Boss selected Investigator capability: " + investigatorLlm + ". Boss report: " + (opening.report ?? "") + ". Next directions: " + JSON.stringify(opening.nextDirections) + ". Uncertainties: " + JSON.stringify(opening.uncertainties) + ". Return concise advisory observations only. Do not browse, choose tools, invent evidence, or replace the Investigator. Return JSON with decision, reason, focusLanes, confidence.";
       const rightHandRaw = await runGroqRightHandFreeJson(rightHandPrompt, apexOrientationFor("right_hand") + "\nYou are Groq Right-hand. Review the Boss opening decision only. Do not browse, choose tools, or replace the selected Investigator capability. Reply with ONE JSON object.").catch((error) => ({ status: "unavailable" as const, model: "none", raw: null, error: error instanceof Error ? error.message : "Right-hand unavailable" }));
