@@ -8,7 +8,7 @@ const mutationGuard=fs.readFileSync("artifacts/api-server/src/src/lib/legacy-ape
 const core=fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts","utf8");
 const control=fs.readFileSync("artifacts/api-server/src/src/lib/target-control-decision.ts","utf8");
 const checks=[
-["target control persistence rechecks durable cancellation fence under row lock",/status: researchCasesTable\.status[\s\S]*currentAction: researchCasesTable\.currentAction/.test(control)&&/caseRow\.status !== "active"/.test(control)],
+["target control persistence rechecks durable cancellation fence under row lock",/status: researchCasesTable\.status[\s\S]*currentAction: researchCasesTable\.currentAction/.test(control)&&/caseRow\.status === "complete"/.test(control)&&/caseRow\.status === "cancelled"/.test(control)],
 ["canonical runner gives each Investigator act a bounded multi-step budget",/const actIterations = Math\.min\(depth\.investigatorIterationsPerAct, remainingInvestigatorIterations\)/.test(runner)&&/maxIterations: actIterations/.test(runner)],
 ["canonical runner reads durable act oversight after each act with exact run and turn",/readOversight\(caseState,\s*latestResult\.executionId\s*\?\?\s*null,\s*actNumber\)/.test(runner)],
 ["canonical runner does not consume stale targetControlDecisions",!/readContinuationControl\(/.test(runner)],
