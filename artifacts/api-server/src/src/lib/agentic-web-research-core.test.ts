@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, validateDiscoverySearchQuery } from "./agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, validateDiscoverySearchQuery } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 
 describe("Investigator prompt architecture", () => {
@@ -104,6 +104,16 @@ describe("Investigator prompt architecture", () => {
     expect(context).toContain("LATEST_OBSERVATION_SENTINEL");
     expect(context.match(/LATEST TRAJECTORY RECORD/g)?.length).toBe(1);
     expect(context.match(/https:\/\/example\.com\/anchor/g)?.length).toBe(1);
+  });
+
+
+  it("classifies malformed Investigator responses without persisting response text", () => {
+    expect(describeAgentActionParseFailure("")).toBe("empty_response");
+    expect(describeAgentActionParseFailure("not json")).toMatch(/^no_json_object chars=\d+ digest=/);
+    expect(describeAgentActionParseFailure("{")).toMatch(/^no_json_object chars=\d+ digest=/);
+    expect(describeAgentActionParseFailure('{"foo":"bar"}')).toBe("missing_action");
+    expect(describeAgentActionParseFailure('{"action":"invented"}')).toBe("unsupported_action action=invented");
+    expect(describeAgentActionParseFailure('{"action":"visit"}')).toBe("invalid_action_arguments action=visit");
   });
 
 });
