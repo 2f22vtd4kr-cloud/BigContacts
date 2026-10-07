@@ -54,6 +54,7 @@ describe("canonical Atlas stop fence", () => {
     expect(source).toContain('await setActiveJob("case-bureau-discovery", jobId);');
     expect(source).toContain('await releaseCanonicalJob("atlas-run", jobId).catch');
     expect(source).toContain("try {");
+    expect(source).toContain("Canonical discovery lock acquisition failed.");
   });
 
   it("releases the target continuation lock if active-job binding fails", () => {
