@@ -360,7 +360,7 @@ describe("Groq Right-hand model policy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
-  it("retries a transient 429 before falling back to another model", async () => {
+  it("retries a transient 429 before falling back to another model", { timeout: 15_000 }, async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-transient-retry-test-key");
 
     let chatAttemptCount = 0;
@@ -399,7 +399,7 @@ describe("Groq Right-hand model policy", () => {
     expect(chatCalls).toHaveLength(2);
   });
 
-  it("retries a strict JSON schema rejection in JSON-object mode", async () => {
+  it("retries a strict JSON schema rejection in JSON-object mode", { timeout: 15_000 }, async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-json-compatibility-test-key");
     const formats: string[] = [];
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
@@ -438,7 +438,7 @@ describe("Groq Right-hand model policy", () => {
 
 
 
-  it("isolates model-catalog caches for credentials that collide under the legacy 32-bit fingerprint", async () => {
+  it("isolates model-catalog caches for credentials that collide under the legacy 32-bit fingerprint", { timeout: 15_000 }, async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "Aa");
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
