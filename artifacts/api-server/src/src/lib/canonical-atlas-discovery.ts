@@ -61,22 +61,45 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       } catch { return false; }
     });
     if (!supported) continue;
-    const existingRows = await db.select({ id: entitiesTable.id, metadata: entitiesTable.metadata }).from(entitiesTable).where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(16);
-    // Never bind a common-name discovery candidate to an unrelated pre-existing entity.
-    // Materialized discovery entities carry their owning discoveryCaseId in metadata;
-    // only that durable case binding is eligible for this canonical research path.
-    const existing = existingRows.find((row) => {
-      try { const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; return Number(metadata.discoveryCaseId) === input.discoveryCaseId; } catch { return false; }
-    });
-    let entityId = existing?.id ?? null;
-    if (!entityId) { const [created] = await db.insert(entitiesTable).values({ name, type: "HNWI", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId: input.discoveryCaseId }) }).returning({ id: entitiesTable.id }); entityId = created?.id ?? null; if (entityId) materialized += 1; }
-    if (!entityId) continue;
-    const supportingEvent = caseEvents.find((event) => { if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false; try { const payload = JSON.parse(event.payload) as { action?: string; execution?: string; observedUrls?: unknown[]; runId?: string; observation?: string }; const directSourceAction = payload.action === "visit" || payload.action === "browser_fetch"; return payload.runId === input.discoveryRunId && candidateIdentityObserved(name, payload.observation) && directSourceAction && payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => normalizeSourceUrl(String(url)) === normalizedSource); } catch { return false; } });
-    const [existingEvidence] = await db.select({ id: researchEvidenceTable.id }).from(researchEvidenceTable).where(and(eq(researchEvidenceTable.entityId, entityId), eq(researchEvidenceTable.sourceUrl, normalizedSource))).limit(1);
-    if (!existingEvidence) {
-      const [session] = await db.insert(researchSessionsTable).values({ targetEntityId: entityId, winningPath: JSON.stringify([{ sourceUrl: normalizedSource, caseId: input.discoveryCaseId, admission: "investigator-explicit-promotion" }]), notes: "Canonical discovery admission evidence; target-scoped investigation required before contact promotion.", safeUseStatus: "manual_review", crmStatus: "Lead Gen" }).returning({ id: researchSessionsTable.id });
-      if (session?.id) { await db.insert(researchEvidenceTable).values({ sessionId: session.id, entityId, claimType: "identity_candidate", claim: `Investigator-discovered candidate: ${name}`, value: name, sourceName: "canonical-agentic-discovery", sourceUrl: normalizedSource, sourceDomain: new URL(normalizedSource).hostname, status: "review", confidence: 0.5, observedAt: supportingEvent?.createdAt ?? new Date(), freshnessScore: 1, metadata: JSON.stringify({ discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: supportingEvent?.id ?? null, promotionDecision: "promote", reviewOnly: true }) }); evidenceRows += 1; }
-    }
+    const materializedAdmission = await db.transaction(async (tx) => {
+      const [ownedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile })
+        .from(researchCasesTable)
+        .where(and(
+          eq(researchCasesTable.id, input.discoveryCaseId),
+          eq(researchCasesTable.status, "active"),
+          sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${input.atlasJobId}`,
+          sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+        ))
+        .for("update")
+        .limit(1);
+      if (!ownedCase) throw new Error("Canonical discovery admission lost its durable job ownership before materialization.");
+      const existingRows = await tx.select({ id: entitiesTable.id, metadata: entitiesTable.metadata }).from(entitiesTable)
+        .where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(16);
+      // Never bind a common-name discovery candidate to an unrelated pre-existing entity.
+      // Materialized discovery entities carry their owning discoveryCaseId in metadata;
+      // only that durable case binding is eligible for this canonical research path.
+      const existing = existingRows.find((row) => {
+        try { const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; return Number(metadata.discoveryCaseId) === input.discoveryCaseId; } catch { return false; }
+      });
+      let entityId = existing?.id ?? null;
+      let createdEntity = false;
+      if (!entityId) {
+        const [created] = await tx.insert(entitiesTable).values({ name, type: "HNWI", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId: input.discoveryCaseId }) }).returning({ id: entitiesTable.id });
+        entityId = created?.id ?? null;
+        createdEntity = Boolean(entityId);
+      }
+      if (!entityId) return { materialized: 0, evidenceRows: 0 };
+      const supportingEvent = caseEvents.find((event) => { if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false; try { const payload = JSON.parse(event.payload) as { action?: string; execution?: string; observedUrls?: unknown[]; runId?: string; observation?: string }; const directSourceAction = payload.action === "visit" || payload.action === "browser_fetch"; return payload.runId === input.discoveryRunId && candidateIdentityObserved(name, payload.observation) && directSourceAction && payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => normalizeSourceUrl(String(url)) === normalizedSource); } catch { return false; } });
+      const [existingEvidence] = await tx.select({ id: researchEvidenceTable.id }).from(researchEvidenceTable).where(and(eq(researchEvidenceTable.entityId, entityId), eq(researchEvidenceTable.sourceUrl, normalizedSource))).limit(1);
+      let addedEvidence = 0;
+      if (!existingEvidence) {
+        const [session] = await tx.insert(researchSessionsTable).values({ targetEntityId: entityId, winningPath: JSON.stringify([{ sourceUrl: normalizedSource, caseId: input.discoveryCaseId, admission: "investigator-explicit-promotion" }]), notes: "Canonical discovery admission evidence; target-scoped investigation required before contact promotion.", safeUseStatus: "manual_review", crmStatus: "Lead Gen" }).returning({ id: researchSessionsTable.id });
+        if (session?.id) { await tx.insert(researchEvidenceTable).values({ sessionId: session.id, entityId, claimType: "identity_candidate", claim: `Investigator-discovered candidate: ${name}`, value: name, sourceName: "canonical-agentic-discovery", sourceUrl: normalizedSource, sourceDomain: new URL(normalizedSource).hostname, status: "review", confidence: 0.5, observedAt: supportingEvent?.createdAt ?? new Date(), freshnessScore: 1, metadata: JSON.stringify({ discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: supportingEvent?.id ?? null, promotionDecision: "promote", reviewOnly: true }) }); addedEvidence = 1; }
+      }
+      return { materialized: createdEntity ? 1 : 0, evidenceRows: addedEvidence };
+    }, { isolationLevel: "serializable" });
+    materialized += materializedAdmission.materialized;
+    evidenceRows += materializedAdmission.evidenceRows;
   }
   return { names: admitted, materialized, evidenceRows };
 }
