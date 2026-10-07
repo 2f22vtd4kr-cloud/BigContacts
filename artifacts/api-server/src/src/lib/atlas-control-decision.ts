@@ -256,6 +256,7 @@ async function persistControlDecision(input: { caseId: number; controlTurn: numb
       try { caseFile = caseRow.caseFile ? JSON.parse(caseRow.caseFile) as Record<string, unknown> : {}; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); }
       const history = Array.isArray(caseFile.atlasControlDecisions) ? caseFile.atlasControlDecisions : [];
       if (!history.some((item) => item && typeof item === "object" && (item as Record<string, unknown>).controlTurn === input.controlTurn)) history.push({ ...payload, recordedAt: new Date().toISOString() });
+      history.splice(0, Math.max(0, history.length - 32));
       caseFile.atlasControlDecisions = history;
       await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(caseFile), updatedAt: new Date() }).where(eq(researchCasesTable.id, input.caseId));
     });
