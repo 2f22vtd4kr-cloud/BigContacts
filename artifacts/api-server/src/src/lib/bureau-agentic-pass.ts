@@ -64,7 +64,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
   let current:Record<string,any>;
   try{current=JSON.parse(row.caseFile) as Record<string,any>;}catch{throw new Error(`Discovery case ${caseId} has unreadable durable state.`);}
   const existingRunIds=Array.isArray(current.runIds)?current.runIds.filter((value):value is string=>typeof value==="string"):[];
-  if(existingRunIds.includes(input.runId))return;
+  if(existingRunIds.includes(input.runId) && !input.finalize)return;
   const priorIteration=Math.max(0,Number(row.iteration??0)||0);
   const baseIteration=Math.max(0,Number.isFinite(input.baseIteration) ? Number(input.baseIteration) : priorIteration);
   const rawTrajectory=Array.isArray(result.trajectory)?result.trajectory:[];
