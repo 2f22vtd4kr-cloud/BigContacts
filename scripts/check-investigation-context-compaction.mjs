@@ -20,7 +20,7 @@ const checks = [
   ["archived trajectory retains both early and recent entries", /headTail\(input\.trajectoryRecords \?\? \[\], 10\)/.test(source)],
   ["emergency reducer enforces its maximum", /\.slice\(0, maxChars\)/.test(source)],
   ["unbounded whole-trajectory prompt assembly is absent", !/trajectoryRecords\.map\(.*observation.*join\(/s.test(source)],
-  ["discovery continuation preserves both head and tail when bounding durable context", /if\(context\.length<=28000\)return context;[\s\S]*?context\.slice\(0,head\)\+CONTINUATION_CONTEXT_BOUND_MARKER\+context\.slice\(-tail\)/.test(discoveryContinuation)],
+  ["discovery continuation preserves both head and tail when bounding durable context", /if(context.length<=16000)return context;[\s\S]*?context\.slice\(0,head\)\+CONTINUATION_CONTEXT_BOUND_MARKER\+context\.slice\(-tail\)/.test(discoveryContinuation)],
   ["discovery continuation uses a real newline bound marker", /const CONTINUATION_CONTEXT_BOUND_MARKER="\\n\\n\[DISCOVERY CONTINUATION CONTEXT BOUND: middle detail omitted; durable case state remains authoritative\]\\n\\n";/.test(discoveryContinuation)],
 ];
 let failed = false;
