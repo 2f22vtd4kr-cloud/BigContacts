@@ -32,6 +32,7 @@ const MAX_PROMPT_CHARS = 20_000;
 const GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS = 250;
 let nextGroqRightHandRequestAt = 0;
 let groqRightHandRequestGate: Promise<void> = Promise.resolve();
+export function resetGroqRightHandRequestGateForTests(): void { nextGroqRightHandRequestAt = 0; groqRightHandRequestGate = Promise.resolve(); }
 async function waitForGroqRightHandRequestSlot(signal?: AbortSignal): Promise<void> {
  const previous = groqRightHandRequestGate; let release!: () => void;
  groqRightHandRequestGate = new Promise<void>((resolve) => { release = resolve; });
