@@ -594,10 +594,13 @@ async function callGroqJson(
             rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
           const tokenWaitMs = groqTokenWindowWaitMs(response, body);
-          if (!hardQuota && tokenWaitMs !== null && tokenWaitMs <= 60_000 && retry429 < 1 && Date.now() + tokenWaitMs < started + PROVIDER_DECISION_TIMEOUT_MS) {
-            retry429 += 1;
-            await new Promise((resolve) => setTimeout(resolve, tokenWaitMs));
-            continue;
+          if (!hardQuota && tokenWaitMs !== null) {
+            if (tokenWaitMs <= 60_000 && retry429 < 1 && Date.now() + tokenWaitMs < started + PROVIDER_DECISION_TIMEOUT_MS) {
+              retry429 += 1;
+              await new Promise((resolve) => setTimeout(resolve, tokenWaitMs));
+              continue;
+            }
+            return { model, raw: "", error: "upstream_token_window_wait_exceeded" };
           }
           if (hardQuota) return { model, raw: "", error: "upstream_quota_exhausted" };
           if (retry429 >= 1) return { model, raw: "", error: "upstream_rate_limited" };
