@@ -173,7 +173,7 @@ describe("Groq Investigator provider boundary", () => {
     expect(new Set(authorizationHeaders)).toEqual(new Set(["Bearer test-groq-investigator-token-window-key"]));
   });
 
-  it("fails closed when the token-window reset exceeds the 45-second recovery ceiling", async () => {
+  it("fails closed when the token-window reset exceeds the 60-second local recovery ceiling", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-long-reset-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     let calls = 0;
@@ -184,7 +184,7 @@ describe("Groq Investigator provider boundary", () => {
         headers: {
           "retry-after": "20",
           "x-ratelimit-remaining-tokens": "3108",
-          "x-ratelimit-reset-tokens": "46s",
+          "x-ratelimit-reset-tokens": "61s",
           "x-ratelimit-remaining-requests": "998",
         },
       });
