@@ -58,7 +58,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
     "funding", "round", "rounds", "investment", "investments", "acquisition", "acquisitions", "startup", "startups",
     "executive", "executives", "business", "businesses", "company", "companies", "industry", "industries", "market", "markets",
     "news", "report", "reports", "article", "articles", "interview", "interviews", "statement", "statements", "profile", "profiles",
-    "large", "small", "major", "leading", "top", "best", "big", "by", "for", "from", "with", "without", "into", "over", "under", "after", "before", "about", "against", "among", "between", "through", "during", "using", "via",
+    "large", "small", "major", "leading", "top", "best", "big", "a", "an", "the", "and", "or", "nor", "but", "if", "then", "than", "of", "in", "on", "to", "as", "at", "by", "for", "from", "with", "without", "into", "over", "under", "after", "before", "about", "against", "among", "between", "through", "during", "using", "via",
   ]);
   const nonFameTokens = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token));
   const nonFameTokenCount = nonFameTokens.length;
