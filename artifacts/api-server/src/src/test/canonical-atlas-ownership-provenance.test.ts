@@ -59,6 +59,15 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     expect(targetAgent).toContain("jobId: input.jobId ?? null");
   });
 
+  it("keeps control event sequence iteration separate from control-turn identity", () => {
+    const discovery = read("src/src/lib/atlas-control-decision.ts");
+    const target = read("src/src/lib/target-control-decision.ts");
+    expect(discovery).toContain("const eventIteration = Number(latestEvent?.iteration ?? 0) + 1");
+    expect(target).toContain("const eventIteration = Number(latestEvent?.iteration ?? 0) + 1");
+    expect(discovery).toContain("controlTurn: input.controlTurn");
+    expect(target).toContain("controlTurn: input.controlTurn");
+  });
+
   it("reconstructs target trajectory from immutable event ID order", () => {
     const source = read("src/src/lib/canonical-single-target-runner.ts");
     expect(source).toContain("asc(researchCaseEventsTable.id)");
