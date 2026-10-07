@@ -1,7 +1,7 @@
 import { resolveGroqBossModel, generateGroqBossText } from "./groq-boss";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { compactInvestigationContext, type CompactionFinding } from "./investigation-context-compaction";
 import { logger } from "./logger";
 import { describeThrownProviderError } from "./provider-error-diagnostics";
@@ -253,7 +253,7 @@ async function persistControlDecision(input: { caseId: number; controlTurn: numb
       const correlationKey = `atlas-control:case:${input.caseId}:job:${input.jobId ?? "legacy"}:turn:${input.controlTurn}`;
       const [existingEvent] = await tx.select({ payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, input.caseId), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
       if (existingEvent && existingEvent.payload !== payloadJson) throw new Error(`Atlas control replay collision for case ${input.caseId}, turn ${input.controlTurn}.`);
-      if (!existingEvent) await tx.insert(researchCaseEventsTable).values({ caseId: input.caseId, iteration: input.controlTurn, actorRole: "groq_boss", eventType: "control_decision", status: input.decision.status, summary: `Atlas control decision: ${input.decision.action}${input.decision.candidateName ? ` → ${input.decision.candidateName}` : ""}`, correlationKey, payload: payloadJson });
+      if (!existingEvent) { const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration }).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, input.caseId)).orderBy(desc(researchCaseEventsTable.id)).limit(1); const eventIteration = Number(latestEvent?.iteration ?? 0) + 1; await tx.insert(researchCaseEventsTable).values({ caseId: input.caseId, iteration: eventIteration, actorRole: "groq_boss", eventType: "control_decision", status: input.decision.status, summary: `Atlas control decision: ${input.decision.action}${input.decision.candidateName ? ` → ${input.decision.candidateName}` : ""}`, correlationKey, payload: payloadJson }); }
       let caseFile: Record<string, unknown> = {};
       try { caseFile = caseRow.caseFile ? JSON.parse(caseRow.caseFile) as Record<string, unknown> : {}; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); }
       const history = Array.isArray(caseFile.atlasControlDecisions) ? caseFile.atlasControlDecisions : [];
