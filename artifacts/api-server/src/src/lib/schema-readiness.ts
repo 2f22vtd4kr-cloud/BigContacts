@@ -50,7 +50,7 @@ export async function checkAtlasSchemaReadiness(): Promise<SchemaReadiness> {
   const missingInvariants: string[] = [];
   if (missingTables.length === 0) {
     const invariantRows = await db.execute(sql`
-      SELECT tgname AS name
+      SELECT tgname AS name, NULL::text AS definition
       FROM pg_trigger
       WHERE NOT tgisinternal
         AND tgenabled = 'O'
@@ -63,13 +63,22 @@ export async function checkAtlasSchemaReadiness(): Promise<SchemaReadiness> {
           'apex_agentic_promotion_active_case'
         )
       UNION ALL
-      SELECT indexname AS name
+      SELECT indexname AS name, NULL::text AS definition
       FROM pg_indexes
       WHERE schemaname = 'public'
         AND tablename = 'research_case_events'
         AND indexname = 'research_case_events_case_id_correlation_key_uidx'
     `);
+    const functionRows = await db.execute(sql`
+      SELECT p.proname AS name, pg_get_functiondef(p.oid) AS definition
+      FROM pg_proc p
+      JOIN pg_namespace n ON n.oid = p.pronamespace
+      WHERE n.nspname = 'public'
+        AND p.proname = 'apex_research_case_events_replay_integrity'
+    `);
     const presentInvariants = new Set((invariantRows.rows as Array<{ name?: string }>).map((row) => row.name).filter((name): name is string => typeof name === "string"));
+    const replayFunction = (functionRows.rows as Array<{ definition?: string }>)[0]?.definition ?? "";
+    if (!replayFunction.includes("atlasJobId")) missingInvariants.push("apex_research_case_events_replay_integrity:atlasJobId-binding");
     for (const invariant of [
       "apex_research_case_events_no_update_delete",
       "apex_research_case_events_no_truncate",
