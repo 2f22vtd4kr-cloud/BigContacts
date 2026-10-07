@@ -34,6 +34,14 @@ function compactOversightText(value: string | undefined, max: number): string | 
   return normalized.slice(0, head).trimEnd() + marker + (tail > 0 ? normalized.slice(-tail).trimStart() : "");
 }
 
+function boundOversightPromptSection(value:string,max:number):string {
+  const normalized=value.trim();
+  if(normalized.length<=max)return normalized;
+  const marker="\n[MIDDLE PROMPT DETAIL OMITTED]\n";
+  const available=Math.max(0,max-marker.length);
+  const head=Math.ceil(available*0.55);
+  return normalized.slice(0,head).trimEnd()+marker+normalized.slice(-(available-head)).trimStart();
+}
 function compactOversightFindings(findings: unknown[]): unknown[] {
   if (findings.length <= 6) return findings;
   return [...findings.slice(0, 3), "[MIDDLE FINDINGS OMITTED; DURABLE ACT RETAINS THEM]", ...findings.slice(-2)];
