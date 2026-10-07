@@ -240,15 +240,15 @@ export function buildAtlasControlEventPayload(input: { decision: AtlasControlDec
   };
 }
 
-async function persistControlDecision(input: { caseId: number; controlTurn: number; decision: AtlasControlDecision }): Promise<boolean> {
+async function persistControlDecision(input: { caseId: number; controlTurn: number; decision: AtlasControlDecision; jobId?: string | null }): Promise<boolean> {
   try {
     await db.transaction(async (tx) => {
       const [caseRow] = await tx.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, input.caseId)).for("update").limit(1);
       if (!caseRow) throw new Error(`Atlas discovery case ${input.caseId} does not exist.`);
-      if (caseRow.status !== "active") throw new Error(`Atlas discovery case ${input.caseId} is no longer active; refusing stale control persistence.`);
+      if (caseRow.status !== "active") throw new Error(`Atlas discovery case ${input.caseId} is no longer active; refusing stale control persistence.`); if (input.jobId) { let durableFile: Record<string, unknown>; try { durableFile = JSON.parse(caseRow.caseFile ?? "{}") as Record<string, unknown>; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); } if (String(durableFile.jobId ?? durableFile.atlasJobId ?? "") !== input.jobId) throw new Error(`Atlas discovery case ${input.caseId} is owned by another job; refusing stale control persistence.`); }
       const payload = buildAtlasControlEventPayload({ decision: input.decision, controlTurn: input.controlTurn });
       const payloadJson = JSON.stringify(payload);
-      const correlationKey = `atlas-control:case:${input.caseId}:turn:${input.controlTurn}`;
+      const correlationKey = `atlas-control:case:${input.caseId}:job:${input.jobId ?? "legacy"}:turn:${input.controlTurn}`;
       const [existingEvent] = await tx.select({ payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, input.caseId), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
       if (existingEvent && existingEvent.payload !== payloadJson) throw new Error(`Atlas control replay collision for case ${input.caseId}, turn ${input.controlTurn}.`);
       if (!existingEvent) await tx.insert(researchCaseEventsTable).values({ caseId: input.caseId, iteration: input.controlTurn, actorRole: "groq_boss", eventType: "control_decision", status: input.decision.status, summary: `Atlas control decision: ${input.decision.action}${input.decision.candidateName ? ` → ${input.decision.candidateName}` : ""}`, correlationKey, payload: payloadJson });
@@ -263,10 +263,10 @@ async function persistControlDecision(input: { caseId: number; controlTurn: numb
     return true;
   } catch (error) { logger.error({ caseId: input.caseId, controlTurn: input.controlTurn, diagnostic: describeThrownProviderError(error) }, "Failed to persist Atlas control decision"); return false; }
 }
-export async function decideAtlasNextAction(input: { objective: string; admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[] }>; discoveryStatus: string; discoveryTrajectory: string[]; discoveryTrajectoryRecords?: TrajectoryRecordInput[]; discoveryFindings: Array<{ personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>; priorAction?: AtlasControlAction | null; priorCandidate?: string | null; caseId: number; controlTurn: number; investigatorReport?: string }): Promise<AtlasControlDecision> {
+export async function decideAtlasNextAction(input: { objective: string; admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[] }>; discoveryStatus: string; discoveryTrajectory: string[]; discoveryTrajectoryRecords?: TrajectoryRecordInput[]; discoveryFindings: Array<{ personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>; priorAction?: AtlasControlAction | null; priorCandidate?: string | null; caseId: number; controlTurn: number; jobId?: string | null; investigatorReport?: string }): Promise<AtlasControlDecision> {
   if (!Number.isSafeInteger(input.caseId) || input.caseId <= 0) throw new Error("Atlas control decision requires a valid durable caseId.");
   if (!Number.isSafeInteger(input.controlTurn) || input.controlTurn <= 0) throw new Error("Atlas control decision requires a valid positive controlTurn.");
-  const finalize = async (decision: AtlasControlDecision): Promise<AtlasControlDecision> => { const persisted = await persistControlDecision({ caseId: input.caseId, controlTurn: input.controlTurn, decision }); if (persisted) return decision; return { status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Atlas control decision could not be durably persisted; transition is fail-closed.", confidence: null, rightHand: decision.rightHand, bossModel: decision.bossModel, error: safeControlError(new Error("Atlas control decision persistence failure"), "Failed to persist Atlas control decision.") }; };
+  const finalize = async (decision: AtlasControlDecision): Promise<AtlasControlDecision> => { const persisted = await persistControlDecision({ caseId: input.caseId, controlTurn: input.controlTurn, decision, jobId: input.jobId }); if (persisted) return decision; return { status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Atlas control decision could not be durably persisted; transition is fail-closed.", confidence: null, rightHand: decision.rightHand, bossModel: decision.bossModel, error: safeControlError(new Error("Atlas control decision persistence failure"), "Failed to persist Atlas control decision.") }; };
   const candidateNames = input.admittedCandidates.map((candidate) => candidate.name);
   const structuredTrajectory = (input.discoveryTrajectoryRecords ?? []).map((record) => ({ ...record }));
   const rawInvestigatorReport = input.investigatorReport?.trim() || "No post-investigator report is available yet; opening oversight must reason only over the opening case state.";
