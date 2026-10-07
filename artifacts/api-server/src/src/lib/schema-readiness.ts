@@ -53,6 +53,7 @@ export async function checkAtlasSchemaReadiness(): Promise<SchemaReadiness> {
       SELECT tgname AS name
       FROM pg_trigger
       WHERE NOT tgisinternal
+        AND tgenabled = 'O'
         AND tgrelid IN ('public.research_case_events'::regclass, 'public.research_cases'::regclass, 'public.entities'::regclass)
         AND tgname IN (
           'apex_research_case_events_no_update_delete',
