@@ -12,6 +12,18 @@ import { withProviderScope } from "../../lib/provider-gate";
 
 const router = Router();
 
+async function fenceStaleCanonicalCases(currentJobId: string): Promise<void> {
+  await db.update(researchCasesTable)
+    .set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() })
+    .where(and(
+      eq(researchCasesTable.status, "active"),
+      or(
+        sql`(${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId') IS NOT NULL AND ${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' <> ${currentJobId}`,
+        sql`(${researchCasesTable.caseFile}::jsonb ->> 'jobId') IS NOT NULL AND ${researchCasesTable.caseFile}::jsonb ->> 'jobId' <> ${currentJobId}`,
+      ),
+    ));
+}
+
 /** Canonical Atlas launch boundary: every public Atlas launch enters the model-owned control plane. */
 router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<void> => {
   let atlasJobId: string | null = null;
@@ -68,6 +80,11 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   }
 
   lockClaimed = true;
+  // A crashed/partitioned owner can disappear after the Redis lease expires
+  // without getting a final renewal callback. Once this job owns the canonical
+  // lock, any other active canonical case is therefore stale and must be fenced
+  // before the new pipeline can mutate the control plane.
+  await fenceStaleCanonicalCases(atlasJobId);
   await updateJob(atlasJobId, {
     status: "running",
     progress: 0,
