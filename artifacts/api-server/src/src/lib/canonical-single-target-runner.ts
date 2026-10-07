@@ -98,7 +98,7 @@ async function reconcileTargetCaseCancellation(atlasJobId: string, caseId: numbe
   if (!job || job.status === "cancelled") {
     await db.update(researchCasesTable)
       .set({ status: "review", currentAction: "canonical-atlas-cancelled", updatedAt: new Date() })
-      .where(and(eq(researchCasesTable.id, caseId), eq(researchCasesTable.status, "active")));
+      .where(and(eq(researchCasesTable.id, caseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`));
     throw new Error("Canonical Atlas job cancelled; target case creation raced operator stop.");
   }
   if (job.status === "failed") throw new Error("Canonical Atlas job already failed; refusing further target control-plane work.");
