@@ -257,6 +257,39 @@ describe("Groq Investigator provider boundary", () => {
     expect(result.trajectoryRecords).toHaveLength(1);
   });
 
+  it("classifies an explicit daily-quota message as hard quota even when the request counter is nonzero", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-daily-quota-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let calls = 0;
+    mocks.safeOutboundFetch.mockImplementation(async () => {
+      calls += 1;
+      return new Response(JSON.stringify({
+        error: {
+          code: "too_many_requests",
+          message: "Daily request limit reached for this model.",
+          type: "rate_limit_exceeded",
+        },
+      }), {
+        status: 429,
+        headers: {
+          "retry-after": "20",
+          "x-ratelimit-remaining-requests": "999",
+        },
+      });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(["unavailable", "error"]).toContain(result.status);
+    expect(calls).toBe(1);
+    expect(result.trajectoryRecords[0]?.observation).toContain("upstream_quota_exhausted");
+  });
+
   it("retries JSON-object mode within the selected Investigator capability after Groq strict-schema rejection", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
