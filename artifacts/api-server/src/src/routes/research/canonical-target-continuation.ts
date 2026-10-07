@@ -64,7 +64,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     const cancellationFence = Boolean((error as { cancellationFence?: unknown })?.cancellationFence);
     if (cancellationFence) { await updateJob(jobId, { status: "cancelled", outcome: "incomplete", message: "Continuation rejected by the durable cancellation fence.", finishedAt: new Date().toISOString() }).catch(() => undefined); await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined); res.status(409).json({ error: "This canonical target case is durably cancelled and cannot be resumed." }); return; }
     const message = error instanceof Error ? error.message : "Target control decision failed.";
-    const [updated] = await db.update(researchCasesTable).set({ status: "review", currentAction: "target-control-error", updatedAt: new Date() }).where(cancellationFenceSql(caseId)).returning({ id: researchCasesTable.id });
+    const [updated] = await db.update(researchCasesTable).set({ status: "review", currentAction: "target-control-error", updatedAt: new Date() }).where(and(cancellationFenceSql(caseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`)).returning({ id: researchCasesTable.id });
     await updateJob(jobId, { status: updated ? "failed" : "cancelled", outcome: "incomplete", message: updated ? message : "Target control error occurred after the durable cancellation fence.", finishedAt: new Date().toISOString() }); await clearActiveJobIfOwned("atlas-run", jobId); res.status(updated ? (statusCode >= 400 && statusCode < 600 ? statusCode : 503) : 409).json({ error: updated ? message : "This canonical target case is durably cancelled and cannot be resumed.", jobId });
   }
 });
