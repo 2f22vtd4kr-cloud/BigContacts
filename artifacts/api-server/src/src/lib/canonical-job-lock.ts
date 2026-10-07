@@ -75,6 +75,11 @@ export async function renewCanonicalJob(type: string, jobId: string): Promise<bo
 }
 
 type ReleaseResult = { available: true; released: boolean };
+export async function isCanonicalJobOwner(type: string, jobId: string): Promise<boolean> {
+  const owner = await withStrictPermanentClient((redis) => redis.get(`apex:activejob:${type}`));
+  return owner === jobId;
+}
+
 export async function releaseCanonicalJob(type: string, jobId: string): Promise<boolean> {
   const timerKey = `${type}:${jobId}`; const timer = leaseTimers.get(timerKey); if (timer) clearInterval(timer); leaseTimers.delete(timerKey);
   const outcome: ReleaseResult = {
