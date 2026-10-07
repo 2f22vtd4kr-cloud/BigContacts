@@ -31,7 +31,7 @@ describe("canonical Atlas stop fence", () => {
     expect(source).toContain("'atlasJobId'");
     expect(source).toContain("'jobId'");
     expect(source).toContain("'caseType'");
-    expect(source).toContain("'runIds'");
+    expect(source).not.toContain("caseFile: sql`jsonb_set(jsonb_set");
   });
 
   it("reconciles a target case created across the cancellation check-before-create race", () => {
