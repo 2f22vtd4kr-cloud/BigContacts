@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { logger } from "./logger";
-import { withProviderRetryOwnership, withProviderScope } from "./provider-gate";
+import { withProviderRetryOwnership } from "./provider-gate";
 import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
@@ -158,7 +158,7 @@ type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: s
 function formatAttemptDiagnostic(diagnostic: GroqAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
 
 async function request(system:string,user:string,format?:Record<string,unknown>):Promise<{raw:string;error:string|null;model:string}>{
- return withProviderScope("atlas-right-hand", async () => { const entries=keyEntries(); if(!entries.length)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
+ const entries=keyEntries(); if(!entries.length)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
  const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Groq Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:GROQ_RIGHT_HAND_MODEL};
  const systemPrompt=`${apexOrientationCompact("right_hand")}\n\n${system}`;
@@ -195,7 +195,6 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
   }
  }
  return {raw:"",error:`Groq Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:attempts.at(-1)?.model??GROQ_RIGHT_HAND_MODEL};
- });
 }
 
 function clip(value: string | null | undefined, maxChars = 360): string | null {
