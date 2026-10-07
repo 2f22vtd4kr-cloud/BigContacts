@@ -9,7 +9,7 @@ describe("Groq Right-hand token-window timing", () => {
     delete process.env.GROQ_RIGHT_HAND_API_KEY;
   });
 
-  it("recovers from a 54.547-second token-window reset within the bounded wait and overall deadline", async () => {
+  it("recovers from a 54.547-second token-window reset within the bounded wait and overall deadline", { timeout: 15_000 }, async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-token-54547ms-test-key");
     vi.useFakeTimers();
     const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
@@ -39,7 +39,10 @@ describe("Groq Right-hand token-window timing", () => {
       }), { status: 200 });
     });
 
-    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+    const pending = runGroqRightHandFreeJson("Return a small JSON decision.");
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(54_547);
+    const result = await pending;
 
     expect(result.status).toBe("completed");
     expect(chatCalls).toBe(2);
