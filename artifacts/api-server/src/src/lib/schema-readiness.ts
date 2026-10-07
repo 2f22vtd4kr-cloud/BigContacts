@@ -15,6 +15,7 @@ export type SchemaReadiness = {
   ready: boolean;
   missingTables: string[];
   missingColumns: Array<{ table: string; column: string }>;
+  missingInvariants: string[];
 };
 
 export async function checkAtlasSchemaReadiness(): Promise<SchemaReadiness> {
@@ -46,5 +47,38 @@ export async function checkAtlasSchemaReadiness(): Promise<SchemaReadiness> {
     }
   }
 
-  return { ready: missingTables.length === 0 && missingColumns.length === 0, missingTables, missingColumns };
+  const missingInvariants: string[] = [];
+  if (missingTables.length === 0) {
+    const invariantRows = await db.execute(sql`
+      SELECT tgname AS name
+      FROM pg_trigger
+      WHERE NOT tgisinternal
+        AND tgrelid IN ('public.research_case_events'::regclass, 'public.research_cases'::regclass, 'public.entities'::regclass)
+        AND tgname IN (
+          'apex_research_case_events_no_update_delete',
+          'apex_research_case_events_no_truncate',
+          'apex_research_case_events_replay_integrity',
+          'apex_research_case_cancellation_fence',
+          'apex_agentic_promotion_active_case'
+        )
+      UNION ALL
+      SELECT indexname AS name
+      FROM pg_indexes
+      WHERE schemaname = 'public'
+        AND tablename = 'research_case_events'
+        AND indexname = 'research_case_events_case_id_correlation_key_uidx'
+    `);
+    const presentInvariants = new Set((invariantRows.rows as Array<{ name?: string }>).map((row) => row.name).filter((name): name is string => typeof name === "string"));
+    for (const invariant of [
+      "apex_research_case_events_no_update_delete",
+      "apex_research_case_events_no_truncate",
+      "apex_research_case_events_replay_integrity",
+      "apex_research_case_cancellation_fence",
+      "apex_agentic_promotion_active_case",
+      "research_case_events_case_id_correlation_key_uidx",
+    ]) {
+      if (!presentInvariants.has(invariant)) missingInvariants.push(invariant);
+    }
+  }
+  return { ready: missingTables.length === 0 && missingColumns.length === 0 && missingInvariants.length === 0, missingTables, missingColumns, missingInvariants };
 }
