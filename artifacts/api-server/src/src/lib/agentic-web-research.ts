@@ -31,7 +31,7 @@ export type { AgenticFinding, AgenticWebResearchResult, AgenticTrajectoryRecord 
 export { getAgenticLlmHealth } from "./agentic-web-research-core";
 
 type CoreModule = typeof import("./agentic-web-research-core");
-type RunInput = Parameters<CoreModule["runAgenticWebResearch"]>[0] & { caseId?: number; oversightMode?: "internal" | "caller" };
+type RunInput = Parameters<CoreModule["runAgenticWebResearch"]>[0] & { caseId?: number; oversightMode?: "internal" | "caller"; onTrajectoryRecord?: (record: CoreResult["trajectoryRecords"][number]) => void | Promise<void> };
 type CoreResult = Awaited<ReturnType<CoreModule["runAgenticWebResearch"]>>;
 type AgenticRunResult = CoreResult & { executionId: string; runId?: string };
 
@@ -102,7 +102,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     const remaining = deadline - Date.now();
     if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, error: `hard timeout ${requestedHardTimeout}ms`, executionId };
     const perActTimeout = Math.max(30_000, Math.min(55_000, remaining));
-    const actInput: RunInput = { ...input, cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, records), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); if (!job || job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; try { return !(await isCanonicalJobOwner(lockType, input.jobId)); } catch { return true; } }, onLiveStep: (step) => input.onLiveStep?.(step) };
+    const actInput: RunInput = { ...input, cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, records), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); if (!job || job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; try { return !(await isCanonicalJobOwner(lockType, input.jobId)); } catch { return true; } }, onLiveStep: (step) => input.onLiveStep?.(step), onTrajectoryRecord: input.onTrajectoryRecord };
     const actResult = await core.runAgenticWebResearch(actInput);
     model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error;
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
@@ -115,6 +115,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
       recordResult(intelligence, normalizedRecord, records);
       records = [...records, normalizedRecord];
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
+      await input.onTrajectoryRecord?.(normalizedRecord);
       if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
       if (raw.findings.length) {
               const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord]);
@@ -239,6 +240,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            hardTimeoutMs: perActTimeout,
            signal: overallController.signal,
            onLiveStep: (step) => input.onLiveStep?.(step),
+           onTrajectoryRecord: input.onTrajectoryRecord,
          };
          const actResult = await core.runAgenticWebResearch(actInput);
          model = actResult.model;
@@ -261,6 +263,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              normalizedRecord.observation = "Terminal claim verification blocked the stop: at least one Investigator finding was not supported by successfully observed cited material. Continue research and verify each claim before stopping.";
              recordResult(intelligence, normalizedRecord, records);
              records = [...records, normalizedRecord];
+             await input.onTrajectoryRecord?.(normalizedRecord);
              actionsSinceCheckpoint += 1;
              trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `VERIFICATION_BLOCKED:turn=${actionTurn}:ungrounded_terminal_claim`, `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
              const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
