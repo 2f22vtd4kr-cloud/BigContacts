@@ -266,7 +266,7 @@ describe("Groq Investigator provider boundary", () => {
       return new Response(JSON.stringify({
         error: {
           code: "too_many_requests",
-          message: "Daily request limit reached for this model.",
+          message: "20 requests per day on Free Tier.",
           type: "rate_limit_exceeded",
         },
       }), {
