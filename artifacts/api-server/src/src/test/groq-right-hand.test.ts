@@ -8,9 +8,11 @@ import {
   runGroqRightHandDiscoveryAdvice,
 } from "../lib/groq-right-hand-reasoning";
 import { summarizeProviderBody } from "../lib/provider-error-diagnostics";
+import { resetProviderGateForTests } from "../lib/provider-gate";
 
 describe("Groq Right-hand model policy", () => {
   afterEach(() => {
+    resetProviderGateForTests();
     delete process.env.GROQ_RIGHT_HAND_API_KEY;
     delete process.env.GROQ_RIGHT_HAND_API_KEY_2;
     delete process.env.GROQ_RIGHT_HAND_API_KEY_3;
