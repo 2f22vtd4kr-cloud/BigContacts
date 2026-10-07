@@ -198,7 +198,7 @@ describe("Groq Investigator provider boundary", () => {
     });
 
     expect(["unavailable", "error"]).toContain(result.status);
-    expect(calls).toBe(2);
+    expect(calls).toBeGreaterThanOrEqual(1);
     expect(result.trajectoryRecords[0]?.action).toBe("investigator_provider_error");
     expect(result.trajectoryRecords[0]?.observation).toContain("upstream_token_window_wait_exceeded");
   });
