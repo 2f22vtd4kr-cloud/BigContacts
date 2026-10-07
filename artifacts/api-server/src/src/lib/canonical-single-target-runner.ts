@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getJob, updateJob } from "./job-queue";
@@ -60,9 +60,9 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
   });
 }
 async function loadDurableTargetTrajectory(caseId: number): Promise<{ records: CompactionTrajectoryRecord[]; findings: CompactionFinding[] }> {
-  const events = await db.select({ iteration: researchCaseEventsTable.iteration, eventType: researchCaseEventsTable.eventType, status: researchCaseEventsTable.status, payload: researchCaseEventsTable.payload })
+  const events = await db.select({ id: researchCaseEventsTable.id, iteration: researchCaseEventsTable.iteration, eventType: researchCaseEventsTable.eventType, status: researchCaseEventsTable.status, payload: researchCaseEventsTable.payload })
     .from(researchCaseEventsTable)
-    .where(and(eq(researchCaseEventsTable.caseId, caseId), eq(researchCaseEventsTable.eventType, "tool_observation")));
+    .where(and(eq(researchCaseEventsTable.caseId, caseId), eq(researchCaseEventsTable.eventType, "tool_observation"))).orderBy(asc(researchCaseEventsTable.id));
   const records: CompactionTrajectoryRecord[] = [];
   const findings: CompactionFinding[] = [];
   for (const event of events) {
