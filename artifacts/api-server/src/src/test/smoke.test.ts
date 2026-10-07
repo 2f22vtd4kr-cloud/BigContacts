@@ -4,6 +4,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 
 const BASE = `http://localhost:${process.env.PORT ?? 8080}`;
 const API_TOKEN = process.env.APEX_API_AUTH_TOKEN?.trim();
+const LIVE_API_TESTS = process.env.RUN_LIVE_API_TESTS === "true";
 type JsonBody = any;
 
 function authHeaders(contentType?: string): Record<string, string> {
@@ -19,7 +20,7 @@ async function get(path: string): Promise<{ status: number; body: JsonBody }> {
   return { status: res.status, body: body as JsonBody };
 }
 
-describe("GET /api/healthz", () => {
+describe.skipIf(!LIVE_API_TESTS)("GET /api/healthz", () => {
   it("returns 200 and status ok", async () => {
     const { status, body } = await get("/api/healthz");
     expect(status).toBe(200);
@@ -27,7 +28,7 @@ describe("GET /api/healthz", () => {
   });
 });
 
-describe("GET /api/ingest/contact-research/status", () => {
+describe.skipIf(!LIVE_API_TESTS)("GET /api/ingest/contact-research/status", () => {
   it("is explicitly retired", async () => {
     const { status, body } = await get("/api/ingest/contact-research/status");
     expect(status).toBe(410);
@@ -36,7 +37,7 @@ describe("GET /api/ingest/contact-research/status", () => {
   });
 });
 
-describe("POST /api/ingest/contact-research/cancel", () => {
+describe.skipIf(!LIVE_API_TESTS)("POST /api/ingest/contact-research/cancel", () => {
   it("is explicitly retired", async () => {
     const res = await fetch(`${BASE}/api/ingest/contact-research/cancel`, { method: "POST", headers: authHeaders("application/json"), body: "{}" });
     expect(res.status).toBe(410);
@@ -45,7 +46,7 @@ describe("POST /api/ingest/contact-research/cancel", () => {
   });
 });
 
-describe("GET /api/entities", () => {
+describe.skipIf(!LIVE_API_TESTS)("GET /api/entities", () => {
   it("returns an array with expected fields", async () => {
     const { status, body } = await get("/api/entities?limit=5");
     expect(status).toBe(200);
@@ -85,7 +86,7 @@ describe("GET /api/entities", () => {
   });
 });
 
-describe("GET /api/dashboard/stats", () => {
+describe.skipIf(!LIVE_API_TESTS)("GET /api/dashboard/stats", () => {
   it("returns expected KPI fields", async () => {
     const { status, body } = await get("/api/dashboard/stats");
     expect(status).toBe(200);
@@ -98,7 +99,7 @@ describe("GET /api/dashboard/stats", () => {
   });
 });
 
-describe("GET /api/entities/:id/occrp", () => {
+describe.skipIf(!LIVE_API_TESTS)("GET /api/entities/:id/occrp", () => {
   let firstEntityId: number | null = null;
   beforeAll(async () => {
     const { body } = await get("/api/entities?limit=1");
@@ -115,7 +116,7 @@ describe("GET /api/entities/:id/occrp", () => {
   it("returns 404 for a non-existent entity", async () => expect((await get("/api/entities/9999999/occrp")).status).toBe(404));
 });
 
-describe("GET /api/entities/:id/opensky", () => {
+describe.skipIf(!LIVE_API_TESTS)("GET /api/entities/:id/opensky", () => {
   let firstEntityId: number | null = null;
   beforeAll(async () => {
     const { body } = await get("/api/entities?limit=1");
@@ -131,7 +132,7 @@ describe("GET /api/entities/:id/opensky", () => {
   it("returns 400 for a non-numeric id", async () => expect((await get("/api/entities/xyz/opensky")).status).toBe(400));
 });
 
-describe("POST /api/registry-search", () => {
+describe.skipIf(!LIVE_API_TESTS)("POST /api/registry-search", () => {
   it("is reachable and either serves the provider or fails closed with JSON", async () => {
     const res = await fetch(`${BASE}/api/registry-search`, { method: "POST", headers: authHeaders("application/json"), body: JSON.stringify({ query: "Holdings", registry: "opencorporates", limit: 3 }) });
     const body: unknown = await res.json();
@@ -145,7 +146,7 @@ describe("POST /api/registry-search", () => {
   });
 });
 
-describe("Duplicate review endpoints", () => {
+describe.skipIf(!LIVE_API_TESTS)("Duplicate review endpoints", () => {
   it("returns cross-registry candidates without self-pairs", async () => {
     const { status, body } = await get("/api/entities/duplicate-candidates");
     expect(status).toBe(200);
