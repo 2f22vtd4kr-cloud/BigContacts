@@ -100,7 +100,16 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   const companyName = (() => { try { const metadata = target.metadata ? JSON.parse(target.metadata) as Record<string, unknown> : {}; return typeof metadata.companyName === "string" ? metadata.companyName : null; } catch { return null; } })();
   const caseRow = await ensureTargetCase(target, companyName, atlasJobId, options.existingCaseId);
   if (caseRow.status !== "active") {
-    return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review" };
+    if (manageJobLifecycle) {
+      const terminalStatus = caseRow.status === "complete" ? "done" : caseRow.status === "cancelled" ? "cancelled" : "failed";
+      await publishJob({
+        status: terminalStatus,
+        outcome: caseRow.status === "complete" ? "complete" : "incomplete",
+        message: `Target runner refused to start because durable case status is ${caseRow.status}.`,
+        finishedAt: new Date().toISOString(),
+      });
+    }
+    return { investigatorIterationsUsed: 0, resourceLimited: false, status: caseRow.status === "cancelled" ? "cancelled" : caseRow.status === "complete" ? "complete" : "review" };
   }
   try { const depth = resolveResearchDepth({ explicit: options.researchDepth }); const targetIterationCeiling = Math.min(depth.agenticMaxIterations, Math.max(0, Math.trunc(options.maxInvestigatorIterations ?? depth.agenticMaxIterations))); const hardTimeoutMs = Math.min(600_000, Math.max(30_000, Number.isFinite(options.targetTimeoutMs) ? Math.trunc(options.targetTimeoutMs!) : depth.agenticHardTimeoutMs)); const deadline = Date.now() + hardTimeoutMs; let caseState = parseCaseFile(caseRow.caseFile); let contextDocument = typeof caseState.contextDocument === "string" ? caseState.contextDocument : openingContext(target, companyName, caseRow.id, caseRow.objective, ""); const durableTrajectory = await loadDurableTargetTrajectory(caseRow.id); if (durableTrajectory.records.length) contextDocument = buildInvestigatorContext({ targetName: target.name, companyName, objective: caseRow.objective, mode: "target", trajectoryRecords: durableTrajectory.records, lastObservation: durableTrajectory.records[durableTrajectory.records.length - 1]?.observation ?? "", findings: durableTrajectory.findings }); const storedInvestigatorCapability = typeof caseState.investigatorLlm === "string" ? caseState.investigatorLlm as InvestigatorCapability : null;
     if (storedInvestigatorCapability && !getAvailableInvestigatorCapabilities().includes(storedInvestigatorCapability)) {
