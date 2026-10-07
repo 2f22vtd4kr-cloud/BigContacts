@@ -92,6 +92,16 @@ async function loadDurableTargetTrajectory(caseId: number): Promise<{ records: C
 }
 
 async function loadCase(caseId: number): Promise<TargetCase | null> { const [row] = await db.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row?.targetEntityId) return null; return { ...row, targetEntityId: row.targetEntityId, iteration: Number(row.iteration ?? 0), objective: row.objective ?? "" }; }
+async function reconcileTargetCaseCancellation(atlasJobId: string, caseId: number): Promise<void> {
+  const job = await getJob(atlasJobId);
+  if (!job || job.status === "cancelled") {
+    await db.update(researchCasesTable)
+      .set({ status: "review", currentAction: "canonical-atlas-cancelled", updatedAt: new Date() })
+      .where(and(eq(researchCasesTable.id, caseId), eq(researchCasesTable.status, "active")));
+    throw new Error("Canonical Atlas job cancelled; target case creation raced operator stop.");
+  }
+  if (job.status === "failed") throw new Error("Canonical Atlas job already failed; refusing further target control-plane work.");
+}
 function openingContext(target: { name: string; type: string }, companyName: string | null, caseId: number, objective: string, prior: string): string { return compactInvestigationContext({ raw: ["# Apex Atlas — Investigation Context", `Case: ${caseId}`, `Target: ${target.name}`, `Target type: ${target.type}`, `Company: ${companyName ?? "not established"}`, "## Bureau operating law", "Groq Boss is Boss. Groq Right-hand is Right Hand Advisor. the selected Investigator capability owns the research trajectory. The Investigator owns the research trajectory. Deterministic code validates safety, provenance, budgets, lifecycle and promotion integrity; it does not prescribe research hops.", "## Objective", objective, "## Prior durable context", prior || "No prior target-scoped investigation context exists."].join("\n\n") }); }
 export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, targetId: number, options: CanonicalSingleTargetOptions = {}): Promise<{ investigatorIterationsUsed: number; resourceLimited: boolean; status: "complete" | "review" | "cancelled" }> {
   const manageJobLifecycle = options.manageJobLifecycle !== false;
@@ -99,6 +109,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   const [target] = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, targetId)).limit(1); if (!target) throw new Error(`Atlas target entity ${targetId} was not found.`);
   const companyName = (() => { try { const metadata = target.metadata ? JSON.parse(target.metadata) as Record<string, unknown> : {}; return typeof metadata.companyName === "string" ? metadata.companyName : null; } catch { return null; } })();
   const caseRow = await ensureTargetCase(target, companyName, atlasJobId, options.existingCaseId);
+  await reconcileTargetCaseCancellation(atlasJobId, caseRow.id);
   if (caseRow.status !== "active") {
     if (manageJobLifecycle) {
       const terminalStatus = caseRow.status === "complete" ? "done" : caseRow.status === "cancelled" ? "cancelled" : "failed";
