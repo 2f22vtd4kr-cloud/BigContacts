@@ -75,7 +75,7 @@ describe("research intelligence atomic evidence", () => {
     engine.recordAction({
       turn: 1,
       action: "visit",
-      args: { url: "https://one.example/source" },
+      args: { provider: "serper", query: "Ada Example founder" },
       execution: "success",
       observation: "Ada Example founded Example Labs.",
       urls: ["https://one.example/source"],
