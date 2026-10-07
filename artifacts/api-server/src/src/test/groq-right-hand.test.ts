@@ -263,7 +263,7 @@ describe("Groq Right-hand model policy", () => {
     });
 
     const pending = runGroqRightHandFreeJson("Return a small JSON decision.");
-    await new Promise((resolve) => queueMicrotask(resolve));
+    await Promise.resolve();
     await vi.runAllTimersAsync();
     const result = await pending;
 
