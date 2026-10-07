@@ -23,6 +23,7 @@ const checks = [
   [continuation.includes("validateContinuationRightHand"), "Canonical discovery continuation must validate its own Right-hand response schema rather than reuse the Atlas control schema."],
   [targetContinuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical target continuation must bind both control and resumed Investigator calls to the unique Atlas job scope."],
   [canonicalCaseDiscovery.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical discovery-case route must bind the pipeline to the unique Atlas job provider scope."],
+  [canonicalCaseDiscovery.includes("locked.status === \"complete\"") && canonicalCaseDiscovery.includes("canonical-continuation-cancelled"), "Canonical discovery-case route must fence durable terminal/cancelled cases before reopening them."],
   [targetContinuation.includes("latestControlTurn"), "Canonical target continuation must derive control turns from durable target-control history so continuation runs remain monotonic."],
   [!/gemini/i.test(targetContinuation), "Canonical target continuation must not retain retired Gemini control labels or state transitions."],
   [!/gemini/i.test(targetControl), "Canonical target control must not retain retired Gemini control labels or state transitions."],
