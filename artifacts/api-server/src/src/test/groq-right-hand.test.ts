@@ -148,11 +148,12 @@ describe("Groq Right-hand model policy", () => {
 
     const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
 
-    expect(result.status).toBe("unavailable");
+    expect(result.status).toBe("completed");
     const chatCalls = fetchMock.mock.calls
       .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
-    expect(chatCalls).toHaveLength(1);
+    expect(chatCalls).toHaveLength(2);
     expect(new Headers(chatCalls[0]?.[1]?.headers).get("authorization")).toContain("right-hand-primary-key");
+    expect(new Headers(chatCalls[1]?.[1]?.headers).get("authorization")).toContain("right-hand-secondary-key");
   });
 
   it("waits for a token-window reset on a hard 429 before giving up the model", async () => {
@@ -263,7 +264,10 @@ describe("Groq Right-hand model policy", () => {
       }), { status: 200 });
     });
 
-    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+    const pending = runGroqRightHandFreeJson("Return a small JSON decision.");
+    await new Promise((resolve) => queueMicrotask(resolve));
+    await vi.runAllTimersAsync();
+    const result = await pending;
 
     expect(result.status).toBe("completed");
     expect(chatCalls).toBe(2);
