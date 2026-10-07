@@ -972,7 +972,7 @@ export async function runAgenticWebResearchEnsemble(input: {
   for (const run of runs) {
     for (const url of run.trajectoryRecords.flatMap((record) => record.observedUrls || [])) observed.add(url);
     for (const finding of run.findings) {
-      const key = `${finding.vectorType}|${finding.value.toLowerCase()}`;
+      const key = `${finding.vectorType}|${finding.scope}|${(finding.personName ?? "").trim().toLowerCase()}|${finding.value.toLowerCase()}`;
       const previous = findingMap.get(key);
       if (!previous) findingMap.set(key, finding);
       else findingMap.set(key, {
