@@ -7,6 +7,7 @@ const providerGate = read("./artifacts/api-server/src/src/lib/provider-gate.ts")
 const caseBureau = read("./artifacts/api-server/src/src/lib/case-bureau.ts");
 const launch = read("./artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts");
 const continuation = read("./artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts");
+const targetContinuation = read("./artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts");
 const investigator = read("./artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const boss = read("./artifacts/api-server/src/src/lib/groq-boss.ts");
 const rightHand = read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts");
@@ -17,6 +18,7 @@ const checks = [
   [providerGate.includes('APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE",80,1,80'), "Atlas scope budget must remain bounded at 80 by default/max."],
   [launch.includes("withProviderScope(`atlas-run:${atlasJobId}`"), "Canonical launch must bind all provider calls to the unique Atlas job scope."],
   [continuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical continuation/recovery must bind provider calls to the unique Atlas job scope."],
+  [targetContinuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical target continuation must bind both control and resumed Investigator calls to the unique Atlas job scope."],
   [investigator.includes("isLocalProviderQuotaError(error)"), "Investigator must recognize local provider-gate quota failures."],
   [investigator.includes("if (isLocalProviderQuotaError(error)) return null;"), "Investigator must stop futile same-provider fallback after a local gate block."],
   [boss.includes("isLocalProviderQuotaError(error)"), "Boss must recognize local provider-gate quota failures."],
