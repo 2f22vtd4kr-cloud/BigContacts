@@ -2,7 +2,7 @@ import { Router } from "express";
 import { and, eq, sql } from "drizzle-orm";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { createJob, getActiveJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../../lib/job-queue";
-import { claimCanonicalJob } from "../../lib/canonical-job-lock";
+import { claimCanonicalJob, releaseCanonicalJob, isCanonicalJobOwner } from "../../lib/canonical-job-lock";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { decideTargetNextAction } from "../../lib/target-control-decision";
 import { enablePermanentRedis } from "../../lib/redis";
@@ -33,6 +33,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
   const targetName = typeof file.target.name === "string" ? file.target.name : ""; const targetType = typeof file.target.type === "string" ? file.target.type : "unknown"; const objective = typeof current.objective === "string" && current.objective ? current.objective : `Investigate the exact named target ${targetName} for realistic public contact routes.`; const priorInvestigator = Array.isArray(file.investigatorReports) ? file.investigatorReports.slice(-8) : []; const trajectoryRecords = Array.isArray(file.investigatorTrajectoryRecords) ? file.investigatorTrajectoryRecords.slice(-40) : []; const latestReport = priorInvestigator.length ? priorInvestigator[priorInvestigator.length - 1] : null; const controlHistory = Array.isArray(file.targetControlDecisions) ? file.targetControlDecisions : []; const latestControlTurn = controlHistory.reduce((max, item) => item && typeof item === "object" ? Math.max(max, Number((item as Record<string, unknown>).controlTurn ?? 0)) : max, 0); const controlTurn = Math.max(Number(current.iteration ?? 0), latestControlTurn) + 1;
   try {
     await updateJob(jobId, { status: "running", progress: 0, total: 5, message: `Groq Boss reviewing continuation options for ${targetName}…` });
+    if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw new Error("Canonical Atlas lease was lost before target continuation control; refusing provider work.");
     const decision = await withProviderScope(`atlas-run:${jobId}`, () => decideTargetNextAction({ caseId, controlTurn, jobId, targetName, targetType, objective, contextDocument, trajectoryRecords, investigatorStatus: typeof latestReport?.status === "string" ? latestReport.status : current.status, investigatorStopReason: typeof file.investigatorStopReason === "string" ? file.investigatorStopReason : null }));
     if (decision.status !== "completed" || decision.action === "stop") {
       const [stopped] = await db.update(researchCasesTable).set({ status: "review", currentAction: "groq-target-stop", lastDecisionAt: new Date(), updatedAt: new Date() }).where(cancellationFenceSql(caseId)).returning({ id: researchCasesTable.id });
