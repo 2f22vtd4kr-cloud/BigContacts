@@ -213,6 +213,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const [lockedCase] = await tx.select({
         status: researchCasesTable.status,
         currentAction: researchCasesTable.currentAction,
+        iteration: researchCasesTable.iteration,
       })
         .from(researchCasesTable)
         .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
@@ -228,7 +229,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }
       await tx.insert(researchCaseEventsTable).values({
         caseId: discoveryCaseId,
-        iteration: 0,
+        iteration: Number(lockedCase.iteration ?? 0),
         actorRole: "groq_boss",
         eventType: "assignment",
         status: "recorded",
