@@ -26,7 +26,11 @@ echo "[apex-schema] acquired single-writer schema lock."
 echo "[apex-schema] applying the repository's current Drizzle schema..."
 pnpm --filter @workspace/db run push
 
-echo "[apex-schema] verifying required Apex durable tables..."
+echo "[apex-schema] applying Apex durable hardening and contact-outcome migrations..."
+pnpm --filter @workspace/db run harden
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/002-contact-outcome.sql
+
+echo "[apex-schema] verifying required Apex durable tables and invariants..."
 (cd lib/db && node --input-type=module <<'NODE'
 import pg from "pg";
 const { Pool } = pg;
