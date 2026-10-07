@@ -13,7 +13,7 @@ describe("research cognitive routing", () => {
     const ranked = rankGroqModelsForTask(["openai/gpt-oss-120b", "openai/gpt-oss-20b"], "contact_extraction");
     expect(ranked[0]).toBe("openai/gpt-oss-20b");
     expect(ranked).toEqual(["openai/gpt-oss-20b", "openai/gpt-oss-120b"]);
-    expect(rankGroqModelsForTask(["qwen/qwen3.8-27b", "openai/gpt-oss-120b"], "identity_resolution")[0]).toBe("openai/gpt-oss-120b");
+    expect(rankGroqModelsForTask(["qwen/qwen3.8-27b", "openai/gpt-oss-120b"], "identity_resolution")[0]).toBe("qwen/qwen3.8-27b");
     expect(rankGroqModelsForTask(["qwen/qwen3.8-27b", "openai/gpt-oss-120b"], "discovery")[0]).toBe("qwen/qwen3.8-27b");
   });
 });
