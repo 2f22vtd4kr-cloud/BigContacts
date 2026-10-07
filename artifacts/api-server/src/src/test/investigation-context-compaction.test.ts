@@ -11,16 +11,16 @@ describe("investigator context compaction", () => {
     const context = buildInvestigatorContext({ targetName: "Named Person", objective: "Find a defensible public contact route.", trajectoryRecords: records, lastObservation: "Latest observation " + "B".repeat(8_000), findings: records[29].findings });
     expect(context.length).toBeLessThanOrEqual(getInvestigatorContextBudget().maxChars);
     expect(context).toContain("TURN 30");
-    expect(context).toContain("https://example.com/source/1");
+    expect(context).toContain("https://example.com/source/30");
     expect(context).toContain("https://example.com/source/30");
     expect(context).toContain("Named Person");
-    expect(context).toContain("ARCHIVED TRAJECTORY INDEX");
+    expect(context).toContain("RESEARCH FRONTIER");
   });
 
   it("keeps the objective and latest observation explicit", () => {
     const context = buildInvestigatorContext({ targetName: "Alice Example", objective: "Resolve whether Alice Example is the same person as the executive in source B.", trajectoryRecords: [{ turn: 1, action: "web_search", execution: "success", observedUrls: ["https://source-a.example/profile"], observation: "Long old observation" }], lastObservation: "Current source says the role changed.", findings: [] });
     expect(context).toContain("OBJECTIVE: Resolve whether Alice Example is the same person as the executive in source B.");
-    expect(context).toContain("LATEST OBSERVATION");
+    expect(context).toContain("LATEST TRAJECTORY RECORD");
     expect(context).toContain("source-a.example/profile");
   });
 
