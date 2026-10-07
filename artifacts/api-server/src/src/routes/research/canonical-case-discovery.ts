@@ -43,7 +43,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
     if (jobId) {
       await updateJob(jobId!, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Canonical discovery lock acquisition failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
       await clearActiveJobIfOwned("case-bureau-discovery", jobId!).catch(() => undefined);
-      if (atlasClaimed) await releaseCanonicalJob("atlas-run", jobId!).catch(() => undefined);
+      if (atlasClaimed || jobId) await releaseCanonicalJob("atlas-run", jobId!).catch(() => undefined);
     }
     res.status(503).json({ error: error instanceof Error ? error.message : "Canonical discovery lock acquisition failed.", jobId });
     return;
