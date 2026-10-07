@@ -511,7 +511,7 @@ async function callGroqJson(
       try {
         const quotaReadiness = await waitForKnownGroqTokenWindow(
           keyName ?? "unknown",
-          workingPrompt.length,
+          workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
           groqInvestigatorCompletionBudget(cognitiveTask),
           signal,
         );
