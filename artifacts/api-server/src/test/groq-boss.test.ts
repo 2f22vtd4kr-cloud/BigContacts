@@ -191,9 +191,10 @@ describe("Groq Boss control-plane adapter", () => {
     }, "Return JSON.", { maxOutputTokens: 128, thinkingLevel: "low" });
 
     expect(result.raw).toBeNull();
-    expect(result.attempts).toHaveLength(2);
-    expect(result.attempts.every((attempt) => attempt.model === GROQ_BOSS_MODEL)).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.attempts).toHaveLength(4);
+    expect(result.attempts.filter((attempt) => attempt.model === GROQ_BOSS_MODEL)).toHaveLength(2);
+    expect(result.attempts.filter((attempt) => attempt.model === "openai/gpt-oss-20b")).toHaveLength(2);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("fails closed on a request-level 400 without rotating models", async () => {
@@ -253,6 +254,7 @@ describe("Groq Boss control-plane adapter", () => {
 
     expect(result.raw).toBeNull();
     expect(result.error).toContain("HTTP 429");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.error).toContain("openai/gpt-oss-20b");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
