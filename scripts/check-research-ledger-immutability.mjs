@@ -20,6 +20,7 @@ pass("live ledger correlation key is forced NOT NULL", /ALTER TABLE public\.rese
 pass("schema declares correlation key NOT NULL", /correlationKey:\s*text\("correlation_key"\)\.notNull\(\)/.test(schema));
 pass("correlated event replays are serialized by key", /apex:research_case_events:replay:/.test(migration) && /pg_advisory_xact_lock\(\s*hashtextextended\('apex:research_case_events:replay:'/.test(migration));
 pass("correlated event replay payloads are compared", /existing_payload text/.test(migration) && /existing_payload IS DISTINCT FROM NEW\.payload/.test(migration));
+pass("ledger job binding accepts canonical target Atlas job IDs", /COALESCE\(NULLIF\(btrim\(case_file::jsonb->>'atlasJobId'\),''\),NULLIF\(btrim\(case_file::jsonb->>'jobId'\),''\)\) INTO stored_job_id/.test(migration));
 pass("correlated event replay mismatch fails closed", /correlation key replay has different payload/.test(migration));
 pass("replay integrity is installed as a BEFORE INSERT trigger", /CREATE TRIGGER apex_research_case_events_replay_integrity\s+BEFORE INSERT ON public\.research_case_events/.test(migration));
 pass("ledger correlation keys remain uniquely indexed", /uniqueIndex\("research_case_events_case_id_correlation_key_uidx"\)/.test(schema));
