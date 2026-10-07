@@ -343,13 +343,13 @@ describe("Groq Right-hand model policy", () => {
 
     const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
 
-    expect(result.status).toBe("unavailable");
-    expect(result.model).toBe("openai/gpt-oss-120b");
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-20b");
     const chatModels = fetchMock.mock.calls
       .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions")
       .map(([, init]) => JSON.parse(String(init?.body)).model);
-    expect(chatModels).toEqual(["openai/gpt-oss-120b"]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("retries a transient 429 before falling back to another model", async () => {
