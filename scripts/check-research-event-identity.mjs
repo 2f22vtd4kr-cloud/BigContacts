@@ -23,6 +23,13 @@ for (const [name, path] of Object.entries(writers)) {
   if (!/\bcorrelationKey\b/.test(source)) failures.push(`${name}: research event writer has no durable correlationKey`);
 }
 
+const atlasDiscovery = read(writers["canonical Atlas discovery"]);
+if (atlasDiscovery && /researchCaseEventsTable/.test(atlasDiscovery)) {
+  if (!/db\.transaction\(async \(tx\)[\s\S]*right-hand-opening/.test(atlasDiscovery)) failures.push("canonical Atlas Right-hand opening event is not serialized behind the durable case row fence");
+  if (!/db\.transaction\(async \(tx\)[\s\S]*discovery-assignment/.test(atlasDiscovery)) failures.push("canonical Atlas Investigator assignment event is not serialized behind the durable case row fence");
+  if (!/\.for\("update"\)/.test(atlasDiscovery)) failures.push("canonical Atlas opening event writes do not lock the durable case row before append");
+}
+
 const bureau = read(writers["bureau discovery trajectory"]);
 if (bureau && /onConflictDoNothing\(\{\s*target:\s*\[researchCaseEventsTable\.caseId,\s*researchCaseEventsTable\.correlationKey\]/.test(bureau)) {
   if (!/Discovery trajectory replay mismatch/.test(bureau)) failures.push("bureau trajectory writer uses idempotent conflict handling without payload replay verification");
