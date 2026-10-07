@@ -5,8 +5,11 @@ const source = fs.readFileSync("artifacts/api-server/src/src/routes/research/can
 const failures = [];
 const pass = (name, ok) => { if (!ok) failures.push(name); };
 
-pass("canonical launch has an outer failure boundary", /let atlasJobId: string \| null = null;[\s\S]*?try \{[\s\S]*?enablePermanentRedis\(\);[\s\S]*?catch \(error\)/.test(source));
-pass("Redis initialization is inside the boundary", /try \{[\s\S]{0,500}await enablePermanentRedis\(\);/.test(source));
+const outerTryStart = source.indexOf("  try {");
+const outerCatchStart = source.indexOf("\n  } catch (error)", outerTryStart);
+const outerBoundary = outerTryStart >= 0 && outerCatchStart > outerTryStart ? source.slice(outerTryStart, outerCatchStart) : "";
+pass("canonical launch has an outer failure boundary", outerTryStart >= 0 && outerCatchStart > outerTryStart);
+pass("Redis initialization is inside the boundary", outerBoundary.includes("await enablePermanentRedis();"));
 pass("job creation is inside the boundary", /await createJob\("atlas-run"\)/.test(source));
 pass("canonical lock claim is inside the boundary", /await claimCanonicalJob\("atlas-run", atlasJobId\)/.test(source));
 pass("failed owned jobs are marked failed", /if \(atlasJobId\) \{[\s\S]{0,500}updateJob\(atlasJobId, \{ status: "failed"/.test(source));
