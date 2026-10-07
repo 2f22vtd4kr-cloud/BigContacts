@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getJob, updateJob } from "./job-queue";
+import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runTargetContactAgent } from "./target-contact-agent";
 import { resolveResearchDepth, type ResearchDepth } from "./research-depth";
