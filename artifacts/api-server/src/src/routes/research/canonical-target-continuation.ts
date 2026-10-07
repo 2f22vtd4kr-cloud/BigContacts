@@ -8,7 +8,7 @@ import { decideTargetNextAction } from "../../lib/target-control-decision";
 import { enablePermanentRedis } from "../../lib/redis";
 import { withProviderScope } from "../../lib/provider-gate";
 const router = Router();
-const cancellationFenceSql = (caseId: number) => sql`NOT (status = 'cancelled' OR (status = 'review' AND current_action IN ('canonical-atlas-cancelled','canonical-lease-lost'))) AND id = ${caseId}`;
+const cancellationFenceSql = (caseId: number) => sql`NOT (status = 'cancelled' OR (status = 'review' AND current_action IN ('canonical-atlas-cancelled','canonical-lease-lost','canonical-continuation-cancelled'))) AND id = ${caseId}`;
 function parseFile(raw: string | null): Record<string, any> | null { try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; } }
 const CONTROL_CONTEXT_BOUND_MARKER = "\n\n[CONTROL CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n";
 function contextOf(file: Record<string, any>): string {
