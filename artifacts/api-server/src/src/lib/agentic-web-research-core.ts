@@ -902,19 +902,20 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     findings: input.findings,
     priorContext: input.priorContext,
     mode: input.mode,
-    maxChars: 3_900,
+    maxChars: 3_500,
   });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
     1_200,
   );
-  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(), 1_200);
+  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(), 1_000);
 
   const composedPrompt = [
     assignment,
     "",
     "RESEARCH CONTRACT: You own the research trajectory. There is no required first tool, hop order, or fixed search sequence. Choose the next action from the available capabilities using evidence, expected information gain, identity discrimination, source independence, and cost.",
     "AVAILABLE ACTIONS: web_search | parallel_web_search | visit | browser_fetch | registry_search | domain_lookup | harvest_domain | footprint_email | footprint_username_maigret | footprint_username_sherlock | footprint_spiderfoot | done.",
+    "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. browser_fetch = scrapfly | zenrows | browserless | playwright. domain_lookup = rdap | whoisjson. Never invent provider names such as web, google, bing, or search.",
     "",
     "CAPABILITY GUIDANCE:",
     capabilityGuidance,
@@ -928,8 +929,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "ACTION CONTRACT: web_search={query,provider}; parallel_web_search={searches:[{query,provider,locale,market,purpose},...]} with 2–4 searches; visit={url}; browser_fetch={url,provider}; registry_search={query,registry}; domain_lookup={domain,provider}; harvest_domain={domain}; footprint_email={email}; footprint_username_maigret={username}; footprint_username_sherlock={username}; footprint_spiderfoot={target,targetType,profile}; done={findings}. Use only the provider values exposed by the action contract. The harness will fail closed when a capability is unavailable.",
-    "For parallel_web_search, provide 2–4 independent search objects. For other actions, searches must be empty. Return ONE JSON action object matching the structured response contract.",
+    "ACTION SHAPES: web_search={action,query,provider,hypothesis,purpose,expectedInformationGain}; parallel_web_search={action,searches:[{query,provider,locale?,market?,purpose?},...],hypothesis,purpose,expectedInformationGain}; visit={action,url,hypothesis,purpose,expectedInformationGain}; browser_fetch={action,url,provider,hypothesis,purpose,expectedInformationGain}; registry_search={action,query,registry,hypothesis,purpose,expectedInformationGain}; domain_lookup={action,domain,provider,hypothesis,purpose,expectedInformationGain}; harvest_domain={action,domain,hypothesis,purpose,expectedInformationGain}; footprint_email={action,email,hypothesis,purpose,expectedInformationGain}; footprint_username_maigret={action,username,hypothesis,purpose,expectedInformationGain}; footprint_username_sherlock={action,username,hypothesis,purpose,expectedInformationGain}; footprint_spiderfoot={action,target,targetType,profile,hypothesis,purpose,expectedInformationGain}; done={action,findings,thought}. Return exactly ONE JSON object, with no prose or markdown.",
+    "VALID EXAMPLE: {"action":"web_search","query":"named organization + operator + concrete geography","provider":"serper","hypothesis":"A concrete operating context may identify an attributable person","purpose":"test the strongest current discovery hypothesis","expectedInformationGain":0.8}. For parallel_web_search provide 2–4 independent search objects. Choose the next action yourself; this example is schema guidance, not a research sequence.",
   ].join("\n");
   const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length);
   return boundInvestigatorPromptSection(composedPrompt, maxUserPromptChars);
