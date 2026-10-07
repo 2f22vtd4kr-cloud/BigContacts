@@ -6,6 +6,7 @@ import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { resolveResearchDepth } from "../../lib/research-depth";
 import { enablePermanentRedis } from "../../lib/redis";
+import { withProviderScope } from "../../lib/provider-gate";
 
 const router = Router();
 
@@ -49,7 +50,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : undefined });
   void (async () => {
     try {
-      await runCanonicalAtlasPipeline(jobId, {
+      await withProviderScope(`atlas-run:${jobId}`, () => runCanonicalAtlasPipeline(jobId, {
         researchDepth: depth.depth,
         targetTimeoutMs: depth.agenticHardTimeoutMs,
         discoveryCaseId: caseId,
@@ -59,7 +60,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         discoveryGeography: String(file.humanBrief?.geography ?? ""),
         discoveryExclusions: Array.isArray(file.humanBrief?.exclusions) ? file.humanBrief.exclusions : [],
         lockKey: "case-bureau-discovery",
-      });
+      }));
     } catch {
       await db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-discovery-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
       await clearActiveJobIfOwned("case-bureau-discovery", jobId);
