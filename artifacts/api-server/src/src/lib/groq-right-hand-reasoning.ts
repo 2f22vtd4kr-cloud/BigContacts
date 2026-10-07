@@ -144,7 +144,7 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
  return withProviderScope("atlas-right-hand", async () => { const entries=keyEntries(); if(!entries.length)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
  const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Groq Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:GROQ_RIGHT_HAND_MODEL};
- const systemPrompt=`${apexOrientationCompact("right_hand")}\\n\\n${system}`;
+ const systemPrompt=`${apexOrientationCompact("right_hand")}\n\n${system}`;
  const attempts:Array<{entry:{name:string;key:string};model:string}>=[];
  for(const entry of entries){for(const model of await resolveModelChain(entry.key))attempts.push({entry,model});}
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
