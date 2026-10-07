@@ -42,7 +42,8 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     }
     const direction = decision.direction?.trim() || "Reassess the strongest unresolved evidence question within the exact target scope.";
     const nextContextRaw = `${contextDocument}\n\n## Groq Boss — explicit continuation decision\nAction: ${decision.action}\nResearch direction: ${direction}\nReason: ${decision.reason ?? "not supplied"}\nConfidence: ${decision.confidence ?? "unknown"}\nThis direction is a research objective, not a prescribed tool sequence. Investigator retains control of every search, visit, pivot, evidence judgment, and stopping decision.`;
-    const nextContext = nextContextRaw.length <= 32_000\n      ? nextContextRaw\n      : `${nextContextRaw.slice(0, 16_000)}\n\n[CONTINUATION CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n${nextContextRaw.slice(-16_000)}`;
+    const nextContext = nextContextRaw.length <= 32_000\n      ? nextContextRaw
+      : `${nextContextRaw.slice(0, 16_000)}\n\n[CONTINUATION CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n${nextContextRaw.slice(-16_000)}`;
     const continuationEventKey = `target-continuation:case:${caseId}:job:${jobId}:turn:${controlTurn}`;
     await db.transaction(async (tx) => {
       const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
