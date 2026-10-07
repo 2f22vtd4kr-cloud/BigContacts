@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
+const discoveryContinuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts", "utf8");
 const checks = [
   ["bounded Investigator working context exists", /export function buildInvestigatorContext/.test(source)],
   ["working-context budget is configurable and bounded", /APEX_INVESTIGATOR_CONTEXT_MAX_CHARS/.test(source) && /MIN_MAX_CHARS/.test(source) && /MAX_MAX_CHARS/.test(source)],
@@ -19,6 +20,8 @@ const checks = [
   ["archived trajectory retains both early and recent entries", /headTail\(input\.trajectoryRecords \?\? \[\], 10\)/.test(source)],
   ["emergency reducer enforces its maximum", /\.slice\(0, maxChars\)/.test(source)],
   ["unbounded whole-trajectory prompt assembly is absent", !/trajectoryRecords\.map\(.*observation.*join\(/s.test(source)],
+  ["discovery continuation preserves both head and tail when bounding durable context", /if\(context\.length<=28000\)return context;[\s\S]*?context\.slice\(0,head\)\+CONTINUATION_CONTEXT_BOUND_MARKER\+context\.slice\(-tail\)/.test(discoveryContinuation)],
+  ["discovery continuation uses a real newline bound marker", /const CONTINUATION_CONTEXT_BOUND_MARKER="\\n\\n\[DISCOVERY CONTINUATION CONTEXT BOUND: middle detail omitted; durable case state remains authoritative\]\\n\\n";/.test(discoveryContinuation)],
 ];
 let failed = false;
 for (const [name, ok] of checks) {
