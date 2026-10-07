@@ -38,4 +38,13 @@ describe("canonical Atlas stop fence", () => {
     expect(source).toContain('currentAction: "canonical-atlas-cancelled"');
     expect(source).toContain("await reconcileTargetCaseCancellation(atlasJobId, caseRow.id);");
   });
+
+  it("checks affected-row fences before target opening provider/event transitions", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
+    expect(source).toContain("openingFence");
+    expect(source).toContain("openingProjection");
+    expect(source).toContain("investigatorFence");
+    expect(source).toContain("refusing Boss opening event after cancellation");
+    expect(source).toContain("refusing Right-hand opening event after cancellation");
+  });
 });
