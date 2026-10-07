@@ -123,6 +123,6 @@ jobs:
       - name: Run Groq Boss control-plane regression tests
         run: pnpm --dir artifacts/api-server exec vitest run src/test/groq-boss.test.ts src/src/test/atlas-control-contract-regression.test.ts
       - name: Run Groq Right-hand control-plane regression tests
-        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/groq-right-hand.test.ts src/src/test/gemini-right-hand-fallback.test.ts src/src/test/gemini-right-hand-latency.test.ts src/src/test/gemini-right-hand-structured-output.test.ts
+        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/groq-right-hand.test.ts src/src/test/groq-right-hand-timing.test.ts src/src/test/gemini-right-hand-fallback.test.ts src/src/test/gemini-right-hand-latency.test.ts src/src/test/gemini-right-hand-structured-output.test.ts
       - name: Run canonical race and continuation regression tests
         run: pnpm --dir artifacts/api-server exec vitest run src/src/test/canonical-atlas-stop-fence.test.ts src/src/test/canonical-case-continuation-guard.test.ts
