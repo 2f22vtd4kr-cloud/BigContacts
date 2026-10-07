@@ -269,10 +269,7 @@ describe("Groq Right-hand model policy", () => {
       }), { status: 200 });
     });
 
-    const pending = runGroqRightHandFreeJson("Return a small JSON decision.");
-    await Promise.resolve();
-    await vi.runAllTimersAsync();
-    const result = await pending;
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
 
     expect(result.status).toBe("completed");
     expect(chatCalls).toBe(2);
