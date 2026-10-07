@@ -14,6 +14,7 @@ import { resetProviderGateForTests } from "../lib/provider-gate";
 
 describe("Groq Right-hand model policy", () => {
   afterEach(() => {
+    vi.clearAllTimers();
     resetGroqRightHandRequestGateForTests();
     resetGroqRightHandModelCatalogCacheForTests();
     resetProviderGateForTests();
