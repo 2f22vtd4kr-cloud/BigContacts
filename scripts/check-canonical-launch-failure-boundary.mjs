@@ -15,6 +15,7 @@ pass("canonical lock claim is inside the boundary", /await claimCanonicalJob\("a
 pass("failed owned jobs are marked failed", /if \(atlasJobId\) \{[\s\S]{0,500}updateJob\(atlasJobId, \{ status: "failed"/.test(source));
 pass("cleanup releases only this request owner token", /if \(atlasJobId\) \{[\s\S]{0,250}releaseCanonicalJob\("atlas-run", atlasJobId\)/.test(source));
 pass("infrastructure failures return structured 503", /if \(!res\.headersSent\) res\.status\(503\)\.json/.test(source));
+pass("stale-case fence rebinds durable job ownership before new pipeline work", /currentAction: "canonical-lease-lost"[\s\S]*caseFile: sql`jsonb_set\(jsonb_set\(\$\{researchCasesTable\.caseFile\}::jsonb[\s\S]*\$\{currentJobId\}/.test(source));
 pass("background pipeline has its own failure/finally cleanup", /void \(async \(\) => \{[\s\S]*?catch \(error\)[\s\S]*?updateJob\(atlasJobId, \{ status: "failed"/.test(source)&&/finally \{[\s\S]*?releaseCanonicalJob\("atlas-run", atlasJobId\)/.test(source));
 
 if (failures.length) {
