@@ -307,7 +307,6 @@ describe("Groq Right-hand model policy", () => {
   });
 
   it("fails closed on a hard model 429 instead of advancing to another model", async () => {
-    vi.useFakeTimers();
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-fallback-test-key");
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
