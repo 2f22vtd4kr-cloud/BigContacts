@@ -9,6 +9,7 @@ const launch = read("./artifacts/api-server/src/src/routes/research/canonical-at
 const continuation = read("./artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts");
 const targetContinuation = read("./artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts");
 const canonicalCaseDiscovery = read("./artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts");
+const canonicalAtlasDiscovery = read("./artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts");
 const targetControl = read("./artifacts/api-server/src/src/lib/target-control-decision.ts");
 const investigator = read("./artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const boss = read("./artifacts/api-server/src/src/lib/groq-boss.ts");
@@ -24,6 +25,7 @@ const checks = [
   [targetContinuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical target continuation must bind both control and resumed Investigator calls to the unique Atlas job scope."],
   [canonicalCaseDiscovery.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical discovery-case route must bind the pipeline to the unique Atlas job provider scope."],
   [canonicalCaseDiscovery.includes("locked.status === \"complete\"") && canonicalCaseDiscovery.includes("canonical-continuation-cancelled"), "Canonical discovery-case route must fence durable terminal/cancelled cases before reopening them."],
+  [canonicalAtlasDiscovery.includes("latestControlEvent") && canonicalAtlasDiscovery.includes("orderBy(desc(researchCaseEventsTable.id))"), "Canonical Atlas discovery control turns must resume from durable control-event history rather than resetting on case reruns."],
   [targetContinuation.includes("latestControlTurn"), "Canonical target continuation must derive control turns from durable target-control history so continuation runs remain monotonic."],
   [!/gemini/i.test(targetContinuation), "Canonical target continuation must not retain retired Gemini control labels or state transitions."],
   [!/gemini/i.test(targetControl), "Canonical target control must not retain retired Gemini control labels or state transitions."],
