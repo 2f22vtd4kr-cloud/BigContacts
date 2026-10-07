@@ -395,7 +395,7 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
     if (!Array.isArray(value.searches)) return "invalid_action_arguments action=parallel_web_search missing=searches";
     if (value.searches.length < 2) return "invalid_action_arguments action=parallel_web_search searches_min=2";
     const valid = value.searches.filter((item) => item && typeof item === "object").map((item) => item as Record<string, unknown>);
-    if (valid.length < 2 || valid.some((item) => !textField.call(null, "", 0))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
+    if (valid.length < 2 || valid.some((item) => !cleanText(item.query, 300) || !["serper", "tavily", "exa"].includes(cleanText(item.provider, 20)))) return "invalid_action_arguments action=parallel_web_search invalid=searches";
   } else if (action === "visit" && !isSafeHttpUrl(textField("url", 500))) return "invalid_action_arguments action=visit invalid=url";
   else if (action === "browser_fetch") {
     if (!isSafeHttpUrl(textField("url", 500))) return "invalid_action_arguments action=browser_fetch invalid=url";
