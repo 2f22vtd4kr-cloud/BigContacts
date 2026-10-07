@@ -321,7 +321,9 @@ export async function generateGroqBossText(
               await new Promise((resolve) => setTimeout(resolve, delay));
               continue;
             }
-            return { model, raw: null, error: lastError, attempts };
+            // A 429 is candidate-scoped failure: exhaust the bounded model/key fallback
+            // chain rather than treating one throttled credential/model as terminal.
+            break;
           }
 
           if (!response.ok) {
