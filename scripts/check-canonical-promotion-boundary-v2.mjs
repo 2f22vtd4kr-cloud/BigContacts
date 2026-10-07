@@ -44,7 +44,7 @@ assert(hasAll(bureau, ['mode?:"target"|"discovery"', 'input.mode!=="discovery"']
 assert(atlas.includes("runCanonicalSingleTargetInvestigation"), "Atlas routes admitted targets through canonical single-target control");
 assert(hasAll(atlas, ["reviewOnly: true", "admission: \"investigator-explicit-promotion\"", "sourceUrl", "target-scoped Investigator research required"]), "discovery admission remains review-only identity state with source provenance and requires target-scoped research before contact promotion");
 assert(continuation.includes("refusing context-free continuation"), "case continuation fails closed without durable context");
-assert(hasAll(targetControl, ['"research"', '"stop"', "generateGeminiBossText", "NEXT RESEARCH OBJECTIVE"]), "target continuation delegates only objective/stop control to Gemini");
+assert(hasAll(targetControl, ['"research"', '"stop"', "generateGroqBossText", "runGroqRightHandFreeJson", "NEXT RESEARCH OBJECTIVE"]), "target continuation delegates only objective/stop control to Groq Boss with independent Right-hand oversight");
 assert(targetControl.includes("targetControlDecisions") && targetControl.includes('eventType: "control_decision"'), "target continuation persists durable control decisions");
 assert(hasAll(targetContinuation, ["contextOf(file)", "runCanonicalSingleTargetInvestigation", "refusing context-free continuation"]), "target continuation remounts durable context and canonical target execution");
 assert(researchRoutes.includes("canonical-target-continuation"), "target continuation is mounted");
