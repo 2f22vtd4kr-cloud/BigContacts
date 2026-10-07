@@ -62,13 +62,14 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
 
   it("keeps control event sequence iteration separate from control-turn identity", () => {
     const discovery = read("src/src/lib/atlas-control-decision.ts");
+    const discoveryRunner = read("src/src/lib/canonical-atlas-discovery.ts");
     const target = read("src/src/lib/target-control-decision.ts");
     const strictPersist = read("src/src/lib/bureau-contact-persist-strict.ts");
     expect(discovery).toContain("const eventIteration = Number(latestEvent?.iteration ?? 0) + 1");
     expect(target).toContain("const eventIteration = Number(latestEvent?.iteration ?? 0) + 1");
     expect(discovery).toContain("controlTurn: input.controlTurn");
     expect(target).toContain("controlTurn: input.controlTurn");
-    expect(discovery).toContain("priorControl.controlTurn");
+    expect(discoveryRunner).toContain("priorControl.controlTurn");
     const continuation = read("src/src/routes/research/canonical-target-continuation.ts");
     expect(continuation).toContain("JSON.parse(latestControlEvent.payload)");
     expect(continuation).toContain("controlTurn ?? 0");
