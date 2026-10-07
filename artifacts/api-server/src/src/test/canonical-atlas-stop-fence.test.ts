@@ -21,5 +21,14 @@ describe("canonical Atlas stop fence", () => {
     expect(source).toContain(".for(\"update\")");
     expect(source).toContain("refusing assignment event after cancellation");
   });
+
+  it("fences active cases left behind by an expired canonical lease before a new launch", () => {
+    const source = fs.readFileSync(routePath, "utf8");
+    expect(source).toContain("fenceStaleCanonicalCases");
+    expect(source).toContain('currentAction: "canonical-lease-lost"');
+    expect(source).toContain("lockClaimed = true;");
+    expect(source).toContain("await fenceStaleCanonicalCases(atlasJobId);");
+    expect(source).toContain("'atlasJobId'");
+    expect(source).toContain("'jobId'");
   });
 });
