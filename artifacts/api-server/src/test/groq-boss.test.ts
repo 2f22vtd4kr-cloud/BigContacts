@@ -12,6 +12,7 @@ describe("Groq Boss control-plane adapter", () => {
     vi.restoreAllMocks();
     if (originalKey === undefined) delete process.env.GROQ_BOSS_API_KEY;
     else process.env.GROQ_BOSS_API_KEY = originalKey;
+    for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
   });
 
   it("does not consume the generic GROQ_API_KEY Investigator credential", async () => {
