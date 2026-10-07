@@ -32,12 +32,29 @@ const MAX_PROMPT_CHARS = 20_000;
 const GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS = 250;
 let nextGroqRightHandRequestAt = 0;
 let groqRightHandRequestGate: Promise<void> = Promise.resolve();
-async function waitForGroqRightHandRequestSlot(): Promise<void> {
+async function waitForGroqRightHandRequestSlot(signal?: AbortSignal): Promise<void> {
  const previous = groqRightHandRequestGate; let release!: () => void;
- groqRightHandRequestGate = new Promise<void>((resolve) => { release = resolve; }); await previous;
- const waitMs = Math.max(0, nextGroqRightHandRequestAt - Date.now());
- if (waitMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
- nextGroqRightHandRequestAt = Date.now() + GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS; release();
+ groqRightHandRequestGate = new Promise<void>((resolve) => { release = resolve; });
+ try {
+  if (signal?.aborted) throw new Error("Groq Right-hand request slot cancelled.");
+  await Promise.race([
+   previous,
+   new Promise<never>((_, reject) => {
+    const onAbort = () => reject(new Error("Groq Right-hand request slot cancelled."));
+    signal?.addEventListener("abort", onAbort, { once: true });
+   }),
+  ]);
+  const waitMs = Math.max(0, nextGroqRightHandRequestAt - Date.now());
+  if (waitMs > 0) await new Promise<void>((resolve, reject) => {
+   const timer = setTimeout(resolve, waitMs);
+   const onAbort = () => { clearTimeout(timer); reject(new Error("Groq Right-hand request slot cancelled.")); };
+   signal?.addEventListener("abort", onAbort, { once: true });
+  });
+  if (signal?.aborted) throw new Error("Groq Right-hand request slot cancelled.");
+  nextGroqRightHandRequestAt = Date.now() + GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS;
+ } finally {
+  release();
+ }
 }
 function keyEntries(): Array<{name:string;key:string}> {
   return GROQ_RIGHT_HAND_KEY_NAMES.map(name=>({name,key:process.env[name]?.trim()||""})).filter(x=>x.key);
@@ -160,7 +177,7 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
     const body=JSON.stringify({model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat, reasoning_effort:"medium", include_reasoning:false});
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
    try{
-    await waitForGroqRightHandRequestSlot();
+    await waitForGroqRightHandRequestSlot(controller.signal);
     const response=await withProviderRetryOwnership("groq","caller",()=>fetch(GROQ_RIGHT_HAND_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal}));
     const responseBody=await response.text();
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
