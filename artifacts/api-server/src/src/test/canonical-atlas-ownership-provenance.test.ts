@@ -68,7 +68,7 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     expect(target).toContain("const eventIteration = Number(latestEvent?.iteration ?? 0) + 1");
     expect(discovery).toContain("controlTurn: input.controlTurn");
     expect(target).toContain("controlTurn: input.controlTurn");
-    expect(discovery).toContain("prior.controlTurn");
+    expect(discovery).toContain("priorControl.controlTurn");
     const continuation = read("src/src/routes/research/canonical-target-continuation.ts");
     expect(continuation).toContain("JSON.parse(latestControlEvent.payload)");
     expect(continuation).toContain("controlTurn ?? 0");
