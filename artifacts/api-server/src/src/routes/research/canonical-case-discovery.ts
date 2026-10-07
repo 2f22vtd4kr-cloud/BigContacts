@@ -32,18 +32,18 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   let atlasClaimed = false;
   try {
     jobId = await createJob("case-bureau-discovery");
-    atlasClaimed = await claimCanonicalJob("atlas-run", jobId);
+    atlasClaimed = await claimCanonicalJob("atlas-run", jobId!);
     if (!atlasClaimed) {
-      await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Canonical discovery launch rejected: another Atlas instance owns the distributed execution lock.", finishedAt: new Date().toISOString() });
+      await updateJob(jobId!, { status: "failed", outcome: "incomplete", message: "Canonical discovery launch rejected: another Atlas instance owns the distributed execution lock.", finishedAt: new Date().toISOString() });
       res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId });
       return;
     }
-    await setActiveJob("case-bureau-discovery", jobId);
+    await setActiveJob("case-bureau-discovery", jobId!);
   } catch (error) {
     if (jobId) {
-      await updateJob(jobId, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Canonical discovery lock acquisition failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
-      await clearActiveJobIfOwned("case-bureau-discovery", jobId).catch(() => undefined);
-      if (atlasClaimed) await releaseCanonicalJob("atlas-run", jobId).catch(() => undefined);
+      await updateJob(jobId!, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Canonical discovery lock acquisition failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
+      await clearActiveJobIfOwned("case-bureau-discovery", jobId!).catch(() => undefined);
+      if (atlasClaimed) await releaseCanonicalJob("atlas-run", jobId!).catch(() => undefined);
     }
     res.status(503).json({ error: error instanceof Error ? error.message : "Canonical discovery lock acquisition failed.", jobId });
     return;
@@ -55,19 +55,19 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       if (locked.status === "complete" || locked.status === "cancelled" || (locked.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(locked.currentAction ?? "")))) throw new Error("Discovery case is durably terminal or cancelled; refusing to reopen it.");
       const currentFile = parseFile(locked.caseFile); if (!currentFile) throw new Error("Discovery case state is unreadable before job binding.");
       const priorJobs = Array.isArray(currentFile.jobIds) ? currentFile.jobIds.filter((value: unknown): value is string => typeof value === "string" && value.trim().length > 0) : [];
-      const nextFile = { ...currentFile, jobId, jobIds: [...new Set([...priorJobs, jobId])] };
+      const nextFile = { ...currentFile, jobId, jobIds: [...new Set([...priorJobs, jobId!])] };
       await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: "canonical-investigator-discovery", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
     }, { isolationLevel: "serializable" });
   } catch (error) {
-    await updateJob(jobId, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Discovery case job binding failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
-    await clearActiveJobIfOwned("case-bureau-discovery", jobId).catch(() => undefined);
-    await releaseCanonicalJob("atlas-run", jobId).catch(() => undefined);
+    await updateJob(jobId!, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Discovery case job binding failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
+    await clearActiveJobIfOwned("case-bureau-discovery", jobId!).catch(() => undefined);
+    await releaseCanonicalJob("atlas-run", jobId!).catch(() => undefined);
     res.status(409).json({ error: error instanceof Error ? error.message : "Discovery case job binding failed.", jobId }); return;
   }
   const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : undefined });
   void (async () => {
     try {
-      await withProviderScope(`atlas-run:${jobId}`, () => runCanonicalAtlasPipeline(jobId, {
+      await withProviderScope(`atlas-run:${jobId!}`, () => runCanonicalAtlasPipeline(jobId!, {
         researchDepth: depth.depth,
         targetTimeoutMs: depth.agenticHardTimeoutMs,
         discoveryCaseId: caseId,
@@ -80,9 +80,9 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       }));
     } catch {
       await db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-discovery-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
-      await clearActiveJobIfOwned("case-bureau-discovery", jobId);
+      await clearActiveJobIfOwned("case-bureau-discovery", jobId!);
     } finally {
-      await releaseCanonicalJob("atlas-run", jobId).catch(() => undefined);
+      await releaseCanonicalJob("atlas-run", jobId!).catch(() => undefined);
     }
   })();
   res.status(202).json({ jobId, caseId, status: "running", mode: "canonical-model-owned-discovery" });
