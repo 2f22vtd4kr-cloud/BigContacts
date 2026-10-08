@@ -131,6 +131,41 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review" };
     }
     let investigatorLlm: InvestigatorCapability | null = storedInvestigatorCapability; let latestResult: Awaited<ReturnType<typeof runTargetContactAgent>> | null = null; let lastOversight: StoredOversight | null = null; let completedActs = 0; let investigatorIterationsUsed = 0; let resourceLimited = false; let deadlineExceeded = false; let cancelled = false; const recentActs: Parameters<typeof reviewTargetInvestigationAct>[0]["recentActs"] = [];
+    const quotaExhaustedInvestigators = new Set<InvestigatorCapability>(options.excludedInvestigatorLlm ?? []);
+    const isHardQuotaResult = (result: Awaited<ReturnType<typeof runTargetContactAgent>>): boolean => result.status === "unavailable" && (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error" && /upstream_quota_exhausted/i.test(record.observation ?? ""));
+    const reassignTargetInvestigatorAfterHardQuota = async (failedCapability: InvestigatorCapability): Promise<InvestigatorCapability> => {
+      quotaExhaustedInvestigators.add(failedCapability);
+      const alternates = getAvailableInvestigatorCapabilities().filter((capability) => !quotaExhaustedInvestigators.has(capability));
+      if (!alternates.length) throw new Error(`Groq Investigator capability ${failedCapability} exhausted its hard request quota and no alternate configured Investigator capability remains for target ${target.name}.`);
+      if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing target Investigator reassignment.");
+      const boss = await runGroqBossDiscovery({
+        objective: `${caseRow.objective}\\n\\nHARD PROVIDER QUOTA RECOVERY: Target Investigator capability ${failedCapability} returned explicit upstream request-quota exhaustion. Select a different currently configured Investigator capability for this same target. Do not repeat an excluded capability and do not prescribe research steps.`,
+        motivation: "Recover the current target investigation from an explicitly exhausted Investigator request quota. Boss selects only the replacement capability; the Investigator retains free-ReAct control of research.",
+        geography: "Target-specific public web and official sources",
+        exclusions: ["Do not browse.", "Do not invent evidence, contacts, relationships or URLs.", "Do not prescribe a fixed search/tool/provider/query sequence.", "Select only an available Investigator capability not listed as exhausted."],
+        startingLane: "Boss-directed target Investigator reassignment after explicit hard request-quota exhaustion",
+        excludedInvestigatorLlm: [...quotaExhaustedInvestigators],
+      });
+      const replacement = boss.investigatorLlm;
+      if (boss.status !== "completed" || !replacement || replacement === failedCapability || quotaExhaustedInvestigators.has(replacement) || !alternates.includes(replacement)) {
+        throw new Error(boss.error ?? "Groq Boss did not select a valid alternate Investigator capability for target recovery.");
+      }
+      await db.transaction(async (tx) => {
+        const [locked] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration })
+          .from(researchCasesTable).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`)).for("update").limit(1);
+        if (!locked || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? ""))) throw new Error("Canonical Atlas target case is no longer active; refusing Investigator reassignment.");
+        let durable = parseCaseFile(locked.caseFile);
+        const history = Array.isArray(durable.investigatorCapabilityHistory) ? durable.investigatorCapabilityHistory : [];
+        const previous = typeof durable.investigatorLlm === "string" ? durable.investigatorLlm : failedCapability;
+        const nextFile = { ...durable, investigatorLlm: replacement, investigatorCapabilityHistory: [...history, { from: previous, to: replacement, trigger: "upstream_quota_exhausted" }].slice(Math.max(0, history.length - 15)) };
+        const nextIteration = Number(locked.iteration ?? 0) + 1;
+        await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), iteration: nextIteration, currentAction: "canonical-target-investigator-reassigned-after-hard-quota", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`));
+        await tx.insert(researchCaseEventsTable).values({ caseId: caseRow.id, iteration: nextIteration, actorRole: "groq_boss", eventType: "assignment", status: "recorded", summary: "Groq Boss reassigned the target Investigator after explicit hard request-quota exhaustion; the exhausted capability remains excluded for this job.", correlationKey: `${atlasJobId}:target-investigator-reassignment:${failedCapability}:${replacement}:${nextIteration}`, payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, from: failedCapability, to: replacement, trigger: "upstream_quota_exhausted", excludedInvestigators: [...quotaExhaustedInvestigators], bossModel: boss.model, bossStatus: boss.status, bossReport: boss.report }) });
+      }, { isolationLevel: "serializable" });
+      caseState = { ...caseState, investigatorLlm: replacement };
+      investigatorLlm = replacement;
+      return replacement;
+    };
   const [openingFence] = await db.update(researchCasesTable).set({ status: "active", currentAction: "groq-boss-opening-assignment", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)).returning({ id: researchCasesTable.id });
   if (!openingFence?.id) throw new Error("Canonical Atlas target case lost its durable cancellation/ownership fence before Boss opening.");
   await publishJob({ status: "running", progress: 0, total: 1, atlasPhase: 0, atlasPhaseTotal: 1, message: `Groq Boss opening assignment for ${target.name}…` });
@@ -194,8 +229,17 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   for (let actNumber = firstActNumber; !deadlineExceeded && !resourceLimited; actNumber++) {
     const job = await getJob(atlasJobId); if (!job || job.status === "cancelled") { cancelled = true; break; } if (job.status === "failed") break; const remainingMs = deadline - Date.now(); if (remainingMs < 30_000) { deadlineExceeded = true; break; }
     const remainingInvestigatorIterations = Math.max(0, targetIterationCeiling - investigatorIterationsUsed); if (remainingInvestigatorIterations <= 0) { resourceLimited = true; break; } const actIterations = Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations); const direction = lastOversight?.action === "redirect" ? lastOversight.direction : actNumber === 1 ? (options.initialDirection?.trim() || null) : null; const actContext = compactInvestigationContext({ raw: `${contextDocument}\n\n## Current control turn\n${caseRow.iteration + actNumber}${direction ? `\n\n## Investigator research objective\n${direction}` : ""}` }); await publishJob( { progress: 0, atlasPhase: actNumber, atlasPhaseTotal: 0, message: `${investigatorLlm!.toUpperCase()} Investigator act ${actNumber} for ${target.name}; awaiting Boss control after completion…` });
-    const actTimeoutMs = Math.min(remainingMs, Math.max(60_000, Math.min(180_000, Math.floor(remainingMs / 2)))); latestResult = await runTargetContactAgent({ entityId: target.id, caseId: caseRow.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: investigatorLlm!, maxIterations: actIterations, hardTimeoutMs: actTimeoutMs, contextDocument: actContext, oversightMode: "caller", shouldCancel: async () => { const current = await getJob(atlasJobId); if (!current || current.status === "cancelled" || current.status === "failed" || Date.now() >= deadline) return true; try { return !(await isCanonicalJobOwner("atlas-run", atlasJobId)); } catch { return true; } } });
-    completedActs = actNumber; investigatorIterationsUsed += Math.max(0, latestResult.iterations ?? latestResult.trajectoryRecords.length); if (investigatorIterationsUsed >= depth.agenticMaxIterations) resourceLimited = true;
+    const actTimeoutMs = Math.min(remainingMs, Math.max(60_000, Math.min(180_000, Math.floor(remainingMs / 2))));
+    let quotaRecoveryIterations = 0;
+    while (true) {
+      latestResult = await runTargetContactAgent({ entityId: target.id, caseId: caseRow.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: investigatorLlm!, maxIterations: Math.max(1, actIterations - quotaRecoveryIterations), hardTimeoutMs: actTimeoutMs, contextDocument: actContext, oversightMode: "caller", shouldCancel: async () => { const current = await getJob(atlasJobId); if (!current || current.status === "cancelled" || current.status === "failed" || Date.now() >= deadline) return true; try { return !(await isCanonicalJobOwner("atlas-run", atlasJobId)); } catch { return true; } } });
+      if (!isHardQuotaResult(latestResult)) break;
+      quotaRecoveryIterations += Math.max(0, latestResult.iterations ?? latestResult.trajectoryRecords.length);
+      if (quotaRecoveryIterations >= actIterations) { resourceLimited = true; break; }
+      await reassignTargetInvestigatorAfterHardQuota(investigatorLlm!);
+      if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing target Investigator reassignment.");
+    }
+    completedActs = actNumber; investigatorIterationsUsed += quotaRecoveryIterations + Math.max(0, latestResult?.iterations ?? latestResult?.trajectoryRecords.length ?? 0); if (investigatorIterationsUsed >= depth.agenticMaxIterations) resourceLimited = true;
     const episodeRecords = latestResult.trajectoryRecords ?? [];
     const currentAct = episodeRecords.length ? {
       turn: episodeRecords[episodeRecords.length - 1]!.turn,
