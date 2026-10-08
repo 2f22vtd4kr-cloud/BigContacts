@@ -206,7 +206,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            targetName: input.targetName,
            targetType: oversightContext.targetType,
            objective,
-           sharedContext: `${oversightContext.contextDocument}\\n\\n${renderIntelligenceContext(intelligence.buildContext())}`,
+           sharedContext: `${oversightContext.contextDocument}\n\n${renderIntelligenceContext(intelligence.buildContext())}`,
            act,
            recentActs: records,
            intelligenceState: state,
