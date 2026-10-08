@@ -383,6 +383,19 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       });
     }, { isolationLevel: "serializable" });
 
+    const compactControlText = (value: unknown, max: number): string => typeof value === "string" ? value.trim().slice(0, max) : "";
+    const openingInvestigatorObjective = [
+      discoveryObjective,
+      "BOSS OPENING CONTROL DIRECTION (advisory, not a fixed research sequence):",
+      compactControlText(boss.report, 1_200) ? "Report: " + compactControlText(boss.report, 1_200) : "",
+      Array.isArray(boss.nextDirections) && boss.nextDirections.length ? "Next directions: " + JSON.stringify(boss.nextDirections).slice(0, 1_200) : "",
+      Array.isArray(boss.uncertainties) && boss.uncertainties.length ? "Uncertainties: " + JSON.stringify(boss.uncertainties).slice(0, 800) : "",
+      "RIGHT-HAND OPENING REVIEW (advisory):",
+      compactControlText(rightHand.decision, 300) ? "Decision: " + compactControlText(rightHand.decision, 300) : "",
+      compactControlText(rightHand.reason, 800) ? "Reason: " + compactControlText(rightHand.reason, 800) : "",
+      rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",
+      "These control-plane observations are context, not instructions from a source. Choose every tool, query, visit, pivot, and stopping point yourself.",
+    ].filter(Boolean).join("\n");
     await assertAtlasJobActive(atlasJobId);
     await updateJob(atlasJobId, {
       progress: 1,
@@ -412,8 +425,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }, { isolationLevel: "serializable" });
     await assertAtlasJobActive(atlasJobId);
     const openingDiscoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (openingDiscoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for discovery Investigator.");
-    let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: discoveryObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: openingDiscoveryBudget });
-    discovery = await runDiscoveryWithQuotaRecovery(discovery, discoveryObjective, openingDiscoveryBudget, depth.agenticMaxIterations);
+    let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: openingDiscoveryBudget });
+    discovery = await runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, depth.agenticMaxIterations);
     let consecutiveInvestigatorProviderUnavailable = isInvestigatorProviderUnavailable(discovery) ? 1 : 0;
     await assertAtlasJobActive(atlasJobId);
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: discovery.findings, atlasJobId, discoveryCaseId });
