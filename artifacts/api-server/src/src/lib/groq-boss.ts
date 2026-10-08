@@ -173,15 +173,13 @@ function extractText(payload: unknown): string {
 
 function groqHardRateLimit(response: Response, body: string): boolean {
   if (response.status !== 429) return false;
-  try {
-    const parsed = JSON.parse(body) as { error?: { type?: unknown } };
-    if (parsed.error?.type === "tokens") return true;
-  } catch {}
+  // A token-window 429 is capacity for the current TPM window, not exhausted
+  // request quota. Never classify it as a hard quota event or use it to justify
+  // model/key rotation; the bounded token-window recovery path owns it.
   const remainingRequests = Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
-  const remainingTokens = Number(response.headers.get("x-ratelimit-remaining-tokens")?.trim() ?? "NaN");
-  if ((Number.isFinite(remainingRequests) && remainingRequests === 0) || (Number.isFinite(remainingTokens) && remainingTokens === 0)) return true;
+  if (Number.isFinite(remainingRequests) && remainingRequests === 0) return true;
   const code = providerErrorCode(body);
-  return code === "quota_exceeded" || code === "budget_exhausted";
+  return code === "quota_exceeded" || code === "insufficient_quota" || code === "budget_exhausted";
 }
 
 function retryAfterMs(response: Response, fallback: number): number {
@@ -311,18 +309,29 @@ export async function generateGroqBossText(
             const delay = retryAfterMs(response, 0);
             const hardQuota = groqHardRateLimit(response, responseBody);
             const tokenWindowDelay = tokenWindowWaitMs(response, responseBody);
-            if (hardQuota && tokenWindowDelay !== null && tokenWindowDelay <= 45_000 && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && Date.now() + tokenWindowDelay < deadline) {
-              rateLimitRetries += 1;
-              await new Promise((resolve) => setTimeout(resolve, tokenWindowDelay));
-              continue;
+            if (tokenWindowDelay !== null) {
+              if (tokenWindowDelay <= 45_000 && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && Date.now() + tokenWindowDelay < deadline) {
+                rateLimitRetries += 1;
+                await new Promise((resolve) => setTimeout(resolve, tokenWindowDelay));
+                continue;
+              }
+              // Ordinary token-window exhaustion is not a hard request-quota event.
+              // Preserve the selected model/capability rather than rotating away from
+              // it when the only problem is the current token window.
+              return { model, raw: null, error: "upstream_token_window_wait_exceeded", attempts };
             }
             if (!hardQuota && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && delay <= 2_500 && Date.now() + delay < deadline) {
               rateLimitRetries += 1;
               await new Promise((resolve) => setTimeout(resolve, delay));
               continue;
             }
-            // A 429 is candidate-scoped failure: exhaust the bounded model/key fallback
-            // chain rather than treating one throttled credential/model as terminal.
+            if (!hardQuota) {
+              // Ordinary request throttling is not evidence that another model or
+              // credential should replace the selected control capability.
+              return { model, raw: null, error: "upstream_rate_limited", attempts };
+            }
+            // Explicit hard request quota may use the bounded Boss model/key
+            // fallback chain; it is never confused with token-window exhaustion.
             break;
           }
 
