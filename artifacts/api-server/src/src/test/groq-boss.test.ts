@@ -78,8 +78,8 @@ describe("Groq Boss token-window recovery", () => {
     );
 
     expect(result.raw).toBeNull();
-    expect(result.error).toContain("HTTP 429");
     expect(result.error).toContain("upstream_token_window_wait_exceeded");
+    expect(result.error).not.toContain("HTTP 429");
     expect(result.error).not.toContain("openai/gpt-oss-20b");
     expect(calls).toBe(1);
     expect(fetchMock.mock.calls[0]?.[1]).toBeTruthy();
