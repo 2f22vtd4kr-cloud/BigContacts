@@ -20,28 +20,9 @@ export function inferResearchCognitiveTask(input: {
   return "identity_resolution";
 }
 
-export function rankGroqModelsForTask(models: readonly string[], task: ResearchCognitiveTask): string[] {
-  const score = (model: string): number => {
-    const name = model.toLowerCase();
-    const qwen = name === "qwen/qwen3.8-27b";
-    const large = /120b|70b|large/.test(name);
-    const small = /(^|[-_/])20b($|[-_/])/.test(name) || /(^|[-_/])8b($|[-_/])/.test(name) || /small|lite/.test(name);
-    if (task === "contradiction_resolution" || task === "final_adjudication") {
-      if (large) return 4;
-      if (qwen) return 3;
-      if (small) return 1;
-      return 2;
-    }
-    if (task === "identity_resolution" || task === "contact_extraction" || task === "discovery") {
-      // These are high-frequency trajectory decisions. Prefer the fastest, least
-      // expensive compatible model; reserve larger reasoning capacity for genuine
-      // contradiction/adjudication work. This is resource routing, not research strategy.
-      if (small) return 4;
-      if (qwen) return 2;
-      if (large) return 1;
-      return 3;
-    }
-    return 1;
-  };
-  return [...models].sort((a, b) => score(b) - score(a) || a.localeCompare(b));
+export function rankGroqModelsForTask(models: readonly string[], _task: ResearchCognitiveTask): string[] {
+  // Preserve the canonical configured model order. Cognitive-task routing may
+  // describe the work, but it must not silently down-route discovery/identity
+  // turns to a smaller model and thereby reduce Investigator reasoning capacity.
+  return [...models];
 }
