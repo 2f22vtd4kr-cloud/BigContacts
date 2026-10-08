@@ -66,6 +66,14 @@ describe("Investigator prompt architecture", () => {
     expect(body.response_format).toBeTruthy();
     expect(body.messages).toHaveLength(2);
     expect((body.messages as Array<{ role: string; content: string }>)[0]?.role).toBe("system");
+    const responseFormat = body.response_format as { type?: string; json_schema?: { schema?: Record<string, any> } };
+    const schema = responseFormat.json_schema?.schema;
+    expect(responseFormat.type).toBe("json_schema");
+    expect(schema?.additionalProperties).toBe(false);
+    expect(schema?.properties?.searches?.minItems).toBeUndefined();
+    expect(schema?.properties?.searches?.maxItems).toBeUndefined();
+    expect(schema?.properties?.provider).toEqual({ type: ["string", "null"] });
+    expect(schema?.properties?.targetType).toEqual({ type: ["string", "null"] });
   });
 
   it("reserves the latest trajectory exactly once during context compaction", () => {
