@@ -26,3 +26,5 @@ for (const [name, ok] of checks) {
   if (!ok) failed = true;
 }
 if (failed) process.exit(1);
+
+checks.push(["recovery error identifies a canonical control boundary", continuation.includes('This case is not parked at a recoverable canonical control boundary.')]);
