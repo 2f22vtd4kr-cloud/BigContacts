@@ -8,7 +8,7 @@ const failures=[];
 const check=(ok,msg)=>{if(!ok) failures.push(msg);};
 check(/action === "browser_fetch"[\s\S]*?cleanText\(value\.provider/.test(core),"browser_fetch must require a model-selected provider.");
 check(/action === "domain_lookup"[\s\S]*?cleanText\(value\.provider/.test(core),"domain_lookup must require a model-selected provider.");
-check(/provider: \{ type: \[\"string\",\"null\"\], enum: \[\"serper\",\"tavily\",\"exa\",\"rdap\",\"whoisjson\",\"scrapfly\",\"zenrows\",\"browserless\",\"playwright\",null\] \}/.test(core),"structured action schema must admit explicit domain/browser providers.");
+check(/provider:\s*\{\s*type:\s*\[\s*"string"\s*,\s*"null"\s*\]\s*,\s*enum:\s*\[\s*"serper"\s*,\s*"tavily"\s*,\s*"exa"\s*,\s*"rdap"\s*,\s*"whoisjson"\s*,\s*"scrapfly"\s*,\s*"zenrows"\s*,\s*"browserless"\s*,\s*"playwright"\s*,\s*null\s*\]\s*\}/.test(core),"structured action schema must admit explicit domain/browser providers.");
 check(/options\.provider \? attempts\.filter/.test(browser) && !/for \(const \[provider, fn\] of attempts\) \{/.test(browser),"browser retrieval must execute only the selected provider.");
 check(/provider: DomainLookupProvider/.test(domain) && /if \(options\.provider === "rdap"\)/.test(domain) && !/Promise\.all\(\[rdap, whoisjson\]/.test(domain),"domain lookup must execute only the selected provider.");
 check(/playwright:"scrape"/.test(gate) && /rdap:"registry"/.test(gate),"explicit browser/RDAP providers must have scoped provider budgets.");
