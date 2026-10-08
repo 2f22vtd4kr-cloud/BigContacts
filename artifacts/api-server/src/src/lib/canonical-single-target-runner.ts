@@ -132,7 +132,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     }
     let investigatorLlm: InvestigatorCapability | null = storedInvestigatorCapability; let latestResult: Awaited<ReturnType<typeof runTargetContactAgent>> | null = null; let lastOversight: StoredOversight | null = null; let completedActs = 0; let investigatorIterationsUsed = 0; let resourceLimited = false; let deadlineExceeded = false; let cancelled = false; const recentActs: Parameters<typeof reviewTargetInvestigationAct>[0]["recentActs"] = [];
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>(options.excludedInvestigatorLlm ?? []);
-    const isHardQuotaResult = (result: Awaited<ReturnType<typeof runTargetContactAgent>>): boolean => result.status === "unavailable" && (/^upstream_quota_exhausted$/i.test(result.error ?? "") || (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error" && /upstream_quota_exhausted/i.test(record.observation ?? "")));
+    const isHardQuotaResult = (result: Awaited<ReturnType<typeof runTargetContactAgent>>): boolean => result.status === "unavailable" && (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error" && /upstream_quota_exhausted/i.test(record.observation ?? ""));
     const reassignTargetInvestigatorAfterHardQuota = async (failedCapability: InvestigatorCapability): Promise<InvestigatorCapability> => {
       quotaExhaustedInvestigators.add(failedCapability);
       const alternates = getAvailableInvestigatorCapabilities().filter((capability) => !quotaExhaustedInvestigators.has(capability));
@@ -150,7 +150,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       if (boss.status !== "completed" || !replacement || replacement === failedCapability || quotaExhaustedInvestigators.has(replacement) || !alternates.includes(replacement)) {
         throw new Error(boss.error ?? "Groq Boss did not select a valid alternate Investigator capability for target recovery.");
       }
-      await db.transaction(async (tx) => {
+      const reassignedCaseState = await db.transaction(async (tx) => {
         const [locked] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration })
           .from(researchCasesTable).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`)).for("update").limit(1);
         if (!locked || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? ""))) throw new Error("Canonical Atlas target case is no longer active; refusing Investigator reassignment.");
@@ -161,8 +161,10 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         const nextIteration = Number(locked.iteration ?? 0) + 1;
         await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), iteration: nextIteration, currentAction: "canonical-target-investigator-reassigned-after-hard-quota", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`));
         await tx.insert(researchCaseEventsTable).values({ caseId: caseRow.id, iteration: nextIteration, actorRole: "groq_boss", eventType: "assignment", status: "recorded", summary: "Groq Boss reassigned the target Investigator after explicit hard request-quota exhaustion; the exhausted capability remains excluded for this job.", correlationKey: `${atlasJobId}:target-investigator-reassignment:${failedCapability}:${replacement}:${nextIteration}`, payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, from: failedCapability, to: replacement, trigger: "upstream_quota_exhausted", excludedInvestigators: [...quotaExhaustedInvestigators], bossModel: boss.model, bossStatus: boss.status, bossReport: boss.report }) });
+        return nextFile;
       }, { isolationLevel: "serializable" });
-      caseState = { ...caseState, investigatorLlm: replacement };
+      caseState = reassignedCaseState;
+
       investigatorLlm = replacement;
       return replacement;
     };
