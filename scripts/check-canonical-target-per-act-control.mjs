@@ -11,7 +11,7 @@ const continuation=fs.readFileSync("artifacts/api-server/src/src/routes/research
 const checks=[
 ["target continuation row lock fences completed cases before remount",/\.for\("update"\)[\s\S]*locked\.status === "complete"[\s\S]*locked\.status === "cancelled"/.test(continuation)&&/canonical-continuation-cancelled/.test(continuation)],
 ["target control persistence rechecks durable cancellation fence under row lock",/status: researchCasesTable\.status[\s\S]*currentAction: researchCasesTable\.currentAction/.test(control)&&/caseRow\.status === "complete"/.test(control)&&/caseRow\.status === "cancelled"/.test(control)],
-["canonical runner gives each Investigator act a bounded multi-step budget",/const actIterations = Math\.min\(depth\.investigatorIterationsPerAct, remainingInvestigatorIterations\)/.test(runner)&&/maxIterations: actIterations/.test(runner)],
+["canonical runner gives each Investigator act a bounded multi-step budget",/const actIterations = Math\.min\(depth\.investigatorIterationsPerAct, remainingInvestigatorIterations\)/.test(runner)&&/maxIterations:\s*Math\.max\(1, actIterations - quotaRecoveryIterations\)/.test(runner)],
 ["canonical runner reads durable act oversight after each act with exact run and turn",/readOversight\(caseState,\s*latestResult\.executionId\s*\?\?\s*null,\s*actNumber\)/.test(runner)],
 ["canonical runner does not consume stale targetControlDecisions",!/readContinuationControl\(/.test(runner)],
 ["canonical target case reuse is bound to current atlas job",/state\.atlasJobId === atlasJobId/.test(runner)],
