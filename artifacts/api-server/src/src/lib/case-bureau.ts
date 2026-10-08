@@ -407,7 +407,7 @@ function buildBossDiscoveryResponseFormat(availableInvestigators: readonly Inves
   };
 }
 
-function parseBossDiscoveryResponse(raw: string): {
+function parseBossDiscoveryResponse(raw: string, allowedInvestigators: readonly InvestigatorCapability[] = getAvailableInvestigatorCapabilities()): {
   report: string;
   candidates: GeminiBossDiscoveryResult["candidates"];
   investigatorLlm: InvestigatorCapability | null;
@@ -428,7 +428,7 @@ function parseBossDiscoveryResponse(raw: string): {
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
     const report = typeof object.report === "string" ? object.report.trim() : "";
-    const available = getAvailableInvestigatorCapabilities();
+    const available = allowedInvestigators;
     const investigatorLlm = typeof object.investigatorLlm === "string" && available.includes(object.investigatorLlm as InvestigatorCapability) ? object.investigatorLlm as InvestigatorCapability : null;
     const nextDirections = Array.isArray(object.nextDirections) && object.nextDirections.length <= 8 && object.nextDirections.every((value) => typeof value === "string" && value.trim())
       ? uniqueStrings(object.nextDirections, 8)
@@ -519,6 +519,8 @@ export async function runGroqBossDiscovery(input: {
     error: string | null;
   };
   startingLane?: string;
+  /** Investigator capabilities that are unavailable for this Boss decision (for example, an explicitly exhausted request quota). */
+  excludedInvestigatorLlm?: readonly InvestigatorCapability[];
 }): Promise<GeminiBossDiscoveryResult> {
   const selection = await resolveGeminiBossModel();
   if (selection.status !== "resolved") {
@@ -537,8 +539,11 @@ export async function runGroqBossDiscovery(input: {
     };
   }
 
-  const availableInvestigators = getAvailableInvestigatorCapabilities();
-  if (!availableInvestigators.length) return { status: "unavailable", model: selection.model, investigatorLlm: null, report: null, candidates: [], citations: [], nextDirections: [], uncertainties: [], error: "No Investigator capability is currently available; refusing an unselected or deterministic substitute." };
+  const excluded = new Set(input.excludedInvestigatorLlm ?? []);
+  const availableInvestigators = getAvailableInvestigatorCapabilities().filter((capability) => !excluded.has(capability));
+  if (!availableInvestigators.length) return { status: "unavailable", model: selection.model, investigatorLlm: null, report: null, candidates: [], citations: [], nextDirections: [], uncertainties: [], error: excluded.size
+    ? "No alternate configured Investigator capability remains after explicit Boss-directed exclusion of exhausted capabilities."
+    : "No Investigator capability is currently available; refusing an unselected or deterministic substitute." };
   const prompt = `${buildBossOpeningPrompt(input)}
 
 This is a shared case-context review. Read the current investigation progress and investigator reports below
@@ -549,6 +554,7 @@ Do not repeat a completed lane unless its report exposes a specific unresolved q
 Investigator capability availability at this moment: ${JSON.stringify(availableInvestigators)}. Select only an available capability; the harness will not substitute a different Investigator after your decision.
 The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence
 and do not let it select a target. The Investigator owns the research trajectory within the stated mission; no fixed lane order or research sequence is imposed.
+Excluded Investigator capabilities for this decision: ${JSON.stringify([...excluded])}. These exclusions are control-plane safety state, not a research instruction; never select an excluded capability.
 Starting lane: ${input.startingLane ?? "not specified"}
 Right-hand advisor note: ${JSON.stringify(input.rightHandAdvice ?? null)}
 Current shared case context:
@@ -600,7 +606,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
         error: generated.error ?? "Groq Boss text generation returned no text for the discovery brief.",
       };
     }
-    const parsed = parseBossDiscoveryResponse(generated.raw);
+    const parsed = parseBossDiscoveryResponse(generated.raw, availableInvestigators);
     if (!parsed.investigatorLlm || !availableInvestigators.includes(parsed.investigatorLlm)) {
       return {
         status: "unavailable",
