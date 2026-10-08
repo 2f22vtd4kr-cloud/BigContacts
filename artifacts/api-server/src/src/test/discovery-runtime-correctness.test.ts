@@ -118,6 +118,15 @@ describe("discovery runtime architecture", () => {
     }])).toEqual({ allowed: true, reason: null });
   });
 
+  it("does not classify token-window capacity waits as Investigator provider death", async () => {
+    const { isTransientInvestigatorCapacityError } = await import("../lib/agentic-web-research-core");
+    expect(isTransientInvestigatorCapacityError({ error: "upstream_token_window_wait_exceeded" })).toBe(true);
+    expect(isTransientInvestigatorCapacityError({
+      error: "LLM_UNAVAILABLE",
+      trajectoryRecords: [{ observation: "INVESTIGATOR_PROVIDER_ERROR upstream_token_window_wait_exceeded" }],
+    })).toBe(true);
+    expect(isTransientInvestigatorCapacityError({ error: "upstream_quota_exhausted" })).toBe(false);
+  });
   it("scopes Groq token-window snapshots to the selected model", () => {
     expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, model: string)");
     expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model))");
