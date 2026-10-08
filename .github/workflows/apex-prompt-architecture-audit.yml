@@ -51,7 +51,7 @@ jobs:
             exit 1
           fi
           assert_contains 'trajectoryRecords' "$core"
-          assert_contains 'Choose the next action based on expected information gain' "$core"
+          assert_contains 'Choose the next action from the available capabilities using evidence, expected information gain' "$core"
           assert_contains 'CONTINUATION STATE' "$wrapper"
           assert_contains 'no fixed checklist' artifacts/api-server/src/src/lib/target-contact-agent.ts
           assert_contains '"serper"' "$core"

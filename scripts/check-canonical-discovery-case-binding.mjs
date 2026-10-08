@@ -8,7 +8,7 @@ const checks = [
   ["discovery case is bound to the current Atlas job", /jobId\s*&&\s*storedJob\s*!==\s*jobId/.test(source)],
   ["target execution run binding remains strict", /mode\s*===\s*"target"\s*&&\s*storedRun\s*&&\s*storedRun\s*!==\s*runId/.test(source)],
   ["missing durable context fails closed", /has no durable context document/.test(source)],
-  ["discovery multi-run state retains the durable job boundary", /runIds:\s*\[\.\.\.new Set/.test(source) && /jobId:input\.jobId/.test(source)],
+  ["discovery multi-run state retains the durable job boundary", /runIds:nextRunIds/.test(source) && /jobId:current\.jobId/.test(source)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
