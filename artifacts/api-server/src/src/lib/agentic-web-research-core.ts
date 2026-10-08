@@ -45,6 +45,10 @@ const DISCOVERY_SECTOR_TERMS = /\b(?:casino|gaming|gambling|hotel|resort|hospita
 const DISCOVERY_SOURCE_TERMS = /(?:\b(?:site:|registry|registr(?:y|ies)|filing|filings|annual report|press release|trade publication|business journal|interview|company profile|team page|official)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i;
 const DISCOVERY_ORG_TERMS = /\b(?:company|corp(?:oration)?|ltd|limited|llc|inc|group|holdings|partners|capital|ventures|bank|university|hospital|club|association)\b/i;
 export function normalizeDiscoverySearchQuery(query: string): string { return query.trim().toLowerCase().replace(/[\s\u00a0]+/g, " ").replace(/[“”‘’]/g, '"'); }
+export function isTransientInvestigatorCapacityError(result: { error?: string; trajectoryRecords?: Array<{ observation?: string }> }): boolean {
+  if (result.error === "upstream_token_window_wait_exceeded") return true;
+  return (result.trajectoryRecords ?? []).some((record) => /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""));
+}
 export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true } | { allowed: false; reason: string } {
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
