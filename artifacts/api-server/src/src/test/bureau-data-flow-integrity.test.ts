@@ -32,6 +32,13 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
     const discoveryObjective = source("artifacts/api-server/src/src/lib/agentic-web-research.ts");
     expect(discoveryObjective).toContain("const embeddedDirection = direction ?? (base.includes(pivotMarker)");
     expect(discoveryObjective).toContain("CURRENT RESEARCH OBJECTIVE (BOSS-DIRECTED, CURRENT TASK CONSTRAINT):\\n${embeddedDirection}");
+    const agenticResearch = source("artifacts/api-server/src/src/lib/agentic-web-research.ts");
+    expect(agenticResearch).toContain("sharedContext: `${oversightContext.contextDocument}\\n\\n${renderIntelligenceContext(intelligence.buildContext())}`");
+    expect(agenticResearch).not.toContain("sharedContext: `${oversightContext.contextDocument}\\\\n\\\\n");
+
+    const targetRunnerSource = source("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
+    expect(targetRunnerSource).toContain("objective: `${caseRow.objective}\\n\\nHARD PROVIDER QUOTA RECOVERY:");
+    expect(targetRunnerSource).not.toContain("objective: `${caseRow.objective}\\\\n\\\\nHARD PROVIDER QUOTA RECOVERY:");
 
     const targetOversight = source("artifacts/api-server/src/src/lib/target-act-oversight.ts");
     expect(targetOversight).toContain("if(turn>=latestTurn)caseFile.liveOversightDirection=oversight.direction");
