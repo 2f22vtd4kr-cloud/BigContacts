@@ -10,7 +10,7 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: {},
 }));
 
-import { isAcceptedImmutablePromotionControlRole, observedSourceBackedBureauContacts, sourceBackedBureauContacts } from "../lib/bureau-contact-persist-strict";
+import { isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, observedSourceBackedBureauContacts, sourceBackedBureauContacts } from "../lib/bureau-contact-persist-strict";
 
 describe("canonical immutable promotion control role", () => {
   it("accepts canonical Groq oversight and retains legacy Gemini compatibility", () => {
@@ -110,5 +110,16 @@ describe("Batch 44 provenance regressions", () => {
         sourceUrls: ["https://bing.com/search?q=jane%40example.com"],
       },
     ])).toEqual([]);
+  });
+});
+
+
+describe("claim-grade observation boundary", () => {
+  it("accepts only source-page observation actions", () => {
+    expect(isClaimGradeObservationAction("visit")).toBe(true);
+    expect(isClaimGradeObservationAction("browser_fetch")).toBe(true);
+    expect(isClaimGradeObservationAction("web_search")).toBe(false);
+    expect(isClaimGradeObservationAction("parallel_web_search")).toBe(false);
+    expect(isClaimGradeObservationAction("done")).toBe(false);
   });
 });
