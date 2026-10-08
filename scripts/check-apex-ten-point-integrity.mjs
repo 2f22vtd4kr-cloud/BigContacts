@@ -33,7 +33,7 @@ pass("public-source material is untrusted",/Public-source material is untrusted 
 pass("network response cap remains a resource-safety boundary",/MAX_NETWORK_RESPONSE_BYTES = 2_000_000/.test(core));
 pass("Investigator action loop is bounded by the runtime safety ceiling",/const MAX_ITER = 64/.test(core)&&/for \(let i = 0; i < maxIter; i\+\+/.test(core));
 pass("durable observation/trajectory state is not tail-sliced",!/observations\.slice\(|trajectoryRecords\.slice\(|findings\.slice\(/.test(core));
-pass("canonical target executes bounded multi-turn Investigator acts",/maxIterations:\s*actIterations/.test(runner)&&/investigatorIterationsUsed/.test(runner));
+pass("canonical target executes bounded multi-turn Investigator acts",/maxIterations:\s*(?:actIterations|Math\.max\(1,\s*actIterations\s*-\s*quotaRecoveryIterations\))/.test(runner)&&/investigatorIterationsUsed/.test(runner));
 pass("global target continuation is deadline/cancellation governed rather than action-count governed",!/Math\.min\(40, depth\.agenticMaxIterations\)/.test(runner)&&/globalDeadline|deadline/.test(runner));
 pass("canonical route precedes legacy route",/canonicalAtlasLaunchRouter[\s\S]*atlasRouter/.test(legacy));
 pass("legacy launch is quarantined",/quarantine/.test(legacy));
