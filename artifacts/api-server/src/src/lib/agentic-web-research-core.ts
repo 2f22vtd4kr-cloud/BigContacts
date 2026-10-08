@@ -507,8 +507,8 @@ function groqPromptTokenEstimate(promptChars: number): number {
   return Math.ceil(Math.max(0, promptChars) / 4);
 }
 
-async function waitForKnownGroqTokenWindow(keyName: string, promptChars: number, completionBudget: number, signal: AbortSignal): Promise<"ready" | "token_window_wait_exceeded"> {
-  const snapshot = groqRateLimitSnapshots.get(keyName);
+async function waitForKnownGroqTokenWindow(keyName: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal): Promise<"ready" | "token_window_wait_exceeded"> {
+  const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model));
   if (!snapshot || snapshot.remainingTokens == null || snapshot.resetTokensMs == null) return "ready";
   const estimated = groqPromptTokenEstimate(promptChars) + completionBudget;
   if (snapshot.remainingTokens >= estimated) return "ready";
