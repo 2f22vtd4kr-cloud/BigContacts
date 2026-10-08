@@ -157,7 +157,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         let durable = parseCaseFile(locked.caseFile);
         const history = Array.isArray(durable.investigatorCapabilityHistory) ? durable.investigatorCapabilityHistory : [];
         const previous = typeof durable.investigatorLlm === "string" ? durable.investigatorLlm : failedCapability;
-        const nextFile = { ...durable, investigatorLlm: replacement, investigatorCapabilityHistory: [...history, { from: previous, to: replacement, trigger: "upstream_quota_exhausted" }].slice(Math.max(0, history.length - 15)) };
+        const nextFile = { ...durable, investigatorLlm: replacement, investigatorCapabilityHistory: [...history, { from: previous, to: replacement, trigger: "upstream_quota_exhausted" }].slice(-15) };
         const nextIteration = Number(locked.iteration ?? 0) + 1;
         await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), iteration: nextIteration, currentAction: "canonical-target-investigator-reassigned-after-hard-quota", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`));
         await tx.insert(researchCaseEventsTable).values({ caseId: caseRow.id, iteration: nextIteration, actorRole: "groq_boss", eventType: "assignment", status: "recorded", summary: "Groq Boss reassigned the target Investigator after explicit hard request-quota exhaustion; the exhausted capability remains excluded for this job.", correlationKey: `${atlasJobId}:target-investigator-reassignment:${failedCapability}:${replacement}:${nextIteration}`, payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, from: failedCapability, to: replacement, trigger: "upstream_quota_exhausted", excludedInvestigators: [...quotaExhaustedInvestigators], bossModel: boss.model, bossStatus: boss.status, bossReport: boss.report }) });
@@ -239,7 +239,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       await reassignTargetInvestigatorAfterHardQuota(investigatorLlm!);
       if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing target Investigator reassignment.");
     }
-    completedActs = actNumber; investigatorIterationsUsed += quotaRecoveryIterations + Math.max(0, latestResult?.iterations ?? latestResult?.trajectoryRecords.length ?? 0); if (investigatorIterationsUsed >= depth.agenticMaxIterations) resourceLimited = true;
+    completedActs = actNumber; const finalActIterations = isHardQuotaResult(latestResult) ? 0 : Math.max(0, latestResult?.iterations ?? latestResult?.trajectoryRecords.length ?? 0); investigatorIterationsUsed += quotaRecoveryIterations + finalActIterations; if (investigatorIterationsUsed >= depth.agenticMaxIterations) resourceLimited = true;
     const episodeRecords = latestResult.trajectoryRecords ?? [];
     const currentAct = episodeRecords.length ? {
       turn: episodeRecords[episodeRecords.length - 1]!.turn,
