@@ -217,5 +217,32 @@ describe("Atlas control-plane contract regression", () => {
       reason: "Invalid.",
       confidence: 0.9,
     })).toBe(false);
+    expect(validateAtlasBossControl({
+      action: "pivot_discovery",
+      candidateName: null,
+      direction: null,
+      reason: "Missing pivot direction.",
+      confidence: 0.8,
+    })).toBe(false);
+    expect(validateAtlasBossControl({
+      action: "continue_discovery",
+      candidateName: "Unexpected Person",
+      direction: null,
+      reason: "Candidate field must be null.",
+      confidence: 0.8,
+    })).toBe(false);
+    expect(validateAtlasBossControl({
+      action: "research_candidate",
+      candidateName: "Example Person",
+      direction: "Verify the role.",
+      reason: "Candidate is admitted.",
+      confidence: 0.8,
+    })).toBe(true);
+    expect(validateAtlasRightHandControl({
+      decision: "pivot_discovery",
+      reason: "Missing pivot direction.",
+      direction: null,
+      confidence: 0.8,
+    })).toBe(false);
   });
 });
