@@ -142,7 +142,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       if (!alternates.length) throw new Error(`Groq Investigator capability ${failedCapability} exhausted its hard request quota and no alternate configured Investigator capability remains for target ${target.name}.`);
       if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing target Investigator reassignment.");
       const boss = await runGroqBossDiscovery({
-        objective: `${caseRow.objective}\\n\\nHARD PROVIDER QUOTA RECOVERY: Target Investigator capability ${failedCapability} returned explicit upstream request-quota exhaustion. Select a different currently configured Investigator capability for this same target. Do not repeat an excluded capability and do not prescribe research steps.`,
+        objective: `${caseRow.objective}\n\nHARD PROVIDER QUOTA RECOVERY: Target Investigator capability ${failedCapability} returned explicit upstream request-quota exhaustion. Select a different currently configured Investigator capability for this same target. Do not repeat an excluded capability and do not prescribe research steps.`,
         motivation: "Recover the current target investigation from an explicitly exhausted Investigator request quota. Boss selects only the replacement capability; the Investigator retains free-ReAct control of research.",
         geography: "Target-specific public web and official sources",
         exclusions: ["Do not browse.", "Do not invent evidence, contacts, relationships or URLs.", "Do not prescribe a fixed search/tool/provider/query sequence.", "Select only an available Investigator capability not listed as exhausted."],
