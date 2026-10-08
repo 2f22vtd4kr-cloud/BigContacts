@@ -45,6 +45,12 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
     expect(targetOversight).toContain("history.splice(0,Math.max(0,history.length-32))");
     expect(targetOversight).toContain('value!.action==="redirect"?(typeof value!.direction==="string"&&value!.direction.trim().length>0):value!.direction===null');
 
+    const traceSource = source("artifacts/api-server/src/src/lib/investigator-trace.ts");
+    const bureauPass = source("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts");
+    expect(traceSource).toContain("executionId?: string");
+    expect(traceSource).toContain("caseId?: number");
+    expect(bureauPass).toContain("executionId:agentic.executionId");
+    expect(bureauPass).toContain("caseId:durableCaseId??undefined");
     const targetRunner = source("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
     expect(targetRunner).toContain("recentActs: recentActs.slice(-4)");
 
