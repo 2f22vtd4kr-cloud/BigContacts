@@ -239,7 +239,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       await reassignTargetInvestigatorAfterHardQuota(investigatorLlm!);
       if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing target Investigator reassignment.");
     }
-    completedActs = actNumber; investigatorIterationsUsed += quotaRecoveryIterations + Math.max(0, latestResult?.iterations ?? latestResult?.trajectoryRecords.length ?? 0); if (investigatorIterationsUsed >= depth.agenticMaxIterations) resourceLimited = true;
+    completedActs = actNumber; const finalActIterations = isHardQuotaResult(latestResult) ? 0 : Math.max(0, latestResult?.iterations ?? latestResult?.trajectoryRecords.length ?? 0); investigatorIterationsUsed += quotaRecoveryIterations + finalActIterations; if (investigatorIterationsUsed >= depth.agenticMaxIterations) resourceLimited = true;
     const episodeRecords = latestResult.trajectoryRecords ?? [];
     const currentAct = episodeRecords.length ? {
       turn: episodeRecords[episodeRecords.length - 1]!.turn,
