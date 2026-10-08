@@ -25,9 +25,9 @@ assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.te
 assert(/systemPromptChars/.test(telemetry) && /userPromptChars/.test(telemetry) && /totalPromptChars/.test(telemetry), "prompt telemetry must distinguish system, user, and total message characters");
 assert(/waitForKnownGroqTokenWindow/.test(core) && /token_window_wait_exceeded/.test(core), "known token-window exhaustion must be classified as a bounded temporary wait, not hard quota");
 assert(/upstream_token_window_wait_exceeded/.test(core), "local token-window wait ceiling must not emit upstream_quota_exhausted");
-assert(/resetMs > 60_000/.test(core), "known token-window waits must have a 60-second local ceiling");
+assert(/resetMs > AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - 5_000/.test(core), "known token-window waits must stay below the provider decision budget");
 assert(/remainingRequests.*=== 0/.test(core) && /quota_exceeded/.test(core) && /insufficient_quota/.test(core), "hard Investigator quota must require an explicit request-counter or provider hard-quota signal");
-assert(/!hardQuota && tokenWaitMs !== null/.test(core) && /tokenWaitMs <= 60_000/.test(core), "provider token-window 429s must receive one bounded wait/retry without being relabeled as hard quota");
+assert(/!hardQuota && tokenWaitMs !== null/.test(core) && /tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - 5_000/.test(core), "provider token-window 429s must receive one bounded wait/retry without being relabeled as hard quota");
 assert(/waitForKnownGroqTokenWindow\([\s\S]*?workingPrompt\.length \+ INVESTIGATOR_SYSTEM_PROMPT\(\)\.length/.test(core), "known token-window estimation must include the transmitted Investigator system prompt");
 assert(/const DEFAULT_MAX_CHARS = 4_200/.test(compaction), "context compaction default must remain reduced");
 assert(/LATEST TRAJECTORY RECORD \(must remain visible to the next Investigator\)/.test(compaction), "latest trajectory record must have an explicit prompt-preservation section");
