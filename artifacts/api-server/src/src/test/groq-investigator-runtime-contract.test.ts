@@ -63,7 +63,13 @@ describe("Groq Investigator runtime contract", () => {
     expect(rankGroqModelsForTask(models, "final_adjudication")).toEqual(models);
   });
 
-  it("keeps the canonical Investigator model singular so provider failure cannot silently change cognition", async () => {\n    const { GROQ_CHAT_MODELS, GROQ_DEFAULT_MODEL } = await import("../lib/groq-models");\n    expect(GROQ_CHAT_MODELS).toEqual([GROQ_DEFAULT_MODEL]);\n    expect(GROQ_CHAT_MODELS).toHaveLength(1);\n  });\n\n  it("keeps the active Groq Investigator models on the same structured action contract", () => {
+  it("keeps the canonical Investigator model singular so provider failure cannot silently change cognition", async () => {
+    const { GROQ_CHAT_MODELS, GROQ_DEFAULT_MODEL } = await import("../lib/groq-models");
+    expect(GROQ_CHAT_MODELS).toEqual([GROQ_DEFAULT_MODEL]);
+    expect(GROQ_CHAT_MODELS).toHaveLength(1);
+  });
+
+  it("keeps the active Groq Investigator models on the same structured action contract", () => {
     for (const model of ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"]) {
       const body = buildGroqInvestigatorRequestBody({ model, prompt: "choose the next research action", cognitiveTask: "identity_resolution" });
       expect(body.model).toBe(model);
