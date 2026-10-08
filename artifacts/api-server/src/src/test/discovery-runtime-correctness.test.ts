@@ -118,6 +118,14 @@ describe("discovery runtime architecture", () => {
     }])).toEqual({ allowed: true, reason: null });
   });
 
+  it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
+    const providerRecovery = canonicalSource.indexOf("consecutiveInvestigatorProviderUnavailable = isInvestigatorProviderUnavailable(nextDiscovery)");
+    expect(episodeMerge).toBeGreaterThan(-1);
+    expect(episodeMerge).toBeLessThan(providerRecovery);
+  });
+
   it("keeps runtime safety checks fail-closed and bounded", () => {
     expect(runtimeHardener).toMatch(/fail.?closed/i);
     expect(runtimeHardener).toMatch(/timeout|abort|cancel/i);
