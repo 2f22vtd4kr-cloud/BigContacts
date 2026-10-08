@@ -41,6 +41,18 @@ describe("discovery runtime architecture", () => {
     expect(rightHandSource).toContain("boss.nextDirections");
   });
 
+  it("propagates the opening Boss and Right-hand control data into the first Investigator objective", () => {
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    expect(canonicalSource).toContain("const openingInvestigatorObjective = [");
+    expect(canonicalSource).toContain("boss.report");
+    expect(canonicalSource).toContain("boss.nextDirections");
+    expect(canonicalSource).toContain("boss.uncertainties");
+    expect(canonicalSource).toContain("rightHand.decision");
+    expect(canonicalSource).toContain("rightHand.reason");
+    expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
+    expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective");
+  });
+
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
     const runner = fs.readFileSync(path.join(libDir, "canonical-single-target-runner.ts"), "utf8");
     const oversightImport = runner.indexOf('import { reviewTargetInvestigationAct } from "./target-act-oversight";');
