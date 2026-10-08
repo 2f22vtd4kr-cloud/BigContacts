@@ -54,13 +54,13 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.required).toEqual(expect.arrayContaining(["target", "targetType", "profile", "locale", "market"]));
   });
 
-  it("routes routine Investigator work to the low-cost model and reserves larger models for hard reasoning", () => {
+  it("does not down-route Investigator work by cognitive-task heuristics", () => {
     const models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"];
-    expect(rankGroqModelsForTask(models, "discovery")[0]).toBe("openai/gpt-oss-20b");
-    expect(rankGroqModelsForTask(models, "identity_resolution")[0]).toBe("openai/gpt-oss-20b");
-    expect(rankGroqModelsForTask(models, "contact_extraction")[0]).toBe("openai/gpt-oss-20b");
-    expect(rankGroqModelsForTask(models, "contradiction_resolution")[0]).toBe("openai/gpt-oss-120b");
-    expect(rankGroqModelsForTask(models, "final_adjudication")[0]).toBe("openai/gpt-oss-120b");
+    expect(rankGroqModelsForTask(models, "discovery")).toEqual(models);
+    expect(rankGroqModelsForTask(models, "identity_resolution")).toEqual(models);
+    expect(rankGroqModelsForTask(models, "contact_extraction")).toEqual(models);
+    expect(rankGroqModelsForTask(models, "contradiction_resolution")).toEqual(models);
+    expect(rankGroqModelsForTask(models, "final_adjudication")).toEqual(models);
   });
 
   it("keeps the active Groq Investigator models on the same structured action contract", () => {
