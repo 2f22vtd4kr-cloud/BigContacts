@@ -771,7 +771,7 @@ async function callGroqJson(
         }
 
         const raw = data.choices?.[0]?.message?.content?.trim() || "";
-        const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", response);
+        const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
         recordAgenticLlmAttempt({
           provider: "groq",
           model,
