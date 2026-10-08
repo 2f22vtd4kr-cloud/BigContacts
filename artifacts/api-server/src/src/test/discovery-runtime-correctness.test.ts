@@ -118,6 +118,12 @@ describe("discovery runtime architecture", () => {
     }])).toEqual({ allowed: true, reason: null });
   });
 
+  it("scopes Groq token-window snapshots to the selected model", () => {
+    expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, model: string)");
+    expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model))");
+    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
+  });
+
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
