@@ -134,7 +134,6 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review", exhaustedInvestigatorLlm: [], investigatorLlm: storedInvestigatorCapability };
     }
     let investigatorLlm: InvestigatorCapability | null = storedInvestigatorCapability && !initialExcludedInvestigators.has(storedInvestigatorCapability) ? storedInvestigatorCapability : null; let latestResult: Awaited<ReturnType<typeof runTargetContactAgent>> | null = null; let lastOversight: StoredOversight | null = null; let completedActs = 0; let investigatorIterationsUsed = 0; let resourceLimited = false; let deadlineExceeded = false; let cancelled = false; const recentActs: Parameters<typeof reviewTargetInvestigationAct>[0]["recentActs"] = [];
-    const initialExcludedInvestigators = new Set<InvestigatorCapability>(options.excludedInvestigatorLlm ?? []);
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>(initialExcludedInvestigators);
     const isHardQuotaResult = (result: Awaited<ReturnType<typeof runTargetContactAgent>>): boolean => result.status === "unavailable" && (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error" && /upstream_quota_exhausted/i.test(record.observation ?? ""));
     const reassignTargetInvestigatorAfterHardQuota = async (failedCapability: InvestigatorCapability): Promise<InvestigatorCapability> => {
