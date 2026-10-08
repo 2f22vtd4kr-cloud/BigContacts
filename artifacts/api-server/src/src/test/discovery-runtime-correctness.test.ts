@@ -127,6 +127,40 @@ describe("discovery runtime architecture", () => {
     })).toBe(true);
     expect(isTransientInvestigatorCapacityError({ error: "upstream_quota_exhausted" })).toBe(false);
   });
+  it("blocks repeated discovery searches until a non-search observation occurs", async () => {
+    const { discoverySearchLivenessGate } = await import("../lib/agentic-web-research-core");
+    const search = (turn: number) => ({
+      turn,
+      model: "groq",
+      action: "web_search",
+      args: { provider: "serper", query: "concrete query " + turn },
+      execution: "success" as const,
+      observation: "search result",
+      observedUrls: ["https://example.com/source-" + turn],
+      findings: [],
+    });
+    expect(discoverySearchLivenessGate([search(1), search(2)])).toEqual({ allowed: true, reason: null });
+    expect(discoverySearchLivenessGate([search(1), search(2), search(3)])).toEqual({
+      allowed: false,
+      reason: expect.stringContaining("three successful search actions"),
+    });
+    expect(discoverySearchLivenessGate([
+      search(1),
+      search(2),
+      search(3),
+      {
+        turn: 4,
+        model: "groq",
+        action: "visit",
+        args: { url: "https://example.com/source-3" },
+        execution: "success" as const,
+        observation: "Observed source page",
+        observedUrls: ["https://example.com/source-3"],
+        findings: [],
+      },
+    ])).toEqual({ allowed: true, reason: null });
+  });
+
   it("scopes Groq token-window snapshots to the selected model", () => {
     expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, model: string)");
     expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model))");
@@ -139,6 +173,12 @@ describe("discovery runtime architecture", () => {
     const providerRecovery = canonicalSource.indexOf("consecutiveInvestigatorProviderUnavailable = isInvestigatorProviderUnavailable(nextDiscovery)");
     expect(episodeMerge).toBeGreaterThan(-1);
     expect(episodeMerge).toBeLessThan(providerRecovery);
+  });
+
+  it("does not abort a ReAct act before the provider decision wait budget", () => {
+    expect(researchSource).toContain("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000");
+    expect(researchCoreSource).toContain("export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS");
+    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
   });
 
   it("keeps runtime safety checks fail-closed and bounded", () => {
