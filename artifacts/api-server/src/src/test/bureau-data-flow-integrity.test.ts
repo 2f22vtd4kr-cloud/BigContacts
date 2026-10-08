@@ -18,11 +18,11 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
       "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts",
     ].map((file) => source(file));
 
-    const quotaHistoryBound = "investigatorCapabilityHistory:[...history, { from: previous, to: replacement, trigger: \"upstream_quota_exhausted\" }].slice(-15)";
-    expect(source("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts")).toContain(quotaHistoryBound);
+    const quotaHistorySource = source("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts");
+    expect(quotaHistorySource).toMatch(/investigatorCapabilityHistory:\s*\[\.\.\.history,\s*\{\s*from:\s*(?:previous|previousAssignment),\s*to:\s*replacement,\s*trigger:\s*"upstream_quota_exhausted"\s*\}\s*\]\.slice\(-15\)/);
 
     for (const content of durableFiles) {
-      const genericScan = content.replace(quotaHistoryBound, "");
+      const genericScan = content.replace(quotaHistorySource.match(/investigatorCapabilityHistory:\s*\[\.\.\.history[\s\S]*?\.slice\(-15\)/)?.[0] ?? "", "");
       expect(genericScan).not.toMatch(/\.slice\(\s*-\d+/);
       expect(genericScan).not.toMatch(/Math\.min\(\s*40\s*,/);
       expect(genericScan).not.toMatch(/maxCandidates/);
