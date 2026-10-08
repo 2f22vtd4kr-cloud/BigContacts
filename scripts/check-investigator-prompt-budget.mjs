@@ -11,7 +11,7 @@ const assert = (ok, message) => { if (!ok) failures.push(message); };
 assert(/MAX_PROVIDER_PROMPT_CHARS = 9_000/.test(core), "final Investigator provider prompt ceiling must be 9,000 characters");
 assert(/maxChars: 3_500/.test(core), "working Investigator context must use the tighter 3,500-character budget");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /1_200,\n  \);/.test(core), "intelligence state must be bounded to 1,200 characters");
-assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(\), 1_200\)/.test(core), "capability guidance must be explicitly bounded");
+assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(\), 1_000\)/.test(core), "capability guidance must be explicitly bounded");
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 assert(/INVESTIGATOR_SYSTEM_PROMPT/.test(core) && /MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT\(\)\.length/.test(core), "final prompt ceiling must reserve space for the stable system message");
 assert(/buildGroqInvestigatorRequestBody[\s\S]*?boundInvestigatorPromptSection\(prompt, maxUserPromptChars\)/.test(core), "provider request-body boundary must independently cap the user message");
