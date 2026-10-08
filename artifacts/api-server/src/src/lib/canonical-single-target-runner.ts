@@ -11,6 +11,7 @@ import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { reviewTargetInvestigationAct } from "./target-act-oversight";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
+import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; initialDirection?: string; manageJobLifecycle?: boolean; maxInvestigatorIterations?: number; excludedInvestigatorLlm?: readonly InvestigatorCapability[] };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null };
 type TargetCase = { id: number; targetEntityId: number; status: string; iteration: number; objective: string; caseFile: string | null };
@@ -244,7 +245,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       await reassignTargetInvestigatorAfterHardQuota(investigatorLlm!);
       if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing target Investigator reassignment.");
     }
-    completedActs = actNumber; const finalActIterations = isHardQuotaResult(latestResult) ? 0 : Math.max(0, latestResult?.iterations ?? latestResult?.trajectoryRecords.length ?? 0); investigatorIterationsUsed += quotaRecoveryIterations + finalActIterations; if (investigatorIterationsUsed >= depth.agenticMaxIterations) resourceLimited = true;
+    completedActs = latestResult.status === "completed" ? actNumber : completedActs; const finalActIterations = isHardQuotaResult(latestResult) ? 0 : Math.max(0, latestResult?.iterations ?? latestResult?.trajectoryRecords.length ?? 0); investigatorIterationsUsed += quotaRecoveryIterations + finalActIterations; if (investigatorIterationsUsed >= depth.agenticMaxIterations) resourceLimited = true;
     const episodeRecords = latestResult.trajectoryRecords ?? [];
     const currentAct = episodeRecords.length ? {
       turn: episodeRecords[episodeRecords.length - 1]!.turn,
@@ -270,6 +271,26 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         error: "Missing Investigator act record or executionId.",
       };
       break;
+    }
+    if (isTransientInvestigatorCapacityError(latestResult)) {
+      // Token-window capacity is transient provider capacity, not provider death.
+      // Preserve the durable trajectory and advance to the next controlled act
+      // rather than parking the target or invoking a different model.
+      recentActs.push(currentAct);
+      if (recentActs.length > 4) recentActs.splice(0, recentActs.length - 4);
+      caseState.currentAction = "investigator-act-capacity-wait";
+      await db.update(researchCasesTable).set({
+        caseFile: JSON.stringify({ ...caseState, contextDocument, lastOversight: null }),
+        currentAction: "investigator-act-capacity-wait",
+        updatedAt: new Date(),
+      }).where(and(
+        eq(researchCasesTable.id, caseRow.id),
+        eq(researchCasesTable.status, "active"),
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`,
+        sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`,
+      ));
+      lastOversight = null;
+      continue;
     }
     lastOversight = await reviewTargetInvestigationAct({
       caseId: caseRow.id,
