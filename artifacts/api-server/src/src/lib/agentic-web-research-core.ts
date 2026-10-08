@@ -475,6 +475,7 @@ type GroqRateLimitSnapshot = {
 };
 
 const groqRateLimitSnapshots = new Map<string, GroqRateLimitSnapshot>();
+function groqRateLimitSnapshotKey(keyName: string, model: string): string { return `${keyName}:${model}`; }
 
 function parseGroqDurationMs(raw: string | null): number | null {
   const value = raw?.trim() ?? "";
@@ -488,7 +489,7 @@ function parseGroqDurationMs(raw: string | null): number | null {
   return Math.floor((Number(match[1] ?? 0) * 3600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000);
 }
 
-function captureGroqRateLimitSnapshot(keyName: string, response: Response): GroqRateLimitSnapshot {
+function captureGroqRateLimitSnapshot(keyName: string, model: string, response: Response): GroqRateLimitSnapshot {
   const remainingTokensValue = Number(response.headers.get("x-ratelimit-remaining-tokens"));
   const remainingRequestsValue = Number(response.headers.get("x-ratelimit-remaining-requests"));
   const snapshot: GroqRateLimitSnapshot = {
@@ -498,7 +499,7 @@ function captureGroqRateLimitSnapshot(keyName: string, response: Response): Groq
     resetRequestsMs: parseGroqDurationMs(response.headers.get("x-ratelimit-reset-requests")),
     observedAt: Date.now(),
   };
-  groqRateLimitSnapshots.set(keyName, snapshot);
+  groqRateLimitSnapshots.set(groqRateLimitSnapshotKey(keyName, model), snapshot);
   return snapshot;
 }
 
@@ -620,7 +621,7 @@ async function callGroqJson(
 
         if (response.status === 429) {
           const hardQuota = groqHardRequestQuota(response, body);
-          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", response);
+          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
           let providerErrorCode: string | null = null;
           let providerErrorType: string | null = null;
           try {
