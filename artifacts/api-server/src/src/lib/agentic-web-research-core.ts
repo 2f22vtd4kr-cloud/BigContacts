@@ -839,8 +839,11 @@ const AGENTIC_STRUCTURED_SCHEMA = {
   type: "object",
   properties: {
     action: { type: "string", enum: ["web_search","parallel_web_search","visit","footprint_email","footprint_username_maigret","footprint_username_sherlock","domain_lookup","registry_search","harvest_domain","footprint_spiderfoot","browser_fetch","done"] },
+    // Keep the provider-facing strict schema to Groq's documented structural
+    // subset. The runtime parser remains authoritative for action/provider
+    // combinations and cardinality, so those safety checks are not weakened.
     query: { type: ["string","null"] },
-    provider: { type: ["string","null"], enum: ["serper","tavily","exa","rdap","whoisjson","scrapfly","zenrows","browserless","playwright",null] },
+    provider: { type: ["string","null"] },
     url: { type: ["string","null"] },
     email: { type: ["string","null"] },
     username: { type: ["string","null"] },
@@ -853,9 +856,11 @@ const AGENTIC_STRUCTURED_SCHEMA = {
     locale: { type: ["string","null"] },
     market: { type: ["string","null"] },
     target: { type: ["string","null"] },
-    targetType: { type: ["string","null"], enum: ["domain","hostname","ip","email","username","person","asn",null] },
-    profile: { type: ["string","null"], enum: ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint",null] },
-    searches: { type: "array", minItems: 2, maxItems: 4, items: { type: "object", properties: { query: { type: "string" }, provider: { type: "string", enum: ["serper","tavily","exa"] }, locale: { type: ["string","null"] }, market: { type: ["string","null"] }, purpose: { type: ["string","null"] } }, required: ["query","provider","locale","market","purpose"], additionalProperties: false } },
+    targetType: { type: ["string","null"] },
+    profile: { type: ["string","null"] },
+    // Groq's strict schema contract does not document minItems/maxItems.
+    // Cardinality and per-item provider validation remain enforced locally.
+    searches: { type: "array", items: { type: "object", properties: { query: { type: "string" }, provider: { type: "string", enum: ["serper","tavily","exa"] }, locale: { type: ["string","null"] }, market: { type: ["string","null"] }, purpose: { type: ["string","null"] } }, required: ["query","provider","locale","market","purpose"], additionalProperties: false } },
     findings: {
       type: "array",
       items: {
@@ -868,7 +873,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
           scope: { type: "string", enum: ["organization","candidate","unknown"] },
           sourceUrls: { type: "array", items: { type: "string" } },
           note: { type: "string" },
-          promotionDecision: { type: ["string","null"], enum: ["promote","reject",null] },
+          promotionDecision: { type: ["string","null"] },
           promotionReason: { type: ["string","null"] }
         },
         required: ["vectorType","value","personName","role","scope","sourceUrls","note","promotionDecision","promotionReason"],
