@@ -15,6 +15,8 @@ const KEY_PREFIX = "investigator-trace:v1:";
 export type DiscoveryTraceRecord = {
   slot: number;
   recordedAt: string;
+  executionId?: string;
+  caseId?: number;
   model?: string;
   status?: string;
   searches: number;
