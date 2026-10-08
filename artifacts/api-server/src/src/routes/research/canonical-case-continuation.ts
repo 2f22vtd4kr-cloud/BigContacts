@@ -22,7 +22,7 @@ router.post(["/research/bureau/cases/:caseId/run-next-pass","/research/bureau/ca
  const [current]=await db.select().from(researchCasesTable).where(eq(researchCasesTable.id,caseId)).limit(1);if(!current){res.status(404).json({error:"Bureau case not found"});return;}
  const file=parseFile(current.caseFile);if(!file||file.caseType!=="discovery"){res.status(409).json({error:"Only a discovery case can run the canonical continuation"});return;}
  const isControlRecovery=req.path.endsWith("/recover-control");
- const recoverableControlActions=new Set(["groq-right-hand-unavailable","canonical-control-unavailable"]);
+ const recoverableControlActions=new Set(["groq-right-hand-unavailable","canonical-control-unavailable","canonical-investigator-provider-unavailable"]);
  if(isControlRecovery&&!recoverableControlActions.has(String(current.currentAction??""))){res.status(409).json({error:"This case is not parked at a recoverable Groq Right-hand control boundary.",currentAction:current.currentAction??null});return;}
  const active=await getActiveJob("atlas-run");if(active){const existing=await getJob(active);const terminal=existing?.status==="done"||existing?.status==="failed"||existing?.status==="cancelled";if(!terminal){res.status(409).json({error:"A canonical Atlas investigation is already running.",jobId:active});return;}}
  const legacyActive=await getActiveJob("case-bureau-discovery");if(legacyActive){const existing=await getJob(legacyActive);const terminal=existing?.status==="done"||existing?.status==="failed"||existing?.status==="cancelled";if(!terminal){res.status(409).json({error:"A bureau discovery continuation is already running.",jobId:legacyActive});return;}}
