@@ -28,6 +28,11 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
       expect(genericScan).not.toMatch(/maxCandidates/);
     }
 
+
+    const discoveryObjective = source("artifacts/api-server/src/src/lib/agentic-web-research.ts");
+    expect(discoveryObjective).toContain("const embeddedDirection = direction ?? (base.includes(pivotMarker)");
+    expect(discoveryObjective).toContain("CURRENT RESEARCH OBJECTIVE (BOSS-DIRECTED, CURRENT TASK CONSTRAINT):\\n${embeddedDirection}");
+
     const targetRunner = source("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
     expect(targetRunner).toContain("recentActs: recentActs.slice(-4)");
 
