@@ -38,8 +38,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("TURN 24");
     expect(prompt).not.toContain('"action":{"type":"string","enum"');
     expect(prompt).not.toContain("APEX MISSION CONTRACT v");
-    expect(prompt).toContain("web_search={query,provider}");
-    expect(prompt).toContain("parallel_web_search={searches:[{query,provider,locale,market,purpose},...]}");
+    expect(prompt).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | browser_fetch | registry_search | domain_lookup | harvest_domain | footprint_email | footprint_username_maigret | footprint_username_sherlock | footprint_spiderfoot | done.");
+    expect(prompt).toContain("VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
