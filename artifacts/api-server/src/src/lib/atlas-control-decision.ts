@@ -35,10 +35,15 @@ const ALLOWED_ACTIONS = new Set<AtlasControlAction>(["continue_discovery", "rese
 export function validateAtlasRightHandControl(value: Record<string, unknown> | null): boolean {
   if (!value || !validateExactObjectFields(value, ["decision", "reason", "direction", "confidence"])) return false;
   const decision = typeof value.decision === "string" ? value.decision.trim().toLowerCase() : "";
+  const direction = typeof value.direction === "string" ? value.direction.trim() : "";
+  const directionValid = value.direction === null || direction.length > 0;
+  const pivotDirectionValid = decision !== "pivot_discovery" || direction.length > 0;
   return ALLOWED_ACTIONS.has(decision as AtlasControlAction)
     && typeof value.reason === "string"
     && value.reason.trim().length > 0
     && (typeof value.direction === "string" || value.direction === null)
+    && directionValid
+    && pivotDirectionValid
     && clampConfidence(value.confidence) !== null;
 }
 
@@ -49,10 +54,17 @@ function formatBossAttemptDiagnostics(attempts: Array<{ model: string; httpStatu
 export function validateAtlasBossControl(value: Record<string, unknown> | null): boolean {
   if (!value || !validateExactObjectFields(value, ["action", "candidateName", "direction", "reason", "confidence"])) return false;
   const action = typeof value.action === "string" ? value.action.trim().toLowerCase() : "";
+  const candidateName = typeof value.candidateName === "string" ? value.candidateName.trim() : "";
+  const direction = typeof value.direction === "string" ? value.direction.trim() : "";
+  const targetAction = action === "research_candidate" || action === "revisit_candidate";
+  const candidateValid = targetAction ? candidateName.length > 0 : value.candidateName === null;
+  const pivotDirectionValid = action !== "pivot_discovery" || direction.length > 0;
   return ALLOWED_ACTIONS.has(action as AtlasControlAction)
     && (typeof value.candidateName === "string" || value.candidateName === null)
     && (typeof value.direction === "string" || value.direction === null)
     && (typeof value.reason === "string" || value.reason === null)
+    && candidateValid
+    && pivotDirectionValid
     && clampConfidence(value.confidence) !== null;
 }
 
