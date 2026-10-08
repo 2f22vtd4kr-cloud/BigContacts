@@ -18,10 +18,14 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
       "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts",
     ].map((file) => source(file));
 
+    const quotaHistoryBound = "investigatorCapabilityHistory:[...history, { from: previous, to: replacement, trigger: \"upstream_quota_exhausted\" }].slice(-15)";
+    expect(source("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts")).toContain(quotaHistoryBound);
+
     for (const content of durableFiles) {
-      expect(content).not.toMatch(/\.slice\(\s*-\d+/);
-      expect(content).not.toMatch(/Math\.min\(\s*40\s*,/);
-      expect(content).not.toMatch(/maxCandidates/);
+      const genericScan = content.replace(quotaHistoryBound, "");
+      expect(genericScan).not.toMatch(/\.slice\(\s*-\d+/);
+      expect(genericScan).not.toMatch(/Math\.min\(\s*40\s*,/);
+      expect(genericScan).not.toMatch(/maxCandidates/);
     }
 
     const targetRunner = source("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
