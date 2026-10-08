@@ -47,6 +47,7 @@ checks.push(["partial discovery checkpoints do not finalize the run",fs.readFile
 checks.push(["durable Atlas control projection is bounded",/history\.splice\(0, Math\.max\(0, history\.length - 32\)\)/.test(control)]);
 checks.push(["discovery target admission is bound to the owning durable entity",/metadata\.discoveryCaseId/.test(atlas)&&/refusing ambiguous same-name target research/.test(atlas)]);
 checks.push(["terminal Boss decision is captured before stop breaks control loop",/finalControlAction = decision\.action;\s*if \(decision\.action === "stop"\) break/.test(atlas)]);
+checks.push(["repeated Investigator provider-unavailable discovery episodes are bounded",/maxConsecutiveInvestigatorProviderUnavailable = 2/.test(atlas)&&/isInvestigatorProviderUnavailable/.test(atlas)&&/canonical-investigator-provider-unavailable/.test(atlas)&&/refusing further AI control churn/.test(atlas)]);
 checks.push(["target Investigator iterations are charged to the Atlas global ceiling",/remainingTargetIterations = Math\.max\(0, depth\.agenticMaxIterations - investigatorIterationsUsed\)/.test(atlas)&&/maxInvestigatorIterations: remainingTargetIterations/.test(atlas)&&/investigatorIterationsUsed \+= Math\.max\(0, targetResult\.investigatorIterationsUsed\)/.test(atlas)]);
 checks.push(["incomplete Atlas terminal preserves truthful reason",/finalCaseAction = finalIncomplete[\s\S]{0,700}canonical-evidence-terminal-incomplete/.test(atlas)]);
 let failed = false; for (const [label, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (!ok) failed = true; }
