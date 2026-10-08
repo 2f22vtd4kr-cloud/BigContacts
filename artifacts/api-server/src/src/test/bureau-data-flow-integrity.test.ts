@@ -35,6 +35,7 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
 
     const targetOversight = source("artifacts/api-server/src/src/lib/target-act-oversight.ts");
     expect(targetOversight).toContain("if(turn>=latestTurn)caseFile.liveOversightDirection=oversight.direction");
+    expect(targetOversight).toContain("history.splice(0,Math.max(0,history.length-32))");
     expect(targetOversight).toContain('value!.action==="redirect"?(typeof value!.direction==="string"&&value!.direction.trim().length>0):value!.direction===null');
 
     const targetRunner = source("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
