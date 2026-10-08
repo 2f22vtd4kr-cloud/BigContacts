@@ -19,7 +19,7 @@ const checks=[
 ["inactive target case terminalizes its owned job",/if \(manageJobLifecycle\)[\s\S]*?Target runner refused to start because durable case status/.test(runner)],
 ["canonical runner passes exact case identity into Investigator",/caseId: caseRow\.id/.test(runner)],
 ["canonical target context is rebuilt from durable Investigator observations",/loadDurableTargetTrajectory\(caseRow\.id\)/.test(runner)&&/buildInvestigatorContext\(\{ targetName: target\.name/.test(runner)],
-["canonical target control iteration is durably monotonic",/iteration: caseRow\.iteration \+ completedActs/.test(runner)],
+["canonical target control iteration is durably monotonic",/iteration:\s*sql<number>\`\$\{researchCasesTable\.iteration\}\s*\+\s*\$\{completedActs\}\`/.test(runner)],
 ["canonical runner blocks on stop",/if \(lastOversight\.action === "stop"\) break/.test(runner)],
 ["canonical runner fails closed when oversight is unavailable",/!lastOversight \|\| lastOversight\.status !== "completed"/.test(runner)],
 ["redirect becomes a research objective, not a tool command",/Investigator research objective/.test(runner)],
@@ -78,4 +78,7 @@ checks.push(["durable target trajectory replay excludes search findings",/const 
 checks.push(["target Investigator act turns resume monotonically from durable trajectory",/const durableActTurn = durableTrajectory\.records\.reduce/.test(runner)&&/const firstActNumber = Math\.max\(1, durableActTurn \+ 1\)/.test(runner)&&/for \(let actNumber = firstActNumber;/.test(runner)]);
 checks.push(["canonical target unexpected failures close the durable case",/catch \(error\)/.test(runner)&&/investigator-execution-failed/.test(runner)&&/status: "review"/.test(runner)]);
 checks.push(["child target runner does not terminalize parent Atlas job",/manageJobLifecycle\?: boolean/.test(runner)&&/const manageJobLifecycle = options\.manageJobLifecycle !== false/.test(runner)&&/if \(manageJobLifecycle\) await updateJob/.test(runner)&&/manageJobLifecycle: false/.test(atlas)]);
+checks.push(["target hard-quota recovery charges failed turns exactly once",/quotaRecoveryIterations \+= Math\.max\(0, latestResult\.iterations/.test(runner)&&/const finalActIterations = isHardQuotaResult\(latestResult\) \? 0/.test(runner)&&/investigatorIterationsUsed \+= quotaRecoveryIterations \+ finalActIterations/.test(runner)]);
+checks.push(["target and discovery reassignment history remains bounded",/investigatorCapabilityHistory:[^;]*\.slice\(-15\)/.test(runner)&&/investigatorCapabilityHistory:[^;]*\.slice\(-15\)/.test(atlas)]);
+checks.push(["discovery hard-quota recovery consumes remaining Investigator budget",/let iterationsConsumed = Math\.max\(0, result\.iterations/.test(atlas)&&/const remainingIterations = Math\.max\(0, maxIterations - iterationsConsumed)/.test(atlas)&&/maxIterations: remainingIterations/.test(atlas)]);
 let failed=false;for(const[name,ok]of checks){console.log(`${ok?"PASS":"FAIL"} ${name}`);if(!ok)failed=true;}if(failed)process.exit(1);
