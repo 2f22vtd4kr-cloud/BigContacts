@@ -105,7 +105,9 @@ async function reconcileTargetCaseCancellation(atlasJobId: string, caseId: numbe
   if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing further target control-plane work.");
 }
 function openingContext(target: { name: string; type: string }, companyName: string | null, caseId: number, objective: string, prior: string): string { return compactInvestigationContext({ raw: ["# Apex Atlas — Investigation Context", `Case: ${caseId}`, `Target: ${target.name}`, `Target type: ${target.type}`, `Company: ${companyName ?? "not established"}`, "## Bureau operating law", "Groq Boss is Boss. Groq Right-hand is Right Hand Advisor. the selected Investigator capability owns the research trajectory. The Investigator owns the research trajectory. Deterministic code validates safety, provenance, budgets, lifecycle and promotion integrity; it does not prescribe research hops.", "## Objective", objective, "## Prior durable context", prior || "No prior target-scoped investigation context exists."].join("\n\n") }); }
-export type CanonicalSingleTargetResult = { investigatorIterationsUsed: number; resourceLimited: boolean; status: "complete" | "review" | "cancelled"; exhaustedInvestigatorLlm: InvestigatorCapability[]; investigatorLlm: InvestigatorCapability | null };\n\nexport async function runCanonicalSingleTargetInvestigation(atlasJobId: string, targetId: number, options: CanonicalSingleTargetOptions = {}): Promise<CanonicalSingleTargetResult> {
+export type CanonicalSingleTargetResult = { investigatorIterationsUsed: number; resourceLimited: boolean; status: "complete" | "review" | "cancelled"; exhaustedInvestigatorLlm: InvestigatorCapability[]; investigatorLlm: InvestigatorCapability | null };
+
+export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, targetId: number, options: CanonicalSingleTargetOptions = {}): Promise<CanonicalSingleTargetResult> {
   const manageJobLifecycle = options.manageJobLifecycle !== false;
   const publishJob = async (patch: Parameters<typeof updateJob>[1]) => { if (manageJobLifecycle) await updateJob(atlasJobId, patch); };
   const [target] = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, targetId)).limit(1); if (!target) throw new Error(`Atlas target entity ${targetId} was not found.`);
@@ -131,7 +133,8 @@ export type CanonicalSingleTargetResult = { investigatorIterationsUsed: number; 
       return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review", exhaustedInvestigatorLlm: [], investigatorLlm: storedInvestigatorCapability };
     }
     let investigatorLlm: InvestigatorCapability | null = storedInvestigatorCapability; let latestResult: Awaited<ReturnType<typeof runTargetContactAgent>> | null = null; let lastOversight: StoredOversight | null = null; let completedActs = 0; let investigatorIterationsUsed = 0; let resourceLimited = false; let deadlineExceeded = false; let cancelled = false; const recentActs: Parameters<typeof reviewTargetInvestigationAct>[0]["recentActs"] = [];
-    const initialExcludedInvestigators = new Set<InvestigatorCapability>(options.excludedInvestigatorLlm ?? []);\n    const quotaExhaustedInvestigators = new Set<InvestigatorCapability>(initialExcludedInvestigators);
+    const initialExcludedInvestigators = new Set<InvestigatorCapability>(options.excludedInvestigatorLlm ?? []);
+    const quotaExhaustedInvestigators = new Set<InvestigatorCapability>(initialExcludedInvestigators);
     const isHardQuotaResult = (result: Awaited<ReturnType<typeof runTargetContactAgent>>): boolean => result.status === "unavailable" && (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error" && /upstream_quota_exhausted/i.test(record.observation ?? ""));
     const reassignTargetInvestigatorAfterHardQuota = async (failedCapability: InvestigatorCapability): Promise<InvestigatorCapability> => {
       quotaExhaustedInvestigators.add(failedCapability);
