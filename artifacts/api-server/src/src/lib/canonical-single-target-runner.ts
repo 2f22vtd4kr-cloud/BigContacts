@@ -150,8 +150,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       if (boss.status !== "completed" || !replacement || replacement === failedCapability || quotaExhaustedInvestigators.has(replacement) || !alternates.includes(replacement)) {
         throw new Error(boss.error ?? "Groq Boss did not select a valid alternate Investigator capability for target recovery.");
       }
-      let reassignedCaseState: ReturnType<typeof parseCaseFile> | null = null;
-      await db.transaction(async (tx) => {
+      const reassignedCaseState = await db.transaction(async (tx) => {
         const [locked] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration })
           .from(researchCasesTable).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`)).for("update").limit(1);
         if (!locked || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? ""))) throw new Error("Canonical Atlas target case is no longer active; refusing Investigator reassignment.");
@@ -159,12 +158,13 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         const history = Array.isArray(durable.investigatorCapabilityHistory) ? durable.investigatorCapabilityHistory : [];
         const previous = typeof durable.investigatorLlm === "string" ? durable.investigatorLlm : failedCapability;
         const nextFile = { ...durable, investigatorLlm: replacement, investigatorCapabilityHistory: [...history, { from: previous, to: replacement, trigger: "upstream_quota_exhausted" }].slice(-15) };
-        reassignedCaseState = nextFile;
         const nextIteration = Number(locked.iteration ?? 0) + 1;
         await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), iteration: nextIteration, currentAction: "canonical-target-investigator-reassigned-after-hard-quota", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`));
         await tx.insert(researchCaseEventsTable).values({ caseId: caseRow.id, iteration: nextIteration, actorRole: "groq_boss", eventType: "assignment", status: "recorded", summary: "Groq Boss reassigned the target Investigator after explicit hard request-quota exhaustion; the exhausted capability remains excluded for this job.", correlationKey: `${atlasJobId}:target-investigator-reassignment:${failedCapability}:${replacement}:${nextIteration}`, payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, from: failedCapability, to: replacement, trigger: "upstream_quota_exhausted", excludedInvestigators: [...quotaExhaustedInvestigators], bossModel: boss.model, bossStatus: boss.status, bossReport: boss.report }) });
+        return nextFile;
       }, { isolationLevel: "serializable" });
-      caseState = reassignedCaseState ? { ...reassignedCaseState } : { ...caseState, investigatorLlm: replacement };
+      caseState = reassignedCaseState;
+
       investigatorLlm = replacement;
       return replacement;
     };
