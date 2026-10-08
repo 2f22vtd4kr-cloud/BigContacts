@@ -87,7 +87,7 @@ function validateRightHandAdvice(value:Record<string,unknown>|null):boolean {
 function validateBossOversight(value:Record<string,unknown>|null):boolean {
   if (!validateExactFields(value,["action","direction","reason","confidence"])) return false;
   const action=typeof value!.action==="string"?value!.action.trim().toLowerCase():"";
-  const direction=value!.direction===null||(typeof value!.direction==="string"&&value!.direction.trim().length>0);
+  const direction=value!.action==="redirect"?(typeof value!.direction==="string"&&value!.direction.trim().length>0):value!.direction===null;
   const reason=typeof value!.reason==="string"?value!.reason.trim():"";
   return ["continue","redirect","stop"].includes(action) && direction && Boolean(reason) && clampConfidence(value!.confidence)!==null;
 }
