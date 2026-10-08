@@ -577,6 +577,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations));
+        // Keep the canonical discovery result cumulative across Boss-directed
+        // episodes. Each episode's local result is useful for control decisions,
+        // but replacing the durable summary with the latest episode can erase
+        // previously observed searches/visits from the job result.
+        discovery = mergeDiscoveryResults(discovery, nextDiscovery);
         consecutiveInvestigatorProviderUnavailable = isInvestigatorProviderUnavailable(nextDiscovery) ? consecutiveInvestigatorProviderUnavailable + 1 : 0;
         if (consecutiveInvestigatorProviderUnavailable >= maxConsecutiveInvestigatorProviderUnavailable) {
           const lastProviderError = [...(nextDiscovery.trajectoryRecords ?? [])].reverse().find((record) => record.action === "investigator_provider_error")?.observation ?? nextDiscovery.error ?? "Investigator provider remained unavailable.";
