@@ -579,8 +579,7 @@ async function callGroqJson(
   let workingPrompt = prompt;
   let sizeReductionApplied = false;
   let lastProviderError: string | null = null;
-  const routedModels = rankGroqModelsForTask(GROQ_CHAT_MODELS, cognitiveTask);
-  for (const model of routedModels) {
+  // A selected Investigator capability owns one explicit model. Do not silently\n  // rotate to another model after provider failure; cross-capability recovery is\n  // owned by Boss-directed reassignment, which preserves durable ownership.\n  const routedModels = rankGroqModelsForTask(GROQ_CHAT_MODELS, cognitiveTask);\n  for (const model of routedModels) {
     if (signal.aborted) throw new Error("cancelled");
     let retry429 = 0;
     let jsonObjectFallbackUsed = false;
