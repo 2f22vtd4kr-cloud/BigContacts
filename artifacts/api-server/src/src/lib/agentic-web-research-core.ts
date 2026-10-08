@@ -32,7 +32,7 @@ export type AgenticWebResearchResult = { status: "completed" | "unavailable" | "
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
 type AgentAction = { action: "web_search"; query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
-const MAX_ITER = 64; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const MAX_PROVIDER_PROMPT_CHARS = 9_000; const INVESTIGATOR_SYSTEM_PROMPT = () => apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000); let activeAgenticProviderDecisions = 0; const providerWaiters: Array<{ resolve: () => void; reject: (error: Error) => void; cleanup?: () => void }> = [];
+const MAX_ITER = 64; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const MAX_PROVIDER_PROMPT_CHARS = 9_000; const INVESTIGATOR_SYSTEM_PROMPT = () => apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); export const AGENTIC_AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000); let activeAgenticProviderDecisions = 0; const providerWaiters: Array<{ resolve: () => void; reject: (error: Error) => void; cleanup?: () => void }> = [];
 async function acquireProviderSlot(signal?: AbortSignal): Promise<void> { if (signal?.aborted) throw new Error("cancelled"); if (activeAgenticProviderDecisions < MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS) { activeAgenticProviderDecisions += 1; return; } await new Promise<void>((resolve, reject) => { const waiter = { resolve, reject, cleanup: undefined as (() => void) | undefined }; providerWaiters.push(waiter); const abort = () => { const index = providerWaiters.indexOf(waiter); if (index >= 0) providerWaiters.splice(index, 1); reject(new Error("cancelled")); }; signal?.addEventListener("abort", abort, { once: true }); waiter.cleanup = () => signal?.removeEventListener("abort", abort); }); if (signal?.aborted) throw new Error("cancelled"); activeAgenticProviderDecisions += 1; }
 function releaseProviderSlot(): void { activeAgenticProviderDecisions = Math.max(0, activeAgenticProviderDecisions - 1); while (providerWaiters.length) { const waiter = providerWaiters.shift()!; if (activeAgenticProviderDecisions < MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS) { waiter.cleanup?.(); waiter.resolve(); return; } } }
 function cleanText(value: unknown, max = 500): string { return typeof value === "string" ? value.trim() : ""; }
@@ -517,7 +517,7 @@ async function waitForKnownGroqTokenWindow(keyName: string, model: string, promp
   const estimated = groqPromptTokenEstimate(promptChars) + completionBudget;
   if (snapshot.remainingTokens >= estimated) return "ready";
   const resetMs = Math.max(0, snapshot.resetTokensMs - (Date.now() - snapshot.observedAt));
-  if (resetMs > PROVIDER_DECISION_TIMEOUT_MS - 5_000) return "token_window_wait_exceeded";
+  if (resetMs > AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - 5_000) return "token_window_wait_exceeded";
   if (resetMs <= 0) return "ready";
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(resolve, resetMs);
@@ -658,7 +658,7 @@ async function callGroqJson(
           });
           const tokenWaitMs = groqTokenWindowWaitMs(response, body);
           if (!hardQuota && tokenWaitMs !== null) {
-            if (tokenWaitMs <= PROVIDER_DECISION_TIMEOUT_MS - 5_000 && retry429 < 1 && Date.now() + tokenWaitMs < started + PROVIDER_DECISION_TIMEOUT_MS) {
+            if (tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - 5_000 && retry429 < 1 && Date.now() + tokenWaitMs < started + AGENTIC_PROVIDER_DECISION_TIMEOUT_MS) {
               retry429 += 1;
               await new Promise((resolve) => setTimeout(resolve, tokenWaitMs));
               continue;
@@ -668,7 +668,7 @@ async function callGroqJson(
           if (hardQuota) return { model, raw: "", error: "upstream_quota_exhausted" };
           if (retry429 >= 1) return { model, raw: "", error: "upstream_rate_limited" };
           const delay = groqRetryAfterMs(response);
-          if (delay > 2_500 || Date.now() + delay >= started + PROVIDER_DECISION_TIMEOUT_MS) {
+          if (delay > 2_500 || Date.now() + delay >= started + AGENTIC_PROVIDER_DECISION_TIMEOUT_MS) {
             return { model, raw: "", error: "upstream_rate_limited" };
           }
           retry429 += 1;
@@ -831,7 +831,7 @@ async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapa
     const controller = new AbortController();
     const abortParent = () => controller.abort();
     parentSignal.addEventListener("abort", abortParent, { once: true });
-    const timer = setTimeout(() => controller.abort(), PROVIDER_DECISION_TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(), AGENTIC_PROVIDER_DECISION_TIMEOUT_MS);
     try {
       const result = await fn(boundedPrompt, controller.signal);
       if (!result?.raw) {
