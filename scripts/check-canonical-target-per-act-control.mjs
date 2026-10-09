@@ -63,7 +63,7 @@ const checks=[
 ["per-act control prompt bounds current act",/boundOversightPromptSection\(JSON\.stringify\(currentAct\),3500\)/.test(oversight)],
 ["per-act control prompt bounds Right-hand advice",/boundOversightPromptSection\(JSON\.stringify\(rightHand\),1200\)/.test(oversight)],
 ["per-act control prompt bounds recent acts",/boundOversightPromptSection\(JSON\.stringify\(trajectory\),4500\)/.test(oversight)],
-["completed-act observed URLs retain recent entries",/observedUrls: headTail\(record\.observedUrls, 6\)/.test(oversight)],
+["completed-act observed URLs are sanitized and retain recent entries",/observedUrls: headTail\(safeRecord\.observedUrls\.map\(\(url\) => sanitizeUrlForEvidence\(url\)\), 6\)/.test(oversight)],
 ["target oversight persistence requires an active locked case",/eq\(researchCasesTable\.status,"active"\)/.test(oversight)&&/\.for\("update"\)/.test(oversight)&&/no longer active; refusing stale oversight persistence/.test(oversight)],
 ["target oversight refuses cancelled/fenced cases before provider calls",/status:researchCasesTable\.status/.test(oversight)&&/if\(row\.status!=="active"\)return null/.test(oversight)&&/findTargetCase\(input\.caseId,input\.targetName\)/.test(oversight)],
 ["Right Hand failure stops the next Investigator act",/Groq Right-hand oversight was unavailable/.test(oversight)],
