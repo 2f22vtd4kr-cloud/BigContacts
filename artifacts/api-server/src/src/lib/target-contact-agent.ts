@@ -4,7 +4,7 @@ import { db, entitiesTable, researchCasesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getJob } from "./job-queue";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
-import { hasExactObservedToken, persistSourceBackedBureauContactsForEntity, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
+import { hasExactObservedToken, persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -78,8 +78,42 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
   return supportsReviewContactClaimAcrossObservations(observations, finding);
 }
 
-export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] { const observed = claimGradeSourceUrlsFromTrajectory(records); return findings.filter((finding) => Array.isArray(finding.sourceUrls)).map((finding) => ({ ...finding, sourceUrls: [...new Set(finding.sourceUrls.map((url) => normalizeObservedUrl(String(url))).filter((url): url is string => Boolean(url)))] })).filter((finding) => finding.sourceUrls.length > 0 && finding.sourceUrls.every((url) => observed.has(url)) && claimAppearsInObservedMaterial(finding, records)); }
-function buildEvidenceGraphs(findings: AgenticFinding[], records: AgenticTrajectoryRecord[], runId: string | null): EvidenceGraph[] { const observedAt = new Date().toISOString(); return findings.map((finding, index) => { const urls = [...new Set(finding.sourceUrls.map((url) => { try { return new URL(url).href; } catch { return ""; } }).filter(Boolean))]; const observations = observationsFromSourceUrls(urls, { observedAt, runId, collectionMethod: "agentic-investigator-attribution", idPrefix: `${runId ?? "run"}:claim:${index + 1}` }); const claim = { id: `claim:${runId ?? "run"}:${index + 1}`, subject: finding.personName?.trim() || "organization", predicate: finding.vectorType, object: finding.value.trim(), scope: finding.scope === "unknown" ? "organization" : finding.scope, personName: finding.personName?.trim() || null, confidence: null } as const; const graph = buildClaimSupportGraph(claim, observations, "Investigator explicitly attributed this claim to the listed observed source URLs"); const validation = validateClaimSupportGraph(graph); if (!validation.valid) return { ...graph, edges: [] }; return graph; }).filter((graph) => graph.edges.length > 0); }
+export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] { const observed = claimGradeSourceUrlsFromTrajectory(records); return findings.filter((finding) => Array.isArray(finding.sourceUrls)).map((finding) => ({ ...finding, sourceUrls: [...new Set(finding.sourceUrls.map((url) => normalizeObservedUrl(String(url))).filter((url): url is string => Boolean(url)))] })).filter((finding) => finding.sourceUrls.length > 0 && finding.sourceUrls.every((url) => observed.has(url)) && claimAppearsIfunction buildEvidenceGraphs(findings: AgenticFinding[], records: AgenticTrajectoryRecord[], runId: string | null): EvidenceGraph[] {
+  const observedAt = new Date().toISOString();
+  return findings.map((finding, index) => {
+    const citedUrls = [...new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => url !== null))];
+    // A review-only multi-source attribution can be valid across separate pages,
+    // but a single-claim support graph may include only pages that individually
+    // bind the exact claim. Never draw a "supports" edge from an identity-only
+    // page to a contact value that the page does not show.
+    const supportingUrls = citedUrls.filter((url) => records.some((record) => {
+      if (record.execution !== "success" || (record.action !== "visit" && record.action !== "browser_fetch")) return false;
+      const observed = record.observedUrls.map(normalizeObservedUrl).some((observedUrl) => observedUrl === url);
+      if (!observed || !record.observation?.trim()) return false;
+      return supportsContactClaimAcrossObservations(
+        [{ observationText: record.observation, sourceUrls: [url] }],
+        { ...finding, sourceUrls: [url] },
+        finding.value,
+        finding.vectorType,
+      );
+    }));
+    if (!supportingUrls.length) return null;
+    const observations = observationsFromSourceUrls(supportingUrls, { observedAt, runId, collectionMethod: "agentic-investigator-attribution", idPrefix: `${runId ?? "run"}:claim:${index + 1}` });
+    const claim = {
+      id: `claim:${runId ?? "run"}:${index + 1}`,
+      subject: finding.personName?.trim() || "organization",
+      predicate: finding.vectorType,
+      object: finding.value.trim(),
+      scope: finding.scope === "unknown" ? "organization" : finding.scope,
+      personName: finding.personName?.trim() || null,
+      confidence: null,
+    } as const;
+    const graph = buildClaimSupportGraph(claim, observations, "Investigator-attributed claim supported by an exact observed source span");
+    const validation = validateClaimSupportGraph(graph);
+    if (!validation.valid) return { ...graph, edges: [] };
+    return graph;
+  }).filter((graph): graph is EvidenceGraph => Boolean(graph && graph.edges.length > 0));
+}
 export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] { return findings.filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some((url) => /^https:\/\/\S+$/i.test(String(url)))).map((f) => { const explicitPersonName = typeof f.personName === "string" ? f.personName.trim() : ""; const isExplicitCandidate = String(f.scope).toLowerCase() === "candidate" && explicitPersonName.length > 0; return { vectorType: f.vectorType, value: f.value, scope: isExplicitCandidate ? "candidate" : "organization", personName: isExplicitCandidate ? explicitPersonName : null, role: f.role, sourceUrls: f.sourceUrls.filter((url) => /^https:\/\/\S+$/i.test(String(url))), note: `target-agent:${f.note}`, tier: "candidate", state: "review_only", promote: isExplicitCandidate && f.promotionDecision === "promote" }; }); }
 async function validateTargetCaseBinding(caseId: number | undefined, entityId: number, jobId?: string): Promise<Record<string, unknown> | null> { if (caseId == null || !Number.isSafeInteger(caseId) || caseId <= 0 || !jobId?.trim()) return null; const [row] = await db.select({ targetEntityId: researchCasesTable.targetEntityId, caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row || row.caseType !== "target" || row.targetEntityId !== entityId || !row.caseFile) return null; try { const parsed = JSON.parse(row.caseFile) as Record<string, unknown>; if (parsed.atlasJobId === jobId) return parsed; return null; } catch { return null; } }
 async function resolveSelectedInvestigator(input: { investigatorLlm?: InvestigatorCapability; caseId?: number; entityId: number; jobId?: string }): Promise<{ investigator: InvestigatorCapability; caseId: number } | null> { if (input.caseId == null || !Number.isSafeInteger(input.caseId)) return null; const parsed = await validateTargetCaseBinding(input.caseId, input.entityId, input.jobId); if (!parsed) { logger.warn({ entityId: input.entityId, caseId: input.caseId, jobId: input.jobId }, "refusing target run with an unbound durable case/job; no durable case-selected Investigator or selection mismatch"); return null; } const selected = parsed.investigatorLlm; if (typeof selected !== "string") return null; const investigator = selected as InvestigatorCapability; if (!getAvailableInvestigatorCapabilities().includes(investigator)) return null; if (input.investigatorLlm && input.investigatorLlm !== investigator) return null; return { investigator, caseId: input.caseId! }; }
