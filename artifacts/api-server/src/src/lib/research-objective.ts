@@ -1,8 +1,4 @@
-const PROVIDER_OR_TOOL_NAMES = String.raw\`(?:groq|mistral|serper|tavily|exa|maigret|sherlock|web_search|browser_fetch|registry_search|domain_lookup|harvest_domain|footprint_email|footprint_username_maigret|footprint_username_sherlock)\`;
-const PROVIDER_OR_TOOL_DIRECTIVE = new RegExp(
-  String.raw\`\b(?:use|call|invoke|run|choose|select|switch\s+to)\s+(?:the\s+)?\${PROVIDER_OR_TOOL_NAMES}\b|\b(?:search|query)\s+(?:with|using|via)\s+(?:the\s+)?\${PROVIDER_OR_TOOL_NAMES}\b|\b(?:via|through)\s+(?:the\s+)?\${PROVIDER_OR_TOOL_NAMES}\b\`,
-  "i",
-);
+const PROVIDER_OR_TOOL_DIRECTIVE = /\b(?:use|call|invoke|run|choose|select|switch\s+to)\s+(?:the\s+)?(?:groq|mistral|serper|tavily|exa|maigret|sherlock|web_search|browser_fetch|registry_search|domain_lookup|harvest_domain|footprint_email|footprint_username_maigret|footprint_username_sherlock)\b|\b(?:search|query)\s+(?:with|using|via)\s+(?:the\s+)?(?:groq|mistral|serper|tavily|exa|maigret|sherlock|web_search|browser_fetch|registry_search|domain_lookup|harvest_domain|footprint_email|footprint_username_maigret|footprint_username_sherlock)\b|\b(?:via|through)\s+(?:the\s+)?(?:groq|mistral|serper|tavily|exa|maigret|sherlock|web_search|browser_fetch|registry_search|domain_lookup|harvest_domain|footprint_email|footprint_username_maigret|footprint_username_sherlock)\b/i;
 const EXPLICIT_URL = /https?:\/\/|www\.[^\s]+/i;
 const TOOL_DIRECTIVE = /\b(?:visit|open|fetch)\s+(?:https?:\/\/|www\.)/i;
 
