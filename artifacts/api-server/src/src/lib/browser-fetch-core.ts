@@ -25,6 +25,55 @@ async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<strin
 async function fetchViaBrowserlessContent(url: string, signal?: AbortSignal): Promise<string | null> { const token = process.env.BROWSERLESS_TOKEN ?? ""; if (!token) return null; throwIfAborted(signal); try { const endpoint = process.env.BROWSERLESS_CONTENT_URL ?? `https://production-sfo.browserless.io/content?token=${encodeURIComponent(token)}`; const resp = await providerFetch("browserless", endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url, gotoOptions: { waitUntil: "domcontentloaded", timeout: timeoutMs() } }), signal: signal ?? AbortSignal.timeout(timeoutMs() + 5_000) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url }, "browserless content fetch failed"); return null; } }
 type BrowserFetchAttempt = { html: string | null; observedUrl: string | null };
 
+async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal?: AbortSignal): Promise<void> {
+  const request = route.request();
+  const rawUrl = request.url();
+  let protocol = "";
+  try { protocol = new URL(rawUrl).protocol; } catch { await route.abort("blockedbyclient"); return; }
+
+  // These schemes are browser-local and do not open a network connection.
+  if (protocol === "data:" || protocol === "blob:" || protocol === "about:") {
+    await route.continue();
+    return;
+  }
+  if ((protocol !== "http:" && protocol !== "https:") || signal?.aborted) {
+    await route.abort("blockedbyclient");
+    return;
+  }
+
+  try {
+    const headers: Record<string, string> = { ...request.headers() };
+    // Let the pinned transport generate connection-specific headers for the
+    // exact validated destination. Keep ordinary origin/cookie/content headers.
+    for (const key of Object.keys(headers)) {
+      if (["host", "content-length", "transfer-encoding", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "upgrade"].includes(key.toLowerCase())) {
+        delete headers[key];
+      }
+    }
+    const rawBody = request.postDataBuffer();
+    const response = await safeOutboundFetch(rawUrl, {
+      method: request.method(),
+      headers,
+      body: rawBody ? new Uint8Array(rawBody) : undefined,
+      signal,
+    });
+    const responseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      if (!["connection", "content-length", "transfer-encoding", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "upgrade"].includes(key.toLowerCase())) {
+        responseHeaders[key] = value;
+      }
+    });
+    const body = Buffer.from(await response.arrayBuffer());
+    await route.fulfill({
+      status: response.status,
+      headers: responseHeaders,
+      ...(response.status === 204 || response.status === 205 || response.status === 304 ? {} : { body }),
+    });
+  } catch {
+    await route.abort("blockedbyclient");
+  }
+}
+
 async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<BrowserFetchAttempt> {
   if (process.env.PLAYWRIGHT_ENABLED !== "1" && process.env.PLAYWRIGHT_ENABLED !== "true") return { html: null, observedUrl: null };
   throwIfAborted(signal);
@@ -36,12 +85,7 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
     try {
       const page = await browser.newPage();
       await page.route("**/*", async (route: any) => {
-        try {
-          await assertSafeOutboundUrl(route.request().url());
-          await route.continue();
-        } catch {
-          await route.abort("blockedbyclient");
-        }
+        await fulfillPlaywrightRequestThroughPinnedTransport(route, signal);
       });
       await raceAbort(page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs() }), signal);
       throwIfAborted(signal);
