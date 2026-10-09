@@ -37,7 +37,7 @@ describe("canonical Atlas stop fence", () => {
   it("reconciles a target case created across the cancellation check-before-create race", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
     expect(source).toContain("reconcileTargetCaseCancellation");
-    expect(source).toContain('currentAction: "canonical-atlas-cancelled"');
+    expect(source).toMatch(/currentAction:\s*cancelled\s*\?\s*"canonical-atlas-cancelled"/);
     expect(source).toContain("await reconcileTargetCaseCancellation(atlasJobId, caseRow.id);");
   });
 
