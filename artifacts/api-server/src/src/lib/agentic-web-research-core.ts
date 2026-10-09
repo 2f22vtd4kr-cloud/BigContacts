@@ -1098,15 +1098,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ].filter((key) => Object.prototype.hasOwnProperty.call(args, key)).slice(0, 5);
     return Object.fromEntries(orderedKeys.flatMap((key) => {
       const value = args[key];
-      if (typeof value === "string") return [[key, value.trim().slice(0, 80)]];
+      if (typeof value === "string") return [[key, value.trim().slice(0, 50)]];
       if (typeof value === "number" || typeof value === "boolean" || value === null) return [[key, value]];
       if (key === "searches" && Array.isArray(value)) {
-        return [[key, value.slice(0, 2).map((item) => {
+        return [[key, value.slice(0, 1).map((item) => {
           if (!item || typeof item !== "object" || Array.isArray(item)) return {};
           const search = item as Record<string, unknown>;
           return Object.fromEntries(["query", "provider", "locale", "market", "purpose"]
             .filter((field) => typeof search[field] === "string")
-            .map((field) => [field, String(search[field]).trim().slice(0, field === "query" ? 80 : 50)]));
+            .map((field) => [field, String(search[field]).trim().slice(0, field === "query" ? 70 : field === "purpose" ? 40 : 20)]));
         })]];
       }
       return [];
@@ -1118,15 +1118,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         action: latestRecord.action,
         execution: latestRecord.execution ?? "unknown",
         args: compactLatestArgs(latestRecord.args ?? {}),
-        observedUrls: (latestRecord.observedUrls ?? []).slice(0, 2).map((url) => url.slice(0, 120)),
-        observation: boundInvestigatorPromptSection(latestRecord.observation ?? "", 320),
+        observedUrls: (latestRecord.observedUrls ?? []).slice(0, 1).map((url) => url.slice(0, 100)),
+        observation: boundInvestigatorPromptSection(latestRecord.observation ?? "", 220),
         findings: (latestRecord.findings ?? []).slice(0, 1).map((finding) => ({
           vectorType: finding.vectorType,
-          value: String(finding.value ?? "").slice(0, 100),
-          personName: typeof finding.personName === "string" ? finding.personName.slice(0, 50) : null,
-          role: typeof finding.role === "string" ? finding.role.slice(0, 40) : null,
+          value: String(finding.value ?? "").slice(0, 70),
+          personName: typeof finding.personName === "string" ? finding.personName.slice(0, 40) : null,
+          role: typeof finding.role === "string" ? finding.role.slice(0, 25) : null,
           scope: finding.scope,
-          sourceUrls: (finding.sourceUrls ?? []).slice(0, 1).map((url) => url.slice(0, 100)),
+          sourceUrls: (finding.sourceUrls ?? []).slice(0, 1).map((url) => url.slice(0, 80)),
         })),
       }
     : { observation: boundInvestigatorPromptSection(input.lastObservation || "(none)", 320) };
