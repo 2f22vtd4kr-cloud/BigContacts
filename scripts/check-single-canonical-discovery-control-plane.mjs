@@ -17,8 +17,8 @@ const checks = [
   ["canonical Atlas control plane has a discovery-only mode", control.includes('discoveryOnly?: boolean')],
   ["discovery uses first-class empty target rather than Discovery slot", !control.includes('targetName: "Discovery slot"')],
   ["discovery identity admission no longer creates synthetic contact evidence", !control.includes('value: `person:${name}`')],
-  ["discovery admission requires candidate scope", /finding\\.scope === "candidate"/.test(control) && /candidate\\.scope === "candidate"/.test(control)],
-  ["discovery admission requires successful observed HTTP provenance", /candidateSourceUrls/.test(control) && /payload\\.execution === "success"/.test(control) && /payload\\.observedUrls/.test(control) && /candidateSourceUrls\\.includes\\(normalized\\)/.test(control)],
+  ["discovery admission requires candidate scope", control.includes('finding.scope === "candidate"') && control.includes('candidate.scope === "candidate"')],
+  ["discovery admission requires successful observed HTTP provenance", control.includes("candidateSourceUrls") && control.includes('payload.execution === "success"') && control.includes("payload.observedUrls") && control.includes("candidateSourceUrls.includes(normalized)")],
   ["canonical route is mounted before retired legacy execution routes", researchRouter.indexOf(canonicalMount) >= 0 && researchRouter.indexOf(legacyMount) >= 0 && researchRouter.indexOf(canonicalMount) < researchRouter.indexOf(legacyMount)],
   ["research router no longer mounts the retired casesRouter", !/router\.use\(casesRouter\)/.test(researchRouter)],
 ];
