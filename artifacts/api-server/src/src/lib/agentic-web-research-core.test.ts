@@ -163,8 +163,8 @@ describe("Investigator prompt architecture", () => {
   it("makes action-specific field examples subordinate to the full required JSON envelope", () => {
     const prompt = buildStepPrompt({ targetName: "", objective: "discover an attributable person", history: [], trajectoryRecords: [], lastObservation: "", findings: [], mode: "discovery" });
     expect(prompt).toContain("OUTPUT CONTRACT:");
-    expect(prompt).toMatch(/The action shapes below name action-specific values only; they never replace the full required envelope\.|Required fields: action,query,provider/);
-    expect(prompt).toMatch(/Return exactly ONE root JSON object|Return one root JSON object satisfying the provider schema/);
+    expect(prompt).toMatch(/The action shapes below name action-specific values only; they never replace the full required envelope\.|ALL REQUIRED TOP-LEVEL FIELDS: action,/);
+    expect(prompt).toMatch(/Return exactly ONE root JSON object|Return one root JSON object/);
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS|Required fields: action,query,provider/);
   });
 
