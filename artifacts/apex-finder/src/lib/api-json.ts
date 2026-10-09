@@ -2,7 +2,15 @@ import { classifyApexError, emitApexError, isApexUserError } from "@/lib/apex-er
 
 /** Safe JSON reads for Apex Atlas UI → api-server. */
 export async function readApiJson(res: Response): Promise<any> {
-  const text = await res.text();
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (error) {
+    if (!(error instanceof Error && error.name === "AbortError")) {
+      emitApexError(classifyApexError(error instanceof Error ? error.message : "Network response could not be read"));
+    }
+    throw error;
+  }
   const trimmed = text.trim();
   if (!trimmed) {
     const error = res.ok ? "Empty response from API" : `API ${res.status}: empty body`;
@@ -29,7 +37,16 @@ export async function readApiJson(res: Response): Promise<any> {
 }
 
 export async function apiFetchJson(input: string, init?: RequestInit): Promise<{ res: Response; data: any }> {
-  const res = await fetch(input, init);
+  let res: Response;
+  try {
+    res = await fetch(input, init);
+  } catch (error) {
+    const aborted = init?.signal?.aborted || (error instanceof Error && error.name === "AbortError");
+    if (!aborted) {
+      emitApexError(classifyApexError(error instanceof Error ? error.message : "Network request failed"));
+    }
+    throw error;
+  }
   const data = await readApiJson(res);
   return { res, data };
 }
