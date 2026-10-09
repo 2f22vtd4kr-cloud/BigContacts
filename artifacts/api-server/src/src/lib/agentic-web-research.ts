@@ -327,7 +327,17 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            }
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
            if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: error ?? "Groq oversight unavailable", executionId };
-           if (checkpointResult.stop || (callerOwnsOversight && isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason }))) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
+           const acceptedInvestigatorTerminal = isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason });
+           if (checkpointResult.stop) {
+             if (!acceptedInvestigatorTerminal) return {
+               status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings,
+               stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records,
+               error: error ?? "Control-plane oversight stopped before the Investigator selected an accepted terminal action.",
+               executionId,
+             };
+             return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
+           }
+           if (callerOwnsOversight && acceptedInvestigatorTerminal) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
            continue;
          }
 
