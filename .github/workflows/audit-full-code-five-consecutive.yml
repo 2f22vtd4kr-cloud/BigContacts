@@ -60,8 +60,13 @@ jobs:
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Apply explicit Apex database invariants
         run: pnpm --filter @workspace/db run harden
-      - name: Create ephemeral API credential for live smoke tests
-        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Create ephemeral operator credentials for live smoke tests
+        run: |
+          {
+            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
+            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
+            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
       - name: Live smoke API test with process-lifetime-safe server
         run: |
           set -euo pipefail
@@ -138,8 +143,13 @@ jobs:
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Apply explicit Apex database invariants
         run: pnpm --filter @workspace/db run harden
-      - name: Create ephemeral API credential for live smoke tests
-        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Create ephemeral operator credentials for live smoke tests
+        run: |
+          {
+            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
+            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
+            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
       - name: Live smoke API test with process-lifetime-safe server
         run: |
           set -euo pipefail
@@ -215,8 +225,13 @@ jobs:
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Apply explicit Apex database invariants
         run: pnpm --filter @workspace/db run harden
-      - name: Create ephemeral API credential for live smoke tests
-        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Create ephemeral operator credentials for live smoke tests
+        run: |
+          {
+            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
+            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
+            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
       - name: Live smoke API test with process-lifetime-safe server
         run: |
           set -euo pipefail
@@ -292,8 +307,13 @@ jobs:
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Apply explicit Apex database invariants
         run: pnpm --filter @workspace/db run harden
-      - name: Create ephemeral API credential for live smoke tests
-        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Create ephemeral operator credentials for live smoke tests
+        run: |
+          {
+            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
+            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
+            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
       - name: Live smoke API test with process-lifetime-safe server
         run: |
           set -euo pipefail
@@ -369,8 +389,13 @@ jobs:
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Apply explicit Apex database invariants
         run: pnpm --filter @workspace/db run harden
-      - name: Create ephemeral API credential for live smoke tests
-        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Create ephemeral operator credentials for live smoke tests
+        run: |
+          {
+            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
+            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
+            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
       - name: Live smoke API test with process-lifetime-safe server
         run: |
           set -euo pipefail
