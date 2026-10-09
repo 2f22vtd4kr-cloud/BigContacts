@@ -32,7 +32,7 @@ import { classifyActiveJobLaneStatus } from "../lib/job-queue-terminal-policy";
 import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
-  createJob, updateJob, getJob, getJobStrict, getJobLog,
+  createJob, updateJob, getJob, getJobStrict, getJobLog, getActiveJobs,
   setActiveJob, getActiveJob, getActiveJobStrict, clearDedup, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
@@ -312,6 +312,31 @@ router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
 
 // ── GET /ingest/status ────────────────────────────────────────────────────────
 router.get("/ingest/status", async (_req, res): Promise<void> => {
+  let activeWhnwi: string | null;
+  let activeFaa: string | null;
+  let activeWJob: Awaited<ReturnType<typeof getJobStrict>> = null;
+  let activeFJob: Awaited<ReturnType<typeof getJobStrict>> = null;
+  try {
+    await enablePermanentRedis();
+    const activeByType = await getActiveJobs(["western-hnwi", "faa"]);
+    activeWhnwi = activeByType.get("western-hnwi") ?? null;
+    activeFaa = activeByType.get("faa") ?? null;
+    [activeWJob, activeFJob] = await Promise.all([
+      activeWhnwi ? getJobStrict(activeWhnwi) : Promise.resolve(null),
+      activeFaa ? getJobStrict(activeFaa) : Promise.resolve(null),
+    ]);
+  } catch {
+    res.status(503).json({ error: "Job state is unavailable; ingestion status cannot confirm whether either lane is active.", code: "JOB_STATE_UNAVAILABLE" });
+    return;
+  }
+  if ((activeWhnwi && !activeWJob) || (activeFaa && !activeFJob)) {
+    res.status(503).json({
+      error: "An ingestion active-job lock exists without a readable durable job record; status is inconsistent.",
+      code: "JOB_STATE_INCONSISTENT",
+      jobIds: { westernHnwi: activeWhnwi, faa: activeFaa },
+    });
+    return;
+  }
 
   const [dedupCount, entityCount, assetCount, faaCount] = await Promise.all([
     getDedupCount(),
@@ -322,27 +347,15 @@ router.get("/ingest/status", async (_req, res): Promise<void> => {
     db.select({ cnt: sql<number>`count(*)::int` }).from(assetsTable)
       .where(eq(assetsTable.category, "Aviation")).then(r => r[0]?.cnt ?? 0),
   ]);
-  const [activeWhnwi, activeFaa] = await Promise.all([
-    getActiveJob("western-hnwi"),
-    getActiveJob("faa"),
-  ]);
-  const [activeWJob, activeFJob] = await Promise.all([
-    activeWhnwi ? getJob(activeWhnwi) : Promise.resolve(null),
-    activeFaa ? getJob(activeFaa) : Promise.resolve(null),
-  ]);
   res.json({
     dedupCount,
     hnwiCount: entityCount,
     assetCount,
     faaAircraftCount: faaCount,
-    jobs: {
-      westernHnwi: activeWJob,
-      faa: activeFJob,
-    },
+    jobs: { westernHnwi: activeWJob, faa: activeFJob },
   });
 });
 
-// ── POST /ingest/occrp ────────────────────────────────────────────────────────
 router.post("/ingest/occrp", async (req, res): Promise<void> => {
   const { limit = 500 } = req.body as { limit?: number };
   const safeLimit = Math.min(Math.max(Number(limit) || 500, 10), 5_000);

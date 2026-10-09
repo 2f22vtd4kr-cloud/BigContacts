@@ -108,3 +108,8 @@ Added regression tests for immediate grant, successful paced wait, and cancellat
 ## Follow-up architecture-guard correction — Redis job state
 
 The prior static guard for Redis job-state semantics used unbounded regular expressions that could match a later function's `if (!ok) return null` and accidentally mark `getActiveJob` as fail-closed even when the match came from a different function. That is a false-green risk in the verification layer itself. The guard now extracts each relevant function body independently, verifies the `getActiveJobStrict` unavailable-vs-idle classification, asserts the canonical launch and stop routes use the strict read, and checks multi-read/release/latest-read behavior within their own boundaries. The compatibility `getActiveJob` remains explicitly best-effort for non-authoritative callers; authoritative launch/stop decisions cannot use its ambiguous null-on-error behavior. This makes the architecture check test the actual control-flow contract rather than incidental text elsewhere in the file.
+
+
+## Follow-up status-boundary hardening — legacy ingestion lanes
+
+The `/ingest/status` response also surfaced active job state through best-effort `getActiveJob`/`getJob` reads, so a Redis outage could make a running `western-hnwi` or `faa` lane appear as `null` without signaling uncertainty. The route now reads both lane pointers through the authoritative multi-read, reads pointed-to records with `getJobStrict`, returns `503 JOB_STATE_UNAVAILABLE` for read failures, and returns `503 JOB_STATE_INCONSISTENT` if an active pointer has no durable job record. This changes status semantics only; no ingestion strategy or execution pipeline is changed. The Redis fail-closed architecture guard now checks this route specifically.

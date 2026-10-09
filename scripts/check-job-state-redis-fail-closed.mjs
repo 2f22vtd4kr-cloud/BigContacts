@@ -37,6 +37,7 @@ const checks = [
   ["active-job HTTP polling exposes unavailable as 503, not as an idle lane", /getActiveJobStrict\(type\)[\s\S]*status\(503\)[\s\S]*JOB_STATE_UNAVAILABLE/.test(ingest)],
 ];
 
+  ["legacy ingestion status distinguishes unavailable lanes from idle lanes", (() => { const s = ingest.slice(ingest.indexOf('router.get("/ingest/status"'), ingest.indexOf('router.post("/ingest/occrp"')); return /getActiveJobs\(\["western-hnwi", "faa"\]\)/.test(s) && /getJobStrict\(activeWhnwi\)/.test(s) && /getJobStrict\(activeFaa\)/.test(s) && s.includes("JOB_STATE_UNAVAILABLE") && s.includes("JOB_STATE_INCONSISTENT"); })()],
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
   console.error("Job-state Redis fail-closed guard failed:", failures.join(", "));
