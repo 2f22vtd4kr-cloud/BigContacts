@@ -38,7 +38,7 @@ export function hasExplicitFalsificationAttempt(context: IntelligenceContext): b
 }
 
 export function evaluateResearchTerminal(context: IntelligenceContext, mode: TerminalContractMode): TerminalGateResult {
-  const exactSpanBindings = context.atomicEvidence.filter((item) => (item.kind === "finding" || item.kind === "claim") && Boolean(item.passage && item.passage.trim())).length;
+  const exactSpanBindings = context.atomicEvidence.filter((item) => (item.kind === "finding" || item.kind === "claim") && item.spanBound === true && Boolean(item.passage && item.passage.trim())).length;
   // IntelligenceContext has already resolved source independence through the source-lineage graph.
   // Preserve that authority rather than collapsing evidence back to raw hostnames.
   const independentSourceUnits = context.independentSourceUnits;
