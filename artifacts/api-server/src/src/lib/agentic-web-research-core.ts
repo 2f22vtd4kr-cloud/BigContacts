@@ -7,7 +7,7 @@ import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership } from "./provider-gate";
-import { isLocalProviderQuotaError } from "./provider-error-diagnostics";
+import { digestDiagnosticText, isLocalProviderQuotaError } from "./provider-error-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
 import { renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
@@ -494,7 +494,15 @@ type GroqRateLimitSnapshot = {
 };
 
 const groqRateLimitSnapshots = new Map<string, GroqRateLimitSnapshot>();
-function groqRateLimitSnapshotKey(keyName: string, model: string): string { return `${keyName}:${model}`; }
+function groqRateLimitSnapshotKey(keyName: string, model: string, credentialKey: string): string {
+  // Rate-limit state belongs to the actual provider credential, not merely the
+  // environment-variable slot. A rotated key in the same slot must not inherit
+  // the previous key's token-window cooldown. Keep only a one-way digest here.
+  return `${keyName}:${digestDiagnosticText(credentialKey)}:${model}`;
+}
+export function resetGroqRateLimitSnapshotsForTests(): void {
+  groqRateLimitSnapshots.clear();
+}
 
 function parseGroqDurationMs(raw: string | null): number | null {
   const value = raw?.trim() ?? "";
@@ -514,7 +522,7 @@ export function parseOptionalRateLimitNumber(raw: string | null): number | null 
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function captureGroqRateLimitSnapshot(keyName: string, model: string, response: Response): GroqRateLimitSnapshot {
+function captureGroqRateLimitSnapshot(keyName: string, model: string, response: Response, credentialKey: string): GroqRateLimitSnapshot {
   const remainingTokensValue = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-tokens"));
   const remainingRequestsValue = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-requests"));
   const snapshot: GroqRateLimitSnapshot = {
@@ -524,7 +532,7 @@ function captureGroqRateLimitSnapshot(keyName: string, model: string, response: 
     resetRequestsMs: parseGroqDurationMs(response.headers.get("x-ratelimit-reset-requests")),
     observedAt: Date.now(),
   };
-  groqRateLimitSnapshots.set(groqRateLimitSnapshotKey(keyName, model), snapshot);
+  groqRateLimitSnapshots.set(groqRateLimitSnapshotKey(keyName, model, credentialKey), snapshot);
   return snapshot;
 }
 
@@ -555,8 +563,8 @@ export async function waitForAbortableDelay(delayMs: number, signal: AbortSignal
   });
 }
 
-async function waitForKnownGroqTokenWindow(keyName: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal): Promise<"ready" | "token_window_wait_exceeded"> {
-  const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model));
+async function waitForKnownGroqTokenWindow(keyName: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal, credentialKey: string): Promise<"ready" | "token_window_wait_exceeded"> {
+  const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model, credentialKey));
   if (!snapshot || snapshot.remainingTokens == null || snapshot.resetTokensMs == null) return "ready";
   const estimated = groqPromptTokenEstimate(promptChars) + completionBudget;
   if (snapshot.remainingTokens >= estimated) return "ready";
@@ -651,6 +659,7 @@ async function callGroqJson(
           workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
           groqInvestigatorCompletionBudget(cognitiveTask),
           signal,
+          key,
         );
         if (quotaReadiness === "token_window_wait_exceeded") {
           lastProviderError = "upstream_token_window_wait_exceeded";
@@ -679,7 +688,7 @@ async function callGroqJson(
 
         if (response.status === 429) {
           const hardQuota = groqHardRequestQuota(response, body);
-          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response, key);
           let providerErrorCode: string | null = null;
           let providerErrorType: string | null = null;
           try {
@@ -736,7 +745,7 @@ async function callGroqJson(
             }
           })();
           lastProviderError = providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
-          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response, key);
           let providerErrorType: string | null = null;
           try {
             const parsed = JSON.parse(body) as { error?: { type?: unknown } };
@@ -831,7 +840,7 @@ async function callGroqJson(
         }
 
         const raw = data.choices?.[0]?.message?.content?.trim() || "";
-        const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+        const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response, key);
         recordAgenticLlmAttempt({
           provider: "groq",
           model,
