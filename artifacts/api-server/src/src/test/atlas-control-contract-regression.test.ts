@@ -8,6 +8,7 @@ const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts
 const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 const canonicalDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+const agenticResearchSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
@@ -291,6 +292,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("priorTrajectoryRecords: discovery.trajectoryRecords ?? []");
     expect(canonicalDiscoverySource).toContain("priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])]");
     expect(bureauPassSource).toContain("priorTrajectoryRecords:input.priorTrajectoryRecords");
+    expect(agenticResearchSource).toContain("priorTrajectoryRecords: [...(input.priorTrajectoryRecords ?? []), ...records]");
   });
 
 });
