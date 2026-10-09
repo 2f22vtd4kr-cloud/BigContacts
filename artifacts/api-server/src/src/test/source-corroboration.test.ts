@@ -25,7 +25,7 @@ describe("source-corroboration",()=>{
  });
  it("preserves safe excerpts when a source URL is redacted",()=>{
    const raw="https://example.com/contact?access_token=excerpt-secret&ref=public";
-   const observations=observationsFromSourceUrls([raw],{excerptByUrl:{[raw]:"Alice Example contact page; see "+raw},idPrefix:"privacy-excerpt"});
+   const observations=observationsFromSourceUrls([raw],{observedAt:"2026-10-09T00:00:00.000Z",excerptByUrl:{[raw]:"Alice Example contact page; see "+raw},idPrefix:"privacy-excerpt"});
    expect(observations).toHaveLength(1);
    expect(observations[0].sourceUrl).toContain("ref=public");
    expect(observations[0].excerpt).toContain("Alice Example contact page");
