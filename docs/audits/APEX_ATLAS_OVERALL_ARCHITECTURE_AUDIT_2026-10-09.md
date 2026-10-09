@@ -96,3 +96,10 @@ External contract check: Groq documents that JSON Object Mode guarantees JSON sy
 ## Follow-up build blocker — YTJ registry adapter syntax
 
 The exact-head GitHub Actions run for the Right-hand continuation fix exposed a separate parse/typecheck blocker in the parent tree: `searchYtjFinland` in `registry-client.ts` had three closing braces before an inner fallback `catch`, closing the `try` before its catch. Both the API typecheck and esbuild production build rejected that source. Removed the unmatched brace so only the contact-loop and response-success blocks close before the catch; the provider-detail failure remains a bounded best-effort enrichment and the multi-endpoint registry search behavior is otherwise unchanged. Exact-head CI must confirm the repaired tree; no Replit/runtime action was taken.
+
+
+## Follow-up bug-hunt — Right-hand request-slot cancellation cleanup
+
+The Groq Right-hand request-start gate used an abortable `Promise.race` and a pacing timer, but successful resolution of either path did not remove the associated `abort` listener. The gate now uses explicit settled-state cleanup for both the serialized queue wait and pacing wait; cancellation remains prompt, clears the timer, and releases the gate in `finally`. Provider/model selection, the research objective and decision policy are unchanged.
+
+Added regression tests for immediate grant, successful paced wait, and cancellation. They assert that successful paths leave zero abort listeners and that cancellation leaves no timer behind. These are source-level tests until the exact-head GitHub Actions run completes. No Replit workflow or live Atlas run was launched.
