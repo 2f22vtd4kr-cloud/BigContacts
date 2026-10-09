@@ -30,8 +30,9 @@ const canonicalRunner = read("artifacts/api-server/src/src/lib/canonical-single-
 const jobQueue = read("artifacts/api-server/src/src/lib/job-queue.ts");
 
 const canonicalSources = [wrapper, agentic, strict, batch, discovery, orchestrator, registry, pythonTools, aiExtractor, entities, legacyAtlas, legacyGuard, launchQuarantine, routesIndex, canonicalLaunch, canonicalRunner, jobQueue];
-const providerSchemaActionEnum = agentic.match(/const AGENTIC_STRUCTURED_SCHEMA[\s\S]*?action:\s*\{\s*type:\s*"string",\s*enum:\s*\[([^\]]*)\]/)?.[1] ?? "";
-const modelAvailableActionLine = agentic.match(/AVAILABLE ACTIONS: ([^\n"]+)/)?.[1] ?? "";
+const modelSelectableActions = agentic.match(/const MODEL_SELECTABLE_AGENT_ACTIONS = \[([\s\S]*?)\] as const/)?.[1] ?? "";
+const schemaUsesSharedActionList = /action:\s*\{\s*type:\s*"string",\s*enum:\s*\[\.\.\.MODEL_SELECTABLE_AGENT_ACTIONS\]/.test(agentic);
+const promptUsesSharedActionList = /"AVAILABLE ACTIONS: "\s*\+\s*MODEL_SELECTABLE_AGENT_ACTIONS\.join\(" \| "\)/.test(agentic);
 const nonExecutablePythonActions = ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"];
 
 pass("launch gate inspects source without executing repository code", !canonicalSources.some((source) => /execFileSync\(|spawnSync\(|child_process/.test(source)));
@@ -53,7 +54,7 @@ pass("manual audit runs agentic runtime checks", /check:agentic-runtime/.test(ba
 pass("discovery emits model-selection progress", /onSlotProgress\?/.test(discovery));
 pass("historical deterministic Atlas orchestrator is removed", orchestrator === "");
 pass("first Investigator action is not seeded with web_search", !/Begin\. Choose an initial web_search query/i.test(agentic) && !/\(none — begin with web_search\)/i.test(agentic));
-pass("non-executable Python OSINT actions are excluded from provider schema and model prompt", nonExecutablePythonActions.every((action) => !providerSchemaActionEnum.includes(action) && !modelAvailableActionLine.includes(action)));
+pass("prompt, strict schema and parser share only executable model actions", schemaUsesSharedActionList && promptUsesSharedActionList && nonExecutablePythonActions.every((action) => !modelSelectableActions.includes(`"${action}"`)));
 pass("unavailable capability metadata is retained but hidden from compact model guidance", nonExecutablePythonActions.every((action) => capabilityRegistry.includes(`action:"${action}"`) && capabilityRegistry.includes("investigatorSelectable:false")) && capabilityRegistry.includes("filter((c) => c.investigatorSelectable !== false)"));
 pass("compound username action is gone", !/action === "footprint_username"/.test(agentic));
 pass("Maigret receives run cancellation", /runMaigret\([^\n]*signal:\s*runController\.signal/.test(agentic));
