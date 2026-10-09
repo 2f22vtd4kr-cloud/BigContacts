@@ -89,7 +89,8 @@ export function buildTargetActRightHandPrompt(input:{
   const oversightContext=compactOversightContext(input.sharedContext);
   const targetName=compactOversightText(input.targetName,240)??"unknown";
   const targetType=compactOversightText(input.targetType,120)??"unknown";
-  const objective=compactOversightText(input.objective,1_600)??"";
+  const safePromptObjective=sanitizeUrlsInText(input.objective);
+  const objective=compactOversightText(safePromptObjective,1_600)??"";
   const currentActPrompt=boundOversightPromptSection(JSON.stringify(sanitizeObservableValue(input.currentAct)),3_500);
   const recentActsPrompt=boundOversightPromptSection(JSON.stringify(sanitizeObservableValue(input.recentActs)),4_500);
   const prompt=`You are reviewing ONE completed Investigator act in an active target-scoped Apex Atlas investigation. You are the Right Hand, not the Investigator. Do not browse, do not select a tool, and do not invent evidence.
