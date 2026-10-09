@@ -34,7 +34,7 @@ const checks = [
   ["canonical Atlas fails closed when Right-hand is unavailable", /rightHandRaw\.status\s*!==\s*["\']completed["\'][\s\S]{0,1200}(?:throw new Error|status:\s*["\']review["\'])/.test(atlas)],
   ["canonical Atlas fails closed on invalid Right-hand oversight JSON", /rightHandRaw\.status === ["\']completed["\'][\s\S]{0,800}JSON\.parse/.test(atlas)],
   ["discovery-only completion requires Investigator terminal done", /discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE"/.test(atlas)],
-  ["resource-limited discovery remains reviewable", /durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited \? "complete" : "review"/.test(atlas)],
+  ["resource-limited discovery remains reviewable", /durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited && admitted\.length > 0 \? "complete" : "review"/.test(atlas)],
   ["full Atlas completion requires evidence-backed Investigator terminal state", /const evidenceBackedTerminal =/.test(atlas)&&/const finalIncomplete = investigatorResourceLimited \|\| finalControlAction !== "stop" \|\| !evidenceBackedTerminal/.test(atlas)],
 ];
 checks.push(["canonical Atlas unexpected failures close the durable discovery case",/canonical-atlas-failed/.test(atlas)&&/status: "review"/.test(atlas)&&/researchCasesTable\.caseFile/.test(atlas)]);
