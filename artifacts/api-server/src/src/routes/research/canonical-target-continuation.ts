@@ -17,6 +17,36 @@ async function releaseContinuationLane(jobId: string): Promise<void> {
   await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined);
   await releaseCanonicalJob("atlas-run", jobId).catch(() => undefined);
 }
+async function transitionClaimedTargetCase(input: { caseId: number; jobId: string; currentAction: string }): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [locked] = await tx.select({
+      caseFile: researchCasesTable.caseFile,
+      caseType: researchCasesTable.caseType,
+      targetEntityId: researchCasesTable.targetEntityId,
+      status: researchCasesTable.status,
+      currentAction: researchCasesTable.currentAction,
+    }).from(researchCasesTable).where(eq(researchCasesTable.id, input.caseId)).for("update").limit(1);
+    if (!locked || locked.caseType !== "target" || !locked.targetEntityId
+      || locked.status === "complete" || locked.status === "cancelled"
+      || ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(locked.currentAction ?? ""))) return false;
+    const latestFile = parseFile(locked.caseFile);
+    if (!latestFile || String(latestFile.atlasJobId ?? latestFile.jobId ?? "") !== input.jobId) return false;
+    if (!(await isCanonicalJobOwner("atlas-run", input.jobId))) return false;
+    const [updated] = await tx.update(researchCasesTable)
+      .set({ status: "review", currentAction: input.currentAction, lastDecisionAt: new Date(), updatedAt: new Date() })
+      .where(and(
+        eq(researchCasesTable.id, input.caseId),
+        eq(researchCasesTable.caseType, "target"),
+        eq(researchCasesTable.targetEntityId, locked.targetEntityId),
+        cancellationFenceSql(input.caseId),
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${input.jobId}`,
+      ))
+      .returning({ id: researchCasesTable.id });
+    if (!updated) return false;
+    if (!(await isCanonicalJobOwner("atlas-run", input.jobId))) throw new Error("Canonical Atlas lease was lost while committing target-control state; transaction rolled back.");
+    return true;
+  }, { isolationLevel: "serializable" });
+}
 function contextOf(file: Record<string, any>): string {
   const context = typeof file.contextDocument === "string" ? file.contextDocument.trim() : "";
   if (!context) throw new Error("Target case has no durable context document; refusing context-free continuation.");
