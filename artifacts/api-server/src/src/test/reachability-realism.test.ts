@@ -80,6 +80,26 @@ describe("target reachability realism", () => {
     expect(result.status).toBe("research_only");
   });
 
+  it("does not infer public prominence from unstructured notes or registry labels", () => {
+    const result = assessTargetReachability({
+      type: "PersonCandidate",
+      estimatedNetWorth: 100_000_000,
+      contactOutcome: "social_only",
+      sourceRegistries: "Reuters coverage; celebrity director registry",
+      notes: "A registry note mentions Bloomberg, Reuters and a public figure.",
+      metadata: JSON.stringify({ wealthStatus: "unverified" }),
+      networkDegree: 0,
+      gatekeeperConnections: 0,
+      intermediaryConnections: 0,
+    });
+
+    expect(result.publicProminenceSignal).toBe(false);
+    expect(result.status).toBe("bounded");
+    expect(result.mode).toBe("targeted");
+    expect(result.hasDirectContact).toBe(false);
+    expect(result.hasIntermediaryPath).toBe(false);
+  });
+
   it("does not treat a registry phone as validated personal access", () => {
     const result = assessTargetReachability({
       type: "HNWI",
