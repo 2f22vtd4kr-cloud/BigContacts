@@ -18,8 +18,10 @@ jobs:
     env:
       DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
       REDIS_URL: redis://127.0.0.1:6379
+      REDIS_URL_1: redis://127.0.0.1:6379
       PORT: 8080
       ENABLE_AUTO_PIPELINE: "false"
+      ENABLE_REDIS_ON_BOOT: "true"
       NODE_ENV: development
       GROQ_BOSS_API_KEY: ${{ secrets.GROQ_BOSS_API_KEY }}
       GROQ_RIGHT_HAND_API_KEY: ${{ secrets.GROQ_RIGHT_HAND_API_KEY }}
@@ -68,6 +70,21 @@ jobs:
           ref: ${{ github.sha }}
       - name: Show exact tip
         run: git log -1 --oneline
+      - name: Fail fast when canonical model roles are not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          require_any() {
+            for name in "$@"; do
+              value="$(printenv "$name" 2>/dev/null || true)"
+              if [ -n "$value" ]; then return 0; fi
+            done
+            return 1
+          }
+          require_any GROQ_BOSS_API_KEY GROQ_BOSS_API_KEY_1 GROQ_BOSS_API_KEY_2 GROQ_BOSS_API_KEY_3 GROQ_BOSS_API_KEY_4 GROQ_BOSS_API_KEY_5 GROQ_BOSS_API_KEY_6 GROQ_BOSS_API_KEY_7 GROQ_BOSS_API_KEY_8 GROQ_BOSS_API_KEY_9 GROQ_BOSS_API_KEY_10 || { echo "::error::Missing GitHub Actions secret for the Groq Boss role."; exit 1; }
+          require_any GROQ_RIGHT_HAND_API_KEY GROQ_RIGHT_HAND_API_KEY_2 GROQ_RIGHT_HAND_API_KEY_3 GROQ_RIGHT_HAND_API_KEY_4 GROQ_RIGHT_HAND_API_KEY_5 || { echo "::error::Missing GitHub Actions secret for the Groq Right-hand role."; exit 1; }
+          require_any GROQ_INVESTIGATOR_API_KEY GROQ_INVESTIGATOR_API_KEY_1 GROQ_INVESTIGATOR_API_KEY_2 GROQ_INVESTIGATOR_API_KEY_3 GROQ_INVESTIGATOR_API_KEY_4 GROQ_INVESTIGATOR_API_KEY_5 || { echo "::error::Missing GitHub Actions secret for the Groq Investigator role."; exit 1; }
+          require_any SERPER_API_KEY TAVILY_API_KEY EXA_API_KEY EXA_1 || { echo "::error::Missing GitHub Actions search-provider credential."; exit 1; }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
@@ -109,12 +126,18 @@ jobs:
           pnpm run check:retired-api-contract-callers
           pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
       - name: Configure isolated CI operator authentication
-        shell: bash
         run: |
+          set -euo pipefail
+          API_TOKEN="$(openssl rand -hex 32)"
+          OPERATOR_PASSWORD="$(openssl rand -hex 24)"
+          SESSION_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$API_TOKEN"
+          echo "::add-mask::$OPERATOR_PASSWORD"
+          echo "::add-mask::$SESSION_SECRET"
           {
-            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
-            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
-            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+            echo "APEX_API_AUTH_TOKEN=$API_TOKEN"
+            echo "APEX_OPERATOR_PASSWORD=$OPERATOR_PASSWORD"
+            echo "APEX_SESSION_SECRET=$SESSION_SECRET"
           } >> "$GITHUB_ENV"
       - name: Run authenticated live API and bounded Bureau smoke
         run: |
