@@ -254,11 +254,11 @@ function extractUrl(e: OpsEvent): string | undefined {
  */
 function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
   const status = String(e.status || "unknown").trim().toLowerCase();
-  const failed = /fail|error|blocked|timeout/.test(status);
-  const cancelled = /cancelled|canceled|stopped/.test(status);
-  const queued = /queued|pending|waiting/.test(status);
-  const succeeded = /complete|completed|done|success|succeeded|^ok$/.test(status);
-  const active = /active|running|in_progress/.test(status);
+  const failed = ["fail", "failed", "error", "blocked", "timeout"].includes(status);
+  const cancelled = ["cancelled", "canceled", "stopped"].includes(status);
+  const queued = ["queued", "pending", "waiting"].includes(status);
+  const succeeded = ["complete", "completed", "done", "success", "succeeded", "ok"].includes(status);
+  const active = ["active", "running", "in_progress"].includes(status);
   const known = failed || cancelled || queued || succeeded || active;
   const prefix = failed ? "Failed:" : cancelled ? "Stopped:" : queued ? "Queued:" : !known ? "Unknown:" : active ? "Now:" : "Done:";
   const t = (e.targetName || "this person").trim();
@@ -374,11 +374,11 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
   const provider = detectProviderKind(`${tool} ${e.stage || ""} ${e.resultSummary || ""}`);
   const status = String(e.status || "unknown").trim().toLowerCase();
   const unavailable = providerUnavailable(e, slots);
-  const failed = /fail|error|blocked|timeout/.test(status);
-  const cancelled = /cancelled|canceled|stopped/.test(status);
-  const queued = /queued|pending|waiting/.test(status);
-  const succeeded = /complete|completed|done|success|succeeded|^ok$/.test(status);
-  const active = /active|running|in_progress/.test(status);
+  const failed = ["fail", "failed", "error", "blocked", "timeout"].includes(status);
+  const cancelled = ["cancelled", "canceled", "stopped"].includes(status);
+  const queued = ["queued", "pending", "waiting"].includes(status);
+  const succeeded = ["complete", "completed", "done", "success", "succeeded", "ok"].includes(status);
+  const active = ["active", "running", "in_progress"].includes(status);
   const known = failed || cancelled || queued || succeeded || active;
   // Never infer completion from an absent, unknown, or stale active status.
   let live = active && !unavailable;
@@ -714,12 +714,27 @@ function WindowChrome({
             </span>
           )}
           {!live && terminal === "failed" && (
-            <span
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-rose-400/40 bg-rose-400/10 px-2 py-0.5"
-              aria-label="Tool failed"
-            >
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-rose-400/40 bg-rose-400/10 px-2 py-0.5" aria-label="Tool failed">
               <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
               <span className="font-mono text-[13px] font-bold uppercase tracking-wider text-rose-200/90">FAIL</span>
+            </span>
+          )}
+          {!live && terminal === "cancelled" && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5" aria-label="Tool cancelled">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              <span className="font-mono text-[13px] font-bold uppercase tracking-wider text-amber-200/90">STOPPED</span>
+            </span>
+          )}
+          {!live && terminal === "queued" && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-sky-400/40 bg-sky-400/10 px-2 py-0.5" aria-label="Tool queued">
+              <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+              <span className="font-mono text-[13px] font-bold uppercase tracking-wider text-sky-200/90">QUEUED</span>
+            </span>
+          )}
+          {!live && terminal === "unknown" && (
+            <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-stone-400/30 bg-stone-400/5 px-2 py-0.5" aria-label="Tool status unknown">
+              <span className="h-1.5 w-1.5 rounded-full bg-stone-400" />
+              <span className="font-mono text-[13px] font-bold uppercase tracking-wider text-stone-300/80">UNKNOWN</span>
             </span>
           )}
         </div>
@@ -1434,11 +1449,11 @@ function sceneBodyText(scene: { prompt?: string; inputSummary?: string; resultSu
   const t = [scene.resultSummary, scene.inputSummary, scene.prompt, scene.raw].map(s => String(s || "").trim()).find(Boolean);
   if (t) return t;
   const st = String(scene.status || "unknown").toLowerCase();
-  if (/cancelled|canceled|stopped/.test(st)) return "Step was stopped before completion."; 
-  if (/fail|error|blocked|timeout/.test(st)) return "Step failed — no detail text stored."; 
-  if (/queued|pending|waiting/.test(st)) return "Queued — waiting for the step to start."; 
+  if (["cancelled", "canceled", "stopped"].includes(st)) return "Step was stopped before completion."; 
+  if (["fail", "failed", "error", "blocked", "timeout"].includes(st)) return "Step failed — no detail text stored."; 
+  if (["queued", "pending", "waiting"].includes(st)) return "Queued — waiting for the step to start."; 
   if (/unknown/.test(st)) return "Status unavailable — completion is not verified."; 
-  if (/complete|completed|done|success|succeeded|^ok$/.test(st)) return "Step finished — no detail text stored."; 
+  if (["complete", "completed", "done", "success", "succeeded", "ok"].includes(st)) return "Step finished — no detail text stored."; 
   if (/active|running|live/.test(st)) return "In progress…";
   return "Status unavailable — completion is not verified.";
 }
