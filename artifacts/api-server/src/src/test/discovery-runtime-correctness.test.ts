@@ -205,6 +205,12 @@ describe("discovery runtime architecture", () => {
     expect(runtimeHardener).toMatch(/timeout|abort|cancel/i);
   });
 
+  it("requires candidate identity and contact value to share a bounded source span", () => {
+    expect(researchSource).toContain("let identityAndValueBoundTogether = !identity;");
+    expect(researchSource).toContain("bindExactSourceSpan(observation, value, identity, 320)");
+    expect(researchSource).toContain("identityObserved && identityAndValueBoundTogether && support > 0");
+  });
+
   it("only treats durably source-backed discovery candidates as admissions or terminal proof", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }");
