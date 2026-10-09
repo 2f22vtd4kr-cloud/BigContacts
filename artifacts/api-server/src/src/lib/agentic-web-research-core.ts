@@ -30,7 +30,7 @@ import {
 export { getAgenticLlmHealth };
 export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject"; promotionReason?: string };
 export type AgenticTrajectoryRecord = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: "selected" | "success" | "http_error" | "blocked" | "timeout" | "error" | "cancelled"; observation?: string; observedUrls: string[]; findings: AgenticFinding[]; providerFallback?: string[]; stopReason?: AgenticWebResearchResult["stopReason"] };
-export type AgenticWebResearchResult = { status: "completed" | "unavailable" | "error" | "timeout" | "cancelled"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "PARSE_FAILURE"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string };
+export type AgenticWebResearchResult = { status: "completed" | "unavailable" | "error" | "timeout" | "cancelled"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "PARSE_FAILURE"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
 type AgentAction = { action: "web_search"; query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
@@ -500,7 +500,11 @@ const groqRateLimitSnapshots = new Map<string, GroqRateLimitSnapshot>();
 export function resetGroqRateLimitSnapshotsForTests(): void {
   groqRateLimitSnapshots.clear();
 }
-function groqRateLimitSnapshotKey(keyName: string, model: string): string { return `${keyName}:${model}`; }
+function groqRateLimitSnapshotKey(keyName: string, model: string, credentialKey: string): string {
+  // Rate-limit snapshots belong to the actual credential, not the environment
+  // variable slot: a rotated key must not inherit another key's quota cooldown.
+  return `${keyName}:${digestDiagnosticText(credentialKey)}:${model}`;
+}
 
 function parseGroqDurationMs(raw: string | null): number | null {
   const value = raw?.trim() ?? "";
@@ -520,7 +524,7 @@ export function parseOptionalRateLimitNumber(raw: string | null): number | null 
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function captureGroqRateLimitSnapshot(keyName: string, model: string, response: Response): GroqRateLimitSnapshot {
+function captureGroqRateLimitSnapshot(keyName: string, model: string, response: Response, credentialKey: string): GroqRateLimitSnapshot {
   const remainingTokensValue = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-tokens"));
   const remainingRequestsValue = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-requests"));
   const snapshot: GroqRateLimitSnapshot = {
@@ -530,7 +534,7 @@ function captureGroqRateLimitSnapshot(keyName: string, model: string, response: 
     resetRequestsMs: parseGroqDurationMs(response.headers.get("x-ratelimit-reset-requests")),
     observedAt: Date.now(),
   };
-  groqRateLimitSnapshots.set(groqRateLimitSnapshotKey(keyName, model), snapshot);
+  groqRateLimitSnapshots.set(groqRateLimitSnapshotKey(keyName, model, credentialKey), snapshot);
   return snapshot;
 }
 
@@ -561,8 +565,8 @@ export async function waitForAbortableDelay(delayMs: number, signal: AbortSignal
   });
 }
 
-async function waitForKnownGroqTokenWindow(keyName: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal): Promise<"ready" | "token_window_wait_exceeded"> {
-  const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model));
+async function waitForKnownGroqTokenWindow(keyName: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal, credentialKey: string): Promise<"ready" | "token_window_wait_exceeded"> {
+  const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model, credentialKey));
   if (!snapshot || snapshot.remainingTokens == null || snapshot.resetTokensMs == null) return "ready";
   const estimated = groqPromptTokenEstimate(promptChars) + completionBudget;
   if (snapshot.remainingTokens >= estimated) return "ready";
@@ -657,6 +661,7 @@ async function callGroqJson(
           workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
           groqInvestigatorCompletionBudget(cognitiveTask),
           signal,
+          key,
         );
         if (quotaReadiness === "token_window_wait_exceeded") {
           lastProviderError = "upstream_token_window_wait_exceeded";
@@ -685,7 +690,7 @@ async function callGroqJson(
 
         if (response.status === 429) {
           const hardQuota = groqHardRequestQuota(response, body);
-          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response, key);
           let providerErrorCode: string | null = null;
           let providerErrorType: string | null = null;
           try {
@@ -742,7 +747,7 @@ async function callGroqJson(
             }
           })();
           lastProviderError = providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
-          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response, key);
           let providerErrorType: string | null = null;
           try {
             const parsed = JSON.parse(body) as { error?: { type?: unknown } };
@@ -837,7 +842,7 @@ async function callGroqJson(
         }
 
         const raw = data.choices?.[0]?.message?.content?.trim() || "";
-        const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+        const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response, key);
         recordAgenticLlmAttempt({
           provider: "groq",
           model,
