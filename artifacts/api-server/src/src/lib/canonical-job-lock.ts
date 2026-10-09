@@ -46,7 +46,14 @@ async function withStrictPermanentClient<T>(command: StrictRedisCommand<T>): Pro
 async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
   const finishedAt = new Date().toISOString();
   const redisFence = withStrictPermanentClient(async (redis) => {
-    await redis.hset(`apex:job:${jobId}`, { status: "cancelled", outcome: "incomplete", message: "Canonical lease lost; refusing further work.", finishedAt });
+    // Lease-loss recovery must not race a terminal job and rewrite its immutable snapshot.
+    await redis.eval(
+      "local k=KEYS[1]; local status=redis.call('hget',k,'status'); if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end; redis.call('hset',k,'status','cancelled','outcome','incomplete','message',ARGV[1],'finishedAt',ARGV[2]); return 1",
+      1,
+      `apex:job:${jobId}`,
+      "Canonical lease lost; refusing further work.",
+      finishedAt,
+    );
   });
   const dbFence = db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() }).where(and(eq(researchCasesTable.status, "active"), or(sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`, sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`)));
   await Promise.allSettled([redisFence, dbFence]);
