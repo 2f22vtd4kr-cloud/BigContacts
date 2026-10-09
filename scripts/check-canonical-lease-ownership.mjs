@@ -10,7 +10,7 @@ assert(lock.includes("local owner=redis.call('get',KEYS[1]); if owner==ARGV[1] t
 assert(lock.includes("if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end;"), "lease-loss fencing must preserve missing and terminal job snapshots");
 assert(/renewCanonicalJob\(type, jobId\)\.then\(\(renewed\) => \{ if \(!renewed\)[\s\S]*fenceLeaseLostCases\(type, jobId\)/.test(lock), "confirmed owner mismatch must invoke lease-loss fencing");
 assert(/Canonical lease renewal failed; retrying before fencing/.test(lock), "transient renewal errors must retry rather than cancel a live job");
-assert(/const dbFence = db\.update\(researchCasesTable\)/.test(lock) && /Promise\.allSettled\(\[redisFence, dbFence\]\)/.test(lock) && !/if\s*\(!fenced\)\s*return/.test(lock), "Redis job cancellation and durable case fencing must be attempted independently after confirmed lease loss");
+assert(/if \(!fenced\) return;[\s\S]*await db\.update\(researchCasesTable\)/.test(lock), "durable case state is transitioned only after the atomic Redis fence confirms this worker was fenced");
 
 if (failures.length) {
   console.error("CANONICAL LEASE OWNERSHIP: FAIL");
