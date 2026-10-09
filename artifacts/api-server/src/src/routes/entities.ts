@@ -341,8 +341,11 @@ router.patch("/entities/:id/hide", async (req, res): Promise<void> => {
     .where(eq(entitiesTable.id, id))
     .returning({ id: entitiesTable.id, isHidden: entitiesTable.isHidden });
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
-  await delCachePattern("entities:list:*");
-  await delCachePattern("dashboard:stats");
+  await Promise.all([
+    delCachePattern("entities:list:*"),
+    delCachePattern("dashboard:*"),
+    delCachePattern("search:*"),
+  ]);
   res.json(updated);
 });
 
@@ -752,7 +755,8 @@ router.get("/entities/duplicate-candidates", async (_req, res): Promise<void> =>
   try {
     const rows = await db
       .select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, bayesianScore: entitiesTable.bayesianScore })
-      .from(entitiesTable);
+      .from(entitiesTable)
+      .where(eq(entitiesTable.isHidden, false));
 
     const STOP = new Set(["LLC", "INC", "LTD", "CO", "THE", "AND", "OF", "UK", "US", "LP", "LLP", "PLC", "CORP", "ET", "AL", "DE", "LA", "LE", "SA", "SRL", "BV", "NV", "AG", "GMBH", "LTD", "PTY", "ASA"]);
     const tokenize = (name: string): string[] =>
@@ -820,7 +824,8 @@ router.get("/entities/same-source-name-clusters", async (_req, res): Promise<voi
         bayesianScore: entitiesTable.bayesianScore,
         sourceRegistries: entitiesTable.sourceRegistries,
       })
-      .from(entitiesTable);
+      .from(entitiesTable)
+      .where(eq(entitiesTable.isHidden, false));
 
     const registryPrefix = (source: string): string => {
       const value = source.toLowerCase();
