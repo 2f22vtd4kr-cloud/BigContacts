@@ -1,5 +1,8 @@
 # Apex Atlas — Successor Master Handoff
-## Current-main continuation package — 2026-10-01
+
+> **HISTORICAL HANDOFF — superseded role law and SHA (2026-10-09).** The body below preserves incident history only where it does not conflict with current source. Its October 1 SHA and Gemini/Mistral role law are stale. Current authority: `docs/context.md`, current executable code on `main`, and the current override at the top of `docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md`. Never restore retired providers from this document. Static CI does not establish live runtime or empirical research acceptance.
+
+## Historical continuation package — 2026-10-01
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Canonical branch:** `main`  
