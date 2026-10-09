@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { and, eq, or, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
-import { createJob, getActiveJob, getJob, updateJob } from "../../lib/job-queue";
+import { createJob, getActiveJobStrict, getJob, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
@@ -48,7 +48,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
 
     await enablePermanentRedis();
 
-  const existingId = await getActiveJob("atlas-run");
+  const existingId = await getActiveJobStrict("atlas-run");
   if (existingId) {
     const existing = await getJob(existingId);
     // A lock owner is authoritative until its job reaches a terminal state.
@@ -157,7 +157,14 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
  * and win merely because the Redis and database operations were ordered apart.
  */
 router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<void> => {
-  const activeJobId = await getActiveJob("atlas-run");
+  let activeJobId: string | null;
+  try {
+    await enablePermanentRedis();
+    activeJobId = await getActiveJobStrict("atlas-run");
+  } catch {
+    res.status(503).json({ ok: false, code: "JOB_STATE_UNAVAILABLE", message: "Atlas cannot confirm whether a job is active because the job-state store is unavailable; no stop was claimed." });
+    return;
+  }
   if (!activeJobId) {
     res.status(404).json({ ok: false, message: "No active Atlas job to stop." });
     return;
