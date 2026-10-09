@@ -106,16 +106,29 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const hasRegistryOrFilingAnchor = /\b(?:registry|edgar|companies\s*house|sec)\b/i.test(normalized);
   const hasConcreteAnchor = hasExplicitSourceAnchor || hasRegistryOrFilingAnchor || hasNamedOrConcreteToken;
 
-  // These heuristics can advise the model, but must never decide which
-  // non-empty research path it is allowed to explore.
+  // Quality gates constrain demonstrably context-free search spend without
+  // choosing a research sequence. The Investigator still selects the anchor,
+  // provider and next capability; repeated queries remain allowed with warning.
   if (fame && !hasConcreteAnchor) {
-    warnings.push("This query looks fame/list-oriented. It was still executed; use the observed result quality to decide whether to refine toward a specific person, business, geography, or source.");
+    return {
+      allowed: false,
+      reason: "A fame/list-oriented discovery query needs a concrete organization, person-in-context, geography, domain or source anchor before spending a search call.",
+    };
   }
-  if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) {
-    warnings.push("This query is brief or context-light. It was still executed because exact-identity lookups can be useful; refine only if the observed results are weak.");
+  // A short name-only query is too ambiguous in broad discovery mode: it can
+  // return an ungrounded celebrity list and consume provider budget without a
+  // sector, role, organization, geographic or source discriminator.
+  if (tokenCount <= 2 && concreteSignals === 0 && !hasExplicitSourceAnchor && !hasRegistryOrFilingAnchor) {
+    return {
+      allowed: false,
+      reason: "A name-only or context-light discovery query needs a concrete research discriminator before spending a search call.",
+    };
+  }
+  if (tokenCount < 3 || concreteSignals < 1) {
+    warnings.push("This query is brief or context-light. Use result quality to decide whether a pivot is justified; the rail does not select the next search or capability.");
   }
   if (!hasConcreteAnchor) {
-    warnings.push("No explicit person, organization, geography, registry, domain, or other concrete anchor was detected. This is an advisory signal, not a block; judge the actual results before choosing the next step.");
+    warnings.push("No explicit person-in-context, organization, geography, registry, domain or source anchor was detected. Consider refining only if the observed evidence is weak.");
   }
   return { allowed: true, ...(warnings.length ? { warning: warnings.join(" ") } : {}) };
 }
@@ -1073,7 +1086,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    1_200,
+    900,
   );
   const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(), 1_000);
   const discoveryLivenessAdvisory = input.mode === "discovery" ? discoverySearchLivenessAdvisory(input.trajectoryRecords) : null;
@@ -1158,7 +1171,41 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     JSON.stringify(latestRecordEnvelope),
   ].join("\n");
   const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length);
-  return boundInvestigatorPromptSection([composedPrompt, latestRecordTail].join("\n\n"), maxUserPromptChars);
+  const stateMarker = "\n\nCANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):\n";
+  const outputMarker = "\nOUTPUT CONTRACT:";
+  const stateStart = composedPrompt.indexOf(stateMarker);
+  const outputStart = composedPrompt.indexOf(outputMarker, stateStart + stateMarker.length);
+  if (stateStart < 0 || outputStart < 0 || outputStart <= stateStart) {
+    // Fail safe to a bounded prompt rather than silently returning an incomplete contract.
+    return boundInvestigatorPromptSection(
+      [composedPrompt, latestRecordTail, "OUTPUT CONTRACT: Return one root JSON object that satisfies the provider schema."].join("\n\n"),
+      maxUserPromptChars,
+    );
+  }
+
+  const prefix = composedPrompt.slice(0, stateStart).trimEnd();
+  const stateLabel = "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):";
+  const dynamicState = composedPrompt.slice(stateStart + stateMarker.length, outputStart).trim();
+  const outputContract = composedPrompt.slice(outputStart + 1).trim();
+  const separators = "\n\n".length * 4;
+  const fixedChars = prefix.length + stateLabel.length + outputContract.length + latestRecordTail.length + separators;
+  const dynamicBudget = maxUserPromptChars - fixedChars;
+  if (dynamicBudget < 1_000) {
+    // Output schema and newest action are non-discardable. If instructions grow,
+    // reduce auxiliary guidance first rather than truncating the output contract.
+    const compactPrefix = prefix.replace(/CAPABILITY GUIDANCE:\\n[\\s\\S]*?\\n\\nEVIDENCE LAW:/, "CAPABILITY GUIDANCE: use only model-selectable capabilities.\\n\\nEVIDENCE LAW:");
+    const compactFixed = compactPrefix.length + stateLabel.length + outputContract.length + latestRecordTail.length + separators;
+    const compactBudget = maxUserPromptChars - compactFixed;
+    if (compactBudget < 1_000) {
+      return [compactPrefix, stateLabel, "Research state compacted; consult the durable evidence ledger.", outputContract, latestRecordTail]
+        .join("\n\n")
+        .slice(0, maxUserPromptChars);
+    }
+    const boundedState = boundInvestigatorPromptSection(dynamicState, compactBudget);
+    return [compactPrefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n");
+  }
+  const boundedState = boundInvestigatorPromptSection(dynamicState, dynamicBudget);
+  return [prefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n");
 }
 
 export function discoverySearchLivenessAdvisory(records: readonly AgenticTrajectoryRecord[]): string | null {
