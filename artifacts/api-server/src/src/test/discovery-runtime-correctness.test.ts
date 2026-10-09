@@ -53,6 +53,12 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective");
   });
 
+  it("does not treat an evidence-gate-blocked model terminal claim as completed research", () => {
+    expect(researchSource).toContain('raw.action === "done" && raw.execution === "success" && actResult.stopReason === "MODEL_DECIDED_DONE"');
+    expect(researchSource).toContain('const blockedTerminalClaim = raw.action === "done" && raw.execution !== "success";');
+    expect(researchSource).toContain('if (!blockedTerminalClaim && (checkpointResult.stop || (callerOwnsOversight && modelTerminalAccepted)))');
+  });
+
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
     const runner = fs.readFileSync(path.join(libDir, "canonical-single-target-runner.ts"), "utf8");
     const oversightImport = runner.indexOf('import { reviewTargetInvestigationAct } from "./target-act-oversight";');
