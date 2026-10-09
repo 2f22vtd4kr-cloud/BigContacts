@@ -7,6 +7,7 @@ const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-con
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
 const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 const canonicalDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
   it("records an Investigator provider-error turn before fail-closed termination", () => {
@@ -269,6 +270,9 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandReview(parsed)");
     expect(canonicalDiscoverySource).toContain("Right-hand returned an empty opening review response.");
     expect(canonicalDiscoverySource).toContain("if (rightHand.error || rightHand.status !== \"completed\")");
+    expect(canonicalTargetSource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
+    expect(canonicalTargetSource).toContain("validateAtlasOpeningRightHandReview(parsed)");
+    expect(canonicalTargetSource).toContain("!rightHandRaw.raw?.trim()");
   });
 
   it("merges each Boss-directed discovery episode into cumulative state exactly once", () => {
