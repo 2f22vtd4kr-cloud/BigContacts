@@ -6,6 +6,7 @@ import {
   describeThrownProviderError,
   isLocalProviderQuotaError,
   summarizeProviderBody,
+  safeThrownErrorSummary,
 } from "../lib/provider-error-diagnostics";
 
 describe("provider error diagnostics", () => {
@@ -39,6 +40,14 @@ describe("provider error diagnostics", () => {
     expect(diagnostic.causeHostname).toBe("generativelanguage.googleapis.com");
     expect(diagnostic.messageDigest).toMatch(/^[a-f0-9]{16}$/);
     expect(JSON.stringify(diagnostic)).not.toContain("socket detail");
+  });
+
+  it("produces durable failure text without leaking raw provider exception messages", () => {
+    const secret = "Authorization: Bearer super-secret-token socket details";
+    const summary = safeThrownErrorSummary("Canonical target investigation failed", new TypeError(secret));
+    expect(summary).toMatch(/^Canonical target investigation failed \(class=TypeError; code=none; digest=[a-f0-9]{16}\)$/);
+    expect(summary).not.toContain(secret);
+    expect(summary).not.toContain("super-secret-token");
   });
 
   it("recognizes a daily-quota message even when the provider uses generic too_many_requests", () => {
