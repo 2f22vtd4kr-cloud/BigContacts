@@ -32,9 +32,11 @@ export function sanitizeUrlForEvidence(rawUrl: string, baseUrl?: string): string
       // OAuth callback fragments may include a route before the query, e.g.
       // #/callback?access_token=... . Redact key/value segments in-place so
       // route prefixes survive and secrets are redacted wherever they occur.
-      url.hash = fragment.replace(/(^|[&#?])([^=&#?]+)=([^&#]*)/g, (match, separator: string, name: string) =>
-        isSensitiveUrlParameter(name) ? `${separator}${name}=[REDACTED]` : match,
-      );
+      url.hash = fragment.replace(/(^|[&#?])([^=&#?]+)=([^&#]*)/g, (match, separator: string, name: string) => {
+        let decodedName = name;
+        try { decodedName = decodeURIComponent(name.replace(/\+/g, " ")); } catch { /* malformed percent encoding: compare the original key safely */ }
+        return isSensitiveUrlParameter(decodedName) ? `${separator}${name}=[REDACTED]` : match;
+      });
     }
     return url.href;
   } catch {
