@@ -4,6 +4,7 @@ import { db, relationshipsTable, entitiesTable, assetsTable } from "@workspace/d
 import { getAllEmbeddings } from "../lib/semantic-engine";
 import { assessGraphNamePairRisk } from "../lib/identity-collision";
 import { safeOutboundFetch } from "../lib/ssrf-safe-fetch";
+import { visibleRelationshipScope } from "../lib/relationship-visibility";
 import {
   ListRelationshipsQueryParams,
   CreateRelationshipBody,
@@ -12,30 +13,6 @@ import {
 
 const router: IRouter = Router();
 
-// Relationship responses must not expose hidden entities indirectly through
-// graph edges or assets owned by hidden entities. The request middleware only
-// knows user-supplied IDs, so all relationship scans need a DB visibility fence.
-function visibleRelationshipScope() {
-  return sql`EXISTS (
-    SELECT 1 FROM entities AS visible_source
-    WHERE visible_source.id = ${relationshipsTable.sourceEntityId}
-      AND visible_source.is_hidden = false
-  ) AND (
-    ${relationshipsTable.targetType} <> 'Entity' OR EXISTS (
-      SELECT 1 FROM entities AS visible_target
-      WHERE visible_target.id = ${relationshipsTable.targetId}
-        AND visible_target.is_hidden = false
-    )
-  ) AND (
-    ${relationshipsTable.targetType} <> 'Asset' OR NOT EXISTS (
-      SELECT 1
-      FROM assets AS hidden_owner_asset
-      JOIN entities AS hidden_asset_owner ON hidden_asset_owner.id = hidden_owner_asset.owner_entity_id
-      WHERE hidden_owner_asset.id = ${relationshipsTable.targetId}
-        AND hidden_asset_owner.is_hidden = true
-    )
-  )`;
-}
 
 /** Safety caps so unbounded relationship lists cannot OOM the API. */
 const MAX_RELATIONSHIPS_FOR_ENTITY = 2_000;
