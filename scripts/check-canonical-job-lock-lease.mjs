@@ -11,6 +11,8 @@ const checks = [
   ["renewal cannot replace another owner", /== ARGV\[1\].*expire/s.test(lock)],
   ["lease loss durably fences bound cases", /fenceLeaseLostCases[\s\S]*status: "review"[\s\S]*canonical-lease-lost/.test(lock)],
   ["lease-loss fencing preserves terminal job snapshots", lock.includes("if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end")],
+  ["lease-loss fencing checks the active owner before mutating the job", lock.includes("local owner=redis.call('get',KEYS[1]); if owner==ARGV[1] then return 0 end;")],
+  ["transient lease-renewal errors retry instead of forcing cancellation", lock.includes("Canonical lease renewal failed; retrying before fencing")],
   ["lease loss fences both target and discovery job bindings", /atlasJobId/.test(lock) && /jobId/.test(lock)],
   ["release remains owner-bound", /releaseCanonicalJob[\s\S]*redis\.eval/.test(lock)],
   ["canonical lease transitions invalidate the job-state cache", /invalidateActiveJobCache\(type\)/.test(lock)],
