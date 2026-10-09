@@ -174,3 +174,10 @@ Added regression cases for negative and greater-than-one confidence, oversized r
 ## Follow-up standalone Right-hand advice bounds
 
 The case-bureau and public-discovery Right-hand normalizers also clamped numeric confidence into `[0, 1]`, and case-level reasoning could return `completed` with missing confidence. Their parsers now use pure contract normalizers that reject out-of-range confidence, excessive decision/reason/focus-lane lengths or counts, unexpected fields, and recommendations that do not reference an existing queued action. Their JSON schemas explicitly set `additionalProperties: false`; local validation remains authoritative regardless of provider mode. Regression tests exercise malformed numeric ranges and contract overflows without live provider calls.
+
+
+## Follow-up ingestion trust boundary — registry roles are leads, not wealth or contact evidence
+
+The registry-ingestion path had three independent trust-boundary issues. First, a legacy `Gatekeeper` label was being passed as `hasGatekeeperConnection`, which is a network relationship signal and not equivalent to the record itself being labelled a gatekeeper. Second, `person.rawMetadata` was spread after conservative registry assessment fields, allowing untrusted/legacy metadata to overwrite proximity and confidence. Third, the stored `contactMethod` synthesized how to approach a shareholder/director from role alone, although no route had been observed.
+
+The path now explicitly sets `hasGatekeeperConnection: false` for registry-only leads, places raw metadata before the trusted assessment fields, and labels person-level routes as unverified leads rather than observed contact paths. The policy covers legacy `HNWI` and `Gatekeeper` class names with a low starting prior, neutral proximity and no recency claim. Tests cover legacy labels, the scoring relationship boundary, metadata precedence and the no-fabricated-contact wording. Source-level regression coverage is present; exact-head API/Atlas CI still has to pass before this path can be called validated.
