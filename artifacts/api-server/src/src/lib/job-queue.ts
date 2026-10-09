@@ -1,13 +1,48 @@
 import { randomUUID } from "crypto";
-import { withPermanentClient, permSismember, permScard } from "./redis";
+import { getPermanentClient, withPermanentClient, permSismember, permScard } from "./redis";
 import { logger } from "./logger";
-import { canApplyJobPatch, canApplyJobPatchWithoutRedis } from "./job-queue-terminal-policy";
+import { canApplyJobPatch, canApplyJobPatchWithoutRedis, classifyJobCreationVerification } from "./job-queue-terminal-policy";
 async function safeRedis<T>(fn:(rc:import("ioredis").Redis)=>Promise<T>,fallback:T):Promise<T>{return withPermanentClient(fn,fallback);}
 export type JobStatus="queued"|"running"|"paused"|"done"|"failed"|"cancelled";
 export interface JobState{jobId:string;type:string;status:JobStatus;progress:number;inserted:number;skipped:number;errors:number;total:number;startedAt:string;finishedAt?:string;atlasPhase?:number;atlasPhaseTotal?:number;entityProgress?:number;entityTotal?:number;entityNames?:string;atlasTelemetry?:string;outcome?:"complete"|"incomplete";resumable?:string;targetIds?:string;targetIndex?:number;targetTotal?:number;currentTargetId?:number;currentPhase?:string;completedTargetIds?:string;failedTargetIds?:string;retryCounts?:string;result?:string;message:string;}
 export type AutoPipelineSchedulerStatus={enabled:boolean;active:boolean;activatedAt?:string;lastTriggerAt?:string;nextTriggerAt?:string;lastLabel?:string;lastStatus?:"triggered"|"completed"|"skipped_lock"|"no_targets"|"error";lastJobId?:string;lastMessage?:string;cycles:number;skippedDueToLock:number;providerNoTarget:number;};
 const JOB_TTL=60*60*24*7;const MAX_MEMORY_JOBS=256;const memoryOnlyJobs=new Set<string>();const memoryJobs=new Map<string,JobState>();const memoryLogs=new Map<string,string[]>();const memoryLatestByType=new Map<string,string>();const memoryActiveByType=new Map<string,string>();const LOG_CAP=200;const AUTO_PIPELINE_SCHEDULER_KEY="apex:autopipeline:scheduler";function jk(id:string){return`apex:job:${id}`;}function lk(id:string){return`apex:job:${id}:log`;}function trimMemoryJobs(){while(memoryJobs.size>MAX_MEMORY_JOBS){const first=memoryJobs.keys().next().value as string|undefined;if(!first)break;memoryJobs.delete(first);memoryLogs.delete(first);memoryOnlyJobs.delete(first);}}
-export async function createJob(type:string):Promise<string>{const jobId=randomUUID();const state:JobState={jobId,type,status:"queued",progress:0,inserted:0,skipped:0,errors:0,total:0,startedAt:new Date().toISOString(),message:"Queued"};memoryJobs.set(jobId,{...state});memoryLatestByType.set(type,jobId);trimMemoryJobs();const wrote=await safeRedis(async rc=>{await rc.hset(jk(jobId),state as any);await rc.expire(jk(jobId),JOB_TTL);await rc.set(`apex:latestjob:${type}`,jobId,"EX",JOB_TTL);return true;},false);if(!wrote){memoryOnlyJobs.add(jobId);logger.warn({jobId,type},"createJob: permanent Redis unavailable — using in-memory job state");}return jobId;}
+export async function createJob(type:string):Promise<string>{
+  const jobId=randomUUID();
+  const state:JobState={jobId,type,status:"queued",progress:0,inserted:0,skipped:0,errors:0,total:0,startedAt:new Date().toISOString(),message:"Queued"};
+  memoryJobs.set(jobId,{...state});
+  memoryLatestByType.set(type,jobId);
+  trimMemoryJobs();
+
+  // If the canonical Redis store is already unavailable, this is an explicitly
+  // memory-only job. Canonical lease acquisition separately requires a durable
+  // queued job hash, so this path can never start canonical Atlas research.
+  if(!getPermanentClient()){
+    memoryOnlyJobs.add(jobId);
+    logger.warn({jobId,type},"createJob: canonical Redis unavailable before write — using isolated in-memory job state");
+    return jobId;
+  }
+
+  const fieldArgs:string[]=[];
+  for(const [key,value] of Object.entries(state)) if(value!==undefined) fieldArgs.push(key,String(value));
+  const createLua="local k=KEYS[1]; if redis.call('exists',k)==1 then return -1 end; for i=1,#ARGV-2,2 do redis.call('hset',k,ARGV[i],ARGV[i+1]); end; local ttl=tonumber(ARGV[#ARGV-1]); redis.call('expire',k,ttl); redis.call('set',KEYS[2],ARGV[#ARGV],'EX',ttl); return 1";
+  const wrote=await safeRedis(async rc=>Number(await rc.eval(createLua,2,jk(jobId),`apex:latestjob:${type}`,...fieldArgs,String(JOB_TTL),jobId)),null as number|null);
+  if(wrote===1)return jobId;
+
+  // Redis may have committed the atomic script before a connection error hid
+  // its response. Reconcile against the canonical store before returning any
+  // job ID; an indeterminate write must never be launched as memory-only.
+  const persisted=await safeRedis(rc=>rc.hgetall(jk(jobId)),null as Record<string,string>|null);
+  const verification=classifyJobCreationVerification(jobId,type,persisted);
+  if(verification==="durable")return jobId;
+
+  memoryJobs.delete(jobId);
+  memoryOnlyJobs.delete(jobId);
+  if(memoryLatestByType.get(type)===jobId) memoryLatestByType.delete(type);
+  trimMemoryJobs();
+  logger.error({jobId,type,verification,wrote}, "createJob: failed to confirm durable job creation; refusing to launch");
+  throw new Error("Canonical job creation was not durably confirmed; refusing to launch.");
+}
 export async function updateJob(jobId:string,patch:Partial<JobState>):Promise<void>{
   const prev=memoryJobs.get(jobId);
   if(prev&&!canApplyJobPatch(prev.status))return;
