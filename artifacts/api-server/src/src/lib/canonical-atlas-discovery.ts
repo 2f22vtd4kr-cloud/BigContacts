@@ -9,7 +9,7 @@ import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, decideAtlasNextAction,
 import { resolveResearchDepth } from "./research-depth";
 import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
-import { deriveLatestEvidenceBackedTerminal, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
+import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
 import { candidateIdentityObserved, normalizeCandidateIdentityName } from "./identity-text-match";
 
@@ -720,7 +720,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     phaseSummary.research = `researched=${researched}; explicitCardPromotions=${contactsFound}; controlTurns=${controlTurns}; finalAction=${finalControlAction ?? "none"}`;
     await assertAtlasJobActive(atlasJobId);
     const deadlineExceeded = Date.now() >= atlasDeadline;
-    const evidenceBackedTerminal = latestEvidenceBackedTerminal !== null;
+    const evidenceBackedTerminal = isCanonicalAtlasRunEvidenceComplete(latestEvidenceBackedTerminal, researched);
     const finalIncomplete = investigatorResourceLimited || finalControlAction !== "stop" || !evidenceBackedTerminal;
     const finalCaseStatus = finalIncomplete ? "review" : "complete";
     const finalCaseAction = finalIncomplete
