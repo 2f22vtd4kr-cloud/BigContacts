@@ -19,10 +19,25 @@ function toRelRow(r: typeof relationshipsTable.$inferSelect): RelationshipRow { 
 async function filterVisibleRelationships(rows: (typeof relationshipsTable.$inferSelect)[]): Promise<typeof relationshipsTable.$inferSelect[]> {
   if (!rows.length) return rows;
   const entityIds = new Set<number>();
-  for (const row of rows) { entityIds.add(row.sourceEntityId); if (row.targetType === "Entity") entityIds.add(row.targetId); }
+  const assetIds = new Set<number>();
+  for (const row of rows) {
+    entityIds.add(row.sourceEntityId);
+    if (row.targetType === "Entity") entityIds.add(row.targetId);
+    if (row.targetType === "Asset") assetIds.add(row.targetId);
+  }
   const visibleRows = await db.select({ id: entitiesTable.id }).from(entitiesTable).where(and(inArray(entitiesTable.id, [...entityIds]), eq(entitiesTable.isHidden, false)));
   const visible = new Set(visibleRows.map((row) => row.id));
-  return rows.filter((row) => visible.has(row.sourceEntityId) && (row.targetType !== "Entity" || visible.has(row.targetId)));
+  const hiddenOwnedAssetRows = assetIds.size === 0 ? [] : await db
+    .select({ id: assetsTable.id })
+    .from(assetsTable)
+    .innerJoin(entitiesTable, eq(assetsTable.ownerEntityId, entitiesTable.id))
+    .where(and(inArray(assetsTable.id, [...assetIds]), eq(entitiesTable.isHidden, true)));
+  const hiddenOwnedAssets = new Set(hiddenOwnedAssetRows.map((row) => row.id));
+  return rows.filter((row) =>
+    visible.has(row.sourceEntityId) &&
+    (row.targetType !== "Entity" || visible.has(row.targetId)) &&
+    (row.targetType !== "Asset" || !hiddenOwnedAssets.has(row.targetId))
+  );
 }
 
 export async function loadNeighborhood(centerEntityId: number, depth: number): Promise<{ entities: EntityRow[]; assets: AssetRow[]; relationships: RelationshipRow[]; truncated: boolean; }> {
