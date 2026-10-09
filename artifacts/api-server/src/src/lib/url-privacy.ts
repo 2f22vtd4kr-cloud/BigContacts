@@ -29,9 +29,17 @@ export function sanitizeUrlForEvidence(rawUrl: string, baseUrl?: string): string
 
     const fragment = url.hash.slice(1);
     if (fragment) {
-      const fragmentParameters = new URLSearchParams(fragment);
+      // OAuth callbacks often keep credentials in a route-style fragment such as
+      // "#/callback?access_token=...". Parse the query portion separately so the
+      // route prefix cannot hide a sensitive key. URLSearchParams also decodes
+      // percent-encoded parameter names before the sensitive-key comparison.
+      const queryStart = fragment.indexOf("?");
+      const routePrefix = queryStart >= 0 ? fragment.slice(0, queryStart) : "";
+      const parameterText = queryStart >= 0 ? fragment.slice(queryStart + 1) : fragment;
+      const fragmentParameters = new URLSearchParams(parameterText);
       if ([...fragmentParameters.keys()].some(isSensitiveUrlParameter)) {
-        url.hash = redactParameters(fragmentParameters).toString();
+        const safeFragment = redactParameters(fragmentParameters).toString();
+        url.hash = queryStart >= 0 ? `${routePrefix}?${safeFragment}` : safeFragment;
       }
     }
     return url.href;
