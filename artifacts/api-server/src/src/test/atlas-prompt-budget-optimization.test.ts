@@ -52,8 +52,8 @@ describe("Apex Atlas prompt budget optimization", () => {
     });
     const messages = body.messages as Array<{ role: string; content: string }>;
     const total = messages.reduce((sum, message) => sum + message.content.length, 0);
-    expect(total).toBeLessThanOrEqual(9_000);
-    expect(messages.find((message) => message.role === "user")?.content.length).toBeLessThan(9_000);
+    expect(total).toBeLessThanOrEqual(7_200);
+    expect(messages.find((message) => message.role === "user")?.content.length).toBeLessThan(7_200);
   });
 
   it("bounds the complete Investigator message envelope, including the stable system prompt", () => {
@@ -71,8 +71,8 @@ describe("Apex Atlas prompt budget optimization", () => {
       mode: "target",
     });
     const systemInstruction = apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only.";
-    expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(9_000);
-    expect(prompt.length).toBeLessThanOrEqual(9_000 - systemInstruction.length);
+    expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(7_200);
+    expect(prompt.length).toBeLessThanOrEqual(7_200 - systemInstruction.length);
   });
 
   it("does not duplicate a giant Investigator report into the control prompt budget", () => {
