@@ -63,7 +63,7 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
     if (pollId) clearInterval(pollId);
     if (hbId) clearInterval(hbId);
   };
-  req.on("close", close);
+  res.on("close", close);
 
   const sendSnapshot = async () => {
     const events = await listBureauEvents({ caseId, limit: 50 });
