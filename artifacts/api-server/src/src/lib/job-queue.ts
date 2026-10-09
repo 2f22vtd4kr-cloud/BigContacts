@@ -69,7 +69,26 @@ export async function updateJob(jobId:string,patch:Partial<JobState>):Promise<vo
 }
 export async function clearJobFields(jobId:string,fields:string[]):Promise<void>{if(!fields.length)return;await safeRedis(async rc=>{await rc.hdel(jk(jobId),...fields);await rc.expire(jk(jobId),JOB_TTL);},undefined);}
 export async function appendJobLog(jobId:string,line:string,opts?:{dedupeKey?:string}):Promise<void>{if(opts?.dedupeKey){const ok=await safeRedis(async rc=>{const set=await rc.set(`apex:joblog:dedupe:${jobId}:${opts.dedupeKey}`,"1","EX",86400,"NX");return set==="OK"||set===true;},true);if(!ok)return;}const memCheck=memoryLogs.get(jobId)??[];if(memCheck[0]&&memCheck[0].includes(line.slice(0,120)))return;const ts=`${new Date().toISOString()} ${line}`;const mem=memoryLogs.get(jobId)??[];mem.unshift(ts);memoryLogs.set(jobId,mem.slice(0,LOG_CAP));trimMemoryJobs();await safeRedis(async rc=>{await rc.lpush(lk(jobId),ts);await rc.ltrim(lk(jobId),0,LOG_CAP-1);await rc.expire(lk(jobId),JOB_TTL);},undefined);void import("./bureau-live-log").then(m=>m.mirrorJobLogLine(jobId,line)).catch(()=>undefined);}
-export async function getJob(jobId:string):Promise<JobState|null>{if(memoryOnlyJobs.has(jobId))return memoryJobs.get(jobId)??null;let redisOk=false;const raw=await safeRedis(async rc=>{const value=await rc.hgetall(jk(jobId));redisOk=true;return value;},null);if(!redisOk)return null;if(!raw||Object.keys(raw).length===0)return memoryOnlyJobs.has(jobId)?(memoryJobs.get(jobId)??null):null;return{jobId:raw.jobId??jobId,type:raw.type??"unknown",status:(raw.status??"queued")as JobStatus,progress:Number(raw.progress??0),inserted:Number(raw.inserted??0),skipped:Number(raw.skipped??0),errors:Number(raw.errors??0),total:Number(raw.total??0),startedAt:raw.startedAt??"",finishedAt:raw.finishedAt,message:raw.message??"",atlasPhase:raw.atlasPhase!==undefined?Number(raw.atlasPhase):undefined,atlasPhaseTotal:raw.atlasPhaseTotal!==undefined?Number(raw.atlasPhaseTotal):undefined,entityProgress:raw.entityProgress!==undefined?Number(raw.entityProgress):undefined,entityTotal:raw.entityTotal!==undefined?Number(raw.entityTotal):undefined,entityNames:raw.entityNames,atlasTelemetry:raw.atlasTelemetry,outcome:raw.outcome==="incomplete"||raw.outcome==="complete"?raw.outcome:undefined,resumable:raw.resumable,targetIds:raw.targetIds,targetIndex:raw.targetIndex!==undefined?Number(raw.targetIndex):undefined,targetTotal:raw.targetTotal!==undefined?Number(raw.targetTotal):undefined,currentTargetId:raw.currentTargetId!==undefined?Number(raw.currentTargetId):undefined,currentPhase:raw.currentPhase,completedTargetIds:raw.completedTargetIds,failedTargetIds:raw.failedTargetIds,retryCounts:raw.retryCounts,result:raw.result};}
+function parsePersistedJobState(jobId:string,raw:Record<string,string>):JobState{
+  return{jobId:raw.jobId??jobId,type:raw.type??"unknown",status:(raw.status??"queued")as JobStatus,progress:Number(raw.progress??0),inserted:Number(raw.inserted??0),skipped:Number(raw.skipped??0),errors:Number(raw.errors??0),total:Number(raw.total??0),startedAt:raw.startedAt??"",finishedAt:raw.finishedAt,message:raw.message??"",atlasPhase:raw.atlasPhase!==undefined?Number(raw.atlasPhase):undefined,atlasPhaseTotal:raw.atlasPhaseTotal!==undefined?Number(raw.atlasPhaseTotal):undefined,entityProgress:raw.entityProgress!==undefined?Number(raw.entityProgress):undefined,entityTotal:raw.entityTotal!==undefined?Number(raw.entityTotal):undefined,entityNames:raw.entityNames,atlasTelemetry:raw.atlasTelemetry,outcome:raw.outcome==="incomplete"||raw.outcome==="complete"?raw.outcome:undefined,resumable:raw.resumable,targetIds:raw.targetIds,targetIndex:raw.targetIndex!==undefined?Number(raw.targetIndex):undefined,targetTotal:raw.targetTotal!==undefined?Number(raw.targetTotal):undefined,currentTargetId:raw.currentTargetId!==undefined?Number(raw.currentTargetId):undefined,currentPhase:raw.currentPhase,completedTargetIds:raw.completedTargetIds,failedTargetIds:raw.failedTargetIds,retryCounts:raw.retryCounts,result:raw.result};
+}
+export async function getJob(jobId:string):Promise<JobState|null>{
+  if(memoryOnlyJobs.has(jobId))return memoryJobs.get(jobId)??null;
+  let redisOk=false;
+  const raw=await safeRedis(async rc=>{const value=await rc.hgetall(jk(jobId));redisOk=true;return value;},null);
+  if(!redisOk)return null;
+  if(!raw||Object.keys(raw).length===0)return memoryOnlyJobs.has(jobId)?(memoryJobs.get(jobId)??null):null;
+  return parsePersistedJobState(jobId,raw);
+}
+export async function getJobStrict(jobId:string):Promise<JobState|null>{
+  if(memoryOnlyJobs.has(jobId))return memoryJobs.get(jobId)??null;
+  let redisOk=false;
+  const raw=await safeRedis(async rc=>{const value=await rc.hgetall(jk(jobId));redisOk=true;return value;},null);
+  if(!redisOk)throw new Error("Permanent Redis job-state read failed; job record state is unknown.");
+  if(!raw||Object.keys(raw).length===0)return null;
+  return parsePersistedJobState(jobId,raw);
+}
+
 export async function getJobLog(jobId:string):Promise<string[]>{const r=await safeRedis(rc=>rc.lrange(lk(jobId),0,LOG_CAP-1),null as string[]|null);return r&&r.length?r:memoryLogs.get(jobId)??[];}
 const DEDUP_KEY="apex:dedup:hnwi";export async function isDuplicate(k:string){return permSismember(DEDUP_KEY,k);}export async function markSeen(k:string){await withPermanentClient(async rc=>{await rc.sadd(DEDUP_KEY,k);await rc.expire(DEDUP_KEY,JOB_TTL);},undefined);}export async function getDedupCount(){return permScard(DEDUP_KEY);}export async function clearDedup(){await withPermanentClient(async rc=>{await rc.del(DEDUP_KEY);logger.info({key:DEDUP_KEY},"Dedup set cleared");},undefined);}export async function preloadDedupPrefix(prefix:string){const seen=new Set<string>();await withPermanentClient(async rc=>{let c="0";do{const[n,m]=await rc.sscan(DEDUP_KEY,c,"MATCH",`${prefix}*`,`COUNT`,2000);c=n;for(const x of m)seen.add(x);}while(c!=="0");logger.info({prefix,count:seen.size},"Dedup prefix pre-loaded");},undefined);return seen;}export async function batchMarkSeen(keys:string[]){if(!keys.length)return;await withPermanentClient(async rc=>{await rc.sadd(DEDUP_KEY,...keys);await rc.expire(DEDUP_KEY,JOB_TTL);},undefined);}
 const ACTIVE_JOB_TTL_SECONDS=15*60;const ACTIVE_JOB_RENEW_INTERVAL_MS=5*60*1000;const ACTIVE_JOB_READ_CACHE=new Map<string,{at:number;id:string|null}>();const ACTIVE_JOB_RENEWERS=new Map<string,ReturnType<typeof setInterval>>();const ACTIVE_JOB_READ_TTL_MS=8000;
@@ -85,7 +104,7 @@ export async function getActiveJobStrict(type:string):Promise<string|null>{
     return value;
   },null as string|null);
   const classified=classifyActiveJobRead(readSucceeded,jobId);
-  if(classified.state==="unavailable") throw new Error("Permanent Redis job-state read failed; active job state is unknown.");
+  if(classified.state==="unavailable"){ACTIVE_JOB_READ_CACHE.delete(type);throw new Error("Permanent Redis job-state read failed; active job state is unknown.");}
   if(classified.state==="active"){
     memoryActiveByType.set(type,classified.jobId);
     ACTIVE_JOB_READ_CACHE.set(type,{at:Date.now(),id:classified.jobId});
