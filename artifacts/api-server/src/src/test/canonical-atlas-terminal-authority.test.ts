@@ -23,4 +23,17 @@ describe("canonical Atlas terminal authority", () => {
     const current = deriveLatestEvidenceBackedTerminal("target", "review");
     expect(current).toBeNull();
   });
+  it("does not treat discovery admission as completion of a full Atlas run", async () => {
+    const { isCanonicalAtlasRunEvidenceComplete } = await import("../lib/canonical-terminal-authority");
+    expect(isCanonicalAtlasRunEvidenceComplete("discovery", 0)).toBe(false);
+    expect(isCanonicalAtlasRunEvidenceComplete("discovery", 1)).toBe(false);
+    expect(isCanonicalAtlasRunEvidenceComplete(null, 1)).toBe(false);
+  });
+
+  it("requires at least one completed target episode for full-run completion", async () => {
+    const { isCanonicalAtlasRunEvidenceComplete } = await import("../lib/canonical-terminal-authority");
+    expect(isCanonicalAtlasRunEvidenceComplete("target", 0)).toBe(false);
+    expect(isCanonicalAtlasRunEvidenceComplete("target", 1)).toBe(true);
+  });
+
 });
