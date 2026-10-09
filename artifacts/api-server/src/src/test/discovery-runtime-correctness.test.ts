@@ -173,9 +173,9 @@ describe("discovery runtime architecture", () => {
     ])).toEqual({ allowed: true, reason: null });
   });
 
-  it("scopes Groq token-window snapshots to the selected model", () => {
-    expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, model: string)");
-    expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model))");
+  it("scopes Groq token-window snapshots to the selected credential and model", () => {
+    expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, credential: string, model: string)");
+    expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, credential, model))");
     expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", key, model, response)");
     const snapshotCalls = researchCoreSource.match(/captureGroqRateLimitSnapshot\([^)]*\)/g) ?? [];
     expect(snapshotCalls.slice(1).every((call) => /,\s*model,\s*response/.test(call))).toBe(true);
@@ -196,9 +196,12 @@ describe("discovery runtime architecture", () => {
   });
 
   it("does not report oversight stopping as Investigator-selected completion", () => {
-    expect(researchSource).toContain('stopReason: "OVERSIGHT_STOP"');
-    expect(researchSource).toContain('if (callerOwnsOversight && isAcceptedInvestigatorTerminal');
-    expect(researchSource).not.toMatch(/if \(checkpointResult\.stop \|\|[\\s\\S]{0,220}stopReason: "MODEL_DECIDED_DONE"/);
+    const oversightStop = researchSource.indexOf("if (checkpointResult.stop) return");
+    const modelDone = researchSource.indexOf("if (callerOwnsOversight && isAcceptedInvestigatorTerminal");
+    expect(oversightStop).toBeGreaterThan(-1);
+    expect(modelDone).toBeGreaterThan(oversightStop);
+    expect(researchSource.slice(oversightStop, modelDone)).toContain('stopReason: "OVERSIGHT_STOP"');
+    expect(researchSource.slice(oversightStop, modelDone)).not.toContain('stopReason: "MODEL_DECIDED_DONE"');
     expect(researchCoreSource).toContain('"OVERSIGHT_STOP"');
   });
 
