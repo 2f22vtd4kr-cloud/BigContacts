@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ResearchIntelligenceEngine } from "../lib/research-intelligence-engine";
 
 describe("Apex research intelligence", () => {
-  it("does not trust a hostname merely because it contains the substring gov.", () => {
+  it("requires domain boundaries before assigning trusted source classes", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "government-host-boundary", target: "Alex Example", objective: "verify public role" });
     engine.recordAction({
       turn: 1, action: "visit", execution: "success",
@@ -16,9 +16,28 @@ describe("Apex research intelligence", () => {
       observation: "Alex Example is director of Beta",
       findings: [{ vectorType: "other", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://agency.gov.uk/profile"] }],
     });
+    engine.recordAction({
+      turn: 3, action: "visit", execution: "success",
+      urls: ["https://fake-news.example.com/profile"],
+      observation: "Alex Example is director of Gamma",
+      findings: [{ vectorType: "other", value: "director of Gamma", personName: "Alex Example", sourceUrls: ["https://fake-news.example.com/profile"] }],
+    });
+    engine.recordAction({
+      turn: 4, action: "visit", execution: "success",
+      urls: ["https://notlinkedin.com/profile"],
+      observation: "Alex Example is director of Delta",
+      findings: [{ vectorType: "other", value: "director of Delta", personName: "Alex Example", sourceUrls: ["https://notlinkedin.com/profile"] }],
+    });
+    engine.recordAction({
+      turn: 5, action: "visit", execution: "success",
+      urls: ["https://www.linkedin.com/in/alex-example"],
+      observation: "Alex Example profile",
+      findings: [{ vectorType: "other", value: "Alex Example profile", personName: "Alex Example", sourceUrls: ["https://www.linkedin.com/in/alex-example"] }],
+    });
     const quality = engine.buildContext().sourceQualitySummary;
-    expect(quality.find((item) => item.sourceClass === "UNKNOWN")?.count).toBeGreaterThan(0);
+    expect(quality.find((item) => item.sourceClass === "UNKNOWN")?.count).toBeGreaterThanOrEqual(3);
     expect(quality.find((item) => item.sourceClass === "OFFICIAL_GOVERNANCE")?.count).toBeGreaterThan(0);
+    expect(quality.find((item) => item.sourceClass === "SOCIAL_PROFILE")?.count).toBeGreaterThan(0);
   });
 
   it("keeps search-result leads out of evidence and source-coverage metrics", () => {
