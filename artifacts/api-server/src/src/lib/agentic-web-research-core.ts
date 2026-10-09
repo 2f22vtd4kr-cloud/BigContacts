@@ -984,7 +984,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
   if (!records.length) return { allowed: false, reason: "Discovery cannot terminate before any Investigator action." };
   const successfulExternalActions = records.filter((record) =>
     record.execution === "success" &&
-    ["web_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock"].includes(record.action),
+    ["web_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"].includes(record.action),
   );
   const successfulObserved = successfulExternalActions.filter((record) => {
     const observation = String(record.observation ?? "").trim().toLowerCase();
