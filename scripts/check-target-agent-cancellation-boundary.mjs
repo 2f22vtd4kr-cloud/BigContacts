@@ -17,7 +17,7 @@ const checks=[
 ["target oversight atomically persists immutable Investigator observation events",/db\.transaction\(async\(tx\)/.test(oversight)&&/actorRole:"head_investigator"/.test(oversight)&&/eventType:"tool_observation"/.test(oversight)],
 ["target oversight atomically persists immutable Boss decision events",/db\.transaction\(async\(tx\)/.test(oversight)&&/actorRole:"groq_boss"/.test(oversight)&&/eventType:"control_decision"/.test(oversight)],
 ["target observation persistence is idempotently correlated",/onConflictDoNothing\(\{target:\[researchCaseEventsTable\.caseId,researchCaseEventsTable\.correlationKey\]\}\)/.test(oversight)],
-["target oversight is anchored to the observation event",/observationEventId:eventId/.test(oversight)&&/buildActEvidenceGraphs\(caseId,act,eventId,runId\)/.test(oversight)],
+["target oversight is anchored to the observation event using the sanitized act",/observationEventId:eventId/.test(oversight)&&/buildActEvidenceGraphs\(caseId,safeAct,eventId,runId\)/.test(oversight)],
 ["target oversight serializes concurrent control projections",/isolationLevel:"serializable"/.test(oversight)],
 ];
 let failed=false;for(const[name,ok]of checks){console.log(`${ok?"PASS":"FAIL"} ${name}`);if(!ok)failed=true;}if(failed)process.exit(1);
