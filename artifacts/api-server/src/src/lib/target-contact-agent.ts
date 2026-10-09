@@ -81,7 +81,7 @@ function buildEvidenceGraphs(findings: AgenticFinding[], records: AgenticTraject
     // bind the exact claim. Never draw a "supports" edge from an identity-only
     // page to a contact value that the page does not show.
     const supportingUrls = citedUrls.filter((url) => records.some((record) => {
-      if (record.execution !== "success" || (record.action !== "visit" && record.action !== "browser_fetch")) return false;
+      if (record.execution !== "success" || !isClaimGradeObservationAction(record.action)) return false;
       const observed = record.observedUrls.map(normalizeObservedUrl).some((observedUrl) => observedUrl === url);
       if (!observed || !record.observation?.trim()) return false;
       return supportsContactClaimAcrossObservations(
