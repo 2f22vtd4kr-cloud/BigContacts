@@ -72,7 +72,8 @@ async function readCacheBodyBounded(response:Response, maximumBytes:number, sign
 }
 function responseFromCache(entry:CacheEntry):Response{return new Response(entry.body.slice(),{status:entry.status,statusText:entry.statusText,headers:entry.headers});}function removeResponseCacheEntry(key:string):void{const entry=responseCache.get(key);if(!entry)return;responseCache.delete(key);responseCacheBytes=Math.max(0,responseCacheBytes-entry.body.byteLength);}function pruneResponseCache(now:number):void{for(const[key,entry]of responseCache)if(entry.expiresAt<=now)removeResponseCacheEntry(key);while(responseCache.size>=maxResponseCacheEntries()||responseCacheBytes>=maxResponseCacheBytes()){const oldest=responseCache.keys().next().value as string|undefined;if(!oldest)break;removeResponseCacheEntry(oldest);}}function makeRoomForResponse(bytes:number):void{const limit=maxResponseCacheBytes();while(responseCache.size>=maxResponseCacheEntries()||responseCacheBytes+bytes>limit){const oldest=responseCache.keys().next().value as string|undefined;if(!oldest)break;removeResponseCacheEntry(oldest);}}
  async function runProviderFetch(provider:ExternalProvider,input:string|URL|Request,init:RequestInit|undefined,fetcher:()=>Promise<Response>):Promise<Response>{
- if(init?.signal?.aborted)throw new Error("External provider call cancelled.");
+ const requestSignal=init?.signal??(typeof Request!=="undefined"&&input instanceof Request?input.signal:undefined);
+ if(requestSignal?.aborted)throw new Error("External provider call cancelled.");
  const key=cacheKey(provider,input,init);
  if(key){
   const cached=responseCache.get(key);
@@ -82,7 +83,7 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
   }
   if(cached)removeResponseCacheEntry(key);
   const existing=inFlight.get(key);
-  if(existing)return await waitForSharedResponse(existing,init?.signal);
+  if(existing)return await waitForSharedResponse(existing,requestSignal);
  }
  const config=providerConfig(provider),account=accountFingerprint(input,init),state=getState(providerStateKey(provider,account)),now=Date.now();
  if(state.cooldownUntil>now){logger.warn({provider,block:"cooldown",retryAfterMs:state.cooldownUntil-now,accountDigest:account,scope:getScope()},"External provider call blocked by quota cooldown");throw new ProviderQuotaError("cooldown",provider,state.cooldownUntil-now);}
@@ -95,11 +96,11 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
   throw new ProviderQuotaError("budget_exhausted",provider,retryAfterMs);
  }
  const task=(async()=>{
-  await acquireConcurrency(provider,init?.signal);
+  await acquireConcurrency(provider,requestSignal);
   try{
    const current=Date.now(),waitMs=Math.max(0,config.minIntervalMs-(current-state.lastStartedAt));
-   if(waitMs>0)await abortableProviderDelay(waitMs,init?.signal);
-   if(init?.signal?.aborted)throw new Error("External provider call cancelled.");
+   if(waitMs>0)await abortableProviderDelay(waitMs,requestSignal);
+   if(requestSignal?.aborted)throw new Error("External provider call cancelled.");
    // Budgets can be consumed while this call waits for a concurrency slot or
    // rate-limit delay. Recheck synchronously immediately before the request.
    assertProviderBudgetAvailable(provider,state,scopeState,config);
@@ -115,7 +116,7 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
    }
    const expiresAt=cacheExpiry(response,config.cacheTtlMs);
    if(key&&expiresAt!==null){
-    const body=await readCacheBodyBounded(response,Math.min(1_500_000,maxResponseCacheBytes()));
+    const body=await readCacheBodyBounded(response,Math.min(1_500_000,maxResponseCacheBytes()),requestSignal);if(requestSignal?.aborted)throw new Error("External provider call cancelled.");
     if(body&&body.byteLength<=1_500_000&&body.byteLength<=maxResponseCacheBytes()){
      pruneResponseCache(Date.now());makeRoomForResponse(body.byteLength);
      responseCache.set(key,{expiresAt,status:response.status,statusText:response.statusText,headers:[...response.headers.entries()],body});
