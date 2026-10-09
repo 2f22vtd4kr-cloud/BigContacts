@@ -25,7 +25,8 @@ add("Investigator discovery is fenced before and after execution", fencedAround(
 add("control decisions are fenced before and after Boss control", fencedAround("decideAtlasNextAction"));
 add("target investigation is fenced against cancellation", fencedAround("runCanonicalSingleTargetInvestigation"));
 add("cancelled pipeline cannot project done", /await assertAtlasJobActive\(atlasJobId\);[\s\S]*?await updateJob\(atlasJobId, \{ status: finalIncomplete \? "failed" : "done"/.test(source));
-add("cancelled jobs are persisted as cancelled/incomplete", /const cancelled = rawMessage\.includes\("Canonical Atlas job cancelled;"\)/.test(source) && /status: cancelled \? "cancelled" : "failed"/.test(source) && /outcome: "incomplete"/.test(source));
+add("cancellation classification comes from strict durable job state, never error text", /const cancelled = !jobStateUnavailable && durableJob\?\.status === "cancelled"/.test(source) && /const jobMissing = !jobStateUnavailable && !durableJob/.test(source) && /jobStateUnavailable/.test(source));
+add("cancelled jobs are persisted as cancelled/incomplete only when durable state confirms stop", /const cancelled = !jobStateUnavailable && durableJob\?\.status === "cancelled"/.test(source) && /status: cancelled \? "cancelled" : "failed"/.test(source) && /outcome: "incomplete"/.test(source) && /if \(!jobStateUnavailable\)/.test(source));
 add("failed jobs are not misclassified as cancellation", /job\.status === "failed"/.test(source) && /Canonical Atlas job already failed/.test(source));
 
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
