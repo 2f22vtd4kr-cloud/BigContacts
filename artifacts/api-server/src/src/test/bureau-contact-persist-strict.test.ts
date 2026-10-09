@@ -10,7 +10,7 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: {},
 }));
 
-import { isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+import { hasCanonicalPromotionJobBinding, isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("contact promotion entity-type eligibility", () => {
   it("allows a PersonCandidate to receive evidence-backed contact without classifying its wealth", () => {
@@ -237,5 +237,24 @@ describe("multi-source candidate contact attribution", () => {
       { observationText: "Public contact: jane@example.com", sourceUrls: ["https://example.com/contact"] },
       { observationText: "About our company", sourceUrls: ["https://example.com/about"] },
     ], { ...item, sourceUrls: [...item.sourceUrls, "https://example.com/about"] }, "jane@example.com", "email")).toBe(false);
+  });
+});
+
+
+describe("canonical job binding for trusted promotion", () => {
+  it("requires a positive case, non-empty run, and non-empty canonical job ID", () => {
+    expect(hasCanonicalPromotionJobBinding({ caseId: 2, runId: "run-1", jobId: "job-1" })).toBe(true);
+  });
+
+  it("rejects missing, null, blank, or whitespace-only job IDs", () => {
+    expect(hasCanonicalPromotionJobBinding({ caseId: 2, runId: "run-1" })).toBe(false);
+    expect(hasCanonicalPromotionJobBinding({ caseId: 2, runId: "run-1", jobId: null })).toBe(false);
+    expect(hasCanonicalPromotionJobBinding({ caseId: 2, runId: "run-1", jobId: "  " })).toBe(false);
+  });
+
+  it("rejects incomplete or invalid case/run context", () => {
+    expect(hasCanonicalPromotionJobBinding({ caseId: 0, runId: "run-1", jobId: "job-1" })).toBe(false);
+    expect(hasCanonicalPromotionJobBinding({ caseId: 2, runId: "  ", jobId: "job-1" })).toBe(false);
+    expect(hasCanonicalPromotionJobBinding(null)).toBe(false);
   });
 });
