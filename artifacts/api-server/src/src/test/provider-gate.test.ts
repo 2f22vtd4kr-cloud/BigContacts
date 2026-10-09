@@ -385,4 +385,95 @@ describe("provider quota gate", () => {
     expect(peak).toBe(1);
   });
 
+  it("rechecks the scope budget after concurrent calls wait for a provider slot", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "1";
+    process.env.APEX_EXTERNAL_GLOBAL_CONCURRENCY = "1";
+    process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GENERIC = "1";
+    let releaseFirst!: () => void;
+    let announceFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const firstStarted = new Promise<void>((resolve) => { announceFirst = resolve; });
+    let calls = 0;
+    const work = (hold = false) => runProviderCall({ provider: "generic", account: "queued-budget-test" }, async () => {
+      calls += 1;
+      if (hold) { announceFirst(); await firstGate; }
+      return "ok";
+    });
+    const first = work(true);
+    const second = work();
+    const third = work();
+    await firstStarted;
+    releaseFirst();
+    const results = await Promise.allSettled([first, second, third]);
+    expect(results[0]?.status).toBe("fulfilled");
+    expect(calls).toBe(1);
+    const rejected = results.slice(1).filter((result): result is PromiseRejectedResult => result.status === "rejected");
+    expect(rejected).toHaveLength(2);
+    expect(rejected.every((result) => result.reason instanceof ProviderQuotaError && result.reason.code === "budget_exhausted")).toBe(true);
+  });
+
+  it("serves a cached public GET without spending another provider attempt", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "1";
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return new Response("cached public response", { status: 200, headers: { "cache-control": "public, max-age=60" } });
+    }) as typeof fetch;
+    try {
+      const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+      installExternalQuotaGuard();
+      const first = await globalThis.fetch("https://public-cache.example.test/resource");
+      expect(await first.text()).toBe("cached public response");
+      const second = await globalThis.fetch("https://public-cache.example.test/resource");
+      expect(await second.text()).toBe("cached public response");
+      expect(calls).toBe(1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("rechecks the scope budget after guarded fetches wait for a provider slot", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "1";
+    process.env.APEX_EXTERNAL_GLOBAL_CONCURRENCY = "1";
+    process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GENERIC = "1";
+    const originalFetch = globalThis.fetch;
+    let releaseFirst!: () => void;
+    let announceFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    const firstStarted = new Promise<void>((resolve) => { announceFirst = resolve; });
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      if (calls === 1) { announceFirst(); await firstGate; }
+      return new Response("ok", { status: 200 });
+    }) as typeof fetch;
+    try {
+      const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+      installExternalQuotaGuard();
+      const work = () => withProviderScope("queued-fetch-budget-test", () =>
+        globalThis.fetch("https://public-fetch.example.test/run", { method: "POST", body: "{}" }),
+      );
+      const first = work();
+      const second = work();
+      const third = work();
+      await firstStarted;
+      releaseFirst();
+      const results = await Promise.allSettled([first, second, third]);
+      expect(results[0]?.status).toBe("fulfilled");
+      expect(calls).toBe(1);
+      const rejected = results.slice(1).filter((result): result is PromiseRejectedResult => result.status === "rejected");
+      expect(rejected).toHaveLength(2);
+      expect(rejected.every((result) => result.reason instanceof ProviderQuotaError && result.reason.code === "budget_exhausted")).toBe(true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
 });
