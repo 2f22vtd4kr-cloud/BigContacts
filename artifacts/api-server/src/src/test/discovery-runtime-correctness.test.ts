@@ -203,6 +203,8 @@ describe("discovery runtime architecture", () => {
     expect(researchSource.slice(oversightStop, modelDone)).toContain('stopReason: "OVERSIGHT_STOP"');
     expect(researchSource.slice(oversightStop, modelDone)).not.toContain('stopReason: "MODEL_DECIDED_DONE"');
     expect(researchCoreSource).toContain('"OVERSIGHT_STOP"');
+    expect(researchSource).toContain('"CONTINUATION STATE"');
+    expect(researchSource).toContain("priorContext: boundInvestigatorPromptSection");
   });
 
   it("keeps runtime safety checks fail-closed and bounded", () => {
