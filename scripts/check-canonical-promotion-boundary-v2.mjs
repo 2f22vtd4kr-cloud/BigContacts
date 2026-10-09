@@ -25,6 +25,7 @@ assert(hasAll(target, ["status: \"cancelled\"", "executionId: agentic.executionI
 assert(hasAll(bureau, ["persistSourceBackedBureauContactsForEntity", "sourceBackedAgenticFindings", "claimAppearsInObservedMaterial", "record.observation"]), "bureau pass uses strict persistence and observed-material claim validation");
 assert(hasAll(bureau, ['promote:candidate&&f.promotionDecision==="promote"', "state:\"review_only\"", "tier:\"candidate\""]), "bureau pass preserves explicit Investigator promotion semantics");
 assert(hasAll(bureau, ["runId?:string", "randomUUID()", "trajectoryRecords"]), "bureau pass creates run-scoped Investigator executions with structured trajectory");
+assert(bureau.includes("runId:agentic.runId??runId,jobId:input.jobId??null"), "bureau strict persistence carries the originating job ID into immutable promotion provenance");
 assert(hasAll(bureau, ["correlationKey", "record.turn", "runId:input.runId"]), "bureau trajectory/event persistence is run-scoped");
 assert(bureau.includes('agentic.status==="cancelled"?"cancelled"') && bureau.includes("mappedStatus"), "bureau result preserves the distinct cancelled state");
 assert(hasAll(strict, ["export type InvestigatorPromotionProvenance", "isClaimSourceUrl", "SEARCH_QUERY_URL", "observedSourceUrls"]), "strict boundary requires typed promotion provenance and rejects query URLs");
