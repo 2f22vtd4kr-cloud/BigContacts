@@ -228,11 +228,11 @@ describe("Apex research intelligence", () => {
     const url = "https://news.example.com/alex";
     engine.recordAction({
       turn: 1, action: "visit", execution: "success",
-      args: { hypothesis: "Alex Example is director of Alpha", purpose: "verify the directorship" },
+      args: { hypothesis: "Alex Example may be the director of Alpha", purpose: "verify the directorship" },
       urls: [url], observation: "Alex Example is director of Beta",
       findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: [url] }],
     });
-    const hypothesis = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example is director of Alpha");
+    const hypothesis = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example may be the director of Alpha");
     expect(hypothesis).toBeDefined();
     expect(hypothesis?.supportingEvidenceIds).toHaveLength(0);
   });
