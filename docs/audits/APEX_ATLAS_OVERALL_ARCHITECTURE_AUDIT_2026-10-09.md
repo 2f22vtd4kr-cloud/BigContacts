@@ -95,7 +95,7 @@ External contract check: Groq documents that JSON Object Mode guarantees JSON sy
 
 ## Follow-up build blocker — YTJ registry adapter syntax
 
-The exact-head GitHub Actions run for the Right-hand continuation fix exposed a separate parse/typecheck blocker in the parent tree: `searchYtjFinland` in `registry-client.ts` had three closing braces before an inner fallback `catch`, closing the `try` before its catch. Both the API typecheck and esbuild production build rejected that source. Removed the unmatched brace so only the contact-loop and response-success blocks close before the catch; the provider-detail failure remains a bounded best-effort enrichment and the multi-endpoint registry search behavior is otherwise unchanged. Exact-head CI must confirm the repaired tree; no Replit/runtime action was taken.
+The exact-head GitHub Actions run exposed a separate parse/typecheck blocker in `searchYtjFinland` in `registry-client.ts`: the function-level `catch` at the tail had no corresponding opening `try`. The repaired function now opens an outer `try`, while retaining all three closures needed before the inner best-effort catch around detail retrieval. The outer catch logs the provider failure and rethrows it so the multi-endpoint aggregator can mark the provider result incomplete rather than silently treating a partial response as a complete registry search. Exact-head CI for later source changes must still be inspected; no Replit/runtime action was taken.
 
 
 ## Follow-up bug-hunt — Right-hand request-slot cancellation cleanup
