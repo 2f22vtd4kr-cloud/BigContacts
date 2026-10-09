@@ -98,9 +98,17 @@ async function loadDurableTargetTrajectory(caseId: number): Promise<{ records: C
 
 async function loadCase(caseId: number): Promise<TargetCase | null> { const [row] = await db.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row?.targetEntityId) return null; return { ...row, targetEntityId: row.targetEntityId, iteration: Number(row.iteration ?? 0), objective: row.objective ?? "" }; }
 async function reconcileTargetCaseCancellation(atlasJobId: string, caseId: number): Promise<void> {
-  // This is an authoritative control-plane check: Redis failure must not be
-  // re-labelled as an operator cancellation by the fail-soft getJob() helper.
-  const job = await getJobStrict(atlasJobId);
+  // A strict read is mandatory here: an unavailable durable record is not an
+  // operator cancellation, and target case creation must not proceed blindly.
+  let job: Awaited<ReturnType<typeof getJobStrict>>;
+  try {
+    job = await getJobStrict(atlasJobId);
+  } catch (error) {
+    await db.update(researchCasesTable)
+      .set({ status: "review", currentAction: "canonical-job-state-unavailable", updatedAt: new Date() })
+      .where(and(eq(researchCasesTable.id, caseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`));
+    throw new Error("Canonical Atlas job state unavailable; target case creation is blocked.", { cause: error });
+  }
   if (!job || job.status === "cancelled") {
     const cancelled = job?.status === "cancelled";
     await db.update(researchCasesTable)
@@ -109,7 +117,7 @@ async function reconcileTargetCaseCancellation(atlasJobId: string, caseId: numbe
     if (cancelled) throw new Error("Canonical Atlas job cancelled; target case creation raced operator stop.");
     throw new Error("Canonical Atlas job record missing; target case creation cannot be reconciled safely.");
   }
-  if (job.status === "failed") throw new Error("Canonical Atlas job already failed; refusing further target control-plane work.");
+  if (job.status !== "running") throw new Error(`Canonical Atlas job is ${job.status}; refusing further target control-plane work.`);
   if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing further target control-plane work.");
 }
 function openingContext(target: { name: string; type: string }, companyName: string | null, caseId: number, objective: string, prior: string): string { return compactInvestigationContext({ raw: ["# Apex Atlas — Investigation Context", `Case: ${caseId}`, `Target: ${target.name}`, `Target type: ${target.type}`, `Company: ${companyName ?? "not established"}`, "## Bureau operating law", "Groq Boss is Boss. Groq Right-hand is Right Hand Advisor. the selected Investigator capability owns the research trajectory. The Investigator owns the research trajectory. Deterministic code validates safety, provenance, budgets, lifecycle and promotion integrity; it does not prescribe research hops.", "## Objective", objective, "## Prior durable context", prior || "No prior target-scoped investigation context exists."].join("\n\n") }); }
