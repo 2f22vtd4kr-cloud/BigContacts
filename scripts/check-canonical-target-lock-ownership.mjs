@@ -3,6 +3,7 @@ import fs from "node:fs";
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
 const continuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts", "utf8");
 const failures = [];
+const assert = (ok, message) => { if (!ok) failures.push(message); };
 assert(continuation.indexOf("groq-target-control-pending") >= 0
   && continuation.indexOf("groq-target-control-pending") < continuation.indexOf("decideTargetNextAction({"),
   "target continuation must durably bind its new job before the Boss decision helper persists control");
@@ -24,7 +25,6 @@ assert(/const durableOwner = parseFile\(locked\.caseFile\)/.test(continuation)
   && /await isCanonicalJobOwner\("atlas-run", jobId\)/.test(continuation),
   "target continuation authorization projection must revalidate durable case ownership and live lease");
 
-const assert = (ok, message) => { if (!ok) failures.push(message); };
 assert(/nextFile = \{ \.\.\.lockedFile, atlasJobId: jobId, jobId,/.test(continuation), "target continuation must durably rebind the case to its new canonical Atlas job before remounting the target runner");
 
 assert(!source.includes("releaseCanonicalJob"), "single-target runner must not release the Atlas lane owned by its caller");
