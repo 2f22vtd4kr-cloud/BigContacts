@@ -237,4 +237,19 @@ describe("Apex research intelligence", () => {
     expect(hypothesis?.supportingEvidenceIds).toHaveLength(0);
   });
 
+
+  it("does not score a similar-name person's claim as support for the target hypothesis", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-wrong-subject", target: "Jordan Example", objective: "verify directorship" });
+    const url = "https://news.example.com/jordan-jr";
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      args: { hypothesis: "Jordan Example is director of Alpha", purpose: "verify the directorship" },
+      urls: [url], observation: "Jordan Example Jr is director of Alpha",
+      findings: [{ vectorType: "is", value: "director of Alpha", personName: "Jordan Example Jr", sourceUrls: [url] }],
+    });
+    const hypothesis = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha");
+    expect(hypothesis).toBeDefined();
+    expect(hypothesis?.supportingEvidenceIds).toHaveLength(0);
+  });
+
 });
