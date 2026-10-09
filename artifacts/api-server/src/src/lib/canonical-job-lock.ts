@@ -48,9 +48,9 @@ async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
   const finishedAt = new Date().toISOString();
   // A failed renewal request is not proof of lease loss. This is called only
   // after a successful renewal command explicitly reports lost ownership.
-  // Fence Redis job state and durable case state independently: failure in one
-  // store must not prevent the best-effort fence in the other store.
-  const redisFence = withStrictPermanentClient(async (redis) => Number(await redis.eval(
+  // The Lua fence atomically re-checks ownership and terminal job state; never
+  // mark durable cases as lease-lost unless that check actually fenced the job.
+  const fenced = Number(await withStrictPermanentClient((redis) => redis.eval(
     "local owner=redis.call('get',KEYS[1]); if owner==ARGV[1] then return 0 end; local k=KEYS[2]; local status=redis.call('hget',k,'status'); if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end; redis.call('hset',k,'status','cancelled','outcome','incomplete','message',ARGV[2],'finishedAt',ARGV[3]); return 1",
     2,
     `apex:activejob:${type}`,
@@ -58,27 +58,33 @@ async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
     jobId,
     "Canonical lease lost; refusing further work.",
     finishedAt,
-  )) === 1);
-  const dbFence = db.update(researchCasesTable)
-    .set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() })
-    .where(and(
-      eq(researchCasesTable.status, "active"),
-      or(
-        sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`,
-        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`,
-      ),
-    ));
+  ))) === 1;
+  if (!fenced) return;
 
-  const [redisResult, dbResult] = await Promise.allSettled([redisFence, dbFence]);
-  if (redisResult.status === "rejected" || dbResult.status === "rejected") {
-    const redisFailure = redisResult.status === "rejected"
-      ? (redisResult.reason instanceof Error ? redisResult.reason.message : String(redisResult.reason))
-      : null;
-    const databaseFailure = dbResult.status === "rejected"
-      ? (dbResult.reason instanceof Error ? dbResult.reason.message : String(dbResult.reason))
-      : null;
-    throw new Error(`Canonical lease-loss fencing incomplete: redis=${redisFailure ?? "ok"}; database=${databaseFailure ?? "ok"}`);
+  // Redis is now fenced, so finish the matching durable-case transition. Retry
+  // transient database failures a small bounded number of times to reduce the
+  // chance of leaving a cancelled job paired with an active case. Retries are
+  // idempotent because the predicate only updates active cases for this job.
+  let lastFailure: unknown;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await db.update(researchCasesTable)
+        .set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() })
+        .where(and(
+          eq(researchCasesTable.status, "active"),
+          or(
+            sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`,
+            sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`,
+          ),
+        ));
+      return;
+    } catch (error) {
+      lastFailure = error;
+      if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, 50 * attempt));
+    }
   }
+  const message = lastFailure instanceof Error ? lastFailure.message : String(lastFailure ?? "unknown database error");
+  throw new Error(`Canonical lease-loss Redis fence succeeded but durable case fencing failed after 3 attempts: ${message}`);
 }
 
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
