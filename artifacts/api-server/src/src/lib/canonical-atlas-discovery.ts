@@ -636,7 +636,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         investigatorIterationsUsed += Math.max(0, nextDiscovery.iterations ?? 0);
         investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations;
          latestEvidenceBackedTerminal = deriveLatestEvidenceBackedTerminal("discovery", nextDiscovery.status, nextDiscovery.stopReason, investigatorResourceLimited);
-        
         admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: nextDiscovery.findings, atlasJobId, discoveryCaseId }); admitted = uniqueNames([...admitted, ...admission.names]); materialized += admission.materialized; evidenceRows += admission.evidenceRows;
       }
     }
