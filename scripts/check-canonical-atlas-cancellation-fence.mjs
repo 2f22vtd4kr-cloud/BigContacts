@@ -17,7 +17,8 @@ const fencedAround = (token) => {
   return after >= 0;
 };
 
-add("canonical Atlas pipeline reads durable job cancellation state", /async function assertAtlasJobActive\(jobId: string\)/.test(source) && /const job = await getJob\(jobId\)/.test(source));
+add("canonical Atlas pipeline reads durable job cancellation state", /async function assertAtlasJobActive\(jobId: string\)/.test(source) && /const job = await getJobStrict\(jobId\)/.test(source));
+add("Redis read failure or missing job state is never mislabeled as cancellation", /Canonical Atlas job record missing; refusing further control-plane work\./.test(source) && /const cancelled = job\?\.status === "cancelled"/.test(source));
 add("Groq Right-hand opening stage is fenced before and after execution", fencedAround("runGroqRightHandFreeJson"));
 add("Groq Boss opening stage is fenced before and after execution", fencedAround("runGroqBossDiscovery"));
 add("Investigator discovery is fenced before and after execution", fencedAround("runBureauAgenticWebPass"));
