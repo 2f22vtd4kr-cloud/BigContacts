@@ -83,6 +83,6 @@ describe("target-act oversight prompt compaction", () => {
       findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", scope: "candidate", sourceUrls: ["https://example.com/team"] }],
       sourceRecords: [{ turn: 1, action: "visit", execution: "success", observation: "Team contact: Jane Example — jane@example.com", observedUrls: ["https://example.com/team"], findings: [] }],
     };
-    expect(buildActEvidenceGraphs(7, act, 123, "run-missing-anchor")).toEqual([]);
+    expect(buildActEvidenceGraphs(7, act, 123, "run-missing-anchor", new Map())).toEqual([]);
   });
 });

@@ -83,7 +83,9 @@ describe("target act URL privacy boundary", () => {
     expect(source).toContain("const safeAct=sanitizeObservableValue(act)");
     expect(source).toContain("const safeOversight=sanitizeObservableValue(oversight)");
     expect(source).toContain("actDigest(safeAct,runId,turn)");
-    expect(source).toContain("buildActEvidenceGraphs(caseId,safeAct,eventId,runId)");
+    expect(source).toContain("buildActEvidenceGraphs(caseId,safeAct,eventId,runId,sourceEventIds)");
+    expect(source).toContain('sourcePayload={...sourcePayloadBase,sourceDigest};');
+    expect(source).toContain('existingSource.eventType!=="observation"');
     expect(source).toContain("act:compactAct(safeAct),oversight:safeOversight");
     expect(source).toContain("legacyControlDigest");
   });
