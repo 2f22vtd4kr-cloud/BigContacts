@@ -9,7 +9,7 @@ vi.mock("@workspace/db", () => ({
 }));
 
 import { findingsToBureauContacts, sourceBackedAgenticFindings } from "../lib/bureau-agentic-pass";
-import { findingsToContacts, sourceBackedFindings } from "../lib/target-contact-agent";
+import { findingsToContacts, sourceBackedFindings, sourceBackedReviewableFindings } from "../lib/target-contact-agent";
 import { supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 import type { AgenticFinding, AgenticTrajectoryRecord } from "../lib/agentic-web-research";
 
@@ -114,6 +114,7 @@ describe("agentic source provenance", () => {
       "step2: visit https://example.com/contact execution=success observed=https://example.com/contact",
     ];
     const reviewable = sourceBackedAgenticFindings(raw, trajectory, records);
+    expect(sourceBackedReviewableFindings(raw, trajectory, records)).toHaveLength(1);
     const materials = records.map((record) => ({ observationText: record.observation ?? "", sourceUrls: record.observedUrls }));
     expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(0);
     expect(reviewable).toHaveLength(1);
