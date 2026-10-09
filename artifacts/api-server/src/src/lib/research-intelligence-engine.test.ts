@@ -4,7 +4,7 @@ describe("ResearchIntelligenceEngine", () => {
   it("deduplicates evidence, tracks source diversity, and preserves a hash-chain digest", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-1", target: "Jane Example", objective: "Find an attributable public contact route" });
     engine.recordAction({ turn: 1, action: "web_search", execution: "success", urls: ["https://example.gov/people/jane"], observation: "Jane Example director", findings: [{ vectorType: "email", value: "jane@example.org", personName: "Jane Example", sourceUrls: ["https://example.gov/people/jane"], note: "official directory" }] });
-    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://example.gov/people/jane"], observation: "same page", findings: [{ vectorType: "email", value: "jane@example.org", personName: "Jane Example", sourceUrls: ["https://example.gov/people/jane"] }] });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://example.gov/people/jane"], observation: "Jane Example director email jane@example.org", findings: [{ vectorType: "email", value: "jane@example.org", personName: "Jane Example", sourceUrls: ["https://example.gov/people/jane"] }] });
     const state = engine.buildContext();
     expect(state.evidenceCount).toBeGreaterThan(0); expect(state.sourceDiversity).toBe(1); expect(state.provenanceDigest).toHaveLength(64); expect(state.contacts[0]?.state).toBe("ATTRIBUTED");
   });
