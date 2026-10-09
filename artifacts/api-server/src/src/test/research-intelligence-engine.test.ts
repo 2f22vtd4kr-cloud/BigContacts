@@ -74,9 +74,9 @@ describe("Apex research intelligence", () => {
       observation: longObservation,
       findings: [{ vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [sourceUrl] }],
     });
-    const evidence = engine.buildContext().atomicEvidence.filter((item) => item.kind === "finding" && item.sourceUrl === sourceUrl);
-    expect(evidence.some((item) => item.spanBindingKind === "identity_and_value")).toBe(false);
-    expect(evidence.some((item) => item.spanBindingKind === "value")).toBe(true);
+    const evidence = engine.buildContext().atomicEvidence.filter((item) => item.sourceUrl === sourceUrl && item.spanBound === true);
+    expect(evidence.some((item) => item.kind === "finding" && item.spanBindingKind === "identity_and_value")).toBe(false);
+    expect(evidence.some((item) => item.kind === "observation" && item.spanBindingKind === "value")).toBe(true);
   });
 
   it("upgrades deduplicated evidence when a later observation binds identity and value together", () => {
