@@ -27,7 +27,9 @@ fi
 # implicit side effect of starting a replica. Set APEX_ALLOW_SCHEMA_PUSH=true
 # only during a deliberate schema migration window.
 if [[ "${APEX_ALLOW_SCHEMA_PUSH:-false}" == "true" ]]; then
-  pnpm --filter @workspace/db run push
+  # Use the complete single-writer initializer so durable invariants and
+  # compatibility migrations are installed together with the Drizzle schema.
+  bash scripts/initialize-apex-schema.sh
 else
   echo "[replit-boot] schema push skipped (set APEX_ALLOW_SCHEMA_PUSH=true only for an explicit migration)"
 fi
