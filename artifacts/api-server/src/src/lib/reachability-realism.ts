@@ -67,14 +67,6 @@ function hasValue(value: string | null | undefined): boolean {
  */
 export function assessTargetReachability(input: ReachabilityInput): ReachabilityAssessment {
   const metadata = parseMetadata(input.metadata);
-  const metadataText = JSON.stringify(metadata);
-  const contextText = [
-    input.notes,
-    input.sourceRegistries,
-    metadataText,
-    typeof metadata.publicProminence === "string" ? metadata.publicProminence : "",
-    typeof metadata.prominence === "string" ? metadata.prominence : "",
-  ].filter(Boolean).join(" ").toLowerCase();
 
   const hasDirectContact = hasMeaningfulDirectContact({
     type: input.type,
@@ -88,10 +80,10 @@ export function assessTargetReachability(input: ReachabilityInput): Reachability
   const hasIntermediaryPath = gatekeeperConnections > 0 || intermediaryConnections > 0;
 
   const ultraWealthSignal = (input.estimatedNetWorth ?? 0) >= 500_000_000;
-  const publicProminenceSignal =
-    metadata.publicProminence === true ||
-    metadata.prominence === "high" ||
-    /\b(forbes|bloomberg|reuters|household name|world[- ]famous|public figure|head of state|royal family|celebrity)\b/i.test(contextText);
+  // Only canonical structured markers may change the resource strategy.
+  // Notes, registry names and source text commonly mention media/celebrity
+  // vocabulary; lexical mention alone is not a prominence assessment.
+  const publicProminenceSignal = metadata.publicProminence === true || metadata.prominence === "high";
 
   const reasons: string[] = [];
   const blockers: string[] = [];
