@@ -38,7 +38,7 @@ export function canonicalizeUrl(raw: string | null | undefined): string | null {
     return null;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
   url.hostname = host;
   url.hash = "";
   const keptParams = new URLSearchParams();
