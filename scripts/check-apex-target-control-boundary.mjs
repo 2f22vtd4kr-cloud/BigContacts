@@ -7,6 +7,8 @@ const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-con
 const strictPromotion = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts", "utf8");
 const mutationGuard = fs.readFileSync("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts", "utf8");
 const checks = [
+  ["durable target control requires live canonical lease before and during persistence", (targetControlDecision.match(/await isCanonicalJobOwner\("atlas-run", input\.jobId\)/g) ?? []).length >= 3 && /ownershipFile\.atlasJobId \?\? ownershipFile\.jobId/.test(targetControlDecision)],
+
   ["canonical runner does not consume stale targetControlDecisions", !/readContinuationControl\(/.test(runner)],
   ["canonical target case lookup is explicitly target-scoped", /eq\(researchCasesTable\.caseType,\s*["']target["']\)/.test(runner)],
   ["canonical target case reuse is bound to atlasJobId", /state\.atlasJobId === atlasJobId/.test(runner)],
