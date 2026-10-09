@@ -247,17 +247,17 @@ export class ResearchIntelligenceEngine {
         + Math.min(0.2, newHostCount * 0.1));
     const predictedInformationGain = clamp(input.predictedInformationGain ?? informationGain);
     this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain, findingNames: [...new Set(findings.map((finding) => String(finding.personName ?? "").trim()).filter(Boolean))].slice(0, 8), findingRoles: [...new Set(findings.map((finding) => String(finding.role ?? "").trim()).filter(Boolean))].slice(0, 8) });
+    // Reconcile newly observed competing claims before deciding which findings support this turn's hypothesis.
     const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
     const modelPurpose = typeof input.args?.purpose === "string" ? input.args.purpose.trim() : "";
     if (modelHypothesis) {
-      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim") && overlap(modelHypothesis, evidence.claim) >= 0.35).map((evidence) => evidence.id);
+      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim") && overlap(modelHypothesis, evidence.claim) >= 0.35 && !evidence.contradicts.some((id) => { const competing = this.evidence.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); })).map((evidence) => evidence.id);
       this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, missingDiscriminators: modelPurpose ? [modelPurpose] : [] });
     }
     const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
     const actionLearningKey = learningQuestion ? input.action + "|" + learningQuestion.slice(0, 180) : input.action;
     this.actionYield.set(actionLearningKey, updateActionYield(this.actionYield.get(actionLearningKey), { useful, execution: input.execution, informationGain, predictedInformationGain, realizedInformationGain: informationGain, turn: input.turn }));
     this.chain = hash(`${this.chain}|${input.turn}|${input.action}|${input.execution}|${JSON.stringify(urls)}|${findings.map((f) => `${f.vectorType}:${f.value}`).join("|")}`);
-    this.reconcileContradictions();
   }
 
   /** Restore durable epistemic state after a process restart. This is projection reconstruction only: it never selects research actions or providers. */
