@@ -2,9 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   safeOutboundFetch: vi.fn(),
+  browserFetchHtml: vi.fn(),
 }));
 
 vi.mock("../lib/ssrf-safe-fetch", () => ({ safeOutboundFetch: mocks.safeOutboundFetch }));
+vi.mock("../lib/browser-fetch", () => ({
+  browserFetchConfigured: () => true,
+  browserFetchHtml: mocks.browserFetchHtml,
+}));
 
 import { bindModelFindingsToObservedSources, discoveryTerminalGate, parseOptionalRateLimitNumber, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capability-registry";
@@ -132,6 +137,7 @@ describe("Groq Investigator provider boundary", () => {
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
     resetProviderGateForTests();
     mocks.safeOutboundFetch.mockReset();
+    mocks.browserFetchHtml.mockReset();
     vi.restoreAllMocks();
   });
 
@@ -177,6 +183,38 @@ describe("Groq Investigator provider boundary", () => {
       "Bearer test-groq-investigator-413-key",
       "Bearer test-groq-investigator-413-key",
     ]);
+  });
+
+  it("does not promote a browser-fetched source URL when the selected scraper cannot attest its final navigation URL", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-browser-source-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    mocks.browserFetchHtml.mockResolvedValue({
+      html: "<html><body>Jane Example — Founder — jane@example.com</body></html>",
+      provider: "browserless",
+      observedUrl: null,
+    });
+    const payload = {
+      action: "browser_fetch", query: null, provider: "browserless",
+      url: "https://example.com/redirect", email: null, username: null, domain: null,
+      registry: null, thought: "Inspect a dynamic page", hypothesis: "The page may contain identity evidence",
+      purpose: "test a candidate source", expectedInformationGain: 0.8, locale: null, market: null,
+      target: null, targetType: null, profile: null, searches: [], findings: [],
+    };
+    mocks.safeOutboundFetch.mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify(payload) } }],
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await runAgenticWebResearch({
+      targetName: "Jane Example",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.trajectoryRecords[0]?.action).toBe("browser_fetch");
+    expect(result.trajectoryRecords[0]?.execution).toBe("success");
+    expect(result.trajectoryRecords[0]?.observedUrls).toEqual([]);
+    expect(result.trajectoryRecords[0]?.observation).toContain("SOURCE_URL_UNVERIFIED");
   });
 
   it("owns a transient Groq 429 retry at the Investigator caller boundary", async () => {
