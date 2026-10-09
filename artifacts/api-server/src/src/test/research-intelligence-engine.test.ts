@@ -118,4 +118,44 @@ describe("Apex research intelligence", () => {
     expect(engine.buildContext().contacts[0]?.state).toBe("STALE");
     expect(engine.getFeedbackStats().bounced).toBe(1);
   });
+
+  it("recomputes hypothesis confidence from a stable prior across repeated context reads", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "stable-posterior", target: "Jordan Example", objective: "resolve identity" });
+    const url = "https://registry.example.gov/jordan";
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success", urls: [url],
+      observation: "Jordan Example is director of Alpha",
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [url] }],
+    });
+    const evidenceId = engine.buildContext().atomicEvidence[0]?.evidenceId;
+    expect(evidenceId).toBeTruthy();
+    engine.addHypothesis({ label: "Jordan Example is director of Alpha", entity: "Jordan Example director Alpha", score: 0.5, supportingEvidenceIds: [evidenceId!] });
+    const first = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha")?.score;
+    const second = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha")?.score;
+    expect(first).toBeDefined();
+    expect(second).toBeCloseTo(first!, 12);
+  });
+
+  it("unions support and contradiction evidence when the same hypothesis is observed again", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-evidence-union", target: "Jordan Example", objective: "resolve identity" });
+    const firstUrl = "https://registry.example.gov/jordan";
+    const secondUrl = "https://news.example.com/jordan";
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success", urls: [firstUrl],
+      observation: "Jordan Example is director of Alpha",
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [firstUrl] }],
+    });
+    engine.recordAction({
+      turn: 2, action: "visit", execution: "success", urls: [secondUrl],
+      observation: "Jordan Example is director of Alpha",
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [secondUrl] }],
+    });
+    const evidenceIds = engine.buildContext().atomicEvidence.map((item) => item.evidenceId);
+    expect(evidenceIds).toHaveLength(2);
+    engine.addHypothesis({ label: "Jordan Example is director of Alpha", entity: "Jordan Example director Alpha", supportingEvidenceIds: [evidenceIds[0]!] });
+    engine.addHypothesis({ label: "Jordan Example is director of Alpha", entity: "Jordan Example director Alpha", supportingEvidenceIds: [evidenceIds[1]!] });
+    const hypothesis = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha");
+    expect(hypothesis?.supportingEvidenceIds).toEqual(expect.arrayContaining(evidenceIds));
+  });
+
 });
