@@ -22,4 +22,15 @@ describe("search hidden-entity visibility boundary", () => {
     expect(source).toContain("eq(entitiesTable.isHidden,false)");
     expect(source).toContain("filteredResults=filteredResults.filter(r=>visibleIds.has(Number(r.id)))");
   });
+  it("excludes hidden-owned assets from the public aggregate facets and versions the cache", () => {
+    const source = fs.readFileSync(
+      path.resolve(process.cwd(), "src/src/routes/search.ts"),
+      "utf8",
+    );
+    expect(source).toContain('getCache<object>("search:facets:v2")');
+    expect(source).toContain('setCache("search:facets:v2",facets,300)');
+    expect(source).toContain("leftJoin(entitiesTable,eq(assetsTable.ownerEntityId,entitiesTable.id))");
+    expect(source).toContain("or(isNull(assetsTable.ownerEntityId),eq(entitiesTable.isHidden,false))");
+  });
+
 });
