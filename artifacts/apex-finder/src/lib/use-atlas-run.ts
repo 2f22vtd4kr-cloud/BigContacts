@@ -16,11 +16,9 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
   const refresh = useCallback(async (signal?: AbortSignal) => {
     try {
       const res = await fetch(`${BASE}/api/ingest/job/active/atlas-run`, { cache: "no-store", credentials: "same-origin", signal });
-      if (!res.ok) {
-        if (res.status === 401 || res.status === 403) emitApexError(classifyApexError("Operator authentication required", res.status));
-        return;
-      }
       const data = await readApiJson(res) as any;
+      // A failed poll is not an idle run; the shared reader surfaces HTTP errors.
+      if (!res.ok) return;
       const job = data?.job ?? null;
       const status = String(job?.status ?? data?.jobStatus ?? "").toLowerCase();
       const active = Boolean(data?.active) && (status === "running" || status === "paused" || status === "queued");
