@@ -169,6 +169,22 @@ describe("same-source identity binding for candidate contact promotion", () => {
     )).toBe(false);
   });
 
+  it("rejects identity and contact values separated by unrelated directory content", () => {
+    const noisyPage = "Jane Example — Founder. " + "Unrelated profile: someone else works in another department. ".repeat(12) + "Email: jane@example.com";
+    expect(supportsCandidateContactOnSameObservation(noisyPage,candidate,"jane@example.com","email")).toBe(false);
+    expect(supportsContactClaimAcrossObservations(
+      [{observationText:noisyPage,sourceUrls:["https://example.com/directory"]}],
+      {...candidate,vectorType:"email",value:"jane@example.com",sourceUrls:["https://example.com/directory"]},
+      "jane@example.com","email",
+    )).toBe(false);
+  });
+
+  it("requires a phone number to be locally bound to the same person", () => {
+    const noisyPage = "Jane Example — Founder. " + "Other people and their biographies. ".repeat(14) + "Direct line +1 (212) 555-0199";
+    expect(supportsCandidateContactOnSameObservation(noisyPage,candidate,"+1 212 555 0199","phone")).toBe(false);
+    expect(supportsCandidateContactOnSameObservation("Jane Example — direct line +1 (212) 555-0199",candidate,"+1 212 555 0199","phone")).toBe(true);
+  });
+
   it("requires exact identity and contact token boundaries", () => {
     expect(supportsCandidateContactOnSameObservation(
       "Jane Exampleton — jane@example.com",

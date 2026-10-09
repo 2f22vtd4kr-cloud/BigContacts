@@ -5,6 +5,7 @@ import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from ".
 import { assessIdentityCollision } from "./identity-collision";
 import { countIndependentSourceHosts } from "./source-corroboration";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
+import { bindExactSourceSpan } from "./research-epistemic-vnext";
 export type BureauContactLike = { vectorType?: string | null; value?: string | null; scope?: string | null; personName?: string | null; role?: string | null; sourceUrls?: string[] | null; note?: string | null; tier?: string | null; state?: string | null; promote?: boolean | null };
 export type InvestigatorPromotionProvenance = { caseId: number; runId: string; jobId?: string | null };
 
@@ -36,16 +37,46 @@ export function hasExactObservedToken(text:string,value:string):boolean{
  }
  return false;
 }
+function exactTokenOffsets(text:string,value:string):number[]{
+ const source=text.toLowerCase(),needle=value.trim().toLowerCase();
+ if(!needle)return[];
+ const continues=(character:string)=>Boolean(character)&&/[\\p{L}\\p{N}_@+-]/u.test(character);
+ const offsets:number[]=[];let index=source.indexOf(needle);
+ while(index>=0){
+  const afterIndex=index+needle.length,before=source[index-1]??"",after=source[afterIndex]??"";
+  if(!continues(before)&&!continues(after)&&!(after==="."&&/[\\p{L}\\p{N}]/u.test(source[afterIndex+1]??""))&&!(needle.includes("@")&&before==="."))offsets.push(index);
+  index=source.indexOf(needle,index+1);
+ }
+ return offsets;
+}
+function hasBoundPhoneAndIdentity(observationText:string,personName:string,cleanValue:string,maxDistance=320):boolean{
+ const digits=cleanValue.replace(/\\D/g,"");
+ if(digits.length<7)return false;
+ const identityOffsets=exactTokenOffsets(observationText,personName);
+ if(!identityOffsets.length)return false;
+ const phonePattern=/\\+?\\d[\\d\\s().-]{5,}\\d/g;
+ for(const match of observationText.matchAll(phonePattern)){
+  if((match[0]??"").replace(/\\D/g,"")!==digits)continue;
+  const valueStart=match.index??-1,valueEnd=valueStart+match[0].length;
+  if(identityOffsets.some((identityStart)=>Math.max(0,Math.max(identityStart-valueEnd,valueStart-(identityStart+personName.length)))<=maxDistance))return true;
+ }
+ return false;
+}
+function hasBoundIdentityAndValue(observationText:string,personName:string,cleanValue:string,vectorType:string):boolean{
+ if(!observationText.trim()||!personName.trim()||!cleanValue.trim())return false;
+ if(vectorType==="phone")return hasBoundPhoneAndIdentity(observationText,personName,cleanValue);
+ return Boolean(bindExactSourceSpan(observationText,cleanValue,personName,320)?.exact);
+}
 export function supportsCandidateContactOnSameObservation(observationText:string,item:BureauContactLike,cleanValue:string,vectorType:string):boolean{
  if(!observationText.trim()||!cleanValue.trim())return false;
  if(String(item.scope??"").toLowerCase()==="candidate"){
   const name=typeof item.personName==="string"?item.personName.trim():"";
-  if(!name||!hasExactObservedToken(observationText,name))return false;
+  return Boolean(name&&hasBoundIdentityAndValue(observationText,name,cleanValue,vectorType));
  }
  if(vectorType==="phone"){
-  const digits=cleanValue.replace(/\D/g,"");
-  const phoneTokens:string[]=observationText.match(/\+?\d[\d\s().-]{5,}\d/g)??[];
-  return digits.length>=7&&phoneTokens.some(token=>token.replace(/\D/g,"")===digits);
+  const digits=cleanValue.replace(/\\D/g,"");
+  const phoneTokens:string[]=observationText.match(/\\+?\\d[\\d\\s().-]{5,}\\d/g)??[];
+  return digits.length>=7&&phoneTokens.some(token=>token.replace(/\\D/g,"")===digits);
  }
  return hasExactObservedToken(observationText,cleanValue);
 }
@@ -65,14 +96,13 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
   if (!urls.length || !observation.observationText.trim()) continue;
   const identity = candidate && hasExactObservedToken(observation.observationText, personName);
   const value = vectorType === "phone"
-   ? (() => { const digits = cleanValue.replace(/\D/g, ""); const tokens = observation.observationText.match(/\+?\d[\d\s().-]{5,}\d/g) ?? []; return digits.length >= 7 && tokens.some((token) => token.replace(/\D/g, "") === digits); })()
+   ? (() => { const digits = cleanValue.replace(/\\D/g, ""); const tokens = observation.observationText.match(/\\+?\\d[\\d\\s().-]{5,}\\d/g) ?? []; return digits.length >= 7 && tokens.some((token) => token.replace(/\\D/g, "") === digits); })()
    : hasExactObservedToken(observation.observationText, cleanValue);
   if (identity) identityObserved = true;
   if (value) valueObserved = true;
-  // Trusted promotion requires at least one claim-grade observation to bind
-  // the candidate's exact identity and exact contact value together. Separate
-  // pages can support review-only attribution but cannot alone prove ownership.
-  if (candidate && identity && value) identityAndValueBoundTogether = true;
+  // Same-page token presence is insufficient: a large directory can mention many
+  // people and contact points. Require a bounded local co-binding passage.
+  if (candidate && hasBoundIdentityAndValue(observation.observationText,personName,cleanValue,vectorType)) identityAndValueBoundTogether = true;
   if (candidate ? identity || value : value) for (const url of urls) supportingUrls.add(url);
  }
  return identityObserved && valueObserved && identityAndValueBoundTogether && [...cited].every((url) => supportingUrls.has(url));
