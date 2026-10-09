@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Request, Response } from "express";
 import {
@@ -25,6 +27,28 @@ function response() {
   return { result, value: target as unknown as Response };
 }
 describe("operator authentication boundary", () => {
+  it("uses a single operator auth contract across the API mount and browser gate", () => {
+    const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/app.ts"), "utf8");
+    const routeSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/index.ts"), "utf8");
+    const loginSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/operator-auth.ts"), "utf8");
+    const gateSource = fs.readFileSync(path.resolve(process.cwd(), "../apex-finder/src/components/operator-gate.tsx"), "utf8");
+
+    // Do not reintroduce the retired, incompatible API-cookie verifier before
+    // the canonical operator-session boundary.
+    expect(appSource).toContain('app.use("/api",router)');
+    expect(appSource).not.toContain("apiAuthMiddleware");
+    expect(routeSource).toContain("router.use(operatorAuthRouter)");
+    expect(routeSource).toContain("router.use(requireOperatorAuth)");
+    expect(routeSource.indexOf("router.use(operatorAuthRouter)")).toBeLessThan(
+      routeSource.indexOf("router.use(requireOperatorAuth)"),
+    );
+
+    // Browser payload and server contract must stay aligned.
+    expect(gateSource).toContain("body: JSON.stringify({ password })");
+    expect(loginSource).toContain('typeof req.body?.password === "string"');
+  });
+
+
   it("fails closed when a required secret is missing or too short", () => {
     expect(readOperatorAuthConfig({ ...ENV, APEX_API_AUTH_TOKEN: "short" })).toBeNull();
     expect(missingOperatorAuthNames({ ...ENV, APEX_SESSION_SECRET: "" })).toContain("APEX_SESSION_SECRET");
