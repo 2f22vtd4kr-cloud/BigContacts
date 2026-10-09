@@ -3,7 +3,7 @@ import type { Request, Response } from "express";
 import {
   createOperatorSessionToken, createRequireOperatorAuth, isOperatorAuthorized,
   missingOperatorAuthNames, readOperatorAuthConfig, safeSecretEqual,
-  verifyOperatorSessionToken, OPERATOR_SESSION_COOKIE, OPERATOR_SESSION_TTL_SECONDS,
+  verifyOperatorSessionToken, isTrustedOperatorOrigin, OPERATOR_SESSION_COOKIE, OPERATOR_SESSION_TTL_SECONDS,
   type OperatorAuthConfig,
 } from "../lib/operator-auth";
 const ENV: Record<string, string> = {
@@ -63,6 +63,44 @@ describe("operator authentication boundary", () => {
     expect(protectedResponse.result.statusCode).toBe(503);
     expect((protectedResponse.result.body as { code: string }).code).toBe("OPERATOR_AUTH_NOT_CONFIGURED");
     expect(protectedNext).toBe(0);
+  });
+  it("rejects cookie-authenticated writes with absent or untrusted Origin", () => {
+    const guard = createRequireOperatorAuth(() => ({ ...ENV, NODE_ENV: "test" }));
+    const cookie = OPERATOR_SESSION_COOKIE + "=" + createOperatorSessionToken(config);
+    for (const origin of ["", "http://evil.example.test"]) {
+      const res = response(); let next = 0;
+      guard(request({ method: "POST", headers: { cookie, host: "apex.example.test", ...(origin ? { origin } : {}) } }), res.value, (() => { next += 1; }) as never);
+      expect(res.result.statusCode).toBe(403);
+      expect((res.result.body as { code: string }).code).toBe("OPERATOR_ORIGIN_REJECTED");
+      expect(next).toBe(0);
+    }
+  });
+  it("accepts same-origin and explicitly allowlisted session writes", () => {
+    const cookie = OPERATOR_SESSION_COOKIE + "=" + createOperatorSessionToken(config);
+    const sameOrigin = createRequireOperatorAuth(() => ({ ...ENV, NODE_ENV: "test" }));
+    const sameRes = response(); let sameNext = 0;
+    sameOrigin(request({ method: "POST", headers: { cookie, origin: "http://apex.example.test", host: "apex.example.test" } }), sameRes.value, (() => { sameNext += 1; }) as never);
+    expect(sameRes.result.statusCode).toBe(200);
+    expect(sameNext).toBe(1);
+
+    const allowlisted = createRequireOperatorAuth(() => ({ ...ENV, NODE_ENV: "production", APEX_ALLOWED_ORIGINS: "https://console.example.test" }));
+    const allowedRes = response(); let allowedNext = 0;
+    allowlisted(request({ method: "POST", headers: { cookie, origin: "https://console.example.test", host: "api.example.test" } }), allowedRes.value, (() => { allowedNext += 1; }) as never);
+    expect(allowedRes.result.statusCode).toBe(200);
+    expect(allowedNext).toBe(1);
+  });
+  it("does not apply the ambient-cookie Origin check to explicit bearer clients", () => {
+    const guard = createRequireOperatorAuth(() => ({ ...ENV, NODE_ENV: "production" }));
+    const res = response(); let next = 0;
+    guard(request({ method: "POST", headers: { authorization: "Bearer " + config.apiToken, origin: "https://evil.example.test", host: "api.example.test" } }), res.value, (() => { next += 1; }) as never);
+    expect(res.result.statusCode).toBe(200);
+    expect(next).toBe(1);
+  });
+  it("validates only canonical HTTP(S) Origins and exact configured origins", () => {
+    expect(isTrustedOperatorOrigin(request({ method: "POST", headers: { origin: "http://apex.example.test", host: "apex.example.test" } }), { ...ENV, NODE_ENV: "test" })).toBe(true);
+    expect(isTrustedOperatorOrigin(request({ method: "POST", headers: { origin: "null", host: "apex.example.test" } }), { ...ENV, NODE_ENV: "test" })).toBe(false);
+    expect(isTrustedOperatorOrigin(request({ method: "POST", headers: { origin: "http://apex.example.test.evil.test", host: "apex.example.test" } }), { ...ENV, NODE_ENV: "test" })).toBe(false);
+    expect(isTrustedOperatorOrigin(request({ method: "POST", headers: { origin: "http://apex.example.test/path", host: "apex.example.test" } }), { ...ENV, NODE_ENV: "test" })).toBe(false);
   });
   it("rejects unsigned requests once required controls are configured", () => {
     const guard = createRequireOperatorAuth(() => ENV);
