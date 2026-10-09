@@ -22,6 +22,7 @@ import { sql } from "drizzle-orm";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
 import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
+import { deriveRegistryIngestionAssessment } from "./registry-ingestion-policy";
 import { logger } from "./logger";
 import { filterHumanNamesWithLLM, isDeterministicallySafeHumanName } from "./llm-name-validator";
 import {
@@ -660,25 +661,19 @@ export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trus
 function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: string } {
   const key = dedupKey(person.name, person.signals.jurisdiction);
 
-  // Bayesian prior based on source quality
-  let prior = 0.15;
-  if (person.signals.isLargeShareholder) prior = 0.72; // SC 13D/G: almost certainly wealthy
-  else if (person.signals.isBoardDirector) prior = 0.38;
-  else if (person.signals.isCompanyOfficer) prior = 0.25;
-  if (person.signals.hasRecentFiling) prior = Math.min(prior + 0.05, 0.92);
-
-  // Public registry participation supplies a review lead, not an adjudicated
-  // wealth class. Preserve organization/trust types; keep name-shaped people
-  // as PersonCandidate until the canonical evidence-backed model path promotes them.
+  // Registry participation, officer roles and filings are discovery leads, not
+  // adjudicated personal wealth or a verified contact route.
   const classifiedType = classifyEntityType(person.name);
   const entityType = classifiedType === "Trust" ? "Trust" : normalizeUnverifiedRegistryType(classifiedType);
+  const registryAssessment = deriveRegistryIngestionAssessment(entityType);
+  const prior = registryAssessment.prior;
   const bayesianScore = computeBayesianScore(prior, {
     entityType,
     assetCount: 0,
     assetCategories: [],
     totalAssetValue: 0,
-    hasRecentActivity: person.signals.hasRecentFiling,
-    recentActivityDays: person.signals.hasRecentFiling ? 90 : 400,
+    hasRecentActivity: registryAssessment.hasRecentActivity,
+    recentActivityDays: registryAssessment.recentActivityDays,
     networkDegree: 0,
     hasGatekeeperConnection: false,
     hasKnownInvestorConnection: false,
@@ -690,24 +685,15 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
     jurisdictionCount: 1,
   });
 
-  // Proximity score (1–10): how reachable is this person via personal channels?
-  // Registry records start low — MCTS research and manual enrichment raises this.
-  let proximityScore: number;
-  if (person.signals.isLargeShareholder && person.signals.hasRecentFiling) {
-    proximityScore = 5; // known wealthy, public filing, active — warm path findable
-  } else if (person.signals.isLargeShareholder) {
-    proximityScore = 4;
-  } else if (person.signals.isBoardDirector) {
-    proximityScore = 4;
-  } else {
-    proximityScore = 3; // company officer — needs further research
-  }
+  // A role/filing does not establish direct reachability. A fetched registry
+  // record gets a neutral route score until public contact evidence is observed.
+  const proximityScore = registryAssessment.proximityScore;
 
   // Contact vector from source type
   let contactMethod: string;
   if (person.signals.isLargeShareholder) {
     contactMethod =
-      "SEC EDGAR beneficial owner on record — approach via transfer agent, IR, or shared investor network";
+      "SEC beneficial-ownership filing lead — independently verify the named individual, ownership context, and a legitimate contact path";
   } else if (person.signals.isBoardDirector) {
     contactMethod = `Board director — approach via company registered office, LinkedIn, or known board colleague`;
   } else if (person.companyName) {
@@ -739,8 +725,8 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
     metadata: JSON.stringify({
       proximityScore,
       country: person.signals.jurisdiction,
-      confidence: proximityScore >= 8 ? "APEX" : proximityScore >= 5 ? "HIGH" : "MEDIUM",
-      lastVerified: new Date().toISOString().slice(0, 10),
+      confidence: registryAssessment.confidence,
+      lastObservedAt: registryAssessment.lastObservedAt,
       westernIngest: true,
       liveSource: true,   // real person from real public registry — not synthetic
       needsEnrichment: true, // flag for MCTS enrichment queue
@@ -783,14 +769,15 @@ function buildRegistryEntity(
   // Defend the persistence boundary even if a caller supplies a legacy class.
   const persistedType = normalizeUnverifiedRegistryType(result.type);
   const isPerson = persistedType === "PersonCandidate";
-  const prior = persistedType === "PersonCandidate" ? 0.15 : 0.2;
+  const registryAssessment = deriveRegistryIngestionAssessment(persistedType);
+  const prior = registryAssessment.prior;
   const bayesianScore = computeBayesianScore(prior, {
     entityType: persistedType,
     assetCount: 0,
     assetCategories: [],
     totalAssetValue: 0,
-    hasRecentActivity: true,
-    recentActivityDays: 90,
+    hasRecentActivity: registryAssessment.hasRecentActivity,
+    recentActivityDays: registryAssessment.recentActivityDays,
     networkDegree: 0,
     hasGatekeeperConnection: result.type === "Gatekeeper",
     hasKnownInvestorConnection: false,
@@ -847,9 +834,9 @@ function buildRegistryEntity(
         liveSource: true,
         westernIngest: true,
         needsEnrichment: true,
-        lastVerified: new Date().toISOString().slice(0, 10),
-        reviewOnly: persistedType === "PersonCandidate",
-        wealthStatus: persistedType === "PersonCandidate" ? "unverified" : "not_assessed",
+        lastObservedAt: registryAssessment.lastObservedAt,
+        reviewOnly: registryAssessment.reviewOnly,
+        wealthStatus: registryAssessment.wealthStatus,
       }),
       isHot: false,
     },
