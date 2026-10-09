@@ -7,6 +7,7 @@ import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { resolveResearchDepth } from "../../lib/research-depth";
 import { enablePermanentRedis } from "../../lib/redis";
 import { withProviderScope } from "../../lib/provider-gate";
+import { safeThrownErrorSummary } from "../../lib/provider-error-diagnostics";
 
 const router = Router();
 
@@ -17,7 +18,7 @@ function parseFile(raw: string | null): Record<string, any> | null {
 router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Promise<void> => {
   // Manual Launch mode intentionally skips permanent Redis at boot, but this endpoint owns a durable job lane.
   // Enable the permanent clients at the execution boundary rather than falling back to in-memory state.
-  try { await enablePermanentRedis(); } catch (error) { res.status(503).json({ error: error instanceof Error ? error.message : "Permanent Redis is unavailable for canonical discovery." }); return; }
+  try { await enablePermanentRedis(); } catch (error) { res.status(503).json({ error: safeThrownErrorSummary("Permanent Redis is unavailable for canonical discovery", error) }); return; }
   const caseId = Number(req.params.caseId);
   if (!Number.isInteger(caseId) || caseId <= 0) { res.status(400).json({ error: "Invalid bureau case ID" }); return; }
   const [current] = await db.select().from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
@@ -74,11 +75,11 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
     await setActiveJob("case-bureau-discovery", jobId!);
   } catch (error) {
     if (jobId) {
-      await updateJob(jobId!, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Canonical discovery lock acquisition failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
+      await updateJob(jobId!, { status: "failed", outcome: "incomplete", message: safeThrownErrorSummary("Canonical discovery lock acquisition failed", error), finishedAt: new Date().toISOString() }).catch(() => undefined);
       await clearActiveJobIfOwned("case-bureau-discovery", jobId!).catch(() => undefined);
       if (atlasClaimed || jobId) await releaseCanonicalJob("atlas-run", jobId!).catch(() => undefined);
     }
-    res.status(503).json({ error: error instanceof Error ? error.message : "Canonical discovery lock acquisition failed.", jobId });
+    res.status(503).json({ error: safeThrownErrorSummary("Canonical discovery lock acquisition failed", error), jobId });
     return;
   }
   try {
@@ -92,10 +93,10 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: "canonical-investigator-discovery", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
     }, { isolationLevel: "serializable" });
   } catch (error) {
-    await updateJob(jobId!, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Discovery case job binding failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
+    await updateJob(jobId!, { status: "failed", outcome: "incomplete", message: safeThrownErrorSummary("Discovery case job binding failed", error), finishedAt: new Date().toISOString() }).catch(() => undefined);
     await clearActiveJobIfOwned("case-bureau-discovery", jobId!).catch(() => undefined);
     await releaseCanonicalJob("atlas-run", jobId!).catch(() => undefined);
-    res.status(409).json({ error: error instanceof Error ? error.message : "Discovery case job binding failed.", jobId }); return;
+    res.status(409).json({ error: safeThrownErrorSummary("Discovery case job binding failed", error), jobId }); return;
   }
   const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : undefined });
   void (async () => {
