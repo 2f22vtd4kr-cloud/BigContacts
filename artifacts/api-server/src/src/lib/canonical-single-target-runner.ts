@@ -1,7 +1,7 @@
 import { and, asc, eq, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
-import { getJob, updateJob } from "./job-queue";
+import { getJob, getJobStrict, updateJob } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runTargetContactAgent } from "./target-contact-agent";
@@ -98,12 +98,16 @@ async function loadDurableTargetTrajectory(caseId: number): Promise<{ records: C
 
 async function loadCase(caseId: number): Promise<TargetCase | null> { const [row] = await db.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row?.targetEntityId) return null; return { ...row, targetEntityId: row.targetEntityId, iteration: Number(row.iteration ?? 0), objective: row.objective ?? "" }; }
 async function reconcileTargetCaseCancellation(atlasJobId: string, caseId: number): Promise<void> {
-  const job = await getJob(atlasJobId);
+  // This is an authoritative control-plane check: Redis failure must not be
+  // re-labelled as an operator cancellation by the fail-soft getJob() helper.
+  const job = await getJobStrict(atlasJobId);
   if (!job || job.status === "cancelled") {
+    const cancelled = job?.status === "cancelled";
     await db.update(researchCasesTable)
-      .set({ status: "review", currentAction: "canonical-atlas-cancelled", updatedAt: new Date() })
+      .set({ status: "review", currentAction: cancelled ? "canonical-atlas-cancelled" : "canonical-atlas-job-missing", updatedAt: new Date() })
       .where(and(eq(researchCasesTable.id, caseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`));
-    throw new Error("Canonical Atlas job cancelled; target case creation raced operator stop.");
+    if (cancelled) throw new Error("Canonical Atlas job cancelled; target case creation raced operator stop.");
+    throw new Error("Canonical Atlas job record missing; target case creation cannot be reconciled safely.");
   }
   if (job.status === "failed") throw new Error("Canonical Atlas job already failed; refusing further target control-plane work.");
   if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing further target control-plane work.");
