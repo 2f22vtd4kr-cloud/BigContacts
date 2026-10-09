@@ -1,5 +1,11 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { deriveRegistryIngestionAssessment } from "../lib/registry-ingestion-policy";
+
+function requireRegistryIngestionSource(): string {
+  return fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/western-hnwi-ingestion.ts"), "utf8");
+}
 
 describe("public-registry evidence remains a low-confidence lead", () => {
   it("does not turn a filing/officer record into a strong person prior or reachability claim", () => {
@@ -25,6 +31,16 @@ describe("public-registry evidence remains a low-confidence lead", () => {
       expect(assessment.reviewOnly).toBe(true);
       expect(assessment.wealthStatus).toBe("unverified");
     }
+  });
+
+  it("raw metadata cannot override registry assessment fields", () => {
+    const source = requireRegistryIngestionSource();
+    expect(source).toContain("...person.rawMetadata");
+    expect(source).toContain("proximityScore: registryAssessment.proximityScore");
+    expect(source).toContain("confidence: registryAssessment.confidence");
+    expect(source).toContain("lastObservedAt: registryAssessment.lastObservedAt");
+    expect(source.indexOf("...person.rawMetadata")).toBeLessThan(source.indexOf("proximityScore: registryAssessment.proximityScore"));
+    expect(source).toContain("contactMethod = \"Board-role registry lead — direct contact path not observed\"");
   });
 
   it("a legacy gatekeeper classification is not a gatekeeper connection", () => {
