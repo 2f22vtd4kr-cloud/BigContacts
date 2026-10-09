@@ -194,6 +194,16 @@ describe("discovery runtime architecture", () => {
     expect(targetSource).toContain('"MODEL_DECIDED_DONE" | "OVERSIGHT_STOP"');
   });
 
+  it("honors a Boss stop after an ungrounded Investigator terminal claim is blocked", () => {
+    const blockedTerminal = researchSource.indexOf('if (raw.action === "done" && raw.findings.length > 0');
+    const stopReturn = researchSource.indexOf("if (checkpointResult.stop) return", blockedTerminal);
+    expect(blockedTerminal).toBeGreaterThan(-1);
+    expect(stopReturn).toBeGreaterThan(blockedTerminal);
+    expect(researchSource.slice(stopReturn, stopReturn + 900)).toContain('stopReason: "OVERSIGHT_STOP"');
+    expect(researchSource.slice(stopReturn, stopReturn + 900)).toContain("no ungrounded findings were accepted");
+    expect(researchSource.slice(blockedTerminal, stopReturn)).not.toContain("if (checkpointResult.stop) continue");
+  });
+
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
