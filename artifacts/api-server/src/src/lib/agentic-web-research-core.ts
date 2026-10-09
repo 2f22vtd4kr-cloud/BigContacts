@@ -399,7 +399,7 @@ function extractBalancedJsonObject(source: string): string | null {
 }
 function unwrapOptionalJsonFence(raw: string): string {
   const trimmed = raw.trim();
-  const fenced = trimmed.match(/^```(?:json)?[ \\t]*\\r?\\n?([\\s\\S]*?)\\r?\\n?```$/i)?.[1]?.trim();
+  const fenced = trimmed.match(/^```(?:json)?[ \t]*\r?\n?([\s\S]*?)\r?\n?```$/i)?.[1]?.trim();
   return fenced ?? trimmed;
 }
 function extractJsonObject(raw: string): string | null {
