@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import { sourceBackedFindings } from "../lib/target-contact-agent";
 
 describe("target Investigator multi-source attribution", () => {
+  it("does not treat an HTTP page as claim-grade provenance", () => {
+    const findings = [{ vectorType: "email" as const, value: "jane@example.com", personName: "Jane Example", role: "Founder", scope: "candidate" as const, sourceUrls: ["http://company.example/team"], note: "http source", promotionDecision: "promote" as const }];
+    const records = [{ turn: 1, model: "groq", action: "visit", args: {}, execution: "success" as const, observation: "Jane Example email jane@example.com", observedUrls: ["http://company.example/team"], findings: [] }];
+    expect(sourceBackedFindings(findings, [], records)).toEqual([]);
+  });
   it("accepts identity and contact value observed on separate pages when both are explicitly attributed", () => {
     const findings = [{
       vectorType: "email" as const,
