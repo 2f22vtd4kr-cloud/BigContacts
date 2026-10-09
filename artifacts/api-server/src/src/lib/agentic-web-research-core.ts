@@ -554,7 +554,16 @@ const groqRateLimitSnapshots = new Map<string, GroqRateLimitSnapshot>();
 export function resetGroqRateLimitSnapshotsForTests(): void {
   groqRateLimitSnapshots.clear();
 }
-function groqRateLimitSnapshotKey(keyName: string, model: string): string { return `${keyName}:${model}`; }
+/**
+ * Provider limits attach to the credential actually sent, not to the environment
+ * variable that happened to name it. Slots with a duplicated key must share
+ * token-window snapshots and provider-gate quota accounting.
+ */
+export function groqQuotaAccountIdentity(apiKey: string): string {
+  const normalized = apiKey.trim();
+  return normalized ? `groq-credential:${digestDiagnosticText(normalized)}` : "groq-credential:missing";
+}
+function groqRateLimitSnapshotKey(quotaAccount: string, model: string): string { return `${quotaAccount}:${model}`; }
 
 function parseGroqDurationMs(raw: string | null): number | null {
   const value = raw?.trim() ?? "";
@@ -574,7 +583,7 @@ export function parseOptionalRateLimitNumber(raw: string | null): number | null 
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function captureGroqRateLimitSnapshot(keyName: string, model: string, response: Response): GroqRateLimitSnapshot {
+function captureGroqRateLimitSnapshot(quotaAccount: string, model: string, response: Response): GroqRateLimitSnapshot {
   const remainingTokensValue = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-tokens"));
   const remainingRequestsValue = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-requests"));
   const snapshot: GroqRateLimitSnapshot = {
@@ -584,7 +593,7 @@ function captureGroqRateLimitSnapshot(keyName: string, model: string, response: 
     resetRequestsMs: parseGroqDurationMs(response.headers.get("x-ratelimit-reset-requests")),
     observedAt: Date.now(),
   };
-  groqRateLimitSnapshots.set(groqRateLimitSnapshotKey(keyName, model), snapshot);
+  groqRateLimitSnapshots.set(groqRateLimitSnapshotKey(quotaAccount, model), snapshot);
   return snapshot;
 }
 
@@ -615,8 +624,8 @@ export async function waitForAbortableDelay(delayMs: number, signal: AbortSignal
   });
 }
 
-async function waitForKnownGroqTokenWindow(keyName: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal): Promise<"ready" | "token_window_wait_exceeded"> {
-  const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model));
+async function waitForKnownGroqTokenWindow(quotaAccount: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal): Promise<"ready" | "token_window_wait_exceeded"> {
+  const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(quotaAccount, model));
   if (!snapshot || snapshot.remainingTokens == null || snapshot.resetTokensMs == null) return "ready";
   const estimated = groqPromptTokenEstimate(promptChars) + completionBudget;
   if (snapshot.remainingTokens >= estimated) return "ready";
@@ -688,6 +697,7 @@ async function callGroqJson(
 ): Promise<{ model: string; raw: string; error?: string } | null> {
   const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
   const key = keyName ? (process.env[keyName] || "").trim() : "";
+  const quotaAccount = key ? groqQuotaAccountIdentity(key) : keyName ?? "unknown";
   if (!key) return null;
   let attempt = 0;
   let workingPrompt = prompt;
@@ -706,7 +716,7 @@ async function callGroqJson(
       const started = Date.now();
       try {
         const quotaReadiness = await waitForKnownGroqTokenWindow(
-          keyName ?? "unknown",
+          quotaAccount,
           model,
           workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
           groqInvestigatorCompletionBudget(cognitiveTask),
@@ -718,7 +728,7 @@ async function callGroqJson(
         }
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model);
         const response = await withProviderRetryOwnership("groq", "caller", () =>
-          runProviderCall({ provider: "groq", account: keyName ?? "unknown", signal }, () =>
+          runProviderCall({ provider: "groq", account: quotaAccount, signal }, () =>
             safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -739,7 +749,7 @@ async function callGroqJson(
 
         if (response.status === 429) {
           const hardQuota = groqHardRequestQuota(response, body);
-          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+          const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
           let providerErrorCode: string | null = null;
           let providerErrorType: string | null = null;
           try {
