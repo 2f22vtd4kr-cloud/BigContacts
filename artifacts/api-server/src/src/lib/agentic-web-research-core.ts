@@ -494,8 +494,10 @@ function parseGroqDurationMs(raw: string | null): number | null {
 }
 
 function captureGroqRateLimitSnapshot(keyName: string, model: string, response: Response): GroqRateLimitSnapshot {
-  const remainingTokensValue = Number(response.headers.get("x-ratelimit-remaining-tokens"));
-  const remainingRequestsValue = Number(response.headers.get("x-ratelimit-remaining-requests"));
+  const remainingTokensHeader = response.headers.get("x-ratelimit-remaining-tokens")?.trim();
+  const remainingRequestsHeader = response.headers.get("x-ratelimit-remaining-requests")?.trim();
+  const remainingTokensValue = remainingTokensHeader ? Number(remainingTokensHeader) : Number.NaN;
+  const remainingRequestsValue = remainingRequestsHeader ? Number(remainingRequestsHeader) : Number.NaN;
   const snapshot: GroqRateLimitSnapshot = {
     remainingTokens: Number.isFinite(remainingTokensValue) ? remainingTokensValue : null,
     resetTokensMs: parseGroqDurationMs(response.headers.get("x-ratelimit-reset-tokens")),
@@ -565,9 +567,19 @@ function groqTokenWindowWaitMs(response: Response, body: string): number | null 
 
 function groqHardRequestQuota(response: Response, body: string): boolean {
   if (response.status !== 429) return false;
+  const providerCode = providerErrorCode(body);
+  if (providerCode === "quota_exceeded" || providerCode === "insufficient_quota") return true;
+
+  // Groq can report request counters alongside an independent token-window
+  // 429. A zero request counter must not override the explicit token-limit
+  // classification and cause job-scoped capability exclusion.
+  try {
+    const parsed = JSON.parse(body) as { error?: { type?: unknown } };
+    if (parsed.error?.type === "tokens") return false;
+  } catch {}
+
   const remainingRequests = Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
-  if (Number.isFinite(remainingRequests) && remainingRequests === 0) return true;
-  return providerErrorCode(body) === "quota_exceeded" || providerErrorCode(body) === "insufficient_quota";
+  return Number.isFinite(remainingRequests) && remainingRequests === 0;
 }
 
 async function callGroqJson(
