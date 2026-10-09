@@ -66,8 +66,8 @@ describe("discovery runtime architecture", () => {
   });
 
   it("does not treat a control-plane stop as an Investigator-selected terminal", () => {
-    expect(researchSource).toMatch(/if \\(checkpointResult\\.stop\\) \\{[\\s\\S]*?stopReason: "OVERSIGHT_STOP"/);
-    expect(researchSource).toMatch(/if \\(callerOwnsOversight && acceptedInvestigatorTerminal\\)/);
+    expect(researchSource).toMatch(/if \(checkpointResult\.stop\) \{[\s\S]*?stopReason: "OVERSIGHT_STOP"/);
+    expect(researchSource).toMatch(/if \(callerOwnsOversight && acceptedInvestigatorTerminal\)/);
   });
 
   it("requires candidate identity and contact value to share a bounded source span", () => {
