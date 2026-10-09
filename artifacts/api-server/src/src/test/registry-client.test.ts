@@ -5,10 +5,35 @@ import {
   REGISTRY_IDS,
   getRandomDiscoveryRegistries,
   normalizeRegistryId,
+  formatRegistryResultLead,
+  registryResultLeadUrls,
 } from "../lib/registry-client";
 import { describe, expect, it } from "vitest";
 
 describe("Phase J2 registry normalization", () => {
+  it("surfaces validated public record URLs as unvisited leads, not observed evidence", () => {
+    const result = {
+      name: "Example Corp",
+      type: "Corporation" as const,
+      sourceRegistries: "[]",
+      notes: "Registration record",
+      metadata: JSON.stringify({
+        brregUrl: "https://data.brreg.no/enhetsregisteret/api/enheter/123",
+        website: "https://example.com/",
+        searchUrl: "https://example.com/search?q=example",
+        insecureUrl: "http://example.com/record",
+        credentialUrl: "https://user:password@example.com/record",
+      }),
+    };
+    expect(registryResultLeadUrls(result)).toEqual([
+      "https://data.brreg.no/enhetsregisteret/api/enheter/123",
+      "https://example.com/",
+    ]);
+    expect(formatRegistryResultLead(result)).toContain("UNVISITED_RECORD_URLS (leads only)");
+    expect(formatRegistryResultLead(result)).toContain("https://data.brreg.no/enhetsregisteret/api/enheter/123");
+    expect(registryResultLeadUrls({ metadata: "not-json" })).toEqual([]);
+  });
+
   it("normalizes a BRREG entity with stable provenance", () => {
     const result = normalizeBrregEntity({
       organisasjonsnummer: "923609016",
