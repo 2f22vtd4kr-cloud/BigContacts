@@ -92,8 +92,13 @@ jobs:
         run: pnpm run build
       - name: Initialize canonical Apex schema
         run: bash scripts/initialize-apex-schema.sh
-      - name: Configure isolated API authentication
-        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Configure isolated operator authentication
+        run: |
+          {
+            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
+            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
+            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
       - name: Start canonical API
         run: |
           set -euo pipefail
