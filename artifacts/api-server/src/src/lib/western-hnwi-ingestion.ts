@@ -1,17 +1,16 @@
 /**
  * Western HNWI Mass Ingestion Engine — LIVE PUBLIC REGISTRY DATA
  *
- * Fetches REAL people from free public government registries:
- *   • SEC EDGAR SC 13D/G  — US beneficial owners >5% of public companies (real wealthy individuals)
- *   • SEC EDGAR DEF 14A   — US board directors & named executives in proxy statements
- *   • BRREG Norway        — Norwegian company directors (Enhetsregisteret, free, no key)
- *   • Companies House UK  — Officers & PSCs (free, requires COMPANIES_HOUSE_API_KEY)
+ * Discovers reviewable leads from public government registries:
+ *   • SEC EDGAR SC 13D/G  — beneficial-ownership filing subjects; identity, current ownership, and wealth require verification
+ *   • SEC EDGAR DEF 14A   — corporate proxy filers and named officers; role alone does not prove personal gatekeeper value
+ *   • BRREG Norway        — Norwegian company/director records (Enhetsregisteret)
+ *   • Companies House UK  — officer/PSC records (requires COMPANIES_HOUSE_API_KEY)
  *
- * NO synthetic or generated profiles. Every record is a real person from a real source.
- * Each record gets:
- *   • Bayesian investor score derived from signal strength of the source
- *   • Proximity score (how close to personal contact vs. gatekeepers)
- *   • Source attribution linking back to the public registry
+ * No synthetic profiles are generated. A public record is provenance for a lead,
+ * not proof of wealth, personal access, current activity, or every derived field.
+ * Each record receives a conservative ranking prior, a neutral reachability score
+ * until a direct public contact route is observed, and explicit source attribution.
  *
  * Redis Upstash dedup set prevents re-insertion across restarts.
  * Batch inserts (100 rows) keep DB pressure manageable.
@@ -724,6 +723,7 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
     sourceRegistries: JSON.stringify([person.sourceRegistry]),
     metadata: JSON.stringify({
       ...person.rawMetadata,
+      lastVerified: undefined,
       proximityScore: registryAssessment.proximityScore,
       country: person.signals.jurisdiction,
       confidence: registryAssessment.confidence,
@@ -828,6 +828,7 @@ function buildRegistryEntity(
       sourceRegistries: result.sourceRegistries,
       metadata: JSON.stringify({
         ...rawMetadata,
+        lastVerified: undefined,
         source: rawMetadata.source ?? registry,
         registryId: registry,
         randomDiscovery: true,
