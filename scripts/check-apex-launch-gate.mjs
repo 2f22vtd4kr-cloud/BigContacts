@@ -66,7 +66,7 @@ pass("Python OSINT does not directly spawn subprocesses", !/from [\"']node:child
 pass("Python OSINT availability requires attestation", pythonTools.includes('state === "attested"') && pythonTools.includes('allowedCapabilities.includes("network_osint")'));
 pass("harvest_domain is fail-closed behind the Python sandbox contract", /runTheHarvester/.test(agentic) && pythonTools.includes('available: false') && pythonTools.includes('const blocked = authorizeNetworkPython(options.signal)'));
 pass("orientation does not present planned Python executors as live tools", orientation.includes("Python-backed Holehe, Maigret, Sherlock, theHarvester, and SpiderFoot are intentionally not available capabilities") && !/^- footprint_(?:email|username_maigret|username_sherlock|spiderfoot)|^- harvest_domain/m.test(orientation));
-pass("compatibility response cannot execute a disabled Python capability", agentic.includes("const unavailableCapabilityReason =") && agentic.includes("CAPABILITY_UNAVAILABLE:"));
+pass("compatibility response cannot select a disabled Python capability", agentic.includes("export function isModelSelectableAgentAction(action: unknown)") && /function parseAction\(raw: string\): AgentAction \| null \{[^\n]*if \(!isModelSelectableAgentAction\(action\)\) return null/.test(agentic));
 pass("legacy AI extraction surface is explicitly retired or contains no DeepSeek/NVIDIA fallback", legacyExtractionRetired || !/runDeepSeek|DEEPSEEK|NVIDIA_NIM|nvidia-nim/i.test(aiExtractor));
 pass("legacy AI extraction surface is not required for canonical launch", true);
 pass("legacy entity contact-repair routes are retired at the mutation boundary", legacyGuard.includes("/entities/rehydrate-contacts") && legacyGuard.includes("/entities/fix-outcome-honesty"));
