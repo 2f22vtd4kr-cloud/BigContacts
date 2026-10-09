@@ -85,7 +85,10 @@ function buildEvidenceGraphs(findings: AgenticFinding[], records: AgenticTraject
       if (record.execution !== "success" || !isClaimGradeObservationAction(record.action)) return false;
       const observed = record.observedUrls.map(normalizeObservedUrl).some((observedUrl) => observedUrl === url);
       if (!observed || !record.observation?.trim()) return false;
-      return supportsContactClaimAcrossObservations(
+      // Evidence graphs are review artifacts: a cited page may contribute
+      // identity OR value. The trusted promotion path separately revalidates
+      // the complete claim against immutable events using the stricter helper.
+      return supportsReviewableClaimAcrossObservations(
         [{ observationText: record.observation, sourceUrls: [url] }],
         { ...finding, sourceUrls: [url] },
         finding.value,
