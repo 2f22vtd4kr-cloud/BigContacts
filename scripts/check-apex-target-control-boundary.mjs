@@ -5,6 +5,7 @@ const oversight = fs.readFileSync("artifacts/api-server/src/src/lib/target-act-o
 const wrapper = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
 const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts", "utf8");
 const strictPromotion = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts", "utf8");
+const targetControlDecision = fs.readFileSync("artifacts/api-server/src/src/lib/target-control-decision.ts", "utf8");
 const mutationGuard = fs.readFileSync("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts", "utf8");
 const checks = [
   ["durable target control requires live canonical lease before and during persistence", (targetControlDecision.match(/await isCanonicalJobOwner\("atlas-run", input\.jobId\)/g) ?? []).length >= 3 && /ownershipFile\.atlasJobId \?\? ownershipFile\.jobId/.test(targetControlDecision)],
