@@ -1,4 +1,24 @@
+describe("registry candidate classification safety", () => {
+  it("never labels a Companies House officer as an HNWI from office alone", () => {
+    expect(classifyRegistryRecordType("companies-house-officers")).toBe("PersonCandidate");
+  });
+
+  it("keeps SEC beneficial-ownership filing subjects as review candidates pending verification", () => {
+    expect(classifyRegistryRecordType("sec-edgar", "SC 13D")).toBe("PersonCandidate");
+    expect(classifyRegistryRecordType("sec-edgar", "SC 13G/A")).toBe("PersonCandidate");
+  });
+
+  it("treats DEF 14A as a corporate proxy-statement filer, not a personal gatekeeper", () => {
+    expect(classifyRegistryRecordType("sec-edgar", "DEF 14A")).toBe("Corporation");
+  });
+
+  it("does not infer a trusted class for unrecognized registry record kinds", () => {
+    expect(classifyRegistryRecordType("unknown-registry", "unknown-form")).toBe("Corporation");
+  });
+});
+
 import {
+  classifyRegistryRecordType,
   normalizeAresEntity,
   normalizeBodaccRecord,
   normalizeBrregEntity,
