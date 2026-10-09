@@ -11,7 +11,7 @@ vi.mock("../lib/browser-fetch", () => ({
   browserFetchHtml: mocks.browserFetchHtml,
 }));
 
-import { bindModelFindingsToObservedSources, discoveryTerminalGate, parseOptionalRateLimitNumber, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { bindModelFindingsToObservedSources, discoveryTerminalGate, parseOptionalRateLimitNumber, resetGroqRateLimitSnapshotsForTests, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capability-registry";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
@@ -136,6 +136,7 @@ describe("Groq Investigator provider boundary", () => {
     delete process.env.GROQ_INVESTIGATOR_API_KEY_5;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
     resetProviderGateForTests();
+    resetGroqRateLimitSnapshotsForTests();
     mocks.safeOutboundFetch.mockReset();
     mocks.browserFetchHtml.mockReset();
     vi.restoreAllMocks();
