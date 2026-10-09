@@ -21,29 +21,50 @@ const MAX_RESPONSE_BYTES = 2_000_000;
 const MAX_REQUEST_BYTES = 1_000_000;
 const DNS_TIMEOUT_MS = 10_000;
 
-function mappedIpv4FromIpv6(address: string): string | null {
-  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "").replace(/%.*$/, "");
+function parseIpv6Groups(address: string): number[] | null {
+  const normalized = address.toLowerCase().replace(/^\\[|\\]$/g, "").replace(/%.*$/, "");
   const halves = normalized.split("::");
   if (halves.length > 2) return null;
-  const left = halves[0] ? halves[0].split(":") : [];
+  let left = halves[0] ? halves[0].split(":") : [];
   const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
-  const dottedTailIndex = right.findIndex((part) => part.includes("."));
-  if (dottedTailIndex !== -1) {
-    if (dottedTailIndex !== right.length - 1 || net.isIP(right[dottedTailIndex]!) !== 4) return null;
-    const octets = right[dottedTailIndex]!.split(".").map(Number);
+
+  const expandDottedTail = (parts: string[]): string[] | null => {
+    const dottedIndex = parts.findIndex((part) => part.includes("."));
+    if (dottedIndex === -1) return parts;
+    if (dottedIndex !== parts.length - 1 || net.isIP(parts[dottedIndex]!) !== 4) return null;
+    const octets = parts[dottedIndex]!.split(".").map(Number);
     if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return null;
-    right.splice(dottedTailIndex, 1, ((octets[0]! << 8) | octets[1]!).toString(16), ((octets[2]! << 8) | octets[3]!).toString(16));
-  }
-  if (left.some((part) => !/^[0-9a-f]{1,4}$/i.test(part)) || right.some((part) => !/^[0-9a-f]{1,4}$/i.test(part))) return null;
-  const groups = halves.length === 2 ? [...left, ...Array(8 - left.length - right.length).fill("0"), ...right] : [...left, ...right];
-  if (groups.length !== 8 || groups.slice(0, 5).some((part) => part !== "0") || groups[5] !== "ffff") return null;
-  const hi = Number.parseInt(groups[6]!, 16), lo = Number.parseInt(groups[7]!, 16);
-  if (!Number.isInteger(hi) || !Number.isInteger(lo)) return null;
+    return [
+      ...parts.slice(0, dottedIndex),
+      ((octets[0]! << 8) | octets[1]!).toString(16),
+      ((octets[2]! << 8) | octets[3]!).toString(16),
+    ];
+  };
+
+  // A dotted IPv4 tail must be the final part of the complete IPv6 address.
+  if (halves.length === 2 && left.some((part) => part.includes("."))) return null;
+  const expandedLeft = expandDottedTail(left);
+  const expandedRight = expandDottedTail(right);
+  if (!expandedLeft || !expandedRight) return null;
+  left = expandedLeft;
+
+  const groups = halves.length === 2
+    ? [...left, ...Array(8 - left.length - expandedRight.length).fill("0"), ...expandedRight]
+    : left;
+  if (groups.length !== 8 || groups.some((part) => !/^[0-9a-f]{1,4}$/i.test(part))) return null;
+  return groups.map((part) => Number.parseInt(part, 16));
+}
+
+function mappedIpv4FromIpv6(address: string): string | null {
+  const groups = parseIpv6Groups(address);
+  if (!groups || !groups.slice(0, 5).every((part) => part === 0) || groups[5] !== 0xffff) return null;
+  const hi = groups[6]!;
+  const lo = groups[7]!;
   return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
 }
 
 function isBlockedIp(address: string): boolean {
-  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
+  const normalized = address.toLowerCase().replace(/^\\[|\\]$/g, "");
   const version = net.isIP(normalized);
   if (version === 4) {
     const octets = normalized.split(".").map(Number);
@@ -51,11 +72,24 @@ function isBlockedIp(address: string): boolean {
     return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 0) || (a === 192 && b === 168) || (a === 192 && b === 88 && c === 99) || (a === 192 && b === 0 && c === 2) || (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) || (a === 203 && b === 0 && c === 113) || a >= 224;
   }
   if (version === 6) {
-    const compact = normalized.replace(/%.*$/, "");
-    if (compact === "::1" || compact === "::") return true;
-    const mappedIpv4 = mappedIpv4FromIpv6(compact);
-    if (mappedIpv4 && isBlockedIp(mappedIpv4)) return true;
-    if (/^ff/i.test(compact) || /^fe[89ab]/i.test(compact) || /^(fc|fd)/i.test(compact) || /^2001:db8:/i.test(compact)) return true;
+    const mappedIpv4 = mappedIpv4FromIpv6(normalized);
+    if (mappedIpv4) return isBlockedIp(mappedIpv4);
+
+    const groups = parseIpv6Groups(normalized);
+    if (!groups) return true;
+
+    // Reject IPv4-compatible/unspecified forms and all IPv6 outside global
+    // unicast space. This includes NAT64 prefixes, discard-only space, site-
+    // local/unique-local/link-local ranges, and non-routed special-purpose space.
+    if (groups.slice(0, 6).every((part) => part === 0)) return true;
+    if ((groups[0]! & 0xe000) !== 0x2000) return true;
+
+    // Conservative denylist for special-purpose ranges within 2000::/3:
+    // IETF protocol assignments/Teredo/documentation, 6to4, and documentation.
+    if (groups[0] === 0x2001 && groups[1]! < 0x0200) return true; // 2001::/23
+    if (groups[0] === 0x2002) return true; // 2002::/16 (6to4 embeds IPv4)
+    if (groups[0] === 0x3fff && (groups[1]! & 0xf000) === 0) return true; // 3fff::/20
+
     return false;
   }
   return true;
