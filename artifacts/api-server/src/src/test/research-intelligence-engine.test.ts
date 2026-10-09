@@ -399,7 +399,7 @@ describe("Apex research intelligence", () => {
   });
 
 
-  it("binds a multi-source finding to each cited page's own observed passage", () => {
+    it("keeps multi-source split identity/value observations review-only in intelligence context", () => {
     const identityUrl = "https://example.test/team";
     const contactUrl = "https://example.test/contact";
     const engine = new ResearchIntelligenceEngine({ executionId: "multi-source-observation-binding", target: "Alex Example", objective: "verify public contact" });
@@ -413,21 +413,24 @@ describe("Apex research intelligence", () => {
       turn: 3, action: "done", execution: "success", observation: "", urls: [], args: {},
       findings: [{
         vectorType: "email", value: "alex@example.test", personName: "Alex Example", role: "director",
-        sourceUrls: [identityUrl, contactUrl],
-        note: "Identity and contact are attributed across two observed pages.",
+        sourceUrls: [identityUrl, contactUrl], note: "Identity and contact are suggested across two observed pages.",
       }],
       sourceObservations: history,
     });
     const state = engine.buildContext();
-    const claims = state.atomicEvidence.filter((item) => item.kind === "finding" && item.claim.includes("alex@example.test"));
-    expect(claims.map((item) => item.sourceUrl).sort()).toEqual([contactUrl, identityUrl]);
-    expect(claims.find((item) => item.sourceUrl === identityUrl)?.spanBindingKind).toBe("identity");
-    expect(claims.find((item) => item.sourceUrl === contactUrl)?.spanBindingKind).toBe("value");
-    expect(claims.find((item) => item.sourceUrl === identityUrl)?.passage).toContain("Alex Example");
-    expect(claims.find((item) => item.sourceUrl === contactUrl)?.passage).toContain("alex@example.test");
-    expect(state.contacts.find((item) => item.value === "alex@example.test")?.sourceUrls).toEqual([contactUrl]);
+    const identity = state.atomicEvidence.find((item) => item.sourceUrl === identityUrl && item.spanBindingKind === "identity");
+    const value = state.atomicEvidence.find((item) => item.sourceUrl === contactUrl && item.spanBindingKind === "value");
+    expect(identity?.kind).toBe("observation");
+    expect(identity?.claim).not.toContain("alex@example.test");
+    expect(identity?.passage).toContain("Alex Example");
+    expect(value?.kind).toBe("observation");
+    expect(value?.claim).not.toContain("Alex Example email");
+    expect(value?.passage).toContain("alex@example.test");
+    expect(state.facts.some((fact) => fact.claim === "Alex Example email alex@example.test")).toBe(false);
+    expect(state.contacts.find((item) => item.value === "alex@example.test")).toEqual(expect.objectContaining({
+      personName: "Alex Example", state: "DISCOVERED", sourceUrls: expect.arrayContaining([identityUrl, contactUrl]),
+    }));
   });
-
 
   it("accepts source-backed findings from successful registry and OSINT observations", () => {
     const registryUrl = "https://find-and-update.company-information.service.gov.uk/company/12345678";
