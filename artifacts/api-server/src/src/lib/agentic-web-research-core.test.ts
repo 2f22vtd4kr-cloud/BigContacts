@@ -150,7 +150,7 @@ describe("Investigator prompt architecture", () => {
     expect(schema?.additionalProperties).toBe(false);
     expect(schema?.properties?.searches?.minItems).toBeUndefined();
     expect(schema?.properties?.searches?.maxItems).toBeUndefined();
-    expect(schema?.properties?.provider).toEqual({ type: ["string", "null"] });
+    expect(schema?.properties?.provider).toEqual({ type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null] });
     expect(schema?.properties?.targetType).toEqual({ type: ["string", "null"] });
   });
 
