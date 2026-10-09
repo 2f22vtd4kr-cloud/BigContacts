@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ProviderQuotaError,
   classifyExternalProvider,
@@ -23,6 +23,8 @@ describe("provider quota gate", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
+    delete process.env.APEX_EXTERNAL_WINDOW_MS;
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC;
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI;
@@ -628,6 +630,31 @@ describe("provider quota gate", () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  it("reports retry time from the exhausted scope window, not a newer account window", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-09T08:00:00.000Z"));
+    process.env.APEX_EXTERNAL_WINDOW_MS = "10000";
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "1";
+
+    const scope = "atlas-run:scope-retry-window-test";
+    await withProviderScope(scope, () =>
+      runProviderCall({ provider: "generic", account: "older-account" }, async () => "first"),
+    );
+
+    vi.setSystemTime(new Date(Date.now() + 5_000));
+    await expect(
+      withProviderScope(scope, () =>
+        runProviderCall({ provider: "generic", account: "new-account" }, async () => "must-not-run"),
+      ),
+    ).rejects.toMatchObject({
+      code: "budget_exhausted",
+      provider: "generic",
+      retryAfterMs: 5_000,
+    });
   });
 
 });
