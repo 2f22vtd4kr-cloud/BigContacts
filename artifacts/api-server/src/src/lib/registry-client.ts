@@ -65,15 +65,16 @@ export function registryResultLeadUrls(result: Pick<RegistryResult, "metadata">)
       const url = new URL(value);
       if (url.protocol !== "https:" || url.username || url.password) continue;
       const host = url.hostname.toLowerCase();
-      const path = url.pathname.replace(/\\/+$/, "") || "/";
-      // Do not re-emit search endpoints as if they were record-level leads.
-      if (
-        /(^|\\.)google\\.[a-z.]+$/.test(host) && /^\\/search$/i.test(path) ||
-        (host === "bing.com" || host.endsWith(".bing.com")) && /^\\/search$/i.test(path) ||
-        host === "search.yahoo.com" && /^\\/search$/i.test(path) ||
-        (host === "duckduckgo.com" || host === "html.duckduckgo.com") && (path === "/" || /^\\/html$/i.test(path)) && url.searchParams.has("q") ||
-        /\\/(?:search|search-index|search-results|results)$/i.test(path)
-      ) continue;
+      let path = url.pathname;
+      while (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+      const lowerPath = path.toLowerCase();
+      const isSearchEndpoint = ["/search", "/search-index", "/search-results", "/results"].includes(lowerPath);
+      const isSearchEngine = host.startsWith("google.")
+        || host === "bing.com" || host.endsWith(".bing.com")
+        || host === "search.yahoo.com"
+        || ((host === "duckduckgo.com" || host === "html.duckduckgo.com")
+          && (lowerPath === "/" || lowerPath === "/html") && url.searchParams.has("q"));
+      if (isSearchEndpoint || isSearchEngine) continue;
       url.hash = "";
       urls.add(url.toString());
     } catch {
@@ -86,9 +87,8 @@ export function registryResultLeadUrls(result: Pick<RegistryResult, "metadata">)
 export function formatRegistryResultLead(result: RegistryResult): string {
   const notes = result.notes ? ` — ${String(result.notes).slice(0, 160)}` : "";
   const urls = registryResultLeadUrls(result);
-  return `${result.name}${notes}${urls.length ? `\\n   UNVISITED_RECORD_URLS (leads only): ${urls.join(" | ")}` : ""}`;
+  return `${result.name}${notes}${urls.length ? `; UNVISITED_RECORD_URLS (leads only): ${urls.join(" | ")}` : ""}`;
 }
-
 const REGISTRY_ALIASES: Record<string, RegistryId> = {
   "sec edgar": "sec-edgar",
   "sec_edgar": "sec-edgar",
