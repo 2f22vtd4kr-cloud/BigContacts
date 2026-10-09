@@ -29,10 +29,12 @@ export function sanitizeUrlForEvidence(rawUrl: string, baseUrl?: string): string
 
     const fragment = url.hash.slice(1);
     if (fragment) {
-      const fragmentParameters = new URLSearchParams(fragment);
-      if ([...fragmentParameters.keys()].some(isSensitiveUrlParameter)) {
-        url.hash = redactParameters(fragmentParameters).toString();
-      }
+      // OAuth callback fragments may include a route before the query, e.g.
+      // #/callback?access_token=... . Redact key/value segments in-place so
+      // route prefixes survive and secrets are redacted wherever they occur.
+      url.hash = fragment.replace(/(^|[&#?])([^=&#?]+)=([^&#]*)/g, (match, separator: string, name: string) =>
+        isSensitiveUrlParameter(name) ? `${separator}${name}=[REDACTED]` : match,
+      );
     }
     return url.href;
   } catch {
