@@ -196,6 +196,8 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("priorContext: boundInvestigatorPromptSection(continuationState, 1_800)");
     expect(researchSource).toContain("sanitizeUrlForEvidence(url)");
     expect(researchSource).not.toMatch(/\.slice\(\s*-\d+/);
+    expect(researchSource).toMatch(/\.join\("\\n\\n"\)/);
+    expect(researchSource).not.toMatch(/\.join\("\\\\n\\\\n"\)/);
   });
 
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
