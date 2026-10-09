@@ -19,7 +19,7 @@ export function classifyApexError(input: unknown, status?: number): ApexUserErro
   // The canonical planning/control role is Groq Boss. Keep this diagnosis scoped to
   // that role; Investigator failures must not be mislabeled as Boss failures. Auth,
   // quota, timeout, and missing credentials are classified above.
-  const isGroqBossFailure = /groq[\\s_-]+boss|boss.{0,40}groq/.test(lower);
+  const isGroqBossFailure = /groq[ _-]+boss|boss.{0,40}groq/.test(lower);
   if (isGroqBossFailure && (status === 503 || /high demand|service unavailable|temporarily unavailable|unavailable after bounded/.test(lower)) && !/(?:quota|rate limit|too many requests|missing.*(?:key|secret|credential)|(?:key|secret|credential).*missing)/.test(lower))
     return {code:"GROQ_BOSS_UNAVAILABLE",severity:"degraded",title:"Apex is waiting on Groq Boss",message:"The planning model is temporarily unavailable. Apex stopped before research so it would not produce unsupported results.",why:"Groq Boss returned a temporary service-unavailable response or exhausted bounded model/key attempts.",nextSteps:["Wait a little and retry the same run.","Check System Status if the problem persists.","No Investigator fallback is used here because Groq Boss and Investigator have different roles."],retryable:true,provider:"Groq"};
   if (/missing/.test(lower) && /key|secret|credential/.test(lower))
