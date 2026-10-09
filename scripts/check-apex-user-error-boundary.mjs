@@ -9,7 +9,7 @@ const errors = read("artifacts/apex-finder/src/lib/apex-errors.ts");
 const notice = read("artifacts/apex-finder/src/components/apex-error-notice.tsx");
 
 const checks = [
-  ["failed API fetches emit a user-facing classified error", api.includes("res = await fetch(input, init)") && api.includes("emitApexError(classifyApexError(error instanceof Error ? error.message : \\"Network request failed\\"))")],
+  ["failed API fetches emit a user-facing classified error", api.includes("res = await fetch(input, init)") && api.includes('emitApexError(classifyApexError(error instanceof Error ? error.message : "Network request failed"))')],
   ["intentional API cancellation does not create a false error notice", api.includes("init?.signal?.aborted") && api.includes('error.name === "AbortError"')],
   ["failed response-body reads emit an error while respecting aborts", api.includes("text = await res.text()") && api.includes("Network response could not be read")],
   ["malformed or empty API bodies are surfaced instead of silently thrown", api.includes("API returned non-JSON") && api.includes("Empty response from API")],
