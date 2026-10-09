@@ -24,7 +24,7 @@ export function hasCanonicalPromotionJobBinding(
 }
 const HTTPS_SOURCE=/^https:\/\/\S+$/i; const SEARCH_QUERY_URL=[/google\.[^/]+\/search(?:[/?]|$)/i,/bing\.com\/search(?:[/?]|$)/i,/search\.yahoo\.com\/search(?:[/?]|$)/i,/duckduckgo\.com\/(?:html\/)?\?(?:[^#]*&)?q=/i,/efts\.sec\.gov\/LATEST\/search-index(?:[/?]|$)/i];
 function isClaimSourceUrl(url:string):boolean{return HTTPS_SOURCE.test(url)&&!SEARCH_QUERY_URL.some((pattern)=>pattern.test(url));}
-function hasExactObservedToken(text:string,value:string):boolean{
+export function hasExactObservedToken(text:string,value:string):boolean{
  const source=text.toLowerCase(),needle=value.trim().toLowerCase();
  if(!needle)return false;
  const continues=(character:string)=>Boolean(character)&&/[\p{L}\p{N}_@+-]/u.test(character);
@@ -58,6 +58,7 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
  if (candidate && !personName) return false;
  let identityObserved = !candidate;
  let valueObserved = false;
+ let identityAndValueBoundTogether = !candidate;
  const supportingUrls = new Set<string>();
  for (const observation of observations) {
   const urls = observation.sourceUrls.map((url) => normalizeSourceUrl(String(url))).filter((url): url is string => url !== null && cited.has(url));
@@ -68,13 +69,13 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
    : hasExactObservedToken(observation.observationText, cleanValue);
   if (identity) identityObserved = true;
   if (value) valueObserved = true;
-  // Identity and contact value may be established on separate observed pages.
-  // The Investigator must explicitly attribute them in one finding, and every
-  // cited URL must independently support either the exact identity or value.
-  // This preserves multi-source attribution without inventing co-occurrence.
+  // Trusted promotion requires at least one claim-grade observation to bind
+  // the candidate's exact identity and exact contact value together. Separate
+  // pages can support review-only attribution but cannot alone prove ownership.
+  if (candidate && identity && value) identityAndValueBoundTogether = true;
   if (candidate ? identity || value : value) for (const url of urls) supportingUrls.add(url);
  }
- return identityObserved && valueObserved && [...cited].every((url) => supportingUrls.has(url));
+ return identityObserved && valueObserved && identityAndValueBoundTogether && [...cited].every((url) => supportingUrls.has(url));
 }
 export function isClaimGradeObservationAction(action: unknown): boolean {
   return action === "visit" || action === "browser_fetch";
