@@ -201,6 +201,12 @@ describe("discovery runtime architecture", () => {
     expect(snapshotCalls.slice(1).every((call) => /,\s*model,\s*response/.test(call))).toBe(true);
   });
 
+  it("merges each Boss-directed discovery episode exactly once", () => {
+    const mergeCalls = [...fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8").matchAll(/discovery = mergeDiscoveryResults\\(discovery, nextDiscovery\\)/g)];
+    expect(mergeCalls).toHaveLength(1);
+    expect(fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8")).not.toContain("discovery = { ...nextDiscovery, searches: discovery.searches + nextDiscovery.searches");
+  });
+
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
