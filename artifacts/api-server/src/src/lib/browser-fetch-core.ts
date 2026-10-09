@@ -23,6 +23,76 @@ async function readJsonCapped<T>(response: Response, signal?: AbortSignal): Prom
 async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<string | null> { const key = process.env.SCRAPFLY_API_KEY ?? ""; if (!key) return null; throwIfAborted(signal); try { const u = new URL("https://api.scrapfly.io/scrape"); u.searchParams.set("key", key); u.searchParams.set("url", url); u.searchParams.set("asp", "true"); u.searchParams.set("render_js", "true"); const resp = await providerFetch("scrapfly", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal); if (!resp.ok) return null; const data = await readJsonCapped<{ result?: { content?: string } }>(resp, signal); const html = data?.result?.content ?? ""; return html.length > MAX_BROWSER_RESPONSE_BYTES ? null : html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url }, "scrapfly fetch failed"); return null; } }
 async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<string | null> { const key = process.env.ZENROWS_API_KEY ?? ""; if (!key) return null; throwIfAborted(signal); try { const u = new URL("https://api.zenrows.com/v1/"); u.searchParams.set("apikey", key); u.searchParams.set("url", url); u.searchParams.set("js_render", "true"); u.searchParams.set("premium_proxy", "true"); const resp = await providerFetch("zenrows", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url }, "zenrows fetch failed"); return null; } }
 async function fetchViaBrowserlessContent(url: string, signal?: AbortSignal): Promise<string | null> { const token = process.env.BROWSERLESS_TOKEN ?? ""; if (!token) return null; throwIfAborted(signal); try { const endpoint = process.env.BROWSERLESS_CONTENT_URL ?? `https://production-sfo.browserless.io/content?token=${encodeURIComponent(token)}`; const resp = await providerFetch("browserless", endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url, gotoOptions: { waitUntil: "domcontentloaded", timeout: timeoutMs() } }), signal: signal ?? AbortSignal.timeout(timeoutMs() + 5_000) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url }, "browserless content fetch failed"); return null; } }
-async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<string | null> { if (process.env.PLAYWRIGHT_ENABLED !== "1" && process.env.PLAYWRIGHT_ENABLED !== "true") return null; throwIfAborted(signal); try { const pw = await import("playwright").catch(() => null); if (!pw?.chromium) return null; const ws = process.env.PLAYWRIGHT_WS_ENDPOINT ?? ""; const browser = ws ? await pw.chromium.connectOverCDP(ws) : await pw.chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] }); try { const page = (await browser.newPage()) as any; await page.route("**/*", async (route: any) => { try { await assertSafeOutboundUrl(route.request().url()); await route.continue(); } catch { await route.abort("blockedbyclient"); } }); await raceAbort(page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs() }), signal); throwIfAborted(signal); await raceAbort(page.waitForTimeout(2_500), signal).catch(() => undefined); throwIfAborted(signal); const html = await page.content(); return html.length > MAX_BROWSER_RESPONSE_BYTES ? null : html.length > 100 ? html : null; } finally { await browser.close().catch(() => undefined); } } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url }, "playwright fetch failed"); return null; } }
-export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string }> { throwIfAborted(options.signal); await assertSafeOutboundUrl(url); const scope = options.scope?.trim() || getAgenticExecutionScope(); const count = getBrowserFetchCount(scope); if (count >= maxBrowserFetches()) { logger.info({ url, scope, count }, "browser_fetch budget exhausted"); return { html: "", provider: "budget_exhausted" }; } rememberBrowserFetchScope(scope, count + 1); const attempts: Array<[BrowserProvider, () => Promise<string | null>]> = [["scrapfly", () => fetchViaScrapfly(url, options.signal)], ["zenrows", () => fetchViaZenRows(url, options.signal)], ["browserless", () => fetchViaBrowserlessContent(url, options.signal)], ["playwright", () => fetchViaPlaywright(url, options.signal)]]; const selected = options.provider ? attempts.filter(([provider]) => provider === options.provider) : []; if (!selected.length) return { html: "", provider: "provider_required" }; for (const [provider, fn] of selected) { throwIfAborted(options.signal); const html = await fn(); if (html && !isChallengeHtml(html)) { logger.info({ url, provider, bytes: html.length, scope }, "browser_fetch ok"); return { html, provider }; } if (html && isChallengeHtml(html)) logger.debug({ url, provider }, "browser_fetch challenge for model-selected provider"); } logger.info({ url, provider: options.provider, scope }, "browser_fetch selected provider failed or unconfigured"); return { html: "", provider: options.provider }; }
-export function browserFetchConfigured(): boolean { return Boolean(process.env.SCRAPFLY_API_KEY || process.env.ZENROWS_API_KEY || process.env.BROWSERLESS_TOKEN || process.env.PLAYWRIGHT_ENABLED === "1" || process.env.PLAYWRIGHT_ENABLED === "true"); }
+type BrowserFetchAttempt = { html: string | null; observedUrl: string | null };
+
+async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<BrowserFetchAttempt> {
+  if (process.env.PLAYWRIGHT_ENABLED !== "1" && process.env.PLAYWRIGHT_ENABLED !== "true") return { html: null, observedUrl: null };
+  throwIfAborted(signal);
+  try {
+    const pw = await import("playwright").catch(() => null);
+    if (!pw?.chromium) return { html: null, observedUrl: null };
+    const ws = process.env.PLAYWRIGHT_WS_ENDPOINT ?? "";
+    const browser = ws ? await pw.chromium.connectOverCDP(ws) : await pw.chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+    try {
+      const page = await browser.newPage();
+      await page.route("**/*", async (route: any) => {
+        try {
+          await assertSafeOutboundUrl(route.request().url());
+          await route.continue();
+        } catch {
+          await route.abort("blockedbyclient");
+        }
+      });
+      await raceAbort(page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs() }), signal);
+      throwIfAborted(signal);
+      await raceAbort(page.waitForTimeout(2_500), signal).catch(() => undefined);
+      throwIfAborted(signal);
+      const finalUrl = page.url();
+      // Attribute source material to the effective document URL, never blindly
+      // to a pre-redirect request URL.
+      await assertSafeOutboundUrl(finalUrl);
+      const html = await page.content();
+      const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
+      return { html: usable ? html : null, observedUrl: usable ? finalUrl : null };
+    } finally {
+      await browser.close().catch(() => undefined);
+    }
+  } catch (err: any) {
+    if (signal?.aborted) throw new Error("browser fetch cancelled");
+    logger.debug({ err: err?.message, url }, "playwright fetch failed");
+    return { html: null, observedUrl: null };
+  }
+}
+export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null }> {
+  throwIfAborted(options.signal);
+  await assertSafeOutboundUrl(url);
+  const scope = options.scope?.trim() || getAgenticExecutionScope();
+  const count = getBrowserFetchCount(scope);
+  if (count >= maxBrowserFetches()) {
+    logger.info({ url, scope, count }, "browser_fetch budget exhausted");
+    return { html: "", provider: "budget_exhausted", observedUrl: null };
+  }
+  rememberBrowserFetchScope(scope, count + 1);
+  // The hosted scraping APIs return HTML but not authoritative final-navigation
+  // metadata. Until their response contract exposes it, keep their content as
+  // a lead only. Playwright can attest the effective document URL directly.
+  const attempts: Array<[BrowserProvider, () => Promise<BrowserFetchAttempt>]> = [
+    ["scrapfly", async () => ({ html: await fetchViaScrapfly(url, options.signal), observedUrl: null })],
+    ["zenrows", async () => ({ html: await fetchViaZenRows(url, options.signal), observedUrl: null })],
+    ["browserless", async () => ({ html: await fetchViaBrowserlessContent(url, options.signal), observedUrl: null })],
+    ["playwright", () => fetchViaPlaywright(url, options.signal)],
+  ];
+  const selected = options.provider ? attempts.filter(([provider]) => provider === options.provider) : [];
+  if (!selected.length) return { html: "", provider: "provider_required", observedUrl: null };
+  for (const [provider, fn] of selected) {
+    throwIfAborted(options.signal);
+    const result = await fn();
+    if (result.html && !isChallengeHtml(result.html)) {
+      logger.info({ url, provider, bytes: result.html.length, scope, sourceUrlVerified: Boolean(result.observedUrl) }, "browser_fetch ok");
+      return { html: result.html, provider, observedUrl: result.observedUrl };
+    }
+    if (result.html && isChallengeHtml(result.html)) logger.debug({ url, provider }, "browser_fetch challenge for model-selected provider");
+  }
+  logger.info({ url, provider: options.provider, scope }, "browser_fetch selected provider failed or unconfigured");
+  return { html: "", provider: options.provider, observedUrl: null };
+}
