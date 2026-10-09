@@ -45,6 +45,7 @@ function claimAppearsInObservedMaterial(finding:AgenticFinding,records:AgenticTr
 
   let valueObserved = false;
   let identityObserved = !candidate;
+  let identityAndValueBoundTogether = !candidate;
   let support = 0;
   const supportingUrls = new Set<string>();
 
@@ -67,6 +68,7 @@ function claimAppearsInObservedMaterial(finding:AgenticFinding,records:AgenticTr
     const hasIdentity = !candidate || candidateIdentityObserved(personName, identityText);
     if (hasValue) valueObserved = true;
     if (hasIdentity) identityObserved = true;
+    if (candidate && hasValue && hasIdentity) identityAndValueBoundTogether = true;
     const supportsThisSource = candidate ? (hasValue || hasIdentity) : hasValue;
     if (supportsThisSource) {
       support += 1;
@@ -74,7 +76,7 @@ function claimAppearsInObservedMaterial(finding:AgenticFinding,records:AgenticTr
     }
   }
 
-  return valueObserved && identityObserved && support > 0 && supportingUrls.size === sources.size;
+  return valueObserved && identityObserved && identityAndValueBoundTogether && support > 0 && supportingUrls.size === sources.size;
 }
 export function sourceBackedAgenticFindings(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]):AgenticFinding[]{const observed=claimGradeSourceUrlsFromTrajectory(records);return findings.filter((f)=>Array.isArray(f.sourceUrls)).map((f)=>({...f,sourceUrls:[...new Set(f.sourceUrls.map(normalizeObservedUrl).filter((url):url is string=>Boolean(url)))]})).filter((f)=>f.sourceUrls.length>0&&f.sourceUrls.every((url)=>observed.has(url))&&claimAppearsInObservedMaterial(f,records));}
 export function findingsToContactEvidence(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>({vectorType:f.vectorType,value:f.value,scope:f.scope==="candidate"?"candidate":"organization",personName:f.scope==="candidate"?f.personName:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:f.note}));}

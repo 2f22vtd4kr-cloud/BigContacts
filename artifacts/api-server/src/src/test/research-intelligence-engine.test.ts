@@ -150,7 +150,7 @@ describe("Apex research intelligence", () => {
       observation: "Jordan Example is director of Alpha",
       findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [secondUrl] }],
     });
-    const evidenceIds = engine.buildContext().atomicEvidence.map((item) => item.evidenceId);
+    const evidenceIds = engine.buildContext().atomicEvidence.filter((item) => item.kind === "finding" || item.kind === "claim").map((item) => item.evidenceId);
     expect(evidenceIds).toHaveLength(2);
     engine.addHypothesis({ label: "Jordan Example is director of Alpha", entity: "Jordan Example director Alpha", supportingEvidenceIds: [evidenceIds[0]!] });
     engine.addHypothesis({ label: "Jordan Example is director of Alpha", entity: "Jordan Example director Alpha", supportingEvidenceIds: [evidenceIds[1]!] });
@@ -179,6 +179,77 @@ describe("Apex research intelligence", () => {
     const after = restored.buildContext();
     expect(after.evidenceCount).toBe(before.evidenceCount);
     expect(after.atomicEvidence.map((item) => item.evidenceId)).toEqual(before.atomicEvidence.map((item) => item.evidenceId));
+  });
+
+
+  it("does not treat an unrelated contact finding as support for a role hypothesis", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-relevance", target: "Jordan Example", objective: "verify role" });
+    const url = "https://example.com/contact";
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      args: { hypothesis: "Jordan Example is director of Alpha", purpose: "verify the director role" },
+      urls: [url], observation: "Jordan Example email jordan@example.com",
+      findings: [{ vectorType: "email", value: "jordan@example.com", personName: "Jordan Example", sourceUrls: [url] }],
+    });
+    const hypothesis = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha");
+    expect(hypothesis).toBeDefined();
+    expect(hypothesis?.supportingEvidenceIds).toHaveLength(0);
+  });
+
+  it("lowers a hypothesis posterior when a linked observation contradicts its supported claim", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-contradiction", target: "Alex Example", objective: "verify directorship" });
+    const alphaUrl = "https://registry.example.gov/alex";
+    const betaUrl = "https://news.example.com/alex";
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      args: { hypothesis: "Alex Example is director of Alpha", purpose: "verify the directorship" },
+      urls: [alphaUrl], observation: "Alex Example is director of Alpha",
+      findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: [alphaUrl] }],
+    });
+    const prior = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example is director of Alpha")?.score;
+    engine.recordAction({
+      turn: 2, action: "visit", execution: "success",
+      args: { hypothesis: "Alex Example is director of Alpha", purpose: "verify the director role" },
+      urls: [betaUrl], observation: "Alex Example is director of Beta",
+      findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: [betaUrl] }],
+    });
+    const state = engine.buildContext();
+    const updated = state.hypotheses.find((item) => item.label === "Alex Example is director of Alpha");
+    const betaEvidenceId = state.atomicEvidence.find((item) => item.claim === "Alex Example is director of Beta")?.evidenceId;
+    expect(prior).toBeDefined();
+    expect(updated?.contradictingEvidenceIds.length).toBeGreaterThan(0);
+    expect(updated?.supportingEvidenceIds).not.toContain(betaEvidenceId);
+    expect(updated?.score).toBeLessThan(prior!);
+  });
+
+
+  it("does not score a directly conflicting predicate object as hypothesis support", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-object-mismatch", target: "Alex Example", objective: "verify directorship" });
+    const url = "https://news.example.com/alex";
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      args: { hypothesis: "Alex Example may be the director of Alpha", purpose: "verify the directorship" },
+      urls: [url], observation: "Alex Example is director of Beta",
+      findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: [url] }],
+    });
+    const hypothesis = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example may be the director of Alpha");
+    expect(hypothesis).toBeDefined();
+    expect(hypothesis?.supportingEvidenceIds).toHaveLength(0);
+  });
+
+
+  it("does not score a similar-name person's claim as support for the target hypothesis", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-wrong-subject", target: "Jordan Example", objective: "verify directorship" });
+    const url = "https://news.example.com/jordan-jr";
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      args: { hypothesis: "Jordan Example is director of Alpha", purpose: "verify the directorship" },
+      urls: [url], observation: "Jordan Example Jr is director of Alpha",
+      findings: [{ vectorType: "is", value: "director of Alpha", personName: "Jordan Example Jr", sourceUrls: [url] }],
+    });
+    const hypothesis = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha");
+    expect(hypothesis).toBeDefined();
+    expect(hypothesis?.supportingEvidenceIds).toHaveLength(0);
   });
 
 });

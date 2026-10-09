@@ -75,7 +75,9 @@ describe("canonical Atlas stop fence", () => {
     const lock = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/canonical-job-lock.ts"), "utf8");
     expect(lock).toContain("local owner=redis.call(\'get\',KEYS[1]); if owner==ARGV[1] then return 0 end;");
     expect(lock).toContain("if not status or status==\'done\' or status==\'failed\' or status==\'cancelled\' then return 0 end");
-    expect(lock).toContain("if (!fenced) return;");
+    expect(lock).toContain("const [redisResult, databaseResult] = await Promise.allSettled([redisFence, dbFence]);");
+    expect(lock).toContain('if (redisResult.status === "rejected" || databaseResult.status === "rejected")');
+    expect(lock).toContain("Canonical lease-loss fencing incomplete: redis=");
     const timer = lock.slice(lock.indexOf("const timer = setInterval"));
     expect(timer).toContain("Canonical lease renewal failed; retrying before fencing");
     expect(timer).toContain("if (!renewed)");

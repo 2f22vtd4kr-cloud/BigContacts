@@ -202,10 +202,12 @@ describe("discovery runtime architecture", () => {
 
   it("only treats durably source-backed discovery candidates as admissions or terminal proof", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    expect(canonicalSource).toContain("return { names: durableNames, materialized, evidenceRows }");
-    expect(canonicalSource).toContain("if (materializedAdmission.durableEvidence) durableNames.push(name)");
+    expect(canonicalSource).toContain("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }");
+    expect(canonicalSource).toContain("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrl: normalizedSource })");
     expect(canonicalSource).toContain("if (!session?.id) throw new Error(");
-    expect(canonicalSource).toMatch(/const durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited && admitted\.length > 0 \? "complete" : "review"/);
+    expect(canonicalSource).toContain('latestEvidenceBackedTerminal = deriveLatestEvidenceBackedTerminal("discovery", nextDiscovery.status, nextDiscovery.stopReason, investigatorResourceLimited) !== null && admitted.length > 0 ? "discovery" : null');
+    expect(canonicalSource).toContain("const evidenceBackedTerminal = isCanonicalAtlasRunEvidenceComplete(latestEvidenceBackedTerminal, researched)");
+    expect(canonicalSource).toContain('const finalCaseStatus = finalIncomplete ? "review" : "complete"');
     expect(canonicalSource).toMatch(/latestEvidenceBackedTerminal: "discovery" \| "target" \| null = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && admitted\.length > 0 \? "discovery" : null/);
   });
 });

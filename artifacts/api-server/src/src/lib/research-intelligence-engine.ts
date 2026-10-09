@@ -189,6 +189,24 @@ function extractPredicate(claim: string): { subject: string; predicate: string; 
   return { subject: match[1]!.trim(), predicate, object: match[2]!.trim() };
 }
 
+function supportsHypothesisClaim(hypothesis: string, claim: string): boolean {
+  const parseableHypothesis = hypothesis
+    .replace(/\b(?:may|might|could|possibly|probably|likely|perhaps)\b/gi, " ")
+    .replace(/\b(?:the|a|an)\b/gi, " ")
+    .replace(/\bbe\b/gi, "is")
+    .replace(/\s+/g, " ")
+    .trim();
+  const hypothesisClaim = extractPredicate(parseableHypothesis);
+  const evidenceClaim = extractPredicate(claim);
+  if (hypothesisClaim.predicate !== "asserts" && evidenceClaim.predicate !== "asserts") {
+    if (normalize(hypothesisClaim.subject) !== normalize(evidenceClaim.subject)) return false;
+    if (hypothesisClaim.predicate !== evidenceClaim.predicate) return false;
+    const normalizeObject = (value: string) => normalize(value).replace(/^(?:the|a|an)\s+/, "");
+    if (normalizeObject(hypothesisClaim.object) !== normalizeObject(evidenceClaim.object)) return false;
+  }
+  return overlap(hypothesis, claim) >= 0.35;
+}
+
 export class ResearchIntelligenceEngine {
   private readonly evidence = new Map<string, IntelligenceEvidence>();
   private readonly claims = new Map<string, IntelligenceClaim>();
@@ -247,17 +265,17 @@ export class ResearchIntelligenceEngine {
         + Math.min(0.2, newHostCount * 0.1));
     const predictedInformationGain = clamp(input.predictedInformationGain ?? informationGain);
     this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain, findingNames: [...new Set(findings.map((finding) => String(finding.personName ?? "").trim()).filter(Boolean))].slice(0, 8), findingRoles: [...new Set(findings.map((finding) => String(finding.role ?? "").trim()).filter(Boolean))].slice(0, 8) });
+    // Reconcile newly observed competing claims before deciding which findings support this turn's hypothesis.
     const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
     const modelPurpose = typeof input.args?.purpose === "string" ? input.args.purpose.trim() : "";
     if (modelHypothesis) {
-      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim")).map((evidence) => evidence.id);
+      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim") && supportsHypothesisClaim(modelHypothesis, evidence.claim) && !evidence.contradicts.some((id) => { const competing = this.evidence.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); })).map((evidence) => evidence.id);
       this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, missingDiscriminators: modelPurpose ? [modelPurpose] : [] });
     }
     const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
     const actionLearningKey = learningQuestion ? input.action + "|" + learningQuestion.slice(0, 180) : input.action;
     this.actionYield.set(actionLearningKey, updateActionYield(this.actionYield.get(actionLearningKey), { useful, execution: input.execution, informationGain, predictedInformationGain, realizedInformationGain: informationGain, turn: input.turn }));
     this.chain = hash(`${this.chain}|${input.turn}|${input.action}|${input.execution}|${JSON.stringify(urls)}|${findings.map((f) => `${f.vectorType}:${f.value}`).join("|")}`);
-    this.reconcileContradictions();
   }
 
   /** Restore durable epistemic state after a process restart. This is projection reconstruction only: it never selects research actions or providers. */
@@ -397,17 +415,27 @@ export class ResearchIntelligenceEngine {
     for (const evidence of this.evidence.values()) { const parsed = extractPredicate(evidence.claim); const key = normalize(`${parsed.subject}|${parsed.predicate}`); const list = grouped.get(key) ?? []; list.push(evidence); grouped.set(key, list); }
     for (const evidence of this.evidence.values()) evidence.contradicts = [];
     for (const list of grouped.values()) {
-      const values = [...new Map(list.map((item) => [normalize(extractPredicate(item.claim).object), item])).values()];
+      const objectById = new Map(list.map((item) => [item.id, normalize(extractPredicate(item.claim).object)]));
+      const distinctObjects = new Set(objectById.values());
       const parsed = extractPredicate(list[0]?.claim ?? "");
       if (["email", "phone", "social", "website"].includes(parsed.predicate)) continue;
-      if (values.length < 2) continue;
-      for (const current of values) current.contradicts = [...new Set(values.filter((item) => item.id !== current.id).map((item) => item.id))];
+      if (distinctObjects.size < 2) continue;
+      // Every observation of one side must link to all conflicting objects,
+      // not only the last representative retained for each distinct value.
+      for (const current of list) {
+        current.contradicts = [...new Set(list
+          .filter((item) => objectById.get(item.id) !== objectById.get(current.id))
+          .map((item) => item.id))];
+      }
     }
     for (const claim of this.claims.values()) { const related = claim.evidenceIds.map((id) => [...this.evidence.values()].find((item) => item.id === id)).filter(Boolean) as IntelligenceEvidence[]; const predicate = claim.predicate; const key = normalize(`${claim.subject}|${predicate}`); const group = [...this.evidence.values()].filter((item) => { const parsed = extractPredicate(item.claim); return normalize(`${parsed.subject}|${parsed.predicate}`) === key; }); claim.status = group.some((item) => item.contradicts.length > 0) ? "contradicted" : related.length ? "supported" : "unresolved"; }
   }
 
   private rankHypotheses(): void {
     for (const hypothesis of this.hypotheses.values()) {
+      const linkedContradictions = hypothesis.supportingEvidenceIds.flatMap((id) => this.evidence.get(id)?.contradicts ?? []);
+      hypothesis.contradictingEvidenceIds = [...new Set([...hypothesis.contradictingEvidenceIds, ...linkedContradictions])]
+        .filter((id) => this.evidence.has(id));
       const signals = [
         ...hypothesis.supportingEvidenceIds.map((id) => this.evidence.get(id)).filter(Boolean).map((evidence) => ({
           direction: "support" as const,
