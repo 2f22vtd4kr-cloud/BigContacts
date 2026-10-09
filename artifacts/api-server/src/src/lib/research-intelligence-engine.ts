@@ -225,6 +225,7 @@ function supportsHypothesisClaim(hypothesis: string, claim: string): boolean {
 
 export class ResearchIntelligenceEngine {
   private readonly evidence = new Map<string, IntelligenceEvidence>();
+  private readonly evidenceByIdMap = new Map<string, IntelligenceEvidence>();
   private readonly claims = new Map<string, IntelligenceClaim>();
   private readonly contacts = new Map<string, ContactEvidence>();
   private readonly actions: IntelligenceAction[] = [];
@@ -286,7 +287,7 @@ export class ResearchIntelligenceEngine {
     const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
     const modelPurpose = typeof input.args?.purpose === "string" ? input.args.purpose.trim() : "";
     if (modelHypothesis) {
-      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim") && supportsHypothesisClaim(modelHypothesis, evidence.claim) && !evidence.contradicts.some((id) => { const competing = this.evidence.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); })).map((evidence) => evidence.id);
+      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim") && supportsHypothesisClaim(modelHypothesis, evidence.claim) && !evidence.contradicts.some((id) => { const competing = this.evidenceByIdMap.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); })).map((evidence) => evidence.id);
       this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, missingDiscriminators: modelPurpose ? [modelPurpose] : [] });
     }
     const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
@@ -298,7 +299,7 @@ export class ResearchIntelligenceEngine {
   /** Restore durable epistemic state after a process restart. This is projection reconstruction only: it never selects research actions or providers. */
   restoreContext(context: IntelligenceContext): void {
     if (context.version !== 1) return;
-    this.evidence.clear(); this.claims.clear(); this.contacts.clear(); this.actions.length = 0;
+    this.evidence.clear(); this.evidenceByIdMap.clear(); this.claims.clear(); this.contacts.clear(); this.actions.length = 0;
     this.negativeFindings.clear(); this.hypotheses.clear(); this.feedback.length = 0; this.actionYield.clear();
     this.chain = context.provenanceDigest || "GENESIS";
     const lineageByUrl = new Map(context.sourceLineage.map((node) => [canonicalUrl(node.canonicalUrl) ?? node.canonicalUrl, node]));
@@ -308,13 +309,15 @@ export class ResearchIntelligenceEngine {
       const sourceHost = item.sourceHost ?? hostOf(sourceUrl); const sourceLineage = sourceUrl ? lineageByUrl.get(sourceUrl) : undefined;
       const fingerprint = hash(item.kind + "|" + normalize(item.claim) + "|" + normalize(parsed.object) + "|" + (sourceUrl ?? ""));
       const evidenceId = item.evidenceId || ("ev_" + fingerprint.slice(0, 20));
-      this.evidence.set(fingerprint, { id: evidenceId, kind: item.kind, claim: item.claim, value: parsed.object, sourceUrl, sourceHost,
+      const restoredEvidence: IntelligenceEvidence = { id: evidenceId, kind: item.kind, claim: item.claim, value: parsed.object, sourceUrl, sourceHost,
         sourceTier: tierForHost(sourceHost), sourceClass: item.sourceClass, extractionMethod: "durable_replay",
         retrievedAt: new Date(0).toISOString(), lastSeen: new Date(0).toISOString(), turn: 0, action: "durable_replay",
         execution: "success", supports: item.attribution ? [item.attribution] : [], contradicts: [], passage: item.passage,
         claimId: item.claimId, sourceFamily: sourceFamily(sourceHost), attribution: item.attribution,
         spanStart: item.passage ? 0 : null, spanEnd: item.passage ? item.passage.length : null, spanBound: Boolean(item.passage),
-        sourceLineageId: sourceLineage?.sourceId, fingerprint });
+        sourceLineageId: sourceLineage?.sourceId, fingerprint };
+      this.evidence.set(fingerprint, restoredEvidence);
+      this.evidenceByIdMap.set(evidenceId, restoredEvidence);
     }
     for (const fact of context.facts) {
       const parsed = extractPredicate(fact.claim); const id = "cl_" + hash(fact.claim).slice(0, 20);
@@ -402,6 +405,7 @@ export class ResearchIntelligenceEngine {
       fingerprint,
     };
     this.evidence.set(fingerprint, evidenceRecord);
+    this.evidenceByIdMap.set(id, evidenceRecord);
     if (previous) {
       previous.evidenceIds.push(id);
       previous.sourceHosts = [...new Set([...previous.sourceHosts, sourceHost].filter(Boolean) as string[])];
@@ -450,17 +454,17 @@ export class ResearchIntelligenceEngine {
 
   private rankHypotheses(): void {
     for (const hypothesis of this.hypotheses.values()) {
-      const linkedContradictions = hypothesis.supportingEvidenceIds.flatMap((id) => this.evidence.get(id)?.contradicts ?? []);
+      const linkedContradictions = hypothesis.supportingEvidenceIds.flatMap((id) => this.evidenceByIdMap.get(id)?.contradicts ?? []);
       hypothesis.contradictingEvidenceIds = [...new Set([...hypothesis.contradictingEvidenceIds, ...linkedContradictions])]
-        .filter((id) => this.evidence.has(id));
+        .filter((id) => this.evidenceByIdMap.has(id));
       const signals = [
-        ...hypothesis.supportingEvidenceIds.map((id) => this.evidence.get(id)).filter(Boolean).map((evidence) => ({
+        ...hypothesis.supportingEvidenceIds.map((id) => this.evidenceByIdMap.get(id)).filter(Boolean).map((evidence) => ({
           direction: "support" as const,
           sourceReliability: evidence!.sourceTier === "A" ? 0.9 : evidence!.sourceTier === "C" ? 0.55 : 0.7,
           sourceIndependence: scoreSourceIndependence({ sourceHosts: evidence!.sourceHost ? [evidence!.sourceHost] : [], sourceClasses: [evidence!.sourceClass] }),
           identitySpecificity: overlap(hypothesis.entity, evidence!.claim),
         })),
-        ...hypothesis.contradictingEvidenceIds.map((id) => this.evidence.get(id)).filter(Boolean).map((evidence) => ({
+        ...hypothesis.contradictingEvidenceIds.map((id) => this.evidenceByIdMap.get(id)).filter(Boolean).map((evidence) => ({
           direction: "contradict" as const,
           sourceReliability: evidence!.sourceTier === "A" ? 0.9 : evidence!.sourceTier === "C" ? 0.55 : 0.7,
           sourceIndependence: scoreSourceIndependence({ sourceHosts: evidence!.sourceHost ? [evidence!.sourceHost] : [], sourceClasses: [evidence!.sourceClass] }),
@@ -483,7 +487,7 @@ export class ResearchIntelligenceEngine {
   buildContext(): IntelligenceContext {
     this.rankHypotheses();
     const claims = [...this.claims.values()];
-    const evidenceFor = (claim: IntelligenceClaim) => claim.evidenceIds.map((id) => this.evidence.get(id)).filter((item): item is IntelligenceEvidence => Boolean(item));
+    const evidenceFor = (claim: IntelligenceClaim) => claim.evidenceIds.map((id) => this.evidenceByIdMap.get(id)).filter((item): item is IntelligenceEvidence => Boolean(item));
     const substantive = (claim: IntelligenceClaim) => evidenceFor(claim).some((item) => item.kind === "finding" || item.kind === "claim");
     const facts = claims.filter((claim) => claim.status === "supported" && substantive(claim)).sort((a, b) => b.evidenceIds.length - a.evidenceIds.length).map((claim) => ({ claim: `${claim.subject} ${claim.predicate} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] })); for (const contact of this.contacts.values()) { const claim = `${contact.personName ?? this.input.target} ${contact.vector} ${contact.value}`; if (!facts.some((fact) => fact.claim === claim)) { const evidenceIds = [...this.evidence.values()].filter((item) => item.value === contact.value && item.claim.toLowerCase().startsWith(`${(contact.personName ?? this.input.target).toLowerCase()} `)).map((item) => item.id); facts.push({ claim, evidenceIds, sources: [...contact.sourceHosts] }); } }
     const contradictionGroups = new Map<string, IntelligenceEvidence[]>(); for (const evidence of this.evidence.values()) { const parsed = extractPredicate(evidence.claim); const key = normalize(`${parsed.subject}|${parsed.predicate}`); const list = contradictionGroups.get(key) ?? []; list.push(evidence); contradictionGroups.set(key, list); } const contradictions = [...contradictionGroups.values()].filter((list) => { const predicate = extractPredicate(list[0]?.claim ?? "").predicate; return !["email", "phone", "social", "website"].includes(predicate) && new Set(list.map((item) => normalize(extractPredicate(item.claim).object))).size > 1; }).map((list) => { const ids = [...new Set(list.map((item) => item.id))]; const first = extractPredicate(list[0]?.claim ?? ""); return { claim: `${first.subject} ${first.predicate} ${first.object}`, evidenceIds: ids, sources: [...new Set(list.map((item) => item.sourceHost).filter(Boolean) as string[])] }; });
