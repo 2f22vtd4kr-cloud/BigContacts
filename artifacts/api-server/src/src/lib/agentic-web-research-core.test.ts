@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, validateDiscoverySearchQuery } from "./agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 
 describe("Investigator prompt architecture", () => {
@@ -126,6 +126,13 @@ describe("Investigator prompt architecture", () => {
     expect(describeAgentActionParseFailure('{"action":"visit"}')).toBe("invalid_action_arguments action=visit invalid=url");
     expect(describeAgentActionParseFailure('{"action":"web_search","query":"anchor","provider":"serper"} trailing text {"noise":true}')).toBe("invalid_action_arguments action=web_search");
     expect(describeAgentActionParseFailure('{"action":"parallel_web_search","searches":[{"query":"anchor","provider":"serper"}]}')).toBe("invalid_action_arguments action=parallel_web_search searches_min=2");
+  });
+
+  it("cancels provider-capacity waits promptly and cleans up the pending timer", async () => {
+    const controller = new AbortController();
+    const pending = waitForAbortableDelay(60_000, controller.signal);
+    controller.abort();
+    await expect(pending).rejects.toThrow("cancelled");
   });
 
 });
