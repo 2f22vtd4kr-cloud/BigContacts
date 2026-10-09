@@ -146,3 +146,10 @@ Added regression coverage checking the actual app mount and router ordering, pre
 The operator login limiter counted failed attempts in a 60-second window and set a 60-second block after the eighth failure. Its lookup path also reset the attempt record when the window elapsed, unconditionally clearing `blockedUntil`. An eighth failure near the end of the window could therefore be unblocked before its own deadline.
 
 The route now uses `advanceLoginAttemptWindow`, which preserves the existing state while `blockedUntil > now` and only opens a new failure window after the lockout expires. Added regression coverage at the precise boundary: a block begun near the end of one window must persist past that window and reset only at its own deadline. This is a source-level correction; exact-head CI and deployed authentication behavior remain to be verified.
+
+
+## Follow-up telemetry fix — target Investigator failures must not appear successful
+
+The live tool-span mapper now preserves missing and unknown statuses as `unknown`, but the target-agent completion span had a separate hard-coded mapping: it emitted `ok` for every status except `timeout` and `cancelled`. That incorrectly labeled `unavailable` and `error` Investigator results as successful. Both live-step producers also defaulted a missing status to `ok`, bypassing the safer mapper.
+
+A shared `digSpanStatusFromExecutionStatus` mapping now handles terminal completion, error, cancellation, and unknown states. Target-agent stage telemetry uses that mapping, and target/discovery live-step producers no longer invent success when the source status is absent. Regression coverage checks the status table and both production call sites. This is observability correctness; it does not by itself prove the underlying research outcome succeeded.
