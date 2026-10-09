@@ -27,7 +27,7 @@ const required = [
    "both discovery and target paths must rebuild intelligence from durable Investigator events."],
   ["legacy projection fallback", replay.includes("if (!records.length)") && replay.includes("engine.restoreContext(legacyContext)"),
    "cases without a replayable event history must retain a safe legacy-state restoration path."],
-  ["sequence-ordered event source", wrapper.includes("orderBy(asc(researchCaseEventsTable.id))") && replay.includes("events).sort((a, b) => a.id - b.id)"),
+  ["sequence-ordered event source", wrapper.includes("orderBy(asc(researchCaseEventsTable.id))") && replay.includes("[...events].sort((a, b) => a.id - b.id)"),
    "durable acts must replay by immutable database sequence, not timestamps or prompt order."],
   ["target evidence projection", oversight.includes("caseFile.evidenceState=intelligenceState"),
    "target oversight must persist the epistemic projection in the same transaction as the act/control checkpoint."],
