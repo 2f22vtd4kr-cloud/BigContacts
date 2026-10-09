@@ -49,7 +49,7 @@ export function assessWealthEstimateEligibility(
     && input.sourceRegistries.trim() !== "[]"
     && input.sourceRegistries.trim().toLowerCase() !== "null";
   if (
-    metadata.westernIngest === true
+    (metadata.westernIngest === true && wealthStatus !== "assessed")
     || wealthStatus === "unverified"
     || wealthStatus === "not_assessed"
     || (hasRegistryProvenance && wealthStatus !== "assessed")
