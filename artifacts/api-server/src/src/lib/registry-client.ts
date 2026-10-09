@@ -28,12 +28,31 @@ function createRegistryRequestSignal(signal: AbortSignal | undefined, timeoutMs:
 
 export interface RegistryResult {
   name: string;
-  type: "Corporation" | "HNWI" | "Gatekeeper";
+  type: "Corporation" | "HNWI" | "Gatekeeper" | "PersonCandidate";
   nationality?: string;
   knownResidences?: string;
   sourceRegistries: string;
   notes?: string;
   metadata?: string;
+}
+
+/**
+ * Translate a registry's record kind into an Apex entity classification.
+ * A corporate office, officer appointment, or regulatory filing is not itself
+ * evidence that a person is wealthy or is a personal gatekeeper. Keep people
+ * discovered only through those records as review candidates until the
+ * model-led, source-backed adjudication path establishes more.
+ */
+export function classifyRegistryRecordType(source: string, formType?: string): RegistryResult["type"] {
+  const normalizedSource = source.trim().toLowerCase();
+  const normalizedForm = String(formType ?? "").replace(/[\\s/]+/g, "").toUpperCase();
+
+  if (normalizedSource === "companies-house-officers") return "PersonCandidate";
+  if (normalizedSource === "sec-edgar") {
+    if (normalizedForm.startsWith("DEF14A")) return "Corporation";
+    if (normalizedForm.startsWith("SC13D") || normalizedForm.startsWith("SC13G")) return "PersonCandidate";
+  }
+  return "Corporation";
 }
 
 export interface RegistrySearchParams {
@@ -172,7 +191,8 @@ async function searchCompaniesHouse(query: string, apiKey: string, limit: number
   }
   if (officersResp.ok) {
     const data = (await officersResp.json()) as any;
-    for (const item of data?.items ?? []) { const addr = item?.address; const addrStr = addr ? [addr.premises, addr.address_line_1, addr.locality, addr.postal_code, addr.country].filter(Boolean).join(", ") : undefined; const dob = item?.date_of_birth; const dobStr = dob ? `${dob.month}/${dob.year}` : null; results.push({ name: item?.title ?? "Unknown Officer", type: "HNWI", nationality: item?.nationality ?? undefined, knownResidences: addrStr, sourceRegistries: JSON.stringify(["Companies House UK (Officers)"]), notes: [item?.officer_role ? `Role: ${item.officer_role}` : null, dobStr ? `DOB: ${dobStr}` : null, item?.occupation ? `Occupation: ${item.occupation}` : null, item?.appointed_on ? `Appointed: ${item.appointed_on}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "companies-house-officers", officerRole: item?.officer_role, dateOfBirth: item?.date_of_birth, nationality: item?.nationality, occupation: item?.occupation, appointedOn: item?.appointed_on }) }); }
+    for (const item of data?.items ?? []) { const addr = item?.address; const addrStr = addr ? [addr.premises, addr.address_line_1, addr.locality, addr.postal_code, addr.country].filter(Boolean).join(", ") : undefined; const dob = item?.date_of_birth; const dobStr = dob ? `${dob.month}/${dob.year}` : null; const type = classifyRegistryRecordType("companies-house-officers");
+      results.push({ name: item?.title ?? "Unknown Officer", type, nationality: item?.nationality ?? undefined, knownResidences: addrStr, sourceRegistries: JSON.stringify(["Companies House UK (Officers)"]), notes: [item?.officer_role ? `Role: ${item.officer_role}` : null, dobStr ? `DOB: ${dobStr}` : null, item?.occupation ? `Occupation: ${item.occupation}` : null, item?.appointed_on ? `Appointed: ${item.appointed_on}` : null, "Officer record only; personal wealth not established."].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "companies-house-officers", officerRole: item?.officer_role, dateOfBirth: item?.date_of_birth, nationality: item?.nationality, occupation: item?.occupation, appointedOn: item?.appointed_on, reviewOnly: true, wealthStatus: "unverified" }) }); }
   }
   return results;
 }
@@ -182,7 +202,7 @@ async function searchSecEdgar(query: string, limit: number, signal?: AbortSignal
   const resp = await registryFetch("registry", searchUrl, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research research@apexfinder.private" }, signal: createRegistryRequestSignal(signal, 12_000) });
   if (!resp.ok) { const body = await resp.text().catch(() => ""); throw new Error(`SEC EDGAR ${resp.status}: ${body.slice(0, 200) || resp.statusText}`); }
   const data = (await resp.json()) as any; const hits: any[] = data?.hits?.hits ?? []; const seen = new Set<string>(); const results: RegistryResult[] = [];
-  for (const hit of hits) { if (results.length >= limit) break; const src = hit?._source ?? {}; const entityName: string = src?.entity_name ?? src?.display_names?.[0]?.name ?? "Unknown"; const formType: string = src?.form_type ?? ""; const fileDate: string = src?.file_date ?? ""; const biz: string = src?.biz_location ?? src?.inc_states ?? "US"; const key = entityName.toLowerCase(); if (seen.has(key)) continue; seen.add(key); const isLargeholder = formType.startsWith("SC 13") || formType.startsWith("SC13"); const isProxy = formType === "DEF 14A" || formType === "DEF14A"; const type: RegistryResult["type"] = isLargeholder ? "HNWI" : isProxy ? "Gatekeeper" : "Corporation"; results.push({ name: entityName, type, nationality: "US", knownResidences: biz || undefined, sourceRegistries: JSON.stringify(["SEC EDGAR", `Form ${formType}`]), notes: [formType ? `Filing: ${formType}` : null, fileDate ? `Date: ${fileDate}` : null, src?.period_of_report ? `Period: ${src.period_of_report}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "sec-edgar", formType, fileDate, entityName, bizLocation: src?.biz_location, incStates: src?.inc_states, cik: src?.entity_id }) }); }
+  for (const hit of hits) { if (results.length >= limit) break; const src = hit?._source ?? {}; const entityName: string = src?.entity_name ?? src?.display_names?.[0]?.name ?? "Unknown"; const formType: string = src?.form_type ?? ""; const fileDate: string = src?.file_date ?? ""; const biz: string = src?.biz_location ?? src?.inc_states ?? "US"; const key = entityName.toLowerCase(); if (seen.has(key)) continue; seen.add(key); const type = classifyRegistryRecordType("sec-edgar", formType); results.push({ name: entityName, type, nationality: "US", knownResidences: biz || undefined, sourceRegistries: JSON.stringify(["SEC EDGAR", `Form ${formType}`]), notes: [formType ? `Filing: ${formType}` : null, fileDate ? `Date: ${fileDate}` : null, src?.period_of_report ? `Period: ${src.period_of_report}` : null, type === "PersonCandidate" ? "SEC filing lead; personal wealth and current beneficial ownership require verification." : type === "Corporation" ? "Proxy statement identifies a corporate filer, not a personal gatekeeper by itself." : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "sec-edgar", formType, fileDate, entityName, bizLocation: src?.biz_location, incStates: src?.inc_states, cik: src?.entity_id, reviewOnly: type === "PersonCandidate", wealthStatus: type === "PersonCandidate" ? "unverified" : "not_assessed" }) }); }
   return results;
 }
 
