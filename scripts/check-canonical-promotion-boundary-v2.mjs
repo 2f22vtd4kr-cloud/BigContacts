@@ -15,9 +15,13 @@ const targetContinuation = read("artifacts/api-server/src/src/routes/research/ca
 const targetControl = read("artifacts/api-server/src/src/lib/target-control-decision.ts");
 const continuation = read("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts");
 const researchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
+const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
+const investigatorCore = read("artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const failures = [];
 const assert = (ok, name) => { if (!ok) failures.push(name); };
 const hasAll = (source, markers) => markers.every((marker) => source.includes(marker));
+assert((agentic.match(/priorIntelligenceContext: intelligence\\.buildContext\\(\\)/g) ?? []).length >= 2 && (agentic.match(/priorTrajectoryRecords: records/g) ?? []).length >= 2, "both canonical Investigator modes pass accumulated intelligence and prior observed pages into each one-action core decision");
+assert(hasAll(investigatorCore, ["priorIntelligenceContext?: IntelligenceContext", "priorTrajectoryRecords?: readonly AgenticTrajectoryRecord[]", "if (input.priorIntelligenceContext) intelligence.restoreContext(input.priorIntelligenceContext)", "bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)])", "discoveryTerminalGate([...priorTrajectoryRecords, ...records.slice(0, -1)])"]), "the per-action core restores epistemic state and grounds terminal claims and discovery liveness against the cumulative trajectory");
 assert(hasAll(target, ["persistSourceBackedBureauContactsForEntity", "const modelFindings = agentic.modelFindings ?? []", "sourceBackedFindings(modelFindings, agentic.trajectory, agentic.trajectoryRecords)"]), "target uses strict persistence only for model-emitted, observed findings");
 assert(hasAll(target, ['promote: isExplicitCandidate && f.promotionDecision === "promote"', "state: \"review_only\"", "tier: \"candidate\""]), "target preserves explicit Investigator promotion semantics");
 assert(hasAll(target, ["execution=success", "observed=(https?:", "claimAppearsInObservedMaterial", "record.observation"]), "target validates claims against successful observed material");
