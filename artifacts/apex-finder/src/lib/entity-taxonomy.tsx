@@ -6,7 +6,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type EntityType = "HNWI" | "Corporation" | "Trust" | "Gatekeeper";
+export type EntityType = "HNWI" | "Corporation" | "Trust" | "Gatekeeper" | "PersonCandidate";
 
 type EntityLike = {
   type?: string | null;
@@ -28,6 +28,16 @@ export type EntityMeta = {
 };
 
 const META: Record<EntityType, EntityMeta> = {
+  PersonCandidate: {
+    label: "Research candidate",
+    shortLabel: "Candidate",
+    descriptor: "identity candidate under review; wealth not established",
+    color: "#94a3b8",
+    Icon: UserRound,
+    metricLabel: "Research status",
+    evidenceLabel: "identity evidence; target research required; wealth not established",
+    actionLabel: "Review candidate",
+  },
   HNWI: {
     label: "High-net-worth individual",
     shortLabel: "Person",
@@ -71,7 +81,7 @@ const META: Record<EntityType, EntityMeta> = {
 };
 
 export function normalizeEntityType(type?: string | null): EntityType {
-  return type === "Corporation" || type === "Trust" || type === "Gatekeeper" ? type : "HNWI";
+  return type === "Corporation" || type === "Trust" || type === "Gatekeeper" || type === "PersonCandidate" ? type : "HNWI";
 }
 
 export function entityMeta(type?: string | null): EntityMeta {
@@ -109,9 +119,9 @@ export function EntityTypeMark({
       title={meta.descriptor}
     >
       <Icon className={compact ? "h-3 w-3" : "h-3.5 w-3.5"} aria-hidden="true" />
-      {compact ? normalizeEntityType(type) : meta.shortLabel}
+      {compact ? (normalizeEntityType(type) === "PersonCandidate" ? "Candidate" : normalizeEntityType(type)) : meta.shortLabel}
     </span>
   );
 }
 
-export const ENTITY_TYPES: EntityType[] = ["HNWI", "Corporation", "Trust", "Gatekeeper"];
+export const ENTITY_TYPES: EntityType[] = ["HNWI", "Corporation", "Trust", "Gatekeeper", "PersonCandidate"];
