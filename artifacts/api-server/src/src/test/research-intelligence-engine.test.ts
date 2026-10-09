@@ -222,4 +222,19 @@ describe("Apex research intelligence", () => {
     expect(updated?.score).toBeLessThan(prior!);
   });
 
+
+  it("does not score a directly conflicting predicate object as hypothesis support", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-object-mismatch", target: "Alex Example", objective: "verify directorship" });
+    const url = "https://news.example.com/alex";
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      args: { hypothesis: "Alex Example is director of Alpha", purpose: "verify the directorship" },
+      urls: [url], observation: "Alex Example is director of Beta",
+      findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: [url] }],
+    });
+    const hypothesis = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example is director of Alpha");
+    expect(hypothesis).toBeDefined();
+    expect(hypothesis?.supportingEvidenceIds).toHaveLength(0);
+  });
+
 });
