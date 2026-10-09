@@ -14,7 +14,7 @@ const checks = [
   ["canonical launch route calls canonical discovery", launch.includes("runCanonicalAtlasPipeline")],
   ["canonical launch route calls canonical single-target runner", launch.includes("runCanonicalSingleTargetInvestigation")],
   ["canonical launch route does not import legacy Atlas orchestrator", !launch.includes("atlas-orchestrator")],
-  ["canonical launch enables permanent Redis before the active-job read", launch.includes("await enablePermanentRedis()") && launch.indexOf("await enablePermanentRedis()") < launch.indexOf('await getActiveJob("atlas-run")')],
+  ["canonical launch enables permanent Redis before the active-job read", launch.includes("await enablePermanentRedis()") && launch.indexOf("await enablePermanentRedis()") < Math.max(launch.indexOf('await getActiveJob("atlas-run")'), launch.indexOf('await getActiveJobStrict("atlas-run")'))],
   ["canonical launch route is mounted", index.includes("canonicalAtlasLaunchRouter")],
   ["canonical launch is mounted before legacy Atlas quarantine", index.indexOf("router.use(canonicalAtlasLaunchRouter)") < index.indexOf("router.use(legacyAtlasLaunchQuarantine)")],
   ["legacy Atlas router does not import legacy Atlas orchestrator", !legacyAtlas.includes('from "../lib/atlas-orchestrator"')],
