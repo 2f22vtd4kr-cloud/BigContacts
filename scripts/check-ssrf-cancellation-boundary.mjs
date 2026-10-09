@@ -13,8 +13,9 @@ pass("safe outbound fetch threads the caller signal into DNS resolution", /resol
 pass("pinned HTTP still receives the caller signal", /const body = await readRequestBodyCapped\(init\.body\); const signal = init\.signal;/.test(source));
 pass("redirects remain manual", /redirect: \"manual\"/.test(source));
 pass("request and response byte caps remain enforced", /MAX_REQUEST_BYTES = 1_000_000/.test(source) && /MAX_RESPONSE_BYTES = 2_000_000/.test(source));
-pass("browser escalation imports the canonical SSRF gate", /import \{ assertSafeOutboundUrl \} from \"\.\/ssrf-safe-fetch\";/.test(browserSource));
+pass("browser escalation imports canonical URL validation and pinned outbound transport", /import \{ assertSafeOutboundUrl, safeOutboundFetch \} from \"\.\/ssrf-safe-fetch\";/.test(browserSource));
 pass("browser escalation validates the target URL before proxy providers", /throwIfAborted\(options\.signal\); await assertSafeOutboundUrl\(url\);[\s\S]*const attempts:/.test(browserSource));
+pass("browser proxy providers use the pinned outbound transport", /runProviderCall\(\{ provider, account: new URL\(url\)\.hostname, signal \}, \(\) => safeOutboundFetch\(url, init\)\)/.test(browserSource));
 
 if (failures.length) {
   console.error("SSRF CANCELLATION BOUNDARY: FAIL");
