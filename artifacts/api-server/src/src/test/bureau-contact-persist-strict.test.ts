@@ -32,6 +32,12 @@ describe("canonical immutable promotion control role", () => {
 });
 
 describe("strict bureau contact persistence boundary", () => {
+  it("drops HTTP-only evidence URLs from contact claims", () => {
+    expect(sourceBackedBureauContacts([
+      { vectorType: "email", value: "jane@example.com", scope: "candidate", sourceUrls: ["http://example.test/team/jane"] },
+    ])).toEqual([]);
+  });
+
   it("drops findings with no source URL", () => {
     expect(sourceBackedBureauContacts([
       { vectorType: "email", value: "jane@example.com", scope: "candidate", sourceUrls: [] },
