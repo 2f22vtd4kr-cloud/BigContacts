@@ -14,10 +14,10 @@ const checks = [
   ["shared execution context is AsyncLocalStorage-backed", context.includes("AsyncLocalStorage") && context.includes("withAgenticExecutionScope")],
   ["canonical module does not statically import the core run function", !research.includes('import { runAgenticWebResearch } from "./agentic-web-research-core"')],
   ["core still contains the actual ReAct implementation", core.includes("function toolVisit") && core.includes("parseAction") && core.includes("runAgenticWebResearch")],
-  ["each ReAct run gets a unique execution scope", research.includes("crypto?.randomUUID") && research.includes("const scope = `agentic:${executionId}`") && !research.includes("input.jobId ?? input.targetName")],
+  ["each ReAct run gets a unique execution scope, including runs sharing a durable case", research.includes("crypto?.randomUUID") && research.includes("agentic:case:${input.caseId}:run:${executionId}:investigator:${selectedInvestigator}") && research.includes("agentic:${executionId}:investigator:${selectedInvestigator}") && context.includes("case:[^:]+(?::run:[^:]+)?")],
   ["browser escalation validates the model-selected destination", browser.includes("assertSafeOutboundUrl(url)")],
   ["canonical visit path imports the guarded browser wrapper", core.includes('import("./browser-fetch")')],
-  ["ReAct browser escalation receives the run-scoped abort signal", core.includes("browserFetchHtml(action.url, { signal: runController.signal })")],
+  ["ReAct browser escalation receives the run-scoped abort signal", /browserFetchHtml\(action\.url, \{ provider: action\.provider, signal: runController\.signal \}\)/.test(core)],
   ["browser provider responses are byte-capped", browserCore.includes("MAX_BROWSER_RESPONSE_BYTES") && browserCore.includes("readJsonCapped")],
   ["Playwright HTTP(S) requests use the DNS-pinned byte-capped transport", browserCore.includes("async function fulfillPlaywrightRequestThroughPinnedTransport") && browserCore.includes("safeOutboundFetch(rawUrl") && browserCore.includes("route.fulfill({")],
   ["Playwright only continues local non-network browser schemes", /protocol === "data:" \|\| protocol === "blob:" \|\| protocol === "about:"[\s\S]*await route\.continue\(\)/.test(browserCore) && !/assertSafeOutboundUrl\(route\.request\(\)\.url\(\)\);\s*await route\.continue\(\)/.test(browserCore)],
@@ -26,7 +26,7 @@ const checks = [
   ["browser provider has no forced US locale", !browserCore.includes('u.searchParams.set("country", "us")')],
   ["agentic wrapper can detect the outer provider quota guard", research.includes("__apexQuotaGuard")],
   ["agentic wrapper avoids nested quota accounting when provider-gate is outer", research.includes("return safeOutboundFetch(input, init)")],
-  ["agentic wrapper has a local provider-quota fallback when no global guard exists", research.includes("runProviderCall({ provider, account: \"agentic-fetch\" }")],
+  ["agentic wrapper has a local provider-quota fallback when no global guard exists", research.includes("runProviderCall({ provider, account: \"agentic-fetch\", signal: init?.signal ?? undefined }") && research.includes("() => safeOutboundFetch(input, init)")],
   ["provider gate exposes its process-level guard marker", provider.includes("__apexQuotaGuard")],
 ];
 
