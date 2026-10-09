@@ -25,9 +25,42 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   const file = parseFile(current.caseFile);
   if (!file || file.caseType !== "discovery") { res.status(409).json({ error: "Only a discovery case can run the canonical discovery investigation" }); return; }
   const existingJobId = await getActiveJob("case-bureau-discovery");
-  if (existingJobId) { const existing = await getJob(existingJobId); if (existing?.status === "running" || existing?.status === "queued") { res.status(409).json({ error: "A bureau discovery investigation is already running.", jobId: existingJobId }); return; } }
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (!existing) {
+      res.status(503).json({ error: "The existing discovery-lane owner has no durable job state; refusing to replace it.", jobId: existingJobId });
+      return;
+    }
+    const terminal = existing.status === "done" || existing.status === "failed" || existing.status === "cancelled";
+    if (!terminal) {
+      res.status(409).json({ error: "A bureau discovery investigation owns the active lane; refusing to supersede a non-terminal or unknown job.", jobId: existingJobId, status: existing.status });
+      return;
+    }
+    const cleared = await clearActiveJobIfOwned("case-bureau-discovery", existingJobId);
+    if (!cleared && await getActiveJob("case-bureau-discovery") === existingJobId) {
+      res.status(503).json({ error: "The terminal discovery-lane owner could not be safely released; refusing a new launch.", jobId: existingJobId });
+      return;
+    }
+  }
   const activeAtlasJobId = await getActiveJob("atlas-run");
-  if (activeAtlasJobId) { const activeAtlasJob = await getJob(activeAtlasJobId); if (activeAtlasJob?.status === "running" || activeAtlasJob?.status === "queued") { res.status(409).json({ error: "A canonical Atlas investigation is already running.", jobId: activeAtlasJobId }); return; } }
+  if (activeAtlasJobId) {
+    const activeAtlasJob = await getJob(activeAtlasJobId);
+    if (!activeAtlasJob) {
+      res.status(503).json({ error: "The canonical Atlas lock owner has no durable job state; refusing to replace it.", jobId: activeAtlasJobId });
+      return;
+    }
+    const terminal = activeAtlasJob.status === "done" || activeAtlasJob.status === "failed" || activeAtlasJob.status === "cancelled";
+    if (!terminal) {
+      res.status(409).json({ error: "A canonical Atlas investigation owns the execution lock; refusing to supersede a non-terminal or unknown job.", jobId: activeAtlasJobId, status: activeAtlasJob.status });
+      return;
+    }
+    await releaseCanonicalJob("atlas-run", activeAtlasJobId);
+    const remainingOwner = await getActiveJob("atlas-run");
+    if (remainingOwner) {
+      res.status(503).json({ error: "The terminal canonical Atlas lock could not be cleared safely; refusing a new discovery launch.", jobId: remainingOwner });
+      return;
+    }
+  }
   let jobId: string | null = null;
   let atlasClaimed = false;
   try {
