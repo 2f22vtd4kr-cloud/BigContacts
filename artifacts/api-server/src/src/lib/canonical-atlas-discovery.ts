@@ -718,7 +718,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     const deadlineExceeded = Date.now() >= atlasDeadline;
     const evidenceBackedTerminal = isCanonicalAtlasRunEvidenceComplete(latestEvidenceBackedTerminal, researched);
-    const finalIncomplete = investigatorResourceLimited || finalControlAction !== "stop" || !evidenceBackedTerminal;
+    const finalIncomplete = investigatorResourceLimited || deadlineExceeded || finalControlAction !== "stop" || !evidenceBackedTerminal;
     const finalCaseStatus = finalIncomplete ? "review" : "complete";
     const finalCaseAction = finalIncomplete
       ? investigatorResourceLimited
