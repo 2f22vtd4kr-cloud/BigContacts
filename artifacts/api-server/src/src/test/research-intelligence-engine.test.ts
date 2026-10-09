@@ -369,4 +369,33 @@ describe("Apex research intelligence", () => {
   });
 
 
+  it("binds a multi-source finding to each cited page's own observed passage", () => {
+    const identityUrl = "https://example.test/team";
+    const contactUrl = "https://example.test/contact";
+    const engine = new ResearchIntelligenceEngine({ executionId: "multi-source-observation-binding", target: "Alex Example", objective: "verify public contact" });
+    const history = [
+      { turn: 1, action: "visit", execution: "success", observation: "Alex Example is a director at Example Labs.", urls: [identityUrl] },
+      { turn: 2, action: "visit", execution: "success", observation: "Public contact: alex@example.test", urls: [contactUrl] },
+    ];
+    engine.recordAction({ ...history[0]!, args: {} });
+    engine.recordAction({ ...history[1]!, args: {} });
+    engine.recordAction({
+      turn: 3, action: "done", execution: "success", observation: "", urls: [], args: {},
+      findings: [{
+        vectorType: "email", value: "alex@example.test", personName: "Alex Example", role: "director",
+        scope: "candidate", sourceUrls: [identityUrl, contactUrl],
+        note: "Identity and contact are attributed across two observed pages.",
+      }],
+      sourceObservations: history,
+    });
+    const state = engine.buildContext();
+    const claims = state.atomicEvidence.filter((item) => item.kind === "finding" && item.claim.includes("alex@example.test"));
+    expect(claims.map((item) => item.sourceUrl).sort()).toEqual([contactUrl, identityUrl]);
+    expect(claims.find((item) => item.sourceUrl === identityUrl)?.spanBindingKind).toBe("identity");
+    expect(claims.find((item) => item.sourceUrl === contactUrl)?.spanBindingKind).toBe("value");
+    expect(claims.find((item) => item.sourceUrl === identityUrl)?.passage).toContain("Alex Example");
+    expect(claims.find((item) => item.sourceUrl === contactUrl)?.passage).toContain("alex@example.test");
+  });
+
+
 });

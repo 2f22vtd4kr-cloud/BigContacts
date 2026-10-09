@@ -1,6 +1,6 @@
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
-import { db, researchCasesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
+import { asc, eq } from "drizzle-orm";
 import { classifyExternalProvider, runProviderCall } from "./provider-gate";
 import { getAgenticExecutionScope, withAgenticExecutionScope } from "./agentic-execution-context";
 import { validateResearchObjective } from "./research-objective";
@@ -8,6 +8,7 @@ import { reviewTargetInvestigationAct, loadTargetActOversightContext, type Targe
 import { getJob } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
+import { investigatorRecordsFromEvents, replayInvestigatorIntelligence } from "./research-intelligence-replay";
 import { shouldCheckpointResearchEpisode } from "./research-episode-policy";
 import { inferResearchCognitiveTask } from "./research-cognitive-routing";
 import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS } from "./agentic-web-research-core";
@@ -38,6 +39,12 @@ type CoreResult = Awaited<ReturnType<CoreModule["runAgenticWebResearch"]>>;
 type AgenticRunResult = CoreResult & { executionId: string; runId?: string };
 
 async function loadDurableIntelligenceState(caseId: number | undefined): Promise<Parameters<ResearchIntelligenceEngine["restoreContext"]>[0] | null> { if (caseId == null) return null; const [row] = await db.select({ caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row?.caseFile) return null; try { const parsed = JSON.parse(row.caseFile) as Record<string, unknown>; const state = parsed.evidenceState; return state && typeof state === "object" && !Array.isArray(state) ? state as Parameters<ResearchIntelligenceEngine["restoreContext"]>[0] : null; } catch { return null; } }
+async function loadDurableInvestigatorRecords(caseId: number | undefined): Promise<CoreResult["trajectoryRecords"]> {
+  if (caseId == null) return [];
+  const events = await db.select({ id: researchCaseEventsTable.id, actorRole: researchCaseEventsTable.actorRole, eventType: researchCaseEventsTable.eventType, status: researchCaseEventsTable.status, payload: researchCaseEventsTable.payload })
+    .from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, caseId)).orderBy(asc(researchCaseEventsTable.id));
+  return investigatorRecordsFromEvents(events);
+}
 function renumberTrajectory(value: string, turn: number): string { return value.replace(/^step\d+:/, `step${turn}:`); }
 
 function intelligenceObjective(base: string, sharedContext: string, intelligence: ResearchIntelligenceEngine, direction: string | null, records: CoreResult["trajectoryRecords"]): string {
@@ -76,8 +83,14 @@ export function groundedFindingsForTrajectory(findings: AgenticFinding[], record
 }
 function recordResult(intelligence: ResearchIntelligenceEngine, record: CoreResult["trajectoryRecords"][number] | undefined, priorRecords: readonly CoreResult["trajectoryRecords"][number][] = []): void {
   if (!record) return;
-  const findings = groundedFindingsForTrajectory(record.findings, [...priorRecords, record]);
-  intelligence.recordAction({ turn: record.turn, action: record.action, args: record.args, execution: record.execution, observation: record.observation, urls: record.observedUrls, findings });
+  const history = [...priorRecords, record].map((item, index) => ({ ...item, turn: index + 1 }));
+  const current = history[history.length - 1]!;
+  const findings = groundedFindingsForTrajectory(current.findings, history);
+  intelligence.recordAction({
+    turn: current.turn, action: current.action, args: current.args, execution: current.execution,
+    observation: current.observation, urls: current.observedUrls, findings,
+    sourceObservations: history.map((item) => ({ turn: item.turn, action: item.action, execution: item.execution, observation: item.observation, urls: item.observedUrls })),
+  });
 }
 
 const parsedMaxConcurrent = Number(process.env.APEX_MAX_CONCURRENT_AGENTIC_RUNS ?? "32");
@@ -96,17 +109,25 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
   let visits = 0;
   let lastStatus: CoreResult["status"] = "completed";
   let error: string | undefined;
-  const searchQueriesUsed = [...new Set((input.priorSearchQueries ?? []).map((query) => String(query).trim()).filter(Boolean))];
   const maxDynamicActs = Math.min(64, Math.max(0, Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations ?? 64) : 64));
   const intelligence = new ResearchIntelligenceEngine({ executionId, target: input.targetName, objective: input.objective || `Research ${input.targetName}` });
   const durableIntelligence = await loadDurableIntelligenceState(input.caseId);
-  if (durableIntelligence) intelligence.restoreContext(durableIntelligence);
+  const durableRecords = await loadDurableInvestigatorRecords(input.caseId);
+  const historyRecords = replayInvestigatorIntelligence(intelligence, durableRecords.length ? durableRecords : (input.priorTrajectoryRecords ?? []), durableRecords.length || (input.priorTrajectoryRecords ?? []).length ? null : durableIntelligence);
+  const searchQueriesUsed = [...new Set([
+    ...(input.priorSearchQueries ?? []),
+    ...historyRecords.flatMap((record) => record.action === "web_search" && typeof record.args.query === "string"
+      ? [record.args.query]
+      : record.action === "parallel_web_search" && Array.isArray(record.args.searches)
+        ? record.args.searches.flatMap((search) => search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string" ? [(search as Record<string, unknown>).query as string] : [])
+        : []),
+  ].map((query) => String(query).trim()).filter(Boolean))];
   for (let actionTurn = 1; actionTurn <= maxDynamicActs; actionTurn++) {
     if (controller.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, error: "cancelled by operator", executionId };
     const remaining = deadline - Date.now();
     if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, error: `hard timeout ${requestedHardTimeout}ms`, executionId };
     const perActTimeout = Math.min(remaining, Math.max(30_000, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000));
-    const actInput: RunInput = { ...input, priorIntelligenceContext: intelligence.buildContext(), priorTrajectoryRecords: [...(input.priorTrajectoryRecords ?? []), ...records], cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, records), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); if (!job || job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; try { return !(await isCanonicalJobOwner(lockType, input.jobId)); } catch { return true; } }, onLiveStep: (step) => input.onLiveStep?.(step), onTrajectoryRecord: input.onTrajectoryRecord };
+    const actInput: RunInput = { ...input, priorIntelligenceContext: intelligence.buildContext(), priorTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))]), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); if (!job || job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; try { return !(await isCanonicalJobOwner(lockType, input.jobId)); } catch { return true; } }, onLiveStep: (step) => input.onLiveStep?.(step), onTrajectoryRecord: input.onTrajectoryRecord };
     const actResult = await core.runAgenticWebResearch(actInput);
     model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error;
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
@@ -116,7 +137,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
         if (raw.action === "parallel_web_search" && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
       }
       const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, { ...raw, turn: actionTurn }]) };
-      recordResult(intelligence, normalizedRecord, records);
+      recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
       records = [...records, normalizedRecord];
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
       await input.onTrajectoryRecord?.(normalizedRecord);
@@ -166,7 +187,8 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
       const deadlineTimer = setTimeout(() => overallController.abort(), requestedHardTimeout);
       const objective = input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`;
       const intelligence = new ResearchIntelligenceEngine({ caseId: oversightContext.caseId, executionId, target: input.targetName, objective });
-      if (oversightContext.intelligenceState) intelligence.restoreContext(oversightContext.intelligenceState);
+      const durableRecords = await loadDurableInvestigatorRecords(oversightContext.caseId);
+      const historyRecords = replayInvestigatorIntelligence(intelligence, durableRecords.length ? durableRecords : (input.priorTrajectoryRecords ?? []), durableRecords.length || (input.priorTrajectoryRecords ?? []).length ? null : oversightContext.intelligenceState);
        const MAX_TARGET_ACTION_TURNS = 64;
       let records: CoreResult["trajectoryRecords"] = [];
       let trajectory: string[] = [];
@@ -210,7 +232,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            objective,
            sharedContext: `${oversightContext.contextDocument}\n\n${renderIntelligenceContext(intelligence.buildContext())}`,
            act,
-           recentActs: records,
+           recentActs: [...historyRecords, ...records].slice(-4),
            intelligenceState: state,
          });
          if (oversight.direction) {
@@ -239,9 +261,9 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          const actInput: RunInput = {
            ...input,
            priorIntelligenceContext: intelligence.buildContext(),
-           priorTrajectoryRecords: records,
+           priorTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))],
            cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }),
-           objective: intelligenceObjective(objective, oversightContext.contextDocument, intelligence, direction, records),
+           objective: intelligenceObjective(objective, oversightContext.contextDocument, intelligence, direction, [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))]),
            maxIterations: 1,
            hardTimeoutMs: perActTimeout,
            signal: overallController.signal,
@@ -267,7 +289,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              normalizedRecord.execution = "blocked";
              normalizedRecord.findings = [];
              normalizedRecord.observation = "Terminal claim verification blocked the stop: at least one Investigator finding was not supported by successfully observed cited material. Continue research and verify each claim before stopping.";
-             recordResult(intelligence, normalizedRecord, records);
+             recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
              records = [...records, normalizedRecord];
              await input.onTrajectoryRecord?.(normalizedRecord);
              actionsSinceCheckpoint += 1;
@@ -278,7 +300,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              continue;
            }
 
-           recordResult(intelligence, normalizedRecord, records);
+           recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
            records = [...records, normalizedRecord];
            actionsSinceCheckpoint += 1;
            trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];

@@ -238,32 +238,72 @@ export class ResearchIntelligenceEngine {
   private chain = "GENESIS";
   constructor(private readonly input: { caseId?: number | null; executionId: string; target: string; objective: string }) {}
 
-  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string }>, predictedInformationGain?: number }): void {
+  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
     const newHostCount = this.countNewHosts(urls);
-    // Only a positively completed tool execution can contribute positive findings. An errored/failed tool result may be recorded as a negative finding, but it can never become a finding/contact merely because a caller supplied model output alongside the failure.
-    const findings = input.execution === "success" && !["web_search", "parallel_web_search"].includes(input.action) ? (input.findings ?? []) : [];
+    // Findings can cite earlier pages. Bind every citation to the successful
+    // observation that actually contained its supporting text, rather than
+    // copying the current page's passage onto unrelated cited URLs.
+    const candidateFindings = input.execution === "success" && !["web_search", "parallel_web_search"].includes(input.action) ? (input.findings ?? []) : [];
+    const sourceObservationInputs = [
+      ...(input.sourceObservations ?? []),
+      ...(input.execution === "success" && ["visit", "browser_fetch"].includes(input.action)
+        ? [{ turn: input.turn, action: input.action, execution: input.execution, observation: input.observation, urls }]
+        : []),
+    ];
+    const sourceObservationsByUrl = new Map<string, Array<{ turn: number; action: string; observation: string }>>();
+    for (const source of sourceObservationInputs) {
+      if (source.execution !== "success" || !["visit", "browser_fetch"].includes(source.action) || !source.observation?.trim()) continue;
+      for (const rawUrl of source.urls ?? []) {
+        const sourceUrl = canonicalUrl(rawUrl);
+        if (!sourceUrl) continue;
+        const entries = sourceObservationsByUrl.get(sourceUrl) ?? [];
+        entries.push({ turn: source.turn, action: source.action, observation: source.observation });
+        sourceObservationsByUrl.set(sourceUrl, entries);
+      }
+    }
+    const findings: typeof candidateFindings = [];
+    const admittedFindingEvidenceIds = new Set<string>();
     let useful = false;
-    for (const finding of findings) {
+    for (const finding of candidateFindings) {
       const value = String(finding.value ?? "").trim();
       if (!value) continue;
-      useful = true;
       const vector = String(finding.vectorType ?? "other");
-      const observedUrlSet = new Set(urls);
-      const findingUrls = [...new Set((finding.sourceUrls ?? []).map(canonicalUrl).filter((v): v is string => Boolean(v)).filter((url) => observedUrlSet.has(url)))];
+      const subject = finding.personName ?? this.input.target;
       const claim = finding.personName ? finding.personName + " " + vector + " " + value : this.input.target + " " + vector + " " + value;
-      // Preserve every observed source supporting a multi-source finding. The
-      // intelligence projection is compacted later, but collapsing the claim
-      // to sourceUrls[0] here destroys independent-corroboration state.
-      for (const sourceUrl of findingUrls) {
-        const observationText = input.observation ?? "";
-        const subject = finding.personName ?? this.input.target;
-        const combinedSpan = bindExactSourceSpan(observationText, value, subject);
-        const valueSpan = bindExactSourceSpan(observationText, value);
-        const identitySpan = finding.personName ? bindExactSourceSpan(observationText, finding.personName) : null;
-        const span = combinedSpan?.exact ? combinedSpan : valueSpan?.exact ? valueSpan : identitySpan?.exact ? identitySpan : null;
-        const spanBindingKind = combinedSpan?.exact ? "identity_and_value" : valueSpan?.exact ? "value" : identitySpan?.exact ? "identity" : undefined;
-        this.recordEvidence({ kind: "finding", claim, value, sourceUrl, sourceTier: tierForHost(hostOf(sourceUrl)), turn: input.turn, action: input.action, execution: input.execution, passage: span?.text ?? null, spanStart: span?.start ?? null, spanEnd: span?.end ?? null, spanBindingKind, supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [] });
+      const citedUrls = [...new Set((finding.sourceUrls ?? []).map(canonicalUrl).filter((v): v is string => Boolean(v)))];
+      const supportedSources: Array<{ url: string; turn: number; action: string; span: { text: string; start: number; end: number }; binding: "identity" | "value" | "identity_and_value" }> = [];
+      for (const sourceUrl of citedUrls) {
+        let best: typeof supportedSources[number] | null = null;
+        let bestRank = 0;
+        for (const source of sourceObservationsByUrl.get(sourceUrl) ?? []) {
+          const combinedSpan = bindExactSourceSpan(source.observation, value, subject);
+          const valueSpan = bindExactSourceSpan(source.observation, value);
+          const identitySpan = finding.personName ? bindExactSourceSpan(source.observation, finding.personName) : null;
+          const supportsSource = finding.personName ? Boolean(valueSpan?.exact || identitySpan?.exact) : Boolean(valueSpan?.exact);
+          if (!supportsSource) continue;
+          const span = combinedSpan?.exact ? combinedSpan : valueSpan?.exact ? valueSpan : identitySpan!;
+          const binding = combinedSpan?.exact ? "identity_and_value" as const : valueSpan?.exact ? "value" as const : "identity" as const;
+          const rank = combinedSpan?.exact ? 3 : valueSpan?.exact && identitySpan?.exact ? 2 : 1;
+          if (rank > bestRank || (rank === bestRank && best && source.turn > best.turn)) {
+            best = { url: sourceUrl, turn: source.turn, action: source.action, span, binding };
+            bestRank = rank;
+          }
+        }
+        if (best) supportedSources.push(best);
+      }
+      const findingUrls = supportedSources.map((source) => source.url);
+      if (!findingUrls.length) continue;
+      useful = true;
+      findings.push(finding);
+      for (const source of supportedSources) {
+        const evidenceId = this.recordEvidence({
+          kind: "finding", claim, value, sourceUrl: source.url, sourceTier: tierForHost(hostOf(source.url)),
+          turn: source.turn, action: source.action, execution: "success", passage: source.span.text,
+          spanStart: source.span.start, spanEnd: source.span.end, spanBindingKind: source.binding,
+          supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [],
+        });
+        admittedFindingEvidenceIds.add(evidenceId);
       }
       if (["email", "phone", "linkedin", "website", "social"].includes(vector)) this.recordContact(vector, value, findingUrls, finding.personName ?? null);
     }
@@ -294,7 +334,16 @@ export class ResearchIntelligenceEngine {
     const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
     const modelPurpose = typeof input.args?.purpose === "string" ? input.args.purpose.trim() : "";
     if (modelHypothesis) {
-      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim") && supportsHypothesisClaim(modelHypothesis, evidence.claim) && !evidence.contradicts.some((id) => { const competing = this.evidenceByIdMap.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); })).map((evidence) => evidence.id);
+      const candidateEvidenceIds = [...new Set([
+        ...admittedFindingEvidenceIds,
+        ...[...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim")).map((evidence) => evidence.id),
+      ])];
+      const supportingEvidenceIds = candidateEvidenceIds.filter((evidenceId) => {
+        const evidence = this.evidenceByIdMap.get(evidenceId);
+        return Boolean(evidence && (evidence.kind === "finding" || evidence.kind === "claim")
+          && supportsHypothesisClaim(modelHypothesis, evidence.claim)
+          && !evidence.contradicts.some((id) => { const competing = this.evidenceByIdMap.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); }));
+      });
       this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, missingDiscriminators: modelPurpose ? [modelPurpose] : [] });
     }
     const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
