@@ -714,7 +714,7 @@ async function callGroqJson(
           });
           const tokenWaitMs = groqTokenWindowWaitMs(response, body);
           if (!hardQuota && tokenWaitMs !== null) {
-            if (tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - 5_000 && retry429 < 1 && Date.now() + tokenWaitMs < started + AGENTIC_PROVIDER_DECISION_TIMEOUT_MS) {
+            if (tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS && retry429 < 1 && Date.now() + tokenWaitMs < started + AGENTIC_PROVIDER_DECISION_TIMEOUT_MS) {
               retry429 += 1;
               await waitForAbortableDelay(tokenWaitMs, signal);
               continue;
