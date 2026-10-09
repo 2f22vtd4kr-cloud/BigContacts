@@ -72,11 +72,11 @@ function clipPromptList(values: readonly string[] | null | undefined, maxItems =
 }
 function buildBossDecisionContext(file: PlanInput["file"]): string {
   const compactAction = (action: QueuedAction & { status?: string }) => ({
-    id: action.id,
+    id: clipPrompt(action.id, 120),
     title: clipPrompt(action.title, 180),
     purpose: clipPrompt(action.purpose, 280),
-    specialistId: action.specialistId,
-    tools: action.tools.slice(0, 8),
+    specialistId: clipPrompt(action.specialistId, 100),
+    tools: action.tools.slice(0, 8).map((tool) => clipPrompt(tool, 80)),
     priority: action.priority,
     rationale: clipPrompt(action.rationale, 280),
     ...(action.status ? { status: action.status } : {}),
@@ -85,10 +85,11 @@ function buildBossDecisionContext(file: PlanInput["file"]): string {
     .filter((action) => action.status === "queued")
     .slice()
     .sort((a, b) => Number(b.priority ?? 0) - Number(a.priority ?? 0))
+    .slice(0, 16)
     .map(compactAction);
   const completed = (file.actionQueue ?? [])
     .filter((action) => action.status !== "queued")
-    .slice(-12)
+    .slice(-8)
     .map(compactAction);
   const evidence = file.evidenceSummary ?? {};
   const routes = (file.contactRoutes ?? []).slice(0, 12).map((route) => ({
@@ -98,7 +99,7 @@ function buildBossDecisionContext(file: PlanInput["file"]): string {
     role: clipPrompt(route.role, 120),
     relationship: clipPrompt(route.relationship, 140),
     state: route.state,
-    sourceUrls: (route.sourceUrls ?? []).slice(0, 2),
+    sourceUrls: (route.sourceUrls ?? []).slice(0, 2).map((url) => clipPrompt(url, 300)),
   }));
   const bossPlan = file.bossPlan
     ? {
@@ -111,7 +112,12 @@ function buildBossDecisionContext(file: PlanInput["file"]): string {
       }
     : null;
   return JSON.stringify({
-    target: file.target ?? null,
+    target: file.target ? {
+      name: clipPrompt(file.target.name ?? null, 240),
+      type: clipPrompt(file.target.type ?? null, 120),
+      nationality: clipPrompt(file.target.nationality ?? null, 120),
+      knownDomains: clipPromptList(file.target.knownDomains, 8, 220),
+    } : null,
     hypotheses: clipPromptList((file.hypotheses ?? []).map(String), 6, 260),
     evidenceSummary: {
       discoveredPeople: clipPromptList(evidence.discoveredPeople, 12, 180),
@@ -119,13 +125,17 @@ function buildBossDecisionContext(file: PlanInput["file"]): string {
       searchGaps: clipPromptList(evidence.searchGaps, 10, 220),
       negativeFindings: clipPromptList(evidence.negativeFindings, 10, 220),
     },
-    specialistRoster: (file.specialistRoster ?? []).map((specialist) =>
+    specialistRoster: (file.specialistRoster ?? []).slice(0, 12).map((specialist) =>
       typeof specialist === "object" && specialist !== null
         ? (() => {
             const value = specialist as Record<string, unknown>;
-            return { id: value.id, title: value.title, status: value.status };
+            return {
+              id: typeof value.id === "string" ? clipPrompt(value.id, 100) : null,
+              title: typeof value.title === "string" ? clipPrompt(value.title, 160) : null,
+              status: typeof value.status === "string" ? clipPrompt(value.status, 80) : null,
+            };
           })()
-        : specialist,
+        : clipPrompt(String(specialist), 160),
     ),
     actionFrontier: { queued, completed },
     contactRoutes: routes,
@@ -135,7 +145,7 @@ function buildBossDecisionContext(file: PlanInput["file"]): string {
       decision: clipPrompt(entry.decision, 260),
       reason: clipPrompt(entry.reason, 320),
     })),
-    rightHandAdvice: file.rightHandAdvice ?? null,
+    rightHandAdvice: compactRightHandAdvice(file.rightHandAdvice),
     bossPlan,
     nextBestAction: typeof file.nextBestAction === "object" && file.nextBestAction !== null
       ? compactAction(file.nextBestAction as QueuedAction & { status?: string })
@@ -153,6 +163,48 @@ function buildBossDecisionContext(file: PlanInput["file"]): string {
     researchDepth: file.researchDepth ?? null,
     noProgressStreak: file.noProgressStreak ?? 0,
   }, null, 2);
+}
+
+export const DEFAULT_APEX_ATLAS_BOSS_PLAN_PROMPT_MAX_CHARS = 18_000;
+
+export function getApexAtlasBossPlanPromptMaxChars(): number {
+  const configured = Number(process.env.APEX_GROQ_BOSS_MAX_PROMPT_CHARS);
+  const providerMaximum = Number.isFinite(configured)
+    ? Math.min(20_000, Math.max(8_000, Math.floor(configured)))
+    : 20_000;
+  return Math.min(DEFAULT_APEX_ATLAS_BOSS_PLAN_PROMPT_MAX_CHARS, providerMaximum);
+}
+
+function boundBossPlanPrompt(prompt: string): string {
+  const maximum = getApexAtlasBossPlanPromptMaxChars();
+  if (prompt.length <= maximum) return prompt;
+  const marker = "\\n\\n[APEX BOSS PLAN PROMPT BOUND: middle case detail omitted; durable case state remains authoritative.]\\n\\n";
+  const available = Math.max(0, maximum - marker.length);
+  const headChars = Math.ceil(available * 0.72);
+  const tailChars = Math.max(0, available - headChars);
+  return (prompt.slice(0, headChars).trimEnd() + marker + prompt.slice(-tailChars).trimStart()).slice(0, maximum);
+}
+
+function compactRightHandAdvice(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const advice = value as Record<string, unknown>;
+  const field = (key: string, maximum: number): string | null =>
+    typeof advice[key] === "string" ? clipPrompt(advice[key] as string, maximum) : null;
+  const lanes = Array.isArray(advice.focusLanes)
+    ? advice.focusLanes.filter((item): item is string => typeof item === "string").slice(0, 6).map((item) => clipPrompt(item, 180))
+    : [];
+  return {
+    provider: field("provider", 40),
+    model: field("model", 100),
+    status: field("status", 40),
+    actionId: field("actionId", 120),
+    decision: field("decision", 300),
+    reason: field("reason", 500),
+    focusLanes: lanes,
+    confidence: typeof advice.confidence === "number" && Number.isFinite(advice.confidence) ? advice.confidence : null,
+    error: field("error", 300),
+    createdAt: field("createdAt", 80),
+  };
 }
 
 /** Apex Atlas Boss planning prompt — progress-aware, depth-aware, primary-source OSINT discipline. */
@@ -188,7 +240,7 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   // What is newly known since the previous iteration?
   // What remains genuinely unresolved?
   // What would be redundant with work already done?
-  return `${apexOrientationCompact("boss")}
+  return boundBossPlanPrompt(`${apexOrientationCompact("boss")}
 
 You are the Apex Atlas Boss. Make the next evidence-led research assignment from the living case state below. You have no web access. The Investigator owns the research trajectory; you own direction, assignment choice, and whether work should continue.
 
@@ -241,5 +293,5 @@ For reframe:
 {"outcome":"reframe","actionId":null,"decision":"reframe scope","reason":"why current scope is wrong","suggestedScope":"better evidence-derived boundary","progressAssessment":"why reframe is preferable","investigatorPrompt":null,"tools":[],"restrictions":[],"evidenceRequirements":[],"confidence":0.0}
 
 Iteration: ${input.iteration}
-`;
+`);
 }
