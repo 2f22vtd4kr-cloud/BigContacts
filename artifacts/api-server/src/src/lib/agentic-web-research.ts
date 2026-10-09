@@ -62,8 +62,11 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   if (!cited.size) return false;
   const value = finding.value.trim();
   const identity = finding.scope === "candidate" && finding.personName ? finding.personName.trim() : "";
+  if (finding.scope === "candidate" && !identity) return false;
   let valueObserved = false;
   let identityObserved = !identity;
+  // Candidate ownership needs direct source co-binding, not a model join of separate pages.
+  let identityAndValueBoundTogether = !identity;
   let support = 0;
   for (const record of records) {
     if (record.execution !== "success" || typeof record.observation !== "string" || ["web_search", "parallel_web_search", "done"].includes(record.action)) continue;
@@ -72,11 +75,13 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
     const observation = record.observation;
     const hasValue = value.length > 0 && Boolean(bindExactSourceSpan(observation, value)?.exact);
     const hasIdentity = !identity || Boolean(bindExactSourceSpan(observation, identity)?.exact);
+    const hasJointBinding = !identity || Boolean(bindExactSourceSpan(observation, value, identity, 320)?.exact);
     if (hasValue) valueObserved = true;
     if (hasIdentity) identityObserved = true;
+    if (hasJointBinding) identityAndValueBoundTogether = true;
     if (hasValue || hasIdentity) support += 1;
   }
-  return valueObserved && identityObserved && support > 0;
+  return valueObserved && identityObserved && identityAndValueBoundTogether && support > 0;
 }
 export function groundedFindingsForTrajectory(findings: AgenticFinding[], records: readonly CoreResult["trajectoryRecords"][number][] = []): AgenticFinding[] {
   return findings.filter((finding) => groundedFinding(finding, records));
@@ -322,7 +327,18 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            }
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
            if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: error ?? "Groq oversight unavailable", executionId };
-           if (checkpointResult.stop || (callerOwnsOversight && isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason }))) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], ...(error ? { error } : {}), executionId };
+           const acceptedInvestigatorTerminal = isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason });
+           if (checkpointResult.stop) {
+             if (!acceptedInvestigatorTerminal) return {
+               status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings,
+               stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records,
+               groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))],
+               error: error ?? "Control-plane oversight stopped before the Investigator selected an accepted terminal action.",
+               executionId,
+             };
+             return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], ...(error ? { error } : {}), executionId };
+           }
+           if (callerOwnsOversight && acceptedInvestigatorTerminal) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], ...(error ? { error } : {}), executionId };
            continue;
          }
 
