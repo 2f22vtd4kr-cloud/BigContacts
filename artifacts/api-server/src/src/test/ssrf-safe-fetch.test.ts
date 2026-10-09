@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isBlockedOutboundIpForTest } from "../lib/ssrf-safe-fetch";
+import { isBlockedOutboundIpForTest, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 
 describe("SSRF outbound boundary", () => {
   it("blocks loopback, RFC1918, link-local, multicast, reserved, metadata, and IPv4-mapped IPv6 addresses", () => {
@@ -42,4 +42,12 @@ describe("SSRF outbound boundary", () => {
       expect(isBlockedOutboundIpForTest(ip), ip).toBe(false);
     }
   });
+  it("applies SSRF blocking when the input is a Request object", async () => {
+    const request = new Request("http://127.0.0.1/private", {
+      method: "GET",
+      headers: { "x-test-header": "present" },
+    });
+    await expect(safeOutboundFetch(request)).rejects.toThrow("blocked IP address");
+  });
+
 });
