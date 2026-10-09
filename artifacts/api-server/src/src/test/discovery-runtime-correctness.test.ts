@@ -192,6 +192,9 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain('"MODEL_DECIDED_DONE" | "OVERSIGHT_STOP"');
     const targetSource = fs.readFileSync(path.join(libDir, "target-contact-agent.ts"), "utf8");
     expect(targetSource).toContain('"MODEL_DECIDED_DONE" | "OVERSIGHT_STOP"');
+    expect(researchSource).toContain('"CONTINUATION STATE: Continue from accumulated durable observations and intelligence.');
+    expect(researchSource).toContain("priorContext: boundInvestigatorPromptSection(continuationState, 1_800)");
+    expect(researchSource).toContain("sanitizeUrlForEvidence(url)");
   });
 
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
