@@ -66,8 +66,9 @@ async function pull(): Promise<void> {
       cache: "no-store",
       signal: myController.signal,
     });
-    if (!activeResponse.ok) return;
     const activeData = await readApiJson(activeResponse) as Record<string, unknown>;
+    // Preserve the last known status when an HTTP error arrives; readApiJson also notifies the operator.
+    if (!activeResponse.ok) return;
     if (myGeneration !== generation || listeners.size === 0) return;
 
     const job = activeData?.job && typeof activeData.job === "object"
