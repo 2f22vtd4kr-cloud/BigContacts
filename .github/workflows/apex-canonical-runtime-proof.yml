@@ -39,9 +39,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
       REDIS_URL: redis://127.0.0.1:6379
+      REDIS_URL_1: redis://127.0.0.1:6379
       PORT: 8080
       NODE_ENV: development
       ENABLE_AUTO_PIPELINE: "false"
+      ENABLE_REDIS_ON_BOOT: "true"
       GROQ_BOSS_API_KEY: ${{ secrets.GROQ_BOSS_API_KEY }}
       GROQ_BOSS_API_KEY_1: ${{ secrets.GROQ_BOSS_API_KEY_1 }}
       GROQ_BOSS_API_KEY_2: ${{ secrets.GROQ_BOSS_API_KEY_2 }}
