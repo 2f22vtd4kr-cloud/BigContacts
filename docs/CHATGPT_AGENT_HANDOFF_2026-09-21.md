@@ -5,7 +5,9 @@
 **Canonical future-work branch:** `main`  
 **Repository default branch:** `main`
 
-> This document is an operational handoff, not marketing copy. A future agent must read it, then independently verify the repository before changing anything.
+> This document is an operational handoff, not marketing copy. Verify the actual `main` before changing anything.
+>
+> **CURRENT-MAIN OVERRIDE — 2026-10-09:** The original Gemini/Mistral provider role law and SHA statements later in this historical handoff are superseded. Current roles: Groq Boss → Boss-selected Groq Investigator capability, with Groq Right-hand as independent bounded oversight. Only configured Groq Investigator credential slots are active canonical research capabilities. The selected model owns the research trajectory; deterministic runtime code owns safety, validation, authorization, provenance, identity, persistence, cancellation, resource budgets, and terminal integrity. Do not restore retired providers from historical notes. Static CI does not prove live runtime or research-quality acceptance.
 
 ---
 
