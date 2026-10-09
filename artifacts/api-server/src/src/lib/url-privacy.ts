@@ -1,6 +1,6 @@
 const SENSITIVE_URL_PARAMETER_NAME = "(?:access[_-]?token|refresh[_-]?token|id[_-]?token|token|api[_-]?key|apikey|key|auth|authorization|client[_-]?secret|secret|password|passwd|signature|sig|session(?:id|[_-]?id)?|jwt|code)";
-const SENSITIVE_URL_PARAMETER = new RegExp(`^${SENSITIVE_URL_PARAMETER_NAME}, "i");
-const SENSITIVE_FRAGMENT_PARAMETER = new RegExp(`(^|[&#?])(${SENSITIVE_URL_PARAMETER_NAME}=)[^&#]*`, "gi");
+const SENSITIVE_URL_PARAMETER = new RegExp("^" + SENSITIVE_URL_PARAMETER_NAME + "$", "i");
+const SENSITIVE_FRAGMENT_PARAMETER = new RegExp("(^|[&#?])(" + SENSITIVE_URL_PARAMETER_NAME + "=)[^&#]*", "gi");
 
 function redactParameters(input: URLSearchParams): URLSearchParams {
   const safe = new URLSearchParams();
@@ -45,5 +45,5 @@ export function sanitizeUrlOccurrences(text: string, urls: readonly string[]): s
   }
   // Also sanitize links echoed by page content, redirect messages, or model
   // output even when those links were not supplied as a separate URL field.
-  return safeText.replace(/https?:\\/\\/[^\\s<>"'`]+/gi, (rawUrl) => sanitizeUrlForEvidence(rawUrl));
+  return safeText.replace(/https?:\/\/[^\s<>"'`]+/gi, (rawUrl) => sanitizeUrlForEvidence(rawUrl));
 }
