@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
@@ -105,6 +105,24 @@ describe("Groq Investigator runtime contract", () => {
       enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null],
     });
     expect(schema?.required).toEqual(expect.arrayContaining(["action", "target", "targetType", "profile", "locale", "market", "provider"]));
+  });
+
+  it("reports unavailable research executors as unsupported instead of advertising stale actions", () => {
+    const actions = [
+      { action: "footprint_email", email: "person@example.org" },
+      { action: "footprint_username_maigret", username: "person" },
+      { action: "footprint_username_sherlock", username: "person" },
+      { action: "harvest_domain", domain: "example.org" },
+      { action: "footprint_spiderfoot", target: "example.org", targetType: "domain", profile: "organization-footprint" },
+    ];
+    for (const action of actions) {
+      expect(describeAgentActionParseFailure(JSON.stringify({
+        ...action,
+        hypothesis: "An independent check may add evidence",
+        purpose: "Test an available source without assuming the result",
+        expectedInformationGain: 0.5,
+      }))).toBe("unsupported_action action=" + action.action);
+    }
   });
 
   it("does not down-route Investigator work by cognitive-task heuristics", () => {
