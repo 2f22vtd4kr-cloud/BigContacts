@@ -148,12 +148,24 @@ export function supportsReviewableClaimAcrossObservations(
  return identityObserved && valueObserved && [...cited].every((url) => supportingUrls.has(url));
 }
 
+const CLAIM_GRADE_OBSERVATION_ACTIONS = new Set([
+  "visit",
+  "browser_fetch",
+  "registry_search",
+  "domain_lookup",
+  "harvest_domain",
+  "footprint_email",
+  "footprint_username_maigret",
+  "footprint_username_sherlock",
+  "footprint_spiderfoot",
+]);
+
 export function isClaimGradeObservationAction(action: unknown): boolean {
-  // Source quality is established by the successful URL-bound observation and
-  // exact-span checks, not by forcing a visit/browser ladder. Search snippets
-  // are lead-only; terminal/control actions are never evidence observations.
-  return typeof action === "string" && action.trim().length > 0
-    && !["web_search", "parallel_web_search", "done", "investigator_provider_error"].includes(action);
+  // Only known, implemented retrieval/enrichment capabilities can anchor
+  // claim-grade source observations. Unknown and legacy action labels fail
+  // closed; source URL, successful execution and exact claim grounding remain
+  // separately required by the immutable promotion boundary.
+  return typeof action === "string" && CLAIM_GRADE_OBSERVATION_ACTIONS.has(action.trim());
 }
 function normalizeSourceUrl(raw:string):string|null{try{const url=new URL(raw);if(url.protocol!=="https:")return null;url.hash="";url.hostname=url.hostname.toLowerCase();return url.href.endsWith("/")?url.href.slice(0,-1):url.href;}catch{return null;}}
 function normalizeObservedUrls(urls:readonly string[]|null|undefined):Set<string>{const observed=new Set<string>();for(const raw of urls??[]){if(typeof raw!=="string")continue;const url=normalizeSourceUrl(raw);if(url&&isClaimSourceUrl(url))observed.add(url);}return observed;}
