@@ -87,66 +87,25 @@ Deterministic software owns **safety, validation, authorization, persistence, pr
 
 ---
 
-# 3. AI ROLE LAW
+# 3. AI ROLE LAW — CURRENT MAIN AUTHORITY
 
-## Gemini Boss
+This handoff was originally written when Gemini/Mistral role names appeared in the runtime. Those role statements below are historical and must not override the current canonical `main` architecture. Current provider authority is recorded in `README.md` and `docs/context.md`.
 
-Gemini is the Boss.
+## Groq Boss
 
-Boss responsibilities include:
+Groq Boss owns case direction, objective interpretation, Investigator-capability selection, and high-level continue / redirect / stop disposition. Boss does not browse, invent evidence, or secretly become the Investigator.
 
-- case direction;
-- high-level objective interpretation;
-- Investigator selection;
-- continuation/redirect/stop disposition;
-- bounded oversight.
+## Groq Right-hand
 
-Boss must not secretly become the Investigator.
+Groq Right-hand is an independent bounded oversight invocation. It critiques completed Investigator work, evidence gaps, contradictions, and whether further work is justified. It does not browse or select tools. Required oversight that is unavailable or invalid must remain a visible failure/review state.
 
-Boss must not browse or fabricate evidence.
+## Selected Groq Investigator capability
 
-Boss must not prescribe a hidden fixed sequence of provider/query/URL/tool actions.
+The Boss selects one configured role-scoped Groq Investigator credential capability. That selected capability owns the actual research trajectory: next question, query, tool/capability, pivot, verification or disproof, and stop/abstain decision. Cognitive-task model routing is downstream of capability selection and must not silently rotate to another credential.
 
-A redirect is a research purpose/question, not a scripted route.
+Only configured, executable capabilities may be exposed to the model. Deterministic code constrains safety, provenance, schema, resource usage, persistence, and lifecycle—not the research itinerary.
 
-## Gemini Right-hand
-
-Gemini Right-hand is a separate oversight invocation.
-
-It reviews completed Investigator work, evidence gaps, contradictions, objective alignment and whether further work is justified.
-
-It must not browse.
-
-It must not choose the Investigator's tools.
-
-It must not invent evidence.
-
-If required oversight is unavailable, fail closed rather than pretending review occurred.
-
-## Investigator
-
-The active Investigator pool is exactly:
-
-```
-groq
-mistral
-```
-
-The selected Investigator owns the actual research trajectory.
-
-It decides:
-
-- what question to pursue next;
-- what query to formulate;
-- what capability/tool to use;
-- where to pivot;
-- what to verify or disprove;
-- when evidence is sufficient;
-- when to abstain or stop.
-
-Gemini is **not** an Investigator fallback.
-
-DeepSeek/NVIDIA are not active Investigator paths.
+Gemini, Mistral, and DeepSeek/NVIDIA are retired from the canonical Boss/Right-hand/Investigator path unless a fully implemented and tested role adapter is explicitly restored.
 
 ---
 
@@ -469,7 +428,11 @@ Do not infer implementation quality from filenames. Read the code.
 
 ---
 
-# 14. CURRENT RUNTIME BLOCKER KNOWN FROM THE LAST USER-CONDUCTED REPLIT AUDIT
+# 14. HISTORICAL RUNTIME BLOCKER FROM A PRIOR USER-CONDUCTED REPLIT AUDIT
+
+**Historical snapshot only:** this records a previously observed environment/schema mismatch. Do not assume it describes current `main` or the current deployment without a fresh runtime check.
+
+
 
 The last Replit audit was performed against the older Apex branch line and was deliberately honest.
 
