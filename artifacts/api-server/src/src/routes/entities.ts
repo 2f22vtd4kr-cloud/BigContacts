@@ -25,8 +25,7 @@ import {
 } from "../lib/contact-validation";
 import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
 import { extractImportDrafts, type ImportDraftEntity } from "../lib/manual-import-extract";
-import { persistBureauContactsForEntity, expandSecondaryPublicSurface } from "../lib/bureau-contact-persist" // rehydrate via promote
-;
+import { persistBureauContactsForEntity } from "../lib/bureau-contact-persist";
 
 const router: IRouter = Router();
 
@@ -911,88 +910,10 @@ router.get("/entities/:id/contact-evidence", async (req, res): Promise<void> => 
 
 
 // POST /entities/:id/refresh-surface — bounded secondary + issuer org re-expand (never invents Personal)
-router.post("/entities/:id/refresh-surface", async (req, res): Promise<void> => {
-  const id = Number(req.params.id);
-  if (!Number.isFinite(id) || id <= 0) {
-    res.status(400).json({ error: "invalid entity id" });
-    return;
-  }
-  const [entity] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, id)).limit(1);
-  if (!entity) {
-    res.status(404).json({ error: "Entity not found" });
-    return;
-  }
-  let companyName: string | null = null;
-  try {
-    const meta = entity.metadata ? JSON.parse(entity.metadata) as Record<string, unknown> : {};
-    companyName = typeof meta.companyName === "string" ? meta.companyName : null;
-  } catch { companyName = null; }
-  if (!companyName && entity.notes) {
-    const m = String(entity.notes).match(/Company:\s*([^\.\n]+)/i)
-      || String(entity.notes).match(/connected to\s+([A-Z][^\.\n]{3,80})/i)
-      || String(entity.notes).match(/\b([A-Z][A-Za-z0-9&.,' -]{2,60}\s+(?:Manufacturing|Holdings|Corporation|Company|Inc\.?|LLC|Ltd\.?|Co\.?|LLP|PLC|AG|SA)\b)/);
-    if (m?.[1]) companyName = m[1].trim().slice(0, 120);
-  }
-  // Purge trash phones/emails already stored (e.g. +15555555555) — visibility without noise
-  try {
-    const { isTrashContactValue } = await import("../lib/contact-validation");
-    const existing = await db.select({
-      id: contactEvidenceTable.id,
-      vectorType: contactEvidenceTable.vectorType,
-      value: contactEvidenceTable.value,
-    }).from(contactEvidenceTable).where(eq(contactEvidenceTable.entityId, id)).limit(200);
-    const trashIds = existing.filter((r) => isTrashContactValue(r.vectorType, r.value)).map((r) => r.id);
-    if (trashIds.length) {
-      await db.delete(contactEvidenceTable).where(inArray(contactEvidenceTable.id, trashIds));
-    }
-  } catch { /* non-fatal */ }
-
-  const secondary = await expandSecondaryPublicSurface({
-    entityId: id,
-    name: entity.name,
-    entityType: entity.type,
-    companyName,
-  });
-  if (companyName) {
-    await expandSecondaryPublicSurface({
-      entityId: id,
-      name: companyName,
-      entityType: "Corporation",
-      companyName,
-    }).catch(() => null);
-    await persistBureauContactsForEntity(id, [{
-      vectorType: "domain",
-      value: companyName,
-      scope: "organization",
-      personName: entity.name,
-      role: "related_issuer",
-      sourceUrls: [
-        `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=SC+13D,SC+13G`,
-      ],
-      note: `Issuer/company refresh — related org anchor (not Personal)`,
-      tier: "candidate",
-      state: "review_only",
-    }], "atlas-registry-org-surface").catch(() => 0);
-  }
-  const contactMap = await loadPresentedContactsForEntities([{ ...entity, id }]);
-  let contacts = contactMap[id] ?? [];
-  const hasOrg = contacts.some((c) => c.mark === "organization");
-  if (hasOrg) {
-    const hasPersonalCols = Boolean(String(entity.email ?? "").trim() || String(entity.phone ?? "").trim());
-    if (!hasPersonalCols) {
-      await db.update(entitiesTable).set({
-        contactOutcome: "organization_contact",
-        updatedAt: new Date(),
-      }).where(eq(entitiesTable.id, id)).catch(() => {});
-    }
-  }
-  const [fresh] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, id)).limit(1);
-  res.json({
-    ok: true,
-    secondary,
-    companyName,
-    contacts,
-    contactOutcome: fresh?.contactOutcome ?? entity.contactOutcome,
+router.post("/entities/:id/refresh-surface", (_req, res): void => {
+  res.status(410).json({
+    error: "Legacy secondary-surface refresh retired.",
+    reason: "Research routes through the autonomous Investigator; deterministic website/leadership scraping is retired, and all outbound source retrieval must use the governed SSRF-safe transport.",
   });
 });
 
