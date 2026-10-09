@@ -4,7 +4,7 @@ import { db, entitiesTable, researchCasesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getJob } from "./job-queue";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
-import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
+import { supportsCandidateContactOnSameObservation, isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -58,9 +58,21 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
       sourceUrls: (record.observedUrls ?? []).map(normalizeObservedUrl).filter((url): url is string => url !== null && sourceSet.has(url)),
     }))
     .filter((record) => record.sourceUrls.length > 0);
-  // Multi-page attribution can be reviewed when each cited URL supports an
-  // exact part of the claim; the strict persistence boundary below still
-  // requires candidate identity and contact value to be co-bound locally.
+  // A candidate's identity and contact value must co-occur in at least one
+  // individual claim-grade observation. Cross-page identity/value joins remain
+  // reviewable in the Bureau pass, but are not source-backed candidate contacts.
+  if (String(finding.scope ?? "").toLowerCase() === "candidate") {
+    const locallyBound = observations.some((observation) =>
+      observation.sourceUrls.length > 0
+      && supportsCandidateContactOnSameObservation(
+        observation.observationText,
+        finding,
+        finding.value,
+        finding.vectorType,
+      ),
+    );
+    if (!locallyBound) return false;
+  }
   return supportsContactClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
 }
 
