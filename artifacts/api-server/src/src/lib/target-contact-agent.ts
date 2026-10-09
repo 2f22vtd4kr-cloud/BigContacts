@@ -41,7 +41,7 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
     if (record.execution !== "success" || typeof record.observation !== "string" || record.action === "web_search" || record.action === "parallel_web_search" || record.action === "done") continue;
     const matchedSources = record.observedUrls
       .map(normalizeObservedUrl)
-      .filter((url): url is string => Boolean(url) && sourceSet.has(url));
+      .filter((url): url is string => typeof url === "string" && sourceSet.has(url));
     if (!matchedSources.length) continue;
     // Every claimed URL must itself contain the value and, for candidate claims,
     // the exact person identity. Do not stitch a name from one page to a contact
