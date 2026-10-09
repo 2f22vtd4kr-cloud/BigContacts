@@ -61,7 +61,7 @@ type Scene = {
   timestamp?: string;
   live: boolean;
   /** Phase K */
-  terminal?: "done" | "failed" | null;
+  terminal?: "done" | "failed" | "cancelled" | "queued" | "unknown" | null;
   story: string;
   /** Adaptive right-hand narration for the desk */
   narration?: string;
@@ -253,9 +253,14 @@ function extractUrl(e: OpsEvent): string | undefined {
  * Never surfaces ATLAS_EVENT / DIRECTOR log dumps.
  */
 function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
-  const live = !/complete|done|success/i.test(String(e.status || "active"));
-  const failed = /fail|error|blocked/i.test(String(e.status || ""));
-  const prefix = failed ? "Failed:" : live ? "Now:" : "Done:";
+  const status = String(e.status || "unknown").trim().toLowerCase();
+  const failed = /fail|error|blocked|timeout/.test(status);
+  const cancelled = /cancelled|canceled|stopped/.test(status);
+  const queued = /queued|pending|waiting/.test(status);
+  const succeeded = /complete|completed|done|success|succeeded|^ok$/.test(status);
+  const active = /active|running|in_progress/.test(status);
+  const known = failed || cancelled || queued || succeeded || active;
+  const prefix = failed ? "Failed:" : cancelled ? "Stopped:" : queued ? "Queued:" : !known ? "Unknown:" : active ? "Now:" : "Done:";
   const t = (e.targetName || "this person").trim();
 
   if (e.story && e.story.trim().length >= 8) {
@@ -367,24 +372,30 @@ function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
 function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = null): Scene {
   const tool = pickTool(e);
   const provider = detectProviderKind(`${tool} ${e.stage || ""} ${e.resultSummary || ""}`);
-  const status = String(e.status || "active");
+  const status = String(e.status || "unknown").trim().toLowerCase();
   const unavailable = providerUnavailable(e, slots);
-  // Do not show LIVE chrome for missing/offline providers (e.g. Perplexity with 0 keys)
-  let live = !/complete|done|success/i.test(status) && !unavailable;
-  // Stale events must not stay LIVE (Redis tail / job idle). Short window — no theater after dig stops.
+  const failed = /fail|error|blocked|timeout/.test(status);
+  const cancelled = /cancelled|canceled|stopped/.test(status);
+  const queued = /queued|pending|waiting/.test(status);
+  const succeeded = /complete|completed|done|success|succeeded|^ok$/.test(status);
+  const active = /active|running|in_progress/.test(status);
+  const known = failed || cancelled || queued || succeeded || active;
+  // Never infer completion from an absent, unknown, or stale active status.
+  let live = active && !unavailable;
   try {
     const ts = e.timestamp ? Date.parse(String(e.timestamp)) : NaN;
     if (!Number.isFinite(ts) || Date.now() - ts > 45_000) live = false;
   } catch {
     live = false;
   }
-  if (unavailable && !/complete|done|success/i.test(status)) {
-    // Force terminal failed so UI shows OFF / failed instead of LIVE theater
-  }
-  const terminal: "done" | "failed" | null = unavailable || /fail|error|blocked/i.test(status)
-    ? "failed"
-    : (!live ? "done" : null);
-  if (unavailable) live = false;
+  const terminal: "done" | "failed" | "cancelled" | "queued" | "unknown" | null =
+    cancelled ? "cancelled"
+      : unavailable || failed ? "failed"
+      : queued ? "queued"
+      : !known ? "unknown"
+      : succeeded ? "done"
+      : live ? null
+      : "unknown";
   const query = extractQuery(e);
   const url = extractUrl(e);
   const resultLines = [
@@ -585,7 +596,7 @@ function StoryLine({
   clamp?: boolean;
 }) {
   const cleaned = sanitizeStoryText(story) || story;
-  const m = cleaned.match(/^(Now|Done|Failed):\s*(.*)$/i);
+  const m = cleaned.match(/^(Now|Done|Failed|Stopped|Queued|Unknown):\s*(.*)$/i);
   if (!m) {
     return (
       <div className={`${clamp ? "line-clamp-2" : ""} ${className}`.trim()}>
@@ -595,7 +606,7 @@ function StoryLine({
   }
   const kind = m[1].toLowerCase();
   const prefixColor =
-    kind === "now" ? "text-lime-300" : kind === "failed" ? "text-rose-300" : "text-lime-200";
+    kind === "now" ? "text-lime-300" : kind === "failed" ? "text-rose-300" : kind === "stopped" ? "text-amber-300" : kind === "queued" ? "text-sky-300" : kind === "unknown" ? "text-stone-400" : "text-lime-200";
   const body = sanitizeStoryText(m[2]) || m[2];
   return (
     <div className={`${clamp ? "line-clamp-2" : ""} ${className}`.trim()}>
@@ -624,7 +635,7 @@ function WindowChrome({
   live?: boolean;
   compact?: boolean;
   /** Phase K — when tool finished (not live): done | failed */
-  terminal?: "done" | "failed" | null;
+  terminal?: "done" | "failed" | "cancelled" | "queued" | "unknown" | null;
   /** Research method lane — drives chrome language (not browser traffic lights) */
   method?: "browser" | "serp" | "google" | "prompt" | "domain" | "footprint" | "bureau" | "registry";
 }) {
@@ -1422,10 +1433,14 @@ function MobileWorkstage({
 function sceneBodyText(scene: { prompt?: string; inputSummary?: string; resultSummary?: string; raw?: string; status?: string }) {
   const t = [scene.resultSummary, scene.inputSummary, scene.prompt, scene.raw].map(s => String(s || "").trim()).find(Boolean);
   if (t) return t;
-  const st = String(scene.status || "").toLowerCase();
-  if (/complete|done|success/.test(st)) return "Step finished — no detail text stored.";
+  const st = String(scene.status || "unknown").toLowerCase();
+  if (/cancelled|canceled|stopped/.test(st)) return "Step was stopped before completion."; 
+  if (/fail|error|blocked|timeout/.test(st)) return "Step failed — no detail text stored."; 
+  if (/queued|pending|waiting/.test(st)) return "Queued — waiting for the step to start."; 
+  if (/unknown/.test(st)) return "Status unavailable — completion is not verified."; 
+  if (/complete|completed|done|success|succeeded|^ok$/.test(st)) return "Step finished — no detail text stored."; 
   if (/active|running|live/.test(st)) return "In progress…";
-  return "Waiting for bureau detail…";
+  return "Status unavailable — completion is not verified.";
 }
 
 export function BureauOpsStage({
