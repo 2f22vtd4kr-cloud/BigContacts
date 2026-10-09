@@ -8,13 +8,14 @@ const app = read("artifacts/api-server/src/src/app.ts");
 const routes = read("artifacts/api-server/src/src/routes/index.ts");
 const auth = read("artifacts/api-server/src/src/lib/operator-auth.ts");
 const authRoute = read("artifacts/api-server/src/src/routes/operator-auth.ts");
+const authTests = read("artifacts/api-server/src/src/test/operator-auth.test.ts");
 const gate = read("artifacts/apex-finder/src/components/operator-gate.tsx");
 const ui = read("artifacts/apex-finder/src/App.tsx");
 const preflight = read("scripts/replit-preflight.mjs");
 
 const checks = [
   ["all API routes mount through the single guarded route aggregator", /app\.use\(["']\/api["'],\s*router\)/.test(app)],
-  ["operator auth router runs before the guard, and the guard before every operational router", /router\.use\(operatorAuthRouter\);[\s\S]*?router\.use\(requireOperatorAuth\);[\s\S]*?router\.use\(healthRouter\);/.test(routes) && !routes.includes("apiAuthMiddleware") && !routes.includes("authRouter")],
+  ["operator auth router runs before the guard, and the guard before every operational router", routes.indexOf("router.use(operatorAuthRouter);") >= 0 && routes.indexOf("router.use(operatorAuthRouter);") < routes.indexOf("router.use(requireOperatorAuth);") && routes.indexOf("router.use(requireOperatorAuth);") < routes.indexOf("router.use(healthRouter);") && routes.indexOf("router.use(healthRouter);") < routes.indexOf("router.use(normalizeAtlasLaunchBody);") && !routes.includes("apiAuthMiddleware") && !routes.includes("authRouter")],
   ["public auth exemptions are narrowly method-and-path scoped", /req\.method\s*===\s*"GET"[\s\S]*?req\.path\s*===\s*"\/healthz"[\s\S]*?req\.path\s*===\s*"\/auth\/session"/.test(auth) && /req\.method\s*===\s*"POST"[\s\S]*?req\.path\s*===\s*"\/auth\/login"[\s\S]*?req\.path\s*===\s*"\/auth\/logout"/.test(auth)],
   ["missing auth configuration fails closed and unauthorized requests do not continue", auth.includes("OPERATOR_AUTH_NOT_CONFIGURED") && auth.includes("OPERATOR_AUTH_REQUIRED") && /if\s*\(!config\)/.test(auth) && /if\s*\(!isOperatorAuthorized\(req,\s*config\)\)/.test(auth)],
   ["session signatures are cryptographic, nonce-backed, and time-bounded", auth.includes("createHmac(") && auth.includes("randomBytes(") && auth.includes("OPERATOR_SESSION_TTL_SECONDS") && auth.includes("verifyOperatorSessionToken")],
@@ -27,6 +28,7 @@ const checks = [
   ["preflight checks the three required auth controls without printing their values", ["APEX_OPERATOR_PASSWORD", "APEX_API_AUTH_TOKEN", "APEX_SESSION_SECRET"].every((name) => preflight.includes(name)) && preflight.includes("presence/length only")],
 ];
 
+  ["cookie-authenticated writes require trusted Origin while explicit bearer clients remain compatible", auth.includes("if (hasValidBearerToken(req, config)) return next;") && auth.includes("!SAFE_METHODS.has(req.method.toUpperCase()) && !isTrustedOperatorOrigin(req, env)") && authRoute.includes("if (!isTrustedOperatorOrigin(req))") && authTests.includes("does not apply the ambient-cookie Origin check to explicit bearer clients") && authTests.includes("rejects cookie-authenticated writes with absent or untrusted Origin")],
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 for (const [name, ok] of checks) console.log((ok ? "PASS " : "FAIL ") + name);
 if (failures.length) {
