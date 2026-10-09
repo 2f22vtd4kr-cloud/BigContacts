@@ -39,6 +39,8 @@ if (!source.includes("function materializeAtlasAdmissions")) {
 
 const durableAdmissionChecks = [
   ["all equivalent promoted candidate findings contribute their source URLs", source.includes("candidateSourceUrlsForIdentity({") && source.includes("findings: input.findings")],
+  ["search-result endpoints are excluded from claim-grade discovery evidence", source.includes("isClaimGradeDiscoverySourceUrl") && source.includes("isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl")],
+  ["case projection and control receive only durable supporting URLs", source.includes("admittedCandidateSources.map(({ name, sourceUrls })") && source.includes("admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls })")],
 
   ["only source-backed durable admissions are returned to control", source.includes("return { names: durableNames, materialized, evidenceRows }") && source.includes("if (materializedAdmission.durableEvidence) durableNames.push(name)"],
   ["admission requires a successful retrieved page in the same Investigator run", /payload\.runId === input\.discoveryRunId[\s\S]*directSourceAction[\s\S]*payload\.execution === "success"[\s\S]*candidateSourceUrls\.includes\(normalized\)/.test(source)],
