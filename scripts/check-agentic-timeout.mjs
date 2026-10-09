@@ -2,8 +2,12 @@ import fs from "node:fs";
 
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const pkg = JSON.parse(fs.readFileSync("artifacts/api-server/package.json", "utf8"));
+const resilientWorkflow = fs.readFileSync(".github/workflows/apex-live-audit-resilient.yml", "utf8");
+const timeoutOverride = resilientWorkflow.match(/^\s*AGENTIC_PROVIDER_DECISION_TIMEOUT_MS:\s*["']?(\d+)/m);
+const workflowBudgetOk = !timeoutOverride || Number(timeoutOverride[1]) >= 125_000;
 
 const ok =
+  workflowBudgetOk &&
   !source.includes("providerDecisionTimeoutMs = 18_000") &&
   source.includes("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS") &&
   source.includes("const controller = new AbortController()") &&
