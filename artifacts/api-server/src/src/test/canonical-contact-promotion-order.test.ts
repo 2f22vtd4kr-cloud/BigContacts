@@ -18,9 +18,11 @@ describe("canonical target contact promotion ordering", () => {
   it("retries strict promotion only after the immutable Boss oversight evidence is persisted", () => {
     const oversight = targetRunner.indexOf("lastOversight = await reviewTargetInvestigationAct({");
     const promotion = targetRunner.indexOf("await persistSourceBackedBureauContactsForEntity(", oversight);
+    const promotionGuard = targetRunner.lastIndexOf("if (\n      latestResult.status === \"completed\"", promotion);
     expect(oversight).toBeGreaterThanOrEqual(0);
     expect(promotion).toBeGreaterThan(oversight);
-    const promotionBlock = targetRunner.slice(promotion, targetRunner.indexOf("recentActs.push(currentAct)", promotion));
+    expect(promotionGuard).toBeGreaterThan(oversight);
+    const promotionBlock = targetRunner.slice(promotionGuard, targetRunner.indexOf("recentActs.push(currentAct)", promotion));
     expect(promotionBlock).toContain('lastOversight.status === "completed"');
     expect(promotionBlock).toContain("(lastOversight.evidenceGraphCount ?? 0) > 0");
     expect(promotionBlock).toContain('promotionJob.status !== "running"');
