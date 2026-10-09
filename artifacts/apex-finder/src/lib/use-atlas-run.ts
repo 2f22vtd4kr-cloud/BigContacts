@@ -1,6 +1,7 @@
 /** Poll the canonical Atlas job so Launch controls reflect a live run. */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { classifyApexError, emitApexError } from "@/lib/apex-errors";
+import { readApiJson } from "@/lib/api-json";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const POLL_MS = 12_000;
@@ -17,9 +18,9 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
       const res = await fetch(`${BASE}/api/ingest/job/active/atlas-run`, { cache: "no-store", credentials: "same-origin", signal });
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) emitApexError(classifyApexError("Operator authentication required", res.status));
-        setRun({ active: false }); setReady(true); return;
+        return;
       }
-      const data = await res.json() as any;
+      const data = await readApiJson(res) as any;
       const job = data?.job ?? null;
       const status = String(job?.status ?? data?.jobStatus ?? "").toLowerCase();
       const active = Boolean(data?.active) && (status === "running" || status === "paused" || status === "queued");
