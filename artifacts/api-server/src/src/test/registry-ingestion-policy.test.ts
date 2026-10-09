@@ -12,6 +12,7 @@ describe("public-registry evidence remains a low-confidence lead", () => {
     expect(deriveRegistryIngestionAssessment("PersonCandidate", new Date("2026-10-09T07:30:00.000Z"))).toEqual({
       prior: 0.15,
       hasRecentActivity: false,
+      hasGatekeeperConnection: false,
       recentActivityDays: 400,
       proximityScore: 3,
       confidence: "LOW",
