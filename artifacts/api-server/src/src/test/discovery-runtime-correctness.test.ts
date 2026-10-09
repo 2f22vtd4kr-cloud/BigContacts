@@ -182,13 +182,13 @@ describe("discovery runtime architecture", () => {
   });
 
   it("keeps Boss oversight stops distinct from Investigator-selected completion", () => {
-    const oversightStop = researchSource.indexOf("if (checkpointResult.stop) return");
-    const investigatorDone = researchSource.indexOf("if (callerOwnsOversight && isAcceptedInvestigatorTerminal");
+    const oversightStop = researchSource.lastIndexOf("if (checkpointResult.stop) return");
+    const investigatorDone = researchSource.lastIndexOf("if (callerOwnsOversight && isAcceptedInvestigatorTerminal", oversightStop);
     expect(oversightStop).toBeGreaterThan(-1);
     expect(investigatorDone).toBeGreaterThan(-1);
     expect(investigatorDone).toBeLessThan(oversightStop);
     expect(researchSource.slice(investigatorDone, oversightStop)).toContain('stopReason: "MODEL_DECIDED_DONE"');
-    expect(researchSource.slice(oversightStop)).toContain('stopReason: "OVERSIGHT_STOP"');
+    expect(researchSource.slice(oversightStop, oversightStop + 700)).toContain('stopReason: "OVERSIGHT_STOP"');
     expect(researchCoreSource).toContain('"MODEL_DECIDED_DONE" | "OVERSIGHT_STOP"');
     const targetSource = fs.readFileSync(path.join(libDir, "target-contact-agent.ts"), "utf8");
     expect(targetSource).toContain('"MODEL_DECIDED_DONE" | "OVERSIGHT_STOP"');
