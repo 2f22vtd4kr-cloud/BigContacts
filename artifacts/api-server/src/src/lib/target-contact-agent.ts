@@ -58,10 +58,11 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
       sourceUrls: (record.observedUrls ?? []).map(normalizeObservedUrl).filter((url): url is string => url !== null && sourceSet.has(url)),
     }))
     .filter((record) => record.sourceUrls.length > 0);
-  // Multi-page attribution can be reviewed when each cited URL supports an
-  // exact part of the claim; the strict persistence boundary below still
-  // requires candidate identity and contact value to be co-bound locally.
-  return supportsReviewableClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
+  // This helper feeds the strict target persistence path, not review-only
+  // attribution. Every cited source must contribute, and candidate identity
+  // plus contact value must be co-bound in one observed page. The separate
+  // review helper intentionally permits complementary pages.
+  return supportsContactClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
 }
 
 export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] {
