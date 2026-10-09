@@ -46,36 +46,27 @@ async function withStrictPermanentClient<T>(command: StrictRedisCommand<T>): Pro
 
 async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
   const finishedAt = new Date().toISOString();
-  // This function is called only after a successful renewal command confirms
-  // that this job no longer owns the lease. Attempt both fences independently:
-  // if one backing store is degraded, the other must still prevent stale writes.
-  const redisFence = withStrictPermanentClient(async (redis) => Number(await redis.eval(
+  // First atomically fence the expired worker in Redis. Durable SQL state must
+  // not be changed until that fence confirms this job no longer owns the lease.
+  const fenced = await withStrictPermanentClient(async (redis) => Number(await redis.eval(
     "local owner=redis.call('get',KEYS[1]); if owner==ARGV[1] then return 0 end; local k=KEYS[2]; local status=redis.call('hget',k,'status'); if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end; redis.call('hset',k,'status','cancelled','outcome','incomplete','message',ARGV[2],'finishedAt',ARGV[3]); return 1",
     2,
-    `apex:activejob:${type}`,
-    `apex:job:${jobId}`,
+    \`apex:activejob:\${type}\`,
+    \`apex:job:\${jobId}\`,
     jobId,
     "Canonical lease lost; refusing further work.",
     finishedAt,
   )) === 1);
-  const dbFence = db.update(researchCasesTable)
+  if (!fenced) return;
+  await db.update(researchCasesTable)
     .set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() })
     .where(and(
       eq(researchCasesTable.status, "active"),
       or(
-        sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`,
-        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`,
+        sql\`\${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = \${jobId}\`,
+        sql\`\${researchCasesTable.caseFile}::jsonb ->> 'jobId' = \${jobId}\`,
       ),
     ));
-
-  const [redisResult, databaseResult] = await Promise.allSettled([redisFence, dbFence]);
-  if (redisResult.status === "rejected" || databaseResult.status === "rejected") {
-    // Keep diagnostics useful without leaking command URLs or credential-bearing
-    // client error messages into logs or the durable job state.
-    const redisState = redisResult.status === "rejected" ? "failed" : redisResult.value ? "fenced" : "no-op";
-    const databaseState = databaseResult.status === "rejected" ? "failed" : "fenced";
-    throw new Error(`Canonical lease-loss fencing incomplete: redis=${redisState}; database=${databaseState}`);
-  }
 }
 
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
