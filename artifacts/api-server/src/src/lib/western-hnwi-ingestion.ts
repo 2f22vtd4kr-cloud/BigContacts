@@ -687,7 +687,6 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
 
   // A role/filing does not establish direct reachability. A fetched registry
   // record gets a neutral route score until public contact evidence is observed.
-  const proximityScore = registryAssessment.proximityScore;
 
   // This is a discovery lead, not an observed direct route. Keep any suggested
   // contact path in the Investigator's research context until a public route is
