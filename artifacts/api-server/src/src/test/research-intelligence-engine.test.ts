@@ -150,7 +150,7 @@ describe("Apex research intelligence", () => {
       observation: "Jordan Example is director of Alpha",
       findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [secondUrl] }],
     });
-    const evidenceIds = engine.buildContext().atomicEvidence.map((item) => item.evidenceId);
+    const evidenceIds = engine.buildContext().atomicEvidence.filter((item) => item.kind === "finding" || item.kind === "claim").map((item) => item.evidenceId);
     expect(evidenceIds).toHaveLength(2);
     engine.addHypothesis({ label: "Jordan Example is director of Alpha", entity: "Jordan Example director Alpha", supportingEvidenceIds: [evidenceIds[0]!] });
     engine.addHypothesis({ label: "Jordan Example is director of Alpha", entity: "Jordan Example director Alpha", supportingEvidenceIds: [evidenceIds[1]!] });
