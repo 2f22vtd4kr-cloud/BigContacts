@@ -15,6 +15,6 @@ check(/playwright:"scrape"/.test(gate) && /rdap:"registry"/.test(gate),"explicit
 const executionContext=read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
 const scopeContext=read("artifacts/api-server/src/src/lib/agentic-execution-context.ts");
 check(/input\.caseId != null/.test(executionContext) && /agentic:case:/.test(executionContext),"canonical case runs must share one agentic execution scope across Investigator acts.");
-check(/case:\[\^:\]\+\):investigator/.test(scopeContext),"selected Investigator parsing must accept case-scoped execution contexts.");
+check(scopeContext.includes("case:[^:]+(?::run:[^:]+)?):investigator"),"selected Investigator parsing must accept both legacy and run-scoped case execution contexts.");
 if(failures.length){console.error("MODEL PROVIDER CHOICE BOUNDARY: FAIL");for(const f of failures)console.error("- "+f);process.exit(1);}
 console.log("MODEL PROVIDER CHOICE BOUNDARY: PASS");
