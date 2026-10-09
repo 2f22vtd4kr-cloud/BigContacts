@@ -8,7 +8,7 @@ export { browserFetchConfigured, getBrowserFetchCount, resetBrowserFetchCount, i
 export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
 
 /** Browser/proxy escalation is an Investigator-selected outbound operation. */
-export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string }> {
+export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null }> {
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
   await assertSafeOutboundUrl(url);
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
