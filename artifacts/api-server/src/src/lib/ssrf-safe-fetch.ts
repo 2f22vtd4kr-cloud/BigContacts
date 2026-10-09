@@ -88,6 +88,7 @@ function isBlockedIp(address: string): boolean {
     // IETF protocol assignments/Teredo/documentation, 6to4, and documentation.
     if (groups[0] === 0x2001 && groups[1]! < 0x0200) return true; // 2001::/23
     if (groups[0] === 0x2001 && groups[1] === 0x0db8) return true; // 2001:db8::/32 documentation
+    if (groups[0] === 0x5f00) return true; // 5f00::/16 SRv6 SIDs, not general-purpose destination space
     if (groups[0] === 0x2002) return true; // 2002::/16 (6to4 embeds IPv4)
     if (groups[0] === 0x3fff && (groups[1]! & 0xf000) === 0) return true; // 3fff::/20
 
