@@ -202,7 +202,7 @@ describe("discovery runtime architecture", () => {
   });
 
   it("merges each Boss-directed discovery episode exactly once", () => {
-    const mergeCalls = [...fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8").matchAll(/discovery = mergeDiscoveryResults\\(discovery, nextDiscovery\\)/g)];
+    const mergeCalls = [...fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8").matchAll(/discovery = mergeDiscoveryResults\(discovery, nextDiscovery\)/g)];
     expect(mergeCalls).toHaveLength(1);
     expect(fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8")).not.toContain("discovery = { ...nextDiscovery, searches: discovery.searches + nextDiscovery.searches");
   });
