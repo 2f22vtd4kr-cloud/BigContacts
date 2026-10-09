@@ -5,7 +5,7 @@ const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 assert(/async function fenceLeaseLostCases\(type: string, jobId: string\)/.test(lock), "lease-loss fencing must be typed by lock lane and job");
 assert(/apex:job:\$\{jobId\}/.test(lock), "lease-loss fencing must target the expired worker job record");
-assert(/redis\.call\(\x27hset\x27,k,\x27status\x27,\x27cancelled\x27/.test(lock) && /Canonical lease lost/.test(lock), "lease-loss fencing must cancel the expired worker job");
+assert(/redis\.call\('hset',k,'status','cancelled'/.test(lock) && /Canonical lease lost/.test(lock), "lease-loss fencing must cancel the expired worker job");
 assert(/fenceLeaseLostCases\(type, jobId\)/.test(lock), "renewal failure must invoke lease-loss fencing");
 assert(/Promise\.allSettled\(\[redisFence, dbFence\]\)/.test(lock), "Redis and database fences must be attempted independently");
 
