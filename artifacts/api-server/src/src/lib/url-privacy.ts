@@ -47,3 +47,15 @@ export function sanitizeUrlOccurrences(text: string, urls: readonly string[]): s
   // output even when those links were not supplied as a separate URL field.
   return safeText.replace(/https?:\/\/[^\s<>"'`]+/gi, (rawUrl) => sanitizeUrlForEvidence(rawUrl));
 }
+
+
+/** Recursively sanitize a JSON-like projection before it is exposed or persisted. */
+export function sanitizeUrlProjection<T>(value: T): T {
+  if (typeof value === "string") return sanitizeUrlOccurrences(value, []) as T;
+  if (Array.isArray(value)) return value.map((item) => sanitizeUrlProjection(item)) as T;
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>).map(([key, item]) => [key, sanitizeUrlProjection(item)]);
+    return Object.fromEntries(entries) as T;
+  }
+  return value;
+}
