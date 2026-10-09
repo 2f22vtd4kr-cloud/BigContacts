@@ -4,7 +4,7 @@ import { db, entitiesTable, researchCasesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getJob } from "./job-queue";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
-import { persistSourceBackedBureauContactsForEntity, supportsCandidateContactOnSameObservation, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
+import { persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -33,23 +33,20 @@ function observedUrlsFromTrajectory(trajectory: string[], records: AgenticTrajec
 }
 function claimGradeSourceUrlsFromTrajectory(records: AgenticTrajectoryRecord[] = []): Set<string> { const observed = new Set<string>(); for (const record of records) { if (record.execution !== "success" || (record.action !== "visit" && record.action !== "browser_fetch")) continue; for (const raw of record.observedUrls ?? []) { const normalized = normalizeObservedUrl(raw); if (normalized) observed.add(normalized); } } return observed; }
 function claimAppearsInObservedMaterial(finding: AgenticFinding, records: AgenticTrajectoryRecord[]): boolean {
-  if (!records.length) return false;
   const sourceSet = new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)));
   if (!sourceSet.size) return false;
-  const supportingUrls = new Set<string>();
-  for (const record of records) {
-    if (record.execution !== "success" || typeof record.observation !== "string" || record.action === "web_search" || record.action === "parallel_web_search" || record.action === "done") continue;
-    const matchedSources = record.observedUrls
-      .map(normalizeObservedUrl)
-      .filter((url): url is string => typeof url === "string" && sourceSet.has(url));
-    if (!matchedSources.length) continue;
-    // Every claimed URL must itself contain the value and, for candidate claims,
-    // the exact person identity. Do not stitch a name from one page to a contact
-    // value from another page to manufacture a stronger attribution.
-    if (!supportsCandidateContactOnSameObservation(record.observation, finding, finding.value, finding.vectorType)) continue;
-    for (const url of matchedSources) supportingUrls.add(url);
-  }
-  return supportingUrls.size === sourceSet.size;
+  const observations = records
+    .filter((record) => record.execution === "success"
+      && typeof record.observation === "string"
+      && (record.action === "visit" || record.action === "browser_fetch"))
+    .map((record) => ({
+      observationText: record.observation,
+      sourceUrls: record.observedUrls
+        .map(normalizeObservedUrl)
+        .filter((url): url is string => typeof url === "string" && sourceSet.has(url)),
+    }))
+    .filter((record) => record.sourceUrls.length > 0);
+  return supportsContactClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
 }
 
 export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] { const observed = claimGradeSourceUrlsFromTrajectory(records); return findings.filter((finding) => Array.isArray(finding.sourceUrls)).map((finding) => ({ ...finding, sourceUrls: [...new Set(finding.sourceUrls.map((url) => normalizeObservedUrl(String(url))).filter((url): url is string => Boolean(url)))] })).filter((finding) => finding.sourceUrls.length > 0 && finding.sourceUrls.every((url) => observed.has(url)) && claimAppearsInObservedMaterial(finding, records)); }
