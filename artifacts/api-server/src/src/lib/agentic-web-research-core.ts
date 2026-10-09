@@ -375,7 +375,7 @@ async function gatedSafeOutboundFetch(input: RequestInfo | URL, init: RequestIni
 
 async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa", locale?: string, market?: string, signal?: AbortSignal): Promise<{ text: string; urls: string[]; provider: string; status: "success" | "empty" | "error" }> {
   const result = provider === "serper" ? await webSearchSerper(query, locale, market, signal) : provider === "tavily" ? await webSearchTavily(query, signal) : await webSearchExa(query, signal);
-  return result ? { ...result, text: sanitizeUrlOccurrences(result.text, result.urls), urls: result.urls.map(sanitizeUrlForEvidence), provider } : { text: `${provider} returned no usable result.`, urls: [], provider, status: "error" };
+  return result ? { ...result, text: sanitizeUrlOccurrences(result.text, result.urls), urls: result.urls.map((url) => sanitizeUrlForEvidence(url)), provider } : { text: `${provider} returned no usable result.`, urls: [], provider, status: "error" };
 }
 
 async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null }> { const displayUrl = sanitizeUrlForEvidence(url); try { const response = await gatedSafeOutboundFetch(url, { signal: signal ?? AbortSignal.timeout(15_000), headers: { "User-Agent": "Apex-Atlas/1.0", Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8" }, redirect: "manual" }); const location = response.headers.get("location"); if (!response.ok) return { observation: `HTTP ${response.status} from ${displayUrl}${location ? `\nREDIRECT_LOCATION: ${sanitizeUrlForEvidence(location, url)}` : ""}`, status: "http_error", observedUrl: null }; const raw = await readResponseTextCapped(response, signal); const facts = extractContactFactsFromHtml(raw); const body = stripHtml(raw); const boundedBody = body.slice(0, MAX_OBS); return { observation: `${facts.length ? `CONTACT FACTS (observed, not attributed):\n${facts.join("\n")}\n\n` : ""}PAGE ${displayUrl}\n${boundedBody}${body.length > MAX_OBS ? "\n[PAGE OBSERVATION TRUNCATED; SOURCE URL RETAINED FOR REVISIT]" : ""}`, status: "success", observedUrl: normalizedUrl(url) }; } catch (error) { if (signal?.aborted) return { observation: `visit cancelled for ${displayUrl}`, status: "cancelled", observedUrl: null }; const diagnostic = describeThrownProviderError(error); const timed = classifyThrownProviderError(error) === "timeout"; return { observation: `visit failed for ${displayUrl}: ${timed ? "timeout" : "request error"} (error=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`, status: timed ? "timeout" : "error", observedUrl: null }; } }
@@ -1097,21 +1097,28 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       "query", "url", "domain", "registry", "provider", "hypothesis", "purpose",
       "expectedInformationGain", "target", "targetType", "profile", "searches",
     ].filter((key) => Object.prototype.hasOwnProperty.call(args, key)).slice(0, 5);
-    return Object.fromEntries(orderedKeys.flatMap((key) => {
+    const entries: Array<[string, unknown]> = [];
+    for (const key of orderedKeys) {
       const value = args[key];
-      if (typeof value === "string") return [[key, value.trim().slice(0, 50)]];
-      if (typeof value === "number" || typeof value === "boolean" || value === null) return [[key, value]];
-      if (key === "searches" && Array.isArray(value)) {
-        return [[key, value.slice(0, 1).map((item) => {
+      if (typeof value === "string") {
+        entries.push([key, value.trim().slice(0, 50)]);
+      } else if (typeof value === "number" || typeof value === "boolean" || value === null) {
+        entries.push([key, value]);
+      } else if (key === "searches" && Array.isArray(value)) {
+        const searches: Array<Record<string, string>> = value.slice(0, 1).map((item) => {
           if (!item || typeof item !== "object" || Array.isArray(item)) return {};
           const search = item as Record<string, unknown>;
-          return Object.fromEntries(["query", "provider", "locale", "market", "purpose"]
-            .filter((field) => typeof search[field] === "string")
-            .map((field) => [field, String(search[field]).trim().slice(0, field === "query" ? 70 : field === "purpose" ? 40 : 20)]));
-        })]];
+          const selected: Array<[string, string]> = [];
+          for (const field of ["query", "provider", "locale", "market", "purpose"]) {
+            if (typeof search[field] !== "string") continue;
+            selected.push([field, String(search[field]).trim().slice(0, field === "query" ? 70 : field === "purpose" ? 40 : 20)]);
+          }
+          return Object.fromEntries(selected) as Record<string, string>;
+        });
+        entries.push([key, searches]);
       }
-      return [];
-    }));
+    }
+    return Object.fromEntries(entries);
   };
   const latestRecordEnvelope = latestRecord
     ? {
