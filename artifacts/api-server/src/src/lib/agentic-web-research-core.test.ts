@@ -135,6 +135,13 @@ describe("Investigator prompt architecture", () => {
       .toBe(`unsupported_action action=${"x".repeat(40)}`);
   });
 
+  it("makes action-specific field examples subordinate to the full required JSON envelope", () => {
+    const prompt = buildStepPrompt({ targetName: "", objective: "discover an attributable person", history: [], trajectoryRecords: [], lastObservation: "", findings: [], mode: "discovery" });
+    expect(prompt).toContain("The action shapes below name action-specific values only; they never replace the full required envelope.");
+    expect(prompt).toContain("for done, include every other required top-level property with null or empty-array placeholders");
+    expect(prompt).toContain("Return exactly ONE root JSON object, with no prose, prefixes, suffixes, or additional JSON objects.");
+  });
+
   it("keeps the structured response contract at the provider boundary", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",
@@ -195,14 +202,15 @@ describe("Investigator prompt architecture", () => {
   });
 
 
-  it("classifies malformed Investigator responses without persisting response text", () => {
+  it("classifies malformed and ambiguous Investigator envelopes without persisting response text", () => {
     expect(describeAgentActionParseFailure("")).toBe("empty_response");
     expect(describeAgentActionParseFailure("not json")).toMatch(/^no_json_object chars=\d+ digest=/);
     expect(describeAgentActionParseFailure("{")).toMatch(/^no_json_object chars=\d+ digest=/);
     expect(describeAgentActionParseFailure('{"foo":"bar"}')).toBe("missing_action");
     expect(describeAgentActionParseFailure('{"action":"invented"}')).toBe("unsupported_action action=invented");
     expect(describeAgentActionParseFailure('{"action":"visit"}')).toBe("invalid_action_arguments action=visit invalid=url");
-    expect(describeAgentActionParseFailure('{"action":"web_search","query":"anchor","provider":"serper"} trailing text {"noise":true}')).toBe("invalid_action_arguments action=web_search");
+    expect(describeAgentActionParseFailure('{"action":"web_search","query":"anchor","provider":"serper"} trailing text {"noise":true}')).toMatch(/^non_json_envelope chars=\\d+ digest=/);
+    expect(describeAgentActionParseFailure('{"action":"visit","url":"https://example.com"} {"action":"done"}')).toMatch(/^multiple_json_objects chars=\\d+ digest=/);
     expect(describeAgentActionParseFailure('{"action":"parallel_web_search","searches":[{"query":"anchor","provider":"serper"}]}')).toBe("invalid_action_arguments action=parallel_web_search searches_min=2");
   });
 
