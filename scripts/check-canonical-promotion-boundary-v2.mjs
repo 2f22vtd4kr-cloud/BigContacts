@@ -29,11 +29,19 @@ const assert = (ok, name) => { if (!ok) failures.push(name); };
 const hasAll = (source, markers) => markers.every((marker) => source.includes(marker));
 assert((agentic.split("priorIntelligenceContext: intelligence.buildContext()").length - 1) >= 1 && (agentic.match(/priorTrajectoryRecords: \[\.\.\.historyRecords, \.\.\.records\.map\(/g) ?? []).length >= 2 && agentic.includes("sourceObservations: history.map") && read("artifacts/api-server/src/src/lib/research-intelligence-engine.ts").includes("sourceObservationsByUrl"), "the canonical one-action loop passes accumulated intelligence, durable prior pages, and URL-bound source grounding into each decision");
 assert(hasAll(investigatorCore, ["priorIntelligenceContext?: IntelligenceContext", "priorTrajectoryRecords?: readonly AgenticTrajectoryRecord[]", "if (input.priorIntelligenceContext) intelligence.restoreContext(input.priorIntelligenceContext)", "bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)])", "discoveryTerminalGate([...priorTrajectoryRecords, ...records.slice(0, -1), { ...record, findings: action.findings }])"]), "the per-action core restores epistemic state and grounds terminal claims and discovery liveness against the cumulative trajectory");
-assert(hasAll(target, ["persistSourceBackedBureauContactsForEntity", "const modelFindings = agentic.modelFindings ?? []", "const groundingRecords = agentic.groundingTrajectoryRecords ?? agentic.trajectoryRecords", "sourceBackedFindings(modelFindings, agentic.trajectory, groundingRecords)", "supportsReviewableClaimAcrossObservations", "supportsContactClaimAcrossObservations"]), "target grounds reviewable findings in successful observation records while trusted contact promotion independently requires same-source identity/value binding");
+assert(hasAll(target, [
+  "persistSourceBackedBureauContactsForEntity",
+  "const modelFindings = agentic.modelFindings ?? []",
+  "const groundingRecords = agentic.groundingTrajectoryRecords ?? agentic.trajectoryRecords",
+  "sourceBackedFindings(modelFindings, agentic.trajectory, groundingRecords)",
+  "function isReviewableObservation(record: AgenticTrajectoryRecord): boolean",
+  "isClaimGradeObservationAction(record.action)",
+  "supportsContactClaimAcrossObservations(observations, finding, finding.value, finding.vectorType)",
+]) && !target.includes("supportsReviewableClaimAcrossObservations"), "target-scoped candidate contacts require same-observation identity/value binding after cumulative observation grounding");
 assert(hasAll(target, ['promote: isExplicitCandidate && f.promotionDecision === "promote"', "state: \"review_only\"", "tier: \"candidate\""]), "target preserves explicit Investigator promotion semantics");
 assert(hasAll(target, ["execution=success", "observed=(https?:", "claimAppearsInObservedMaterial", "record.observation"]), "target validates claims against successful observed material");
 assert(hasAll(target, ["status: \"cancelled\"", "executionId: agentic.executionId"]), "target preserves cancellation as a distinct result and execution identity");
-assert(hasAll(bureau, ["persistSourceBackedBureauContactsForEntity", "sourceBackedAgenticFindings", "claimAppearsInObservedMaterial", "record.observation"]), "bureau pass uses strict persistence and observed-material claim validation");
+assert(hasAll(bureau, ["persistSourceBackedBureauContactsForEntity", "sourceBackedAgenticFindings", "claimAppearsInObservedMaterial", "record.observation", "supportsReviewableClaimAcrossObservations(observations, finding, finding.value, finding.vectorType)"]), "discovery Bureau findings can preserve complementary observed sources for review without weakening target contact promotion");
 assert(hasAll(bureau, ['promote:candidate&&f.promotionDecision==="promote"', "state:\"review_only\"", "tier:\"candidate\""]), "bureau pass preserves explicit Investigator promotion semantics");
 assert(hasAll(bureau, ["runId?:string", "randomUUID()", "trajectoryRecords"]), "bureau pass creates run-scoped Investigator executions with structured trajectory");
 assert(bureau.includes("runId:agentic.runId??runId,jobId:input.jobId??null"), "bureau strict persistence carries the originating job ID into immutable promotion provenance");
