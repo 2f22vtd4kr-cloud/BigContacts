@@ -1883,6 +1883,7 @@ export default function EntityLedger() {
                   <option value="Corporation">Corporation — Company / Shell</option>
                   <option value="Trust">Trust — Offshore / Fiduciary</option>
                   <option value="Gatekeeper">Gatekeeper — Contact / Introducer</option>
+                  <option value="PersonCandidate">Candidate — wealth unverified</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-3">
