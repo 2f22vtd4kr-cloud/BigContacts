@@ -9,8 +9,14 @@ describe("research objective validation", () => {
     });
   });
 
+  it("allows provider/tool names as research subjects rather than treating every mention as a directive", () => {
+    expect(validateResearchObjective("Investigate Groq's corporate structure, ownership, and leadership history.").valid).toBe(true);
+    expect(validateResearchObjective("Assess the public history of the Maigret project and its maintainers.").valid).toBe(true);
+  });
+
   it("rejects provider/tool directives and concrete URLs", () => {
     expect(validateResearchObjective("Use Groq to search Serper for the person.").valid).toBe(false);
+    expect(validateResearchObjective("Search using Serper to find the person's email.").valid).toBe(false);
     expect(validateResearchObjective("Visit https://example.com/profile and verify the role.").valid).toBe(false);
     expect(validateResearchObjective("Open www.example.com and inspect it.").valid).toBe(false);
   });
