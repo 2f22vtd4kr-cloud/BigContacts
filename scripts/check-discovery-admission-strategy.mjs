@@ -38,6 +38,8 @@ if (!source.includes("function materializeAtlasAdmissions")) {
 
 
 const durableAdmissionChecks = [
+  ["all equivalent promoted candidate findings contribute their source URLs", source.includes("candidateSourceUrlsForIdentity({") && source.includes("findings: input.findings")],
+
   ["only source-backed durable admissions are returned to control", source.includes("return { names: durableNames, materialized, evidenceRows }") && source.includes("if (materializedAdmission.durableEvidence) durableNames.push(name)"],
   ["admission requires a successful retrieved page in the same Investigator run", /payload\.runId === input\.discoveryRunId[\s\S]*directSourceAction[\s\S]*payload\.execution === "success"[\s\S]*candidateSourceUrls\.includes\(normalized\)/.test(source)],
   ["a missing admission evidence session fails the transaction closed", source.includes("if (!session?.id) throw new Error(")],

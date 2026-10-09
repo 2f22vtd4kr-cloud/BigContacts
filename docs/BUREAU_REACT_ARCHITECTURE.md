@@ -1,136 +1,89 @@
 # Apex Atlas — ReAct Bureau Architecture
 
-**Updated:** 2026-09-20
+**Updated:** 2026-10-09  
+**Canonical branch:** `main`  
+**Authority:** executable code on `main`, `docs/context.md`, and `README.md`.
 
-**Canonical role law:** Boss = **Groq GPT-OSS 120B** (bounded GPT-OSS 20B fallback). Right-hand = **Groq Small 4**. Investigation = **Groq/Groq Investigator + permitted non-LLM research tools**.
+This describes the current implementation contract, not the historical control-plane wiring in older handoffs.
 
-Apex has **two AI layers only**: Groq Boss control + Groq Right-hand oversight and the Investigator LLM layer.
+## 1. Core law
 
-## 1. Boss + Right-hand
+Apex Atlas is an AI-driven public-source research bureau, not a deterministic enrichment pipeline.
 
-### Boss — Groq GPT-OSS 120B
+**The selected model owns research strategy. Deterministic runtime code owns safety, authorization, source provenance, identity attribution, durable persistence, cancellation, resource budgets, and terminal integrity.**
 
-Owns case direction, strategic prioritization, Investigator selection, continuation disposition and high-level review. It does not browse or invent evidence.
+Tools are capabilities, not mandatory stages. There is no hidden identity → company → social profile → email recipe.
 
-### Right-hand — Groq Small 4
+## 2. Roles
 
-A separate bounded Groq oversight invocation. It critiques the latest act, evidence gaps, contradictions and objective. It does not browse, choose the Investigator's tool, or invent evidence.
+### Groq Boss
 
-If the Right-hand is unavailable where required, Apex records that fact and fails closed. It never fabricates a completed review.
+Boss directs the case, interprets accumulated evidence, selects an available Investigator capability, and decides whether to continue, redirect, investigate a candidate, revisit, or stop. It does not browse and must not invent evidence. Model/capability selection is runtime configuration, not a promise that every deployment uses the same model ID.
 
-## 2. Investigator LLM pool
+### Groq Right-hand
 
-The active pool is exactly:
+Right-hand is a separate bounded oversight invocation. It critiques completed Investigator work, evidence gaps, contradictions, and alignment with the objective. It does not browse, choose the Investigator's tools, or manufacture a successful review when unavailable.
 
-```text
-groq
-mistral
-```
+### Selected Groq Investigator
 
-The selected Investigator is the researcher. It receives the assignment plus durable case/run context and owns the research trajectory.
+The selected Investigator capability owns the actual research trajectory: what question to investigate, which enabled capability to use, what query to form, where to pivot, what to verify or disprove, and when to stop or abstain. A credential slot is a capability boundary; it must not silently rotate to another credential after quota trouble.
 
-Permitted non-LLM capabilities include web search, page/HTTP retrieval, browser/fetch escalation, public registries, domain/RDAP inspection, approved footprint/contact tools, and disproof/verification capabilities.
+Gemini, Mistral, and DeepSeek/NVIDIA transports are retired from the canonical execution path. Historic persisted events may still require compatibility readers; that does not make a retired transport an active runtime role.
 
-The search capability surface includes Tavily and Exa. The browser/fetch capability surface includes Scrapfly and ZenRows.
+## 3. Free-ReAct boundary
 
-Tools are capabilities, not stages.
+The Investigator may choose among enabled capabilities, including web search, page retrieval, browser escalation, public registries, domain/RDAP inspection, permitted footprint tools, disproof, revisits, and stopping. Runtime validation can reject malformed, unsafe, unavailable, unauthorized, over-budget, or provenance-invalid actions.
 
-## 3. ReAct loop
+The runtime must not secretly prescribe a query list, provider order, source sequence, identity hop, or research ladder. Guidance may explain capability semantics and current evidence gaps, but the model still chooses the research move.
 
-```
-GEMINI BOSS + RIGHT-HAND
-        ↓
-select Investigator + objective
-        ↓
-GROQ / MISTRAL INVESTIGATOR
-        ↓
-choose action
-        ↓
-validated capability execution
-        ↓
-observation + provenance
-        ↓
-evidence graph state
-        ↺
-Right-hand review → Boss disposition → next Investigator act
-```
+A discovery-only liveness guard prevents unproductive search loops: after three successful search-only actions without a successful non-search observation, another search is blocked. This does not prescribe the next tool; the Investigator chooses how to inspect or resolve a lead.
 
-There is **no forced identity → organization → contact sequence**, no mandatory search-provider order, and no forced search order.
+## 4. Evidence and identity
 
-## 4. Evidence graph cognition
+Apex distinguishes **lead → observation → attribution → corroboration → verification**.
 
-The Investigator's bounded working context can include:
+- Search results and snippets are leads, not claim-grade proof.
+- Discovery admission requires an explicitly promoted candidate, a successful same-run page retrieval, the exact observed source URL, and full-name support at token boundaries.
+- A nearby substring must not establish identity (for example, `Ann Li` from `Joann Li`).
+- Organization-scoped evidence stays organization-scoped unless a person relationship is independently attributed.
+- URLs, people, relationships, contacts, and wealth must not be invented.
+- Copied or syndicated pages are not independent corroboration merely because they have different URLs.
+- Unknown or insufficient evidence is a valid outcome.
 
-- objective and current findings;
-- identity hypotheses and discriminators;
-- contradictions;
-- contact states;
-- negative findings;
-- open questions;
-- recent actions;
-- source-family coverage;
-- source-quality summaries;
-- durable mission context.
+Evidence should retain source URL/host, retrieval time, source type/family, supporting observation, claim/identity linkage, contradictions, confidence, and scope.
 
-Complete observations and trajectory records remain durable outside the prompt. Compaction changes presentation, not history.
+## 5. Structured action contracts and provider failures
 
-## 5. Adaptive discovery
+Investigator action responses use provider-native structured output where supported, followed by deterministic schema and semantic validation. Reasoning text is not an action payload. Bounded compatibility repair may address response-format differences, but it must never bypass allowed-action validation or transform a failed action into evidence.
 
-Discovery can allocate future slots using historical lane feedback while preserving diversity across geography, occupation, wealth mechanism, source kind, and reachability.
+Provider failures remain typed and bounded. Token-window pressure is not hard quota. Credential reassignment is explicit, never silent. Tool failure is not positive evidence.
 
-This is an adaptive portfolio, not a hidden deterministic research route.
+## 6. Resource and network safety
 
-## 6. Independent trajectories
+Iteration, observation, trajectory, prompt/context, response-size, concurrency, and elapsed-time limits are safety boundaries, not research strategy. Cancellation must reach the actual work and be rechecked before trusted persistence.
 
-The optional ensemble path can run multiple Investigator lanes in parallel. Each lane remains inspectable. Findings are merged deterministically and source coverage is deduplicated without pretending that copied sources are independent.
+Outbound network code rejects non-public destinations, revalidates redirects where the client controls them, and caps response size. Browser/provider-backed retrieval needs the same destination policy at the point of actual network egress; a local pre-check alone does not prove that a remote fetch provider's redirect/DNS behavior is safe. Python-backed network OSINT remains fail-closed until enforceable sandbox egress exists.
 
-## 7. Structured action contracts
+## 7. Durable state and replay
 
-Investigator action responses use provider-aware structured outputs where supported.
+Durable case/event state is canonical truth. UI, Reactor, and logs are projections, not independent research engines. Replay uses immutable event IDs as sequence authority; timestamps and iteration numbers do not replace event ordering.
 
-- Groq: structured JSON/schema response with reasoning separated from the action payload.
-- Groq: strict JSON-schema response format.
-- Semantic action validation follows schema validation.
-- Provider failures remain explicit.
+Persist enough to audit and replay the objective, capability selection, model-selected action, actual tool/provider, execution status, observations, observed URLs, provenance, findings, hypotheses, contradictions, control decisions, case/job/run/turn correlation, and terminal outcome.
 
-Structured output reduces parser ambiguity; it does not remove the need for deterministic validation.
+Promoted discovery candidates begin as review-only identity candidates. Contact promotion requires separate target-scoped research and strict source-backed attribution; model prose alone cannot promote a contact. Late callbacks may not rewrite terminal job state.
 
-## 8. Source independence and failure observability
+## 8. Runtime and release truth
 
-Apex distinguishes source families/classes so URL count is not mistaken for corroboration.
+Canonical runtime contract:
 
-Diagnostic signals include identity collision/overcommitment, insufficient evidence, misleading search result, stale source, copied contact, wrong entity, contact misattribution, contradiction misclassification, missed/unnecessary pivot, tool-selection error, premature/late stop, prompt injection, source-quality error, and system failure.
+- Desk: `/`
+- API: `/api/`
+- API port: `8080`
+- Boot command: `bash scripts/replit-boot.sh`
+- Explicit first-time schema initialization: `APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh`
 
-These diagnostics do not silently mutate the research result.
+Ordinary boot must not mutate schema. Static tests validate structural invariants; they do not establish successful provider execution, live research quality, or production readiness. The latest documented Replit run (2026-10-08) failed before the first valid Investigator action and persisted no searches, visits, findings, admissions, or evidence rows. Fresh runtime acceptance remains outstanding.
 
-## 9. Safety invariants
+## 9. Evaluation
 
-- Investigator pool remains Groq/Groq only.
-- The Groq Right-hand control role is never used as an Investigator fallback.
-- DeepSeek/NVIDIA is absent from active execution.
-- Model-selected actions are checked against actual capabilities.
-- Tool failures remain failures.
-- Cancellation propagates through the actual operation.
-- SSRF/egress, response-size, concurrency, trajectory, and iteration ceilings are enforced.
-- Durable evidence/event records are immutable where required.
-- No arbitrary prompt truncation may erase evidence.
-- Python network OSINT stays fail-closed until enforceable sandbox egress exists.
-
-## 10. Evaluation boundary
-
-Structural CI proves architecture/regression invariants. It does not prove research superiority.
-
-Research quality is evaluated separately through the 38-case grounded Research Gauntlet v1 and controlled live runs.
-
-## 11. Hard invariants
-
-1. Two AI layers only.
-2. Groq Boss + Groq Right-hand are oversight/control.
-3. Groq/Groq are investigators.
-4. Investigator owns the research trajectory.
-5. Tools are capabilities, not fixed stages.
-6. Every act is durably inspectable.
-7. Promotion requires source-backed deterministic validation.
-8. No provider fallback from Investigator to retired providers or control-plane roles.
-9. No forced research order.
-10. Benchmark conclusions come from measured system runs, not model-brand comparisons.
+Evaluate matched, reviewable runs with separate metrics for identity correctness, attribution, claim support, source quality, contradictions, negative findings, useful pivots, unnecessary calls, trajectory length, and system failures. Do not collapse these dimensions into a single “smartness” score or claim live performance from architecture tests alone.

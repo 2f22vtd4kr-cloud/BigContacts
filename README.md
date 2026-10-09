@@ -117,7 +117,7 @@ APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
 Do not leave schema mutation enabled for ordinary runtime boot.
 
-The latest user-conducted Replit audit initialized the fresh database explicitly and verified the canonical API routes and durable empty state. The first live provider failure was Gemini Boss structured-output HTTP 400; the subsequent same-model compatibility repair allowed the run to reach Gemini Right-hand, where the next failure was invalid JSON. PR #384 hardens the Right-hand structured JSON contract. The repair is not considered live-proven until the canonical Replit launch succeeds after merge.
+The latest documented user-conducted Replit run (2026-10-08) used the Groq control plane and selected `groq-investigator-1`. Its strict Investigator action request failed with `json_validate_failed`; a compatibility retry returned HTTP 200 but still produced no durable valid research action. The run ended incomplete with zero searches, visits, findings, admissions, or evidence rows. Subsequent `main` changes have tightened action liveness, provider capacity/error classification, source-backed identity admission, terminal-state integrity, and IPv6 destination filtering. Those changes have not been live-proven in this chat. Static and CI success is not live-research certification.
 
 ## Runtime secret contract
 

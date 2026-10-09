@@ -23,8 +23,8 @@
 
 | Capability | Status | What is actually true |
 |---|---|---|
-| Gemini Boss + Gemini Right-hand separation | Implemented | Distinct oversight roles; Right-hand does not become Investigator |
-| Groq/Mistral Investigator pool | Implemented | Investigator role is limited to Groq/Mistral |
+| Groq Boss + Groq Right-hand separation | Implemented | Distinct control/oversight roles; neither becomes the Investigator |
+| Groq Investigator capability pool | Implemented | A selected configured capability owns the trajectory; no silent credential rotation |
 | Model-owned research trajectory | Implemented | No fixed identity→org→contact route |
 | Capability registry | Implemented | Actions expose purpose, evidence value, limitations and cost |
 | Evidence-graph cognition | Implemented baseline | Durable state is rendered into bounded Investigator context |
@@ -33,12 +33,12 @@
 | Adaptive discovery portfolio | Implemented baseline | Historical lane feedback changes allocation while preserving diversity floors |
 | Independent Investigator ensemble | Implemented opt-in | Parallel lanes can explore materially different source families |
 | Source-family/source-class intelligence | Implemented | Copied/syndicated sources are not automatically independent |
-| Structured action output | Implemented baseline | Groq/Mistral use provider-aware structured response contracts |
+| Structured action output | Implemented baseline | Groq uses provider-aware structured response contracts where supported, followed by semantic validation |
 | Failure observability | Implemented baseline | Diagnostic trajectory failure signals are recorded without mutating results |
 | Prompt-injection boundary | Implemented baseline | Public web content remains untrusted and tool execution is validated |
 | Durable provenance/evidence ledger | Implemented in architecture | Production release still requires live schema/boot verification |
 | Real research-quality benchmark | Not yet release-gated | 38-case grounded registry exists; controlled campaign still required |
-| Fresh production runtime certification | Not yet | Last canonical audit was blocked by missing Apex database schema |
+| Fresh production runtime certification | Not yet | Latest documented user-run Replit audit (2026-10-08) stopped before the first valid Investigator action; no durable research evidence was produced |
 
 ## What the model may do
 
@@ -100,8 +100,7 @@ This is not a mandatory “multi-agent route”; it is a capability available wh
 
 Provider-native structured responses are used where supported:
 
-- Groq: structured JSON/schema response; reasoning kept separate from action payload.
-- Mistral: strict JSON-schema response format.
+- Groq: provider-native structured JSON/schema response; reasoning is kept separate from the action payload.
 - Semantic validation follows schema validation.
 - Provider errors remain explicit.
 
@@ -139,7 +138,7 @@ Report separate correctness and operational metrics. Unknown is valid. Do not co
 Initialize the required Apex schema through the explicit operator-approved helper, then boot without schema mutation enabled.
 
 ### Gate 2 — End-to-end smoke
-Run at least one controlled real case through Gemini Boss → Investigator → tool → observation → evidence → Right-hand/Boss review → durable final state.
+Run at least one controlled real case through Groq Boss → selected Groq Investigator → tool → observation → evidence → Groq Right-hand/Boss review → durable final state.
 
 ### Gate 3 — Failure drills
 Exercise provider timeout/error, cancellation, context pressure, identity collision, copied-source corroboration, stale contact, and public-page prompt injection.

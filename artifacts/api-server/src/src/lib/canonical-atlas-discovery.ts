@@ -12,6 +12,7 @@ import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
 import { candidateIdentityObserved, normalizeCandidateIdentityName } from "./identity-text-match";
+import { candidateSourceUrlsForIdentity } from "./candidate-source-url-union";
 
 export type CanonicalAtlasOptions = {
   targetCount?: number;
@@ -59,16 +60,12 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
 
   for (const name of candidates) {
     const identity = normalizeCandidateIdentityName(name);
-    const finding = input.findings.find((candidate) =>
-      normalizeCandidateIdentityName(candidate.personName ?? "") === identity &&
-      candidate.promotionDecision === "promote" &&
-      candidate.scope === "candidate" &&
-      Array.isArray(candidate.sourceUrls) &&
-      candidate.sourceUrls.some(isObservedHttpSource)
-    );
-    const candidateSourceUrls = [...new Set((finding?.sourceUrls ?? [])
-      .map((raw) => isObservedHttpSource(raw) ? normalizeSourceUrl(raw) : null)
-      .filter((url): url is string => Boolean(url)))];
+    const candidateSourceUrls = candidateSourceUrlsForIdentity({
+      findings: input.findings,
+      personName: name,
+      isObservedHttpSource,
+      normalizeSourceUrl,
+    });
     if (!candidateSourceUrls.length) continue;
 
     const caseEvents = await db.select({ id: researchCaseEventsTable.id, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
