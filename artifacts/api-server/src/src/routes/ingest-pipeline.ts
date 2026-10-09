@@ -7,6 +7,7 @@
  */
 import { Router, type Request, type Response } from "express";
 import { db, entitiesTable } from "@workspace/db";
+import { enablePermanentRedis } from "../lib/redis";
 import { sql, eq, count } from "drizzle-orm";
 import {
   createJob, updateJob, getJob, getActiveJob, getActiveJobs, setActiveJob, ownsActiveJob, clearActiveJobIfOwned,
@@ -121,6 +122,7 @@ router.get("/ingest/semantic-engine-status", async (_req: Request, res: Response
 
 router.get("/ingest/jobs", async (_req: Request, res: Response): Promise<void> => {
   try {
+    await enablePermanentRedis();
     const activeByType = await getActiveJobs(KNOWN_JOB_TYPES.map((def) => def.id));
     const jobs = await Promise.all(KNOWN_JOB_TYPES.map(async (def) => {
       const activeJobId = activeByType.get(def.id) ?? null;
@@ -128,7 +130,10 @@ router.get("/ingest/jobs", async (_req: Request, res: Response): Promise<void> =
       return { ...def, jobId: state?.jobId, status: state?.status ?? "idle", progress: state?.progress ?? 0, inserted: state?.inserted ?? 0, skipped: state?.skipped ?? 0, errors: state?.errors ?? 0, message: state?.message ?? "", startedAt: state?.startedAt, finishedAt: state?.finishedAt };
     }));
     res.json({ jobs, generatedAt: new Date().toISOString() });
-  } catch (err: any) { res.status(500).json({ error: err?.message ?? "Failed to list jobs" }); }
+  } catch (err: any) {
+    const unavailable = err instanceof Error && err.message.includes("job-state read failed");
+    res.status(unavailable ? 503 : 500).json({ error: unavailable ? "Job state is unavailable; active jobs cannot be determined right now." : (err?.message ?? "Failed to list jobs"), ...(unavailable ? { code: "JOB_STATE_UNAVAILABLE" } : {}) });
+  }
 });
 
 router.get("/pipeline/funnel", async (_req: Request, res: Response): Promise<void> => {
