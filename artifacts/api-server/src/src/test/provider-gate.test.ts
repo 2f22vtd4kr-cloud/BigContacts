@@ -539,4 +539,25 @@ describe("provider quota gate", () => {
     }
   });
 
+  it("credential query parameters bypass shared response caching", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async (input) => {
+      calls += 1;
+      const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url);
+      return new Response(url.searchParams.get("x-api-key") ?? "none", { status: 200, headers: { "cache-control": "public, max-age=60" } });
+    }) as typeof fetch;
+    try {
+      const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+      installExternalQuotaGuard();
+      const first = await globalThis.fetch("https://query-auth-cache.example.test/resource?x-api-key=one");
+      const second = await globalThis.fetch("https://query-auth-cache.example.test/resource?x-api-key=two");
+      expect(await first.text()).toBe("one");
+      expect(await second.text()).toBe("two");
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
 });
