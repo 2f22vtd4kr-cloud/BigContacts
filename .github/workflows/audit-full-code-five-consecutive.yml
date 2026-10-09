@@ -62,10 +62,17 @@ jobs:
         run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
+          set -euo pipefail
+          API_TOKEN="$(openssl rand -hex 32)"
+          OPERATOR_PASSWORD="$(openssl rand -hex 24)"
+          SESSION_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$API_TOKEN"
+          echo "::add-mask::$OPERATOR_PASSWORD"
+          echo "::add-mask::$SESSION_SECRET"
           {
-            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
-            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
-            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+            echo "APEX_API_AUTH_TOKEN=$API_TOKEN"
+            echo "APEX_OPERATOR_PASSWORD=$OPERATOR_PASSWORD"
+            echo "APEX_SESSION_SECRET=$SESSION_SECRET"
           } >> "$GITHUB_ENV"
       - name: Live smoke API test with process-lifetime-safe server
         run: |
@@ -145,10 +152,17 @@ jobs:
         run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
+          set -euo pipefail
+          API_TOKEN="$(openssl rand -hex 32)"
+          OPERATOR_PASSWORD="$(openssl rand -hex 24)"
+          SESSION_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$API_TOKEN"
+          echo "::add-mask::$OPERATOR_PASSWORD"
+          echo "::add-mask::$SESSION_SECRET"
           {
-            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
-            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
-            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+            echo "APEX_API_AUTH_TOKEN=$API_TOKEN"
+            echo "APEX_OPERATOR_PASSWORD=$OPERATOR_PASSWORD"
+            echo "APEX_SESSION_SECRET=$SESSION_SECRET"
           } >> "$GITHUB_ENV"
       - name: Live smoke API test with process-lifetime-safe server
         run: |
@@ -227,10 +241,17 @@ jobs:
         run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
+          set -euo pipefail
+          API_TOKEN="$(openssl rand -hex 32)"
+          OPERATOR_PASSWORD="$(openssl rand -hex 24)"
+          SESSION_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$API_TOKEN"
+          echo "::add-mask::$OPERATOR_PASSWORD"
+          echo "::add-mask::$SESSION_SECRET"
           {
-            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
-            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
-            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+            echo "APEX_API_AUTH_TOKEN=$API_TOKEN"
+            echo "APEX_OPERATOR_PASSWORD=$OPERATOR_PASSWORD"
+            echo "APEX_SESSION_SECRET=$SESSION_SECRET"
           } >> "$GITHUB_ENV"
       - name: Live smoke API test with process-lifetime-safe server
         run: |
@@ -309,10 +330,17 @@ jobs:
         run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
+          set -euo pipefail
+          API_TOKEN="$(openssl rand -hex 32)"
+          OPERATOR_PASSWORD="$(openssl rand -hex 24)"
+          SESSION_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$API_TOKEN"
+          echo "::add-mask::$OPERATOR_PASSWORD"
+          echo "::add-mask::$SESSION_SECRET"
           {
-            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
-            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
-            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+            echo "APEX_API_AUTH_TOKEN=$API_TOKEN"
+            echo "APEX_OPERATOR_PASSWORD=$OPERATOR_PASSWORD"
+            echo "APEX_SESSION_SECRET=$SESSION_SECRET"
           } >> "$GITHUB_ENV"
       - name: Live smoke API test with process-lifetime-safe server
         run: |
@@ -391,10 +419,17 @@ jobs:
         run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral operator credentials for live smoke tests
         run: |
+          set -euo pipefail
+          API_TOKEN="$(openssl rand -hex 32)"
+          OPERATOR_PASSWORD="$(openssl rand -hex 24)"
+          SESSION_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$API_TOKEN"
+          echo "::add-mask::$OPERATOR_PASSWORD"
+          echo "::add-mask::$SESSION_SECRET"
           {
-            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
-            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
-            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+            echo "APEX_API_AUTH_TOKEN=$API_TOKEN"
+            echo "APEX_OPERATOR_PASSWORD=$OPERATOR_PASSWORD"
+            echo "APEX_SESSION_SECRET=$SESSION_SECRET"
           } >> "$GITHUB_ENV"
       - name: Live smoke API test with process-lifetime-safe server
         run: |
