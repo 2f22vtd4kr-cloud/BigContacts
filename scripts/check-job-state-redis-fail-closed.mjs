@@ -27,7 +27,7 @@ const checks = [
   ["canonical launch checks an active lane using strict job-record reads", launch.includes("getJobStrict(existingId)")],
   ["active-job polling uses strict job-record reads after reading its lane", /job = await getJobStrict\(jobId\)/.test(ingest) && /JOB_STATE_INCONSISTENT/.test(ingest)],
   ["job polling never turns Redis outages into false 404 responses", /getJobStrict\(jobId\)[\s\S]*JOB_STATE_UNAVAILABLE[\s\S]*status\(404\)/.test(ingest)],
-  ["authoritative active-lane reads throw when Redis state is unknown", getActiveJobStrict.includes("classifyActiveJobRead(readSucceeded,jobId)") && getActiveJobStrict.includes('classified.state==="unavailable"') && getActiveJobStrict.includes("active job state is unknown")],
+  (() => { const unavailableReadBlock = getActiveJobStrict.match(/if\s*\(\s*classified\.state\s*===\s*"unavailable"\s*\)\s*\{([\s\S]*?)\}/)?.[1] ?? ""; return ["authoritative active-lane reads clear the cache and throw when Redis state is unknown", getActiveJobStrict.includes("classifyActiveJobRead(readSucceeded,jobId)") && /ACTIVE_JOB_READ_CACHE\.delete\(type\)/.test(unavailableReadBlock) && /throw\s+new\s+Error\([\s\S]*active job state is unknown/.test(unavailableReadBlock)]; })(),
   ["legacy best-effort active read is explicitly a wrapper, not an authority", /return await getActiveJobStrict\(type\);\}catch\{return null;\}/.test(getActiveJob)],
   ["Atlas launch uses the authoritative active-lane read", launch.includes('getActiveJobStrict("atlas-run")')],
   ["Atlas stop refuses to claim a stop while active-lane state is unavailable", /getActiveJobStrict\("atlas-run"\)[\s\S]*JOB_STATE_UNAVAILABLE/.test(launch.slice(launch.indexOf('router.post("/ingest/atlas-stop"')))],
