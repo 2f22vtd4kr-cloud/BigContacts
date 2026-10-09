@@ -47,3 +47,12 @@ export function classifyActiveJobRead(
   if (!readSucceeded) return { state: "unavailable", jobId: null };
   return jobId ? { state: "active", jobId } : { state: "idle", jobId: null };
 }
+
+export type ActiveJobLaneClassification = "active" | "terminal" | "unknown";
+
+/** Classify only known job states; a malformed persisted status is not idle. */
+export function classifyActiveJobLaneStatus(status: string | null | undefined): ActiveJobLaneClassification {
+  if (status === "queued" || status === "running" || status === "paused") return "active";
+  if (status === "done" || status === "failed" || status === "cancelled") return "terminal";
+  return "unknown";
+}
