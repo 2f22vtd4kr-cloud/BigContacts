@@ -36,6 +36,13 @@ if (!canonicalLauncher.includes("router.post(\"/ingest/atlas-run\"")) {
   console.error("ATLAS INPUT NORMALIZATION FAIL: canonical launcher route missing");
   failed = true;
 }
+
+if (!canonicalLauncher.includes("parseCanonicalSingleTargetId(body)") ||
+    !canonicalLauncher.includes('parsedTargetId.kind === "invalid"') ||
+    !canonicalLauncher.includes('code: "INVALID_SINGLE_TARGET_ID"')) {
+  console.error("ATLAS INPUT NORMALIZATION FAIL: invalid explicit single-target IDs can fall through into full discovery");
+  failed = true;
+}
 // atlas.ts is now a compatibility quarantine stub. Keep the route-shape check
 // but bind it to the exported router name and require an explicit 410 response.
 if (!legacyAtlas.includes('atlasRouter.post("/ingest/atlas-run"') || !legacyAtlas.includes("res.status(410)")) {
