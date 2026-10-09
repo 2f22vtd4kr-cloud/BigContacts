@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Request, Response } from "express";
+import { advanceLoginAttemptWindow } from "../routes/operator-auth";
 import {
   createOperatorSessionToken, createRequireOperatorAuth, isOperatorAuthorized,
   missingOperatorAuthNames, readOperatorAuthConfig, safeSecretEqual,
@@ -27,6 +28,21 @@ function response() {
   return { result, value: target as unknown as Response };
 }
 describe("operator authentication boundary", () => {
+  it("preserves an active sign-in lockout across failure-window rollover", () => {
+    const blocked = { windowStartedAt: 1_000, failures: 8, blockedUntil: 121_000 };
+
+    // The counting window ends at 61s, but the lockout was started by a late
+    // eighth failure and must survive until its own deadline.
+    expect(advanceLoginAttemptWindow(blocked, 61_001)).toBe(blocked);
+    expect(advanceLoginAttemptWindow(blocked, 120_999)).toBe(blocked);
+    expect(advanceLoginAttemptWindow(blocked, 121_000)).toEqual({
+      windowStartedAt: 121_000,
+      failures: 0,
+      blockedUntil: 0,
+    });
+  });
+
+
   it("uses a single operator auth contract across the API mount and browser gate", () => {
     const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/app.ts"), "utf8");
     const routeSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/index.ts"), "utf8");
