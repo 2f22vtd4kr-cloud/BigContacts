@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
@@ -15,6 +15,22 @@ describe("Groq Investigator runtime contract", () => {
     expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: false });
     expect(validateDiscoverySearchQuery("Slovenia casino owners", ["Slovenia casino"])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Example Corp founder", [])).toEqual({ allowed: true });
+  });
+
+  it("allows one corrective parse retry, then stops repeated invalid action contracts", () => {
+    expect(MAX_CONSECUTIVE_ACTION_PARSE_FAILURES).toBe(2);
+
+    let consecutiveFailures = 0;
+    consecutiveFailures = nextConsecutiveActionParseFailureCount(consecutiveFailures, false);
+    expect(consecutiveFailures).toBe(1);
+    expect(consecutiveFailures < MAX_CONSECUTIVE_ACTION_PARSE_FAILURES).toBe(true);
+
+    consecutiveFailures = nextConsecutiveActionParseFailureCount(consecutiveFailures, false);
+    expect(consecutiveFailures).toBe(2);
+    expect(consecutiveFailures >= MAX_CONSECUTIVE_ACTION_PARSE_FAILURES).toBe(true);
+
+    // A valid model action naturally restores the retry budget.
+    expect(nextConsecutiveActionParseFailureCount(consecutiveFailures, true)).toBe(0);
   });
 
   it("aligns the prompt with every required property in the strict structured-action schema", () => {
