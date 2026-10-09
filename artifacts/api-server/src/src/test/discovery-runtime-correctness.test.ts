@@ -173,12 +173,14 @@ describe("discovery runtime architecture", () => {
     ])).toBeNull();
   });
 
-  it("scopes Groq token-window snapshots to the selected model", () => {
-    expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, model: string)");
-    expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model))");
-    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
+  it("keys Groq token-window snapshots by credential quota account and model", () => {
+    expect(researchCoreSource).toContain("export function groqQuotaAccountIdentity(apiKey: string)");
+    expect(researchCoreSource).toContain("const quotaAccount = key ? groqQuotaAccountIdentity(key) : keyName ?? \"unknown\"");
+    expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(quotaAccount: string, model: string)");
+    expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(quotaAccount, model))");
+    expect(researchCoreSource).toContain("account: quotaAccount");
     const snapshotCalls = researchCoreSource.match(/captureGroqRateLimitSnapshot\([^)]*\)/g) ?? [];
-    expect(snapshotCalls.slice(1).every((call) => /,\s*model,\s*response/.test(call))).toBe(true);
+    expect(snapshotCalls.slice(1).every((call) => /captureGroqRateLimitSnapshot\(quotaAccount,\s*model,\s*response\)/.test(call))).toBe(true);
   });
 
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
@@ -192,7 +194,7 @@ describe("discovery runtime architecture", () => {
   it("does not abort a ReAct act before the provider decision wait budget", () => {
     expect(researchSource).toContain("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000");
     expect(researchCoreSource).toContain("export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS");
-    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
+    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(quotaAccount, model, response)");
   });
 
   it("keeps runtime safety checks fail-closed and bounded", () => {
