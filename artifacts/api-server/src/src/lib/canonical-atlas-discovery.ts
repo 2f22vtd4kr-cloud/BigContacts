@@ -5,7 +5,7 @@ import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
-import { decideAtlasNextAction, type AtlasControlAction } from "./atlas-control-decision";
+import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, decideAtlasNextAction, validateAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
 import { resolveResearchDepth } from "./research-depth";
 import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
@@ -368,6 +368,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       runGroqRightHandFreeJson(
         `Review Groq Boss's opening Atlas decision before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report: ${boss.report ?? ""}. Next directions: ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Return concise oversight/advisory observations only. Do not browse, do not choose tools, do not replace the Investigator, and do not invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
         "You are the Groq Right-hand. Review the Boss opening decision only. Advise the Boss; do not act as Investigator, do not browse, do not choose tools, and do not replace the selected Groq/Groq Investigator. Reply with ONE JSON object.",
+        ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
       ),
     ).catch((error) => ({
       status: "unavailable" as const,
@@ -385,20 +386,34 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       confidence: null,
       error: rightHandRaw.error ?? null,
     };
-    if (rightHandRaw.status === "completed" && rightHandRaw.raw) {
-      try {
-        const parsed = JSON.parse(rightHandRaw.raw) as Record<string, unknown>;
-        rightHand = {
-          status: "completed",
-          model: rightHandRaw.model,
-          decision: typeof parsed.decision === "string" ? parsed.decision : null,
-          reason: typeof parsed.reason === "string" ? parsed.reason : null,
-          focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [],
-          confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null,
-          error: null,
-        };
-      } catch {
-        rightHand.error = "Right-hand returned invalid JSON.";
+    if (rightHandRaw.status === "completed") {
+      if (!rightHandRaw.raw?.trim()) {
+        rightHand.status = "unavailable";
+        rightHand.error = "Right-hand returned an empty opening review response.";
+      } else {
+        try {
+          const value: unknown = JSON.parse(rightHandRaw.raw);
+          const parsed = value && typeof value === "object" && !Array.isArray(value)
+            ? value as Record<string, unknown>
+            : null;
+          if (!validateAtlasOpeningRightHandReview(parsed) || !parsed) {
+            rightHand.status = "unavailable";
+            rightHand.error = "Right-hand returned an invalid opening review contract.";
+          } else {
+            rightHand = {
+              status: "completed",
+              model: rightHandRaw.model,
+              decision: (parsed.decision as string).trim(),
+              reason: (parsed.reason as string).trim(),
+              focusLanes: (parsed.focusLanes as string[]).map((lane) => lane.trim()),
+              confidence: parsed.confidence as number,
+              error: null,
+            };
+          }
+        } catch {
+          rightHand.status = "unavailable";
+          rightHand.error = "Right-hand returned invalid JSON.";
+        }
       }
     }
     await assertAtlasJobActive(atlasJobId);
@@ -408,7 +423,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
       throw new Error(`Groq Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
     }
-    if (rightHand.error) {
+    if (rightHand.error || rightHand.status !== "completed") {
       await db.update(researchCasesTable)
         .set({ status: "review", currentAction: "groq-right-hand-invalid", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
