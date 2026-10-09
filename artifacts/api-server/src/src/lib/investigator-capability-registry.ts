@@ -7,6 +7,8 @@
  * owns exactly one credential; the Investigator model routing remains inside
  * that capability adapter.
  */
+import { digestDiagnosticText } from "./provider-error-diagnostics";
+
 export const GROQ_INVESTIGATOR_KEY_NAMES = [
   "GROQ_INVESTIGATOR_API_KEY",
   ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`),
@@ -43,4 +45,32 @@ export function getAvailableInvestigatorCapabilities(
     const keyName = investigatorCapabilityKeyName(capability);
     return Boolean(keyName && env[keyName]?.trim());
   });
+}
+
+/**
+ * Return quota-independent, configured capabilities for explicit recovery.
+ * Two slot names holding the same API key are one provider quota pool and may
+ * not be treated as independent alternates after that credential is exhausted.
+ */
+export function getAvailableDistinctInvestigatorCapabilities(
+  env: NodeJS.ProcessEnv = process.env,
+  excludedCapabilities: readonly InvestigatorCapability[] = [],
+): InvestigatorCapability[] {
+  const fingerprintFor = (capability: InvestigatorCapability): string | null => {
+    const keyName = investigatorCapabilityKeyName(capability);
+    const credential = keyName ? env[keyName]?.trim() : undefined;
+    return credential ? digestDiagnosticText(credential) : null;
+  };
+  const excludedCredentials = new Set(
+    excludedCapabilities.map(fingerprintFor).filter((value): value is string => value !== null),
+  );
+  const seenCredentials = new Set(excludedCredentials);
+  const available: InvestigatorCapability[] = [];
+  for (const capability of INVESTIGATOR_CAPABILITIES) {
+    const fingerprint = fingerprintFor(capability);
+    if (!fingerprint || seenCredentials.has(fingerprint)) continue;
+    seenCredentials.add(fingerprint);
+    available.push(capability);
+  }
+  return available;
 }
