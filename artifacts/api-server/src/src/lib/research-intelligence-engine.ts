@@ -198,7 +198,7 @@ function supportsHypothesisClaim(hypothesis: string, claim: string): boolean {
     && normalize(hypothesisClaim.subject) === normalize(evidenceClaim.subject)
     && hypothesisClaim.predicate === evidenceClaim.predicate
   ) {
-    const normalizeObject = (value: string) => normalize(value).replace(/^(?:the|a|an)\\s+/, "");
+    const normalizeObject = (value: string) => normalize(value).replace(/^(?:the|a|an)\s+/, "");
     if (normalizeObject(hypothesisClaim.object) !== normalizeObject(evidenceClaim.object)) return false;
   }
   return overlap(hypothesis, claim) >= 0.35;
