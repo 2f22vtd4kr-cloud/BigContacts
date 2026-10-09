@@ -1,3 +1,17 @@
+import {
+  classifyRegistryRecordType,
+  normalizeUnverifiedRegistryType,
+  normalizeAresEntity,
+  normalizeBodaccRecord,
+  normalizeBrregEntity,
+  REGISTRY_IDS,
+  getRandomDiscoveryRegistries,
+  normalizeRegistryId,
+  formatRegistryResultLead,
+  registryResultLeadUrls,
+} from "../lib/registry-client";
+import { describe, expect, it } from "vitest";
+
 describe("registry candidate classification safety", () => {
   it("never labels a Companies House officer as an HNWI from office alone", () => {
     expect(classifyRegistryRecordType("companies-house-officers")).toBe("PersonCandidate");
@@ -23,20 +37,6 @@ describe("registry candidate classification safety", () => {
     expect(classifyRegistryRecordType("unknown-registry", "unknown-form")).toBe("Corporation");
   });
 });
-
-import {
-  classifyRegistryRecordType,
-  normalizeUnverifiedRegistryType,
-  normalizeAresEntity,
-  normalizeBodaccRecord,
-  normalizeBrregEntity,
-  REGISTRY_IDS,
-  getRandomDiscoveryRegistries,
-  normalizeRegistryId,
-  formatRegistryResultLead,
-  registryResultLeadUrls,
-} from "../lib/registry-client";
-import { describe, expect, it } from "vitest";
 
 describe("Phase J2 registry normalization", () => {
   it("surfaces validated public record URLs as unvisited leads, not observed evidence", () => {
