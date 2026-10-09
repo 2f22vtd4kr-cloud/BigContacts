@@ -6,7 +6,7 @@ describe("discovery query quality guidance", () => {
   it("allows exact-identity lookups while flagging that the query may be broad", () => {
     const result = validateDiscoverySearchQuery("Elon Musk");
     expect(result.allowed).toBe(true);
-    expect(result.allowed ? result.warning : undefined).toMatch(/exact-identity lookups can be useful/i);
+    expect(result.allowed ? result.warning : undefined).toMatch(/brief or context-light/i);
   });
 
   it("allows model-selected named identity plus contextual company token", () => {
@@ -50,6 +50,11 @@ describe("discovery query quality guidance", () => {
     expect(result.allowed).toBe(true);
     expect(result.allowed ? result.warning ?? "" : "").not.toMatch(/brief or context-light/i);
     expect(result.allowed ? result.warning ?? "" : "").not.toMatch(/no explicit person, organization, geography, registry, domain/i);
+  });
+
+  it("does not mistake list counts and interrogative filler for a concrete anchor", () => {
+    expect(validateDiscoverySearchQuery("top 10 tech CEOs").allowed).toBe(false);
+    expect(validateDiscoverySearchQuery("who is best").allowed).toBe(false);
   });
 
   it("only hard-rejects an empty query at this quality-heuristic boundary", () => {
