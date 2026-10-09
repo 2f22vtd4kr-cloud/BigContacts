@@ -16,6 +16,9 @@ assert(/if current=='cancelled' or current=='done' or current=='failed' then ret
 assert(/if\(redisResult===0\|\|redisResult===null\)return;/.test(source), "a rejected terminal write or ambiguous Redis failure must not rewrite the cached status as cancelled");
 assert(/if\(memoryOnlyJobs\.has\(jobId\)\)\{[\s\S]*canApplyJobPatchWithoutRedis\(prev\.status,true\)[\s\S]*return;\}/.test(source), "Redis outage updates must be restricted to explicitly memory-only jobs");
 assert(/if\(prev&&!canApplyJobPatch\(prev\.status\)\)return;/.test(source), "terminal local state must prevent reopening even during Redis inconsistency");
+assert(/createJob\(type:string\):Promise<string>\{[\s\S]*const createLua="local k=KEYS\[1\]; if redis.call\('exists',k\)==1 then return -1 end;[\s\S]*redis.call\('set',KEYS\[2\],ARGV\[#ARGV\],'EX',ttl\); return 1"/.test(source), "durable job snapshot, TTL, and latest-job index must be written atomically");
+assert(/classifyJobCreationVerification\(jobId,type,persisted\)/.test(source) && /if\(verification==="durable"\)return jobId;[\s\S]*throw new Error\("Canonical job creation was not durably confirmed; refusing to launch\."\)/.test(source), "an ambiguous create response may launch only after an exact queued snapshot is confirmed durable");
+assert(/if\(!getPermanentClient\(\)\)\{[\s\S]*memoryOnlyJobs\.add\(jobId\)[\s\S]*return jobId;\}/.test(source), "memory-only fallback is allowed only before any canonical Redis write attempt");
 
 if (failures.length) {
   console.error("JOB QUEUE AUTHORITATIVE READ: FAIL");
