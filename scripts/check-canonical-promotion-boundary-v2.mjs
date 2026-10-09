@@ -17,6 +17,7 @@ const continuation = read("artifacts/api-server/src/src/routes/research/canonica
 const researchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
 const investigatorCore = read("artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
+const terminalGate = read("artifacts/api-server/src/src/lib/research-terminal-gate.ts");
 const entityTaxonomy = read("artifacts/apex-finder/src/lib/entity-taxonomy.tsx");
 const entityPage = read("artifacts/apex-finder/src/pages/entities.tsx");
 const migrations = read("artifacts/api-server/src/src/routes/ingest-migrations.ts");
@@ -54,6 +55,7 @@ assert(atlas.includes('name, type: "PersonCandidate"') && atlas.includes('"HNWI"
 assert(hasAll(entityTaxonomy, ['"PersonCandidate"', "wealth not established", "Candidate"]), "frontend taxonomy marks review-only identities as candidates rather than HNWIs");
 assert(entityPage.includes('"PersonCandidate"') && entityPage.includes("Candidate — wealth unverified"), "entity filters label unverified candidates explicitly");
 assert(migrations.includes("NOT IN ('HNWI', 'Gatekeeper', 'PersonCandidate')") && legacyMigrations.includes("PersonCandidate"), "type-reclassification routes must not reinterpret review candidates as HNWIs or organizations");
+assert(terminalGate.includes("hasExplicitFalsificationAttempt(context)") && terminalGate.includes("action.execution !== \"success\"") && terminalGate.includes("intent.test(purpose)") && !terminalGate.includes("context.falsification.priority < 0.35"), "required falsification must be evidenced by a successful explicit disconfirmation action, not inferred from a low heuristic score");
 assert(atlas.includes("runCanonicalSingleTargetInvestigation"), "Atlas routes admitted targets through canonical single-target control");
 assert(hasAll(atlas, ["reviewOnly: true", "admission: \"investigator-explicit-promotion\"", "sourceUrl", "target-scoped Investigator research required"]), "discovery admission remains review-only identity state with source provenance and requires target-scoped research before contact promotion");
 assert(continuation.includes("refusing context-free continuation"), "case continuation fails closed without durable context");
