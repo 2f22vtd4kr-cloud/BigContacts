@@ -7,6 +7,7 @@ const profile = fs.readFileSync("artifacts/apex-finder/src/pages/profile.tsx", "
 const router = fs.readFileSync("artifacts/apex-finder/src/router.tsx", "utf8");
 const systemStatus = fs.readFileSync("artifacts/api-server/src/src/routes/system-status.ts", "utf8");
 const logger = fs.readFileSync("artifacts/api-server/src/src/lib/logger.ts", "utf8");
+const atlasLaunch = fs.readFileSync("artifacts/api-server/src/routes/atlas.ts", "utf8");
 
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
@@ -34,6 +35,7 @@ assert(!/<OperatorAuthGate>/.test(router), "desk must not render the retired ope
 assert(!/\/api\/auth\/(?:login|session|logout)/.test(router), "desk router must not reference retired operator auth endpoints");
 assert(/pythonTools/.test(systemStatus), "canonical system status does not expose Python tool health");
 assert(/isProduction \? \(process\.env\.LOG_LEVEL \?\? "info"\) : "silent"/.test(logger), "development logger is not silent");
+assert(/Groq Boss \/ Groq Right-hand oversight/.test(atlasLaunch) && !/Gemini\/Gemini oversight/.test(atlasLaunch), "Atlas launch phases must name the current Groq control plane, not retired Gemini roles");
 
 if (failures.length) {
   console.error("CANONICAL ROUTE CONTRACTS: FAIL");
