@@ -145,6 +145,20 @@ describe("discovery runtime architecture", () => {
     })).toBe(true);
     expect(isTransientInvestigatorCapacityError({ error: "upstream_quota_exhausted" })).toBe(false);
   });
+  it("recognizes successful SpiderFoot observations as discovery research", async () => {
+    const { discoveryTerminalGate } = await import("../lib/agentic-web-research-core");
+    expect(discoveryTerminalGate([{
+      turn: 1,
+      model: "test-model",
+      action: "footprint_spiderfoot",
+      args: { target: "example.com" },
+      execution: "success",
+      observation: "SPIDERFOOT observed public domain ownership and host metadata.",
+      observedUrls: [],
+      findings: [],
+    }])).toEqual({ allowed: true, reason: null });
+  });
+
   it("blocks repeated discovery searches until a non-search observation occurs", async () => {
     const { discoverySearchLivenessGate } = await import("../lib/agentic-web-research-core");
     const search = (turn: number) => ({
