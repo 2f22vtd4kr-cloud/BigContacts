@@ -64,6 +64,9 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   const identity = finding.scope === "candidate" && finding.personName ? finding.personName.trim() : "";
   let valueObserved = false;
   let identityObserved = !identity;
+  // Candidate ownership needs source co-binding, not one identity-only page
+  // plus a different value-only page joined by the model's finding.
+  let identityAndValueBoundTogether = !identity;
   let support = 0;
   for (const record of records) {
     if (record.execution !== "success" || typeof record.observation !== "string" || ["web_search", "parallel_web_search", "done"].includes(record.action)) continue;
@@ -72,11 +75,13 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
     const observation = record.observation;
     const hasValue = value.length > 0 && Boolean(bindExactSourceSpan(observation, value)?.exact);
     const hasIdentity = !identity || Boolean(bindExactSourceSpan(observation, identity)?.exact);
+    const hasJointBinding = !identity || Boolean(bindExactSourceSpan(observation, value, identity, 320)?.exact);
     if (hasValue) valueObserved = true;
     if (hasIdentity) identityObserved = true;
+    if (hasJointBinding) identityAndValueBoundTogether = true;
     if (hasValue || hasIdentity) support += 1;
   }
-  return valueObserved && identityObserved && support > 0;
+  return valueObserved && identityObserved && identityAndValueBoundTogether && support > 0;
 }
 export function groundedFindingsForTrajectory(findings: AgenticFinding[], records: readonly CoreResult["trajectoryRecords"][number][] = []): AgenticFinding[] {
   return findings.filter((finding) => groundedFinding(finding, records));
