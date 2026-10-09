@@ -1,3 +1,4 @@
+import { getEventListeners } from "node:events";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -7,6 +8,7 @@ import {
   runGroqRightHandFreeJson,
   runGroqRightHandDiscoveryAdvice,
   resetGroqRightHandRequestGateForTests,
+  waitForGroqRightHandRequestSlot,
   resetGroqRightHandModelCatalogCacheForTests,
 } from "../lib/groq-right-hand-reasoning";
 import { summarizeProviderBody } from "../lib/provider-error-diagnostics";
@@ -25,6 +27,43 @@ describe("Groq Right-hand model policy", () => {
     delete process.env.GROQ_RIGHT_HAND_API_KEY_5;
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it("removes abort listeners after an immediate request-slot grant", async () => {
+    const controller = new AbortController();
+
+    await waitForGroqRightHandRequestSlot(controller.signal);
+
+    expect(getEventListeners(controller.signal, "abort")).toHaveLength(0);
+  });
+
+  it("removes abort listeners after a paced request-slot wait completes", async () => {
+    vi.useFakeTimers();
+    const first = new AbortController();
+    await waitForGroqRightHandRequestSlot(first.signal);
+
+    const second = new AbortController();
+    const pending = waitForGroqRightHandRequestSlot(second.signal);
+    await vi.advanceTimersByTimeAsync(250);
+    await pending;
+
+    expect(getEventListeners(first.signal, "abort")).toHaveLength(0);
+    expect(getEventListeners(second.signal, "abort")).toHaveLength(0);
+  });
+
+  it("cleans an aborted request-slot wait and its pacing timer", async () => {
+    vi.useFakeTimers();
+    const first = new AbortController();
+    await waitForGroqRightHandRequestSlot(first.signal);
+
+    const second = new AbortController();
+    const pending = waitForGroqRightHandRequestSlot(second.signal);
+    await Promise.resolve();
+    second.abort();
+
+    await expect(pending).rejects.toThrow("cancelled");
+    expect(getEventListeners(second.signal, "abort")).toHaveLength(0);
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("uses canonical GPT-OSS 120B with bounded GPT-OSS 20B fallback", () => {
