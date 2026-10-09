@@ -173,12 +173,22 @@ describe("discovery runtime architecture", () => {
     ])).toEqual({ allowed: true, reason: null });
   });
 
-  it("scopes Groq token-window snapshots to the selected model", () => {
-    expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, model: string)");
-    expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model))");
-    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
-    const snapshotCalls = researchCoreSource.match(/captureGroqRateLimitSnapshot\([^)]*\)/g) ?? [];
-    expect(snapshotCalls.slice(1).every((call) => /,\s*model,\s*response/.test(call))).toBe(true);
+  it("scopes Groq token-window snapshots to the selected credential and model", () => {
+    expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, credential: string, model: string)");
+    expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, credential, model))");
+    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \\"unknown\\", key, model, response)");
+    const snapshotCalls = researchCoreSource.match(/captureGroqRateLimitSnapshot\\([^)]*\\)/g) ?? [];
+    expect(snapshotCalls.slice(1).every((call) => /,\\s*model,\\s*response/.test(call))).toBe(true);
+  });
+
+  it("does not equate an oversight stop with Investigator-selected completion", () => {
+    const oversightStop = researchSource.indexOf("if (checkpointResult.stop) return");
+    const investigatorDone = researchSource.indexOf("if (callerOwnsOversight && isAcceptedInvestigatorTerminal");
+    expect(oversightStop).toBeGreaterThan(-1);
+    expect(investigatorDone).toBeGreaterThan(oversightStop);
+    expect(researchSource.slice(oversightStop, investigatorDone)).toContain('stopReason: "OVERSIGHT_STOP"');
+    expect(researchSource.slice(oversightStop, investigatorDone)).not.toContain('stopReason: "MODEL_DECIDED_DONE"');
+    expect(researchCoreSource).toContain('"OVERSIGHT_STOP"');
   });
 
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
