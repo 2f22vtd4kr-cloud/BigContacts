@@ -43,6 +43,7 @@ describe("public-registry evidence remains a low-confidence lead", () => {
     expect(source.indexOf("...person.rawMetadata")).toBeLessThan(source.indexOf("proximityScore: registryAssessment.proximityScore"));
     expect(source.match(/proximityScore: registryAssessment\.proximityScore/g)).toHaveLength(2);
     expect(source.match(/confidence: registryAssessment\.confidence/g)).toHaveLength(2);
+    expect(source.match(/lastVerified: undefined/g)).toHaveLength(2);
     expect(source).toContain("hasGatekeeperConnection: registryAssessment.hasGatekeeperConnection");
     expect(source).toContain("contactMethod = \"Board-role registry lead — direct contact path not observed\"");
   });
