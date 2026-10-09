@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { normalizeLiveActivityStatus, normalizeReactorStatus, parseCanonicalActiveJobProjection } from "./reactor-live-model";
+import { normalizeLiveActivityStatus, normalizeReactorStatus, parseCanonicalActiveJobProjection, sceneStatusLabel } from "./reactor-live-model";
 import fs from "node:fs";
 import path from "node:path";
 
 const storePath = path.resolve(process.cwd(), "src/lib/reactor-live-store.ts");
+const opsStagePath = path.resolve(process.cwd(), "src/components/bureau-ops-stage.tsx");
 
 function readStore(): string {
   return fs.readFileSync(storePath, "utf8");
@@ -23,6 +24,23 @@ describe("Reactor status truth boundary", () => {
     expect(normalizeLiveActivityStatus("queued")).toBe("queued");
     expect(normalizeLiveActivityStatus("failed")).toBe("failed");
     expect(normalizeLiveActivityStatus(undefined)).toBe("unknown");
+  });
+});
+
+describe("Bureau Ops terminal-label truth boundary", () => {
+  it("does not render unknown or cancelled activity as done", () => {
+    expect(sceneStatusLabel(true, null)).toBe("Now");
+    expect(sceneStatusLabel(false, "done")).toBe("Done");
+    expect(sceneStatusLabel(false, "failed")).toBe("Fail");
+    expect(sceneStatusLabel(false, "cancelled")).toBe("Stopped");
+    expect(sceneStatusLabel(false, "queued")).toBe("Queued");
+    expect(sceneStatusLabel(false, "unknown")).toBe("Unknown");
+    expect(sceneStatusLabel(false, null)).toBe("Unknown");
+
+    const source = fs.readFileSync(opsStagePath, "utf8");
+    expect(source).toContain("sceneStatusLabel(scene.live, scene.terminal)");
+    expect(source).toContain('terminal: capped[i].terminal ?? "unknown"');
+    expect(source).not.toContain('terminal: capped[i].terminal ?? "done"');
   });
 });
 
