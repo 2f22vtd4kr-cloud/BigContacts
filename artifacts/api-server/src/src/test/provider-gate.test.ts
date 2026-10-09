@@ -358,4 +358,29 @@ describe("provider quota gate", () => {
     ).rejects.toMatchObject({ code: "cooldown", provider: "groq" });
   });
 
+  it("does not exceed the concurrency ceiling when queued calls are released together", async () => {
+    process.env.APEX_EXTERNAL_GLOBAL_CONCURRENCY = "1";
+    process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GENERIC = "1";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    let releaseFirst!: () => void;
+    const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    let active = 0;
+    let peak = 0;
+    const work = (hold = false) => runProviderCall({ provider: "generic", account: "queued-slot-test" }, async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      if (hold) await firstGate;
+      await Promise.resolve();
+      active -= 1;
+    });
+    const first = work(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const second = work();
+    const third = work();
+    releaseFirst();
+    await Promise.all([first, second, third]);
+    expect(peak).toBe(1);
+  });
+
 });
