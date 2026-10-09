@@ -38,7 +38,7 @@ export function canonicalizeUrl(raw: string | null | undefined): string | null {
     return null;
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-  const host = url.hostname.toLowerCase().replace(/^www\./, "");
+  const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
   url.hostname = host;
   url.hash = "";
   const keptParams = new URLSearchParams();
@@ -65,7 +65,7 @@ function matchesAnySourceDomain(host: string, roots: ReadonlySet<string>): boole
 }
 
 export function getSourceFamily(hostname: string | null | undefined): SourceFamily {
-  const host = hostname?.trim().toLowerCase().replace(/^www\\./, "").replace(/\\.$/, "") ?? "";
+  const host = hostname?.trim().toLowerCase().replace(/^www\./, "").replace(/\.$/, "") ?? "";
   if (!host) return "unknown";
 
   // Domain suffixes are evaluated at label boundaries. A word appearing in an
@@ -75,8 +75,8 @@ export function getSourceFamily(hostname: string | null | undefined): SourceFami
     ".go.jp", ".gob.mx", ".gov.in", ".gov.sg", ".gov.br", ".gov.za",
     ".edu", ".edu.au", ".ac.uk", ".ac.nz",
   ];
-  if (officialSuffixes.some((suffix) => host.endsWith(suffix))) return "official";
   if (matchesAnySourceDomain(host, REGISTRY_SOURCE_DOMAINS)) return "registry";
+  if (officialSuffixes.some((suffix) => host.endsWith(suffix))) return "official";
   if (matchesAnySourceDomain(host, PRESS_SOURCE_DOMAINS)) return "press";
   if (matchesAnySourceDomain(host, SOCIAL_SOURCE_DOMAINS)) return "social";
   if (matchesAnySourceDomain(host, SEARCH_SOURCE_DOMAINS)) return "search";
