@@ -20,7 +20,7 @@ export function defaultTerminalContract(mode: TerminalContractMode): EvidenceSuf
  */
 export function hasExplicitFalsificationAttempt(context: IntelligenceContext): boolean {
   if (!context.falsification.required) return true;
-  const intent = /\\b(disprov\\w*|falsif\\w*|refut\\w*|counter[- ]?evidence|rule\\s+out|challenge\\s+the\\s+(leading|current)|alternative\\s+hypothesis|attempt\\s+to\\s+refute|test\\s+against)\\b/i;
+  const intent = /\b(disprov\w*|falsif\w*|refut\w*|counter[- ]?evidence|rule\s+out|challenge\s+the\s+(leading|current)|alternative\s+hypothesis|attempt\s+to\s+refute|test\s+against)\b/i;
   const externalActions = new Set([
     "web_search", "parallel_web_search", "visit", "browser_fetch",
     "registry_search", "domain_lookup", "harvest_domain",
