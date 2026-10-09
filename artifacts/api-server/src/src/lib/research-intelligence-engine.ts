@@ -36,6 +36,7 @@ export interface IntelligenceEvidence {
   spanStart?: number | null;
   spanEnd?: number | null;
   spanBound?: boolean;
+  spanBindingKind?: "identity" | "value" | "identity_and_value";
   sourceLineageId?: string;
   fingerprint: string;
 }
@@ -129,7 +130,7 @@ export interface IntelligenceContext {
   frontier: ReturnType<typeof assessResearchFrontier>;
   sourceIndependence: number;
   providerDisagreements: Array<{ query: string; providers: string[]; sourceHosts: string[] }>;
-  atomicEvidence: Array<{ evidenceId: string; kind: IntelligenceEvidenceKind; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; spanBound?: boolean; attribution: string | null }>;
+  atomicEvidence: Array<{ evidenceId: string; kind: IntelligenceEvidenceKind; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; spanBound?: boolean; spanBindingKind?: "identity" | "value" | "identity_and_value"; attribution: string | null }>;
   actionYield: ReturnType<typeof summarizeActionYield>[];
   sourceLineage: Array<{ sourceId: string; canonicalUrl: string; host: string; originSourceId: string | null; citedSourceIds: string[] }>;
   independentSourceUnits: number;
@@ -255,8 +256,14 @@ export class ResearchIntelligenceEngine {
       // intelligence projection is compacted later, but collapsing the claim
       // to sourceUrls[0] here destroys independent-corroboration state.
       for (const sourceUrl of findingUrls) {
-        const span = bindExactSourceSpan(input.observation ?? "", value, finding.personName ?? this.input.target);
-        this.recordEvidence({ kind: "finding", claim, value, sourceUrl, sourceTier: tierForHost(hostOf(sourceUrl)), turn: input.turn, action: input.action, execution: input.execution, passage: span?.exact ? span.text : null, spanStart: span?.exact ? span.start : null, spanEnd: span?.exact ? span.end : null, supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [] });
+        const observationText = input.observation ?? "";
+        const subject = finding.personName ?? this.input.target;
+        const combinedSpan = bindExactSourceSpan(observationText, value, subject);
+        const valueSpan = bindExactSourceSpan(observationText, value);
+        const identitySpan = finding.personName ? bindExactSourceSpan(observationText, finding.personName) : null;
+        const span = combinedSpan?.exact ? combinedSpan : valueSpan?.exact ? valueSpan : identitySpan?.exact ? identitySpan : null;
+        const spanBindingKind = combinedSpan?.exact ? "identity_and_value" : valueSpan?.exact ? "value" : identitySpan?.exact ? "identity" : undefined;
+        this.recordEvidence({ kind: "finding", claim, value, sourceUrl, sourceTier: tierForHost(hostOf(sourceUrl)), turn: input.turn, action: input.action, execution: input.execution, passage: span?.text ?? null, spanStart: span?.start ?? null, spanEnd: span?.end ?? null, spanBindingKind, supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [] });
       }
       if (["email", "phone", "linkedin", "website", "social"].includes(vector)) this.recordContact(vector, value, findingUrls, finding.personName ?? null);
     }
@@ -313,6 +320,7 @@ export class ResearchIntelligenceEngine {
         sourceTier: tierForHost(sourceHost), sourceClass: item.sourceClass, extractionMethod: "durable_replay",
         retrievedAt: new Date(0).toISOString(), lastSeen: new Date(0).toISOString(), turn: 0, action: "durable_replay",
         execution: "success", supports: item.attribution ? [item.attribution] : [], contradicts: [], passage: item.passage,
+        spanBindingKind: item.spanBindingKind,
         claimId: item.claimId, sourceFamily: sourceFamily(sourceHost), attribution: item.attribution,
         spanStart: item.spanBound === true && item.passage ? 0 : null, spanEnd: item.spanBound === true && item.passage ? item.passage.length : null, spanBound: item.spanBound === true,
         sourceLineageId: sourceLineage?.sourceId, fingerprint };
