@@ -20,6 +20,7 @@ const checks = [
   ["Gemini outage classification does not swallow quota or credential failures", errors.includes("GEMINI_BOSS_UNAVAILABLE") && /quota|rate limit|too many requests|missing/.test(errors)],
   ["the notice exposes why and actionable next steps", notice.includes("Why:") && notice.includes("Next steps") && notice.includes('role="alert"')],
   ["Atlas run polling classifies HTTP failures without clearing last known state", atlasRun.indexOf("await readApiJson(res)") >= 0 && atlasRun.indexOf("if (!res.ok)") > atlasRun.indexOf("await readApiJson(res)") && !atlasRun.includes("setRun({ active: false }); setReady(true); return;")],
+  ["Atlas polling aborts stale requests and rejects out-of-order snapshots", atlasRun.includes("requestGeneration.current") && atlasRun.includes("currentRequestController.current?.abort()") && atlasRun.includes("refresh(controller.signal)") && atlasRun.includes("requestId !== requestGeneration.current")],
   ["Reactor status polling classifies HTTP failures and preserves its last snapshot", reactorStore.indexOf("await readApiJson(activeResponse)") >= 0 && reactorStore.indexOf("if (!activeResponse.ok)") > reactorStore.indexOf("await readApiJson(activeResponse)") && !reactorStore.includes("emit(EMPTY)")],
   ["global fetch and query/mutation handlers surface caught API failures", main.includes("installApiFetchErrorNotifications();") && main.includes("new QueryCache") && main.includes("new MutationCache") && main.includes("notifyApiOperationError")],
 ];
