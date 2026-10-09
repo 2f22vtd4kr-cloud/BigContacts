@@ -34,7 +34,7 @@ const required = [
   ["source event IDs survive replay", replay.includes("durableEventId: event.id") && wrapper.includes("groundingTrajectoryRecords: [...historyRecords"),
    "replayed source observations must retain immutable event IDs and be available to downstream grounding."],
   ["claims persist only after successful finalization", discovery.includes('input.finalize===true&&candidate.action==="done"&&candidate.execution==="success"') && discovery.includes("candidate.durableEventId!=null") && discovery.includes("uniqueObservationEventIds"),
-   "claim events must not be written from blocked/interim terminal acts and must link durable prior source events."];
+   "claim events must not be written from blocked/interim terminal acts and must link durable prior source events."],
   ["target evidence projection", oversight.includes("caseFile.evidenceState=intelligenceState"),
    "target oversight must persist the epistemic projection in the same transaction as the act/control checkpoint."],
   ["target state input", oversight.includes("intelligenceState?:IntelligenceContext|null"),
