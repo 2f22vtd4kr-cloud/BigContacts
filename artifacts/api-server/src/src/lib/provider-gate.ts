@@ -31,19 +31,30 @@ const CACHE_VARIANT_HEADERS=new Set(["accept","accept-language","user-agent"]);
 function cacheKey(provider:ExternalProvider,input:string|URL|Request,init?:RequestInit):string|null{if(requestMethod(input,init)!=="GET")return null;const headers=effectiveRequestHeaders(input,init);for(const name of headers.keys())if(!CACHE_VARIANT_HEADERS.has(name.toLowerCase()))return null;const url=requestUrl(input);if(isLocalUrl(url)||findQueryCredential(url))return null;try{const parsed=new URL(url);if(parsed.username||parsed.password)return null;stripCredentialQueryParams(parsed);const variant=[headers.get("accept")??"",headers.get("accept-language")??"",headers.get("user-agent")??""].join("\n");const variantHash=createHash("sha256").update(variant).digest("hex").slice(0,16);return `${provider}|public|${variantHash}|${parsed.toString()}`;}catch{return null;}}
 function cacheExpiry(response:Response,configuredTtlMs:number,now=Date.now()):number|null{if(!response.ok||response.status!==200||configuredTtlMs<=0||response.headers.has("set-cookie"))return null;const directives=(response.headers.get("cache-control")??"").split(",").map((part)=>part.trim().toLowerCase()).filter(Boolean);if(directives.some((part)=>/^(no-store|private|no-cache|must-revalidate|proxy-revalidate)(?:\s|=|$)/.test(part)))return null;const vary=(response.headers.get("vary")??"").split(",").map((part)=>part.trim().toLowerCase()).filter(Boolean);if(vary.some((name)=>name==="*"||!CACHE_VARIANT_HEADERS.has(name)))return null;let ttlMs=configuredTtlMs;const sharedMaxAge=directives.find((part)=>/^s-maxage\s*=/.test(part));const maxAge=sharedMaxAge??directives.find((part)=>/^max-age\s*=/.test(part));if(maxAge){const match=maxAge.match(/^(?:s-maxage|max-age)\s*=\s*"?([0-9]+)"?$/);if(!match)return null;const ageSeconds=Number(match[1]);if(!Number.isSafeInteger(ageSeconds)||ageSeconds<=0)return null;const responseAge=Number(response.headers.get("age")??"0");if(!Number.isFinite(responseAge)||responseAge<0)return null;ttlMs=Math.min(ttlMs,ageSeconds*1000-responseAge*1000);}const expiresHeader=response.headers.get("expires");if(expiresHeader){const expiresAt=Date.parse(expiresHeader);if(!Number.isFinite(expiresAt))return null;const dateHeader=response.headers.get("date");const baseTime=dateHeader?Date.parse(dateHeader):now;if(!Number.isFinite(baseTime))return null;const ageSeconds=Number(response.headers.get("age")??"0");ttlMs=Math.min(ttlMs,expiresAt-baseTime-Math.max(0,ageSeconds)*1000);}return ttlMs>0?now+ttlMs:null;}
 function waitForSharedResponse(existing:Promise<Response>,signal?:AbortSignal|null):Promise<Response>{if(signal?.aborted)return Promise.reject(new Error("External provider call cancelled."));if(!signal)return existing.then((response)=>response.clone());return new Promise<Response>((resolve,reject)=>{let settled=false;const cleanup=()=>signal.removeEventListener("abort",abort);const finish=(error?:unknown,response?:Response)=>{if(settled)return;settled=true;cleanup();if(error!==undefined)reject(error);else if(response)resolve(response);else reject(new Error("Shared provider response was empty."));};const abort=()=>finish(new Error("External provider call cancelled."));signal.addEventListener("abort",abort,{once:true});existing.then((response)=>finish(undefined,response.clone()),(error)=>finish(error));if(signal.aborted)abort();});}
-async function readCacheBodyBounded(response:Response, maximumBytes:number):Promise<Uint8Array|null>{
+const cacheBodyCaptureTimeoutMs=()=>boundedEnv("APEX_EXTERNAL_CACHE_BODY_READ_TIMEOUT_MS",5_000,10,30_000);
+async function readCacheBodyBounded(response:Response, maximumBytes:number, signal?:AbortSignal):Promise<Uint8Array|null>{
  if(!response.body)return new Uint8Array(0);
  if(maximumBytes<=0)return null;
  const reader=response.clone().body?.getReader();
  if(!reader)return new Uint8Array(0);
  const chunks:Uint8Array[]=[];
  let bytes=0;
+ let timer:ReturnType<typeof setTimeout>|undefined;
+ let onAbort:(()=>void)|undefined;
+ const stopReading=new Promise<never>((_,reject)=>{
+  timer=setTimeout(()=>reject(new Error("Provider response cache capture deadline exceeded")),cacheBodyCaptureTimeoutMs());
+  if(signal){
+   onAbort=()=>reject(new Error("Provider response cache capture cancelled"));
+   if(signal.aborted)onAbort();
+   else signal.addEventListener("abort",onAbort,{once:true});
+  }
+ });
  try{
   while(true){
-   const result=await reader.read();
+   const result=await Promise.race([reader.read(),stopReading]);
    if(result.done)break;
    bytes+=result.value.byteLength;
-   if(bytes>maximumBytes){await reader.cancel().catch(()=>undefined);return null;}
+   if(bytes>maximumBytes){void reader.cancel().catch(()=>undefined);return null;}
    chunks.push(result.value);
   }
   const body=new Uint8Array(bytes);
@@ -51,9 +62,13 @@ async function readCacheBodyBounded(response:Response, maximumBytes:number):Prom
   for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength;}
   return body;
  }catch{
-  await reader.cancel().catch(()=>undefined);
+  void reader.cancel().catch(()=>undefined);
   return null;
- }finally{reader.releaseLock();}
+ }finally{
+  if(timer)clearTimeout(timer);
+  if(signal&&onAbort)signal.removeEventListener("abort",onAbort);
+  reader.releaseLock();
+ }
 }
 function responseFromCache(entry:CacheEntry):Response{return new Response(entry.body.slice(),{status:entry.status,statusText:entry.statusText,headers:entry.headers});}function removeResponseCacheEntry(key:string):void{const entry=responseCache.get(key);if(!entry)return;responseCache.delete(key);responseCacheBytes=Math.max(0,responseCacheBytes-entry.body.byteLength);}function pruneResponseCache(now:number):void{for(const[key,entry]of responseCache)if(entry.expiresAt<=now)removeResponseCacheEntry(key);while(responseCache.size>=maxResponseCacheEntries()||responseCacheBytes>=maxResponseCacheBytes()){const oldest=responseCache.keys().next().value as string|undefined;if(!oldest)break;removeResponseCacheEntry(oldest);}}function makeRoomForResponse(bytes:number):void{const limit=maxResponseCacheBytes();while(responseCache.size>=maxResponseCacheEntries()||responseCacheBytes+bytes>limit){const oldest=responseCache.keys().next().value as string|undefined;if(!oldest)break;removeResponseCacheEntry(oldest);}}
  async function runProviderFetch(provider:ExternalProvider,input:string|URL|Request,init:RequestInit|undefined,fetcher:()=>Promise<Response>):Promise<Response>{
