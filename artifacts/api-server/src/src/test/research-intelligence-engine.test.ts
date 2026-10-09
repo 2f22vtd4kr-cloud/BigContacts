@@ -310,4 +310,39 @@ describe("Apex research intelligence", () => {
     expect(hypothesis?.supportingEvidenceIds).toHaveLength(0);
   });
 
+  it("re-derives source trust from canonical URLs when restoring older durable state", () => {
+    const url = "https://fake-news.example.com/profile";
+    const original = new ResearchIntelligenceEngine({ executionId: "stale-source-class", target: "Alex Example", objective: "verify public role" });
+    original.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "success",
+      urls: [url],
+      observation: "Alex Example is director of Alpha",
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Alex Example", sourceUrls: [url] }],
+    });
+    const persisted = original.buildContext();
+    const staleProjection = {
+      ...persisted,
+      atomicEvidence: persisted.atomicEvidence.map((item) => item.sourceUrl === url
+        ? { ...item, sourceHost: "reuters.com", sourceClass: "REPUTABLE_NEWS" as const }
+        : item),
+      sourceLineage: persisted.sourceLineage.map((node) => node.canonicalUrl.startsWith(url)
+        ? { ...node, host: "reuters.com" }
+        : node),
+    };
+    const restored = new ResearchIntelligenceEngine({ executionId: "stale-source-class-resumed", target: "Alex Example", objective: "verify public role" });
+    restored.restoreContext(staleProjection);
+    const state = restored.buildContext();
+    const evidence = state.atomicEvidence.filter((item) => item.sourceUrl === url);
+    const lineage = state.sourceLineage.filter((node) => node.canonicalUrl === url);
+
+    expect(evidence.length).toBeGreaterThan(0);
+    expect(evidence.every((item) => item.sourceHost === "fake-news.example.com" && item.sourceClass === "UNKNOWN")).toBe(true);
+    expect(state.sourceQualitySummary.some((item) => item.sourceClass === "REPUTABLE_NEWS" && item.count > 0)).toBe(false);
+    expect(lineage.length).toBeGreaterThan(0);
+    expect(lineage.every((node) => node.host === "fake-news.example.com")).toBe(true);
+  });
+
+
 });

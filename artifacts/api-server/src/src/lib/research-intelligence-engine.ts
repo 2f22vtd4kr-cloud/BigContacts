@@ -311,13 +311,17 @@ export class ResearchIntelligenceEngine {
     this.chain = context.provenanceDigest || "GENESIS";
     const lineageByUrl = new Map(context.sourceLineage.map((node) => [canonicalUrl(node.canonicalUrl) ?? node.canonicalUrl, node]));
     for (const item of context.atomicEvidence) {
-      if (item.kind === "observation" && item.sourceClass === "SEARCH_RESULT") continue;
       const parsed = extractPredicate(item.claim); const sourceUrl = item.sourceUrl ? canonicalUrl(item.sourceUrl) : null;
-      const sourceHost = item.sourceHost ?? hostOf(sourceUrl); const sourceLineage = sourceUrl ? lineageByUrl.get(sourceUrl) : undefined;
+      // Host and trust class are derived from the canonical URL, never from a
+      // persisted projection. This repairs stale classifications after policy
+      // changes and prevents a stale host field from upgrading source quality.
+      const sourceHost = hostOf(sourceUrl); const sourceClass = sourceClassForHost(sourceHost);
+      if (item.kind === "observation" && sourceClass === "SEARCH_RESULT") continue;
+      const sourceLineage = sourceUrl ? lineageByUrl.get(sourceUrl) : undefined;
       const fingerprint = hash(item.kind + "|" + normalize(item.claim) + "|" + normalize(parsed.object) + "|" + (sourceUrl ?? ""));
       const evidenceId = item.evidenceId || ("ev_" + fingerprint.slice(0, 20));
       const restoredEvidence: IntelligenceEvidence = { id: evidenceId, kind: item.kind, claim: item.claim, value: parsed.object, sourceUrl, sourceHost,
-        sourceTier: tierForHost(sourceHost), sourceClass: item.sourceClass, extractionMethod: "durable_replay",
+        sourceTier: tierForHost(sourceHost), sourceClass, extractionMethod: "durable_replay",
         retrievedAt: new Date(0).toISOString(), lastSeen: new Date(0).toISOString(), turn: 0, action: "durable_replay",
         execution: "success", supports: item.attribution ? [item.attribution] : [], contradicts: [], passage: item.passage,
         spanBindingKind: item.spanBindingKind,
@@ -349,7 +353,11 @@ export class ResearchIntelligenceEngine {
     }
     for (const negative of context.negativeFindings) this.negativeFindings.add(negative);
     for (const action of context.recentActions) this.actions.push({ ...action, args: { ...action.args }, urls: [...action.urls], findingNames: [...action.findingNames], findingRoles: [...action.findingRoles] });
-    for (const node of context.sourceLineage) this.sourceLineage.register({ canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, publisher: null, citedSourceIds: [...node.citedSourceIds], contentFingerprint: null, sourceId: node.sourceId });
+    for (const node of context.sourceLineage) {
+      const canonical = canonicalUrl(node.canonicalUrl);
+      if (!canonical) continue;
+      this.sourceLineage.register({ canonicalUrl: canonical, host: hostOf(canonical) ?? canonical, originSourceId: node.originSourceId, publisher: null, citedSourceIds: [...node.citedSourceIds], contentFingerprint: null, sourceId: node.sourceId });
+    }
     this.reconcileContradictions(); this.rankHypotheses();
   }
   recordFeedback(feedback: ResearchFeedback): void {
