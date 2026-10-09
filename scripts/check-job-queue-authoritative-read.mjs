@@ -28,7 +28,7 @@ const claimHelper = claimHelperEnd > claimHelperStart ? ingest.slice(claimHelper
 assert(claimHelperStart >= 0 && claimHelperEnd > claimHelperStart, "ingestion job claim failure helper must exist as a bounded function");
 assert(claimHelper.includes("await setActiveJob(type, jobId)") && claimHelper.includes("clearActiveJobIfMatches(type, jobId)") && /status:\s*"failed"/.test(claimHelper) && /res\.status\(503\)/.test(claimHelper), "failed active-lane claims must release only matching ownership, terminalize the unstarted job, and return an explicit unavailable response");
 for (const type of ["western-hnwi", "faa", "occrp", "land-registry", "opensky"]) {
-  const uses = [...ingest.matchAll(new RegExp(`claimIngestionJobOrRespond\\("${type}", jobId, res\\)`, "g"))].length;
+  const uses = ingest.split(`claimIngestionJobOrRespond("${type}", jobId, res)`).length - 1;
   assert(uses === 1, `${type} must claim its active lane through the failure-cleaning helper exactly once`);
 }
 assert(!/await setActiveJob\("(western-hnwi|faa|occrp|land-registry|opensky)", jobId\)/.test(ingest), "legacy ingestion handlers must not leave a queued job behind on a thrown lane-claim failure");
