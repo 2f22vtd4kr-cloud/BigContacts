@@ -62,6 +62,7 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   if (!cited.size) return false;
   const value = finding.value.trim();
   const identity = finding.scope === "candidate" && finding.personName ? finding.personName.trim() : "";
+  if (finding.scope === "candidate" && !identity) return false;
   let valueObserved = false;
   let identityObserved = !identity;
   // Candidate ownership needs source co-binding, not one identity-only page
