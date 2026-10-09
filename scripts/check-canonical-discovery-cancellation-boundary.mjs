@@ -10,7 +10,7 @@ const checks = [
   ["agentic discovery creates a run abort controller", /input\.mode === "discovery"[\s\S]*?new AbortController\(\)/.test(agentic)],
   ["agentic discovery propagates caller cancellation", /input\.signal\?\.addEventListener\("abort", abortExternal/.test(agentic)],
   ["agentic discovery has an explicit deadline timer", /const deadlineTimer = setTimeout\(\(\) => controller\.abort\(\), requestedHardTimeout\)/.test(agentic)],
-  ["agentic discovery checks durable job state when a job is supplied", /const job = await getJob\(input\.jobId\)/.test(agentic) && /job\.status !== "running"/.test(agentic)],
+  ["agentic discovery uses authoritative job state when a job is supplied", /const job = await getJobStrict\(input\.jobId\)/.test(agentic) && /if \(!job\) throw new Error/.test(agentic) && /job\.status !== "running"/.test(agentic)],
   ["agentic discovery passes cancellation into the canonical core", /shouldCancel: async \(\) =>/.test(agentic) && /signal: controller\.signal/.test(agentic)],
   ["canonical discovery continuation has a durable cancellation callback", /const shouldCancel\s*=\s*async\(\)\s*:\s*Promise<boolean>/.test(continuation) && /getJobStrict\(jobId!?\)/.test(continuation)],
   ["canonical discovery continuation passes cancellation into Investigator execution", /runBureauAgenticWebPass\([\s\S]*?shouldCancel\s*\}\)/.test(continuation)],
