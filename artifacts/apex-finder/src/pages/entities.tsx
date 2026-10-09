@@ -1104,7 +1104,7 @@ export default function EntityLedger() {
                   }}
                 >
                   {Icon ? <Icon className="h-3 w-3 shrink-0" aria-hidden /> : null}
-                  <span className="leading-none">{typeKey === "Corporation" ? "Company" : typeKey === "HNWI" ? "Person" : (typeKey ?? "All")}</span>
+                  <span className="leading-none">{typeKey === "Corporation" ? "Company" : typeKey === "HNWI" ? "Person" : typeKey === "PersonCandidate" ? "Candidate" : (typeKey ?? "All")}</span>
                 </button>
               );
             })}
