@@ -107,7 +107,7 @@ export function isTrustedOperatorOrigin(
 }
 
 function hasValidBearerToken(req: Request, config: OperatorAuthConfig): boolean {
-  const match = /^Bearer\\s+([^\\s]+)$/i.exec(firstHeaderValue(req.headers.authorization));
+  const match = /^Bearer\s+([^\s]+)$/i.exec(firstHeaderValue(req.headers.authorization));
   return Boolean(match?.[1] && safeSecretEqual(match[1], config.apiToken));
 }
 
