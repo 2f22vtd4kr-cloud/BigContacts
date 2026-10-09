@@ -48,6 +48,33 @@ export function getAvailableInvestigatorCapabilities(
 }
 
 /**
+ * Expand a set of failed capability slots to every configured slot sharing
+ * those credentials. Boss must see aliases as excluded too, or it may choose
+ * an apparently different slot that cannot escape the exhausted quota pool.
+ */
+export function getInvestigatorCredentialAliases(
+  env: NodeJS.ProcessEnv = process.env,
+  capabilities: readonly InvestigatorCapability[] = [],
+): InvestigatorCapability[] {
+  const fingerprints = new Set(
+    capabilities
+      .map((capability) => {
+        const keyName = investigatorCapabilityKeyName(capability);
+        const credential = keyName ? env[keyName]?.trim() : undefined;
+        return credential ? digestDiagnosticText(credential) : null;
+      })
+      .filter((value): value is string => value !== null),
+  );
+  if (!fingerprints.size) return [];
+  return INVESTIGATOR_CAPABILITIES.filter((capability) => {
+    const keyName = investigatorCapabilityKeyName(capability);
+    const credential = keyName ? env[keyName]?.trim() : undefined;
+    return Boolean(credential && fingerprints.has(digestDiagnosticText(credential)));
+  });
+}
+
+
+/**
  * Return quota-independent, configured capabilities for explicit recovery.
  * Two slot names holding the same API key are one provider quota pool and may
  * not be treated as independent alternates after that credential is exhausted.
