@@ -18,7 +18,7 @@ describe("durable Investigator intelligence replay", () => {
       };
     });
     const records = investigatorRecordsFromEvents(events);
-    expect(records.map((record) => record.durableEventId)).toEqual([1, 2, 3]);
+    expect(records.map((record) => record.durableEventId)).toEqual(Array.from({ length: 30 }, (_, index) => index + 1));
     const engine = new ResearchIntelligenceEngine({ executionId: "event-replay", target: "Alex Example", objective: "verify public facts" });
     replayInvestigatorIntelligence(engine, records);
     const state = engine.buildContext();
