@@ -31,6 +31,21 @@ describe("URL privacy boundary", () => {
     expect(safe.searchParams.get("download")).toBe("1");
   });
 
+  it("redacts encoded sensitive keys in route-style OAuth fragments", () => {
+    const cases = [
+      "https://example.com/#/callback?access%5Ftoken=encoded-underscore-secret&state=keep",
+      "https://example.com/#/callback?%61ccess_token=encoded-leading-secret&state=keep",
+    ];
+    for (const raw of cases) {
+      const safe = sanitizeUrlForEvidence(raw);
+      expect(safe).toContain("/callback");
+      expect(safe).toContain("state=keep");
+      expect(safe).toContain("REDACTED");
+      expect(safe).not.toContain("encoded-underscore-secret");
+      expect(safe).not.toContain("encoded-leading-secret");
+    }
+  });
+
   it("sanitizes URLs inside free text without removing sentence punctuation or unrelated prose", () => {
     const output = sanitizeUrlsInText(
       "Redirect to https://user:password@example.com/path?token=secret). The source remains untrusted.",
