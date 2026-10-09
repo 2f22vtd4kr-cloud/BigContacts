@@ -68,9 +68,16 @@ export function OperatorGate({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     setBusy(true);
+    setMessage("");
     try {
-      await fetch(API + "/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" } });
-    } finally { setBusy(false); setStatus("signed-out"); setMessage("You have signed out."); }
+      const response = await fetch(API + "/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error("Logout was rejected.");
+      setStatus("signed-out");
+      setMessage("You have signed out.");
+    } catch {
+      // Keep the verified view mounted unless the server confirms cookie clearing.
+      setMessage("The API could not confirm sign-out. Your session may still be active; retry when the connection is restored.");
+    } finally { setBusy(false); }
   };
 
   if (status === "authenticated") return (
@@ -82,6 +89,7 @@ export function OperatorGate({ children }: { children: ReactNode }) {
         </button>
       </div>
       {children}
+      {message ? <p role="alert" className="fixed right-3 top-14 z-[80] max-w-xs rounded-lg border border-rose-400/30 bg-[#101722]/95 px-3 py-2 text-xs text-rose-200 shadow-lg">{message}</p> : null}
     </div>
   );
 
