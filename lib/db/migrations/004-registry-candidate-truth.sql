@@ -26,7 +26,7 @@ BEGIN
   END IF;
 
   FOR candidate IN
-    SELECT id, type, metadata
+    SELECT id, type, metadata, estimated_net_worth
     FROM public.entities
     WHERE type IN ('HNWI', 'Gatekeeper')
       AND metadata IS NOT NULL
@@ -94,6 +94,12 @@ BEGIN
     END IF;
 
     IF next_type IS NULL THEN
+      CONTINUE;
+    END IF;
+
+    -- Existing independent wealth adjudication is out of scope for this
+    -- repair. Source-only legacy leads created by this ingestion have no estimate.
+    IF next_type = 'PersonCandidate' AND candidate.estimated_net_worth IS NOT NULL THEN
       CONTINUE;
     END IF;
 
