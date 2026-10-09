@@ -41,7 +41,7 @@ describe("Apex Atlas very-strong research mechanism", () => {
       action: "registry_search",
       args: { registry: "companies-house" },
       execution: "success",
-      observation: "Officer record",
+      observation: "Officer record: Alex Example is director and website https://example.test",
       urls: ["https://find-and-update.company-information.service.gov.uk/company/00000000"],
       findings: [{ vectorType: "website", value: "https://example.test", personName: "Alex Example", role: "director", sourceUrls: ["https://find-and-update.company-information.service.gov.uk/company/00000000"], note: "public registry record" }],
     });
