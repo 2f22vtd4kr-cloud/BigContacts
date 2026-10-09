@@ -404,7 +404,24 @@ export class ResearchIntelligenceEngine {
     // both live writes and restore so resumed duplicate observations stay idempotent.
     const fingerprint = hash(`${input.kind}|${normalize(input.claim)}|${normalize(parsed.object)}|${input.sourceUrl ?? ""}`);
     const existing = this.evidence.get(fingerprint);
-    if (existing) { existing.lastSeen = retrievedAt; return existing.id; }
+    if (existing) {
+      existing.lastSeen = retrievedAt;
+      const incomingSpanBound = Boolean(input.passage && input.spanStart != null && input.spanEnd != null);
+      const spanRank = (bound: boolean | undefined, kind: IntelligenceEvidence["spanBindingKind"]): number =>
+        !bound ? 0 : kind === "identity_and_value" ? 3 : kind === "identity" || kind === "value" ? 2 : 1;
+      if (incomingSpanBound && spanRank(incomingSpanBound, input.spanBindingKind) > spanRank(existing.spanBound, existing.spanBindingKind)) {
+        existing.passage = input.passage ?? null;
+        existing.spanStart = input.spanStart ?? null;
+        existing.spanEnd = input.spanEnd ?? null;
+        existing.spanBound = true;
+        existing.spanBindingKind = input.spanBindingKind;
+        existing.sourceLineageId = lineage?.sourceId ?? existing.sourceLineageId;
+      }
+      existing.supports = [...new Set([...existing.supports, ...input.supports])];
+      existing.contradicts = [...new Set([...existing.contradicts, ...input.contradicts])];
+      existing.attribution = existing.supports.length ? existing.supports.join(", ") : existing.attribution ?? null;
+      return existing.id;
+    }
     const id = `ev_${fingerprint.slice(0, 20)}`;
     const claimKey = hash(`${normalize(parsed.subject)}|${normalize(parsed.predicate)}|${normalize(parsed.object)}`);
     const previous = this.claims.get(claimKey);
