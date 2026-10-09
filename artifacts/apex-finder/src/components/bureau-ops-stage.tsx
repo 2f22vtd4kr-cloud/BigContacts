@@ -258,7 +258,10 @@ function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
   const cancelled = ["cancelled", "canceled", "stopped"].includes(status);
   const queued = ["queued", "pending", "waiting"].includes(status);
   const succeeded = ["complete", "completed", "done", "success", "succeeded", "ok"].includes(status);
-  const active = ["active", "running", "in_progress"].includes(status);
+  const activeStatus = ["active", "running", "in_progress"].includes(status);
+  const timestamp = e.timestamp ? Date.parse(String(e.timestamp)) : NaN;
+  const fresh = Number.isFinite(timestamp) && Date.now() - timestamp <= 45_000 && timestamp <= Date.now() + 5_000;
+  const active = activeStatus && fresh;
   const known = failed || cancelled || queued || succeeded || active;
   const prefix = failed ? "Failed:" : cancelled ? "Stopped:" : queued ? "Queued:" : !known ? "Unknown:" : active ? "Now:" : "Done:";
   const t = (e.targetName || "this person").trim();
