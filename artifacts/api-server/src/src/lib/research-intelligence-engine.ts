@@ -3,6 +3,7 @@ import { assessResearchFrontier, scoreSourceIndependence } from "./research-poli
 import { updateHypothesisPosterior, chooseBestDiscriminator, assessFalsificationPlan } from "./research-hypothesis-policy";
 import { summarizeActionYield, type ActionYieldStat, updateActionYield } from "./research-action-learning";
 import { bindExactSourceSpan, SourceLineageGraph, sourceLineageId } from "./research-epistemic-vnext";
+import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 import { buildDiscoveryIntelligence, type DiscoveryIntelligence, renderDiscoveryIntelligence } from "./discovery-frontier";
 
 export type IntelligenceSourceTier = "A" | "B" | "C" | "D" | "unknown";
@@ -164,7 +165,10 @@ function sourceFamily(host: string | null): string {
   if (["google.com", "bing.com", "serper.dev", "tavily.com", "exa.ai"].some((domain) => hostMatchesDomain(host, domain))) return "search";
   if (["linkedin.com", "x.com", "twitter.com", "instagram.com"].some((domain) => hostMatchesDomain(host, domain))) return "social";
   if (isOfficialGovernmentHost(host)) return "government";
-  return host;
+  if (isAggregatorHost(host)) return "aggregator";
+  // Planning metrics use publisher roots, not subdomains, so multiple surfaces
+  // from one organization do not look like independent corroboration.
+  return publisherDomain(host);
 }
 function sourceClassForHost(host: string | null): IntelligenceSourceClass {
   if (!host) return "UNKNOWN";
@@ -600,7 +604,8 @@ export class ResearchIntelligenceEngine {
     const sourceQualityCounts = new Map<IntelligenceSourceClass, number>();
     for (const evidence of evidenceBearing) sourceQualityCounts.set(evidence.sourceClass, (sourceQualityCounts.get(evidence.sourceClass) ?? 0) + 1);
     const sourceQualitySummary = [...sourceQualityCounts.entries()].map(([sourceClass, count]) => ({ sourceClass, count })).sort((a, b) => b.count - a.count);
-    const sourceIndependence = scoreSourceIndependence({ sourceHosts, sourceClasses: [...sourceQualityCounts.keys()], repeatedFamilyCount: repeatedSourceFamilies.length });
+    const independentPublisherHosts = [...new Set(sourceHosts.filter((host) => !isAggregatorHost(host)).map(publisherDomain))];
+    const sourceIndependence = scoreSourceIndependence({ sourceHosts: independentPublisherHosts, sourceClasses: [...sourceQualityCounts.keys()], repeatedFamilyCount: repeatedSourceFamilies.length });
     const independentSourceUnits = this.sourceLineage.independentUnitCount([...this.evidence.values()].filter((e) => e.kind === "finding" || e.kind === "claim").map((e) => e.sourceLineageId).filter((id): id is string => Boolean(id)));
     const providerGroups = new Map<string, Map<string, Set<string>>>();
     for (const action of this.actions) {

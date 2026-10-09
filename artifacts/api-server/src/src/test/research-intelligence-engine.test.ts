@@ -101,6 +101,17 @@ describe("Apex research intelligence", () => {
   });
 
 
+  it("does not treat subdomains of one publisher as independent planning source families", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "publisher-family-planning", target: "Jane Example", objective: "verify organization and role" });
+    engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://example.com/about"], observation: "Jane Example is founder of Example Inc.", findings: [{ vectorType: "other", value: "founder of Example Inc.", personName: "Jane Example", sourceUrls: ["https://example.com/about"] }] });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://investor.example.com/leadership"], observation: "Jane Example is president of Example Inc.", findings: [{ vectorType: "other", value: "president of Example Inc.", personName: "Jane Example", sourceUrls: ["https://investor.example.com/leadership"] }] });
+    engine.recordAction({ turn: 3, action: "visit", execution: "success", urls: ["https://news.example.com/profile"], observation: "Jane Example joined Example Inc.", findings: [{ vectorType: "other", value: "joined Example Inc.", personName: "Jane Example", sourceUrls: ["https://news.example.com/profile"] }] });
+    engine.recordAction({ turn: 4, action: "visit", execution: "success", urls: ["https://other-publisher.net/jane"], observation: "Jane Example is a director at another organization.", findings: [{ vectorType: "other", value: "director at another organization.", personName: "Jane Example", sourceUrls: ["https://other-publisher.net/jane"] }] });
+    const state = engine.buildContext();
+    expect(state.sourceDiversity).toBe(4);
+    expect(state.sourceFamilyDiversity).toBe(2);
+  });
+
   it("keeps evidence, contradictions, negative findings, contacts, and provenance together", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "audit", target: "Alex Example", objective: "resolve identity and contact" });
     engine.recordAction({ turn: 1, action: "registry_search", execution: "success", urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"] }] });

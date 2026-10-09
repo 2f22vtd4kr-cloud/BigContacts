@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { isAggregatorHost } from "./source-corroboration";
+import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 
 export type ThinkingLevel = "minimal" | "low" | "medium" | "high";
 export type SourceSpan = { text: string; start: number; end: number; subjectMatched: boolean; valueMatched: boolean; exact: boolean };
@@ -94,14 +94,7 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
     exact: valueMatched && subjectMatched,
   };
 }
-const SECOND_LEVEL_SUFFIXES = new Set(["co.uk", "org.uk", "gov.uk", "ac.uk", "com.au", "net.au", "org.au", "com.br", "com.cn", "com.hk", "com.mx", "com.sg", "co.jp", "co.nz", "co.za", "com.tr"]);
-function canonicalPublisher(host: string): string {
-  const normalized = host.trim().toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
-  const parts = normalized.split(".").filter(Boolean);
-  if (parts.length <= 2) return normalized;
-  const suffix = parts.slice(-2).join(".");
-  return SECOND_LEVEL_SUFFIXES.has(suffix) ? parts.slice(-3).join(".") : suffix;
-}
+function canonicalPublisher(host: string): string { return publisherDomain(host); }
 export function sourceLineageId(url: string, contentFingerprint?: string | null): string { return contentFingerprint ? "content:" + digest(contentFingerprint).slice(0, 24) : "source:" + digest(canonicalHost(url) ?? url).slice(0, 24); }
 
 export class SourceLineageGraph {
