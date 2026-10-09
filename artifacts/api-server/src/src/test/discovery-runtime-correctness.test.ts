@@ -202,7 +202,7 @@ describe("discovery runtime architecture", () => {
 
   it("only treats durably source-backed discovery candidates as admissions or terminal proof", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    expect(canonicalSource).toContain("return { names: durableNames, materialized, evidenceRows }");
+    expect(canonicalSource).toContain("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }");
     expect(canonicalSource).toContain("if (materializedAdmission.durableEvidence) durableNames.push(name)");
     expect(canonicalSource).toContain("if (!session?.id) throw new Error(");
     expect(canonicalSource).toMatch(/const durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited && admitted\.length > 0 \? "complete" : "review"/);
