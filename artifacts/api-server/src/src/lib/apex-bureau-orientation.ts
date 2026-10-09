@@ -31,15 +31,12 @@ PROVENANCE: raw page text is observation, not identity. A model hypothesis is no
 
 export const APEX_OSINT_TOOL_SURFACE = `OSINT TOOL SURFACE (available to dig investigators — choose when useful, never forced in a fixed order):
 - web_search — Investigator-selected Serper / Tavily / Exa (exact values: serper | tavily | exa)
-SEARCH/BROWSE TOOLS (not promotion authorities): web_search executes only the provider explicitly selected by the Investigator; there is no cross-provider research fallback. Provider-specific key/transport retries are execution mechanics only. visit/browser_fetch may use HTTP then Scrapfly/ZenRows/Browserless/Playwright. Specialist: domain_lookup, registry_search, footprint_*, harvest_domain. The investigator chooses tools; providers only execute.
+SEARCH/BROWSE TOOLS (not promotion authorities): web_search executes only the provider explicitly selected by the Investigator; there is no cross-provider research fallback. Provider-specific key/transport retries are execution mechanics only. visit/browser_fetch may use HTTP then Scrapfly/ZenRows/Browserless/Playwright. Currently executable specialist tools: domain_lookup and registry_search. The investigator chooses tools; providers only execute.
 - visit — HTTP fetch + contact-fact extraction from HTML
 - browser_fetch — Investigator-selected Scrapfly / ZenRows / Browserless / Playwright for JS/challenge pages (exact values: scrapfly | zenrows | browserless | playwright)
-- footprint_email — Holehe (email → platform presence)
-- footprint_username_maigret — Maigret (username → platform presence)
-- footprint_username_sherlock — Sherlock (username → platform presence)
 - domain_lookup — RDAP / WhoisJSON (exact values: rdap | whoisjson)
-- harvest_domain — theHarvester (emails/hosts for a domain)
 - registry_search — SEC EDGAR, Companies House, BRREG, GLEIF, OpenCorporates, and other registry-client sources
+- Python-backed Holehe, Maigret, Sherlock, theHarvester, and SpiderFoot are intentionally not available capabilities: no executable, trusted sandbox implementation is installed. Do not select them or infer results; they must be enabled only after the real executor and isolation contract exist.
 - done — finish the dig; keep auto-extracted findings already in the bag`;
 
 export type ApexOrientationRole = "boss" | "right_hand" | "investigator" | "dig_agent";
