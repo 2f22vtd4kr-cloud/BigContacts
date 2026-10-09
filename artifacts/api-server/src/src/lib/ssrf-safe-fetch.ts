@@ -148,7 +148,7 @@ export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestI
   const hostname = validated.hostname.toLowerCase();
   const isGroq = hostname === "api.groq.com" || hostname.endsWith(".groq.com");
   const isMistral = hostname === "api.mistral.ai" || hostname.endsWith(".mistral.ai");
-  if ((selectedInvestigator === "groq" && isMistral) || (selectedInvestigator === "mistral" && isGroq)) throw new Error(\`Cross-provider Investigator fallback blocked: Boss selected \${selectedInvestigator}\`);
+  if ((selectedInvestigator === "groq" && isMistral) || (selectedInvestigator === "mistral" && isGroq)) throw new Error("Cross-provider Investigator fallback blocked: Boss selected " + selectedInvestigator);
  }
  const hostname = validated.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "");
  const signal = init.signal ?? request?.signal;
