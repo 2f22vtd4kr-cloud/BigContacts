@@ -51,8 +51,8 @@ async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
   const fenced = await withStrictPermanentClient(async (redis) => Number(await redis.eval(
     "local owner=redis.call('get',KEYS[1]); if owner==ARGV[1] then return 0 end; local k=KEYS[2]; local status=redis.call('hget',k,'status'); if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end; redis.call('hset',k,'status','cancelled','outcome','incomplete','message',ARGV[2],'finishedAt',ARGV[3]); return 1",
     2,
-    \`apex:activejob:\${type}\`,
-    \`apex:job:\${jobId}\`,
+    `apex:activejob:${type}`,
+    `apex:job:${jobId}`,
     jobId,
     "Canonical lease lost; refusing further work.",
     finishedAt,
@@ -63,8 +63,8 @@ async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
     .where(and(
       eq(researchCasesTable.status, "active"),
       or(
-        sql\`\${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = \${jobId}\`,
-        sql\`\${researchCasesTable.caseFile}::jsonb ->> 'jobId' = \${jobId}\`,
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`,
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`,
       ),
     ));
 }
