@@ -7,7 +7,7 @@ import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, decideAtlasNextAction, validateAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
 import { resolveResearchDepth } from "./research-depth";
-import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
+import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
@@ -267,7 +267,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
     const reassignInvestigatorAfterHardQuota = async (failedCapability: InvestigatorCapability, failure: string): Promise<InvestigatorCapability> => {
       quotaExhaustedInvestigators.add(failedCapability);
-      const availableAlternates = getAvailableInvestigatorCapabilities().filter((capability) => !quotaExhaustedInvestigators.has(capability));
+      const excludedCapabilityAliases = getInvestigatorCredentialAliases(process.env, [...quotaExhaustedInvestigators]);
+      const bossExcludedCapabilities = [...new Set([...quotaExhaustedInvestigators, ...excludedCapabilityAliases])];
+      const availableAlternates = getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities);
       if (!availableAlternates.length) throw new Error(`Groq Investigator capability ${failedCapability} exhausted its hard request quota and no alternate configured Investigator capability remains.`);
       await assertAtlasJobActive(atlasJobId);
       const reassignment = await runGroqBossDiscovery({
@@ -280,7 +282,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           "Do not invent people, contacts, relationships, or URLs.",
         ],
         startingLane: "Boss-directed Investigator capability reassignment after explicit hard request-quota exhaustion",
-        excludedInvestigatorLlm: [...quotaExhaustedInvestigators],
+        excludedInvestigatorLlm: bossExcludedCapabilities,
       });
       await assertAtlasJobActive(atlasJobId);
       const replacement = reassignment.investigatorLlm;
@@ -301,10 +303,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const nextFile = { ...caseFile, investigatorLlm: replacement, investigatorCapabilityHistory: [...history, { from: previousAssignment, to: replacement, trigger: "upstream_quota_exhausted" }].slice(-15) };
         const nextIteration = Number(lockedCase.iteration ?? 0) + 1;
         await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), iteration: nextIteration, currentAction: "canonical-investigator-reassigned-after-hard-quota", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
-        await tx.insert(researchCaseEventsTable).values({ caseId: discoveryCaseId, iteration: nextIteration, actorRole: "groq_boss", eventType: "assignment", status: "recorded", summary: "Groq Boss reassigned the canonical Investigator after an explicit hard request-quota exhaustion; the exhausted capability remains excluded for this job.", correlationKey: `${atlasJobId}:investigator-reassignment:${failedCapability}:${replacement}:${nextIteration}`, payload: JSON.stringify({ jobId: atlasJobId, from: failedCapability, to: replacement, trigger: "upstream_quota_exhausted", excludedInvestigators: [...quotaExhaustedInvestigators], bossModel: reassignment.model, bossStatus: reassignment.status, bossReport: reassignment.report, error: reassignment.error }) });
+        await tx.insert(researchCaseEventsTable).values({ caseId: discoveryCaseId, iteration: nextIteration, actorRole: "groq_boss", eventType: "assignment", status: "recorded", summary: "Groq Boss reassigned the canonical Investigator after an explicit hard request-quota exhaustion; the exhausted capability remains excluded for this job.", correlationKey: `${atlasJobId}:investigator-reassignment:${failedCapability}:${replacement}:${nextIteration}`, payload: JSON.stringify({ jobId: atlasJobId, from: failedCapability, to: replacement, trigger: "upstream_quota_exhausted", excludedInvestigators: bossExcludedCapabilities, bossModel: reassignment.model, bossStatus: reassignment.status, bossReport: reassignment.report, error: reassignment.error }) });
       }, { isolationLevel: "serializable" });
       selectedInvestigator = replacement;
-      phaseSummary.investigatorReassignment = `${failedCapability} → ${replacement} after explicit upstream_quota_exhausted; remaining alternates=${getAvailableInvestigatorCapabilities().filter((capability) => !quotaExhaustedInvestigators.has(capability)).join(",") || "none"}`;
+      phaseSummary.investigatorReassignment = `${failedCapability} → ${replacement} after explicit upstream_quota_exhausted; remaining alternates=${getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities).join(",") || "none"}`;
       return replacement;
     };
     const mergeDiscoveryResults = (failed: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, recovered: Awaited<ReturnType<typeof runBureauAgenticWebPass>>): Awaited<ReturnType<typeof runBureauAgenticWebPass>> => ({ ...recovered, searches: failed.searches + recovered.searches, visits: failed.visits + recovered.visits, iterations: failed.iterations + recovered.iterations, findings: [...(failed.findings ?? []), ...(recovered.findings ?? [])], modelFindings: [...(failed.modelFindings ?? []), ...(recovered.modelFindings ?? [])], trajectory: [...(failed.trajectory ?? []), ...(recovered.trajectory ?? [])], trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])] });
