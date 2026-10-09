@@ -27,6 +27,15 @@ describe("public-registry evidence remains a low-confidence lead", () => {
     }
   });
 
+  it("a legacy gatekeeper classification is not a gatekeeper connection", () => {
+    const assessment = deriveRegistryIngestionAssessment("Gatekeeper");
+    expect(assessment.hasGatekeeperConnection).toBe(false);
+    expect(assessment.prior).toBe(0.15);
+    expect(assessment.proximityScore).toBe(3);
+    expect(assessment.reviewOnly).toBe(true);
+    expect(assessment.wealthStatus).toBe("unverified");
+  });
+
   it("does not treat a registry fetch as recent underlying activity", () => {
     const assessment = deriveRegistryIngestionAssessment("Corporation");
     expect(assessment.hasRecentActivity).toBe(false);
