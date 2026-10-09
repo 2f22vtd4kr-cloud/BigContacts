@@ -42,7 +42,7 @@ const durableAdmissionChecks = [
   ["search-result endpoints are excluded from claim-grade discovery evidence", source.includes("isClaimGradeDiscoverySourceUrl") && source.includes("isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl")],
   ["case projection and control receive only durable supporting URLs", source.includes("admittedCandidateSources.map(({ name, sourceUrls })") && source.includes("admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls })")],
 
-  ["only source-backed durable admissions are returned to control", source.includes("return { names: durableNames, materialized, evidenceRows }") && source.includes("if (materializedAdmission.durableEvidence) durableNames.push(name)"],
+  ["only source-backed durable admissions are returned to control", source.includes("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }") && source.includes("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrl: normalizedSource })")],
   ["admission requires a successful retrieved page in the same Investigator run", /payload\.runId === input\.discoveryRunId[\s\S]*directSourceAction[\s\S]*payload\.execution === "success"[\s\S]*candidateSourceUrls\.includes\(normalized\)/.test(source)],
   ["a missing admission evidence session fails the transaction closed", source.includes("if (!session?.id) throw new Error(")],
   ["discovery-only completion requires at least one durable admission", /const durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited && admitted\.length > 0 \? "complete" : "review"/.test(source)],
