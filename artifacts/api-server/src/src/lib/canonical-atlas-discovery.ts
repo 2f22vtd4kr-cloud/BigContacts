@@ -140,10 +140,9 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       let addedEvidence = 0;
       if (!existingEvidence) {
         const [session] = await tx.insert(researchSessionsTable).values({ targetEntityId: entityId, winningPath: JSON.stringify([{ sourceUrl: normalizedSource, caseId: input.discoveryCaseId, admission: "investigator-explicit-promotion" }]), notes: "Canonical discovery admission evidence; target-scoped investigation required before contact promotion.", safeUseStatus: "manual_review", crmStatus: "Lead Gen" }).returning({ id: researchSessionsTable.id });
-        if (session?.id) {
-          await tx.insert(researchEvidenceTable).values({ sessionId: session.id, entityId, claimType: "identity_candidate", claim: `Investigator-discovered candidate: ${name}`, value: name, sourceName: "canonical-agentic-discovery", sourceUrl: normalizedSource, sourceDomain: new URL(normalizedSource).hostname, status: "review", confidence: 0.5, observedAt: supportingEvent.createdAt ?? new Date(), freshnessScore: 1, metadata: JSON.stringify({ discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: supportingEvent.id, promotionDecision: "promote", reviewOnly: true }) });
-          addedEvidence = 1;
-        }
+        if (!session?.id) throw new Error("Canonical discovery evidence session insert returned no durable session ID.");
+        await tx.insert(researchEvidenceTable).values({ sessionId: session.id, entityId, claimType: "identity_candidate", claim: `Investigator-discovered candidate: ${name}`, value: name, sourceName: "canonical-agentic-discovery", sourceUrl: normalizedSource, sourceDomain: new URL(normalizedSource).hostname, status: "review", confidence: 0.5, observedAt: supportingEvent.createdAt ?? new Date(), freshnessScore: 1, metadata: JSON.stringify({ discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: supportingEvent.id, promotionDecision: "promote", reviewOnly: true }) });
+        addedEvidence = 1;
       }
       return { materialized: createdEntity ? 1 : 0, evidenceRows: addedEvidence, durableEvidence: Boolean(existingEvidence) || addedEvidence > 0 };
     }, { isolationLevel: "serializable" });
