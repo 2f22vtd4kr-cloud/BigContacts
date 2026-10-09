@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boundInvestigatorPromptSection, buildInvestigatorContext, compactInvestigationContext, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactInvestigationContext, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("investigator context compaction", () => {
   it("bounds working context while retaining old source URLs in the archive index", () => {
@@ -15,6 +15,33 @@ describe("investigator context compaction", () => {
     expect(context).toContain("https://example.com/source/30");
     expect(context).toContain("Named Person");
     expect(context).toContain("RESEARCH FRONTIER");
+  });
+
+  it("preserves the Boss research question after objective/context compaction", () => {
+    const objective = buildBoundedInvestigatorObjective({
+      base: "PRIMARY OPERATOR OBJECTIVE BEGIN " + "Context ".repeat(1_500) + " PRIMARY OPERATOR OBJECTIVE END",
+      direction: "Verify whether the named director is attributable to the target organization using independent official sources.",
+    });
+    const context = buildInvestigatorContext({
+      targetName: "Target Organization",
+      objective,
+      priorContext: "DURABLE CASE CONTEXT " + "P".repeat(5_000),
+      trajectoryRecords: [{ turn: 12, action: "visit", execution: "success", observedUrls: ["https://official.example/record"], observation: "Existing observed record." }],
+      lastObservation: "Latest observation",
+      findings: [],
+      maxChars: 3_500,
+    });
+
+    expect(objective.length).toBeLessThanOrEqual(1_900);
+    expect(objective).toContain("PRIMARY CASE OBJECTIVE");
+    expect(objective).toContain("PRIMARY OPERATOR OBJECTIVE BEGIN");
+    expect(objective).toContain("PRIMARY OPERATOR OBJECTIVE END");
+    expect(objective).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
+    expect(objective).toContain("Verify whether the named director");
+    expect(objective).toContain("Choose the next research action yourself");
+    expect(context).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
+    expect(context).toContain("Verify whether the named director");
+    expect(context).toContain("LATEST TRAJECTORY RECORD");
   });
 
   it("keeps the objective and latest observation explicit", () => {
