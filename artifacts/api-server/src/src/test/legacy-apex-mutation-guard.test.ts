@@ -100,6 +100,16 @@ describe("legacy Apex mutation boundary", () => {
     expect(result.nextCalled).toBe(false);
   });
 
+  it("retires the parameterized deterministic secondary-surface refresh route", async () => {
+    const result = await invoke({
+      method: "POST",
+      path: "/entities/7/refresh-surface",
+      params: { id: "7" },
+    });
+    expect(result.response.statusCode).toBe(410);
+    expect(result.nextCalled).toBe(false);
+  });
+
   it("allows a merge when neither entity is Apex", async () => {
     const result = await invoke({
       method: "POST",
