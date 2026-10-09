@@ -298,7 +298,7 @@ describe("Groq Investigator provider boundary", () => {
         headers: {
           "retry-after": "20",
           "x-ratelimit-remaining-tokens": "3108",
-          "x-ratelimit-reset-tokens": "121s",
+          "x-ratelimit-reset-tokens": "96s",
           "x-ratelimit-remaining-requests": "998",
         },
       });
