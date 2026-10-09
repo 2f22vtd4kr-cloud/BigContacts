@@ -8,6 +8,7 @@ const intelligence=fs.readFileSync("artifacts/api-server/src/src/lib/research-in
 const mutationGuard=fs.readFileSync("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts","utf8");
 const core=fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts","utf8");
 const control=fs.readFileSync("artifacts/api-server/src/src/lib/target-control-decision.ts","utf8");
+const atlasDecision=fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-decision.ts","utf8");
 const continuation=fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts","utf8");
 const checks=[
 ["target continuation row lock fences completion and every cancellation marker before remount",/\.for\("update"\)[\s\S]*locked\.status === "complete"[\s\S]*locked\.status === "cancelled"/.test(continuation)&&/locked\.status === "review" && \["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"\]\.includes\(String\(locked\.currentAction \?\? ""\)\)/.test(continuation)],
@@ -56,8 +57,8 @@ const checks=[
 ["evidence graph observations can carry immutable event IDs",/eventId\?\s*:\s*number\s*\|\s*null/.test(evidence)],
 ["canonical act graphs require immutable observation anchors",/validateClaimSupportGraph\(graph,\s*true\)/.test(oversight)],
 ["Right Hand is mandatory before Boss continuation",/if\(rightHand\.status!=="completed"\)/.test(oversight)],
-["target per-act Right-hand contract is exact-field validated",/validateRightHandAdvice\(rightParsed\)/.test(oversight)&&/validateExactFields\(value,\["decision","reason","focusLanes","confidence"\]\)/.test(oversight)],
-["target per-act Boss contract is exact-field validated",/validateBossOversight\(parsed\)/.test(oversight)&&/validateExactFields\(value,\["action","direction","reason","confidence"\]\)/.test(oversight)],
+["target per-act Right-hand contract is exact-field validated",/validateTargetActRightHandAdvice\(rightParsed\)/.test(oversight)&&/validateTargetActRightHandAdvice\(value\)/.test(oversight)&&/validateAtlasOpeningRightHandReview\(value\)/.test(oversight)&&/validateExactObjectFields\(value,\s*\["decision",\s*"reason",\s*"focusLanes",\s*"confidence"\]\)/.test(atlasDecision)],
+["target per-act Boss contract is exact-field validated",/validateTargetActBossOversight\(parsed\)/.test(oversight)&&/validateExactFields\(value,\s*\["action",\s*"direction",\s*"reason",\s*"confidence"\]\)/.test(oversight)],
 ["completed-act observation compaction preserves its tail",/function compactOversightText/.test(oversight)&&/ACT OBSERVATION MIDDLE OMITTED/.test(oversight)],
 ["per-act control prompt bounds current act",/boundOversightPromptSection\(JSON\.stringify\(currentAct\),3500\)/.test(oversight)],
 ["per-act control prompt bounds Right-hand advice",/boundOversightPromptSection\(JSON\.stringify\(rightHand\),1200\)/.test(oversight)],
