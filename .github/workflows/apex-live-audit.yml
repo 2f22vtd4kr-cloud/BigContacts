@@ -82,36 +82,60 @@ jobs:
         run: pnpm run build
       - name: Initialize canonical Apex schema
         run: bash scripts/initialize-apex-schema.sh
-      - name: Start API
+      - name: Create ephemeral operator credentials for live audit
         run: |
+          {
+            echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)"
+            echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
+            echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
+          } >> "$GITHUB_ENV"
+      - name: Launch bounded 3-target UI-equivalent smoke with live API
+        run: |
+          set -euo pipefail
           unset APEX_ALLOW_SCHEMA_PUSH
+          rm -f /tmp/apex-api.log /tmp/health.json /tmp/health-final.json /tmp/launch.json /tmp/job.json /tmp/job-final.json /tmp/atlas-trace.json /tmp/atlas-trace-final.json /tmp/entities.json
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
-          for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
-          test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
-      - name: Launch bounded 3-target UI-equivalent smoke
-        run: |
-          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}' | tee /tmp/launch.json
+          API_PID=$!
+          collect_evidence() {
+            JOB_ID="$(node -p 'try{require("/tmp/launch.json").jobId||""}catch{""}')"
+            curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health-final.json || true
+            if [ -n "$JOB_ID" ]; then
+              curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | tee /tmp/job-final.json || true
+              curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace-final.json || true
+            fi
+            if kill -0 "$API_PID" 2>/dev/null; then kill "$API_PID" 2>/dev/null || true; fi
+            wait "$API_PID" 2>/dev/null || true
+          }
+          trap collect_evidence EXIT
+          READY=0
+          for i in $(seq 1 45); do
+            CODE="$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)"
+            if [ "$CODE" = "200" ]; then READY=1; break; fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then cat /tmp/apex-api.log; exit 1; fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then cat /tmp/apex-api.log; exit 1; fi
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1);console.log("job",x.jobId)'
           JOB_ID="$(node -p 'require("/tmp/launch.json").jobId')"
           for i in $(seq 1 120); do
             sleep 5
-            curl -sS -m 10 "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/job.json
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/job.json
             STATUS="$(node -p 'require("/tmp/job.json").status || ""')"
             if [ "$STATUS" = "done" ]; then break; fi
             if [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then cat /tmp/job.json; exit 2; fi
           done
           node -e 'const x=require("/tmp/job.json");if(x.status!=="done"){console.error(x);process.exit(1)}'
-          curl -sS -m 20 "http://127.0.0.1:8080/api/entities?type=HNWI&limit=100" > /tmp/entities.json
-          curl -sS -m 20 "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" > /tmp/atlas-trace.json
-      - name: Collect live failure evidence
+          curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/entities?type=HNWI&limit=100" > /tmp/entities.json
+          curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" > /tmp/atlas-trace.json
+      - name: Preserve live failure evidence
         if: always()
         run: |
-          JOB_ID="$(node -p 'try{require("/tmp/launch.json").jobId||""}catch{""}')"
-          curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health-final.json || true
-          if [ -n "$JOB_ID" ]; then
-            curl -sS -m 10 "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | tee /tmp/job-final.json || true
-            curl -sS -m 10 "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace-final.json || true
-          fi
+          # The launch step captures evidence in its EXIT trap before stopping
+          # the server; do not overwrite it with requests to a stopped process.
+          if [ ! -s /tmp/health-final.json ] && [ -s /tmp/health.json ]; then cp /tmp/health.json /tmp/health-final.json; fi
+          if [ ! -s /tmp/job-final.json ] && [ -s /tmp/job.json ]; then cp /tmp/job.json /tmp/job-final.json; fi
+          if [ ! -s /tmp/atlas-trace-final.json ] && [ -s /tmp/atlas-trace.json ]; then cp /tmp/atlas-trace.json /tmp/atlas-trace-final.json; fi
       - name: Audit live Bureau
         if: always()
         run: node scripts/audit-live-bureau.mjs
