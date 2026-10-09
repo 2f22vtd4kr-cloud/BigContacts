@@ -203,18 +203,31 @@ export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestI
   if ((selectedInvestigator === "groq" && isMistral) || (selectedInvestigator === "mistral" && isGroq)) throw new Error("Cross-provider Investigator fallback blocked: Boss selected " + selectedInvestigator);
  }
  const hostname = validated.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "");
- const signal = init.signal ?? request?.signal;
- const body = init.body !== undefined ? init.body : request?.body ? request.clone().body : undefined;
- const effectiveInit: RequestInit = {
-  ...init,
-  method: init.method ?? request?.method,
-  headers: init.headers ?? request?.headers,
-  signal,
-  body,
-  redirect: "manual",
- };
- const address = await resolveSafeAddress(hostname, signal ?? undefined);
- return pinnedFetch(input, effectiveInit, address);
+ const callerSignal = init.signal ?? request?.signal;
+ const controller = new AbortController();
+ const abortFromCaller = () => controller.abort(callerSignal?.reason ?? new Error("Outbound request aborted"));
+ if (callerSignal?.aborted) abortFromCaller();
+ else callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
+ // One total budget includes DNS resolution, request-body materialization, connection and response.
+ const deadlineTimer = setTimeout(() => controller.abort(new Error("Outbound request deadline exceeded")), REQUEST_DEADLINE_MS);
+ const signal = controller.signal;
+ try {
+  const body = init.body !== undefined ? init.body : request?.body ? request.clone().body : undefined;
+  const effectiveInit: RequestInit = {
+   ...init,
+   method: init.method ?? request?.method,
+   headers: init.headers ?? request?.headers,
+   signal,
+   body,
+   redirect: "manual",
+  };
+  const address = await resolveSafeAddress(hostname, signal);
+  if (signal.aborted) throw new Error("Outbound request aborted");
+  return await pinnedFetch(input, effectiveInit, address);
+ } finally {
+  clearTimeout(deadlineTimer);
+  callerSignal?.removeEventListener("abort", abortFromCaller);
+ }
 }
 export function isBlockedOutboundIpForTest(address: string): boolean { return isBlockedIp(address); }
 export const MAX_SAFE_OUTBOUND_RESPONSE_BYTES = MAX_RESPONSE_BYTES;
