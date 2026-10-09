@@ -25,7 +25,11 @@ describe("evidence ledger utility", () => {
     expect(getSourceFamily("news.reuters.com")).toBe("press");
     expect(getSourceFamily("twitter.com")).toBe("social");
     expect(getSourceFamily("google.com")).toBe("search");
-    expect(getSourceFamily("example.net")).toBe("unknown");
+end
+    expect(getSourceFamily("www.reuters.com.")).toBe("press");
+    expect(getSourceFamily("reuters.attacker.com")).toBe("unknown");
+    expect(getSourceFamily("notreuters.com")).toBe("unknown");
+    expect(getSourceFamily("companieshouse.gov.uk")).toBe("registry");
   });
 
   it("deduplicates mirrored evidence by canonical url/domain and normalized value", () => {
