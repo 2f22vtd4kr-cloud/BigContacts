@@ -15,5 +15,9 @@ describe("Reactor live telemetry source boundary", () => {
     expect(source).toContain("/api/ingest/job/active/atlas-run");
     expect(source).toContain("/api/ingest/atlas-trace/");
     expect(source).not.toContain("/api/ingest/atlas-status");
+    expect(source).toContain('import { readApiJson } from "./api-json"');
+    expect(source).not.toContain("activeResponse.json()");
+    expect(source).not.toContain("traceResponse.json()");
+    expect(source).not.toContain("emit(EMPTY)");
   });
 });
