@@ -419,7 +419,7 @@ export class ResearchIntelligenceEngine {
       }
       existing.supports = [...new Set([...existing.supports, ...input.supports])];
       existing.contradicts = [...new Set([...existing.contradicts, ...input.contradicts])];
-      existing.attribution = existing.supports.length ? existing.supports.join(", ") : existing.attribution ?? null;
+      existing.attribution = existing.attribution ?? input.attribution ?? null;
       return existing.id;
     }
     const id = `ev_${fingerprint.slice(0, 20)}`;
