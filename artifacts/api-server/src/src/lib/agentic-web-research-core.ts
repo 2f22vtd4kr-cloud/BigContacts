@@ -475,7 +475,7 @@ export function describeAgentActionParseFailure(raw: string): string {
   catch { return `invalid_json chars=${json.length} digest=${digestDiagnosticText(json)}`; }
   const action = cleanText(value.action, 40).toLowerCase();
   if (!action) return "missing_action";
-  const allowed = new Set(["web_search","parallel_web_search","visit","footprint_email","footprint_username_maigret","footprint_username_sherlock","domain_lookup","registry_search","harvest_domain","footprint_spiderfoot","browser_fetch","done"]);
+  const allowed = new Set(["web_search","parallel_web_search","visit","domain_lookup","registry_search","browser_fetch","done"]);
   if (!allowed.has(action)) return `unsupported_action action=${action}`;
   return describeInvalidActionArguments(action, value);
 }
@@ -1000,7 +1000,7 @@ function structuredActionResponseFormat(model: string): Record<string, unknown> 
     : { type: "json_object" };
 }
 
-const AGENTIC_ACTION_SCHEMA = { type: "object", properties: { action: { type: "string", enum: ["web_search", "parallel_web_search", "visit", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "domain_lookup", "registry_search", "harvest_domain", "browser_fetch", "done"] }, query: { type: "string" }, provider: { type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null] }, url: { type: "string" }, email: { type: "string" }, username: { type: "string" }, domain: { type: "string" }, registry: { type: "string" }, target: { type: "string" }, targetType: { type: "string", enum: ["domain","hostname","ip","email","username","person","asn"] }, profile: { type: "string", enum: ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"] }, searches: { type: "array", minItems: 2, maxItems: 4 }, thought: { type: "string" }, hypothesis: { type: "string" }, purpose: { type: "string" }, expectedInformationGain: { type: "number", minimum: 0, maximum: 1 }, findings: { type: "array" } }, required: ["action"], additionalProperties: false };
+const AGENTIC_ACTION_SCHEMA = { type: "object", properties: { action: { type: "string", enum: ["web_search", "parallel_web_search", "visit", "domain_lookup", "registry_search", "browser_fetch", "done"] }, query: { type: "string" }, provider: { type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null] }, url: { type: "string" }, email: { type: "string" }, username: { type: "string" }, domain: { type: "string" }, registry: { type: "string" }, target: { type: "string" }, targetType: { type: "string", enum: ["domain","hostname","ip","email","username","person","asn"] }, profile: { type: "string", enum: ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"] }, searches: { type: "array", minItems: 2, maxItems: 4 }, thought: { type: "string" }, hypothesis: { type: "string" }, purpose: { type: "string" }, expectedInformationGain: { type: "number", minimum: 0, maximum: 1 }, findings: { type: "array" } }, required: ["action"], additionalProperties: false };
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; intelligenceContext?: string; mode?: "target" | "discovery" }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
@@ -1027,7 +1027,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     assignment,
     "",
     "RESEARCH CONTRACT: You own the research trajectory. There is no required first tool, hop order, or fixed search sequence. Choose the next action from the available capabilities using evidence, expected information gain, identity discrimination, source independence, and cost.",
-    "AVAILABLE ACTIONS: web_search | parallel_web_search | visit | browser_fetch | registry_search | domain_lookup | harvest_domain | footprint_email | footprint_username_maigret | footprint_username_sherlock | footprint_spiderfoot | done.",
+    "AVAILABLE ACTIONS: web_search | parallel_web_search | visit | browser_fetch | registry_search | domain_lookup | done.",
     "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. browser_fetch = scrapfly | zenrows | browserless | playwright. domain_lookup = rdap | whoisjson. Never invent provider names such as web, google, bing, or search.",
     "",
     "CAPABILITY GUIDANCE:",
@@ -1042,7 +1042,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "STRICT RESPONSE ENVELOPE: all top-level schema properties are required in every action, even when unused: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Use null for inapplicable scalar fields that accept null and [] for unused searches/findings. Each parallel search item must include query, provider, locale, market, purpose; set unused locale/market/purpose to null. Each finding must include vectorType, value, personName, role, scope, sourceUrls, note, promotionDecision, promotionReason; use null only for nullable finding fields. The action shapes below name action-specific values only; they never replace the full required envelope. ACTION-SPECIFIC FIELDS: web_search={action,query,provider,hypothesis,purpose,expectedInformationGain}; parallel_web_search={action,searches:[{query,provider,locale,market,purpose},...],hypothesis,purpose,expectedInformationGain}; visit={action,url,hypothesis,purpose,expectedInformationGain}; browser_fetch={action,url,provider,hypothesis,purpose,expectedInformationGain}; registry_search={action,query,registry,hypothesis,purpose,expectedInformationGain}; domain_lookup={action,domain,provider,hypothesis,purpose,expectedInformationGain}; harvest_domain={action,domain,hypothesis,purpose,expectedInformationGain}; footprint_email={action,email,hypothesis,purpose,expectedInformationGain}; footprint_username_maigret={action,username,hypothesis,purpose,expectedInformationGain}; footprint_username_sherlock={action,username,hypothesis,purpose,expectedInformationGain}; footprint_spiderfoot={action,target,targetType,profile,hypothesis,purpose,expectedInformationGain}; done={action,findings,thought}; for done, include every other required top-level property with null or empty-array placeholders as stated above. Return exactly ONE root JSON object, with no prose, prefixes, suffixes, or additional JSON objects.",
+    "STRICT RESPONSE ENVELOPE: all top-level schema properties are required in every action, even when unused: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Use null for inapplicable scalar fields that accept null and [] for unused searches/findings. Each parallel search item must include query, provider, locale, market, purpose; set unused locale/market/purpose to null. Each finding must include vectorType, value, personName, role, scope, sourceUrls, note, promotionDecision, promotionReason; use null only for nullable finding fields. The action shapes below name action-specific values only; they never replace the full required envelope. ACTION-SPECIFIC FIELDS: web_search={action,query,provider,hypothesis,purpose,expectedInformationGain}; parallel_web_search={action,searches:[{query,provider,locale,market,purpose},...],hypothesis,purpose,expectedInformationGain}; visit={action,url,hypothesis,purpose,expectedInformationGain}; browser_fetch={action,url,provider,hypothesis,purpose,expectedInformationGain}; registry_search={action,query,registry,hypothesis,purpose,expectedInformationGain}; domain_lookup={action,domain,provider,hypothesis,purpose,expectedInformationGain}; done={action,findings,thought}; for done, include every other required top-level property with null or empty-array placeholders as stated above. Return exactly ONE root JSON object, with no prose, prefixes, suffixes, or additional JSON objects.",
     `VALID EXAMPLE: {"action":"web_search","query":"named organization + operator + concrete geography","provider":"serper","url":null,"email":null,"username":null,"domain":null,"registry":null,"thought":null,"hypothesis":"A concrete operating context may identify an attributable person","purpose":"test the strongest current discovery hypothesis","expectedInformationGain":0.8,"locale":null,"market":null,"target":null,"targetType":null,"profile":null,"searches":[],"findings":[]}. For parallel_web_search provide 2–4 independent search objects with every required nested field present. Choose the next action yourself; this example is schema guidance, not a research sequence.`,
   ].join("\n");
 
@@ -1207,6 +1207,32 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       continue;
     }
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
+    const unavailableCapabilityReason = ({
+      harvest_domain: "TheHarvester has no installed, attested executor in this deployment.",
+      footprint_email: "Holehe has no installed, attested executor in this deployment.",
+      footprint_username_maigret: "Maigret has no installed, attested executor in this deployment.",
+      footprint_username_sherlock: "Sherlock has no installed, attested executor in this deployment.",
+      footprint_spiderfoot: "SpiderFoot has no installed, attested executor in this deployment.",
+    } as Partial<Record<AgentAction["action"], string>>)[action.action];
+    if (unavailableCapabilityReason) {
+      const unavailableRecord: AgenticTrajectoryRecord = {
+        turn: priorTurnOffset + i + 1,
+        model: modelUsed,
+        action: action.action,
+        args: { ...action },
+        execution: "blocked",
+        observation: `CAPABILITY_UNAVAILABLE: ${unavailableCapabilityReason} Choose from the currently advertised capabilities; do not infer results from this tool.`,
+        observedUrls: [],
+        findings: [],
+        providerFallback: [],
+      };
+      records.push(unavailableRecord);
+      lastObservation = unavailableRecord.observation ?? "Selected capability unavailable.";
+      history.push(`step${i + 1}: ${action.action} execution=blocked reason=capability_unavailable`);
+      await input.onTrajectoryRecord?.(unavailableRecord);
+      emit("capability_unavailable", { summary: action.action });
+      continue;
+    }
     const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.thought, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); if (action.action === "done") {
       const boundFindings = bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)]);
       for (const binding of boundFindings) {
