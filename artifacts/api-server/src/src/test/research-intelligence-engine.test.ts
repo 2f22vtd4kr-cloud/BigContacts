@@ -406,6 +406,7 @@ describe("Apex research intelligence", () => {
     expect(claims.find((item) => item.sourceUrl === contactUrl)?.spanBindingKind).toBe("value");
     expect(claims.find((item) => item.sourceUrl === identityUrl)?.passage).toContain("Alex Example");
     expect(claims.find((item) => item.sourceUrl === contactUrl)?.passage).toContain("alex@example.test");
+    expect(state.contacts.find((item) => item.value === "alex@example.test")?.sourceUrls).toEqual([contactUrl]);
   });
 
 
