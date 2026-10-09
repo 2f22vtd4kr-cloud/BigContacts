@@ -12,7 +12,7 @@ import { isCanonicalTargetEpisodeComplete } from "./canonical-terminal-authority
 import { reviewTargetInvestigationAct } from "./target-act-oversight";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, validateAtlasOpeningRightHandReview } from "./atlas-control-decision";
-import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
+import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
 import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, deriveProviderBoundedActTimeoutMs, isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; initialDirection?: string; manageJobLifecycle?: boolean; maxInvestigatorIterations?: number; excludedInvestigatorLlm?: readonly InvestigatorCapability[] };
@@ -146,7 +146,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     const isHardQuotaResult = (result: Awaited<ReturnType<typeof runTargetContactAgent>>): boolean => result.status === "unavailable" && (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error" && /upstream_quota_exhausted/i.test(record.observation ?? ""));
     const reassignTargetInvestigatorAfterHardQuota = async (failedCapability: InvestigatorCapability): Promise<InvestigatorCapability> => {
       quotaExhaustedInvestigators.add(failedCapability);
-      const alternates = getAvailableInvestigatorCapabilities().filter((capability) => !quotaExhaustedInvestigators.has(capability));
+      const alternates = getAvailableDistinctInvestigatorCapabilities(process.env, [...quotaExhaustedInvestigators]);
       if (!alternates.length) throw new Error(`Groq Investigator capability ${failedCapability} exhausted its hard request quota and no alternate configured Investigator capability remains for target ${target.name}.`);
       if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing target Investigator reassignment.");
       const boss = await runGroqBossDiscovery({
