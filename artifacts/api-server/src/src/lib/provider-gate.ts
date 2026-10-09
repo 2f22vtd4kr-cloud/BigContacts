@@ -29,9 +29,6 @@ function parseRetryAfter(response:Response):number{const value=response.headers.
 function hostIsOrWithin(host: string, domain: string): boolean {
  return host === domain || host.endsWith("." + domain);
 }
-function hostHasLabel(host: string, label: string): boolean {
- return host.split(".").includes(label);
-}
 export function classifyExternalProvider(url:string):ExternalProvider{
  let host="";
  try{host=new URL(url).hostname.toLowerCase().replace(/\.$/,"");}catch{return "generic";}
@@ -50,9 +47,8 @@ export function classifyExternalProvider(url:string):ExternalProvider{
  if(["duckduckgo.com","google.com","bing.com"].some((domain)=>hostIsOrWithin(host,domain)))return "search";
  if(
    ["opencorporates.com","gleif.org","sec.gov","brreg.no","icij.org","occrp.org","offeneregister.de","allabolag.se","openkvk.nl","ares.gov.cz","prh.fi","boe.es","cvrapi.dk","economie.fgov.be","opendatasoft.com","zefix.ch","atoka.io"].some((domain)=>hostIsOrWithin(host,domain))
-   ||["registry","opencorporates","gleif","brreg","icij","occrp"].some((label)=>hostHasLabel(host,label))
  )return "registry";
- if(hostIsOrWithin(host,"hunter.io")||["holehe","maigret","sherlock","theharvester","gliner"].some((label)=>hostHasLabel(host,label)))return "osint";
+ if(hostIsOrWithin(host,"hunter.io"))return "osint";
  return "generic";
 }
 const CACHE_VARIANT_HEADERS=new Set(["accept","accept-language","user-agent"]);
