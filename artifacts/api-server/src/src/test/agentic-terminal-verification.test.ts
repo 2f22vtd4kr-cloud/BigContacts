@@ -40,7 +40,7 @@ describe("agentic terminal verification", () => {
       },
     ]);
     expect(result.allowed).toBe(false);
-    expect(result.reason).toContain("not grounded");
+    expect(result.reason).toContain("identity/contact support");
   });
 
   it("allows a discovery stop when each terminal claim is grounded by a successful cited observation", () => {
