@@ -1234,32 +1234,6 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       continue;
     }
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
-    const unavailableCapabilityReason = ({
-      harvest_domain: "TheHarvester has no installed, attested executor in this deployment.",
-      footprint_email: "Holehe has no installed, attested executor in this deployment.",
-      footprint_username_maigret: "Maigret has no installed, attested executor in this deployment.",
-      footprint_username_sherlock: "Sherlock has no installed, attested executor in this deployment.",
-      footprint_spiderfoot: "SpiderFoot has no installed, attested executor in this deployment.",
-    } as Partial<Record<AgentAction["action"], string>>)[action.action];
-    if (unavailableCapabilityReason) {
-      const unavailableRecord: AgenticTrajectoryRecord = {
-        turn: priorTurnOffset + i + 1,
-        model: modelUsed,
-        action: action.action,
-        args: { ...action },
-        execution: "blocked",
-        observation: `CAPABILITY_UNAVAILABLE: ${unavailableCapabilityReason} Choose from the currently advertised capabilities; do not infer results from this tool.`,
-        observedUrls: [],
-        findings: [],
-        providerFallback: [],
-      };
-      records.push(unavailableRecord);
-      lastObservation = unavailableRecord.observation ?? "Selected capability unavailable.";
-      history.push(`step${i + 1}: ${action.action} execution=blocked reason=capability_unavailable`);
-      await input.onTrajectoryRecord?.(unavailableRecord);
-      emit("capability_unavailable", { summary: action.action });
-      continue;
-    }
     const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.thought, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); if (action.action === "done") {
       const boundFindings = bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)]);
       for (const binding of boundFindings) {
