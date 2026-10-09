@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { isBlockedOutboundIpForTest, responseBodyForStatus, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 
@@ -52,6 +54,19 @@ describe("SSRF outbound boundary", () => {
 
 });
 
+
+describe("safe outbound HTTP deadline boundary", () => {
+  it("enforces an absolute outbound request deadline and clears it on settlement", () => {
+    const source = fs.readFileSync(
+      path.resolve(process.cwd(), "src/src/lib/ssrf-safe-fetch.ts"),
+      "utf8",
+    );
+    expect(source).toContain("const REQUEST_DEADLINE_MS = 12_000;");
+    expect(source).toContain("deadlineTimer = setTimeout(() => req.destroy(new Error(\"Outbound request deadline exceeded\")), REQUEST_DEADLINE_MS)");
+    expect(source).toContain("if (deadlineTimer) clearTimeout(deadlineTimer)");
+    expect(source).toContain("req.setTimeout(12_000, () => req.destroy(new Error(\"Outbound request timed out\")))");
+  });
+});
 
 describe("safe outbound HTTP response construction", () => {
   it("uses a null body for HTTP statuses that forbid response bodies", () => {
