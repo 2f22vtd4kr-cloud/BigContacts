@@ -45,4 +45,12 @@ describe("Bureau SSE close/snapshot race contract", () => {
     expect(source).toContain("const events = await listBureauEvents({ caseId, limit: STREAM_READ_CAP });");
   });
 
+  it("serializes async polls so a slow Redis read cannot duplicate unseen events", () => {
+    const source = readRoute();
+    expect(source).toContain("let tickInProgress = false;");
+    expect(source).toContain("if (closed || tickInProgress) return;");
+    expect(source).toContain("tickInProgress = true;");
+    expect(source).toContain("} finally {\n      tickInProgress = false;");
+  });
+
 });
