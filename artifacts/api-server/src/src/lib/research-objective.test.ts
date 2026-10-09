@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateResearchObjective } from "./research-objective";
+import { formatBossDirectedObjective, validateResearchObjective } from "./research-objective";
 
 describe("research objective validation", () => {
   it("accepts an epistemic research question without prescribing a tool or provider", () => {
@@ -19,6 +19,13 @@ describe("research objective validation", () => {
     expect(validateResearchObjective("Search using Serper to find the person's email.").valid).toBe(false);
     expect(validateResearchObjective("Visit https://example.com/profile and verify the role.").valid).toBe(false);
     expect(validateResearchObjective("Open www.example.com and inspect it.").valid).toBe(false);
+  });
+
+
+  it("formats Boss directions with real prompt line breaks", () => {
+    expect(formatBossDirectedObjective("Base objective", "Resolve the filing discrepancy.")).toBe(
+      "Base objective\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\nResolve the filing discrepancy.",
+    );
   });
 
   it("rejects an empty redirect", () => {
