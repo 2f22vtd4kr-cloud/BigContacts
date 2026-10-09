@@ -1,5 +1,5 @@
 /** Optional browser / anti-bot escalation for Investigator page retrieval. */
-import { assertSafeOutboundUrl } from "./ssrf-safe-fetch";
+import { assertSafeOutboundUrl, safeOutboundFetch } from "./ssrf-safe-fetch";
 import { getAgenticExecutionScope } from "./agentic-execution-context";
 import { logger } from "./logger";
 import { runProviderCall } from "./provider-gate";
@@ -15,7 +15,7 @@ const browserFetchCounts = new Map<string, number>();
 function rememberBrowserFetchScope(scope: string, count: number): void { if (!browserFetchCounts.has(scope) && browserFetchCounts.size >= MAX_BROWSER_FETCH_SCOPES) { const oldest = browserFetchCounts.keys().next().value as string | undefined; if (oldest) browserFetchCounts.delete(oldest); } browserFetchCounts.set(scope, count); }
 export function resetBrowserFetchCount(scope?: string): void { if (scope) browserFetchCounts.delete(scope); else browserFetchCounts.clear(); }
 export function getBrowserFetchCount(scope = "process"): number { return browserFetchCounts.get(scope) ?? 0; }
-async function providerFetch(provider: "scrapfly" | "zenrows" | "browserless", url: string, init: RequestInit, signal?: AbortSignal): Promise<Response> { return runProviderCall({ provider, account: new URL(url).hostname, signal }, () => fetch(url, init)); }
+async function providerFetch(provider: "scrapfly" | "zenrows" | "browserless", url: string, init: RequestInit, signal?: AbortSignal): Promise<Response> { return runProviderCall({ provider, account: new URL(url).hostname, signal }, () => safeOutboundFetch(url, init)); }
 function throwIfAborted(signal?: AbortSignal): void { if (signal?.aborted) throw new Error("browser fetch cancelled"); }
 function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> { if (!signal) return promise; return new Promise<T>((resolve, reject) => { const abort = () => reject(new Error("browser fetch cancelled")); if (signal.aborted) return abort(); signal.addEventListener("abort", abort, { once: true }); void promise.then((v) => { signal.removeEventListener("abort", abort); resolve(v); }, (e) => { signal.removeEventListener("abort", abort); reject(e); }); }); }
 async function readResponseTextCapped(response: Response, signal?: AbortSignal): Promise<string> { throwIfAborted(signal); const declared = Number(response.headers.get("content-length") ?? NaN); if (Number.isFinite(declared) && declared > MAX_BROWSER_RESPONSE_BYTES) throw new Error(`browser response exceeds ${MAX_BROWSER_RESPONSE_BYTES} byte limit`); const reader = response.body?.getReader(); if (!reader) return (await response.text()).slice(0, MAX_BROWSER_RESPONSE_BYTES); const chunks: Uint8Array[] = []; let bytes = 0; try { for (;;) { throwIfAborted(signal); const part = await reader.read(); if (part.done) break; bytes += part.value.byteLength; if (bytes > MAX_BROWSER_RESPONSE_BYTES) { await reader.cancel().catch(() => undefined); throw new Error(`browser response exceeds ${MAX_BROWSER_RESPONSE_BYTES} byte limit`); } chunks.push(part.value); } } finally { reader.releaseLock(); } return new TextDecoder().decode(Buffer.concat(chunks.map((x) => Buffer.from(x)))); }
