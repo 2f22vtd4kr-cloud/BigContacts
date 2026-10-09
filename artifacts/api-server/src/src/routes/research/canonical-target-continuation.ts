@@ -130,14 +130,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     // Unavailability is not an AI-selected successful stop. Keep the case
     // reviewable, but terminalize this job as failed/incomplete.
     if (decision.status !== "completed") {
-      const [failedCase] = await db.update(researchCasesTable)
-        .set({ status: "review", currentAction: "target-control-error", lastDecisionAt: new Date(), updatedAt: new Date() })
-        .where(and(
-          cancellationFenceSql(caseId),
-          eq(researchCasesTable.caseType, "target"),
-          sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`,
-        ))
-        .returning({ id: researchCasesTable.id });
+      const failedCase = await transitionClaimedTargetCase({ caseId, jobId, currentAction: "target-control-error" });
       const message = decision.error ?? decision.reason ?? "Groq target control was unavailable; continuation remains incomplete.";
       await updateJob(jobId, {
         status: failedCase ? "failed" : "cancelled", outcome: "incomplete",
@@ -150,14 +143,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     }
 
     if (decision.action === "stop") {
-      const [stopped] = await db.update(researchCasesTable)
-        .set({ status: "review", currentAction: "groq-target-stop", lastDecisionAt: new Date(), updatedAt: new Date() })
-        .where(and(
-          cancellationFenceSql(caseId),
-          eq(researchCasesTable.caseType, "target"),
-          sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`,
-        ))
-        .returning({ id: researchCasesTable.id });
+      const stopped = await transitionClaimedTargetCase({ caseId, jobId, currentAction: "groq-target-stop" });
       if (!stopped) {
         await updateJob(jobId, {
           status: "cancelled", outcome: "incomplete",
