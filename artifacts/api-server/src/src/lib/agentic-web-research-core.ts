@@ -494,6 +494,11 @@ type GroqRateLimitSnapshot = {
 };
 
 const groqRateLimitSnapshots = new Map<string, GroqRateLimitSnapshot>();
+
+/** Reset process-local header snapshots between isolated provider-boundary tests. */
+export function resetGroqRateLimitSnapshotsForTests(): void {
+  groqRateLimitSnapshots.clear();
+}
 function groqRateLimitSnapshotKey(keyName: string, model: string): string { return `${keyName}:${model}`; }
 
 function parseGroqDurationMs(raw: string | null): number | null {
