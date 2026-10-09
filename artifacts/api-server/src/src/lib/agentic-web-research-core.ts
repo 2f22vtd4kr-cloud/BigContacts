@@ -65,10 +65,9 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
 
-  // Query quality is advisory, not an authorization boundary. A model may
-  // intentionally search an exact name, test a new hypothesis with the same
-  // phrase, cross-check a different provider/market, or explore a broad source
-  // list. Preserve that choice and return the quality signal to the model.
+  // The anchor gate blocks only context-free provider spend. It never prescribes
+  // the anchor, provider, or next capability; exact named identities and justified
+  // repeats remain available to the model.
   const warnings: string[] = [];
   if (priorQueries.some((prior) => normalizeDiscoverySearchQuery(prior) === normalized)) {
     warnings.push("This normalized query has been attempted before. The repeat was allowed: cross-provider/market verification or a changed hypothesis may justify it; compare the returned evidence and avoid blind loops.");
@@ -90,7 +89,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
     "news", "report", "reports", "article", "articles", "interview", "interviews", "statement", "statements", "profile", "profiles",
     "large", "small", "major", "leading", "top", "best", "big",
     "venture", "ventures", "capital", "private", "equity", "tech", "technology", "biotech", "software", "finance", "financial",
-    "founder", "founders", "ceo", "cfo", "coo", "cto", "owner", "owners", "investor", "investors", "a", "an", "the", "and", "or", "nor", "but", "if", "then", "than", "of", "in", "on", "to", "as", "at", "by", "for", "from", "with", "without", "into", "over", "under", "after", "before", "about", "against", "among", "between", "through", "during", "using", "via",
+    "founder", "founders", "ceo", "cfo", "coo", "cto", "owner", "owners", "investor", "investors", "what", "who", "whom", "whose", "where", "when", "why", "how", "is", "are", "was", "were", "be", "being", "been", "do", "does", "did", "can", "could", "should", "would", "will", "may", "might", "has", "have", "had", "it", "its", "they", "them", "their", "we", "you", "i", "me", "my", "our", "your", "which", "any", "some", "all", "near", "around", "a", "an", "the", "and", "or", "nor", "but", "if", "then", "than", "of", "in", "on", "to", "as", "at", "by", "for", "from", "with", "without", "into", "over", "under", "after", "before", "about", "against", "among", "between", "through", "during", "using", "via",
   ]);
   const nonFameTokens = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token));
   const hasNamedOrConcreteToken = nonFameTokens.some((token) => {
