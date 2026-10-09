@@ -493,13 +493,19 @@ function parseGroqDurationMs(raw: string | null): number | null {
   return Math.floor((Number(match[1] ?? 0) * 3600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000);
 }
 
+export function parseOptionalRateLimitNumber(raw: string | null): number | null {
+  if (raw == null || !raw.trim()) return null;
+  const parsed = Number(raw.trim());
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+}
+
 function captureGroqRateLimitSnapshot(keyName: string, model: string, response: Response): GroqRateLimitSnapshot {
-  const remainingTokensValue = Number(response.headers.get("x-ratelimit-remaining-tokens"));
-  const remainingRequestsValue = Number(response.headers.get("x-ratelimit-remaining-requests"));
+  const remainingTokensValue = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-tokens"));
+  const remainingRequestsValue = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-requests"));
   const snapshot: GroqRateLimitSnapshot = {
-    remainingTokens: Number.isFinite(remainingTokensValue) ? remainingTokensValue : null,
+    remainingTokens: remainingTokensValue,
     resetTokensMs: parseGroqDurationMs(response.headers.get("x-ratelimit-reset-tokens")),
-    remainingRequests: Number.isFinite(remainingRequestsValue) ? remainingRequestsValue : null,
+    remainingRequests: remainingRequestsValue,
     resetRequestsMs: parseGroqDurationMs(response.headers.get("x-ratelimit-reset-requests")),
     observedAt: Date.now(),
   };
