@@ -76,13 +76,69 @@ function publicRoute(req: Request): boolean {
   return (req.method === "GET" && (req.path === "/healthz" || req.path === "/auth/session"))
     || (req.method === "POST" && (req.path === "/auth/login" || req.path === "/auth/logout"));
 }
+
+/**
+ * Browser session cookies are ambient credentials. Require a trustworthy Origin
+ * for state-changing cookie-authenticated requests; CORS alone does not prevent
+ * the server from processing cross-origin writes, and sibling subdomains can
+ * be same-site for SameSite cookie purposes.
+ */
+export function isTrustedOperatorOrigin(
+  req: Request,
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  const rawOrigin = firstHeaderValue(req.headers.origin).trim();
+  if (!rawOrigin || rawOrigin === "null") return false;
+  let parsed: URL;
+  try { parsed = new URL(rawOrigin); } catch { return false; }
+  if (parsed.origin !== rawOrigin || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) return false;
+  if (env.NODE_ENV === "production" && parsed.protocol !== "https:") return false;
+
+  const configuredOrigins = new Set((env.APEX_ALLOWED_ORIGINS ?? "")
+    .split(",").map((value) => value.trim()).filter(Boolean));
+  if (configuredOrigins.has(parsed.origin)) return true;
+
+  const requestHost = firstHeaderValue(req.headers.host).trim().toLowerCase();
+  if (!requestHost || parsed.host.toLowerCase() !== requestHost) return false;
+  const requestScheme = env.NODE_ENV === "production"
+    ? "https:"
+    : (req.protocol === "https" ? "https:" : "http:");
+  return parsed.protocol === requestScheme;
+}
+
+function hasValidBearerToken(req: Request, config: OperatorAuthConfig): boolean {
+  const match = /^Bearer\\s+([^\\s]+)$/i.exec(firstHeaderValue(req.headers.authorization));
+  return Boolean(match?.[1] && safeSecretEqual(match[1], config.apiToken));
+}
+
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
 export function createRequireOperatorAuth(envProvider: () => Record<string, string | undefined> = () => process.env): RequestHandler {
   return (req: Request, res: Response, next: NextFunction) => {
     if (publicRoute(req)) return next();
     res.setHeader("Cache-Control", "no-store");
-    const config = readOperatorAuthConfig(envProvider());
+    const env = envProvider();
+    const config = readOperatorAuthConfig(env);
     if (!config) {
       return res.status(503).json({ code: "OPERATOR_AUTH_NOT_CONFIGURED", error: "Operator authentication is not configured.", userError: authError("OPERATOR_AUTH_NOT_CONFIGURED") });
+    }
+    // Bearer credentials are explicitly supplied by the caller, not attached by
+    // the browser, so they do not use the ambient-cookie CSRF check.
+    if (hasValidBearerToken(req, config)) return next();
+    if (!SAFE_METHODS.has(req.method.toUpperCase()) && !isTrustedOperatorOrigin(req, env)) {
+      return res.status(403).json({
+        code: "OPERATOR_ORIGIN_REJECTED",
+        error: "A trusted Origin is required for browser-session writes.",
+        userError: {
+          code: "OPERATOR_ORIGIN_REJECTED",
+          severity: "critical",
+          title: "Request origin was not accepted",
+          message: "This state-changing request did not come from the configured Apex operator origin.",
+          why: "Browser session cookies are ambient credentials and require an Origin check on state-changing requests.",
+          nextSteps: ["Use the authenticated Apex desk origin.", "For a separate trusted frontend origin, configure APEX_ALLOWED_ORIGINS."],
+          retryable: false,
+        },
+      });
     }
     if (!isOperatorAuthorized(req, config)) {
       return res.status(401).json({ code: "OPERATOR_AUTH_REQUIRED", error: "Operator authentication is required.", userError: authError("OPERATOR_AUTH_REQUIRED") });
