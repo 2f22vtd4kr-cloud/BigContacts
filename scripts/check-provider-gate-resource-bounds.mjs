@@ -17,7 +17,7 @@ const checks = [
   ["private, no-cache, and Set-Cookie responses are excluded from cache", source.includes("response.headers.has(\"set-cookie\")") && source.includes("no-store|private|no-cache") && source.includes("vary.some((name)=>name===\"*\"||!CACHE_VARIANT_HEADERS.has(name))")],
   ["incoming response size is checked against the aggregate cache budget", /body\.byteLength<=maxResponseCacheBytes\(\)/.test(source) && /makeRoomForResponse\(body\.byteLength\)/.test(source)],
   ["response cache capture has a time bound and does not await tee cancellation", /const cacheBodyCaptureTimeoutMs=\(\)=>boundedEnv\("APEX_EXTERNAL_CACHE_BODY_READ_TIMEOUT_MS"/.test(source) && /Provider response cache capture deadline exceeded/.test(source) && /void reader\.cancel\(\)\.catch/.test(source) && /readCacheBodyBounded\(response,Math\.min\(1_500_000,maxResponseCacheBytes\(\)\),requestSignal\)/.test(source)],
-  ["fetch concurrency acquisition receives the request AbortSignal", /acquireConcurrency\(provider,init\?\.signal\)/.test(source)],
+  ["fetch concurrency acquisition receives the effective URL/Request AbortSignal", /const requestSignal=init\?\.signal\?\?\(typeof Request!=="undefined"&&input instanceof Request\?input\.signal:undefined\)/.test(source) && /acquireConcurrency\(provider,requestSignal\)/.test(source)],
   ["provider/account state keys remain composite and bounded", /function providerStateKey\(provider:ExternalProvider,account:string\):string\{return `\$\{provider\}\|\$\{account\}`;\}/.test(source) && /maxProviderStates\(\)/.test(source)],
   ["provider snapshot is present and backed by the bounded provider-state map", /getProviderGateSnapshot/.test(source) && /providerStates/.test(source) && /providerStateKey/.test(source)],
 ];
