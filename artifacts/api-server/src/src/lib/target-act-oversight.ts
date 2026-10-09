@@ -39,7 +39,7 @@ function compactOversightText(value: string | undefined, max: number): string | 
 }
 
 function boundOversightPromptSection(value:string,max:number):string {
-  const normalized=value.trim();
+  const normalized=sanitizeUrlsInText(value.trim());
   if(normalized.length<=max)return normalized;
   const marker="\n[MIDDLE PROMPT DETAIL OMITTED]\n";
   const available=Math.max(0,max-marker.length);
@@ -66,7 +66,7 @@ export function compactOversightAct(record:ActRecord):Record<string,unknown>{
   };
 }
 export function compactOversightContext(value:string):string{
-  const normalized=value.trim();
+  const normalized=sanitizeUrlsInText(value.trim());
   const max=6_000;
   if(normalized.length<=max)return normalized;
   const marker="\n[OVERSIGHT CONTEXT BOUND: durable case state remains authoritative]\n";
