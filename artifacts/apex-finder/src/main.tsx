@@ -7,7 +7,16 @@ import App from "./App";
 import "./index.css";
 import "./responsive-shell.css";
 
+installApiFetchErrorNotifications();
+
+function notifyApiOperationError(error: unknown): void {
+  if (error instanceof Error && /^(AbortError|CanceledError|CancelledError)$/.test(error.name)) return;
+  emitApexError(classifyApexError(error));
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({ onError: (error) => notifyApiOperationError(error) }),
+  mutationCache: new MutationCache({ onError: (error) => notifyApiOperationError(error) }),
   defaultOptions: {
     queries: {
       retry: 1,
