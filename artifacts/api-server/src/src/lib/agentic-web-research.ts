@@ -15,7 +15,7 @@ import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS } from "./agentic-web-research-cor
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective } from "./investigation-context-compaction";
-import { sanitizeUrlForEvidence, sanitizeUrlsInText } from "./url-privacy";
+import { sanitizeUrlsInText } from "./url-privacy";
 import type { AgenticFinding } from "./agentic-web-research-core";
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
