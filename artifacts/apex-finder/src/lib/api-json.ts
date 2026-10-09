@@ -6,7 +6,7 @@ export async function readApiJson(res: Response): Promise<any> {
   const trimmed = text.trim();
   if (!trimmed) {
     const error = res.ok ? "Empty response from API" : `API ${res.status}: empty body`;
-    if (!res.ok) emitApexError(classifyApexError(error, res.status));
+    emitApexError(classifyApexError(error, res.status));
     throw new Error(error);
   }
   if (trimmed.startsWith("<!") || trimmed.startsWith("<html") || trimmed.startsWith("<HTML")) {
@@ -23,7 +23,7 @@ export async function readApiJson(res: Response): Promise<any> {
     return data;
   } catch {
     const error = `API returned non-JSON (${res.status}). ${trimmed.slice(0, 80).replace(/\s+/g, " ")}…`;
-    if (!res.ok) emitApexError(classifyApexError(error, res.status));
+    emitApexError(classifyApexError(error, res.status));
     throw new Error(error);
   }
 }
