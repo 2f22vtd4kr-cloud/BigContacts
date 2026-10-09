@@ -65,6 +65,9 @@ describe("target act URL privacy boundary", () => {
     expect(source).toContain("const safePromptObjective=sanitizeUrlsInText(input.objective)");
     expect(source).toContain("${safePromptObjective}");
     expect(source).toContain("return sanitizeObservableValue(oversight)");
+    expect(source).toContain('const prompt=sanitizeUrlsInText(`${apexOrientationCompact("boss")}\\n');
+    expect(source).toContain("JSON.stringify(sanitizeObservableValue(input.currentAct))");
+    expect(source).toContain("JSON.stringify(sanitizeObservableValue(input.recentActs))");
   });
 
   it("sanitizes target and discovery case projections before durable persistence", () => {
