@@ -55,6 +55,11 @@ export function classifyRegistryRecordType(source: string, formType?: string): R
   return "Corporation";
 }
 
+/** Trusted Apex person classes require adjudication beyond registry participation. */
+export function normalizeUnverifiedRegistryType(type: RegistryResult["type"]): RegistryResult["type"] {
+  return type === "HNWI" || type === "Gatekeeper" ? "PersonCandidate" : type;
+}
+
 export interface RegistrySearchParams {
   query: string;
   registry: RegistryId;
