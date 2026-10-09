@@ -1,4 +1,6 @@
 import { Router, type IRouter } from "express";
+import authRouter from "./auth";
+import { apiAuthMiddleware } from "../lib/api-auth";
 import healthRouter from "./health";
 import authRouter from "./auth";
 import entitiesRouter from "./entities";
@@ -27,6 +29,9 @@ import { canonicalCaseContinuationGuard } from "../middlewares/canonical-case-co
 
 const router: IRouter = Router();
 
+// Auth bootstrap must be public, but every operational route (including detailed health) is behind the server-side boundary.
+router.use(authRouter);
+router.use(apiAuthMiddleware);
 router.use(healthRouter);
 router.use(authRouter);
 router.use(normalizeAtlasLaunchBody);
