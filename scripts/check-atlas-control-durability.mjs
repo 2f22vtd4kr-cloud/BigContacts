@@ -2,6 +2,8 @@
 import fs from "node:fs";
 const control = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-decision.ts", "utf8");
 const atlas = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
+const targetRunner = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
+const terminalAuthority = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-terminal-authority.ts", "utf8");
 const continuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts", "utf8");
 const continuationChecks = [
   ["discovery continuation iteration is not allocated from an unlocked snapshot", !/const iteration=Number\(current\.iteration\?\?0\)\+1/.test(continuation)],
@@ -35,7 +37,7 @@ const checks = [
   ["canonical Atlas fails closed on invalid Right-hand oversight JSON", /rightHandRaw\.status === ["\']completed["\'][\s\S]{0,800}JSON\.parse/.test(atlas)],
   ["discovery-only completion requires Investigator terminal done", /discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE"/.test(atlas)],
   ["resource-limited discovery remains reviewable", /durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited && admitted\.length > 0 \? "complete" : "review"/.test(atlas)],
-  ["full Atlas completion requires evidence-backed Investigator terminal state", /const evidenceBackedTerminal =/.test(atlas)&&/const finalIncomplete = investigatorResourceLimited \|\| finalControlAction !== "stop" \|\| !evidenceBackedTerminal/.test(atlas)],
+  ["full Atlas completion requires evidence-backed Investigator terminal state and deadline", /const evidenceBackedTerminal =/.test(atlas) && /const finalIncomplete = investigatorResourceLimited \|\| deadlineExceeded \|\| finalControlAction !== "stop" \|\| !evidenceBackedTerminal/.test(atlas)],
 ];
 checks.push(["canonical Atlas unexpected failures close the durable discovery case",/canonical-atlas-failed/.test(atlas)&&/status: "review"/.test(atlas)&&/researchCasesTable\.caseFile/.test(atlas)]);
 checks.push(["discovery exposes a per-act durable trajectory callback",/onTrajectoryRecord\?:/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts","utf8"))&&/await input\.onTrajectoryRecord\?\.\(normalizedRecord\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts","utf8"))]);
@@ -57,4 +59,8 @@ checks.push(["target Investigator iterations are charged to the Atlas global cei
 checks.push(["incomplete Atlas terminal preserves truthful reason",/finalCaseAction = finalIncomplete[\s\S]{0,700}canonical-evidence-terminal-incomplete/.test(atlas)]);
 let failed = false; for (const [label, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (!ok) failed = true; }
 if (failed) { console.error("Atlas control durability guard failed."); process.exit(1); }
+
+checks.push(["target terminal requires completed oversight status", /isCanonicalTargetEpisodeComplete\(\{[\s\S]{0,650}oversightStatus: lastOversight\?\.status \?\? null[\s\S]{0,200}oversightAction: lastOversight\?\.action/.test(targetRunner)]);
+checks.push(["target terminal authority includes cancellation, resource and deadline fences", /input\.oversightStatus === "completed"[\s\S]*input\.oversightAction === "stop"[\s\S]*!input\.cancelled[\s\S]*!input\.resourceLimited[\s\S]*!input\.deadlineExceeded/.test(terminalAuthority)]);
+
 console.log("Atlas control durability guard passed.");
