@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchSessionsTable, researchEvidenceTable } from "@workspace/db";
-import { updateJob, clearActiveJobIfOwned, getJob } from "./job-queue";
+import { updateJob, clearActiveJobIfOwned, getJobStrict } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
@@ -159,28 +159,35 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
 }
 
 async function assertAtlasJobActive(jobId: string): Promise<void> {
-  const job = await getJob(jobId);
-  if (!job || job.status === "cancelled") throw new Error("Canonical Atlas job cancelled; refusing further control-plane work.");
+  // Authoritative control decisions must distinguish a persisted cancellation
+  // from a Redis read failure. The fail-soft getJob() maps both to null.
+  const job = await getJobStrict(jobId);
+  if (!job) throw new Error("Canonical Atlas job record missing; refusing further control-plane work.");
+  if (job.status === "cancelled") throw new Error("Canonical Atlas job cancelled; refusing further control-plane work.");
   if (job.status === "failed") throw new Error("Canonical Atlas job already failed; refusing further control-plane work.");
   if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw new Error("Canonical Atlas lease was lost; refusing further control-plane work.");
 }
 
 async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number): Promise<void> {
-  const job = await getJob(jobId);
+  // A missing durable job record is inconsistent state; a failed Redis read
+  // must throw from getJobStrict instead of masquerading as operator cancellation.
+  const job = await getJobStrict(jobId);
   if (!job || job.status === "cancelled") {
+    const cancelled = job?.status === "cancelled";
     await db.update(researchCasesTable)
-      .set({ status: "review", currentAction: "canonical-atlas-cancelled", updatedAt: new Date() })
+      .set({ status: "review", currentAction: cancelled ? "canonical-atlas-cancelled" : "canonical-atlas-job-missing", updatedAt: new Date() })
       .where(and(
         eq(researchCasesTable.id, caseId),
         eq(researchCasesTable.status, "active"),
         sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`,
       ));
-    throw new Error("Canonical Atlas job cancelled; discovery case creation raced operator stop.");
+    if (cancelled) throw new Error("Canonical Atlas job cancelled; discovery case creation raced operator stop.");
+    throw new Error("Canonical Atlas job record missing; discovery case creation cannot be reconciled safely.");
   }
   if (job.status === "failed") {
     throw new Error("Canonical Atlas job already failed; refusing further discovery control-plane work.");
   }
-  if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw new Error("Canonical Atlas lease was lost; refusing further discovery control-plane work.");
+  if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw new Error("Canonical Atlas lease was lost; refusing further control-plane work.");
 }
 
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
