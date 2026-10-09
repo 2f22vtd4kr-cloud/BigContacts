@@ -1,6 +1,6 @@
 # Apex Atlas — Replit Import / Build / Run / Keys Blueprint
 ## Canonical initialization contract for every new Replit account and every future ChatGPT agent
-**Updated:** 2026-09-21 — new-account race/provider hardening
+**Reviewed:** 2026-10-09 — canonical provider roles reconciled with current `main`.
 **Canonical repository:** `2f22vtd4kr-cloud/BigContacts`
 **Canonical branch:** `main`
 
@@ -164,7 +164,7 @@ APEX RESEARCH ARCHITECTURE — DO NOT VIOLATE
 The system is:
 Case objective
 → Groq Boss + Groq Right-hand
-→ Groq or Mistral Investigator
+→ Groq Investigator only (the canonical runtime is Groq-only; Mistral is retired)
 → Investigator-owned free ReAct research trajectory
 → validated real capability execution
 → observations + provenance
@@ -208,7 +208,7 @@ The expected sequence is:
 high-level discovery objective
 → Groq Right-hand advisory
 → Groq Boss oversight/Investigator selection
-→ Groq or Mistral Investigator
+→ Groq Investigator only (the canonical runtime is Groq-only; Mistral is retired)
 → Investigator-owned autonomous discovery
 → real web observations
 → validated named-person candidate(s), or honest no-admission outcome
