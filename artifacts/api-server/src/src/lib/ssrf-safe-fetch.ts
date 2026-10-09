@@ -22,7 +22,7 @@ const MAX_REQUEST_BYTES = 1_000_000;
 const DNS_TIMEOUT_MS = 10_000;
 
 function parseIpv6Groups(address: string): number[] | null {
-  const normalized = address.toLowerCase().replace(/^\\[|\\]$/g, "").replace(/%.*$/, "");
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "").replace(/%.*$/, "");
   const halves = normalized.split("::");
   if (halves.length > 2) return null;
   let left = halves[0] ? halves[0].split(":") : [];
@@ -64,7 +64,7 @@ function mappedIpv4FromIpv6(address: string): string | null {
 }
 
 function isBlockedIp(address: string): boolean {
-  const normalized = address.toLowerCase().replace(/^\\[|\\]$/g, "");
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
   const version = net.isIP(normalized);
   if (version === 4) {
     const octets = normalized.split(".").map(Number);
@@ -87,6 +87,7 @@ function isBlockedIp(address: string): boolean {
     // Conservative denylist for special-purpose ranges within 2000::/3:
     // IETF protocol assignments/Teredo/documentation, 6to4, and documentation.
     if (groups[0] === 0x2001 && groups[1]! < 0x0200) return true; // 2001::/23
+    if (groups[0] === 0x2001 && groups[1] === 0x0db8) return true; // 2001:db8::/32 documentation
     if (groups[0] === 0x2002) return true; // 2002::/16 (6to4 embeds IPv4)
     if (groups[0] === 0x3fff && (groups[1]! & 0xf000) === 0) return true; // 3fff::/20
 
