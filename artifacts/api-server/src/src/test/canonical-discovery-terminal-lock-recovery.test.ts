@@ -8,8 +8,8 @@ describe("canonical discovery terminal lock recovery", () => {
       path.resolve(process.cwd(), "src/src/routes/research/canonical-case-discovery.ts"),
       "utf8",
     );
-    const existingLane = source.indexOf('const existingJobId = await getActiveJob("case-bureau-discovery");');
-    const atlasLane = source.indexOf('const activeAtlasJobId = await getActiveJob("atlas-run");');
+    const existingLane = source.indexOf('const existingJobId = await getActiveJobStrict("case-bureau-discovery");');
+    const atlasLane = source.indexOf('const activeAtlasJobId = await getActiveJobStrict("atlas-run");');
     const createJob = source.indexOf('jobId = await createJob("case-bureau-discovery");');
     const claimAtlas = source.indexOf('atlasClaimed = await claimCanonicalJob("atlas-run", jobId!);');
 
