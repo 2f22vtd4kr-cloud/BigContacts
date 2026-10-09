@@ -773,7 +773,14 @@ async function callGroqJson(
             // A 413 is an explicit request-size rejection, not token-window
             // pressure. Preserve the selected model/capability, compact only
             // this rejected request, and retry it once before failing closed.
-            workingPrompt = tightenInvestigatorPrompt(workingPrompt, 6_000);
+            const compactedPrompt = tightenInvestigatorPrompt(
+              workingPrompt,
+              Math.max(1_000, Math.min(6_000, Math.floor(workingPrompt.length * 0.65))),
+            );
+            // Never spend a retry on an identical payload. If the user prompt
+            // is already too small to reduce, report the upstream rejection.
+            if (compactedPrompt.length >= workingPrompt.length) break;
+            workingPrompt = compactedPrompt;
             sizeReductionApplied = true;
             jsonObjectFallbackUsed = false;
             continue;
