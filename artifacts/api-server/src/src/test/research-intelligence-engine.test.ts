@@ -2,6 +2,25 @@ import { describe, expect, it } from "vitest";
 import { ResearchIntelligenceEngine } from "../lib/research-intelligence-engine";
 
 describe("Apex research intelligence", () => {
+  it("does not trust a hostname merely because it contains the substring gov.", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "government-host-boundary", target: "Alex Example", objective: "verify public role" });
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      urls: ["https://fakegov.example.com/profile"],
+      observation: "Alex Example is director of Alpha",
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://fakegov.example.com/profile"] }],
+    });
+    engine.recordAction({
+      turn: 2, action: "visit", execution: "success",
+      urls: ["https://agency.gov.uk/profile"],
+      observation: "Alex Example is director of Beta",
+      findings: [{ vectorType: "other", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://agency.gov.uk/profile"] }],
+    });
+    const quality = engine.buildContext().sourceQualitySummary;
+    expect(quality.find((item) => item.sourceClass === "UNKNOWN")?.count).toBeGreaterThan(0);
+    expect(quality.find((item) => item.sourceClass === "OFFICIAL_GOVERNANCE")?.count).toBeGreaterThan(0);
+  });
+
   it("keeps search-result leads out of evidence and source-coverage metrics", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "search-leads", target: "Example Target", objective: "discover attributable people" });
     engine.recordAction({
