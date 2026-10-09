@@ -138,6 +138,46 @@ export function normalizeReactorStatus(value?: string | null): ReactorEventStatu
   return "done";
 }
 
+export interface CanonicalActiveJobProjection {
+  runStatus: "idle" | "queued" | "running" | "paused" | "done" | "failed" | "cancelled";
+  jobId: string | null;
+}
+
+/**
+ * Parse the canonical /ingest/job/active/:type response without turning
+ * malformed success payloads into a fabricated idle state. A healthy idle
+ * response has active=false and a null job; a live response must bind a known
+ * nonterminal status to the same durable job ID; a terminal response must
+ * bind jobStatus to that durable job's terminal status.
+ */
+export function parseCanonicalActiveJobProjection(value: unknown): CanonicalActiveJobProjection | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const data = value as Record<string, unknown>;
+  if (typeof data.active !== "boolean") return null;
+  const jobId = data.jobId;
+  const job = data.job && typeof data.job === "object" && !Array.isArray(data.job)
+    ? data.job as Record<string, unknown>
+    : null;
+
+  if (data.active) {
+    if (typeof jobId !== "string" || !jobId.trim() || !job || job.jobId !== jobId) return null;
+    const status = job.status;
+    if (status !== "queued" && status !== "running" && status !== "paused") return null;
+    return { runStatus: status, jobId };
+  }
+
+  if (jobId === null) {
+    return job === null && data.job === null && data.jobStatus === undefined
+      ? { runStatus: "idle", jobId: null }
+      : null;
+  }
+
+  if (typeof jobId !== "string" || !jobId.trim() || !job || job.jobId !== jobId) return null;
+  const status = data.jobStatus;
+  if ((status !== "done" && status !== "failed" && status !== "cancelled") || job.status !== status) return null;
+  return { runStatus: status, jobId };
+}
+
 /** Convert raw span status into the shared live-activity vocabulary. */
 export function normalizeLiveActivityStatus(value?: string | null): LiveActivityStatus {
   const status = String(value ?? "").toLowerCase();
