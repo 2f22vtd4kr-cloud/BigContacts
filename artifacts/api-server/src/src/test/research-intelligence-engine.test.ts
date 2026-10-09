@@ -209,12 +209,16 @@ describe("Apex research intelligence", () => {
     const prior = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example is director of Alpha")?.score;
     engine.recordAction({
       turn: 2, action: "visit", execution: "success",
+      args: { hypothesis: "Alex Example is director of Alpha", purpose: "verify the director role" },
       urls: [betaUrl], observation: "Alex Example is director of Beta",
       findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: [betaUrl] }],
     });
-    const updated = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example is director of Alpha");
+    const state = engine.buildContext();
+    const updated = state.hypotheses.find((item) => item.label === "Alex Example is director of Alpha");
+    const betaEvidenceId = state.atomicEvidence.find((item) => item.claim === "Alex Example is director of Beta")?.evidenceId;
     expect(prior).toBeDefined();
     expect(updated?.contradictingEvidenceIds.length).toBeGreaterThan(0);
+    expect(updated?.supportingEvidenceIds).not.toContain(betaEvidenceId);
     expect(updated?.score).toBeLessThan(prior!);
   });
 
