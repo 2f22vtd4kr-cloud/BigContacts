@@ -8,7 +8,7 @@ const JOB_LOCK_TTL_SECONDS = 15 * 60;
 const JOB_LOCK_RENEW_INTERVAL_MS = 5 * 60 * 1000;
 const leaseTimers = new Map<string, ReturnType<typeof setInterval>>();
 
-type ClaimResult = { available: true; result: string | null };
+type ClaimResult = { available: true; result: number };
 
 type StrictRedisCommand<T> = (redis: import("ioredis").default) => Promise<T>;
 
@@ -82,9 +82,19 @@ async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
   const outcome: ClaimResult = {
     available: true,
-    result: await withStrictPermanentClient((redis) => redis.set(`apex:activejob:${type}`, jobId, "EX", JOB_LOCK_TTL_SECONDS, "NX")),
+    // The lease is claimable only for an authoritative queued job snapshot.
+    // This atomic check prevents an in-memory-only job from starting research
+    // if Redis recovers between createJob() and the lease acquisition.
+    result: Number(await withStrictPermanentClient((redis) => redis.eval(
+      "if redis.call('exists',KEYS[2])==0 then return -1 end; local status=redis.call('hget',KEYS[2],'status'); if status~='queued' then return -2 end; local claimed=redis.call('set',KEYS[1],ARGV[1],'EX',ARGV[2],'NX'); if claimed then return 1 else return 0 end",
+      2,
+      `apex:activejob:${type}`,
+      `apex:job:${jobId}`,
+      jobId,
+      String(JOB_LOCK_TTL_SECONDS),
+    ))),
   };
-  if (outcome.result !== "OK") return false;
+  if (outcome.result !== 1) return false;
   invalidateActiveJobCache(type);
   const timerKey = `${type}:${jobId}`; const prior = leaseTimers.get(timerKey); if (prior) clearInterval(prior);
   const timer = setInterval(() => { void renewCanonicalJob(type, jobId).then((renewed) => { if (!renewed) { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(type, jobId).catch((error) => logger.error({ type, jobId, error: error instanceof Error ? error.message : "unknown" }, "Canonical lease-loss fence failed")); } }).catch((error) => { logger.warn({ type, jobId, error: error instanceof Error ? error.message : "unknown" }, "Canonical lease renewal failed; retrying before fencing"); }); }, JOB_LOCK_RENEW_INTERVAL_MS);
