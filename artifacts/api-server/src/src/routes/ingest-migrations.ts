@@ -66,7 +66,7 @@ router.post("/ingest/reclassify-entity-types", async (_req: Request, res: Respon
     const rows = await db
       .select({ id: entitiesTable.id, name: entitiesTable.name })
       .from(entitiesTable)
-      .where(sql`${entitiesTable.type} NOT IN ('HNWI', 'Gatekeeper')`);
+      .where(sql`${entitiesTable.type} NOT IN ('HNWI', 'Gatekeeper', 'PersonCandidate')`);
 
     const corps: number[] = [];
     const trusts: number[] = [];
@@ -100,8 +100,8 @@ router.post("/ingest/reclassify-entity-types", async (_req: Request, res: Respon
       total: rows.length,
       corporations: corpUpdated,
       trusts: trustUpdated,
-      excludedApexEntities: "HNWI/Gatekeeper",
-      message: `Reclassified ${corpUpdated} → Corporation, ${trustUpdated} → Trust; HNWI/Gatekeeper entities were excluded.`,
+      excludedApexEntities: "HNWI/Gatekeeper/PersonCandidate",
+      message: `Reclassified ${corpUpdated} → Corporation, ${trustUpdated} → Trust; HNWI/Gatekeeper/PersonCandidate entities were excluded.`,
     });
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Reclassification failed" });
