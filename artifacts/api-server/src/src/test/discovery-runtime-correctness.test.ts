@@ -225,6 +225,15 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(quotaAccount, model, response)");
   });
 
+  it("redacts URL secrets before observations and continuation context reach another model", () => {
+    const compactionSource = fs.readFileSync(path.join(libDir, "investigation-context-compaction.ts"), "utf8");
+    expect(researchCoreSource).toContain("sanitizeUrlsInText(body.slice(0, MAX_OBS))");
+    expect(researchSource).toContain("sanitizeUrlsInText(String(record.observation");
+    expect(researchSource).toContain("sanitizeUrlsInText(context)");
+    expect(compactionSource).toContain("sanitizeUrlsInText(value.trim().slice(0, max))");
+    expect(compactionSource).toContain("unique(finding.sourceUrls ?? []).map((url) => sanitizeUrlForEvidence(url))");
+  });
+
   it("keeps runtime safety checks fail-closed and bounded", () => {
     expect(runtimeHardener).toMatch(/fail.?closed/i);
     expect(runtimeHardener).toMatch(/timeout|abort|cancel/i);
