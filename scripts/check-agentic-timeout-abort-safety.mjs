@@ -10,6 +10,9 @@ const required = [
   "const runController = new AbortController()",
   "const timeout = setTimeout(() => runController.abort(), hardTimeoutMs)",
   "await acquireProviderSlot(parentSignal)",
+  "MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096)",
+  "providerWaiters.length >= MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS",
+  "upstream_capacity_exhausted",
   "fn(boundedPrompt, controller.signal)",
   "MAX_ITER = 64",
   "Math.min(Math.max(0, requestedIterations), MAX_ITER)",
@@ -20,4 +23,4 @@ for (const marker of required) {
 }
 if (source.includes("Math.min(MAX_ITER,")) throw new Error("agentic timeout-abort guard failed: an upper iteration ceiling was reintroduced");
 
-console.log("agentic timeout-abort safety guard: PASS — timeout owns duration; no action-count ceiling");
+console.log("agentic timeout-abort safety guard: PASS — timeout owns duration; action autonomy retained; provider wait queue bounded");
