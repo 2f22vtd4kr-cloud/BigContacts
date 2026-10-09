@@ -10,7 +10,7 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: {},
 }));
 
-import { isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, observedSourceBackedBureauContacts, sourceBackedBureauContacts } from "../lib/bureau-contact-persist-strict";
+import { isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation } from "../lib/bureau-contact-persist-strict";
 
 describe("canonical immutable promotion control role", () => {
   it("accepts canonical Groq oversight and retains legacy Gemini compatibility", () => {
@@ -121,5 +121,64 @@ describe("claim-grade observation boundary", () => {
     expect(isClaimGradeObservationAction("web_search")).toBe(false);
     expect(isClaimGradeObservationAction("parallel_web_search")).toBe(false);
     expect(isClaimGradeObservationAction("done")).toBe(false);
+  });
+});
+
+
+describe("same-source identity binding for candidate contact promotion", () => {
+  const candidate = { scope: "candidate", personName: "Jane Example" };
+
+  it("accepts an exact person identity and contact value in the same source observation", () => {
+    expect(supportsCandidateContactOnSameObservation(
+      "Our team: Jane Example — jane@example.com",
+      candidate,
+      "jane@example.com",
+      "email",
+    )).toBe(true);
+  });
+
+  it("rejects identity and contact details when each appears only on a different source", () => {
+    expect(supportsCandidateContactOnSameObservation(
+      "Our team: Jane Example",
+      candidate,
+      "jane@example.com",
+      "email",
+    )).toBe(false);
+    expect(supportsCandidateContactOnSameObservation(
+      "General contact: jane@example.com",
+      candidate,
+      "jane@example.com",
+      "email",
+    )).toBe(false);
+  });
+
+  it("requires exact identity and contact token boundaries", () => {
+    expect(supportsCandidateContactOnSameObservation(
+      "Jane Exampleton — jane@example.com",
+      candidate,
+      "jane@example.com",
+      "email",
+    )).toBe(false);
+    expect(supportsCandidateContactOnSameObservation(
+      "Jane Example — jane@example.com.extra",
+      candidate,
+      "jane@example.com",
+      "email",
+    )).toBe(false);
+  });
+
+  it("also binds phone promotions to the same identity-bearing observation", () => {
+    expect(supportsCandidateContactOnSameObservation(
+      "Jane Example, direct line +1 (212) 555-0199",
+      candidate,
+      "+1 212 555 0199",
+      "phone",
+    )).toBe(true);
+    expect(supportsCandidateContactOnSameObservation(
+      "Jane Example, direct line not provided",
+      candidate,
+      "+1 212 555 0199",
+      "phone",
+    )).toBe(false);
   });
 });
