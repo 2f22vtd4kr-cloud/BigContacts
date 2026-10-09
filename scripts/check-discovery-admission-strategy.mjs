@@ -21,7 +21,7 @@ if (violations.length) {
 // support check and the evidence-event lookup. Checking only a local helper
 // definition allowed substring matching to be reintroduced at call sites.
 const matcherCallCount = (source.match(/candidateIdentityObserved\(name,\s*payload\.observation\)/g) ?? []).length;
-const importsSharedMatcher = /import\s*\{\s*candidateIdentityObserved\s*\}\s*from\s*["']\.\/identity-text-match["']/.test(source);
+const importsSharedMatcher = /import\s*\{[^}]*\bcandidateIdentityObserved\b[^}]*\}\s*from\s*["\']\.\/identity-text-match["\']/.test(source);
 const matcherUsesTokenBoundaries = identityMatcher.includes("` ${normalizedText} `.includes(` ${normalizedName} `)");
 
 if (!importsSharedMatcher || matcherCallCount < 2 || !matcherUsesTokenBoundaries || !identityMatcher.includes("normalizedName.length >= 3")) {
@@ -34,6 +34,20 @@ if (!/db\.transaction\(async \(tx\) => \{[\s\S]*tx\.update\(researchCasesTable\)
 
 if (!source.includes("function materializeAtlasAdmissions")) {
   throw new Error("Canonical Atlas admission function is missing; discovery admission boundary cannot be verified.");
+}
+
+
+const durableAdmissionChecks = [
+  ["only source-backed durable admissions are returned to control", source.includes("return { names: durableNames, materialized, evidenceRows }") && source.includes("if (materializedAdmission.durableEvidence) durableNames.push(name)"],
+  ["admission requires a successful retrieved page in the same Investigator run", /payload\.runId === input\.discoveryRunId[\s\S]*directSourceAction[\s\S]*payload\.execution === "success"[\s\S]*candidateSourceUrls\.includes\(normalized\)/.test(source)],
+  ["a missing admission evidence session fails the transaction closed", source.includes("if (!session?.id) throw new Error(")],
+  ["discovery-only completion requires at least one durable admission", /const durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited && admitted\.length > 0 \? "complete" : "review"/.test(source)],
+  ["discovery terminal authority cannot be set by model completion alone", /latestEvidenceBackedTerminal: "discovery" \| "target" \| null = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && admitted\.length > 0 \? "discovery" : null/.test(source)],
+  ["candidate deduplication uses the shared normalized identity", source.includes("normalizeCandidateIdentityName(name)") && source.includes("const identity = normalizeCandidateIdentityName(name)")],
+];
+for (const [name, ok] of durableAdmissionChecks) {
+  console.log((ok ? "PASS " : "FAIL ") + name);
+  if (!ok) process.exitCode = 1;
 }
 
 console.log("Discovery admission strategy guard passed.");
