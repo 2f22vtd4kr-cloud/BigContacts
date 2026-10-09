@@ -61,13 +61,26 @@ export function isTransientInvestigatorCapacityError(result: { error?: string; t
   if (result.error === "upstream_token_window_wait_exceeded") return true;
   return (result.trajectoryRecords ?? []).some((record) => /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""));
 }
-export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true } | { allowed: false; reason: string } {
+export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
-  if (priorQueries.some((prior) => normalizeDiscoverySearchQuery(prior) === normalized)) return { allowed: false, reason: "Duplicate discovery search query blocked; pivot using new evidence or a different hypothesis." };
-  const role = DISCOVERY_ROLE_TERMS.test(normalized), sector = DISCOVERY_SECTOR_TERMS.test(normalized), source = DISCOVERY_SOURCE_TERMS.test(normalized), organization = DISCOVERY_ORG_TERMS.test(normalized), fame = DISCOVERY_FAME_TERMS.test(normalized);
+
+  // Query quality is advisory, not an authorization boundary. A model may
+  // intentionally search an exact name, test a new hypothesis with the same
+  // phrase, cross-check a different provider/market, or explore a broad source
+  // list. Preserve that choice and return the quality signal to the model.
+  const warnings: string[] = [];
+  if (priorQueries.some((prior) => normalizeDiscoverySearchQuery(prior) === normalized)) {
+    warnings.push("This normalized query has been attempted before. The repeat was allowed: cross-provider/market verification or a changed hypothesis may justify it; compare the returned evidence and avoid blind loops.");
+  }
+
+  const role = DISCOVERY_ROLE_TERMS.test(normalized);
+  const sector = DISCOVERY_SECTOR_TERMS.test(normalized);
+  const source = DISCOVERY_SOURCE_TERMS.test(normalized);
+  const organization = DISCOVERY_ORG_TERMS.test(normalized);
+  const fame = DISCOVERY_FAME_TERMS.test(normalized);
   const concreteSignals = Number(role) + Number(sector) + Number(source) + Number(organization);
-  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const tokens = normalized.split(/\\s+/).filter(Boolean);
   const tokenCount = tokens.length;
   const genericContextTerms = new Set([
     "people", "person", "list", "lists", "ranking", "rankings", "world", "global", "everyone",
@@ -80,9 +93,8 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
     "founder", "founders", "ceo", "cfo", "coo", "cto", "owner", "owners", "investor", "investors", "a", "an", "the", "and", "or", "nor", "but", "if", "then", "than", "of", "in", "on", "to", "as", "at", "by", "for", "from", "with", "without", "into", "over", "under", "after", "before", "about", "against", "among", "between", "through", "during", "using", "via",
   ]);
   const nonFameTokens = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token));
-  const nonFameTokenCount = nonFameTokens.length;
   const hasNamedOrConcreteToken = nonFameTokens.some((token) => {
-    if (/^\d{4}$/.test(token)) return false;
+    if (/^\\d{4}$/.test(token)) return false;
     const singular = token.endsWith("s") ? token.slice(0, -1) : token;
     return !DISCOVERY_SECTOR_TERMS.test(token)
       && !DISCOVERY_ROLE_TERMS.test(token)
@@ -90,19 +102,22 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
       && !DISCOVERY_ORG_TERMS.test(token)
       && !DISCOVERY_SOURCE_TERMS.test(token);
   });
-  const hasExplicitSourceAnchor = /(?:\bsite:[^\s]+|\b(?:edgar|companies\s*house|sec)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i.test(normalized);
-  const hasRegistryOrFilingAnchor = /\b(?:registry|edgar|companies\s*house|sec)\b/i.test(normalized);
-  const hasConcreteAnchor = hasExplicitSourceAnchor
-    || hasRegistryOrFilingAnchor
-    || hasNamedOrConcreteToken;
-  if (fame && !hasConcreteAnchor) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete named organization, business context, geography, registry, or source anchor before searching." };
-  // Keep the rail structural rather than prescriptive: a model-selected named
-  // identity/company pivot can be concrete even when it does not contain one of
-  // our finite role/sector/source vocabularies. Two-word context-free names stay
-  // blocked; adding another contextual token is enough to authorize the hypothesis.
-  if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) return { allowed: false, reason: "Discovery search is underspecified. Add contextual information before spending a search call." };
-  if (!hasConcreteAnchor) return { allowed: false, reason: "Discovery search lacks a concrete anchor. Add a named organization/person/domain, registry/filing/source anchor, or other non-generic contextual identifier before spending a search call." };
-  return { allowed: true };
+  const hasExplicitSourceAnchor = /(?:\\bsite:[^\\s]+|\\b(?:edgar|companies\\s*house|sec)\\b|\\b[a-z0-9-]+\\.(?:com|org|net|co\\.[a-z]{2}|si|eu)\\b)/i.test(normalized);
+  const hasRegistryOrFilingAnchor = /\\b(?:registry|edgar|companies\\s*house|sec)\\b/i.test(normalized);
+  const hasConcreteAnchor = hasExplicitSourceAnchor || hasRegistryOrFilingAnchor || hasNamedOrConcreteToken;
+
+  // These heuristics can advise the model, but must never decide which
+  // non-empty research path it is allowed to explore.
+  if (fame && !hasConcreteAnchor) {
+    warnings.push("This query looks fame/list-oriented. It was still executed; use the observed result quality to decide whether to refine toward a specific person, business, geography, or source.");
+  }
+  if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) {
+    warnings.push("This query is brief or context-light. It was still executed because exact-identity lookups can be useful; refine only if the observed results are weak.");
+  }
+  if (!hasConcreteAnchor) {
+    warnings.push("No explicit person, organization, geography, registry, domain, or other concrete anchor was detected. This is an advisory signal, not a block; judge the actual results before choosing the next step.");
+  }
+  return { allowed: true, ...(warnings.length ? { warning: warnings.join(" ") } : {}) };
 }
 export type BoundModelFinding = { finding: AgenticFinding; sourceUrl: string; sourceRecord: AgenticTrajectoryRecord; passage: string };
 
