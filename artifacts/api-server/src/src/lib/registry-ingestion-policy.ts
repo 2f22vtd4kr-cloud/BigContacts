@@ -21,7 +21,7 @@ export function deriveRegistryIngestionAssessment(
   entityType: string,
   observedAt: Date = new Date(),
 ): RegistryIngestionAssessment {
-  const personCandidate = entityType === "PersonCandidate";
+  const personCandidate = entityType === "PersonCandidate" || entityType === "HNWI" || entityType === "Gatekeeper";
   return {
     // Never import SC 13D/G, officer-role, recent-filing, or entity-name
     // heuristics into the probability that a specific person is an HNWI.
