@@ -7,6 +7,7 @@ const repoRoot = path.resolve(process.cwd(), "../..");
 const discoverySource = fs.readFileSync(path.join(libDir, "discovery-agent.ts"), "utf8");
 const researchSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
 const targetSource = fs.readFileSync(path.join(libDir, "target-contact-agent.ts"), "utf8");
+const strictSource = fs.readFileSync(path.join(libDir, "bureau-contact-persist-strict.ts"), "utf8");
 const researchCoreSource = fs.readFileSync(path.join(libDir, "agentic-web-research-core.ts"), "utf8");
 const telemetrySource = fs.readFileSync(path.join(libDir, "agentic-llm-telemetry.ts"), "utf8");
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
@@ -194,6 +195,15 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000");
     expect(researchCoreSource).toContain("export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS");
     expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
+  });
+
+  it("requires successful durable observation events and exact same-observation candidate binding for promotion", () => {
+    expect(strictSource).toContain('obs.eventType!=="tool_observation"');
+    expect(strictSource).toContain('obs.status!=="success"');
+    expect(strictSource).toContain('String(observationPayload.runId??"").trim()!==provenance.runId');
+    expect(strictSource).toContain('String(observationPayload.jobId??"").trim()!==promotionJobId');
+    expect(strictSource).toContain("supportsContactClaimAcrossObservations(observedClaimMaterials,item,cleanValue,vectorType)");
+    expect(strictSource).toContain("hasBoundIdentityAndValue");
   });
 
   it("uses successful claim-grade observations consistently for review and evidence graphs", () => {
