@@ -162,9 +162,10 @@ describe("Investigator prompt architecture", () => {
 
   it("makes action-specific field examples subordinate to the full required JSON envelope", () => {
     const prompt = buildStepPrompt({ targetName: "", objective: "discover an attributable person", history: [], trajectoryRecords: [], lastObservation: "", findings: [], mode: "discovery" });
-    expect(prompt).toContain("The action shapes below name action-specific values only; they never replace the full required envelope.");
-    expect(prompt).toContain("for done, include every other required top-level property with null or empty-array placeholders");
-    expect(prompt).toContain("Return exactly ONE root JSON object, with no prose, prefixes, suffixes, or additional JSON objects.");
+    expect(prompt).toContain("OUTPUT CONTRACT:");
+    expect(prompt).toMatch(/The action shapes below name action-specific values only; they never replace the full required envelope\.|Required fields: action,query,provider/);
+    expect(prompt).toMatch(/Return exactly ONE root JSON object|Return one root JSON object satisfying the provider schema/);
+    expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS|Required fields: action,query,provider/);
   });
 
   it("keeps the structured response contract at the provider boundary", () => {
@@ -236,7 +237,7 @@ describe("Investigator prompt architecture", () => {
     expect(describeAgentActionParseFailure('{"action":"invented"}')).toBe("unsupported_action action=invented");
     expect(describeAgentActionParseFailure('{"action":"footprint_email","email":"person@example.com"}')).toBe("unsupported_action action=footprint_email");
     expect(describeAgentActionParseFailure('{"action":"harvest_domain","domain":"example.com"}')).toBe("unsupported_action action=harvest_domain");
-    expect(describeAgentActionParseFailure('{"action":"visit"}')).toBe("invalid_action_arguments action=visit invalid=url");
+    expect(describeAgentActionParseFailure('{"action":"visit","url":"not-a-url","hypothesis":"validate URL handling","purpose":"check parser rejection","expectedInformationGain":0.5}')).toBe("invalid_action_arguments action=visit invalid=url");
     expect(describeAgentActionParseFailure('{"action":"web_search","query":"anchor","provider":"serper"} trailing text {"noise":true}')).toContain("non_json_envelope chars=");
     expect(describeAgentActionParseFailure('{"action":"visit","url":"https://example.com"} {"action":"done"}')).toContain("multiple_json_objects chars=");
     expect(describeAgentActionParseFailure('{"action":"parallel_web_search","searches":[{"query":"anchor","provider":"serper"}]}')).toBe("invalid_action_arguments action=parallel_web_search searches_min=2");
