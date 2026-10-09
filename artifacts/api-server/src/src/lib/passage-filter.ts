@@ -52,7 +52,7 @@ export function filterClaimUrls(
 ): string[] {
   if (!Array.isArray(urls)) return [];
   const http = urls
-    .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u.trim()))
+    .filter((u): u is string => typeof u === "string" && /^https:\/\//i.test(u.trim()))
     .map((u) => u.trim());
   if (!allowed) return [...new Set(http)];
   const allow = [...allowed].filter(Boolean);
@@ -62,5 +62,5 @@ export function filterClaimUrls(
 }
 
 export function hasClaimUrlSupport(urls: string[] | null | undefined): boolean {
-  return Array.isArray(urls) && urls.some((u) => /^https?:\/\/\S+$/i.test(u));
+  return Array.isArray(urls) && urls.some((u) => /^https:\/\/\S+$/i.test(u));
 }
