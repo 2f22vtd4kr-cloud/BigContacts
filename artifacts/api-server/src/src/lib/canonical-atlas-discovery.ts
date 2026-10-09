@@ -705,7 +705,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         discoveryRuns += 1;
         investigatorIterationsUsed += Math.max(0, nextDiscovery.iterations ?? 0);
         investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations;
-        discovery = { ...nextDiscovery, searches: discovery.searches + nextDiscovery.searches, visits: discovery.visits + nextDiscovery.visits, iterations: discovery.iterations + nextDiscovery.iterations, findings: [...(discovery.findings ?? []), ...(nextDiscovery.findings ?? [])], modelFindings: [...(discovery.modelFindings ?? []), ...(nextDiscovery.modelFindings ?? [])], trajectory: [...discovery.trajectory, ...nextDiscovery.trajectory], trajectoryRecords: [...(discovery.trajectoryRecords ?? []), ...(nextDiscovery.trajectoryRecords ?? [])] };
+        // The cumulative result was already updated by mergeDiscoveryResults above.
+        // Do not append this episode a second time: that doubles its metrics and
+        // trajectory/finding records on every Boss-directed continuation.
         admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: nextDiscovery.findings, atlasJobId, discoveryCaseId });
         admitted = uniqueNames([...admitted, ...admission.names]);
         materialized += admission.materialized;
