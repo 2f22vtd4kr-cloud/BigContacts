@@ -36,6 +36,7 @@ type AgentAction = { action: "web_search"; query: string; provider: "serper" | "
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
 const MAX_ITER = 64;
 export const MAX_CONSECUTIVE_ACTION_PARSE_FAILURES = 2; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const MAX_PROVIDER_PROMPT_CHARS = 9_000; const INVESTIGATOR_SYSTEM_PROMPT = () => apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096); export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000);
+const MIN_GROQ_INFERENCE_BUDGET_MS = 30_000;
 export function deriveProviderBoundedActTimeoutMs(remainingMs: number, providerDecisionBudgetMs = AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, maxActMs = 180_000): number {
   const remaining = Number.isFinite(remainingMs) ? Math.max(0, Math.floor(remainingMs)) : 0;
   const providerBudget = Number.isFinite(providerDecisionBudgetMs) ? Math.max(1, Math.floor(providerDecisionBudgetMs)) : AGENTIC_PROVIDER_DECISION_TIMEOUT_MS;
@@ -566,7 +567,7 @@ async function waitForKnownGroqTokenWindow(keyName: string, model: string, promp
   const estimated = groqPromptTokenEstimate(promptChars) + completionBudget;
   if (snapshot.remainingTokens >= estimated) return "ready";
   const resetMs = Math.max(0, snapshot.resetTokensMs - (Date.now() - snapshot.observedAt));
-  if (resetMs > AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - 5_000) return "token_window_wait_exceeded";
+  if (resetMs > Math.max(0, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS)) return "token_window_wait_exceeded";
   if (resetMs <= 0) return "ready";
   await waitForAbortableDelay(resetMs, signal);
   return "ready";
