@@ -12,6 +12,7 @@ vi.mock("@workspace/db", () => ({
 import { findingsToContactEvidence, findingsToBureauContacts } from "../lib/bureau-agentic-pass";
 import { findingsToContacts } from "../lib/target-contact-agent";
 import type { AgenticFinding, AgenticTrajectoryRecord } from "../lib/agentic-web-research";
+import { getAgenticExecutionScope, getAgenticSelectedInvestigator, withAgenticExecutionScope } from "../lib/agentic-execution-context";
 
 const source = "https://example.com/contact";
 const trajectory = [`step1: visit ${source} execution=success observed=${source}`];
@@ -101,6 +102,32 @@ describe("agentic evidence scope boundary", () => {
     expect(findingsToContacts(evidence, "Jane Example")[0]).toMatchObject({
       scope: "organization",
       personName: null,
+    });
+  });
+});
+
+
+describe("per-run execution identity", () => {
+  it("keeps case identity while distinguishing separate runs", async () => {
+    const first = await withAgenticExecutionScope("agentic:case:case-1:run:run-1:investigator:groq-investigator-1", async () => ({
+      scope: getAgenticExecutionScope(),
+      provider: getAgenticSelectedInvestigator(),
+    }));
+    const second = await withAgenticExecutionScope("agentic:case:case-1:run:run-2:investigator:groq-investigator-1", async () => ({
+      scope: getAgenticExecutionScope(),
+      provider: getAgenticSelectedInvestigator(),
+    }));
+    expect(first.scope).not.toBe(second.scope);
+    expect(first.provider).toBe("groq");
+    expect(second.provider).toBe("groq");
+  });
+
+  it("retains provider extraction for non-case and legacy case scopes", async () => {
+    await withAgenticExecutionScope("agentic:run-3:investigator:groq-investigator-2", async () => {
+      expect(getAgenticSelectedInvestigator()).toBe("groq");
+    });
+    await withAgenticExecutionScope("agentic:case:case-2:investigator:mistral", async () => {
+      expect(getAgenticSelectedInvestigator()).toBe("mistral");
     });
   });
 });
