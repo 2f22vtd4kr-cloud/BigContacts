@@ -4,7 +4,7 @@ import { db, entitiesTable, researchCasesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getJob } from "./job-queue";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
-import { persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
+import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -31,20 +31,37 @@ function observedUrlsFromTrajectory(trajectory: string[], records: AgenticTrajec
   }
   return observed;
 }
-function claimGradeSourceUrlsFromTrajectory(records: AgenticTrajectoryRecord[] = []): Set<string> { const observed = new Set<string>(); for (const record of records) { if (record.execution !== "success" || (record.action !== "visit" && record.action !== "browser_fetch")) continue; for (const raw of record.observedUrls ?? []) { const normalized = normalizeObservedUrl(raw); if (normalized) observed.add(normalized); } } return observed; }
+function isReviewableObservation(record: AgenticTrajectoryRecord): boolean {
+  return record.execution === "success"
+    && isClaimGradeObservationAction(record.action)
+    && typeof record.observation === "string"
+    && record.observation.trim().length > 0;
+}
+function claimGradeSourceUrlsFromTrajectory(records: AgenticTrajectoryRecord[] = []): Set<string> {
+  const observed = new Set<string>();
+  for (const record of records) {
+    if (!isReviewableObservation(record)) continue;
+    for (const raw of record.observedUrls ?? []) {
+      const normalized = normalizeObservedUrl(raw);
+      if (normalized) observed.add(normalized);
+    }
+  }
+  return observed;
+}
 function claimAppearsInObservedMaterial(finding: AgenticFinding, records: AgenticTrajectoryRecord[]): boolean {
   const sourceSet = new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)));
   if (!sourceSet.size) return false;
   const observations = records
-    .filter((record) => record.execution === "success"
-      && typeof record.observation === "string"
-      && (record.action === "visit" || record.action === "browser_fetch"))
+    .filter((record) => isReviewableObservation(record))
     .map((record) => ({
       observationText: record.observation ?? "",
-      sourceUrls: record.observedUrls.map(normalizeObservedUrl).filter((url): url is string => url !== null && sourceSet.has(url)),
+      sourceUrls: (record.observedUrls ?? []).map(normalizeObservedUrl).filter((url): url is string => url !== null && sourceSet.has(url)),
     }))
     .filter((record) => record.sourceUrls.length > 0);
-  return supportsContactClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
+  // Multi-page attribution can be reviewed when each cited URL supports an
+  // exact part of the claim; the strict persistence boundary below still
+  // requires candidate identity and contact value to be co-bound locally.
+  return supportsReviewableClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
 }
 
 export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] {
