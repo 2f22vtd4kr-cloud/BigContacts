@@ -20,6 +20,7 @@ const investigatorCore = read("artifacts/api-server/src/src/lib/agentic-web-rese
 const terminalGate = read("artifacts/api-server/src/src/lib/research-terminal-gate.ts");
 const entityTaxonomy = read("artifacts/apex-finder/src/lib/entity-taxonomy.tsx");
 const entityPage = read("artifacts/apex-finder/src/pages/entities.tsx");
+const entityRoute = read("artifacts/api-server/src/src/routes/entities.ts");
 const migrations = read("artifacts/api-server/src/src/routes/ingest-migrations.ts");
 const legacyMigrations = read("artifacts/api-server/src/routes/ingest-migrations.ts");
 const failures = [];
@@ -54,6 +55,8 @@ assert(hasAll(bureau, ['mode?:"target"|"discovery"', 'input.mode!=="discovery"']
 assert(atlas.includes('name, type: "PersonCandidate"') && atlas.includes('"HNWI", "Gatekeeper", "PersonCandidate"'), "discovery admission uses a neutral PersonCandidate type and preserves candidate identity lookup");
 assert(hasAll(entityTaxonomy, ['"PersonCandidate"', "wealth not established", "Candidate"]), "frontend taxonomy marks review-only identities as candidates rather than HNWIs");
 assert(entityPage.includes('"PersonCandidate"') && entityPage.includes("Candidate — wealth unverified"), "entity filters label unverified candidates explicitly");
+assert(entityRoute.includes('"Gatekeeper", "PersonCandidate"].includes(String(draft.type))'), "entity import API must round-trip PersonCandidate rather than coercing it to HNWI");
+assert(entityPage.includes('r.type === "PersonCandidate" ? "PersonCandidate"'), "entity editor must preserve PersonCandidate on add/edit round-trip");
 assert(migrations.includes("NOT IN ('HNWI', 'Gatekeeper', 'PersonCandidate')") && legacyMigrations.includes("PersonCandidate"), "type-reclassification routes must not reinterpret review candidates as HNWIs or organizations");
 assert(terminalGate.includes("hasExplicitFalsificationAttempt(context)") && terminalGate.includes("action.execution !== \"success\"") && terminalGate.includes("intent.test(purpose)") && !terminalGate.includes("context.falsification.priority < 0.35"), "required falsification must be evidenced by a successful explicit disconfirmation action, not inferred from a low heuristic score");
 assert(atlas.includes("runCanonicalSingleTargetInvestigation"), "Atlas routes admitted targets through canonical single-target control");
