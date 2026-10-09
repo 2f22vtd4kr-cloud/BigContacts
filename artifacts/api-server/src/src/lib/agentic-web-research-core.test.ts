@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, discoverySearchLivenessGate, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
+import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 
 function livenessRecord(action: string, execution: "success" | "error" | "blocked") {
   return {
@@ -193,6 +194,18 @@ describe("Investigator prompt architecture", () => {
     const pending = waitForAbortableDelay(60_000, controller.signal);
     controller.abort();
     await expect(pending).rejects.toThrow("cancelled");
+  });
+
+
+  it("does not treat a blocked or budget-exhausted model-selected done action as terminal", () => {
+    expect(isAcceptedInvestigatorTerminal({ action: "done", execution: "blocked", stopReason: "ITERATION_BUDGET" })).toBe(false);
+    expect(isAcceptedInvestigatorTerminal({ action: "done", execution: "success", stopReason: "ITERATION_BUDGET" })).toBe(false);
+    expect(isAcceptedInvestigatorTerminal({ action: "done", execution: "blocked", stopReason: "MODEL_DECIDED_DONE" })).toBe(false);
+  });
+
+  it("accepts done only after the core succeeds and returns an evidence-gated terminal reason", () => {
+    expect(isAcceptedInvestigatorTerminal({ action: "done", execution: "success", stopReason: "MODEL_DECIDED_DONE" })).toBe(true);
+    expect(isAcceptedInvestigatorTerminal({ action: "visit", execution: "success", stopReason: "MODEL_DECIDED_DONE" })).toBe(false);
   });
 
 });
