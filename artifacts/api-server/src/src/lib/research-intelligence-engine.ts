@@ -314,7 +314,7 @@ export class ResearchIntelligenceEngine {
         retrievedAt: new Date(0).toISOString(), lastSeen: new Date(0).toISOString(), turn: 0, action: "durable_replay",
         execution: "success", supports: item.attribution ? [item.attribution] : [], contradicts: [], passage: item.passage,
         claimId: item.claimId, sourceFamily: sourceFamily(sourceHost), attribution: item.attribution,
-        spanStart: item.passage ? 0 : null, spanEnd: item.passage ? item.passage.length : null, spanBound: Boolean(item.passage),
+        spanStart: item.spanBound === true && item.passage ? 0 : null, spanEnd: item.spanBound === true && item.passage ? item.passage.length : null, spanBound: item.spanBound === true,
         sourceLineageId: sourceLineage?.sourceId, fingerprint };
       this.evidence.set(fingerprint, restoredEvidence);
       this.evidenceByIdMap.set(evidenceId, restoredEvidence);
