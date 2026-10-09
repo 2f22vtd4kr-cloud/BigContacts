@@ -124,7 +124,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
               const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord]);
               findings = [...findings, ...(grounded as CoreResult["findings"])];
             }
-      if (raw.action === "done") return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
+      if (raw.action === "done" && raw.execution === "success" && actResult.stopReason === "MODEL_DECIDED_DONE") return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
     }
     if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") return { status: actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: actResult.stopReason, trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
   }
@@ -285,7 +285,10 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
 
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
            if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: error ?? "Groq oversight unavailable", executionId };
-           if (checkpointResult.stop || (callerOwnsOversight && raw.action === "done")) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
+           // Never let an oversight stop convert a terminal claim explicitly blocked by the evidence gate into success.
+           const blockedTerminalClaim = raw.action === "done" && raw.execution !== "success";
+           const modelTerminalAccepted = raw.action === "done" && raw.execution === "success" && actResult.stopReason === "MODEL_DECIDED_DONE";
+           if (!blockedTerminalClaim && (checkpointResult.stop || (callerOwnsOversight && modelTerminalAccepted))) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
            continue;
          }
 
