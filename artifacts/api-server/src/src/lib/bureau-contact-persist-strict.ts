@@ -44,7 +44,7 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
  let valueObserved = false;
  const supportingUrls = new Set<string>();
  for (const observation of observations) {
-  const urls = observation.sourceUrls.map((url) => normalizeSourceUrl(String(url))).filter((url): url is string => typeof url === "string" && cited.has(url));
+  const urls = observation.sourceUrls.map((url) => normalizeSourceUrl(String(url))).filter((url): url is string => url !== null && cited.has(url));
   if (!urls.length || !observation.observationText.trim()) continue;
   const identity = candidate && hasExactObservedToken(observation.observationText, personName);
   const value = vectorType === "phone"
