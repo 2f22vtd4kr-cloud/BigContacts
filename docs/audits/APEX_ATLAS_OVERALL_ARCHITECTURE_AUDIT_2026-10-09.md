@@ -133,3 +133,10 @@ The checked-in API entrypoint (`artifacts/api-server/src/src/index.ts`), Express
 Without a source or verified edge auth boundary, the current route tree includes sensitive operational surfaces: `/healthz/details`, `/system/status`, `/system/source-quality`, provider-readiness POST diagnostics, arbitrary-job Investigator traces, and bureau-event JSON/SSE reads. If the deployment is publicly reachable, those routes disclose provider/infra and research metadata, and the readiness diagnostics can invoke upstream provider requests. The source audit cannot establish whether Replit/Cloud Run ingress is private; deployment visibility/IAM was deliberately not inspected by launching or accessing Replit in this audit.
 
 **Release gate:** verify and record private-ingress/auth policy for the actual deployed service. If the service is public, protect these routes at a trusted edge or add a browser-safe operator session/auth flow before release. Never embed the server bearer secret in the Vite bundle and never remove protection simply to get desk requests working. Until that boundary is independently verified, authorization status is **unknown / release-blocking**, not green.
+
+
+## Follow-up auth integration regression — one session contract
+
+A browser-safe operator session and a legacy API session verifier had briefly coexisted at separate levels of the Express mount. Those formats are incompatible: a browser cookie minted by `operator-auth.ts` would not validate under the legacy API-cookie verifier. The current `main` app mount has removed that legacy middleware; the route aggregator retains the canonical `operatorAuthRouter` → `requireOperatorAuth` boundary.
+
+Added regression coverage checking the actual app mount and router ordering, preventing the old middleware from being reintroduced ahead of the canonical guard, and verifying that the browser login payload matches the server's `password` contract. These wiring assertions and existing token/session unit tests do not establish deployment ingress policy and are not a substitute for exact-head CI or live route acceptance.
