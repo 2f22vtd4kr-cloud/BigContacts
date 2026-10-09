@@ -1,8 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { runHolehe, runMaigret, runSherlock, runTheHarvester, runOpenDeepResearch, runSpiderFoot } from "../lib/python-tools";
+import { ATLAS_CAPABILITIES, renderAtlasCapabilityGuidanceCompact } from "../lib/atlas-capability-registry";
 
 const QUARANTINE_ERROR =
   "No trusted Apex Python sandbox attestation is installed; network-capable Python remains fail-closed.";
+
+describe("Investigator-visible capability truth", () => {
+  it("documents planned Python OSINT tools without presenting non-executors as selectable capabilities", () => {
+    const disabled = [
+      "harvest_domain",
+      "footprint_email",
+      "footprint_username_maigret",
+      "footprint_username_sherlock",
+      "footprint_spiderfoot",
+    ];
+    const promptCapabilities = renderAtlasCapabilityGuidanceCompact();
+    for (const action of disabled) {
+      expect(ATLAS_CAPABILITIES.some((capability) =>
+        capability.action === action && capability.investigatorSelectable === false,
+      )).toBe(true);
+      expect(promptCapabilities).not.toContain(`: ${action};`);
+    }
+    expect(promptCapabilities).toContain("registry.search");
+    expect(promptCapabilities).toContain("web.visit");
+  });
+});
 
 describe("Python OSINT source boundary", () => {
   it("fails closed before Holehe can start a network-capable subprocess", async () => {
