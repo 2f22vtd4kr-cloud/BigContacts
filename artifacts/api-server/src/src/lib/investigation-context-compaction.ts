@@ -80,7 +80,7 @@ function unique(values: readonly string[]): string[] {
 }
 
 function compactFinding(finding: CompactionFinding, max: number): string {
-  const sources = unique(finding.sourceUrls ?? []).map(sanitizeUrlForEvidence);
+  const sources = unique(finding.sourceUrls ?? []).map((url) => sanitizeUrlForEvidence(url));
   const person = finding.personName ? " person=" + trim(finding.personName, 120) : "";
   const role = finding.role ? " role=" + trim(finding.role, 100) : "";
   const scope = finding.scope ? " scope=" + trim(finding.scope, 40) : "";
@@ -90,7 +90,7 @@ function compactFinding(finding: CompactionFinding, max: number): string {
 }
 
 function compactRecord(record: CompactionTrajectoryRecord, observationChars: number, max: number): string {
-  const urls = unique(record.observedUrls ?? []).map(sanitizeUrlForEvidence);
+  const urls = unique(record.observedUrls ?? []).map((url) => sanitizeUrlForEvidence(url));
   const findings = (record.findings ?? []).map((finding) => compactFinding(finding, 700)).filter(Boolean);
   const observation = trim(record.observation, observationChars);
   return trim([
@@ -102,7 +102,7 @@ function compactRecord(record: CompactionTrajectoryRecord, observationChars: num
 }
 
 function archiveRecord(record: CompactionTrajectoryRecord, max: number): string {
-  const urls = unique(record.observedUrls ?? []).map(sanitizeUrlForEvidence);
+  const urls = unique(record.observedUrls ?? []).map((url) => sanitizeUrlForEvidence(url));
   const findings = (record.findings ?? []).map((finding) => compactFinding(finding, 500)).filter(Boolean);
   return trim([
     "turn=" + record.turn,
