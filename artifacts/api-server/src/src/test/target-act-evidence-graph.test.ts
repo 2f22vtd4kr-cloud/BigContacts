@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { buildActEvidenceGraphs } from "../lib/target-act-oversight";
 
 describe("target act evidence graph provenance", () => {
+  it("rejects HTTP-only retrieved pages as claim-grade evidence", () => {
+    const act = {
+      turn: 1, model: "test", action: "react_episode", args: {}, execution: "success", observation: "profile page",
+      observedUrls: ["http://example.com/team/jane"],
+      findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", role: "Founder", scope: "candidate", sourceUrls: ["http://example.com/team/jane"] }],
+      sourceRecords: [{ turn: 1, action: "visit", execution: "success", observation: "Jane Example — Founder — jane@example.com", observedUrls: ["http://example.com/team/jane"], findings: [] }],
+    };
+    expect(buildActEvidenceGraphs(1, act, 1, "run-http-only")).toHaveLength(0);
+  });
   it("rejects search-result records as claim-grade evidence", () => {
     const act = {
       turn: 1, model: "test", action: "react_episode", args: {}, execution: "success",
