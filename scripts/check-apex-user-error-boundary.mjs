@@ -7,6 +7,7 @@ const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 const api = read("artifacts/apex-finder/src/lib/api-json.ts");
 const errors = read("artifacts/apex-finder/src/lib/apex-errors.ts");
 const notice = read("artifacts/apex-finder/src/components/apex-error-notice.tsx");
+const main = read("artifacts/apex-finder/src/main.tsx");
 
 const checks = [
   ["failed API fetches emit a user-facing classified error", api.includes("res = await fetch(input, init)") && api.includes('emitApexError(classifyApexError(error instanceof Error ? error.message : "Network request failed"))')],
@@ -16,6 +17,7 @@ const checks = [
   ["structured server error payloads are validated before display", api.includes("isApexUserError(data?.userError)") && errors.includes("export function isApexUserError(value: unknown)")],
   ["Gemini outage classification does not swallow quota or credential failures", errors.includes("GEMINI_BOSS_UNAVAILABLE") && /quota|rate limit|too many requests|missing/.test(errors)],
   ["the notice exposes why and actionable next steps", notice.includes("Why:") && notice.includes("Next steps") && notice.includes('role="alert"')],
+  ["global fetch and query/mutation handlers surface caught API failures", main.includes("installApiFetchErrorNotifications();") && main.includes("new QueryCache") && main.includes("new MutationCache") && main.includes("notifyApiOperationError")],
 ];
 
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
