@@ -15,7 +15,7 @@ describe("target act multi-source evidence", () => {
         { turn: 2, action: "browser_fetch", execution: "success", observation: "Contact: jane@example.com", observedUrls: ["https://example.com/contact"], findings: [] },
       ],
     };
-    expect(buildActEvidenceGraphs(1, act, 3, "run-split-page")).toHaveLength(0);
+    expect(buildActEvidenceGraphs(1, act, 3, "run-split-page", new Map())).toHaveLength(0);
   });
 
   it("anchors a multi-URL candidate support graph only to a source that co-binds identity and contact", () => {
