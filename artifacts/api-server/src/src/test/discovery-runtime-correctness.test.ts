@@ -176,7 +176,7 @@ describe("discovery runtime architecture", () => {
   it("scopes Groq token-window snapshots to the selected model", () => {
     expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, model: string)");
     expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model))");
-    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
+    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", key, model, response)");
     const snapshotCalls = researchCoreSource.match(/captureGroqRateLimitSnapshot\([^)]*\)/g) ?? [];
     expect(snapshotCalls.slice(1).every((call) => /,\s*model,\s*response/.test(call))).toBe(true);
   });
@@ -193,6 +193,13 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000");
     expect(researchCoreSource).toContain("export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS");
     expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
+  });
+
+  it("does not report oversight stopping as Investigator-selected completion", () => {
+    expect(researchSource).toContain('stopReason: "OVERSIGHT_STOP"');
+    expect(researchSource).toContain('if (callerOwnsOversight && isAcceptedInvestigatorTerminal');
+    expect(researchSource).not.toMatch(/if \(checkpointResult\.stop \|\|[\\s\\S]{0,220}stopReason: "MODEL_DECIDED_DONE"/);
+    expect(researchCoreSource).toContain('"OVERSIGHT_STOP"');
   });
 
   it("keeps runtime safety checks fail-closed and bounded", () => {
