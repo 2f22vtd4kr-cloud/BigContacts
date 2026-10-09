@@ -33,7 +33,7 @@ const checks=[
 ["canonical target wrapper does not auto-fan-out fixed mission briefs",!/runParallelMissionPass\(/.test(agentic)],
 ["canonical runner owns complete-episode oversight",/oversightMode: "caller"/.test(runner)&&/callerOwnsOversight = input\.oversightMode === "caller"/.test(agentic)],
 ["target completion requires an accepted Investigator terminal and completed oversight stop",/isCanonicalTargetEpisodeComplete\(\{[\s\S]*stopReason: latestResult\?\.stopReason \?\? null[\s\S]*oversightAction: lastOversight\?\.action \?\? null/.test(runner)],
-["target completion requires claim-grade evidence graphs",/evidenceGraphCount: latestResult\?\.evidenceGraphs\?\.length \?\? 0/.test(runner)],
+["target completion requires immutable act-anchored claim-grade evidence graphs",/evidenceGraphCount: lastOversight\?\.evidenceGraphCount \?\? 0/.test(runner)&&/evidenceGraphCount: Array\.isArray\(\(latest as Record<string, unknown>\)\.evidenceGraphs\)/.test(runner)],
 ["target resource and deadline ceilings cannot become complete",runner.includes("const incomplete = !stopped") && runner.includes("resourceLimited, deadlineExceeded")],
 ["Investigator episode does not invoke internal oversight when caller owns it",/if \(callerOwnsOversight\) return \{ stop: false, unavailable: false \}/.test(agentic)],
 ["Investigator act proposals receive canonical oversight after each complete episode",/await reviewTargetInvestigationAct\(/.test(runner)],
