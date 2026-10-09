@@ -1116,7 +1116,7 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
     }
   }
   if (successfulSearchesSinceObservedSource >= 3) {
-    return "Advisory only: three consecutive successful search actions have occurred without a successful non-search action. Consider inspecting a lead or switching capability if that offers more information; further searches remain available when the current evidence and expected information gain justify them. This is not a required hop or a restriction on the next action.";
+    return "Advisory only: three consecutive successful search actions have occurred without a successful non-search action. Consider inspecting a lead or switching capability if that offers more information; further searches remain available when the current evidence and expected information gain justify them. This advisory does not constrain the next action or dictate its ordering.";
   }
   return null;
 }
