@@ -16,8 +16,8 @@ Tools are capabilities, not mandatory stages. There is no hidden identity → co
 
 ## 2. Roles
 
-- **Boss:** Groq Boss owns high-level case direction and model-selected transitions.
-- **Right-hand:** Groq Right-hand is bounded independent oversight of the Investigator's work; it does not take over the research trajectory.
+- **Boss = Groq Boss:** Groq Boss owns high-level case direction and model-selected transitions.
+- **Right-hand = Groq Right-hand:** Groq Right-hand is bounded independent oversight of the Investigator's work; it does not take over the research trajectory.
 - **Investigator LLM pool:** the configured Groq Investigator capability slots are the only canonical Investigator pool. Selection is explicit and capability-owned; there is no silent cross-provider or credential rotation.
 - **Two-layer architecture:** AI models own research reasoning and trajectory choices; the deterministic runtime owns authorization, bounded execution, provenance, durable state, cancellation, and terminal truth. Right-hand is oversight within this design, not a scripted third research layer.
 - **Search capability surface:** Tavily and Exa are independent enabled search capabilities available to the Investigator; neither imposes a required order.
@@ -43,7 +43,7 @@ Gemini, Mistral, and DeepSeek/NVIDIA transports are retired from the canonical e
 
 The Investigator may choose among enabled capabilities, including web search, page retrieval, browser escalation, public registries, domain/RDAP inspection, permitted footprint tools, disproof, revisits, and stopping. Runtime validation can reject malformed, unsafe, unavailable, unauthorized, over-budget, or provenance-invalid actions.
 
-The runtime must not secretly prescribe a query list, provider order, source sequence, identity hop, or research ladder. Guidance may explain capability semantics and current evidence gaps, but the model still chooses the research move.
+No forced search order: the runtime must not secretly prescribe a query list, provider order, source sequence, identity hop, or research ladder. Guidance may explain capability semantics and current evidence gaps, but the model still chooses the research move.
 
 A discovery-only liveness guard prevents unproductive search loops: after three successful search-only actions without a successful non-search observation, another search is blocked. This does not prescribe the next tool; the Investigator chooses how to inspect or resolve a lead.
 
