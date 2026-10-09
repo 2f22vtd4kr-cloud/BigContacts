@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { getPermanentClient, withPermanentClient, permSismember, permScard } from "./redis";
 import { logger } from "./logger";
-import { canApplyJobPatch, canApplyJobPatchWithoutRedis, classifyJobCreationVerification } from "./job-queue-terminal-policy";
+import { canApplyJobPatch, canApplyJobPatchWithoutRedis, classifyActiveJobRead, classifyJobCreationVerification } from "./job-queue-terminal-policy";
 async function safeRedis<T>(fn:(rc:import("ioredis").Redis)=>Promise<T>,fallback:T):Promise<T>{return withPermanentClient(fn,fallback);}
 export type JobStatus="queued"|"running"|"paused"|"done"|"failed"|"cancelled";
 export interface JobState{jobId:string;type:string;status:JobStatus;progress:number;inserted:number;skipped:number;errors:number;total:number;startedAt:string;finishedAt?:string;atlasPhase?:number;atlasPhaseTotal?:number;entityProgress?:number;entityTotal?:number;entityNames?:string;atlasTelemetry?:string;outcome?:"complete"|"incomplete";resumable?:string;targetIds?:string;targetIndex?:number;targetTotal?:number;currentTargetId?:number;currentPhase?:string;completedTargetIds?:string;failedTargetIds?:string;retryCounts?:string;result?:string;message:string;}
@@ -77,8 +77,49 @@ function stopActiveJobRenewal(type:string,jobId?:string):void{const timer=ACTIVE
 async function renewActiveJob(type:string,jobId:string):Promise<boolean>{const renewed=await safeRedis(async rc=>Number(await rc.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end",1,`apex:activejob:${type}`,jobId,String(ACTIVE_JOB_TTL_SECONDS)))===1,null as boolean|null);if(renewed!==true){stopActiveJobRenewal(type,jobId);invalidateActiveJobCache(type);return false;}return true;}
 function startActiveJobRenewal(type:string,jobId:string):void{stopActiveJobRenewal(type);const timer=setInterval(()=>{void renewActiveJob(type,jobId).catch(()=>{stopActiveJobRenewal(type,jobId);invalidateActiveJobCache(type);});},ACTIVE_JOB_RENEW_INTERVAL_MS);timer.unref?.();ACTIVE_JOB_RENEWERS.set(type,timer);}
 export async function setActiveJob(type:string,jobId:string):Promise<boolean>{if(!type||!jobId)throw new Error("Active job type and jobId are required");const result=await safeRedis(async rc=>Number(await rc.eval("local k=KEYS[1]; local current=redis.call('get',k); if current and current~=ARGV[1] then return 0 end; redis.call('set',k,ARGV[1],'EX',ARGV[2]); return 1",1,`apex:activejob:${type}`,jobId,String(ACTIVE_JOB_TTL_SECONDS)))===1,null as boolean|null);if(result!==true)throw new Error(`Cannot claim active job lane '${type}': permanent Redis lock service unavailable or lane already owned`);memoryActiveByType.set(type,jobId);memoryLatestByType.set(type,jobId);ACTIVE_JOB_READ_CACHE.set(type,{at:Date.now(),id:jobId});startActiveJobRenewal(type,jobId);return true;}
-export async function getActiveJob(type:string){let ok=false;const r=await safeRedis(async rc=>{ok=true;return rc.get(`apex:activejob:${type}`);},null as string|null);if(r){memoryActiveByType.set(type,r);ACTIVE_JOB_READ_CACHE.set(type,{at:Date.now(),id:r});return r;}if(ok){memoryActiveByType.delete(type);stopActiveJobRenewal(type);ACTIVE_JOB_READ_CACHE.set(type,{at:Date.now(),id:null});return null;}ACTIVE_JOB_READ_CACHE.delete(type);return null;}
-export async function getActiveJobs(types:string[]){const out=new Map<string,string|null>();const ts=[...new Set(types)].filter(Boolean);if(!ts.length)return out;const now=Date.now();let ok=false;const vals=await safeRedis(async rc=>{ok=true;return rc.mget(...ts.map(t=>`apex:activejob:${t}`));},null as Array<string|null>|null);if(!ok)return new Map(ts.map(t=>[t,null]));ts.forEach((t,i)=>{const id=vals?.[i]??null;out.set(t,id);if(id)memoryActiveByType.set(t,id);else{memoryActiveByType.delete(t);stopActiveJobRenewal(t);}ACTIVE_JOB_READ_CACHE.set(t,{at:now,id});});return out;}
+export async function getActiveJobStrict(type:string):Promise<string|null>{
+  let readSucceeded=false;
+  const jobId=await safeRedis(async rc=>{
+    const value=await rc.get(`apex:activejob:${type}`);
+    readSucceeded=true;
+    return value;
+  },null as string|null);
+  const classified=classifyActiveJobRead(readSucceeded,jobId);
+  if(classified.state==="unavailable") throw new Error("Permanent Redis job-state read failed; active job state is unknown.");
+  if(classified.state==="active"){
+    memoryActiveByType.set(type,classified.jobId);
+    ACTIVE_JOB_READ_CACHE.set(type,{at:Date.now(),id:classified.jobId});
+    return classified.jobId;
+  }
+  memoryActiveByType.delete(type);
+  stopActiveJobRenewal(type);
+  ACTIVE_JOB_READ_CACHE.set(type,{at:Date.now(),id:null});
+  return null;
+}
+/** Legacy best-effort accessor for non-authoritative enrichment callers. */
+export async function getActiveJob(type:string){
+  try{return await getActiveJobStrict(type);}catch{return null;}
+}
+export async function getActiveJobs(types:string[]){
+  const out=new Map<string,string|null>();
+  const ts=[...new Set(types)].filter(Boolean);
+  if(!ts.length)return out;
+  const now=Date.now();
+  let readSucceeded=false;
+  const vals=await safeRedis(async rc=>{
+    const values=await rc.mget(...ts.map(t=>`apex:activejob:${t}`));
+    readSucceeded=true;
+    return values;
+  },null as Array<string|null>|null);
+  if(!readSucceeded||!vals) throw new Error("Permanent Redis job-state read failed; active job state is unknown.");
+  ts.forEach((t,i)=>{
+    const id=vals[i]??null;
+    out.set(t,id);
+    if(id)memoryActiveByType.set(t,id);else{memoryActiveByType.delete(t);stopActiveJobRenewal(t);}
+    ACTIVE_JOB_READ_CACHE.set(t,{at:now,id});
+  });
+  return out;
+}
 export function invalidateActiveJobCache(type?:string){if(type)ACTIVE_JOB_READ_CACHE.delete(type);else ACTIVE_JOB_READ_CACHE.clear();}
 export async function getLatestJob(type:string){let ok=false;const r=await safeRedis(async rc=>{ok=true;const id=await rc.get(`apex:latestjob:${type}`);return id?getJob(id):null;},null);if(!ok)return null;return r;}
 export async function updateAutoPipelineScheduler(patch:Partial<AutoPipelineSchedulerStatus>){const flat:Record<string,string>={};for(const[k,v]of Object.entries(patch))if(v!==undefined)flat[k]=String(v);if(!Object.keys(flat).length)return;await safeRedis(async rc=>{await rc.hset(AUTO_PIPELINE_SCHEDULER_KEY,flat);await rc.expire(AUTO_PIPELINE_SCHEDULER_KEY,JOB_TTL);},undefined);}
