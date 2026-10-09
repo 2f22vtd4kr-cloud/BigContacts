@@ -7,6 +7,8 @@ import {
   getGroqRightHandStatus,
   runGroqRightHandFreeJson,
   runGroqRightHandDiscoveryAdvice,
+  normalizeGroqRightHandCaseReasoning,
+  normalizeGroqRightHandDiscoveryAdvice,
   resetGroqRightHandRequestGateForTests,
   waitForGroqRightHandRequestSlot,
   resetGroqRightHandModelCatalogCacheForTests,
@@ -512,4 +514,24 @@ describe("Groq Right-hand model policy", () => {
     expect(status.fallbackModels).toEqual(["openai/gpt-oss-20b"]);
     expect(JSON.stringify(status)).not.toContain("test-groq-right-hand-key");
   });
+  it("rejects confidence outside 0..1 and oversized fields in case-level Right-hand recommendations", () => {
+    const valid = { actionId: "queued-1", decision: "Prioritize registry", reason: "Role remains unconfirmed.", confidence: 0.8 };
+    expect(normalizeGroqRightHandCaseReasoning(valid, ["queued-1"], "model").status).toBe("completed");
+    expect(normalizeGroqRightHandCaseReasoning({ ...valid, confidence: 1.7 }, ["queued-1"], "model").status).toBe("unavailable");
+    expect(normalizeGroqRightHandCaseReasoning({ ...valid, confidence: -0.1 }, ["queued-1"], "model").status).toBe("unavailable");
+    expect(normalizeGroqRightHandCaseReasoning({ ...valid, reason: "r".repeat(1_201) }, ["queued-1"], "model").status).toBe("unavailable");
+    expect(normalizeGroqRightHandCaseReasoning({ ...valid, extra: true }, ["queued-1"], "model").status).toBe("unavailable");
+    expect(normalizeGroqRightHandCaseReasoning(valid, ["different-action"], "model").status).toBe("unavailable");
+  });
+
+  it("rejects malformed discovery Right-hand confidence and oversized focus lanes", () => {
+    const valid = { decision: "continue", reason: "The lane may yield primary evidence.", focusLanes: ["registry", "official site"], confidence: 0.7 };
+    expect(normalizeGroqRightHandDiscoveryAdvice(valid, "model").status).toBe("completed");
+    expect(normalizeGroqRightHandDiscoveryAdvice({ ...valid, confidence: 1.7 }, "model").status).toBe("unavailable");
+    expect(normalizeGroqRightHandDiscoveryAdvice({ ...valid, confidence: -0.1 }, "model").status).toBe("unavailable");
+    expect(normalizeGroqRightHandDiscoveryAdvice({ ...valid, decision: "d".repeat(301) }, "model").status).toBe("unavailable");
+    expect(normalizeGroqRightHandDiscoveryAdvice({ ...valid, focusLanes: Array.from({ length: 9 }, () => "lane") }, "model").status).toBe("unavailable");
+    expect(normalizeGroqRightHandDiscoveryAdvice({ ...valid, focusLanes: ["l".repeat(161)] }, "model").status).toBe("unavailable");
+  });
+
 });

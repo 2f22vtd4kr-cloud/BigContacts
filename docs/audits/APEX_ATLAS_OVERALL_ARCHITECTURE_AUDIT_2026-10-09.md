@@ -169,3 +169,8 @@ The wider control-path audit found validators that converted out-of-range model 
 The validators now reject confidence outside `[0, 1]` instead of repairing it during validation. Atlas control fields have explicit length bounds; target per-act Right-hand advice reuses the same exact bounded review validator as opening and target continuation; per-act Boss control requires bounded reason/direction fields and a valid confidence score. These are oversight-envelope checks only: they do not prescribe Investigator action order, providers, domains, or research techniques.
 
 Added regression cases for negative and greater-than-one confidence, oversized reasons/directions/decisions/lane sets, and extra keys. Static architecture verification checks that the per-act path uses the shared validator. Exact-head CI remains authoritative; no Replit service, live provider call, or Apex run was used to validate this patch.
+
+
+## Follow-up standalone Right-hand advice bounds
+
+The case-bureau and public-discovery Right-hand normalizers also clamped numeric confidence into `[0, 1]`, and case-level reasoning could return `completed` with missing confidence. Their parsers now use pure contract normalizers that reject out-of-range confidence, excessive decision/reason/focus-lane lengths or counts, unexpected fields, and recommendations that do not reference an existing queued action. Their JSON schemas explicitly set `additionalProperties: false`; local validation remains authoritative regardless of provider mode. Regression tests exercise malformed numeric ranges and contract overflows without live provider calls.
