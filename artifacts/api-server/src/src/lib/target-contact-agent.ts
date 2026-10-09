@@ -4,7 +4,7 @@ import { db, entitiesTable, researchCasesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getJob } from "./job-queue";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
-import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
+import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -61,7 +61,7 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
   // Multi-page attribution can be reviewed when each cited URL supports an
   // exact part of the claim; the strict persistence boundary below still
   // requires candidate identity and contact value to be co-bound locally.
-  return supportsReviewableClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
+  return supportsContactClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
 }
 
 export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] {
