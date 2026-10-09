@@ -33,6 +33,8 @@ The deterministic layer enforces authorization, lane ownership, resource/deadlin
 
 10. **The current provider-role documentation was stale.** The new-account initialization blueprint was corrected to stop describing Mistral as an active Investigator option. Historical Gemini-era handoffs are marked as historical; current source/config and current setup docs govern role names.
 
+11. **The terminal falsification gate confused priority with execution.** A hypothesis could require falsification when confidence was at least 0.8, while the same confidence contributed only `score * 0.35` to priority—below the `< 0.35` terminal bypass threshold. The gate could therefore declare falsification “satisfied” without a disconfirmation action. It now requires at least one successful external action whose model-authored purpose, hypothesis or query explicitly indicates disproof/counterevidence/refutation; the model still chooses the action and provider. Regression cases distinguish a genuine disproof attempt from ordinary verification.
+
 ## End-to-end paths inspected
 
 - UI launch intent, launch-body normalization, canonical route ownership and legacy-route retirement.
