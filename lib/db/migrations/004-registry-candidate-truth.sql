@@ -26,7 +26,7 @@ BEGIN
   END IF;
 
   FOR candidate IN
-    SELECT id, type, metadata, estimated_net_worth, contact_outcome
+    SELECT id, type, metadata
     FROM public.entities
     WHERE type IN ('HNWI', 'Gatekeeper')
       AND metadata IS NOT NULL
