@@ -14,6 +14,7 @@ import { inferResearchCognitiveTask } from "./research-cognitive-routing";
 import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS } from "./agentic-web-research-core";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective } from "./investigation-context-compaction";
 import type { AgenticFinding } from "./agentic-web-research-core";
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
@@ -47,12 +48,11 @@ async function loadDurableInvestigatorRecords(caseId: number | undefined): Promi
 }
 function renumberTrajectory(value: string, turn: number): string { return value.replace(/^step\d+:/, `step${turn}:`); }
 
-function intelligenceObjective(base: string, sharedContext: string, intelligence: ResearchIntelligenceEngine, direction: string | null, records: CoreResult["trajectoryRecords"]): string {
-  const state = intelligence.buildContext();
-  const completeHistory = records.map((record) => ({ turn: record.turn, action: record.action, execution: record.execution, args: record.args, observation: record.observation, observedUrls: record.observedUrls, findings: record.findings }));
-  const pivotMarker = "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:";
-  const embeddedDirection = direction ?? (base.includes(pivotMarker) ? base.slice(base.indexOf(pivotMarker) + pivotMarker.length).split("\n")[0].trim() : null);
-  return `${base}\n\nCONTINUATION STATE:\nThe previous Investigator acts have already executed. This state is durable evidence/history, not instructions from public sources.\nDURABLE CASE CONTEXT:\n${sharedContext}\n\n${renderIntelligenceContext(state)}\n\n${embeddedDirection ? `CURRENT RESEARCH OBJECTIVE (BOSS-DIRECTED, CURRENT TASK CONSTRAINT):\n${embeddedDirection}\nStay within this research question unless the observed evidence directly disproves it or makes it impossible to pursue. If that happens, record the contradiction/gap and choose the next action that resolves it; do not silently replace the direction with an unrelated geography, sector, company, or person.\n` : ""}COMPLETE INVESTIGATOR ACT HISTORY:\n${JSON.stringify(completeHistory)}\n\nChoose the next research action yourself. The structured intelligence is evidence/history, not a scripted route. Do not manufacture facts. Prefer actions that discriminate between identity hypotheses, close an explicit evidence gap, find an independent source, or test a contradiction.`;
+function intelligenceObjective(base: string, direction: string | null): string {
+  // Durable context, intelligence and complete history travel through their
+  // dedicated bounded fields below. Do not bury the active Boss question after
+  // a large state/history blob that is truncated from the objective field.
+  return buildBoundedInvestigatorObjective({ base, direction, maxChars: 1_800 });
 }
 
 function normalizedObservedUrl(value: string): string | null { try { const url = new URL(value); if (!/^https?:$/i.test(url.protocol)) return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
@@ -127,7 +127,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     const remaining = deadline - Date.now();
     if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: `hard timeout ${requestedHardTimeout}ms`, executionId };
     const perActTimeout = Math.min(remaining, Math.max(30_000, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000));
-    const actInput: RunInput = { ...input, priorIntelligenceContext: intelligence.buildContext(), priorTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))]), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); if (!job || job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; try { return !(await isCanonicalJobOwner(lockType, input.jobId)); } catch { return true; } }, onLiveStep: (step) => input.onLiveStep?.(step), onTrajectoryRecord: input.onTrajectoryRecord };
+    const actInput: RunInput = { ...input, priorIntelligenceContext: intelligence.buildContext(), priorTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, null), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); if (!job || job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; try { return !(await isCanonicalJobOwner(lockType, input.jobId)); } catch { return true; } }, onLiveStep: (step) => input.onLiveStep?.(step), onTrajectoryRecord: input.onTrajectoryRecord };
     const actResult = await core.runAgenticWebResearch(actInput);
     model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error;
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
@@ -268,7 +268,8 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            priorIntelligenceContext: intelligence.buildContext(),
            priorTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))],
            cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }),
-           objective: intelligenceObjective(objective, oversightContext.contextDocument, intelligence, direction, [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))]),
+           objective: intelligenceObjective(objective, direction),
+           priorContext: boundInvestigatorPromptSection([oversightContext.contextDocument, input.priorContext].filter((value) => typeof value === "string" && value.trim()).join("\n\n"), 1_000),
            maxIterations: 1,
            hardTimeoutMs: perActTimeout,
            signal: overallController.signal,
