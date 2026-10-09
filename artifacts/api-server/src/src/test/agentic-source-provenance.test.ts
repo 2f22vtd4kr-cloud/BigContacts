@@ -10,6 +10,7 @@ vi.mock("@workspace/db", () => ({
 
 import { findingsToBureauContacts, sourceBackedAgenticFindings } from "../lib/bureau-agentic-pass";
 import { findingsToContacts, sourceBackedFindings } from "../lib/target-contact-agent";
+import { supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 import type { AgenticFinding, AgenticTrajectoryRecord } from "../lib/agentic-web-research";
 
 const finding = (overrides: Partial<AgenticFinding> = {}): AgenticFinding => ({
@@ -100,7 +101,7 @@ describe("agentic source provenance", () => {
     expect(sourceBackedAgenticFindings(raw, successfulTrajectory, [observation()])).toHaveLength(1);
   });
 
-  it("rejects candidate contact attribution when identity and contact value appear only on separate pages", () => {
+  it("keeps complementary observed pages reviewable without permitting trusted promotion", () => {
     const raw = [finding({
       sourceUrls: ["https://example.com/team/jane", "https://example.com/contact"],
     })];
@@ -112,9 +113,12 @@ describe("agentic source provenance", () => {
       "step1: visit https://example.com/team/jane execution=success observed=https://example.com/team/jane",
       "step2: visit https://example.com/contact execution=success observed=https://example.com/contact",
     ];
-    // Both pages were observed, but neither directly binds this person's identity to this email.
+    const reviewable = sourceBackedAgenticFindings(raw, trajectory, records);
+    const materials = records.map((record) => ({ observationText: record.observation ?? "", sourceUrls: record.observedUrls }));
     expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(0);
-    expect(sourceBackedAgenticFindings(raw, trajectory, records)).toHaveLength(0);
+    expect(reviewable).toHaveLength(1);
+    expect(supportsReviewableClaimAcrossObservations(materials, raw[0]!, "jane@example.com", "email")).toBe(true);
+    expect(supportsContactClaimAcrossObservations(materials, raw[0]!, "jane@example.com", "email")).toBe(false);
   });
 
   it("rejects split identity/contact attribution when the finding cites only the contact page", () => {
@@ -204,4 +208,19 @@ describe("agentic source provenance", () => {
     expect(contacts[0]?.scope).toBe("organization");
     expect(contacts[0]?.personName).toBeNull();
   });
+  it("keeps URL-grounded registry evidence reviewable without requiring a browser revisit", () => {
+    const url = "https://registry.example.test/person/jane";
+    const raw = [finding({ sourceUrls: [url] })];
+    const registry = observation({
+      action: "registry_search",
+      args: { query: "Jane Example" },
+      observation: "Jane Example — Founder — jane@example.com",
+      observedUrls: [url],
+    });
+    expect(sourceBackedAgenticFindings(raw, [], [registry])).toHaveLength(1);
+    expect(sourceBackedAgenticFindings(raw, [], [registry, observation({ action: "registry_search", execution: "http_error", observedUrls: ["https://registry.example.test/failed"], observation: "Jane Example — Founder — jane@example.com" })])).toHaveLength(1);
+    expect(sourceBackedAgenticFindings(raw, [], [observation({ action: "registry_search", observation: "", observedUrls: [url] })])).toHaveLength(0);
+  });
+
+
 });
