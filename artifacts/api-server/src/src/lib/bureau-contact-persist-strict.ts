@@ -42,6 +42,7 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
  if (candidate && !personName) return false;
  let identityObserved = !candidate;
  let valueObserved = false;
+ let identityAndValueBoundTogether = !candidate;
  const supportingUrls = new Set<string>();
  for (const observation of observations) {
   const urls = observation.sourceUrls.map((url) => normalizeSourceUrl(String(url))).filter((url): url is string => url !== null && cited.has(url));
@@ -52,9 +53,14 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
    : hasExactObservedToken(observation.observationText, cleanValue);
   if (identity) identityObserved = true;
   if (value) valueObserved = true;
+  // A candidate contact is promotable only when at least one observed page
+  // directly co-locates the person identity and exact contact value. Separate
+  // pages can guide the Investigator, but cannot establish ownership by mere
+  // cross-page co-occurrence.
+  if (candidate && identity && value) identityAndValueBoundTogether = true;
   if (candidate ? identity || value : value) for (const url of urls) supportingUrls.add(url);
  }
- return identityObserved && valueObserved && [...cited].every((url) => supportingUrls.has(url));
+ return identityObserved && valueObserved && identityAndValueBoundTogether && [...cited].every((url) => supportingUrls.has(url));
 }
 export function isClaimGradeObservationAction(action: unknown): boolean {
   return action === "visit" || action === "browser_fetch";
