@@ -73,6 +73,43 @@ describe("Bureau multi-source attribution", () => {
     expect(sourceBackedAgenticFindings([finding], [], records)).toEqual([]);
   });
 
+  it("does not treat an unrelated observed page as evidence for an organization claim", () => {
+    const finding = {
+      vectorType: "email" as const,
+      value: "info@company.example",
+      personName: null,
+      role: null,
+      scope: "organization" as const,
+      sourceUrls: ["https://company.example/contact", "https://company.example/about"],
+      note: "organization contact",
+      promotionDecision: "promote" as const,
+    };
+    const records = [
+      {
+        turn: 1,
+        model: "groq",
+        action: "visit",
+        args: {},
+        execution: "success" as const,
+        observation: "General contact: info@company.example",
+        observedUrls: ["https://company.example/contact"],
+        findings: [],
+      },
+      {
+        turn: 2,
+        model: "groq",
+        action: "visit",
+        args: {},
+        execution: "success" as const,
+        observation: "Our history and values",
+        observedUrls: ["https://company.example/about"],
+        findings: [],
+      },
+    ];
+
+    expect(sourceBackedAgenticFindings([finding], [], records)).toEqual([]);
+  });
+
   it("rejects an other/generic claim when its claimed value never appears in observed material", () => {
     const finding = {
       vectorType: "other" as const,
