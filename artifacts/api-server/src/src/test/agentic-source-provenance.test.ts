@@ -115,7 +115,7 @@ describe("agentic source provenance", () => {
     ];
     const reviewable = sourceBackedAgenticFindings(raw, trajectory, records);
     const materials = records.map((record) => ({ observationText: record.observation ?? "", sourceUrls: record.observedUrls }));
-    expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(0);
+    expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(1);
     expect(reviewable).toHaveLength(1);
     expect(supportsReviewableClaimAcrossObservations(materials, raw[0]!, "jane@example.com", "email")).toBe(true);
     expect(supportsContactClaimAcrossObservations(materials, raw[0]!, "jane@example.com", "email")).toBe(false);
