@@ -6,9 +6,26 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../lib/ssrf-safe-fetch", () => ({ safeOutboundFetch: mocks.safeOutboundFetch }));
 
-import { bindModelFindingsToObservedSources, parseOptionalRateLimitNumber, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { bindModelFindingsToObservedSources, discoveryTerminalGate, parseOptionalRateLimitNumber, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capability-registry";
 import { resetProviderGateForTests } from "../lib/provider-gate";
+
+describe("discovery terminal capability coverage", () => {
+  it("accepts a successful SpiderFoot observation as an external research action", () => {
+    const result = discoveryTerminalGate([{
+      turn: 1,
+      model: "openai/gpt-oss-120b",
+      action: "footprint_spiderfoot",
+      args: { target: "example.org", targetType: "domain", profile: "organization-footprint" },
+      execution: "success",
+      observation: "SPIDERFOOT target=example.org\nOfficial organization infrastructure observation",
+      observedUrls: ["https://example.org/about"],
+      findings: [],
+    }]);
+
+    expect(result).toEqual({ allowed: true, reason: null });
+  });
+});
 
 describe("Groq rate-limit header parsing", () => {
   it("preserves missing and malformed headers as unknown rather than zero capacity", () => {
