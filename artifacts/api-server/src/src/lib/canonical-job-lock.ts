@@ -46,9 +46,12 @@ async function withStrictPermanentClient<T>(command: StrictRedisCommand<T>): Pro
 
 async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
   const finishedAt = new Date().toISOString();
-  // A failed renewal request is not proof of lease loss. This atomic check is
-  // only run after a successful renewal command explicitly reports no ownership.
-  const fenced = await withStrictPermanentClient(async (redis) => Number(await redis.eval(
+
+  // A renewal request failure is not proof of lease loss. This function runs
+  // only when a successful renewal command reports that this worker no longer
+  // owns the lease. Fence Redis job state and durable case state independently:
+  // failure in one store must not suppress the protective write to the other.
+  const redisFence = withStrictPermanentClient(async (redis) => Number(await redis.eval(
     "local owner=redis.call('get',KEYS[1]); if owner==ARGV[1] then return 0 end; local k=KEYS[2]; local status=redis.call('hget',k,'status'); if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end; redis.call('hset',k,'status','cancelled','outcome','incomplete','message',ARGV[2],'finishedAt',ARGV[3]); return 1",
     2,
     `apex:activejob:${type}`,
@@ -57,13 +60,32 @@ async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
     "Canonical lease lost; refusing further work.",
     finishedAt,
   )) === 1);
-  if (!fenced) return;
-  await db.update(researchCasesTable)
+
+  const dbFence = db.update(researchCasesTable)
     .set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() })
     .where(and(
       eq(researchCasesTable.status, "active"),
       or(sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`, sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`),
     ));
+
+  const outcomes = await Promise.allSettled([redisFence, dbFence]);
+  const failedStores = outcomes
+    .map((outcome, index) => ({ outcome, store: index === 0 ? "Redis job-state fence" : "PostgreSQL case fence" }))
+    .filter(({ outcome }) => outcome.status === "rejected")
+    .map(({ outcome, store }) => {
+      const error = outcome.status === "rejected" ? outcome.reason : null;
+      logger.error({
+        type,
+        jobId,
+        store,
+        error: error instanceof Error ? error.message : "unknown",
+      }, "Canonical lease-loss store fence failed");
+      return store;
+    });
+
+  if (failedStores.length) {
+    throw new Error(`Canonical lease-loss fencing incomplete; failed stores: ${failedStores.join(", ")}`);
+  }
 }
 
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
