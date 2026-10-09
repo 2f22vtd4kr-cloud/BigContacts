@@ -17,6 +17,36 @@ describe("investigator context compaction", () => {
     expect(context).toContain("RESEARCH FRONTIER");
   });
 
+  it("redacts URL secrets from reloaded trajectory, findings, and prior context", () => {
+    const secret = "context-oauth-secret";
+    const context = buildInvestigatorContext({
+      targetName: "Example",
+      objective: "Review public sources.",
+      priorContext: "Old redirect https://example.com/callback?access_token=" + secret,
+      trajectoryRecords: [{
+        turn: 4,
+        action: "visit",
+        execution: "success",
+        observedUrls: ["https://example.com/profile?X-Amz-Signature=signature-secret"],
+        observation: "Redirected to https://example.com/callback?access_token=" + secret + "&state=known.",
+        findings: [{
+          vectorType: "website",
+          value: "https://example.com/profile",
+          sourceUrls: ["https://example.com/profile?token=" + secret],
+          personName: "Example Person",
+          scope: "candidate",
+          note: "Observed https://example.com/contact?api_key=" + secret,
+        }],
+      }],
+      lastObservation: "Latest redirect https://example.com/callback?token=" + secret,
+      findings: [],
+    });
+    expect(context).not.toContain(secret);
+    expect(context).not.toContain("signature-secret");
+    expect(context).toContain("Example Person");
+    expect(context).toContain("REDACTED");
+  });
+
   it("preserves the Boss research question after objective/context compaction", () => {
     const objective = buildBoundedInvestigatorObjective({
       base: "PRIMARY OPERATOR OBJECTIVE BEGIN " + "Context ".repeat(1_500) + " PRIMARY OPERATOR OBJECTIVE END",
