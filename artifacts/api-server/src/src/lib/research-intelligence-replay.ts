@@ -44,7 +44,7 @@ export function investigatorRecordsFromEvents(events: readonly DurableInvestigat
     const findings = Array.isArray(payload.findings) ? payload.findings.map(parseFinding).filter((item): item is AgenticFinding => item !== null) : [];
     const model = typeof payload.model === "string" ? payload.model : typeof payload.runModel === "string" ? payload.runModel : "durable-replay";
     records.push({
-      turn: records.length + 1, model, action: payload.action, args: asObject(payload.args) ?? {},
+      turn: records.length + 1, durableEventId: event.id, model, action: payload.action, args: asObject(payload.args) ?? {},
       ...(typeof payload.thought === "string" ? { thought: payload.thought } : {}),
       execution: execution as AgenticTrajectoryRecord["execution"],
       ...(typeof payload.observation === "string" ? { observation: payload.observation } : {}),
