@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { publishDigSpan, toOtelGenAiAttributes, clearDigSpansForJob, getRecentDigSpans } from "../lib/dig-span";
+import { publishDigSpan, spanFromLiveStep, toOtelGenAiAttributes, clearDigSpansForJob, getRecentDigSpans } from "../lib/dig-span";
+
+describe("live execution status mapping", () => {
+  it("does not turn failed or blocked tool executions into successful spans", () => {
+    for (const status of ["error", "http_error", "blocked", "timeout", "failed", "unavailable"]) {
+      const span = spanFromLiveStep({ jobId: "status-" + status, tool: "web_search", status });
+      expect(span?.status).toBe("error");
+    }
+    const cancelled = spanFromLiveStep({ jobId: "status-cancelled", tool: "web_search", status: "cancelled" });
+    expect(cancelled?.status).toBe("cancelled");
+    const success = spanFromLiveStep({ jobId: "status-success", tool: "web_search", status: "success" });
+    expect(success?.status).toBe("ok");
+  });
+});
 
 describe("dig-span otel mapping", () => {
   it("maps tool span to execute_tool + tool.name + conversation.id", () => {
