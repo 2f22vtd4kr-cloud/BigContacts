@@ -11,6 +11,7 @@ assert(/runCanonicalSingleTargetInvestigation[\s\S]*finally \{[\s\S]*releaseCano
 
 assert(lock.includes("export async function claimCanonicalJob"), "canonical job claim helper missing");
 assert(lock.includes("NX"), "canonical job claim is not an atomic NX acquisition");
+assert(lock.includes("if redis.call('exists',KEYS[2])==0 then return -1 end; local status=redis.call('hget',KEYS[2],'status'); if status~='queued' then return -2 end;"), "canonical job claim must atomically require a durable queued job snapshot before taking the lease");
 assert(lock.includes("export async function releaseCanonicalJob"), "canonical job release helper missing");
 assert(lock.includes("redis.eval("), "canonical job release is not atomic");
 assert(lock.includes("redis.call('get', KEYS[1]) == ARGV[1]"), "canonical job release does not compare owner before delete");
