@@ -10,7 +10,7 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: {},
 }));
 
-import { hasCanonicalPromotionJobBinding, isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+import { hasCanonicalPromotionJobBinding, isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("contact promotion entity-type eligibility", () => {
   it("allows a PersonCandidate to receive evidence-backed contact without classifying its wealth", () => {
@@ -132,9 +132,12 @@ describe("Batch 44 provenance regressions", () => {
 
 
 describe("claim-grade observation boundary", () => {
-  it("accepts only source-page observation actions", () => {
+  it("admits successful non-search capability observations while excluding lead-only/control actions", () => {
     expect(isClaimGradeObservationAction("visit")).toBe(true);
     expect(isClaimGradeObservationAction("browser_fetch")).toBe(true);
+    expect(isClaimGradeObservationAction("registry_search")).toBe(true);
+    expect(isClaimGradeObservationAction("domain_lookup")).toBe(true);
+    expect(isClaimGradeObservationAction("footprint_spiderfoot")).toBe(true);
     expect(isClaimGradeObservationAction("web_search")).toBe(false);
     expect(isClaimGradeObservationAction("parallel_web_search")).toBe(false);
     expect(isClaimGradeObservationAction("done")).toBe(false);
@@ -273,4 +276,16 @@ describe("canonical job binding for trusted promotion", () => {
     expect(hasCanonicalPromotionJobBinding({ caseId: 2, runId: "  ", jobId: "job-1" })).toBe(false);
     expect(hasCanonicalPromotionJobBinding(null)).toBe(false);
   });
+  it("allows split identity/value evidence for review but not trusted promotion", () => {
+    const candidate = { scope: "candidate", personName: "Jane Example", sourceUrls: [
+      "https://example.com/team/jane", "https://example.com/contact",
+    ] };
+    const observations = [
+      { observationText: "Jane Example — Founder", sourceUrls: ["https://example.com/team/jane"] },
+      { observationText: "Public contact: jane@example.com", sourceUrls: ["https://example.com/contact"] },
+    ];
+    expect(supportsReviewableClaimAcrossObservations(observations, candidate, "jane@example.com", "email")).toBe(true);
+    expect(supportsContactClaimAcrossObservations(observations, candidate, "jane@example.com", "email")).toBe(false);
+  });
+
 });
