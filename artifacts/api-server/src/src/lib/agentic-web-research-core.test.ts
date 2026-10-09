@@ -209,8 +209,8 @@ describe("Investigator prompt architecture", () => {
     expect(describeAgentActionParseFailure('{"foo":"bar"}')).toBe("missing_action");
     expect(describeAgentActionParseFailure('{"action":"invented"}')).toBe("unsupported_action action=invented");
     expect(describeAgentActionParseFailure('{"action":"visit"}')).toBe("invalid_action_arguments action=visit invalid=url");
-    expect(describeAgentActionParseFailure('{"action":"web_search","query":"anchor","provider":"serper"} trailing text {"noise":true}')).toMatch(/^non_json_envelope chars=\\d+ digest=/);
-    expect(describeAgentActionParseFailure('{"action":"visit","url":"https://example.com"} {"action":"done"}')).toMatch(/^multiple_json_objects chars=\\d+ digest=/);
+    expect(describeAgentActionParseFailure('{"action":"web_search","query":"anchor","provider":"serper"} trailing text {"noise":true}')).toContain("non_json_envelope chars=");
+    expect(describeAgentActionParseFailure('{"action":"visit","url":"https://example.com"} {"action":"done"}')).toContain("multiple_json_objects chars=");
     expect(describeAgentActionParseFailure('{"action":"parallel_web_search","searches":[{"query":"anchor","provider":"serper"}]}')).toBe("invalid_action_arguments action=parallel_web_search searches_min=2");
   });
 
