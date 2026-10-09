@@ -1552,7 +1552,7 @@ export function BureauOpsStage({
       if (capped[i].live && !liveSeen) {
         liveSeen = true;
       } else if (capped[i].live) {
-        capped[i] = { ...capped[i], live: false, terminal: capped[i].terminal ?? "unknown" };
+        capped[i] = { ...capped[i], live: false, terminal: capped[i].terminal ?? "unknown", story: capped[i].story.replace(/^Now:\s*/i, "Unknown: ") };
       }
     }
     return capped;
