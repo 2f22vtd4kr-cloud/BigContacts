@@ -113,3 +113,23 @@ The prior static guard for Redis job-state semantics used unbounded regular expr
 ## Follow-up status-boundary hardening — legacy ingestion lanes
 
 The `/ingest/status` response also surfaced active job state through best-effort `getActiveJob`/`getJob` reads, so a Redis outage could make a running `western-hnwi` or `faa` lane appear as `null` without signaling uncertainty. The route now reads both lane pointers through the authoritative multi-read, reads pointed-to records with `getJobStrict`, returns `503 JOB_STATE_UNAVAILABLE` for read failures, and returns `503 JOB_STATE_INCONSISTENT` if an active pointer has no durable job record. This changes status semantics only; no ingestion strategy or execution pipeline is changed. The Redis fail-closed architecture guard now checks this route specifically.
+
+## Follow-up lifecycle fix — ingestion lane claim failure
+
+Five non-canonical ingestion endpoints (`western-hnwi`, `faa`, `occrp`, `land-registry`, and `opensky`) created a durable queued job and then attempted to claim their distributed active-lane lock without a local failure boundary. Concurrent launches could both pass the advisory pre-check; after one acquired the lock, the losing request would throw before starting work and leave its job record in `queued` until TTL expiry.
+
+The new `claimIngestionJobOrRespond` boundary catches that claim failure, releases only if the attempted job ID owns the lock, attempts to mark the never-started job `failed`, and returns HTTP 503 with `JOB_CLAIM_UNAVAILABLE`. All five launch paths call it before starting workers. The existing authoritative queue architecture guard now checks these five call sites and the failure cleanup. That guard is invoked from the API package build and test scripts, not merely the optional root `check:bureau` command.
+
+If Redis is unavailable even during the best-effort terminal update, the API still reports the claim as unavailable and never starts the worker; durable terminalization cannot be guaranteed until Redis recovers. This is intentionally not described as success.
+
+## Follow-up UI/API contract fix — unreachable launch warning
+
+The desk's Atlas launch helper queried public `/api/healthz` for `bureauIntegrity`/`lanesHonesty` fields that the endpoint deliberately does not return. The supposed “critical bureau integrity” launch warning was therefore unreachable, and the pre-launch request gave users no actionable status. Removed this dead health probe and warning suffix. The launch result now reflects the canonical launch response directly; detailed readiness remains a separate diagnostic concern and must not be inferred from a coarse liveness endpoint.
+
+## Release blocker — API authorization and deployment boundary not proven
+
+The checked-in API entrypoint (`artifacts/api-server/src/src/index.ts`), Express app (`.../src/app.ts`) and route aggregator (`.../src/routes/index.ts`) contain no bearer-auth middleware, no registration of a browser-safe authenticated session, and no source reference to `APEX_API_AUTH_TOKEN`. This contradicts the older `docs/audit-2026-09-10-auth.md` assertion that non-health requests are bearer-protected. CORS is not authorization, and the entity visibility/legacy-mutation guards are not general authentication.
+
+Without a source or verified edge auth boundary, the current route tree includes sensitive operational surfaces: `/healthz/details`, `/system/status`, `/system/source-quality`, provider-readiness POST diagnostics, arbitrary-job Investigator traces, and bureau-event JSON/SSE reads. If the deployment is publicly reachable, those routes disclose provider/infra and research metadata, and the readiness diagnostics can invoke upstream provider requests. The source audit cannot establish whether Replit/Cloud Run ingress is private; deployment visibility/IAM was deliberately not inspected by launching or accessing Replit in this audit.
+
+**Release gate:** verify and record private-ingress/auth policy for the actual deployed service. If the service is public, protect these routes at a trusted edge or add a browser-safe operator session/auth flow before release. Never embed the server bearer secret in the Vite bundle and never remove protection simply to get desk requests working. Until that boundary is independently verified, authorization status is **unknown / release-blocking**, not green.
