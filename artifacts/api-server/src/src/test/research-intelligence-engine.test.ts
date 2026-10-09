@@ -40,24 +40,26 @@ describe("Apex research intelligence", () => {
     expect(quality.find((item) => item.sourceClass === "SOCIAL_PROFILE")?.count).toBeGreaterThan(0);
   });
 
-  it("preserves separate exact identity and value spans for explicitly attributed multi-source contacts", () => {
+  it("keeps cross-page identity and contact evidence review-only until one source binds them", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "multi-source-span-binding", target: "John Smith", objective: "verify identity and contact" });
     const identityUrl = "https://company.example/leadership";
     const contactUrl = "https://company.example/contact";
     const finding = { vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [identityUrl, contactUrl] };
-    engine.recordAction({
-      turn: 1, action: "visit", execution: "success",
-      urls: [identityUrl], observation: "John Smith is CFO of Example Corp.",
-      findings: [finding],
-    });
-    engine.recordAction({
-      turn: 2, action: "visit", execution: "success",
-      urls: [contactUrl], observation: "Contact: john.smith@example.com",
-      findings: [finding],
-    });
-    const evidence = engine.buildContext().atomicEvidence.filter((item) => item.kind === "finding");
-    expect(evidence.some((item) => item.sourceUrl === identityUrl && item.spanBound === true && item.spanBindingKind === "identity")).toBe(true);
-    expect(evidence.some((item) => item.sourceUrl === contactUrl && item.spanBound === true && item.spanBindingKind === "value")).toBe(true);
+    const history = [
+      { turn: 1, action: "visit", execution: "success", observation: "John Smith is CFO of Example Corp.", urls: [identityUrl] },
+      { turn: 2, action: "visit", execution: "success", observation: "Contact: john.smith@example.com", urls: [contactUrl] },
+    ];
+    engine.recordAction({ ...history[0]!, args: {}, findings: [finding] });
+    engine.recordAction({ ...history[1]!, args: {}, findings: [finding], sourceObservations: history });
+    const state = engine.buildContext();
+    const identityEvidence = state.atomicEvidence.find((item) => item.sourceUrl === identityUrl && item.spanBound === true && item.spanBindingKind === "identity");
+    const valueEvidence = state.atomicEvidence.find((item) => item.sourceUrl === contactUrl && item.spanBound === true && item.spanBindingKind === "value");
+    expect(identityEvidence?.kind).toBe("observation");
+    expect(identityEvidence?.claim).not.toContain("john.smith@example.com");
+    expect(valueEvidence?.kind).toBe("observation");
+    expect(valueEvidence?.claim).not.toContain("John Smith email");
+    expect(state.facts.some((fact) => fact.claim === "John Smith email john.smith@example.com")).toBe(false);
+    expect(state.contacts).toContainEqual(expect.objectContaining({ personName: "John Smith", value: "john.smith@example.com", state: "DISCOVERED", sourceUrls: expect.arrayContaining([identityUrl, contactUrl]) }));
   });
 
   it("does not label a long-page co-occurrence as an exact identity/value binding", () => {
