@@ -123,7 +123,7 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
         await assertSafeOutboundUrl(finalUrl);
         const html = await page.content();
         const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
-        return { html: usable ? html : null, observedUrl: usable ? finalUrl : null };
+        return { html: usable ? html : null, observedUrl: usable ? sanitizeUrlForEvidence(finalUrl) : null };
       } finally {
         await context.close().catch(() => undefined);
       }
