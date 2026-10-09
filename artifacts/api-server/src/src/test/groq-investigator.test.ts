@@ -343,6 +343,50 @@ describe("Groq Investigator provider boundary", () => {
     expect(new Set(authorizationHeaders)).toEqual(new Set(["Bearer test-groq-investigator-key"]));
   });
 
+  it("does not reuse a token-window snapshot after the credential in a capability slot changes", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-old-credential-same-slot";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let calls = 0;
+    mocks.safeOutboundFetch.mockImplementation(async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ error: { type: "tokens", code: "rate_limit_exceeded" } }), {
+        status: 429,
+        headers: {
+          "x-ratelimit-remaining-tokens": "3108",
+          "x-ratelimit-reset-tokens": "121s",
+          "x-ratelimit-remaining-requests": "998",
+        },
+      });
+    });
+
+    const limited = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+    expect(limited.status).toBe("unavailable");
+    expect(calls).toBe(1);
+
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-new-credential-same-slot";
+    calls = 0;
+    mocks.safeOutboundFetch.mockImplementation(async () => {
+      calls += 1;
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const recovered = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+    expect(recovered.status).toBe("completed");
+    expect(calls).toBe(1);
+  });
+
   it("does not rotate through the same role keys after an authoritative request-quota 429", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.GROQ_INVESTIGATOR_API_KEY_1 = "test-groq-investigator-key-1";
