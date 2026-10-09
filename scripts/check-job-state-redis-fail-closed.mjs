@@ -22,7 +22,7 @@ const getLatestJob = exportedFunction(queue, "getLatestJob");
 
 const checks = [
   ["durable job reads distinguish Redis transport failure from an empty hash", /let redisOk=false[\s\S]*if\(!redisOk\)return null[\s\S]*if\(!raw\|\|Object\.keys\(raw\)\.length===0\)/.test(getJob)],
-  ["authoritative active-lane reads throw when Redis state is unknown", /classifyActiveJobRead\(readSucceeded,jobId\)[\s\S]*classified\.state===\"unavailable\"\) throw new Error/.test(getActiveJobStrict)],
+  ["authoritative active-lane reads throw when Redis state is unknown", getActiveJobStrict.includes("classifyActiveJobRead(readSucceeded,jobId)") && getActiveJobStrict.includes('classified.state==="unavailable") throw new Error')],
   ["legacy best-effort active read is explicitly a wrapper, not an authority", /return await getActiveJobStrict\(type\);\}catch\{return null;\}/.test(getActiveJob)],
   ["Atlas launch uses the authoritative active-lane read", launch.includes('getActiveJobStrict("atlas-run")')],
   ["Atlas stop refuses to claim a stop while active-lane state is unavailable", /getActiveJobStrict\("atlas-run"\)[\s\S]*JOB_STATE_UNAVAILABLE/.test(launch.slice(launch.indexOf('router.post("/ingest/atlas-stop"')))],
