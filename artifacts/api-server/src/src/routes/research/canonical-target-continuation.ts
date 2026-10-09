@@ -11,6 +11,12 @@ const router = Router();
 const cancellationFenceSql = (caseId: number) => sql`NOT (status = 'cancelled' OR (status = 'review' AND current_action IN ('canonical-atlas-cancelled','canonical-lease-lost','canonical-continuation-cancelled'))) AND id = ${caseId}`;
 function parseFile(raw: string | null): Record<string, any> | null { try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; } }
 const CONTROL_CONTEXT_BOUND_MARKER = "\n\n[CONTROL CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n";
+async function releaseContinuationLane(jobId: string): Promise<void> {
+  // Clear only our active-job pointer, then stop this process's lease timer even
+  // if a cancellation/lease fence has already removed the active-job pointer.
+  await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined);
+  await releaseCanonicalJob("atlas-run", jobId).catch(() => undefined);
+}
 function contextOf(file: Record<string, any>): string {
   const context = typeof file.contextDocument === "string" ? file.contextDocument.trim() : "";
   if (!context) throw new Error("Target case has no durable context document; refusing context-free continuation.");
@@ -34,11 +40,111 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
   try {
     await updateJob(jobId, { status: "running", progress: 0, total: 5, message: `Groq Boss reviewing continuation options for ${targetName}…` });
     if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw new Error("Canonical Atlas lease was lost before target continuation control; refusing provider work.");
-    const decision = await withProviderScope(`atlas-run:${jobId}`, () => decideTargetNextAction({ caseId, controlTurn, jobId, targetName, targetType, objective, contextDocument, trajectoryRecords, investigatorStatus: typeof latestReport?.status === "string" ? latestReport.status : current.status, investigatorStopReason: typeof file.investigatorStopReason === "string" ? file.investigatorStopReason : null }));
-    if (decision.status !== "completed" || decision.action === "stop") {
-      const [stopped] = await db.update(researchCasesTable).set({ status: "review", currentAction: "groq-target-stop", lastDecisionAt: new Date(), updatedAt: new Date() }).where(and(cancellationFenceSql(caseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`)).returning({ id: researchCasesTable.id });
-      if (!stopped) { await updateJob(jobId, { status: "cancelled", outcome: "incomplete", message: "Continuation closed by the durable cancellation fence.", finishedAt: new Date().toISOString() }).catch(() => undefined); await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined); res.status(409).json({ error: "This canonical target case is durably cancelled and cannot be resumed." }); return; }
-      await updateJob(jobId, { status: "done", progress: 5, total: 5, outcome: "complete", message: `Groq target control closed continuation for ${targetName}; case remains in review.`, result: JSON.stringify({ caseId, decision }), finishedAt: new Date().toISOString() }); await clearActiveJobIfOwned("atlas-run", jobId); res.status(200).json({ caseId, jobId, status: "review", decision }); return;
+
+    // Claim the DB case before asking Boss to persist a decision. The control
+    // component verifies caseFile.atlasJobId === jobId; rebinding only after the
+    // model call made each continuation reject its own decision as stale.
+    await db.transaction(async (tx) => {
+      const [locked] = await tx.select({
+        caseFile: researchCasesTable.caseFile,
+        caseType: researchCasesTable.caseType,
+        targetEntityId: researchCasesTable.targetEntityId,
+        status: researchCasesTable.status,
+        currentAction: researchCasesTable.currentAction,
+      }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
+      if (!locked || locked.caseType !== "target" || locked.targetEntityId !== current.targetEntityId) {
+        throw Object.assign(new Error("Target continuation case binding changed before control authorization."), { statusCode: 409 });
+      }
+      if (locked.caseFile !== current.caseFile) {
+        throw Object.assign(new Error("Target continuation case changed after it was read; refusing a stale projection."), { statusCode: 409 });
+      }
+      if (locked.status === "complete" || locked.status === "cancelled"
+        || (locked.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(locked.currentAction ?? "")))) {
+        throw Object.assign(new Error("Target continuation case is durably complete or cancelled and cannot be resumed."), { statusCode: 409, cancellationFence: true });
+      }
+      const latestFile = parseFile(locked.caseFile);
+      if (!latestFile || latestFile.target == null) {
+        throw Object.assign(new Error("Target continuation case state is unreadable or not target-scoped."), { statusCode: 409 });
+      }
+      if (!(await isCanonicalJobOwner("atlas-run", jobId)) {
+        throw Object.assign(new Error("Canonical Atlas lease was lost while claiming target continuation."), { statusCode: 409 });
+      }
+      const claimedFile = { ...latestFile, atlasJobId: jobId, jobId, lastUpdatedBy: "groq-boss-target-control-claim" };
+      const [claimed] = await tx.update(researchCasesTable)
+        .set({ caseFile: JSON.stringify(claimedFile), status: "review", currentAction: "groq-target-control-pending", updatedAt: new Date() })
+        .where(and(
+          eq(researchCasesTable.id, caseId),
+          eq(researchCasesTable.caseType, "target"),
+          eq(researchCasesTable.targetEntityId, current.targetEntityId),
+          cancellationFenceSql(caseId),
+        ))
+        .returning({ id: researchCasesTable.id });
+      if (!claimed) {
+        throw Object.assign(new Error("Target continuation case could not be claimed because its durable fence changed."), { statusCode: 409, cancellationFence: true });
+      }
+      if (!(await isCanonicalJobOwner("atlas-run", jobId))) {
+        throw Object.assign(new Error("Canonical Atlas lease was lost while claiming target continuation."), { statusCode: 409 });
+      }
+    }, { isolationLevel: "serializable" });
+
+    const decision = await withProviderScope(`atlas-run:${jobId}`, () => decideTargetNextAction({
+      caseId, controlTurn, jobId, targetName, targetType, objective, contextDocument, trajectoryRecords,
+      investigatorStatus: typeof latestReport?.status === "string" ? latestReport.status : current.status,
+      investigatorStopReason: typeof file.investigatorStopReason === "string" ? file.investigatorStopReason : null,
+    }));
+    if (!(await isCanonicalJobOwner("atlas-run", jobId))) {
+      throw Object.assign(new Error("Canonical Atlas lease was lost while Groq target control was running."), { statusCode: 409 });
+    }
+
+    // Unavailability is not an AI-selected successful stop. Keep the case
+    // reviewable, but terminalize this job as failed/incomplete.
+    if (decision.status !== "completed") {
+      const [failedCase] = await db.update(researchCasesTable)
+        .set({ status: "review", currentAction: "target-control-error", lastDecisionAt: new Date(), updatedAt: new Date() })
+        .where(and(
+          cancellationFenceSql(caseId),
+          eq(researchCasesTable.caseType, "target"),
+          sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`,
+        ))
+        .returning({ id: researchCasesTable.id });
+      const message = decision.error ?? decision.reason ?? "Groq target control was unavailable; continuation remains incomplete.";
+      await updateJob(jobId, {
+        status: failedCase ? "failed" : "cancelled", outcome: "incomplete",
+        message: failedCase ? message : "Target control was fenced by a concurrent state or ownership change.",
+        finishedAt: new Date().toISOString(),
+      }).catch(() => undefined);
+      await releaseContinuationLane(jobId);
+      res.status(failedCase ? 503 : 409).json({ error: failedCase ? message : "Target continuation was fenced by a concurrent state or ownership change.", jobId, status: "incomplete" });
+      return;
+    }
+
+    if (decision.action === "stop") {
+      const [stopped] = await db.update(researchCasesTable)
+        .set({ status: "review", currentAction: "groq-target-stop", lastDecisionAt: new Date(), updatedAt: new Date() })
+        .where(and(
+          cancellationFenceSql(caseId),
+          eq(researchCasesTable.caseType, "target"),
+          sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`,
+        ))
+        .returning({ id: researchCasesTable.id });
+      if (!stopped) {
+        await updateJob(jobId, {
+          status: "cancelled", outcome: "incomplete",
+          message: "Target stop was not committed because the durable case or ownership fence changed.",
+          finishedAt: new Date().toISOString(),
+        }).catch(() => undefined);
+        await releaseContinuationLane(jobId);
+        res.status(409).json({ error: "Target stop was not committed; case state or ownership changed.", jobId });
+        return;
+      }
+      await updateJob(jobId, {
+        status: "done", progress: 5, total: 5, outcome: "complete",
+        message: `Groq target control closed continuation for ${targetName}; case remains in review.`,
+        result: JSON.stringify({ caseId, decision }), finishedAt: new Date().toISOString(),
+      });
+      await releaseContinuationLane(jobId);
+      res.status(200).json({ caseId, jobId, status: "review", decision });
+      return;
     }
     const direction = decision.direction?.trim() || "Reassess the strongest unresolved evidence question within the exact target scope.";
     const nextContextRaw = `${contextDocument}\n\n## Groq Boss — explicit continuation decision\nAction: ${decision.action}\nResearch direction: ${direction}\nReason: ${decision.reason ?? "not supplied"}\nConfidence: ${decision.confidence ?? "unknown"}\nThis direction is a research objective, not a prescribed tool sequence. Investigator retains control of every search, visit, pivot, evidence judgment, and stopping decision.`;
