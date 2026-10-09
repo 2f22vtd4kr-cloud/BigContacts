@@ -397,9 +397,18 @@ function extractBalancedJsonObject(source: string): string | null {
   }
   return null;
 }
+function unwrapOptionalJsonFence(raw: string): string {
+  const trimmed = raw.trim();
+  const fenced = trimmed.match(/^```(?:json)?[ \\t]*\\r?\\n?([\\s\\S]*?)\\r?\\n?```$/i)?.[1]?.trim();
+  return fenced ?? trimmed;
+}
 function extractJsonObject(raw: string): string | null {
-  const fenced = raw.match(/\`\`\`(?:json)?\s*([\\s\\S]*?)\`\`\`/i)?.[1]?.trim();
-  return extractBalancedJsonObject(fenced || raw.trim());
+  const candidate = unwrapOptionalJsonFence(raw);
+  if (!candidate.startsWith("{")) return null;
+  const json = extractBalancedJsonObject(candidate);
+  // The Investigator contract is exactly one root JSON object. Do not accept
+  // a valid prefix and silently ignore trailing prose or a second action.
+  return json === candidate ? json : null;
 }
 function describeInvalidActionArguments(action: string, value: Record<string, unknown>): string {
   const textField = (name: string, max: number) => cleanText(value[name], max);
@@ -442,8 +451,19 @@ export function nextConsecutiveActionParseFailureCount(current: number, parsedAc
 export function describeAgentActionParseFailure(raw: string): string {
   const trimmed = raw.trim();
   if (!trimmed) return "empty_response";
+  const candidate = unwrapOptionalJsonFence(raw);
   const json = extractJsonObject(raw);
-  if (!json) return `no_json_object chars=${raw.length} digest=${digestDiagnosticText(raw)}`;
+  if (!json) {
+    const first = extractBalancedJsonObject(candidate);
+    if (first) {
+      const offset = candidate.indexOf(first);
+      const prefix = candidate.slice(0, offset).trim();
+      const suffix = candidate.slice(offset + first.length).trim();
+      const kind = !prefix && suffix.startsWith("{") ? "multiple_json_objects" : "non_json_envelope";
+      return kind + " chars=" + raw.length + " digest=" + digestDiagnosticText(raw);
+    }
+    return `no_json_object chars=${raw.length} digest=${digestDiagnosticText(raw)}`;
+  }
   let value: Record<string, unknown>;
   try { value = JSON.parse(json) as Record<string, unknown>; }
   catch { return `invalid_json chars=${json.length} digest=${digestDiagnosticText(json)}`; }
@@ -1016,7 +1036,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     workingContext,
     "",
-    "STRICT RESPONSE ENVELOPE: all top-level schema properties are required even when unused: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Use null for inapplicable scalar fields that accept null and [] for unused searches/findings. Each parallel search item must include query, provider, locale, market, purpose; set unused locale/market/purpose to null. Each finding must include vectorType, value, personName, role, scope, sourceUrls, note, promotionDecision, promotionReason; use null only for nullable finding fields. ACTION SHAPES: web_search={action,query,provider,hypothesis,purpose,expectedInformationGain}; parallel_web_search={action,searches:[{query,provider,locale,market,purpose},...],hypothesis,purpose,expectedInformationGain}; visit={action,url,hypothesis,purpose,expectedInformationGain}; browser_fetch={action,url,provider,hypothesis,purpose,expectedInformationGain}; registry_search={action,query,registry,hypothesis,purpose,expectedInformationGain}; domain_lookup={action,domain,provider,hypothesis,purpose,expectedInformationGain}; harvest_domain={action,domain,hypothesis,purpose,expectedInformationGain}; footprint_email={action,email,hypothesis,purpose,expectedInformationGain}; footprint_username_maigret={action,username,hypothesis,purpose,expectedInformationGain}; footprint_username_sherlock={action,username,hypothesis,purpose,expectedInformationGain}; footprint_spiderfoot={action,target,targetType,profile,hypothesis,purpose,expectedInformationGain}; done={action,findings,thought}. Return exactly ONE JSON object, with no prose or markdown.",
+    "STRICT RESPONSE ENVELOPE: all top-level schema properties are required in every action, even when unused: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Use null for inapplicable scalar fields that accept null and [] for unused searches/findings. Each parallel search item must include query, provider, locale, market, purpose; set unused locale/market/purpose to null. Each finding must include vectorType, value, personName, role, scope, sourceUrls, note, promotionDecision, promotionReason; use null only for nullable finding fields. The action shapes below name action-specific values only; they never replace the full required envelope. ACTION-SPECIFIC FIELDS: web_search={action,query,provider,hypothesis,purpose,expectedInformationGain}; parallel_web_search={action,searches:[{query,provider,locale,market,purpose},...],hypothesis,purpose,expectedInformationGain}; visit={action,url,hypothesis,purpose,expectedInformationGain}; browser_fetch={action,url,provider,hypothesis,purpose,expectedInformationGain}; registry_search={action,query,registry,hypothesis,purpose,expectedInformationGain}; domain_lookup={action,domain,provider,hypothesis,purpose,expectedInformationGain}; harvest_domain={action,domain,hypothesis,purpose,expectedInformationGain}; footprint_email={action,email,hypothesis,purpose,expectedInformationGain}; footprint_username_maigret={action,username,hypothesis,purpose,expectedInformationGain}; footprint_username_sherlock={action,username,hypothesis,purpose,expectedInformationGain}; footprint_spiderfoot={action,target,targetType,profile,hypothesis,purpose,expectedInformationGain}; done={action,findings,thought}; for done, include every other required top-level property with null or empty-array placeholders as stated above. Return exactly ONE root JSON object, with no prose, prefixes, suffixes, or additional JSON objects.",
     `VALID EXAMPLE: {"action":"web_search","query":"named organization + operator + concrete geography","provider":"serper","url":null,"email":null,"username":null,"domain":null,"registry":null,"thought":null,"hypothesis":"A concrete operating context may identify an attributable person","purpose":"test the strongest current discovery hypothesis","expectedInformationGain":0.8,"locale":null,"market":null,"target":null,"targetType":null,"profile":null,"searches":[],"findings":[]}. For parallel_web_search provide 2–4 independent search objects with every required nested field present. Choose the next action yourself; this example is schema guidance, not a research sequence.`,
   ].join("\n");
   const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length);
