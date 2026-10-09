@@ -65,6 +65,10 @@ describe("discovery runtime architecture", () => {
     expect(runner).toMatch(/rightHand.*Boss|Boss.*Right-hand/is);
   });
 
+  it("does not treat an oversight stop as an Investigator-selected terminal", () => {
+    expect(researchSource).toMatch(/if \\(checkpointResult\\.stop\\) \\{\\s*if \\(!acceptedInvestigatorTerminal\\) return \\{[\\s\\S]*?stopReason: "OVERSIGHT_STOP"/);
+  });
+
   it("keeps target opening Boss-first and requires Right-hand before act 1", () => {
     const runner = fs.readFileSync(path.join(libDir, "canonical-single-target-runner.ts"), "utf8");
     const bossOpening = runner.indexOf("runGroqBossDiscovery({");
