@@ -919,7 +919,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
     // subset. The runtime parser remains authoritative for action/provider
     // combinations and cardinality, so those safety checks are not weakened.
     query: { type: ["string","null"] },
-    provider: { type: ["string","null"] },
+    provider: { type: ["string","null"], enum: ["serper","tavily","exa","rdap","whoisjson","scrapfly","zenrows","browserless","playwright",null] },
     url: { type: ["string","null"] },
     email: { type: ["string","null"] },
     username: { type: ["string","null"] },
