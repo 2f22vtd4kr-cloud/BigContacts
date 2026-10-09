@@ -179,8 +179,8 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(quotaAccount: string, model: string)");
     expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(quotaAccount, model))");
     expect(researchCoreSource).toContain("account: quotaAccount");
-    const snapshotCalls = researchCoreSource.match(/captureGroqRateLimitSnapshot\\([^)]*\\)/g) ?? [];
-    expect(snapshotCalls.slice(1).every((call) => /captureGroqRateLimitSnapshot\\(quotaAccount,\\s*model,\\s*response\\)/.test(call))).toBe(true);
+    const snapshotCalls = researchCoreSource.match(/captureGroqRateLimitSnapshot\([^)]*\)/g) ?? [];
+    expect(snapshotCalls.slice(1).every((call) => /captureGroqRateLimitSnapshot\(quotaAccount,\s*model,\s*response\)/.test(call))).toBe(true);
   });
 
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
