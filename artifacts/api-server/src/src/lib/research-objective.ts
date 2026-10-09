@@ -13,3 +13,7 @@ export function validateResearchObjective(direction: string | null | undefined):
   if (EXPLICIT_URL.test(value) || TOOL_DIRECTIVE.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe a concrete URL/tool destination." };
   return { valid: true, direction: value };
 }
+
+export function formatBossDirectedObjective(baseObjective: string, direction: string): string {
+  return `${baseObjective.trim()}\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\n${direction.trim()}`;
+}
