@@ -31,7 +31,7 @@ const checks = [
   ["guard queries concrete entity IDs before allowing generic mutation", /inArray\(entitiesTable\.id\s*,\s*entityIds\)/.test(guard)],
   ["guard is mounted after public health", healthIndex >= 0 && guardIndex > healthIndex],
   ["guard is mounted before ingest routes", guardIndex >= 0 && ingestIndex >= 0 && guardIndex < ingestIndex],
-  ["canonical API does not mount deterministic extended OSINT router", !routes.includes('router.use(extendedOsintRouter)') && !routes.includes('import extendedOsintRouter from "./extended-osint"')],,
+  ["canonical API does not mount deterministic extended OSINT router", !routes.includes('router.use(extendedOsintRouter)') && !routes.includes('import extendedOsintRouter from "./extended-osint"')],
   ["parameterized secondary-surface refresh is matched by the retired-route guard", guard.includes("/^\\/entities\\/\\d+\\/refresh-surface$/")],
   ["secondary-surface refresh is a 410 stub, not a deterministic scraper", entityRoutes.includes('router.post("/entities/:id/refresh-surface", (_req, res): void => {') && entityRoutes.includes("Legacy secondary-surface refresh retired.") && !entityRoutes.includes("expandSecondaryPublicSurface")],
 ];
