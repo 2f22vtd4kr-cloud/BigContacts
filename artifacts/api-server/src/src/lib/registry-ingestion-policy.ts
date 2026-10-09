@@ -9,6 +9,8 @@
 export type RegistryIngestionAssessment = {
   prior: number;
   hasRecentActivity: false;
+  /** A registry record cannot establish a network relationship to a gatekeeper. */
+  hasGatekeeperConnection: false;
   recentActivityDays: 400;
   proximityScore: 3;
   confidence: "LOW";
@@ -27,6 +29,7 @@ export function deriveRegistryIngestionAssessment(
     // heuristics into the probability that a specific person is an HNWI.
     prior: personCandidate ? 0.15 : 0.2,
     hasRecentActivity: false,
+    hasGatekeeperConnection: false,
     recentActivityDays: 400,
     proximityScore: 3,
     confidence: "LOW",
