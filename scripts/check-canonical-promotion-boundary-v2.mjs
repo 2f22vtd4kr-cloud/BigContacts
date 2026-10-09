@@ -36,9 +36,9 @@ assert(hasAll(target, [
   "sourceBackedFindings(modelFindings, agentic.trajectory, groundingRecords)",
   "function isReviewableObservation(record: AgenticTrajectoryRecord): boolean",
   "isClaimGradeObservationAction(record.action)",
-  "supportsReviewableClaimAcrossObservations(",
+  "supportsCandidateContactOnSameObservation(",
   "supportsContactClaimAcrossObservations(",
-]), "target preserves cumulative, reviewable source attribution while building claim graphs only from stricter support");
+]) && !target.includes("supportsReviewableClaimAcrossObservations"), "target contact output requires same-observation candidate attribution after cumulative source grounding; split-page-only claims remain outside target contact output");
 assert(hasAll(strict, [
   "supportsContactClaimAcrossObservations(observedClaimMaterials,item,cleanValue,vectorType)",
   "hasBoundIdentityAndValue(observation.observationText,personName,cleanValue,vectorType)",
