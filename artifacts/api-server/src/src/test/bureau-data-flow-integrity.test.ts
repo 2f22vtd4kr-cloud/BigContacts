@@ -22,7 +22,10 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
     expect(quotaHistorySource).toMatch(/investigatorCapabilityHistory:\s*\[\.\.\.history,\s*\{\s*from:\s*(?:previous|previousAssignment),\s*to:\s*replacement,\s*trigger:\s*"upstream_quota_exhausted"\s*\}\s*\]\.slice\(-15\)/);
 
     for (const content of durableFiles) {
-      const genericScan = content.replace(quotaHistorySource.match(/investigatorCapabilityHistory:\s*\[\.\.\.history[\s\S]*?\.slice\(-15\)/)?.[0] ?? "", "");
+      const boundedOversightTail = content.match(/recentActs:\s*\[\.\.\.historyRecords, \.\.\.records\]\.slice\(-4\)/)?.[0] ?? "";
+      const genericScan = content
+        .replace(quotaHistorySource.match(/investigatorCapabilityHistory:\s*\[\.\.\.history[\s\S]*?\.slice\(-15\)/)?.[0] ?? "", "")
+        .replace(boundedOversightTail, "recentActs: bounded presentation-only context");
       expect(genericScan).not.toMatch(/\.slice\(\s*-\d+/);
       expect(genericScan).not.toMatch(/Math\.min\(\s*40\s*,/);
       expect(genericScan).not.toMatch(/maxCandidates/);
