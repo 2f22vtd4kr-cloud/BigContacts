@@ -75,6 +75,13 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     expect(continuation).toContain("controlTurn ?? 0");
   });
 
+  it("uses only immutable act-anchored oversight evidence for terminal completion", () => {
+    const targetRunner = read("src/src/lib/canonical-single-target-runner.ts");
+    expect(targetRunner).toContain("evidenceGraphCount: Array.isArray((latest as Record<string, unknown>).evidenceGraphs)");
+    expect(targetRunner).toContain("evidenceGraphCount: lastOversight?.evidenceGraphCount ?? 0");
+    expect(targetRunner).not.toContain("evidenceGraphCount: latestResult?.evidenceGraphs?.length ?? 0");
+  });
+
   it("reconstructs target trajectory from immutable event ID order", () => {
     const source = read("src/src/lib/canonical-single-target-runner.ts");
     expect(source).toContain("asc(researchCaseEventsTable.id)");
