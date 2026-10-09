@@ -40,6 +40,26 @@ describe("Apex research intelligence", () => {
     expect(quality.find((item) => item.sourceClass === "SOCIAL_PROFILE")?.count).toBeGreaterThan(0);
   });
 
+  it("preserves separate exact identity and value spans for explicitly attributed multi-source contacts", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "multi-source-span-binding", target: "John Smith", objective: "verify identity and contact" });
+    const identityUrl = "https://company.example/leadership";
+    const contactUrl = "https://company.example/contact";
+    const finding = { vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [identityUrl, contactUrl] };
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      urls: [identityUrl], observation: "John Smith is CFO of Example Corp.",
+      findings: [finding],
+    });
+    engine.recordAction({
+      turn: 2, action: "visit", execution: "success",
+      urls: [contactUrl], observation: "Contact: john.smith@example.com",
+      findings: [finding],
+    });
+    const evidence = engine.buildContext().atomicEvidence.filter((item) => item.kind === "finding");
+    expect(evidence.some((item) => item.sourceUrl === identityUrl && item.spanBound === true && item.spanBindingKind === "identity")).toBe(true);
+    expect(evidence.some((item) => item.sourceUrl === contactUrl && item.spanBound === true && item.spanBindingKind === "value")).toBe(true);
+  });
+
   it("keeps search-result leads out of evidence and source-coverage metrics", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "search-leads", target: "Example Target", objective: "discover attributable people" });
     engine.recordAction({
