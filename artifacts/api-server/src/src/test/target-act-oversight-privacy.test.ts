@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildTargetActRightHandPrompt, compactOversightAct } from "../lib/target-act-oversight";
+import { sanitizeUrlForEvidence } from "../lib/url-privacy";
 
 describe("target act URL privacy boundary", () => {
   it("sanitizes URL secrets from the Boss-facing act projection", () => {
@@ -31,6 +32,21 @@ describe("target act URL privacy boundary", () => {
     expect(serialized).not.toContain("alice:password");
     expect(serialized).toContain("Alice Example");
     expect(serialized).toContain("REDACTED");
+  });
+
+  it("redacts percent-encoded sensitive keys in route-style OAuth fragments", () => {
+    const urls = [
+      "https://example.com/#/callback?access%5Ftoken=encoded-underscore-secret&state=keep",
+      "https://example.com/#/callback?%61ccess_token=encoded-leading-secret&state=keep",
+    ];
+    for (const rawUrl of urls) {
+      const safe = sanitizeUrlForEvidence(rawUrl);
+      expect(safe).toContain("/callback");
+      expect(safe).toContain("state=keep");
+      expect(safe).toContain("REDACTED");
+      expect(safe).not.toContain("encoded-underscore-secret");
+      expect(safe).not.toContain("encoded-leading-secret");
+    }
   });
 
   it("redacts URL secrets from Right-hand and Boss-facing prompt context", () => {
