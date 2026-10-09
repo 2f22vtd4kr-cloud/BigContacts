@@ -214,13 +214,13 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   const investigatorCapabilityList = availableInvestigators.length ? availableInvestigators.join(", ") : "none currently configured";
   const targetName = String(input.file.target?.name ?? "target");
   const creative = buildCreativeInvestigatorAngles({
-    targetName,
-    targetType: input.file.target?.type,
-    country: input.file.target?.nationality ?? null,
-    pendingVectors: input.file.investigationProgress?.pendingVectors ?? [],
-    discoveredPeople: input.file.evidenceSummary?.discoveredPeople ?? [],
-    candidateDomains: input.file.target?.knownDomains ?? [],
-    relatedOrganizations: input.file.evidenceSummary?.relatedOrganizations ?? [],
+    clipPrompt(targetName, 240) ?? "target",
+    targetType: clipPrompt(input.file.target?.type ?? null, 120),
+    country: clipPrompt(input.file.target?.nationality ?? null, 120),
+    pendingVectors: (input.file.investigationProgress?.pendingVectors ?? []).slice(0, 12).map((value) => clipPrompt(value, 180) ?? ""),
+    discoveredPeople: (input.file.evidenceSummary?.discoveredPeople ?? []).slice(0, 12).map((value) => clipPrompt(value, 180) ?? ""),
+    candidateDomains: (input.file.target?.knownDomains ?? []).slice(0, 8).map((value) => clipPrompt(value, 220) ?? ""),
+    relatedOrganizations: (input.file.evidenceSummary?.relatedOrganizations ?? []).slice(0, 12).map((value) => clipPrompt(value, 180) ?? ""),
     depth: depth.depth,
     includeInstitutionalOrientation: false,
   });
