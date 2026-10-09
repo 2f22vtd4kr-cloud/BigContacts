@@ -194,7 +194,7 @@ describe("discovery runtime architecture", () => {
   it("does not abort a ReAct act before the provider decision wait budget", () => {
     expect(researchSource).toContain("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000");
     expect(researchCoreSource).toContain("export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS");
-    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
+    expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", key, model, response)");
   });
 
   it("requires successful durable observation events and exact same-observation candidate binding for promotion", () => {
