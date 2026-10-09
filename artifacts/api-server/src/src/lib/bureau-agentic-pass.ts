@@ -10,6 +10,7 @@ import { persistSourceBackedBureauContactsForEntity } from "./bureau-contact-per
 import { publishBureauEvent } from "./bureau-live-log";
 import { recordDiscoveryTrace } from "./investigator-trace";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { candidateIdentityObserved } from "./identity-text-match";
 
 export type BureauAgenticPassResult = { status:"completed"|"unavailable"|"error"|"skipped"|"timeout"|"cancelled"; model:string; iterations:number; searches:number; visits:number; findings:AgenticFinding[]; modelFindings?:AgenticFinding[]; contactEvidence:Array<{vectorType:string;value:string;scope:string;personName:string|null;role:string|null;sourceUrls:string[];note:string}>; trajectory:string[]; trajectoryRecords?:AgenticTrajectoryRecord[]; caseId?:number; runId?:string; stopReason?:string; error?:string };
 const WEB_SPECIALISTS=new Set(["web","contact","footprint"]);
@@ -30,7 +31,50 @@ function observedUrlsFromTrajectory(trajectory:string[], records:AgenticTrajecto
   return observed;
 }
 function claimGradeSourceUrlsFromTrajectory(records: AgenticTrajectoryRecord[] = []): Set<string> { const observed = new Set<string>(); for (const record of records) { if (record.execution !== "success" || (record.action !== "visit" && record.action !== "browser_fetch")) continue; for (const raw of record.observedUrls ?? []) { const normalized = normalizeObservedUrl(raw); if (normalized) observed.add(normalized); } } return observed; }
-function claimAppearsInObservedMaterial(finding:AgenticFinding,records:AgenticTrajectoryRecord[]):boolean{if(!records.length)return false;const sources=new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url):url is string=>Boolean(url)));if(!sources.size)return false;const value=finding.value.trim().toLowerCase();if(!value)return false;const tokens=finding.scope==="candidate"&&finding.personName?finding.personName.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((v)=>v.length>=2):[];let valueObserved=false,identityObserved=!tokens.length,support=0;const supportingUrls=new Set<string>();for(const record of records){if(record.execution!=="success"||typeof record.observation!=="string"||record.action==="web_search"||record.action==="parallel_web_search"||record.action==="done")continue;const matched=record.observedUrls.map(normalizeObservedUrl).filter((url):url is string=>Boolean(url)).filter((url)=>sources.has(url));if(!matched.length)continue;const text=record.observation.toLowerCase();const identityText=text.replace(/https?:\/\/\S+/gi," ").replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi," ");const hasValue=Boolean(bindExactSourceSpan(record.observation,finding.value)?.exact);const hasIdentity=!tokens.length||tokens.every((token)=>identityText.includes(token));if(hasValue)valueObserved=true;if(hasIdentity)identityObserved=true;if(hasValue||hasIdentity){support++;for(const url of matched)supportingUrls.add(url);}}return valueObserved&&identityObserved&&support>0&&supportingUrls.size===sources.size;}
+function claimAppearsInObservedMaterial(finding:AgenticFinding,records:AgenticTrajectoryRecord[]):boolean {
+  if (!records.length) return false;
+  const sources = new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)));
+  if (!sources.size) return false;
+  if (!finding.value.trim()) return false;
+
+  const candidate = finding.scope === "candidate";
+  const personName = typeof finding.personName === "string" ? finding.personName.trim() : "";
+  // Candidate-scoped claims need a real person identity; a contact value alone
+  // must never turn a nameless candidate into an attributed person.
+  if (candidate && !personName) return false;
+
+  let valueObserved = false;
+  let identityObserved = !candidate;
+  let support = 0;
+  const supportingUrls = new Set<string>();
+
+  for (const record of records) {
+    if (
+      record.execution !== "success" ||
+      typeof record.observation !== "string" ||
+      (record.action !== "visit" && record.action !== "browser_fetch")
+    ) continue;
+    const matched = record.observedUrls
+      .map(normalizeObservedUrl)
+      .filter((url): url is string => Boolean(url))
+      .filter((url) => sources.has(url));
+    if (!matched.length) continue;
+
+    const identityText = record.observation
+      .replace(/https?:\/\/\S+/gi, " ")
+      .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
+    const hasValue = Boolean(bindExactSourceSpan(record.observation, finding.value)?.exact);
+    const hasIdentity = !candidate || candidateIdentityObserved(personName, identityText);
+    if (hasValue) valueObserved = true;
+    if (hasIdentity) identityObserved = true;
+    if (hasValue || hasIdentity) {
+      support += 1;
+      for (const url of matched) supportingUrls.add(url);
+    }
+  }
+
+  return valueObserved && identityObserved && support > 0 && supportingUrls.size === sources.size;
+}
 export function sourceBackedAgenticFindings(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]):AgenticFinding[]{const observed=claimGradeSourceUrlsFromTrajectory(records);return findings.filter((f)=>Array.isArray(f.sourceUrls)).map((f)=>({...f,sourceUrls:[...new Set(f.sourceUrls.map(normalizeObservedUrl).filter((url):url is string=>Boolean(url)))]})).filter((f)=>f.sourceUrls.length>0&&f.sourceUrls.every((url)=>observed.has(url))&&claimAppearsInObservedMaterial(f,records));}
 export function findingsToContactEvidence(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>({vectorType:f.vectorType,value:f.value,scope:f.scope==="candidate"?"candidate":"organization",personName:f.scope==="candidate"?f.personName:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:f.note}));}
 export function findingsToBureauContacts(findings:AgenticFinding[],_fallbackPersonName:string,trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>{const person=typeof f.personName==="string"?f.personName.trim():"";const candidate=f.scope==="candidate"&&person.length>0;return{vectorType:f.vectorType,value:f.value,scope:candidate?"candidate":"organization",personName:candidate?person:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:`bureau-agentic:${f.note}`,tier:"candidate",state:"review_only",promote:candidate&&f.promotionDecision==="promote"};});}
