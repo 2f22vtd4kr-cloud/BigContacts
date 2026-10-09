@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canApplyJobPatch, canApplyJobPatchWithoutRedis, classifyActiveJobRead, classifyJobCreationVerification } from "../lib/job-queue-terminal-policy";
+import { canApplyJobPatch, canApplyJobPatchWithoutRedis, classifyActiveJobLaneStatus, classifyActiveJobRead, classifyJobCreationVerification } from "../lib/job-queue-terminal-policy";
 
 describe("job queue terminal write policy", () => {
   it.each(["done", "failed", "cancelled"])("rejects every late update after %s", (status) => {
@@ -58,5 +58,19 @@ describe("active job state read classification", () => {
   it("preserves the exact active job ID only after a successful state read", () => {
     expect(classifyActiveJobRead(true, "job-123")).toEqual({ state: "active", jobId: "job-123" });
     expect(classifyActiveJobRead(false, "job-123")).toEqual({ state: "unavailable", jobId: null });
+  });
+});
+
+describe("active job lane status classification", () => {
+  it.each(["queued", "running", "paused"])("keeps nonterminal status %s active", status => {
+    expect(classifyActiveJobLaneStatus(status)).toBe("active");
+  });
+
+  it.each(["done", "failed", "cancelled"])("recognizes terminal status %s", status => {
+    expect(classifyActiveJobLaneStatus(status)).toBe("terminal");
+  });
+
+  it.each([undefined, null, "", "completed", "mystery"])("does not misreport unknown status %s as idle", status => {
+    expect(classifyActiveJobLaneStatus(status)).toBe("unknown");
   });
 });
