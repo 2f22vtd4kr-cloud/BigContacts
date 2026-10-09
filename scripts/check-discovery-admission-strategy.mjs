@@ -2,6 +2,8 @@ import fs from "node:fs";
 
 const path = "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts";
 const source = fs.readFileSync(path, "utf8");
+const identityMatcherPath = "artifacts/api-server/src/src/lib/identity-text-match.ts";
+const identityMatcher = fs.readFileSync(identityMatcherPath, "utf8");
 
 const forbidden = [
   /\.slice\(0,\s*input\.maxCandidates\)/,
@@ -11,12 +13,19 @@ const forbidden = [
 const violations = forbidden.filter((pattern) => pattern.test(source));
 if (violations.length) {
   throw new Error(
-    "Canonical discovery must not deterministically truncate model-admitted candidates before Gemini chooses among them. Use a hard safety failure/limit that does not select the first N candidates."
+    "Canonical discovery must not deterministically truncate model-admitted candidates. Enforce hard resource limits without selecting the first N candidates."
   );
 }
 
-if (!/function candidateIdentityObserved\([\s\S]*?normalizedText\.includes\(normalizedName\)/.test(source)) {
-  throw new Error("Canonical discovery admission must require the normalized candidate name to be present in the observed source material.");
+// Keep the runtime's shared, token-boundary matcher on both the admission
+// support check and the evidence-event lookup. Checking only a local helper
+// definition allowed substring matching to be reintroduced at call sites.
+const matcherCallCount = (source.match(/candidateIdentityObserved\(name,\s*payload\.observation\)/g) ?? []).length;
+const importsSharedMatcher = /import\s*\{\s*candidateIdentityObserved\s*\}\s*from\s*["']\.\/identity-text-match["']/.test(source);
+const matcherUsesTokenBoundaries = identityMatcher.includes("` ${normalizedText} `.includes(` ${normalizedName} `)");
+
+if (!importsSharedMatcher || matcherCallCount < 2 || !matcherUsesTokenBoundaries || !identityMatcher.includes("normalizedName.length >= 3")) {
+  throw new Error("Canonical discovery admission must use the shared token-boundary identity matcher for both observation support and persisted evidence.");
 }
 
 if (!/db\.transaction\(async \(tx\) => \{[\s\S]*tx\.update\(researchCasesTable\)[\s\S]*tx\.insert\(researchCaseEventsTable\)/.test(source)) {
