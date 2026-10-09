@@ -270,7 +270,7 @@ function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
     const cleaned = sanitizeStoryText(e.story.trim());
     if (cleaned && !isLogGarbage(cleaned)) {
       // Avoid double "Now: Now:"
-      const body = cleaned.replace(/^(Now|Done|Failed):\s*/i, "");
+      const body = cleaned.replace(/^(Now|Done|Failed|Stopped|Queued|Unknown):\s*/i, "");
       return `${prefix} ${body}`;
     }
   }
@@ -278,7 +278,7 @@ function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
     return `${prefix} updating the case file — ${e.caseUpdate.trim().slice(0, 140)}`;
   }
   if (e.actor === "boss") {
-    return `${prefix} ${live ? "boss is briefing the team on" : "boss briefed the team on"} ${t}`;
+    return `${prefix} ${active ? "boss is briefing the team on" : "boss briefed the team on"} ${t}`;
   }
 
   const tool = pickTool(e);
@@ -345,7 +345,7 @@ function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
       break;
     default: {
       if (/adaptive|director/i.test(blob)) {
-        body = live
+        body = active
           ? `deciding what to check next for ${t}`
           : `chose the next research step for ${t}`;
       } else if (/opencorporates|companies.?house|sec\b|edgar|sam\.gov|registry|corporate/i.test(blob)) {
