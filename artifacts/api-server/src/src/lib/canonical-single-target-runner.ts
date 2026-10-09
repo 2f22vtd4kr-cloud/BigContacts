@@ -14,6 +14,7 @@ import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, validateAtlasOpeningRightHandReview } from "./atlas-control-decision";
 import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
 import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, deriveProviderBoundedActTimeoutMs, isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
+import { safeThrownErrorSummary } from "./provider-error-diagnostics";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; initialDirection?: string; manageJobLifecycle?: boolean; maxInvestigatorIterations?: number; excludedInvestigatorLlm?: readonly InvestigatorCapability[] };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null; evidenceGraphCount?: number };
 type TargetCase = { id: number; targetEntityId: number; status: string; iteration: number; objective: string; caseFile: string | null };
@@ -320,9 +321,12 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   const terminal = deriveCanonicalTerminalDecision({ durableCaseStatus: authoritativeCase?.status ?? null, locallyCancelled: cancelled });
   await publishJob( { status: terminal.jobStatus, progress: terminal.outcome === "complete" ? 1 : 0, total: 1, atlasPhase: terminal.outcome === "complete" ? 1 : 0, atlasPhaseTotal: 1, outcome: terminal.outcome, message: stopped ? `Groq Boss explicitly stopped ${target.name} after ${completedActs} Investigator act(s).` : cancelled ? `Target investigation for ${target.name} was cancelled after ${completedActs} controlled act(s).` : deadlineExceeded ? `Target investigation for ${target.name} reached its global deadline after ${completedActs} controlled act(s).` : `Target investigation for ${target.name} preserved for review after ${completedActs} controlled act(s).`, result: JSON.stringify({ caseId: caseRow.id, investigator: latestResult ? { status: latestResult.status, model: latestResult.model, findings: latestResult.findings, searches: latestResult.searches, visits: latestResult.visits, iterations: latestResult.iterations, trajectory: latestResult.trajectory, trajectoryRecords: latestResult.trajectoryRecords, evidenceGraphs: latestResult.evidenceGraphs, executionId: latestResult.executionId } : null, lastOversight, completedActs, investigatorIterationsUsed, resourceLimited, deadlineExceeded, cancelled, hardTimeoutMs, terminal, durableCaseStatus: authoritativeCase?.status ?? null }), finishedAt: new Date().toISOString() }); return { investigatorIterationsUsed, resourceLimited, status: cancelled ? "cancelled" : authoritativeCase?.status === "complete" ? "complete" : "review", exhaustedInvestigatorLlm: [...quotaExhaustedInvestigators].filter((capability) => !initialExcludedInvestigators.has(capability)), investigatorLlm };
   } catch (error) {
-    const message = error instanceof Error ? error.message : `Target investigation for ${target.name} failed unexpectedly.`;
+    const rawMessage = error instanceof Error ? error.message : "";
     const currentJob = await getJob(atlasJobId);
-    const cancelledByJob = currentJob?.status === "cancelled" || message.includes("cancelled");
+    const cancelledByJob = currentJob?.status === "cancelled" || /cancelled|canceled/i.test(rawMessage);
+    const message = cancelledByJob
+      ? "Target investigation was cancelled; the result is incomplete."
+      : safeThrownErrorSummary("Canonical target investigation failed", error);
     await db.update(researchCasesTable).set({
       status: "review",
       currentAction: cancelledByJob ? "cancelled" : "investigator-execution-failed",
@@ -334,7 +338,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
     ));
     if (currentJob?.status === "running") {
-      await publishJob( {
+      await publishJob({
         status: cancelledByJob ? "cancelled" : "failed",
         outcome: "incomplete",
         message,
