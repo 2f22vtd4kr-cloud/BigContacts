@@ -21,7 +21,6 @@ jobs:
       PORT: 8080
       ENABLE_AUTO_PIPELINE: "false"
       NODE_ENV: development
-      APEX_API_AUTH_TOKEN: ${{ secrets.APEX_API_AUTH_TOKEN }}
       GROQ_BOSS_API_KEY: ${{ secrets.GROQ_BOSS_API_KEY }}
       GROQ_RIGHT_HAND_API_KEY: ${{ secrets.GROQ_RIGHT_HAND_API_KEY }}
       GROQ_RIGHT_HAND_API_KEY_2: ${{ secrets.GROQ_RIGHT_HAND_API_KEY_2 }}
