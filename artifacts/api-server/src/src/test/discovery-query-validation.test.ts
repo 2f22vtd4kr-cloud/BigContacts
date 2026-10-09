@@ -45,6 +45,13 @@ describe("discovery query quality guidance", () => {
     expect(contextual.allowed).toBe(true);
   });
 
+  it("recognizes whitespace-separated tokens and explicit source anchors for accurate advisory scoring", () => {
+    const result = validateDiscoverySearchQuery("site:sec.gov 2024 Form 4 Jordan Example");
+    expect(result.allowed).toBe(true);
+    expect(result.warning ?? "").not.toMatch(/brief or context-light/i);
+    expect(result.warning ?? "").not.toMatch(/no explicit person, organization, geography, registry, domain/i);
+  });
+
   it("only hard-rejects an empty query at this quality-heuristic boundary", () => {
     expect(validateDiscoverySearchQuery("  \n  ").allowed).toBe(false);
   });
