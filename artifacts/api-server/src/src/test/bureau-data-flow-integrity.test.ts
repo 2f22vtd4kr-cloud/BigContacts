@@ -32,9 +32,12 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
     }
 
 
-    const discoveryObjective = source("artifacts/api-server/src/src/lib/agentic-web-research.ts");
-    expect(discoveryObjective).toContain("const embeddedDirection = direction ?? (base.includes(pivotMarker)");
-    expect(discoveryObjective).toContain("CURRENT RESEARCH OBJECTIVE (BOSS-DIRECTED, CURRENT TASK CONSTRAINT):\\n${embeddedDirection}");
+    const discoveryObjective = source("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts");
+    expect(discoveryObjective).toContain("validateResearchObjective(proposedDirection)");
+    expect(discoveryObjective).toContain("formatBossDirectedObjective(discoveryObjective, validatedDirection.direction)");
+    const objectiveHelper = source("artifacts/api-server/src/src/lib/research-objective.ts");
+    expect(objectiveHelper).toContain("BOSS-DIRECTED RESEARCH QUESTION / PIVOT:");
+    expect(objectiveHelper).toContain("PROVIDER_OR_TOOL_DIRECTIVE.test(value)");
     const agenticResearch = source("artifacts/api-server/src/src/lib/agentic-web-research.ts");
     expect(agenticResearch).toContain("sharedContext: `${oversightContext.contextDocument}\\n\\n${renderIntelligenceContext(intelligence.buildContext())}`");
     expect(agenticResearch).not.toContain("sharedContext: `${oversightContext.contextDocument}\\\\n\\\\n");
