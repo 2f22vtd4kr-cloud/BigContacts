@@ -10,7 +10,18 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: {},
 }));
 
-import { isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+import { isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+
+describe("contact promotion entity-type eligibility", () => {
+  it("allows a PersonCandidate to receive evidence-backed contact without classifying its wealth", () => {
+    expect(isContactPromotionEligibleEntityType("PersonCandidate")).toBe(true);
+    expect(isContactPromotionEligibleEntityType("HNWI")).toBe(true);
+    expect(isContactPromotionEligibleEntityType("Gatekeeper")).toBe(true);
+    expect(isContactPromotionEligibleEntityType("Corporation")).toBe(false);
+    expect(isContactPromotionEligibleEntityType("Trust")).toBe(false);
+    expect(isContactPromotionEligibleEntityType("unknown")).toBe(false);
+  });
+});
 
 describe("canonical immutable promotion control role", () => {
   it("accepts canonical Groq oversight and retains legacy Gemini compatibility", () => {
