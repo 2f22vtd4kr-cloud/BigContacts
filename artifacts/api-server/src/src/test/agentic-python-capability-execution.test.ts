@@ -12,7 +12,7 @@ vi.mock("../lib/python-tools", () => ({
   runSpiderFoot: vi.fn(async () => ({ target: "example.com", targetType: "domain", profile: "domain-infrastructure", observations: [], eventsReceived: 0, available: false, partial: false, reviewOnly: true, error: "Python network sandbox is unavailable." })),
 }));
 
-import { runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { describeAgentActionParseFailure, isModelSelectableAgentAction } from "../lib/agentic-web-research-core";
 
 describe("agentic Python capability execution state", () => {
   afterEach(() => {
@@ -26,27 +26,17 @@ describe("agentic Python capability execution state", () => {
     ["footprint_username_sherlock", '{"action":"footprint_username_sherlock","username":"example"}'],
     ["harvest_domain", '{"action":"harvest_domain","domain":"example.com"}'],
     ["footprint_spiderfoot", '{"action":"footprint_spiderfoot","target":"example.com","targetType":"domain","profile":"domain-infrastructure"}'],
-  ])("records %s as blocked when the Python capability is unavailable", async (_action, actionJson) => {
-    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
-    const responses = [
-      { choices: [{ message: { content: actionJson } }] },
-      { choices: [{ message: { content: '{"action":"done","findings":[]}' } }] },
-    ];
-    let calls = 0;
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(responses[calls++]), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    })));
-
-    const result = await runAgenticWebResearch({
-      targetName: "Example",
-      investigatorLlm: "groq-investigator-1",
-      maxIterations: 2,
-      hardTimeoutMs: 30_000,
-    });
-
-    expect(result.status).toBe("completed");
-    expect(result.trajectoryRecords[0]?.execution).toBe("blocked");
-    expect(result.trajectoryRecords[0]?.observation).toMatch(/sandbox is unavailable/i);
+  ])("rejects disabled Python capability %s before the network sandbox boundary", (action, actionJson) => {
+    expect(isModelSelectableAgentAction(action)).toBe(false);
+    expect(describeAgentActionParseFailure(actionJson)).toContain(`unsupported_action action=${action}`);
   });
-});
+
+  it("retains the enabled autonomous research capabilities", () => {
+    expect(isModelSelectableAgentAction("web_search")).toBe(true);
+    expect(isModelSelectableAgentAction("parallel_web_search")).toBe(true);
+    expect(isModelSelectableAgentAction("visit")).toBe(true);
+    expect(isModelSelectableAgentAction("browser_fetch")).toBe(true);
+    expect(isModelSelectableAgentAction("registry_search")).toBe(true);
+    expect(isModelSelectableAgentAction("domain_lookup")).toBe(true);
+    expect(isModelSelectableAgentAction("done")).toBe(true);
+  });});
