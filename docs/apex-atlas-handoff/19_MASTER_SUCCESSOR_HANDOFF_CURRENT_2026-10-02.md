@@ -1,21 +1,17 @@
-# CURRENT OVERRIDE — RECONCILED 2026-10-03
+# CURRENT OVERRIDE — RECONCILED 2026-10-09
 
-> The historical body below is retained for lineage, but it is superseded wherever it conflicts with current source.
+> The historical body below is retained for incident lineage only. This override, `docs/context.md`, `README.md`, and executable code on `main` supersede conflicting role law, provider claims and SHAs in the historical body.
 
-- Current `main` HEAD: `3b0b6a68cd4b9078dc00bb9306f90dddf9e43fb6` at the time of this documentation update.
-- Canonical control: Groq Boss → Mistral Right-hand → model-owned Groq/Mistral Investigator.
-- Right-hand primary: `mistral-small-2603`.
-- Right-hand genuine cross-family candidates: `ministral-14b-2512`, `ministral-8b-2512`, `ministral-3b-2512`.
-- `mistral-small-latest` is not a production fallback.
-- Right-hand credentials: `MISTRAL_RIGHT_HAND_API_KEY[_2.._5]`; generic `MISTRAL_API_KEY` is Investigator-only.
-- Latest direct Small-4 probe already returned HTTP 429 with zero-looking request-minute headers. Do not repeat it or launch Atlas without explicit authorization.
-- Current source records redacted top-level Mistral error `message`, `type`, `param`, `code`, rate-limit headers, Retry-After, request metadata, and key fingerprint; it does not log credentials.
-- Current tests include a mocked hard-429 transition from Small 4 to Ministral 14B.
-- Current provider/model facts are supported by Mistral documentation: Small 4 and all three Ministral 3 models expose Chat Completions and Structured Outputs.
-- Community Free-tier reports are hypothesis-generating only; they do not prove this Workspace's entitlement.
-- CI for the exact current main push has not been independently observed through the available connector. Do not claim green.
+- Canonical control plane: **Groq Boss → selected Groq Investigator capability**, with **Groq Right-hand** as independent bounded oversight.
+- Boss primary: `openai/gpt-oss-120b`; bounded same-role fallback: `openai/gpt-oss-20b`.
+- Right-hand primary: `openai/gpt-oss-120b`; bounded same-role fallback: `openai/gpt-oss-20b`.
+- Investigator registry: up to six separately configured Groq Investigator credential capabilities. These are selectable capabilities, not an automatic model ladder. Durable reassignment is allowed only through the explicit recovery path after classified hard request-quota exhaustion.
+- Gemini and Mistral control/Investigator adapters are historical/retired, not active canonical paths.
+- Current source-level hardening from this audit: model action text bounds are now enforced; discovery search-only liveness has direct regression tests; IPv6 `5f00::/16` SRv6 SID destinations are blocked with regression coverage. CI status must be checked for the actual current head.
+- This review did **not** run Replit or start a live Atlas discovery job. Do not claim live runtime acceptance from source review or CI alone.
+- `main` SHA when this override was authored: `ab783c41c9fe7a14bdc01203ad17bc2d4d596d86`. Always verify the actual SHA before acting.
 
-See `docs/context.md` current override and the latest Mistral Right-hand audit for the reconciled state.
+See `docs/context.md` for current architecture and release gates.
 
 ---
 # Apex Atlas — Master Successor Handoff — 2026-10-02
