@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { normalizeLiveActivities, type LiveActivity, type ReactorSpanLike } from "./reactor-live-model";
+import { normalizeLiveActivities, parseCanonicalActiveJobProjection, type LiveActivity, type ReactorSpanLike } from "./reactor-live-model";
 import { readApiJson } from "./api-json";
 
 type StoreSnapshot = {
@@ -94,15 +94,11 @@ async function pull(): Promise<void> {
     if (!activeResponse.ok) return;
     if (myGeneration !== generation || listeners.size === 0) return;
 
-    const job = activeData?.job && typeof activeData.job === "object"
-      ? activeData.job as Record<string, unknown>
-      : null;
-    const runStatus = String(job?.status ?? activeData?.jobStatus ?? (activeData?.active ? "running" : "idle")).toLowerCase();
-    const jobId = typeof activeData?.jobId === "string"
-      ? activeData.jobId
-      : typeof job?.jobId === "string"
-        ? job.jobId
-        : null;
+    const activeProjection = parseCanonicalActiveJobProjection(activeData);
+    // HTTP 200 with an unknown/malformed job shape is not evidence that Atlas
+    // is idle. Preserve the last known snapshot until the contract is valid.
+    if (!activeProjection) return;
+    const { runStatus, jobId } = activeProjection;
 
     // The forensic trace is the canonical structured activity source. A trace
     // fetch is only made when an Atlas job exists, so an idle desk performs one
