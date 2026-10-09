@@ -8,6 +8,16 @@ import { isWellFormedPersonCandidate, type DiscoveryCandidate } from "./discover
 import { logger } from "./logger";
 import { evaluateTargetFitness, shouldRejectTarget } from "./target-fitness";
 
+/**
+ * Registry/public-source identity is only a candidate admission. Wealth and
+ * trusted contact roles require separate source-backed adjudication.
+ */
+export const DISCOVERY_CANDIDATE_CLASSIFICATION = {
+  type: "PersonCandidate",
+  reviewOnly: true,
+  wealthStatus: "unverified",
+} as const;
+
 export async function createEntityFromDiscoveryCandidate(
   c: DiscoveryCandidate,
   options: { modelSelected?: boolean } = {},
@@ -61,7 +71,7 @@ export async function createEntityFromDiscoveryCandidate(
     .insert(entitiesTable)
     .values({
       name,
-      type: "HNWI",
+      type: DISCOVERY_CANDIDATE_CLASSIFICATION.type,
       // Do not synthesize a discovery score. Model-selected admission preserves
       // model order; the value below is only a neutral seed for legacy list UI.
       bayesianScore: options.modelSelected ? 0.2 : Math.max(0.2, Math.min(0.45, fitness?.score ?? 0.2)),
@@ -75,6 +85,8 @@ export async function createEntityFromDiscoveryCandidate(
         company: c.company,
         promotionDecision: c.promotionDecision,
         promotionReason: c.promotionReason,
+        reviewOnly: DISCOVERY_CANDIDATE_CLASSIFICATION.reviewOnly,
+        wealthStatus: DISCOVERY_CANDIDATE_CLASSIFICATION.wealthStatus,
         ...(fitness ? { fitness: fitness.fit } : {}),
       }),
       contactConfidence: 0,
