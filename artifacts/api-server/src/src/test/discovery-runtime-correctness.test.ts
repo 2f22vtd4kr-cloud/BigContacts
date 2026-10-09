@@ -66,7 +66,7 @@ describe("discovery runtime architecture", () => {
   });
 
   it("does not treat an oversight stop as an Investigator-selected terminal", () => {
-    expect(researchSource).toMatch(/if \\(checkpointResult\\.stop\\) \\{\\s*if \\(!acceptedInvestigatorTerminal\\) return \\{[\\s\\S]*?stopReason: "OVERSIGHT_STOP"/);
+    expect(researchSource).toMatch(/if \(checkpointResult\.stop\) \{\s*if \(!acceptedInvestigatorTerminal\) return \{[\s\S]*?stopReason: "OVERSIGHT_STOP"/);
   });
 
   it("keeps target opening Boss-first and requires Right-hand before act 1", () => {
