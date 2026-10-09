@@ -17,6 +17,10 @@ const continuation = read("artifacts/api-server/src/src/routes/research/canonica
 const researchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
 const investigatorCore = read("artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
+const entityTaxonomy = read("artifacts/apex-finder/src/lib/entity-taxonomy.tsx");
+const entityPage = read("artifacts/apex-finder/src/pages/entities.tsx");
+const migrations = read("artifacts/api-server/src/src/routes/ingest-migrations.ts");
+const legacyMigrations = read("artifacts/api-server/src/routes/ingest-migrations.ts");
 const failures = [];
 const assert = (ok, name) => { if (!ok) failures.push(name); };
 const hasAll = (source, markers) => markers.every((marker) => source.includes(marker));
@@ -46,6 +50,10 @@ assert(atlas.includes("discovery = mergeDiscoveryResults(discovery, nextDiscover
 assert(atlas.includes('mode: "discovery"'), "Atlas uses explicit discovery mode");
 assert(!atlas.includes("Discovery slot"), "Atlas has no fake Discovery target slot");
 assert(hasAll(bureau, ['mode?:"target"|"discovery"', 'input.mode!=="discovery"']), "Bureau discovery mode is explicit");
+assert(atlas.includes('name, type: "PersonCandidate"') && atlas.includes('"HNWI", "Gatekeeper", "PersonCandidate"'), "discovery admission uses a neutral PersonCandidate type and preserves candidate identity lookup");
+assert(hasAll(entityTaxonomy, ['"PersonCandidate"', "wealth not established", "Candidate"]), "frontend taxonomy marks review-only identities as candidates rather than HNWIs");
+assert(entityPage.includes('"PersonCandidate"') && entityPage.includes("Candidate — wealth unverified"), "entity filters label unverified candidates explicitly");
+assert(migrations.includes("NOT IN ('HNWI', 'Gatekeeper', 'PersonCandidate')") && legacyMigrations.includes("PersonCandidate"), "type-reclassification routes must not reinterpret review candidates as HNWIs or organizations");
 assert(atlas.includes("runCanonicalSingleTargetInvestigation"), "Atlas routes admitted targets through canonical single-target control");
 assert(hasAll(atlas, ["reviewOnly: true", "admission: \"investigator-explicit-promotion\"", "sourceUrl", "target-scoped Investigator research required"]), "discovery admission remains review-only identity state with source provenance and requires target-scoped research before contact promotion");
 assert(continuation.includes("refusing context-free continuation"), "case continuation fails closed without durable context");
