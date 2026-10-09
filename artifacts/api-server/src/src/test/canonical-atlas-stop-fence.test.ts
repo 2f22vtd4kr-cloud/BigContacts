@@ -71,4 +71,15 @@ describe("canonical Atlas stop fence", () => {
     expect(discovery).toContain('isCanonicalJobOwner("atlas-run", jobId)');
     expect(agentic).toContain("isCanonicalJobOwner(lockType, input.jobId)");
   });
+  it("transient renewal errors retry without falsely fencing a current owner", () => {
+    const lock = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/canonical-job-lock.ts"), "utf8");
+    expect(lock).toContain("local owner=redis.call(\'get\',KEYS[1]); if owner==ARGV[1] then return 0 end;");
+    expect(lock).toContain("if not status or status==\'done\' or status==\'failed\' or status==\'cancelled\' then return 0 end");
+    expect(lock).toContain("if (!fenced) return;");
+    const timer = lock.slice(lock.indexOf("const timer = setInterval"));
+    expect(timer).toContain("Canonical lease renewal failed; retrying before fencing");
+    expect(timer).toContain("if (!renewed)");
+    expect(timer).not.toContain("catch(() => { const current = leaseTimers.get(timerKey)");
+  });
+
 });
