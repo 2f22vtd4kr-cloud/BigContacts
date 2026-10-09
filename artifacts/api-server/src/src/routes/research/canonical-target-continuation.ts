@@ -68,6 +68,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
   let jobId: string | null = null;
   try { jobId = await createJob("atlas-run"); const claimed = await claimCanonicalJob("atlas-run", jobId); if (!claimed) { await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Another canonical Atlas job owns the distributed execution lock.", finishedAt: new Date().toISOString() }); res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId }); return; } await setActiveJob("atlas-run", jobId); } catch (error) { if (jobId) { await updateJob(jobId, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Canonical Atlas lock acquisition failed.", finishedAt: new Date().toISOString() }).catch(() => undefined); await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined); await releaseCanonicalJob("atlas-run", jobId).catch(() => undefined); } res.status(503).json({ error: error instanceof Error ? error.message : "Canonical Atlas lock acquisition failed.", jobId }); return; }
   const targetName = typeof file.target.name === "string" ? file.target.name : ""; const targetType = typeof file.target.type === "string" ? file.target.type : "unknown"; const objective = typeof current.objective === "string" && current.objective ? current.objective : `Investigate the exact named target ${targetName} for realistic public contact routes.`; const priorInvestigator = Array.isArray(file.investigatorReports) ? file.investigatorReports.slice(-8) : []; const trajectoryRecords = Array.isArray(file.investigatorTrajectoryRecords) ? file.investigatorTrajectoryRecords.slice(-40) : []; const latestReport = priorInvestigator.length ? priorInvestigator[priorInvestigator.length - 1] : null; const controlHistory = Array.isArray(file.targetControlDecisions) ? file.targetControlDecisions : []; const latestControlTurn = controlHistory.reduce((max, item) => item && typeof item === "object" ? Math.max(max, Number((item as Record<string, unknown>).controlTurn ?? 0)) : max, 0); const [latestControlEvent] = await db.select({ payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, caseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let durableControlTurn = 0; if (typeof latestControlEvent?.payload === "string") { try { durableControlTurn = Number((JSON.parse(latestControlEvent.payload) as Record<string, unknown>).controlTurn ?? 0); } catch {} } const controlTurn = Math.max(Number(current.iteration ?? 0), latestControlTurn, durableControlTurn) + 1;
+  let controlStopCommitted = false;
   try {
     await updateJob(jobId, { status: "running", progress: 0, total: 5, message: `Groq Boss reviewing continuation options for ${targetName}…` });
     if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw new Error("Canonical Atlas lease was lost before target continuation control; refusing provider work.");
@@ -145,7 +146,8 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     if (decision.action === "stop") {
       const stopped = await transitionClaimedTargetCase({ caseId, jobId, currentAction: "groq-target-stop" });
       if (!stopped) {
-        await updateJob(jobId, {
+        controlStopCommitted = true;
+      await updateJob(jobId, {
           status: "cancelled", outcome: "incomplete",
           message: "Target stop was not committed because the durable case or ownership fence changed.",
           finishedAt: new Date().toISOString(),
@@ -194,10 +196,21 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     const statusCode = Number((error as { statusCode?: unknown })?.statusCode ?? 503);
     const cancellationFence = Boolean((error as { cancellationFence?: unknown })?.cancellationFence);
     if (cancellationFence) { await updateJob(jobId, { status: "cancelled", outcome: "incomplete", message: "Continuation rejected by the durable cancellation fence.", finishedAt: new Date().toISOString() }).catch(() => undefined); await releaseContinuationLane(jobId); res.status(409).json({ error: "This canonical target case is durably cancelled and cannot be resumed." }); return; }
+    if (controlStopCommitted) {
+      const stopFinalizationError = error instanceof Error ? error.message : "unknown job-state finalization error";
+      await updateJob(jobId, {
+        status: "failed", outcome: "incomplete",
+        message: "The stop decision is durably recorded, but job-state finalization failed: " + stopFinalizationError,
+        finishedAt: new Date().toISOString(),
+      }).catch(() => undefined);
+      await releaseContinuationLane(jobId);
+      res.status(503).json({ error: "The stop decision is durable, but continuation job finalization could not be confirmed.", jobId, status: "incomplete" });
+      return;
+    }
     const message = error instanceof Error ? error.message : "Target control decision failed.";
     const ownsLease = await isCanonicalJobOwner("atlas-run", jobId).catch(() => false);
     const updated = ownsLease ? await transitionClaimedTargetCase({ caseId, jobId, currentAction: "target-control-error" }).catch(() => false) : false;
-    const [latestCase] = await db.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
+    const [latestCase] = await db.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1).catch(() => [] as Array<{ status: string | null; currentAction: string | null; caseFile: string | null }>);
     const latestFile = parseFile(latestCase?.caseFile ?? null);
     const durableFence = !ownsLease || !latestCase || latestCase.status === "complete" || latestCase.status === "cancelled"
       || (latestCase.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(latestCase.currentAction ?? "")))
