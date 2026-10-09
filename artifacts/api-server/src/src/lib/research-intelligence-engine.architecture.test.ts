@@ -13,7 +13,7 @@ describe("Research intelligence attribution architecture", () => {
       turn: 1,
       action: "visit",
       execution: "success",
-      observation: "Alice Person email alice@example.org",
+      observation: "Alice Person email shared@example.org",
       urls: ["https://example.org/alice"],
       findings: [{
         vectorType: "email",
