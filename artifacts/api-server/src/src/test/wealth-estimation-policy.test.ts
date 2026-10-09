@@ -48,6 +48,15 @@ describe("wealth estimation eligibility", () => {
     })).toEqual({ eligible: true, reason: "persisted_asset_value" });
   });
 
+  it("allows explicit reassessment to supersede the registry-ingestion default", () => {
+    expect(assessWealthEstimateEligibility({
+      type: "HNWI",
+      metadata: JSON.stringify({ westernIngest: true, wealthStatus: "assessed", reviewOnly: false }),
+      sourceRegistries: JSON.stringify(["SEC EDGAR"]),
+      totalAssetValue: 12_000_000,
+    })).toEqual({ eligible: true, reason: "persisted_asset_value" });
+  });
+
   it("abstains when no persisted asset valuation exists", () => {
     expect(assessWealthEstimateEligibility({
       type: "HNWI",
