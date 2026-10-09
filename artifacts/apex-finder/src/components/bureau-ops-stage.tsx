@@ -12,6 +12,7 @@ import {
 } from "./provider-icons";
 import { ActivityGlyph, ActivityGlyphMini } from "./activity-glyph";
 import { REACTOR_PAUSE_MS, REACTOR_SCENE_MS, REACTOR_SHIMMER_MS, REACTOR_UI_MS, REACTOR_AUTO_ADVANCE_MS, REACTOR_SWIPE_VELOCITY, REACTOR_SWIPE_PX, motionOrNone } from "../lib/reactor-motion";
+import { sceneStatusLabel } from "../lib/reactor-live-model";
 
 export type OpsEvent = {
   timestamp?: string;
@@ -1315,7 +1316,7 @@ function MobileWorkstage({
           <SourceLinkRow links={scene.links} />
           <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[13px] text-stone-500">
             <span className={scene.live ? "text-[#9CFF1A]" : "text-stone-500"}>
-              {scene.live ? "Now" : scene.terminal === "failed" ? "Fail" : "Done"}
+              {sceneStatusLabel(scene.live, scene.terminal)}
             </span>
             {/* Free dig: never "N of M steps" — only a log position, not a fixed plan */}
             <span className="tabular-nums text-stone-600" title="Tool activity log position (not a fixed dig plan)">
@@ -1551,7 +1552,7 @@ export function BureauOpsStage({
       if (capped[i].live && !liveSeen) {
         liveSeen = true;
       } else if (capped[i].live) {
-        capped[i] = { ...capped[i], live: false, terminal: capped[i].terminal ?? "done" };
+        capped[i] = { ...capped[i], live: false, terminal: capped[i].terminal ?? "unknown" };
       }
     }
     return capped;
