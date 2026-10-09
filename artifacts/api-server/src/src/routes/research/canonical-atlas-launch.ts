@@ -9,6 +9,7 @@ import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-singl
 import { checkAtlasSchemaReadiness } from "../../lib/schema-readiness";
 import { describeThrownProviderError } from "../../lib/provider-error-diagnostics";
 import { withProviderScope } from "../../lib/provider-gate";
+import { parseCanonicalSingleTargetId } from "../../middlewares/normalize-atlas-launch-body";
 
 const router = Router();
 
@@ -33,6 +34,17 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   let atlasJobId: string | null = null;
   let lockClaimed = false;
   try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const parsedTargetId = parseCanonicalSingleTargetId(body);
+    if (parsedTargetId.kind === "invalid") {
+      res.status(400).json({
+        error: "singleTargetId must be a positive safe integer when supplied.",
+        code: "INVALID_SINGLE_TARGET_ID",
+      });
+      return;
+    }
+    const singleTargetId = parsedTargetId.kind === "single-target" ? parsedTargetId.id : undefined;
+
     const schema = await checkAtlasSchemaReadiness();
     if (!schema.ready) {
       res.status(503).json({
@@ -71,9 +83,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     }
   }
 
-  const body = (req.body ?? {}) as Record<string, unknown>;
-  const singleTargetRaw = body.singleTargetId !== undefined ? Number(body.singleTargetId) : NaN;
-  const singleTargetId = Number.isInteger(singleTargetRaw) && singleTargetRaw > 0 ? singleTargetRaw : undefined;
   const targetCount = Math.max(1, Math.min(20, Math.trunc(Number(body.targetCount) || 3)));
   const researchDepth = typeof body.researchDepth === "string" && ["fast", "standard", "deep"].includes(body.researchDepth)
     ? body.researchDepth as "fast" | "standard" | "deep"
