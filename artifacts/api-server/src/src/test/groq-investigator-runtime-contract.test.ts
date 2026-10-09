@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
 
 describe("Groq Investigator runtime contract", () => {
+  it("shares quota identity across environment slots carrying the same credential", () => {
+    const sharedCredential = "test-groq-api-key-that-is-not-real";
+    const identity = groqQuotaAccountIdentity(sharedCredential);
+    expect(identity).toBe(groqQuotaAccountIdentity(`  ${sharedCredential}  `));
+    expect(groqQuotaAccountIdentity("a-different-test-groq-key")).not.toBe(identity);
+    expect(identity).not.toContain(sharedCredential);
+    expect(identity).toMatch(/^groq-credential:[a-f0-9]{16}$/);
+  });
   it("enforces concrete, non-duplicate discovery search quality before provider calls", async () => {
     const { validateDiscoverySearchQuery } = await import("../lib/agentic-web-research-core");
     expect(validateDiscoverySearchQuery("billionaires richest people Forbes", [])).toMatchObject({ allowed: false });
