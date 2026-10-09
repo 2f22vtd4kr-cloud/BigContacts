@@ -281,7 +281,7 @@ export class ResearchIntelligenceEngine {
         let best: typeof supportedSources[number] | null = null;
         let bestRank = 0;
         for (const source of sourceObservationsByUrl.get(sourceUrl) ?? []) {
-          const combinedSpan = bindExactSourceSpan(source.observation, value, subject);
+          const combinedSpan = bindExactSourceSpan(source.observation, value, subject, 320);
           const valueSpan = bindExactSourceSpan(source.observation, value);
           const identitySpan = finding.personName ? bindExactSourceSpan(source.observation, finding.personName) : null;
           const supportsSource = finding.personName ? Boolean(valueSpan?.exact || identitySpan?.exact) : Boolean(valueSpan?.exact);

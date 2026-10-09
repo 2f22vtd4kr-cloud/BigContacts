@@ -60,6 +60,23 @@ describe("Apex research intelligence", () => {
     expect(evidence.some((item) => item.sourceUrl === contactUrl && item.spanBound === true && item.spanBindingKind === "value")).toBe(true);
   });
 
+  it("does not label a long-page co-occurrence as an exact identity/value binding", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "long-page-nonbinding", target: "John Smith", objective: "verify contact" });
+    const sourceUrl = "https://company.example/directory";
+    const longObservation = "John Smith is CFO of Example Corp. " + "Unrelated directory entry about another person. ".repeat(12) + "Contact: john.smith@example.com.";
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "success",
+      urls: [sourceUrl],
+      observation: longObservation,
+      findings: [{ vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [sourceUrl] }],
+    });
+    const evidence = engine.buildContext().atomicEvidence.filter((item) => item.kind === "finding" && item.sourceUrl === sourceUrl);
+    expect(evidence.some((item) => item.spanBindingKind === "identity_and_value")).toBe(false);
+    expect(evidence.some((item) => item.spanBindingKind === "value")).toBe(true);
+  });
+
   it("upgrades deduplicated evidence when a later observation binds identity and value together", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "evidence-span-upgrade", target: "John Smith", objective: "verify contact" });
     const sourceUrl = "https://company.example/leadership";
