@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
 
-const BASE = import.meta.env.BASE_URL.replace(/\\/$/, "");
+const API = "/api";
 type GateStatus = "checking" | "authenticated" | "signed-out" | "unconfigured" | "unreachable";
 type SessionResponse = { configured?: boolean; authenticated?: boolean; code?: string; error?: string };
 
@@ -13,7 +13,7 @@ export function OperatorGate({ children }: { children: ReactNode }) {
   const checkSession = useCallback(async () => {
     setStatus("checking"); setMessage("");
     try {
-      const response = await fetch(BASE + "/api/auth/session", { credentials: "same-origin", cache: "no-store" });
+      const response = await fetch(API + "/auth/session", { credentials: "same-origin", cache: "no-store" });
       const data = await response.json().catch(() => ({} as SessionResponse)) as SessionResponse;
       if (response.status === 503 || data.code === "OPERATOR_AUTH_NOT_CONFIGURED") {
         setStatus("unconfigured"); setMessage(data.error ?? "Operator sign-in is not configured for this API instance.");
@@ -45,7 +45,7 @@ export function OperatorGate({ children }: { children: ReactNode }) {
     if (busy) return;
     setBusy(true); setMessage("");
     try {
-      const response = await fetch(BASE + "/api/auth/login", {
+      const response = await fetch(API + "/auth/login", {
         method: "POST", credentials: "same-origin", cache: "no-store",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ password }),
@@ -69,7 +69,7 @@ export function OperatorGate({ children }: { children: ReactNode }) {
   const logout = async () => {
     setBusy(true);
     try {
-      await fetch(BASE + "/api/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" } });
+      await fetch(API + "/auth/logout", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { Accept: "application/json" } });
     } finally { setBusy(false); setStatus("signed-out"); setMessage("You have signed out."); }
   };
 
