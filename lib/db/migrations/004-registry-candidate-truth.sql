@@ -55,11 +55,11 @@ BEGIN
       CONTINUE;
     END IF;
 
-    IF parsed_metadata->>'needsEnrichment' <> 'true'
-       OR NOT (
-         parsed_metadata->>'westernIngest' = 'true'
-         OR parsed_metadata->>'randomDiscovery' = 'true'
-       )
+    IF COALESCE(parsed_metadata->>'needsEnrichment', 'false') <> 'true' THEN
+      CONTINUE;
+    END IF;
+    IF COALESCE(parsed_metadata->>'westernIngest', 'false') <> 'true'
+       AND COALESCE(parsed_metadata->>'randomDiscovery', 'false') <> 'true'
     THEN
       CONTINUE;
     END IF;
@@ -130,7 +130,10 @@ BEGIN
 
     UPDATE public.entities
     SET type = next_type,
-        bayesian_score = LEAST(COALESCE(bayesian_score, 0.15), 0.25),
+        bayesian_score = CASE
+          WHEN next_type = 'PersonCandidate' THEN LEAST(COALESCE(bayesian_score, 0.15), 0.25)
+          ELSE bayesian_score
+        END,
         metadata = parsed_metadata::text,
         updated_at = now()
     WHERE id = candidate.id
