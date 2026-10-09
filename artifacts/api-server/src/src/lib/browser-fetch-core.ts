@@ -1,3 +1,4 @@
+import { sanitizeUrlForEvidence } from "./url-privacy";
 /** Optional browser / anti-bot escalation for Investigator page retrieval. */
 import { assertSafeOutboundUrl, safeOutboundFetch } from "./ssrf-safe-fetch";
 import { getAgenticExecutionScope } from "./agentic-execution-context";
@@ -20,9 +21,9 @@ function throwIfAborted(signal?: AbortSignal): void { if (signal?.aborted) throw
 function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> { if (!signal) return promise; return new Promise<T>((resolve, reject) => { const abort = () => reject(new Error("browser fetch cancelled")); if (signal.aborted) return abort(); signal.addEventListener("abort", abort, { once: true }); void promise.then((v) => { signal.removeEventListener("abort", abort); resolve(v); }, (e) => { signal.removeEventListener("abort", abort); reject(e); }); }); }
 async function readResponseTextCapped(response: Response, signal?: AbortSignal): Promise<string> { throwIfAborted(signal); const declared = Number(response.headers.get("content-length") ?? NaN); if (Number.isFinite(declared) && declared > MAX_BROWSER_RESPONSE_BYTES) throw new Error(`browser response exceeds ${MAX_BROWSER_RESPONSE_BYTES} byte limit`); const reader = response.body?.getReader(); if (!reader) return (await response.text()).slice(0, MAX_BROWSER_RESPONSE_BYTES); const chunks: Uint8Array[] = []; let bytes = 0; try { for (;;) { throwIfAborted(signal); const part = await reader.read(); if (part.done) break; bytes += part.value.byteLength; if (bytes > MAX_BROWSER_RESPONSE_BYTES) { await reader.cancel().catch(() => undefined); throw new Error(`browser response exceeds ${MAX_BROWSER_RESPONSE_BYTES} byte limit`); } chunks.push(part.value); } } finally { reader.releaseLock(); } return new TextDecoder().decode(Buffer.concat(chunks.map((x) => Buffer.from(x)))); }
 async function readJsonCapped<T>(response: Response, signal?: AbortSignal): Promise<T> { return JSON.parse(await readResponseTextCapped(response, signal)) as T; }
-async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<string | null> { const key = process.env.SCRAPFLY_API_KEY ?? ""; if (!key) return null; throwIfAborted(signal); try { const u = new URL("https://api.scrapfly.io/scrape"); u.searchParams.set("key", key); u.searchParams.set("url", url); u.searchParams.set("asp", "true"); u.searchParams.set("render_js", "true"); const resp = await providerFetch("scrapfly", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal); if (!resp.ok) return null; const data = await readJsonCapped<{ result?: { content?: string } }>(resp, signal); const html = data?.result?.content ?? ""; return html.length > MAX_BROWSER_RESPONSE_BYTES ? null : html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url }, "scrapfly fetch failed"); return null; } }
-async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<string | null> { const key = process.env.ZENROWS_API_KEY ?? ""; if (!key) return null; throwIfAborted(signal); try { const u = new URL("https://api.zenrows.com/v1/"); u.searchParams.set("apikey", key); u.searchParams.set("url", url); u.searchParams.set("js_render", "true"); u.searchParams.set("premium_proxy", "true"); const resp = await providerFetch("zenrows", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url }, "zenrows fetch failed"); return null; } }
-async function fetchViaBrowserlessContent(url: string, signal?: AbortSignal): Promise<string | null> { const token = process.env.BROWSERLESS_TOKEN ?? ""; if (!token) return null; throwIfAborted(signal); try { const endpoint = process.env.BROWSERLESS_CONTENT_URL ?? `https://production-sfo.browserless.io/content?token=${encodeURIComponent(token)}`; const resp = await providerFetch("browserless", endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url, gotoOptions: { waitUntil: "domcontentloaded", timeout: timeoutMs() } }), signal: signal ?? AbortSignal.timeout(timeoutMs() + 5_000) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url }, "browserless content fetch failed"); return null; } }
+async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<string | null> { const key = process.env.SCRAPFLY_API_KEY ?? ""; if (!key) return null; throwIfAborted(signal); try { const u = new URL("https://api.scrapfly.io/scrape"); u.searchParams.set("key", key); u.searchParams.set("url", url); u.searchParams.set("asp", "true"); u.searchParams.set("render_js", "true"); const resp = await providerFetch("scrapfly", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal); if (!resp.ok) return null; const data = await readJsonCapped<{ result?: { content?: string } }>(resp, signal); const html = data?.result?.content ?? ""; return html.length > MAX_BROWSER_RESPONSE_BYTES ? null : html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url: sanitizeUrlForEvidence(url) }, "scrapfly fetch failed"); return null; } }
+async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<string | null> { const key = process.env.ZENROWS_API_KEY ?? ""; if (!key) return null; throwIfAborted(signal); try { const u = new URL("https://api.zenrows.com/v1/"); u.searchParams.set("apikey", key); u.searchParams.set("url", url); u.searchParams.set("js_render", "true"); u.searchParams.set("premium_proxy", "true"); const resp = await providerFetch("zenrows", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url: sanitizeUrlForEvidence(url) }, "zenrows fetch failed"); return null; } }
+async function fetchViaBrowserlessContent(url: string, signal?: AbortSignal): Promise<string | null> { const token = process.env.BROWSERLESS_TOKEN ?? ""; if (!token) return null; throwIfAborted(signal); try { const endpoint = process.env.BROWSERLESS_CONTENT_URL ?? `https://production-sfo.browserless.io/content?token=${encodeURIComponent(token)}`; const resp = await providerFetch("browserless", endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url, gotoOptions: { waitUntil: "domcontentloaded", timeout: timeoutMs() } }), signal: signal ?? AbortSignal.timeout(timeoutMs() + 5_000) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ err: err?.message, url: sanitizeUrlForEvidence(url) }, "browserless content fetch failed"); return null; } }
 type BrowserFetchAttempt = { html: string | null; observedUrl: string | null };
 
 async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal?: AbortSignal): Promise<void> {
@@ -130,7 +131,7 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
     }
   } catch (err: any) {
     if (signal?.aborted) throw new Error("browser fetch cancelled");
-    logger.debug({ err: err?.message, url }, "playwright fetch failed");
+    logger.debug({ err: err?.message, url: sanitizeUrlForEvidence(url) }, "playwright fetch failed");
     return { html: null, observedUrl: null };
   }
 }
@@ -140,7 +141,7 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
   const scope = options.scope?.trim() || getAgenticExecutionScope();
   const count = getBrowserFetchCount(scope);
   if (count >= maxBrowserFetches()) {
-    logger.info({ url, scope, count }, "browser_fetch budget exhausted");
+    logger.info({ url: sanitizeUrlForEvidence(url), scope, count }, "browser_fetch budget exhausted");
     return { html: "", provider: "budget_exhausted", observedUrl: null };
   }
   rememberBrowserFetchScope(scope, count + 1);
@@ -159,12 +160,12 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
     throwIfAborted(options.signal);
     const result = await fn();
     if (result.html && !isChallengeHtml(result.html)) {
-      logger.info({ url, provider, bytes: result.html.length, scope, sourceUrlVerified: Boolean(result.observedUrl) }, "browser_fetch ok");
+      logger.info({ url: sanitizeUrlForEvidence(url), provider, bytes: result.html.length, scope, sourceUrlVerified: Boolean(result.observedUrl) }, "browser_fetch ok");
       return { html: result.html, provider, observedUrl: result.observedUrl };
     }
-    if (result.html && isChallengeHtml(result.html)) logger.debug({ url, provider }, "browser_fetch challenge for model-selected provider");
+    if (result.html && isChallengeHtml(result.html)) logger.debug({ url: sanitizeUrlForEvidence(url), provider }, "browser_fetch challenge for model-selected provider");
   }
-  logger.info({ url, provider: options.provider, scope }, "browser_fetch selected provider failed or unconfigured");
+  logger.info({ url: sanitizeUrlForEvidence(url), provider: options.provider, scope }, "browser_fetch selected provider failed or unconfigured");
   return { html: "", provider: options.provider, observedUrl: null };
 }
 
