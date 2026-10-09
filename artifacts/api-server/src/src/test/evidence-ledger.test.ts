@@ -9,12 +9,18 @@ import {
 describe("evidence ledger utility", () => {
   it("canonicalizes http(s) urls", () => {
     expect(canonicalizeUrl("https://www.example.com/path/?utm_source=newsletter#frag")).toBe("https://example.com/path");
+    expect(canonicalizeUrl("https://reuters.com./story")).toBe("https://reuters.com/story");
     expect(canonicalizeUrl("http://example.com/a/b/")).toBe("http://example.com/a/b");
     expect(canonicalizeUrl("mailto:test@example.com")).toBeNull();
   });
 
   it("derives source family from host heuristics", () => {
     expect(getSourceFamily("www.sec.gov")).toBe("official");
+    expect(getSourceFamily("www.reuters.com")).toBe("press");
+    expect(getSourceFamily("reuters.com.")).toBe("press");
+    expect(getSourceFamily("companieshouse.gov.uk")).toBe("registry");
+    expect(getSourceFamily("edgar.sec.gov")).toBe("registry");
+    expect(getSourceFamily("agency.gov")).toBe("official");
     expect(getSourceFamily("register.com")).toBe("registry");
     expect(getSourceFamily("news.reuters.com")).toBe("press");
     expect(getSourceFamily("twitter.com")).toBe("social");
