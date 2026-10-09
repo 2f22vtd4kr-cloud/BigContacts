@@ -43,6 +43,52 @@ export interface RegistrySearchParams {
   signal?: AbortSignal;
 }
 
+/**
+ * Public record links are leads, not retrieved evidence. They may be shown to
+ * the Investigator so it can choose a later visit, but must never be copied
+ * into trajectory.observedUrls by the registry-search action itself.
+ */
+export function registryResultLeadUrls(result: Pick<RegistryResult, "metadata">): string[] {
+  let metadata: Record<string, unknown>;
+  try {
+    const parsed: unknown = JSON.parse(result.metadata ?? "{}");
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return [];
+    metadata = parsed as Record<string, unknown>;
+  } catch {
+    return [];
+  }
+
+  const urls = new Set<string>();
+  for (const [key, value] of Object.entries(metadata)) {
+    if (!/(?:url|website)$/i.test(key) || typeof value !== "string" || value.length > 2_048) continue;
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "https:" || url.username || url.password) continue;
+      const host = url.hostname.toLowerCase();
+      const path = url.pathname.replace(/\\/+$/, "") || "/";
+      // Do not re-emit search endpoints as if they were record-level leads.
+      if (
+        /(^|\\.)google\\.[a-z.]+$/.test(host) && /^\\/search$/i.test(path) ||
+        (host === "bing.com" || host.endsWith(".bing.com")) && /^\\/search$/i.test(path) ||
+        host === "search.yahoo.com" && /^\\/search$/i.test(path) ||
+        (host === "duckduckgo.com" || host === "html.duckduckgo.com") && (path === "/" || /^\\/html$/i.test(path)) && url.searchParams.has("q") ||
+        /\\/(?:search|search-index|search-results|results)$/i.test(path)
+      ) continue;
+      url.hash = "";
+      urls.add(url.toString());
+    } catch {
+      continue;
+    }
+  }
+  return [...urls].slice(0, 3);
+}
+
+export function formatRegistryResultLead(result: RegistryResult): string {
+  const notes = result.notes ? ` — ${String(result.notes).slice(0, 160)}` : "";
+  const urls = registryResultLeadUrls(result);
+  return `${result.name}${notes}${urls.length ? `\\n   UNVISITED_RECORD_URLS (leads only): ${urls.join(" | ")}` : ""}`;
+}
+
 const REGISTRY_ALIASES: Record<string, RegistryId> = {
   "sec edgar": "sec-edgar",
   "sec_edgar": "sec-edgar",
