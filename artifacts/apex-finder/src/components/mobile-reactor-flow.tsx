@@ -246,9 +246,9 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     if (showHistory && historyFilter !== "all") {
       list = list.filter((e) => {
         const s = String(e.status || "").toLowerCase();
-        if (historyFilter === "live") return !/complete|done|success|fail|error|blocked/i.test(s);
-        if (historyFilter === "done") return /complete|done|success/i.test(s);
-        if (historyFilter === "failed") return /fail|error|blocked/i.test(s);
+        if (historyFilter === "live") return /^(active|running|in_progress|queued|pending|waiting)$/i.test(s);
+        if (historyFilter === "done") return /^(complete|completed|done|success|succeeded|ok)$/i.test(s);
+        if (historyFilter === "failed") return /^(fail|failed|error|blocked|timeout)$/i.test(s);
         return true;
       });
     }
@@ -274,7 +274,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         timestamp: activity.startedAt || activity.endedAt,
         kind: "telemetry",
         stage: activity.operation || activity.tool || activity.spanType || "research",
-        status: activity.status === "active" ? "active" : activity.status === "failed" ? "error" : "complete",
+        status: activity.status === "active" ? "active" : activity.status === "failed" ? "error" : activity.status === "queued" ? "queued" : activity.status === "cancelled" ? "cancelled" : activity.status === "completed" ? "complete" : "unknown",
         targetName: activity.target,
         activeToolId: activity.tool,
         toolIds: activity.tool ? [activity.tool] : [],
