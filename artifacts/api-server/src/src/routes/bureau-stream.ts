@@ -21,6 +21,8 @@ const router = Router();
 const HEARTBEAT_MS = 15_000;
 const POLL_MS = 2_000;
 const SEEN_ID_CAP = 500;
+const STREAM_READ_CAP = 300;
+const SNAPSHOT_VISIBLE_LIMIT = 50;
 
 router.get("/ingest/bureau-events", async (req: Request, res: Response): Promise<void> => {
   const caseId = typeof req.query.caseId === "string" ? req.query.caseId : null;
@@ -66,15 +68,22 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
   res.on("close", close);
 
   const sendSnapshot = async () => {
-    const events = await listBureauEvents({ caseId, limit: 50 });
+    // Seed de-duplication from the entire retained window, but show only the
+    // latest 50 as initial context. Otherwise the next poll can replay old
+    // pre-connection backlog after the initial snapshot.
+    const retained = await listBureauEvents({ caseId, limit: STREAM_READ_CAP });
     if (closed) return;
-    for (const event of events) remember(event.id);
-    sseSend(res, "snapshot", { events, caseId, serverTime: new Date().toISOString() });
+    for (const event of retained) remember(event.id);
+    sseSend(res, "snapshot", {
+      events: retained.slice(0, SNAPSHOT_VISIBLE_LIMIT),
+      caseId,
+      serverTime: new Date().toISOString(),
+    });
   };
   const tick = async () => {
     if (closed) return;
     try {
-      const events = await listBureauEvents({ caseId, limit: 50 });
+      const events = await listBureauEvents({ caseId, limit: STREAM_READ_CAP });
       if (closed) return;
       // Redis returns newest-first. Reverse only the unseen subset so the client
       // receives a causal oldest -> newest burst when several actions arrived
