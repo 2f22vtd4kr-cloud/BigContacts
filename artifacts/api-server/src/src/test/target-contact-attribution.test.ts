@@ -15,7 +15,7 @@ describe("target Investigator multi-source attribution", () => {
     const records = [{ turn: 1, model: "groq", action: "visit", args: {}, execution: "success" as const, observation: "Jane Example email jane@example.com", observedUrls: ["http://company.example/team"], findings: [] }];
     expect(sourceBackedFindings(findings, [], records)).toEqual([]);
   });
-  it("keeps split-page attribution reviewable but ineligible for trusted contact promotion", () => {
+  it("rejects split-page-only candidate attribution in the target research path", () => {
     const findings = [{
       vectorType: "email" as const,
       value: "john.smith@example.com",
@@ -34,7 +34,7 @@ describe("target Investigator multi-source attribution", () => {
       "step1: visit https://company.example/leadership execution=success observed=https://company.example/leadership",
       "step2: visit https://company.example/contact execution=success observed=https://company.example/contact",
     ], records);
-    expect(backed).toHaveLength(1);
+    expect(backed).toHaveLength(0);
     expect(supportsContactClaimAcrossObservations(
       records.map((record) => ({ observationText: record.observation, sourceUrls: record.observedUrls })),
       findings[0]!,
