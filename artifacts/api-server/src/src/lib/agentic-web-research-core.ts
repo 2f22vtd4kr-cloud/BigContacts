@@ -503,7 +503,6 @@ export function describeAgentActionParseFailure(raw: string): string {
   const action = cleanText(value.action, 40).toLowerCase();
   if (!action) return "missing_action";
   if (!isModelSelectableAgentAction(action)) return `unsupported_action action=${action}`;
-  if (!allowed.has(action)) return `unsupported_action action=${action}`;
   const rationaleFailure = describeActionRationaleFailure(action, value);
   if (rationaleFailure) return rationaleFailure;
   return describeInvalidActionArguments(action, value);
