@@ -83,21 +83,48 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
     const ws = process.env.PLAYWRIGHT_WS_ENDPOINT ?? "";
     const browser = ws ? await pw.chromium.connectOverCDP(ws) : await pw.chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
     try {
-      const page = await browser.newPage();
-      await page.route("**/*", async (route: any) => {
-        await fulfillPlaywrightRequestThroughPinnedTransport(route, signal);
-      });
-      await raceAbort(page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs() }), signal);
-      throwIfAborted(signal);
-      await raceAbort(page.waitForTimeout(2_500), signal).catch(() => undefined);
-      throwIfAborted(signal);
-      const finalUrl = page.url();
-      // Attribute source material to the effective document URL, never blindly
-      // to a pre-redirect request URL.
-      await assertSafeOutboundUrl(finalUrl);
-      const html = await page.content();
-      const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
-      return { html: usable ? html : null, observedUrl: usable ? finalUrl : null };
+      // Block service-worker traffic: Playwright's page routing is not an egress
+      // boundary for requests issued by an uncontrolled service worker.
+      const context = await browser.newContext({ serviceWorkers: "block" });
+      try {
+        const page = await context.newPage();
+        await page.route("**/*", async (route: any) => {
+          await fulfillPlaywrightRequestThroughPinnedTransport(route, signal);
+        });
+        // WebSockets are not covered by page.route("**/*"). Fail closed if this
+        // Playwright build cannot intercept them, otherwise a visited page could
+        // reach internal services without passing through DNS pinning.
+        const routeWebSocket = (page as any).routeWebSocket;
+        if (typeof routeWebSocket !== "function") {
+          throw new Error("Playwright WebSocket interception is required for safe browser fetch.");
+        }
+        await routeWebSocket.call(page, "**/*", (socket: any) => {
+          socket.close({ code: 1008, reason: "WebSocket egress is disabled for research fetches." });
+        });
+        await page.addInitScript(() => {
+          const disabledTransport = class {
+            constructor() { throw new Error("Peer-to-peer transports are disabled for research fetches."); }
+          };
+          for (const name of ["RTCPeerConnection", "webkitRTCPeerConnection", "WebTransport"]) {
+            try {
+              Object.defineProperty(window, name, { value: disabledTransport, configurable: false, writable: false });
+            } catch { /* Unsupported browser API; network requests remain routed and pinned. */ }
+          }
+        });
+        await raceAbort(page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs() }), signal);
+        throwIfAborted(signal);
+        await raceAbort(page.waitForTimeout(2_500), signal).catch(() => undefined);
+        throwIfAborted(signal);
+        const finalUrl = page.url();
+        // Attribute source material to the effective document URL, never blindly
+        // to a pre-redirect request URL.
+        await assertSafeOutboundUrl(finalUrl);
+        const html = await page.content();
+        const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
+        return { html: usable ? html : null, observedUrl: usable ? finalUrl : null };
+      } finally {
+        await context.close().catch(() => undefined);
+      }
     } finally {
       await browser.close().catch(() => undefined);
     }
