@@ -190,7 +190,13 @@ function extractPredicate(claim: string): { subject: string; predicate: string; 
 }
 
 function supportsHypothesisClaim(hypothesis: string, claim: string): boolean {
-  const hypothesisClaim = extractPredicate(hypothesis);
+  const parseableHypothesis = hypothesis
+    .replace(/\b(?:may|might|could|possibly|probably|likely|perhaps)\b/gi, " ")
+    .replace(/\b(?:the|a|an)\b/gi, " ")
+    .replace(/\bbe\b/gi, "is")
+    .replace(/\s+/g, " ")
+    .trim();
+  const hypothesisClaim = extractPredicate(parseableHypothesis);
   const evidenceClaim = extractPredicate(claim);
   if (
     hypothesisClaim.predicate !== "asserts"
