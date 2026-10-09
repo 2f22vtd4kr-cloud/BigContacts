@@ -770,10 +770,13 @@ async function callGroqJson(
           }
 
           if (response.status === 413 && !sizeReductionApplied) {
-            workingPrompt = tightenInvestigatorPrompt(workingPrompt);
+            // A 413 is an explicit request-size rejection, not token-window
+            // pressure. Preserve the selected model/capability, compact only
+            // this rejected request, and retry it once before failing closed.
+            workingPrompt = tightenInvestigatorPrompt(workingPrompt, 6_000);
             sizeReductionApplied = true;
             jsonObjectFallbackUsed = false;
-            break;
+            continue;
           }
           if (response.status === 401 || response.status === 403) break;
 
