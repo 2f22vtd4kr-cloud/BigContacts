@@ -30,4 +30,41 @@ describe("target act evidence graph provenance", () => {
     };
     expect(buildActEvidenceGraphs(1, act, 2, "run-visited")).toHaveLength(1);
   });
+  it("rejects a candidate contact graph when identity and value are only present on separate pages", () => {
+    const contactUrl = "https://example.com/contact";
+    const identityUrl = "https://example.com/team/jane";
+    const act = {
+      turn: 3, model: "test", action: "react_episode", args: {}, execution: "success",
+      observation: "two separately retrieved pages", observedUrls: [contactUrl, identityUrl],
+      findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", role: "Founder", scope: "candidate", sourceUrls: [identityUrl, contactUrl] }],
+      sourceRecords: [
+        { turn: 3, action: "visit", execution: "success", observation: "Public contact: jane@example.com", observedUrls: [contactUrl], findings: [] },
+        { turn: 3, action: "visit", execution: "success", observation: "Jane Example — Founder", observedUrls: [identityUrl], findings: [] },
+      ],
+    };
+    expect(buildActEvidenceGraphs(1, act, 3, "run-split-page")).toHaveLength(0);
+  });
+
+  it("rejects an unknown action label as a source-evidence anchor", () => {
+    const source = "https://example.com/team/jane";
+    const act = {
+      turn: 4, model: "test", action: "react_episode", args: {}, execution: "success",
+      observation: "untrusted unknown-action payload", observedUrls: [source],
+      findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", role: "Founder", scope: "candidate", sourceUrls: [source] }],
+      sourceRecords: [{ turn: 4, action: "made_up_tool", execution: "success", observation: "Jane Example — Founder — jane@example.com", observedUrls: [source], findings: [] }],
+    };
+    expect(buildActEvidenceGraphs(1, act, 4, "run-unknown-action")).toHaveLength(0);
+  });
+
+  it("does not reinterpret an unnamed candidate contact as an organization claim", () => {
+    const source = "https://example.com/contact";
+    const act = {
+      turn: 5, model: "test", action: "react_episode", args: {}, execution: "success",
+      observation: "Public contact: jane@example.com", observedUrls: [source],
+      findings: [{ vectorType: "email", value: "jane@example.com", personName: null, role: null, scope: "candidate", sourceUrls: [source] }],
+      sourceRecords: [{ turn: 5, action: "visit", execution: "success", observation: "Public contact: jane@example.com", observedUrls: [source], findings: [] }],
+    };
+    expect(buildActEvidenceGraphs(1, act, 5, "run-unnamed-candidate")).toHaveLength(0);
+  });
+
 });
