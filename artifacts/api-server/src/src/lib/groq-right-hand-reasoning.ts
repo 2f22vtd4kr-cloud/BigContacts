@@ -33,24 +33,54 @@ const GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS = 250;
 let nextGroqRightHandRequestAt = 0;
 let groqRightHandRequestGate: Promise<void> = Promise.resolve();
 export function resetGroqRightHandRequestGateForTests(): void { nextGroqRightHandRequestAt = 0; groqRightHandRequestGate = Promise.resolve(); }
-async function waitForGroqRightHandRequestSlot(signal?: AbortSignal): Promise<void> {
+function waitForGroqRightHandAbortable<T>(pending: Promise<T>, signal?: AbortSignal): Promise<T> {
+ if (!signal) return pending;
+ if (signal.aborted) return Promise.reject(new Error("Groq Right-hand request slot cancelled."));
+ return new Promise<T>((resolve, reject) => {
+  let settled = false;
+  const cleanup = () => signal.removeEventListener("abort", onAbort);
+  const finish = (error?: unknown, value?: T) => {
+   if (settled) return;
+   settled = true;
+   cleanup();
+   if (error !== undefined) reject(error);
+   else resolve(value as T);
+  };
+  const onAbort = () => finish(new Error("Groq Right-hand request slot cancelled."));
+  signal.addEventListener("abort", onAbort, { once: true });
+  pending.then((value) => finish(undefined, value), (error) => finish(error));
+  if (signal.aborted) onAbort();
+ });
+}
+function waitForGroqRightHandPacingDelay(waitMs: number, signal?: AbortSignal): Promise<void> {
+ return new Promise<void>((resolve, reject) => {
+  let settled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const cleanup = () => {
+   if (timer !== undefined) clearTimeout(timer);
+   signal?.removeEventListener("abort", onAbort);
+  };
+  const finish = (error?: Error) => {
+   if (settled) return;
+   settled = true;
+   cleanup();
+   if (error) reject(error);
+   else resolve();
+  };
+  const onAbort = () => finish(new Error("Groq Right-hand request slot cancelled."));
+  timer = setTimeout(() => finish(), waitMs);
+  signal?.addEventListener("abort", onAbort, { once: true });
+  if (signal?.aborted) onAbort();
+ });
+}
+export async function waitForGroqRightHandRequestSlot(signal?: AbortSignal): Promise<void> {
  const previous = groqRightHandRequestGate; let release!: () => void;
  groqRightHandRequestGate = new Promise<void>((resolve) => { release = resolve; });
  try {
   if (signal?.aborted) throw new Error("Groq Right-hand request slot cancelled.");
-  await Promise.race([
-   previous,
-   new Promise<never>((_, reject) => {
-    const onAbort = () => reject(new Error("Groq Right-hand request slot cancelled."));
-    signal?.addEventListener("abort", onAbort, { once: true });
-   }),
-  ]);
+  await waitForGroqRightHandAbortable(previous, signal);
   const waitMs = Math.max(0, nextGroqRightHandRequestAt - Date.now());
-  if (waitMs > 0) await new Promise<void>((resolve, reject) => {
-   const timer = setTimeout(resolve, waitMs);
-   const onAbort = () => { clearTimeout(timer); reject(new Error("Groq Right-hand request slot cancelled.")); };
-   signal?.addEventListener("abort", onAbort, { once: true });
-  });
+  if (waitMs > 0) await waitForGroqRightHandPacingDelay(waitMs, signal);
   if (signal?.aborted) throw new Error("Groq Right-hand request slot cancelled.");
   nextGroqRightHandRequestAt = Date.now() + GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS;
  } finally {
