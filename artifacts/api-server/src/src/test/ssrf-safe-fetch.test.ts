@@ -24,6 +24,7 @@ describe("SSRF outbound boundary", () => {
       "2001::1",
       "2001:2::1",
       "2001:db8::1",
+      "5f00::1",
       "2002:a9fe:a9fe::1",
       "3fff::1",
       "::a9fe:a9fe",
