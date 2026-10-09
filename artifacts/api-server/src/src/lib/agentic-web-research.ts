@@ -302,7 +302,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `VERIFICATION_BLOCKED:turn=${actionTurn}:ungrounded_terminal_claim`, `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
              const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
              if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: "Groq oversight unavailable after terminal verification block.", executionId };
-             if (checkpointResult.stop) continue;
+             if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: "Groq oversight stopped after a blocked terminal claim; no ungrounded findings were accepted.", executionId };
              continue;
            }
 
