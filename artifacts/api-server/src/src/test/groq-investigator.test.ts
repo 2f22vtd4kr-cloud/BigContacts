@@ -173,6 +173,58 @@ describe("Groq Investigator provider boundary", () => {
     expect(new Set(authorizationHeaders)).toEqual(new Set(["Bearer test-groq-investigator-token-window-key"]));
   });
 
+  it("keeps an explicit token-window 429 out of hard request-quota recovery when request remaining is zero", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-token-window-zero-requests-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let calls = 0;
+    mocks.safeOutboundFetch.mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(JSON.stringify({ error: { type: "tokens", code: "rate_limit_exceeded" } }), {
+          status: 429,
+          headers: {
+            "retry-after": "0",
+            "x-ratelimit-remaining-tokens": "3108",
+            "x-ratelimit-reset-tokens": "0.001s",
+            "x-ratelimit-remaining-requests": "0",
+            "x-ratelimit-reset-requests": "60s",
+          },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    await runAgenticWebResearch({ targetName: "Example", investigatorLlm: "groq-investigator-1", maxIterations: 1, hardTimeoutMs: 30_000 });
+    expect(calls).toBe(2);
+  });
+
+  it("does not infer zero remaining tokens from an omitted rate-limit header", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-missing-token-header-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let calls = 0;
+    mocks.safeOutboundFetch.mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(JSON.stringify({ error: { type: "rate_limit_exceeded" } }), {
+          status: 429,
+          headers: {
+            "retry-after": "0",
+            "x-ratelimit-reset-tokens": "121s",
+            "x-ratelimit-remaining-requests": "999",
+          },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    await runAgenticWebResearch({ targetName: "Example", investigatorLlm: "groq-investigator-1", maxIterations: 1, hardTimeoutMs: 30_000 });
+    expect(calls).toBe(2);
+  });
+
   it("fails closed when the token-window reset exceeds the provider decision recovery budget", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-long-reset-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
