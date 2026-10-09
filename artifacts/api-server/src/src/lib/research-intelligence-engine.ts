@@ -148,7 +148,13 @@ const STOPWORDS = new Set(["the", "and", "for", "with", "from", "that", "this", 
 function normalize(value: string): string { return value.toLowerCase().replace(/[^a-z0-9@._:+/-]+/g, " ").replace(/\s+/g, " ").trim(); }
 function hostOf(url: string | null): string | null { if (!url) return null; try { return new URL(url).hostname.toLowerCase().replace(/^www\./, ""); } catch { return null; } }
 function canonicalUrl(url: string): string | null { try { const parsed = new URL(url); if (!/^https?:$/.test(parsed.protocol)) return null; parsed.hash = ""; parsed.hostname = parsed.hostname.toLowerCase(); return parsed.href.replace(/\/$/, ""); } catch { return null; } }
-function sourceFamily(host: string | null): string { if (!host) return "unknown"; if (/companieshouse\.gov\.uk$|sec\.gov$|brreg\.no$|bodacc\.fr$|gleif\.org$/.test(host)) return "registry"; if (/google\.|bing\.|serper\.dev$|tavily\.com$|exa\.ai$/.test(host)) return "search"; if (/linkedin\.com$|x\.com$|twitter\.com$|instagram\.com$/.test(host)) return "social"; if (/gov\.|europa\.eu$/.test(host)) return "government"; return host; }
+function isOfficialGovernmentHost(host: string): boolean {
+  const normalized = host.toLowerCase().replace(/^www\./, "");
+  return normalized === "europa.eu"
+    || normalized.endsWith(".europa.eu")
+    || [".gov", ".gov.uk", ".gc.ca", ".gov.au", ".govt.nz", ".gov.in", ".gov.sg", ".gov.br", ".gov.za", ".gov.ie"].some((suffix) => normalized.endsWith(suffix));
+}
+function sourceFamily(host: string | null): string { if (!host) return "unknown"; if (/companieshouse\.gov\.uk$|sec\.gov$|brreg\.no$|bodacc\.fr$|gleif\.org$/.test(host)) return "registry"; if (/google\.|bing\.|serper\.dev$|tavily\.com$|exa\.ai$/.test(host)) return "search"; if (/linkedin\.com$|x\.com$|twitter\.com$|instagram\.com$/.test(host)) return "social"; if (isOfficialGovernmentHost(host)) return "government"; return host; }
 function sourceClassForHost(host: string | null): IntelligenceSourceClass {
   if (!host) return "UNKNOWN";
   if (/companieshouse\.gov\.uk$|company-information\.service\.gov\.uk$|sec\.gov$|brreg\.no$|bodacc\.fr$|gleif\.org$/.test(host)) return "REGULATORY";
@@ -156,7 +162,7 @@ function sourceClassForHost(host: string | null): IntelligenceSourceClass {
   if (/crunchbase\.com$|pitchbook\.com$|opencorporates\.com$/.test(host)) return "PROFESSIONAL_DIRECTORY";
   if (/google\.|bing\.|serper\.dev$|tavily\.com$|exa\.ai$/.test(host)) return "SEARCH_RESULT";
   if (/wikipedia\.org$|yahoo\.com$|medium\.com$/.test(host)) return "AGGREGATOR";
-  if (/gov\.|europa\.eu$/.test(host)) return "OFFICIAL_GOVERNANCE";
+  if (isOfficialGovernmentHost(host)) return "OFFICIAL_GOVERNANCE";
   if (/news|reuters\.com$|ft\.com$|bloomberg\.com$|wsj\.com$/.test(host)) return "REPUTABLE_NEWS";
   return "UNKNOWN";
 }
@@ -171,7 +177,7 @@ function extractionMethodForAction(action: string): string {
 }
 function tierForHost(host: string | null): IntelligenceSourceTier {
   if (!host) return "unknown";
-  if (/\.(gov|gov\.uk|gc\.ca|europa\.eu)$/.test(host) || /(^|\.)sec\.gov$/.test(host) || /(^|\.)companieshouse\.gov\.uk$/.test(host)) return "A";
+  if (isOfficialGovernmentHost(host) || /(^|\.)sec\.gov$/.test(host) || /(^|\.)companieshouse\.gov\.uk$/.test(host)) return "A";
   if (/\.(edu|ac\.[a-z]{2})$/.test(host)) return "B";
   if (/linkedin\.com$|crunchbase\.com$|pitchbook\.com$|wikipedia\.org$/.test(host)) return "C";
   return "B";
