@@ -1,4 +1,4 @@
-import { classifyApexError, emitApexError } from "@/lib/apex-errors";
+import { classifyApexError, emitApexError, isApexUserError } from "@/lib/apex-errors";
 
 /** Safe JSON reads for Apex Atlas UI → api-server. */
 export async function readApiJson(res: Response): Promise<any> {
@@ -18,7 +18,7 @@ export async function readApiJson(res: Response): Promise<any> {
     const data = JSON.parse(trimmed);
     if (!res.ok) {
       const message = data?.userError?.message ?? data?.message ?? data?.error ?? `API request failed (HTTP ${res.status})`;
-      emitApexError(data?.userError ?? classifyApexError(message, res.status));
+      emitApexError(isApexUserError(data?.userError) ? data.userError : classifyApexError(message, res.status));
     }
     return data;
   } catch {
