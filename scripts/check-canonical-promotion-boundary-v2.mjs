@@ -36,8 +36,15 @@ assert(hasAll(target, [
   "sourceBackedFindings(modelFindings, agentic.trajectory, groundingRecords)",
   "function isReviewableObservation(record: AgenticTrajectoryRecord): boolean",
   "isClaimGradeObservationAction(record.action)",
-  "supportsContactClaimAcrossObservations(observations, finding, finding.value, finding.vectorType)",
-]) && !target.includes("supportsReviewableClaimAcrossObservations"), "target-scoped candidate contacts require same-observation identity/value binding after cumulative observation grounding");
+  "supportsReviewableClaimAcrossObservations(",
+  "supportsContactClaimAcrossObservations(",
+]), "target preserves cumulative, reviewable source attribution while building claim graphs only from stricter support");
+assert(hasAll(strict, [
+  "supportsContactClaimAcrossObservations(observedClaimMaterials,item,cleanValue,vectorType)",
+  "hasBoundIdentityAndValue(observation.observationText,personName,cleanValue,vectorType)",
+  "hasCanonicalPromotionJobBinding(provenance)",
+  "if(!(await isCanonicalJobOwner(\"atlas-run\",promotionJobId)))return false;",
+]), "trusted candidate promotion independently requires same-observation identity/value binding and live case/job ownership");
 assert(hasAll(target, ['promote: isExplicitCandidate && f.promotionDecision === "promote"', "state: \"review_only\"", "tier: \"candidate\""]), "target preserves explicit Investigator promotion semantics");
 assert(hasAll(target, ["execution=success", "observed=(https?:", "claimAppearsInObservedMaterial", "record.observation"]), "target validates claims against successful observed material");
 assert(hasAll(target, ["status: \"cancelled\"", "executionId: agentic.executionId"]), "target preserves cancellation as a distinct result and execution identity");
