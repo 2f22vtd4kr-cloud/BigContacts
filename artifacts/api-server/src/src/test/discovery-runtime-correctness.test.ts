@@ -65,6 +65,12 @@ describe("discovery runtime architecture", () => {
     expect(runner).toMatch(/rightHand.*Boss|Boss.*Right-hand/is);
   });
 
+  it("does not classify a control-plane stop as an Investigator-selected terminal", () => {
+    expect(researchSource).toContain('stopReason: "OVERSIGHT_STOP"');
+    expect(researchSource).toContain("const acceptedInvestigatorTerminal = isAcceptedInvestigatorTerminal(");
+    expect(researchSource).toContain("if (checkpointResult.stop)");
+  });
+
   it("keeps target opening Boss-first and requires Right-hand before act 1", () => {
     const runner = fs.readFileSync(path.join(libDir, "canonical-single-target-runner.ts"), "utf8");
     const bossOpening = runner.indexOf("runGroqBossDiscovery({");
