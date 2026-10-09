@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isBlockedOutboundIpForTest, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
+import { isBlockedOutboundIpForTest, responseBodyForStatus, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 
 describe("SSRF outbound boundary", () => {
   it("blocks loopback, RFC1918, link-local, multicast, reserved, metadata, and IPv4-mapped IPv6 addresses", () => {
@@ -50,4 +50,16 @@ describe("SSRF outbound boundary", () => {
     await expect(safeOutboundFetch(request)).rejects.toThrow("blocked IP address");
   });
 
+});
+
+
+describe("safe outbound HTTP response construction", () => {
+  it("uses a null body for HTTP statuses that forbid response bodies", () => {
+    const payload = Buffer.from("response");
+    expect(responseBodyForStatus(204, payload)).toBeNull();
+    expect(responseBodyForStatus(205, payload)).toBeNull();
+    expect(responseBodyForStatus(304, payload)).toBeNull();
+    expect(responseBodyForStatus(200, payload)).toEqual(payload);
+    expect(responseBodyForStatus(302, payload)).toEqual(payload);
+  });
 });
