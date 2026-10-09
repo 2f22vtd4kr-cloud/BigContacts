@@ -13,7 +13,7 @@ import { reviewTargetInvestigationAct } from "./target-act-oversight";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, validateAtlasOpeningRightHandReview } from "./atlas-control-decision";
 import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
-import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
+import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, deriveProviderBoundedActTimeoutMs, isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; initialDirection?: string; manageJobLifecycle?: boolean; maxInvestigatorIterations?: number; excludedInvestigatorLlm?: readonly InvestigatorCapability[] };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null };
 type TargetCase = { id: number; targetEntityId: number; status: string; iteration: number; objective: string; caseFile: string | null };
@@ -239,7 +239,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   for (let actNumber = firstActNumber; !deadlineExceeded && !resourceLimited; actNumber++) {
     const job = await getJob(atlasJobId); if (!job || job.status === "cancelled") { cancelled = true; break; } if (job.status === "failed") break; const remainingMs = deadline - Date.now(); if (remainingMs < 30_000) { deadlineExceeded = true; break; }
     const remainingInvestigatorIterations = Math.max(0, targetIterationCeiling - investigatorIterationsUsed); if (remainingInvestigatorIterations <= 0) { resourceLimited = true; break; } const actIterations = Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations); const direction = lastOversight?.action === "redirect" ? lastOversight.direction : actNumber === 1 ? (options.initialDirection?.trim() || null) : null; const actContext = compactInvestigationContext({ raw: `${contextDocument}\n\n## Current control turn\n${caseRow.iteration + actNumber}${direction ? `\n\n## Investigator research objective\n${direction}` : ""}` }); await publishJob( { progress: 0, atlasPhase: actNumber, atlasPhaseTotal: 0, message: `${investigatorLlm!.toUpperCase()} Investigator act ${actNumber} for ${target.name}; awaiting Boss control after completion…` });
-    const actTimeoutMs = Math.min(remainingMs, Math.max(60_000, Math.min(180_000, Math.floor(remainingMs / 2))));
+    const actTimeoutMs = deriveProviderBoundedActTimeoutMs(remainingMs, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS);
     let quotaRecoveryIterations = 0;
     while (true) {
       latestResult = await runTargetContactAgent({ entityId: target.id, caseId: caseRow.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: investigatorLlm!, maxIterations: Math.max(1, actIterations - quotaRecoveryIterations), hardTimeoutMs: actTimeoutMs, contextDocument: actContext, oversightMode: "caller", shouldCancel: async () => { const current = await getJob(atlasJobId); if (!current || current.status === "cancelled" || current.status === "failed" || Date.now() >= deadline) return true; try { return !(await isCanonicalJobOwner("atlas-run", atlasJobId)); } catch { return true; } } });
