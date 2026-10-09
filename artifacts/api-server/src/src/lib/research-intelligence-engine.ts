@@ -309,7 +309,12 @@ export class ResearchIntelligenceEngine {
         });
         admittedFindingEvidenceIds.add(evidenceId);
       }
-      if (["email", "phone", "linkedin", "website", "social"].includes(vector)) this.recordContact(vector, value, findingUrls, finding.personName ?? null);
+      const valueSourceUrls = supportedSources
+        .filter((source) => source.binding === "value" || source.binding === "identity_and_value")
+        .map((source) => source.url);
+      if (["email", "phone", "linkedin", "website", "social"].includes(vector) && valueSourceUrls.length) {
+        this.recordContact(vector, value, valueSourceUrls, finding.personName ?? null);
+      }
     }
     if (!useful && input.execution !== "success") {
       const negative = `${input.action} produced no usable evidence (${input.execution})`;
