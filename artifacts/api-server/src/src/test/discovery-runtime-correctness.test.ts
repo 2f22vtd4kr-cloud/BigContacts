@@ -206,6 +206,7 @@ describe("discovery runtime architecture", () => {
   });
 
   it("requires candidate identity and contact value to share a bounded source span", () => {
+    expect(researchSource).toContain('if (finding.scope === "candidate" && !identity) return false;');
     expect(researchSource).toContain("let identityAndValueBoundTogether = !identity;");
     expect(researchSource).toContain("bindExactSourceSpan(observation, value, identity, 320)");
     expect(researchSource).toContain("identityObserved && identityAndValueBoundTogether && support > 0");
