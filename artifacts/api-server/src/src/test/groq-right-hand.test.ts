@@ -21,6 +21,7 @@ describe("Groq Right-hand model policy", () => {
     resetGroqRightHandModelCatalogCacheForTests();
     resetProviderGateForTests();
     delete process.env.GROQ_RIGHT_HAND_API_KEY;
+    delete process.env.GROQ_RIGHT_HAND_API_KEY_1;
     delete process.env.GROQ_RIGHT_HAND_API_KEY_2;
     delete process.env.GROQ_RIGHT_HAND_API_KEY_3;
     delete process.env.GROQ_RIGHT_HAND_API_KEY_4;
@@ -79,6 +80,33 @@ describe("Groq Right-hand model policy", () => {
     expect(GROQ_RIGHT_HAND_FALLBACK_MODELS).not.toContain("mistral-small-latest");
   });
 
+
+  it("uses the first numbered Right-hand credential slot when it is the only configured slot", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY_1", "right-hand-first-numbered-key");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const authorization = new Headers(init?.headers).get("authorization") ?? "";
+      expect(authorization).toBe("Bearer right-hand-first-numbered-key");
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: [{ id: "openai/gpt-oss-120b" }],
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+
+    expect(result.status).toBe("completed");
+    const chatCalls = fetchMock.mock.calls
+      .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
+    expect(chatCalls).toHaveLength(1);
+    expect(new Headers(chatCalls[0]?.[1]?.headers).get("authorization"))
+      .toBe("Bearer right-hand-first-numbered-key");
+  });
 
   it("preserves Groq's documented top-level error fields without secrets", () => {
     const summary = summarizeProviderBody(JSON.stringify({

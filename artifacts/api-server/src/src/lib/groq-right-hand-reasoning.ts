@@ -19,7 +19,7 @@ export const GROQ_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [
 const GROQ_RIGHT_HAND_MODELS_API = "https://api.groq.com/openai/v1/models";
 const GROQ_RIGHT_HAND_CHAT_API = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_RIGHT_HAND_KEY_ENV = "GROQ_RIGHT_HAND_API_KEY";
-const GROQ_RIGHT_HAND_KEY_NAMES = [GROQ_RIGHT_HAND_KEY_ENV, ...Array.from({ length: 4 }, (_, i) => `${GROQ_RIGHT_HAND_KEY_ENV}_${i + 2}`)];
+const GROQ_RIGHT_HAND_KEY_NAMES = [GROQ_RIGHT_HAND_KEY_ENV, ...Array.from({ length: 5 }, (_, i) => `${GROQ_RIGHT_HAND_KEY_ENV}_${i + 1}`)];
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
 const DEFAULT_OVERALL_TIMEOUT_MS = 120_000;
 const MODEL_CATALOG_TIMEOUT_MS = 5_000;
