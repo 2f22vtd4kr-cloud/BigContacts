@@ -21,6 +21,7 @@ const checks = [
   ["the notice exposes why and actionable next steps", notice.includes("Why:") && notice.includes("Next steps") && notice.includes('role="alert"')],
   ["Atlas run polling classifies HTTP failures without clearing last known state", atlasRun.indexOf("await readApiJson(res)") >= 0 && atlasRun.indexOf("if (!res.ok)") > atlasRun.indexOf("await readApiJson(res)") && !atlasRun.includes("setRun({ active: false }); setReady(true); return;")],
   ["Atlas polling aborts stale requests and rejects out-of-order snapshots", atlasRun.includes("requestGeneration.current") && atlasRun.includes("currentRequestController.current?.abort()") && atlasRun.includes("refresh(controller.signal)") && atlasRun.includes("requestId !== requestGeneration.current")],
+  ["Atlas polling hook has exactly one useCallback closure", !atlasRun.includes("}, []);\n  }, []);")],
   ["Reactor status polling classifies HTTP failures and preserves its last snapshot", reactorStore.indexOf("await readApiJson(activeResponse)") >= 0 && reactorStore.indexOf("if (!activeResponse.ok)") > reactorStore.indexOf("await readApiJson(activeResponse)") && !reactorStore.includes("emit(EMPTY)")],
   ["global fetch and query/mutation handlers surface caught API failures", main.includes("installApiFetchErrorNotifications();") && main.includes("new QueryCache") && main.includes("new MutationCache") && main.includes("notifyApiOperationError")],
 ];
