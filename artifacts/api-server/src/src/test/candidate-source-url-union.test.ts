@@ -14,7 +14,7 @@ function normalizeSourceUrl(raw: string): string | null {
 }
 
 const isClaimGradeSourceUrl = (value: unknown): value is string =>
-  typeof value === "string" && /^https?:\/\/\S+$/i.test(value);
+  typeof value === "string" && /^https:\/\/\S+$/i.test(value);
 
 describe("candidate source URL union", () => {
   it("retains a later matching finding's observed source instead of using only the first finding", () => {
@@ -38,7 +38,9 @@ describe("candidate source URL union", () => {
 });
 
 describe("discovery source evidence policy", () => {
-  it("rejects search-result endpoints as candidate claim evidence", () => {
+  it("requires HTTPS and rejects search-result endpoints as candidate claim evidence", () => {
+    expect(isClaimGradeDiscoverySourceUrl("http://example.test/team/jane")).toBe(false);
+    expect(isClaimGradeDiscoverySourceUrl("https://example.test/team/jane")).toBe(true);
     for (const url of [
       "https://www.google.com/search?q=Jane+Example",
       "https://www.bing.com/search?q=Jane",
