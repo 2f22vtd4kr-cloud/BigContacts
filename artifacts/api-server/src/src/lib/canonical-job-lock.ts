@@ -2,6 +2,7 @@ import { and, or, eq, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
 import { getAllPermanentClients, markClientExhausted } from "./redis";
 import { invalidateActiveJobCache } from "./job-queue";
+import { logger } from "./logger";
 
 const JOB_LOCK_TTL_SECONDS = 15 * 60;
 const JOB_LOCK_RENEW_INTERVAL_MS = 5 * 60 * 1000;
@@ -45,18 +46,24 @@ async function withStrictPermanentClient<T>(command: StrictRedisCommand<T>): Pro
 
 async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
   const finishedAt = new Date().toISOString();
-  const redisFence = withStrictPermanentClient(async (redis) => {
-    // Lease-loss recovery must not race a terminal job and rewrite its immutable snapshot.
-    await redis.eval(
-      "local k=KEYS[1]; local status=redis.call('hget',k,'status'); if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end; redis.call('hset',k,'status','cancelled','outcome','incomplete','message',ARGV[1],'finishedAt',ARGV[2]); return 1",
-      1,
-      `apex:job:${jobId}`,
-      "Canonical lease lost; refusing further work.",
-      finishedAt,
-    );
-  });
-  const dbFence = db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() }).where(and(eq(researchCasesTable.status, "active"), or(sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`, sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`)));
-  await Promise.allSettled([redisFence, dbFence]);
+  // A failed renewal request is not proof of lease loss. This atomic check is
+  // only run after a successful renewal command explicitly reports no ownership.
+  const fenced = await withStrictPermanentClient(async (redis) => Number(await redis.eval(
+    "local owner=redis.call('get',KEYS[1]); if owner==ARGV[1] then return 0 end; local k=KEYS[2]; local status=redis.call('hget',k,'status'); if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end; redis.call('hset',k,'status','cancelled','outcome','incomplete','message',ARGV[2],'finishedAt',ARGV[3]); return 1",
+    2,
+    `apex:activejob:${type}`,
+    `apex:job:${jobId}`,
+    jobId,
+    "Canonical lease lost; refusing further work.",
+    finishedAt,
+  )) === 1);
+  if (!fenced) return;
+  await db.update(researchCasesTable)
+    .set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() })
+    .where(and(
+      eq(researchCasesTable.status, "active"),
+      or(sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`, sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`),
+    ));
 }
 
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
@@ -67,7 +74,7 @@ export async function claimCanonicalJob(type: string, jobId: string): Promise<bo
   if (outcome.result !== "OK") return false;
   invalidateActiveJobCache(type);
   const timerKey = `${type}:${jobId}`; const prior = leaseTimers.get(timerKey); if (prior) clearInterval(prior);
-  const timer = setInterval(() => { void renewCanonicalJob(type, jobId).then((renewed) => { if (!renewed) { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(type, jobId).catch(() => undefined); } }).catch(() => { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(type, jobId).catch(() => undefined); }); }, JOB_LOCK_RENEW_INTERVAL_MS);
+  const timer = setInterval(() => { void renewCanonicalJob(type, jobId).then((renewed) => { if (!renewed) { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(type, jobId).catch((error) => logger.error({ type, jobId, error: error instanceof Error ? error.message : "unknown" }, "Canonical lease-loss fence failed")); } }).catch((error) => { logger.warn({ type, jobId, error: error instanceof Error ? error.message : "unknown" }, "Canonical lease renewal failed; retrying before fencing"); }); }, JOB_LOCK_RENEW_INTERVAL_MS);
   timer.unref?.(); leaseTimers.set(timerKey, timer); return true;
 }
 
