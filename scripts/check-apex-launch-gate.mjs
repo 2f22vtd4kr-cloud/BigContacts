@@ -14,6 +14,8 @@ const discovery = read("artifacts/api-server/src/src/lib/discovery-agent.ts");
 const orchestrator = readOptional("artifacts/api-server/src/src/lib/atlas-orchestrator.ts");
 const registry = read("artifacts/api-server/src/src/lib/registry-client.ts");
 const pythonTools = read("artifacts/api-server/src/src/lib/python-tools.ts");
+const capabilityRegistry = read("artifacts/api-server/src/src/lib/atlas-capability-registry.ts");
+const orientation = read("artifacts/api-server/src/src/lib/apex-bureau-orientation.ts");
 const aiExtractorPath = "artifacts/api-server/src/src/lib/ai-extractor.ts";
 const aiExtractor = readOptional(aiExtractorPath);
 const legacyExtractionRetired = !fs.existsSync(aiExtractorPath);
@@ -28,6 +30,9 @@ const canonicalRunner = read("artifacts/api-server/src/src/lib/canonical-single-
 const jobQueue = read("artifacts/api-server/src/src/lib/job-queue.ts");
 
 const canonicalSources = [wrapper, agentic, strict, batch, discovery, orchestrator, registry, pythonTools, aiExtractor, entities, legacyAtlas, legacyGuard, launchQuarantine, routesIndex, canonicalLaunch, canonicalRunner, jobQueue];
+const providerSchemaActionEnum = agentic.match(/const AGENTIC_STRUCTURED_SCHEMA[\s\S]*?action:\s*\{\s*type:\s*"string",\s*enum:\s*\[([^\]]*)\]/)?.[1] ?? "";
+const modelAvailableActionLine = agentic.match(/AVAILABLE ACTIONS: ([^\n"]+)/)?.[1] ?? "";
+const nonExecutablePythonActions = ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"];
 
 pass("launch gate inspects source without executing repository code", !canonicalSources.some((source) => /execFileSync\(|spawnSync\(|child_process/.test(source)));
 pass("Investigator wrapper mounts canonical core", wrapper.includes("agentic-web-research-core"));
@@ -48,8 +53,8 @@ pass("manual audit runs agentic runtime checks", /check:agentic-runtime/.test(ba
 pass("discovery emits model-selection progress", /onSlotProgress\?/.test(discovery));
 pass("historical deterministic Atlas orchestrator is removed", orchestrator === "");
 pass("first Investigator action is not seeded with web_search", !/Begin\. Choose an initial web_search query/i.test(agentic) && !/\(none — begin with web_search\)/i.test(agentic));
-pass("Maigret is individually selectable", agentic.includes('"footprint_username_maigret"'));
-pass("Sherlock is individually selectable", agentic.includes('"footprint_username_sherlock"'));
+pass("non-executable Python OSINT actions are excluded from provider schema and model prompt", nonExecutablePythonActions.every((action) => !providerSchemaActionEnum.includes(action) && !modelAvailableActionLine.includes(action)));
+pass("unavailable capability metadata is retained but hidden from compact model guidance", nonExecutablePythonActions.every((action) => capabilityRegistry.includes(`action:"${action}"`) && capabilityRegistry.includes("investigatorSelectable:false")) && capabilityRegistry.includes("filter((c) => c.investigatorSelectable !== false)"));
 pass("compound username action is gone", !/action === "footprint_username"/.test(agentic));
 pass("Maigret receives run cancellation", /runMaigret\([^\n]*signal:\s*runController\.signal/.test(agentic));
 pass("Sherlock receives run cancellation", /runSherlock\([^\n]*signal:\s*runController\.signal/.test(agentic));
@@ -60,6 +65,8 @@ pass("Python OSINT source fails closed", pythonTools.includes("authorizePythonSa
 pass("Python OSINT does not directly spawn subprocesses", !/from [\"']node:child_process[\"']|from [\"']child_process[\"']|execFile|spawn\(|spawnSync\(/.test(pythonTools));
 pass("Python OSINT availability requires attestation", pythonTools.includes('state === "attested"') && pythonTools.includes('allowedCapabilities.includes("network_osint")'));
 pass("harvest_domain is fail-closed behind the Python sandbox contract", /runTheHarvester/.test(agentic) && pythonTools.includes('available: false') && pythonTools.includes('const blocked = authorizeNetworkPython(options.signal)'));
+pass("orientation does not present planned Python executors as live tools", orientation.includes("Python-backed Holehe, Maigret, Sherlock, theHarvester, and SpiderFoot are intentionally not available capabilities") && !/^- footprint_(?:email|username_maigret|username_sherlock|spiderfoot)|^- harvest_domain/m.test(orientation));
+pass("compatibility response cannot execute a disabled Python capability", agentic.includes("const unavailableCapabilityReason =") && agentic.includes("CAPABILITY_UNAVAILABLE:"));
 pass("legacy AI extraction surface is explicitly retired or contains no DeepSeek/NVIDIA fallback", legacyExtractionRetired || !/runDeepSeek|DEEPSEEK|NVIDIA_NIM|nvidia-nim/i.test(aiExtractor));
 pass("legacy AI extraction surface is not required for canonical launch", true);
 pass("legacy entity contact-repair routes are retired at the mutation boundary", legacyGuard.includes("/entities/rehydrate-contacts") && legacyGuard.includes("/entities/fix-outcome-honesty"));
