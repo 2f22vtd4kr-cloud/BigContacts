@@ -31,6 +31,12 @@ if (!(globalThis.fetch as GuardedFetch).__apexSsrfGuard) {
 export type { AgenticFinding, AgenticWebResearchResult, AgenticTrajectoryRecord } from "./agentic-web-research-core";
 export { getAgenticLlmHealth } from "./agentic-web-research-core";
 
+export function isAcceptedInvestigatorTerminal(input: { action: unknown; execution: unknown; stopReason: unknown }): boolean {
+  return input.action === "done"
+    && input.execution === "success"
+    && input.stopReason === "MODEL_DECIDED_DONE";
+}
+
 type CoreModule = typeof import("./agentic-web-research-core");
 type RunInput = Parameters<CoreModule["runAgenticWebResearch"]>[0] & { caseId?: number; oversightMode?: "internal" | "caller"; onTrajectoryRecord?: (record: CoreResult["trajectoryRecords"][number]) => void | Promise<void> };
 type CoreResult = Awaited<ReturnType<CoreModule["runAgenticWebResearch"]>>;
@@ -124,7 +130,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
               const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord]);
               findings = [...findings, ...(grounded as CoreResult["findings"])];
             }
-      if (raw.action === "done") return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
+      if (isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
     }
     if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") return { status: actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: actResult.stopReason, trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
   }
@@ -283,9 +289,16 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            if (raw.findings.length) findings = [...findings, ...(groundedTerminalFindings as CoreResult["findings"])];
            for (const finding of raw.findings) if (finding.personName) knownIdentityNames.add(finding.personName.toLowerCase());
 
+           if (raw.action === "done" && !isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) {
+             // The core may reject a model-selected terminal action when the
+             // epistemic sufficiency contract is not met. Preserve that rejected
+             // action in context and let the Investigator choose another move;
+             // oversight must not turn a blocked terminal claim into completion.
+             continue;
+           }
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
            if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: error ?? "Groq oversight unavailable", executionId };
-           if (checkpointResult.stop || (callerOwnsOversight && raw.action === "done")) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
+           if (checkpointResult.stop || (callerOwnsOversight && isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason }))) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
            continue;
          }
 
