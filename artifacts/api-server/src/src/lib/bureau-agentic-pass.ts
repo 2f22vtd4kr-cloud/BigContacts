@@ -68,7 +68,7 @@ function compactDurableDiscoveryRecords(records:AgenticTrajectoryRecord[]): Agen
   }));
 }
 
-async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string;investigatorLlm?:InvestigatorCapability;jobId?:string;runId:string;baseIteration?:number;finalize?:boolean},result:{trajectory:string[];trajectoryRecords:AgenticTrajectoryRecord[];model:string;iterations:number;searches:number;visits:number;stopReason?:string}):Promise<void>{
+async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string;investigatorLlm?:InvestigatorCapability;jobId?:string;runId:string;baseIteration?:number;finalize?:boolean},result:{trajectory:string[];trajectoryRecords:AgenticTrajectoryRecord[];groundingTrajectoryRecords?:AgenticTrajectoryRecord[];model:string;iterations:number;searches:number;visits:number;stopReason?:string}):Promise<void>{
   const [row]=await db.select({caseFile:researchCasesTable.caseFile,iteration:researchCasesTable.iteration}).from(researchCasesTable).where(eq(researchCasesTable.id,caseId)).limit(1);
   if(!row?.caseFile)throw new Error(`Discovery case ${caseId} disappeared before trajectory persistence.`);
   let current:Record<string,any>;
@@ -79,7 +79,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
   const baseIteration=Math.max(0,Number.isFinite(input.baseIteration) ? Number(input.baseIteration) : priorIteration);
   const rawTrajectory=Array.isArray(result.trajectory)?result.trajectory:[];
   const rawRecords=Array.isArray(result.trajectoryRecords)?result.trajectoryRecords:[];
-  const offsetRecords=rawRecords.map((record)=>({...record,turn:baseIteration+Math.max(1,Number(record.turn)||1)}));
+  const offsetRecords=rawRecords.map((record)=>({...record,turn:baseIteration+Math.max(1,Number(record.turn)||1)}));const groundingRecords=result.groundingTrajectoryRecords??result.trajectoryRecords;
   const renumberedTrajectory=rawTrajectory.map((line)=>{
     if(typeof line!=="string")return line;
     return line.replace(/^step(\d+):/i,(_match:string,numberString:string)=>`step${baseIteration+Number(numberString)}:`);
@@ -120,15 +120,19 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
       const inserted=await tx.insert(researchCaseEventsTable).values({caseId,iteration:record.turn,actorRole:"head_investigator",eventType,status:record.execution,summary:record.action==="done"?`Investigator ended ReAct run; findings=${record.findings.length}.`:`Investigator turn ${record.turn}: ${record.action}; execution=${record.execution}.`,correlationKey,payload}).onConflictDoNothing({target:[researchCaseEventsTable.caseId,researchCaseEventsTable.correlationKey]}).returning({id:researchCaseEventsTable.id});
       if(!inserted[0]?.id){const[existing]=await tx.select({id:researchCaseEventsTable.id,payload:researchCaseEventsTable.payload,eventType:researchCaseEventsTable.eventType,actorRole:researchCaseEventsTable.actorRole}).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId,caseId),eq(researchCaseEventsTable.correlationKey,correlationKey))).limit(1);if(!existing||existing.eventType!==eventType||existing.actorRole!=="head_investigator"||existing.payload!==payload)throw new Error(`Discovery trajectory replay mismatch for ${correlationKey}`);}
     }
-    for(const record of offsetRecords.filter((candidate)=>candidate.action==="done"&&candidate.execution==="success")){
+    for(const record of offsetRecords.filter((candidate)=>input.finalize===true&&candidate.action==="done"&&candidate.execution==="success")){
       for(const[findingIndex,finding]of record.findings.entries()){
-        if(!claimAppearsInObservedMaterial(finding,offsetRecords))continue;
+        if(!claimAppearsInObservedMaterial(finding,groundingRecords))continue;
         const observationTurns=offsetRecords.filter((candidate)=>candidate.execution==="success"&&(candidate.action==="visit"||candidate.action==="browser_fetch")&&candidate.observedUrls.some((url)=>finding.sourceUrls.some((source)=>normalizeObservedUrl(url)===normalizeObservedUrl(source)))).map((candidate)=>candidate.turn).filter((turn,index,turns)=>turns.indexOf(turn)===index);
-        const observationEventIds:number[]=[];
+        const citedUrls=new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url):url is string=>Boolean(url)));
+        const observationEventIds:number[] = groundingRecords
+          .filter((candidate)=>candidate.durableEventId!=null&&candidate.execution==="success"&&(candidate.action==="visit"||candidate.action==="browser_fetch")&&candidate.observedUrls.some((url)=>{const normalized=normalizeObservedUrl(url);return normalized!==null&&citedUrls.has(normalized);}))
+          .map((candidate)=>candidate.durableEventId!);
         for(const turn of observationTurns){const key=`${input.runId}:turn:${turn}:trajectory`;const id=(await tx.select({id:researchCaseEventsTable.id}).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId,caseId),eq(researchCaseEventsTable.correlationKey,key))).limit(1))[0]?.id;if(id)observationEventIds.push(id);}
-        if(!observationEventIds.length)continue;
+        const uniqueObservationEventIds=[...new Set(observationEventIds)].sort((a,b)=>a-b);
+        if(!uniqueObservationEventIds.length)continue;
         const claimKey=`${input.runId}:turn:${record.turn}:claim:${findingIndex}:${finding.vectorType}:${finding.value.trim().toLowerCase()}`;
-        const claimPayload=JSON.stringify({jobId:input.jobId??null,runId:input.runId,claim:finding,observationEventIds});
+        const claimPayload=JSON.stringify({jobId:input.jobId??null,runId:input.runId,claim:finding,observationEventIds:uniqueObservationEventIds});
         const claimInserted=await tx.insert(researchCaseEventsTable).values({caseId,iteration:record.turn,actorRole:"head_investigator",eventType:"claim",status:"recorded",summary:`Investigator authored claim ${finding.vectorType}.`,correlationKey:claimKey,payload:claimPayload}).onConflictDoNothing({target:[researchCaseEventsTable.caseId,researchCaseEventsTable.correlationKey]}).returning({id:researchCaseEventsTable.id});
         let claimEventId=claimInserted[0]?.id ?? null;
         if(!claimEventId){const[existingClaim]=await tx.select({id:researchCaseEventsTable.id,payload:researchCaseEventsTable.payload,eventType:researchCaseEventsTable.eventType,actorRole:researchCaseEventsTable.actorRole}).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId,caseId),eq(researchCaseEventsTable.correlationKey,claimKey))).limit(1);if(!existingClaim||existingClaim.eventType!=="claim"||existingClaim.actorRole!=="head_investigator"||existingClaim.payload!==claimPayload)throw new Error(`Discovery claim replay mismatch for ${claimKey}`);claimEventId=existingClaim.id;}
