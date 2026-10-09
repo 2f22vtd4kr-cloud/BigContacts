@@ -54,6 +54,16 @@ Check presence only. Never display, echo, log, commit, or paste secret values in
 
 Do not request GitHub credentials, retired Gemini/Mistral/DeepSeek/NVIDIA control-plane credentials, WHOIS/WHOXY credentials, or other retired secrets.
 
+## Required operator authentication controls
+
+Configure these three controls as deployment secrets before using the desk:
+
+- `APEX_OPERATOR_PASSWORD` — at least 16 characters.
+- `APEX_API_AUTH_TOKEN` — at least 32 characters.
+- `APEX_SESSION_SECRET` — at least 32 characters and stable across restarts/replicas.
+
+The API fails closed for protected data and research actions until all three are configured. The browser uses a signed 12-hour HttpOnly session cookie; trusted API clients may use the bearer token. Preflight prints names/status only, never values. Do not paste secret values into chat or commit them.
+
 ## Install and run
 
 Use the repository's existing pnpm scripts, lockfiles and configuration. Do not scaffold a replacement application.
