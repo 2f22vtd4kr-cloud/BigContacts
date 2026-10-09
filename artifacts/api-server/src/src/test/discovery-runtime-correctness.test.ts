@@ -197,6 +197,16 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(quotaAccount, model, response)");
   });
 
+  it("keeps oversight stopping distinct from Investigator-selected completion", () => {
+    const oversightStop = researchSource.indexOf("if (checkpointResult.stop) return");
+    const modelDone = researchSource.indexOf("if (callerOwnsOversight && isAcceptedInvestigatorTerminal");
+    expect(oversightStop).toBeGreaterThan(-1);
+    expect(modelDone).toBeGreaterThan(oversightStop);
+    expect(researchSource.slice(oversightStop, modelDone)).toContain('stopReason: "OVERSIGHT_STOP"');
+    expect(researchSource.slice(oversightStop, modelDone)).not.toContain('stopReason: "MODEL_DECIDED_DONE"');
+    expect(researchCoreSource).toContain('"OVERSIGHT_STOP"');
+  });
+
   it("keeps runtime safety checks fail-closed and bounded", () => {
     expect(runtimeHardener).toMatch(/fail.?closed/i);
     expect(runtimeHardener).toMatch(/timeout|abort|cancel/i);
