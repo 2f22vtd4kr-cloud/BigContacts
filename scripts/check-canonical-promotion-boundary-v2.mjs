@@ -34,10 +34,12 @@ assert(hasAll(target, [
   "const modelFindings = agentic.modelFindings ?? []",
   "const groundingRecords = agentic.groundingTrajectoryRecords ?? agentic.trajectoryRecords",
   "sourceBackedFindings(modelFindings, agentic.trajectory, groundingRecords)",
-  "function isReviewableObservation(record: AgenticTrajectoryRecord): boolean",
-  "isClaimGradeObservationAction(record.action)",
-  "supportsContactClaimAcrossObservations(observations, finding, finding.value, finding.vectorType)",
-]) && !target.includes("supportsReviewableClaimAcrossObservations"), "target-scoped candidate contacts require same-observation identity/value binding after cumulative observation grounding");
+  "sourceBackedReviewableFindings(modelFindings, agentic.trajectory, groundingRecords)",
+  "buildEvidenceGraphs(reviewableFindings, groundingRecords",
+  "findingsToContacts(backedFindings, name)",
+  "supportsReviewableClaimAcrossObservations",
+  "supportsContactClaimAcrossObservations",
+]), "target exposes source-backed review graphs separately from strict same-observation contact persistence");
 assert(hasAll(target, ['promote: isExplicitCandidate && f.promotionDecision === "promote"', "state: \"review_only\"", "tier: \"candidate\""]), "target preserves explicit Investigator promotion semantics");
 assert(hasAll(target, ["execution=success", "observed=(https?:", "claimAppearsInObservedMaterial", "record.observation"]), "target validates claims against successful observed material");
 assert(hasAll(target, ["status: \"cancelled\"", "executionId: agentic.executionId"]), "target preserves cancellation as a distinct result and execution identity");
