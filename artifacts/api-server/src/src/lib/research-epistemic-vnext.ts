@@ -55,6 +55,14 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
   const exact = findExactTokenIndex(spanText.toLowerCase(), needle) >= 0;
   return { text: spanText, start, end: boundedEnd, subjectMatched: subjectIndex >= 0 || localSubjectIndex >= 0, valueMatched: exact, exact: exact && (!subjectNeedle || subjectIndex >= 0 || localSubjectIndex >= 0) };
 }
+const SECOND_LEVEL_SUFFIXES = new Set(["co.uk", "org.uk", "gov.uk", "ac.uk", "com.au", "net.au", "org.au", "com.br", "com.cn", "com.hk", "com.mx", "com.sg", "co.jp", "co.nz", "co.za", "com.tr"]);
+function canonicalPublisher(host: string): string {
+  const normalized = host.trim().toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
+  const parts = normalized.split(".").filter(Boolean);
+  if (parts.length <= 2) return normalized;
+  const suffix = parts.slice(-2).join(".");
+  return SECOND_LEVEL_SUFFIXES.has(suffix) ? parts.slice(-3).join(".") : suffix;
+}
 export function sourceLineageId(url: string, contentFingerprint?: string | null): string { return contentFingerprint ? "content:" + digest(contentFingerprint).slice(0, 24) : "source:" + digest(canonicalHost(url) ?? url).slice(0, 24); }
 
 export class SourceLineageGraph {
@@ -78,7 +86,7 @@ export class SourceLineageGraph {
       const root = this.nodes.get(rootId);
       if (!root) continue;
       if (isAggregatorHost(root.host)) continue;
-      independentPublishers.add(root.publisher?.trim().toLowerCase() || root.host.trim().toLowerCase());
+      independentPublishers.add(root.publisher?.trim().toLowerCase() || canonicalPublisher(root.host));
     }
     return independentPublishers.size;
   }
