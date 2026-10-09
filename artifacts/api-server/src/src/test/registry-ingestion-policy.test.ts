@@ -62,7 +62,8 @@ describe("public-registry evidence remains a low-confidence lead", () => {
       path.resolve(process.cwd(), "../../lib/db/migrations/004-registry-candidate-truth.sql"),
       "utf8",
     );
-    expect(migration).toContain("parsed_metadata->>'needsEnrichment' <> 'true'");
+    expect(migration).toContain("COALESCE(parsed_metadata->>'needsEnrichment', 'false') <> 'true'");
+    expect(migration).toContain("candidate.estimated_net_worth IS NOT NULL");
     expect(migration).toContain("source_name = 'companies-house-officers'");
     expect(migration).toContain("source_name = 'sec-edgar'");
     expect(migration).toContain("parsed_metadata->>'admission' = 'investigator-explicit-promotion'");
