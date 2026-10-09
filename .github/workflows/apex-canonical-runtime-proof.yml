@@ -99,32 +99,43 @@ jobs:
             echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
             echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
           } >> "$GITHUB_ENV"
-      - name: Start canonical API
+      - name: Run canonical API and one discovery-first case
         run: |
           set -euo pipefail
+          unset APEX_ALLOW_SCHEMA_PUSH
+          rm -f /tmp/apex-api.log /tmp/health.json /tmp/launch.json /tmp/job.json /tmp/job-final.json /tmp/atlas-trace.json /tmp/entities.json
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
-          echo $! > /tmp/apex-api.pid
+          API_PID=$!
+          echo "$API_PID" > /tmp/apex-api.pid
+          collect_evidence() {
+            JOB_ID="$(node -p 'try{require("/tmp/launch.json").jobId||""}catch{""}')"
+            if [ -n "$JOB_ID" ]; then
+              curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | tee /tmp/job-final.json || true
+              curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace.json || true
+              curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/entities?limit=50&offset=0" | tee /tmp/entities.json || true
+            fi
+            cat /tmp/apex-api.log || true
+            if kill -0 "$API_PID" 2>/dev/null; then kill "$API_PID" 2>/dev/null || true; fi
+            wait "$API_PID" 2>/dev/null || true
+            rm -f /tmp/apex-api.pid
+          }
+          trap collect_evidence EXIT
+          READY=0
           for i in $(seq 1 45); do
+            if curl -fsS -m 2 http://127.0.0.1:8080/api/healthz >/tmp/health.json; then READY=1; break; fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then cat /tmp/apex-api.log; exit 1; fi
             sleep 1
-            if curl -fsS -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" http://127.0.0.1:8080/api/healthz >/tmp/health.json; then exit 0; fi
           done
-          cat /tmp/apex-api.log
-          exit 1
-      - name: Launch one real discovery-first canonical case
-        run: |
-          set -euo pipefail
+          if [ "$READY" -ne 1 ]; then cat /tmp/apex-api.log; exit 1; fi
           curl -sS -m 20 -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
-            -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" \
+            -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" \
             -H 'Content-Type: application/json' \
             -d '{"discoveryFirst":true,"targetCount":1,"runResearch":true,"skipFaa":true,"targetTimeoutMs":120000,"researchDepth":"fast"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1);console.log("job",x.jobId)'
-      - name: Poll canonical case
-        run: |
-          set -euo pipefail
           JOB_ID="$(node -p 'require("/tmp/launch.json").jobId')"
           for i in $(seq 1 300); do
             sleep 5
-            curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/job.json || true
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/job.json || true
             STATUS="$(node -p 'try{require("/tmp/job.json").status||require("/tmp/job.json").job?.status||""}catch{""}')"
             echo "poll=$i status=$STATUS"
             if [ "$STATUS" = "done" ] || [ "$STATUS" = "completed" ]; then exit 0; fi
@@ -132,16 +143,11 @@ jobs:
           done
           cat /tmp/job.json
           exit 1
-      - name: Collect canonical trace
+      - name: Preserve canonical runtime evidence
         if: always()
         run: |
-          JOB_ID="$(node -p 'try{require("/tmp/launch.json").jobId||""}catch{""}')"
-          if [ -n "$JOB_ID" ]; then
-            curl -sS -m 20 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | tee /tmp/job-final.json || true
-            curl -sS -m 20 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace.json || true
-            curl -sS -m 20 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/entities?limit=50&offset=0" | tee /tmp/entities.json || true
-          fi
-          cat /tmp/apex-api.log || true
+          # The API step captures final state before shutting down the server.
+          if [ ! -s /tmp/job-final.json ] && [ -s /tmp/job.json ]; then cp /tmp/job.json /tmp/job-final.json; fi
       - name: Upload canonical runtime evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
