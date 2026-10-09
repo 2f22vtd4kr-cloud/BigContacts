@@ -62,31 +62,35 @@ jobs:
         run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral API credential for live smoke tests
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-      - name: Start API server for live smoke tests
+      - name: Live smoke API test with process-lifetime-safe server
         run: |
           set -euo pipefail
           cd artifacts/api-server
-          nohup node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
-          echo $! > /tmp/bigcontacts-api.pid
+          rm -f /tmp/bigcontacts-api.log /tmp/bigcontacts-health.json
+          node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
+          API_PID=$!
+          cleanup() {
+            kill "$API_PID" 2>/dev/null || true
+            wait "$API_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          READY=0
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:8080/api/healthz >/tmp/bigcontacts-health.json; then
-              exit 0
+              READY=1
+              break
+            fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then
+              cat /tmp/bigcontacts-api.log
+              exit 1
             fi
             sleep 1
           done
-          cat /tmp/bigcontacts-api.log
-          exit 1
-      - name: Live smoke API test
-        run: |
-          set -euo pipefail
-          cd artifacts/api-server
-          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
-      - name: Stop API server
-        if: always()
-        run: |
-          if [ -f /tmp/bigcontacts-api.pid ]; then
-            kill "$(cat /tmp/bigcontacts-api.pid)" 2>/dev/null || true
+          if [ "$READY" -ne 1 ]; then
+            cat /tmp/bigcontacts-api.log
+            exit 1
           fi
+          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
       - name: Every API test file, isolated
         run: |
           set -euo pipefail
@@ -136,31 +140,35 @@ jobs:
         run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral API credential for live smoke tests
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-      - name: Start API server for live smoke tests
+      - name: Live smoke API test with process-lifetime-safe server
         run: |
           set -euo pipefail
           cd artifacts/api-server
-          nohup node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
-          echo $! > /tmp/bigcontacts-api.pid
+          rm -f /tmp/bigcontacts-api.log /tmp/bigcontacts-health.json
+          node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
+          API_PID=$!
+          cleanup() {
+            kill "$API_PID" 2>/dev/null || true
+            wait "$API_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          READY=0
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:8080/api/healthz >/tmp/bigcontacts-health.json; then
-              exit 0
+              READY=1
+              break
+            fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then
+              cat /tmp/bigcontacts-api.log
+              exit 1
             fi
             sleep 1
           done
-          cat /tmp/bigcontacts-api.log
-          exit 1
-      - name: Live smoke API test
-        run: |
-          set -euo pipefail
-          cd artifacts/api-server
-          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
-      - name: Stop API server
-        if: always()
-        run: |
-          if [ -f /tmp/bigcontacts-api.pid ]; then
-            kill "$(cat /tmp/bigcontacts-api.pid)" 2>/dev/null || true
+          if [ "$READY" -ne 1 ]; then
+            cat /tmp/bigcontacts-api.log
+            exit 1
           fi
+          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
       - name: Every API test file, isolated
         run: |
           set -euo pipefail
@@ -209,31 +217,35 @@ jobs:
         run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral API credential for live smoke tests
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-      - name: Start API server for live smoke tests
+      - name: Live smoke API test with process-lifetime-safe server
         run: |
           set -euo pipefail
           cd artifacts/api-server
-          nohup node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
-          echo $! > /tmp/bigcontacts-api.pid
+          rm -f /tmp/bigcontacts-api.log /tmp/bigcontacts-health.json
+          node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
+          API_PID=$!
+          cleanup() {
+            kill "$API_PID" 2>/dev/null || true
+            wait "$API_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          READY=0
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:8080/api/healthz >/tmp/bigcontacts-health.json; then
-              exit 0
+              READY=1
+              break
+            fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then
+              cat /tmp/bigcontacts-api.log
+              exit 1
             fi
             sleep 1
           done
-          cat /tmp/bigcontacts-api.log
-          exit 1
-      - name: Live smoke API test
-        run: |
-          set -euo pipefail
-          cd artifacts/api-server
-          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
-      - name: Stop API server
-        if: always()
-        run: |
-          if [ -f /tmp/bigcontacts-api.pid ]; then
-            kill "$(cat /tmp/bigcontacts-api.pid)" 2>/dev/null || true
+          if [ "$READY" -ne 1 ]; then
+            cat /tmp/bigcontacts-api.log
+            exit 1
           fi
+          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
       - name: Every API test file, isolated
         run: |
           set -euo pipefail
@@ -282,31 +294,35 @@ jobs:
         run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral API credential for live smoke tests
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-      - name: Start API server for live smoke tests
+      - name: Live smoke API test with process-lifetime-safe server
         run: |
           set -euo pipefail
           cd artifacts/api-server
-          nohup node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
-          echo $! > /tmp/bigcontacts-api.pid
+          rm -f /tmp/bigcontacts-api.log /tmp/bigcontacts-health.json
+          node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
+          API_PID=$!
+          cleanup() {
+            kill "$API_PID" 2>/dev/null || true
+            wait "$API_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          READY=0
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:8080/api/healthz >/tmp/bigcontacts-health.json; then
-              exit 0
+              READY=1
+              break
+            fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then
+              cat /tmp/bigcontacts-api.log
+              exit 1
             fi
             sleep 1
           done
-          cat /tmp/bigcontacts-api.log
-          exit 1
-      - name: Live smoke API test
-        run: |
-          set -euo pipefail
-          cd artifacts/api-server
-          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
-      - name: Stop API server
-        if: always()
-        run: |
-          if [ -f /tmp/bigcontacts-api.pid ]; then
-            kill "$(cat /tmp/bigcontacts-api.pid)" 2>/dev/null || true
+          if [ "$READY" -ne 1 ]; then
+            cat /tmp/bigcontacts-api.log
+            exit 1
           fi
+          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
       - name: Every API test file, isolated
         run: |
           set -euo pipefail
@@ -355,31 +371,35 @@ jobs:
         run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral API credential for live smoke tests
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-      - name: Start API server for live smoke tests
+      - name: Live smoke API test with process-lifetime-safe server
         run: |
           set -euo pipefail
           cd artifacts/api-server
-          nohup node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
-          echo $! > /tmp/bigcontacts-api.pid
+          rm -f /tmp/bigcontacts-api.log /tmp/bigcontacts-health.json
+          node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
+          API_PID=$!
+          cleanup() {
+            kill "$API_PID" 2>/dev/null || true
+            wait "$API_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          READY=0
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:8080/api/healthz >/tmp/bigcontacts-health.json; then
-              exit 0
+              READY=1
+              break
+            fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then
+              cat /tmp/bigcontacts-api.log
+              exit 1
             fi
             sleep 1
           done
-          cat /tmp/bigcontacts-api.log
-          exit 1
-      - name: Live smoke API test
-        run: |
-          set -euo pipefail
-          cd artifacts/api-server
-          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
-      - name: Stop API server
-        if: always()
-        run: |
-          if [ -f /tmp/bigcontacts-api.pid ]; then
-            kill "$(cat /tmp/bigcontacts-api.pid)" 2>/dev/null || true
+          if [ "$READY" -ne 1 ]; then
+            cat /tmp/bigcontacts-api.log
+            exit 1
           fi
+          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
       - name: Every API test file, isolated
         run: |
           set -euo pipefail
