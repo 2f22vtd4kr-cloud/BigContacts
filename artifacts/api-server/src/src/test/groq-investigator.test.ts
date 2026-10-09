@@ -136,6 +136,49 @@ describe("Groq Investigator provider boundary", () => {
   });
 
 
+  it("retries an HTTP 413 once with emergency prompt compaction on the same model and capability", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-413-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    const submitted: Array<{ model: string; userPrompt: string; authorization: string }> = [];
+    mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        model?: string;
+        messages?: Array<{ role: string; content: string }>;
+      };
+      submitted.push({
+        model: String(body.model ?? ""),
+        userPrompt: body.messages?.find((message) => message.role === "user")?.content ?? "",
+        authorization: String(new Headers(init?.headers).get("authorization")),
+      });
+      if (submitted.length === 1) {
+        return new Response(JSON.stringify({ error: { code: "request_too_large" } }), {
+          status: 413,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Verbose synthetic target ".repeat(500),
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(submitted).toHaveLength(2);
+    expect(submitted[1]?.model).toBe(submitted[0]?.model);
+    expect(submitted[1]?.userPrompt.length).toBeLessThan(submitted[0]?.userPrompt.length);
+    expect(submitted[1]?.userPrompt.length).toBeLessThanOrEqual(6_000);
+    expect(submitted.map((request) => request.authorization)).toEqual([
+      "Bearer test-groq-investigator-413-key",
+      "Bearer test-groq-investigator-413-key",
+    ]);
+  });
+
   it("owns a transient Groq 429 retry at the Investigator caller boundary", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
