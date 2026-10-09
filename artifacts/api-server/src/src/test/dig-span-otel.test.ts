@@ -2,15 +2,25 @@ import { describe, expect, it } from "vitest";
 import { publishDigSpan, spanFromLiveStep, toOtelGenAiAttributes, clearDigSpansForJob, getRecentDigSpans } from "../lib/dig-span";
 
 describe("live execution status mapping", () => {
-  it("does not turn failed or blocked tool executions into successful spans", () => {
+  it("does not turn failed, unresolved, or merely selected tool steps into successful spans", () => {
     for (const status of ["error", "http_error", "blocked", "timeout", "failed", "unavailable"]) {
       const span = spanFromLiveStep({ jobId: "status-" + status, tool: "web_search", status });
       expect(span?.status).toBe("error");
     }
+    for (const status of ["selected", "unknown", "future-status", ""]) {
+      const span = spanFromLiveStep({ jobId: "status-unknown-" + status, tool: "web_search", status });
+      expect(span?.status).toBe("unknown");
+    }
+    const missing = spanFromLiveStep({ jobId: "status-missing", tool: "web_search" });
+    expect(missing?.status).toBe("unknown");
+    const active = spanFromLiveStep({ jobId: "status-active", tool: "web_search", status: "active" });
+    expect(active?.status).toBe("active");
     const cancelled = spanFromLiveStep({ jobId: "status-cancelled", tool: "web_search", status: "cancelled" });
     expect(cancelled?.status).toBe("cancelled");
-    const success = spanFromLiveStep({ jobId: "status-success", tool: "web_search", status: "success" });
-    expect(success?.status).toBe("ok");
+    for (const status of ["ok", "success", "completed", "done", "succeeded", "empty"]) {
+      const span = spanFromLiveStep({ jobId: "status-success-" + status, tool: "web_search", status });
+      expect(span?.status).toBe("ok");
+    }
   });
 });
 
