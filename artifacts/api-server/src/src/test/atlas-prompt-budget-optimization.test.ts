@@ -9,6 +9,7 @@ import { renderAtlasCapabilityGuidanceCompact, renderAtlasCapabilityGuidance } f
 import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
 import { buildGroqInvestigatorRequestBody, buildStepPrompt } from "../lib/agentic-web-research-core";
 import { apexOrientationCompact } from "../lib/apex-bureau-orientation";
+import { buildApexAtlasBossPlanPrompt, getApexAtlasBossPlanPromptMaxChars } from "../lib/case-bureau-prompt";
 
 describe("Apex Atlas prompt budget optimization", () => {
   it("keeps the per-turn capability contract materially smaller than the full registry", () => {
@@ -106,4 +107,64 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(right.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_PROMPT_BUDGET);
     expect(boss.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
   });
+  it("bounds the complete Bureau Boss planning prompt without losing the decision contract", () => {
+    const long = "X".repeat(2_000);
+    const actionQueue = Array.from({ length: 100 }, (_, i) => ({
+      id: "action-" + i,
+      title: "Investigate lead " + i + " " + long,
+      purpose: "Resolve an evidence gap " + long,
+      specialistId: "investigator " + i,
+      tools: [long, long, long],
+      priority: i,
+      status: "queued",
+      rationale: "Prior evidence and next information gain " + long,
+    }));
+    const file = {
+      target: {
+        name: "Bounded Target " + long,
+        type: "person",
+        nationality: "US",
+        knownDomains: Array.from({ length: 100 }, () => long),
+      },
+      hypotheses: Array.from({ length: 30 }, () => long),
+      evidenceSummary: {
+        discoveredPeople: Array.from({ length: 30 }, () => long),
+        relatedOrganizations: Array.from({ length: 30 }, () => long),
+        searchGaps: Array.from({ length: 30 }, () => long),
+        negativeFindings: Array.from({ length: 30 }, () => long),
+      },
+      specialistRoster: Array.from({ length: 50 }, (_, i) => ({ id: "specialist-" + i + long, title: long, status: "ready" })),
+      actionQueue,
+      contactRoutes: Array.from({ length: 40 }, () => ({
+        vectorType: "email",
+        value: long,
+        personName: long,
+        role: long,
+        relationship: long,
+        state: "review_only",
+        sourceUrls: [long, long, long],
+      })),
+      humanDirectives: Array.from({ length: 30 }, () => long),
+      decisionLog: Array.from({ length: 30 }, (_, i) => ({ iteration: i, decision: long, reason: long, createdAt: "2026-10-09" })),
+      rightHandAdvice: { provider: "groq", model: "test-model", status: "completed", actionId: "x", decision: long, reason: long, confidence: 0.8, error: null, createdAt: "2026-10-09", ignoredPayload: long.repeat(10) },
+      bossPlan: { outcome: "proceed", actionId: "action-1", decision: long, progressAssessment: long, rightHandDisposition: "accept", rightHandNote: long },
+      nextBestAction: { id: "next", title: long, purpose: long, specialistId: long, tools: [long], priority: 1, rationale: long },
+      lastUpdatedBy: "test",
+      researchDepth: undefined,
+      noProgressStreak: 10,
+    } as unknown as Parameters<typeof buildApexAtlasBossPlanPrompt>[0]["file"];
+
+    const prompt = buildApexAtlasBossPlanPrompt({
+      iteration: 42,
+      rightHandAdvice: file.rightHandAdvice,
+      file,
+    });
+    expect(prompt.length).toBeLessThanOrEqual(getApexAtlasBossPlanPromptMaxChars());
+    expect(prompt).toContain("You are the Apex Atlas Boss.");
+    expect(prompt).toContain("[APEX BOSS PLAN PROMPT BOUND:");
+    expect(prompt).toContain("RETURN ONE JSON OBJECT ONLY");
+    expect(prompt).toContain("Iteration: 42");
+    expect(prompt).not.toContain("ignoredPayload");
+  });
+
 });
