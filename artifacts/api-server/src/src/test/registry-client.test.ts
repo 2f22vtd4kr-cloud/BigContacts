@@ -3,6 +3,13 @@ describe("registry candidate classification safety", () => {
     expect(classifyRegistryRecordType("companies-house-officers")).toBe("PersonCandidate");
   });
 
+  it("demotes legacy HNWI and Gatekeeper registry labels until adjudicated", () => {
+    expect(normalizeUnverifiedRegistryType("HNWI")).toBe("PersonCandidate");
+    expect(normalizeUnverifiedRegistryType("Gatekeeper")).toBe("PersonCandidate");
+    expect(normalizeUnverifiedRegistryType("Corporation")).toBe("Corporation");
+    expect(normalizeUnverifiedRegistryType("PersonCandidate")).toBe("PersonCandidate");
+  });
+
   it("keeps SEC beneficial-ownership filing subjects as review candidates pending verification", () => {
     expect(classifyRegistryRecordType("sec-edgar", "SC 13D")).toBe("PersonCandidate");
     expect(classifyRegistryRecordType("sec-edgar", "SC 13G/A")).toBe("PersonCandidate");
@@ -19,6 +26,7 @@ describe("registry candidate classification safety", () => {
 
 import {
   classifyRegistryRecordType,
+  normalizeUnverifiedRegistryType,
   normalizeAresEntity,
   normalizeBodaccRecord,
   normalizeBrregEntity,
