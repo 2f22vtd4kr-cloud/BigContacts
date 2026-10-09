@@ -424,14 +424,7 @@ function describeActionRationaleFailure(action: string, value: Record<string, un
   if (typeof informationGain !== "number" || !Number.isFinite(informationGain) || informationGain < 0 || informationGain > 1) {
     return "invalid_action_rationale action=" + action + " expectedInformationGain must be a finite number in [0,1]";
   }
-  if (action === "parallel_web_search" && Array.isArray(value.searches)) {
-    for (let index = 0; index < value.searches.length; index += 1) {
-      const search = value.searches[index];
-      if (!search || typeof search !== "object" || !cleanText((search as Record<string, unknown>).purpose, 500)) {
-        return "missing_action_rationale action=parallel_web_search missing=searches[" + index + "].purpose";
-      }
-    }
-  }
+
   return null;
 }
 function describeInvalidActionArguments(action: string, value: Record<string, unknown>): string {
