@@ -22,7 +22,10 @@ pass("oversight target lookup is exact case id",/eq\(researchCasesTable\.id,case
 pass("promotion provenance is exact case/run",/InvestigatorPromotionProvenance/.test(target)&&/caseId: input\.caseId, runId, jobId: input\.jobId \?\? null/.test(target));
 pass("strict persistence requires provenance",/provenance/.test(strict)&&/caseId/.test(strict)&&/runId/.test(strict));
 pass("cancellation callback is checked after Investigator execution",/input\.shouldCancel && await input\.shouldCancel\(\)/.test(target));
-pass("job state is rechecked fail-closed immediately before promotion",/(?:const promotionJob = await getJob(?:Strict)?\(input\.jobId\))[\s\S]{0,420}promotionJob\.status !== "running"/.test(target)&&(/Target job record missing; refusing contact promotion while job state is unknown/.test(target)||/promotionJob\.status !== "running"/.test(target)));
+const promotionCheckStart = target.indexOf("const promotionJob = await getJobStrict(input.jobId)");
+const promotionCheckEnd = target.indexOf("await persistSourceBackedBureauContactsForEntity", promotionCheckStart);
+const promotionCheck = promotionCheckStart >= 0 && promotionCheckEnd > promotionCheckStart ? target.slice(promotionCheckStart, promotionCheckEnd) : "";
+pass("job state is rechecked fail-closed immediately before promotion", promotionCheck.includes("promotionJob.status !== \"running\"") && promotionCheck.includes("Target job record missing; refusing contact promotion while job state is unknown.") && /const promotionJob = await getJobStrict\(input\.jobId\)/.test(promotionCheck));
 pass("agentic wrapper has abort deadline",/new AbortController\(\)/.test(wrapper)&&/setTimeout\(.*requestedHardTimeout/.test(wrapper));
 pass("provider selection is derived from the durable target case",/resolveSelectedInvestigator/.test(target)&&/researchCasesTable\.caseFile/.test(target)&&/eq\(researchCasesTable\.id,\s*(?:caseId|input\.caseId)\)/.test(target)&&/typeof selected !== "string"/.test(target));
 pass("caller provider cannot override durable selection",/input\.investigatorLlm && input\.investigatorLlm !== investigator/.test(target));
