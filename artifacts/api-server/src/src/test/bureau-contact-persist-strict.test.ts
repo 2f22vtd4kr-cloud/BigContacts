@@ -309,7 +309,7 @@ describe("canonical job binding for trusted promotion", () => {
 
 describe("immutable promotion observation event types", () => {
   it("accepts granular source anchors without confusing them with replayable tool-observation events", () => {
-    expect(isImmutablePromotionObservationEventType("source_observation")).toBe(true);
+    expect(isImmutablePromotionObservationEventType("observation")).toBe(true);
     expect(isImmutablePromotionObservationEventType("tool_observation")).toBe(true);
     expect(isImmutablePromotionObservationEventType("control_decision")).toBe(false);
     expect(isImmutablePromotionObservationEventType("provider_error")).toBe(false);
