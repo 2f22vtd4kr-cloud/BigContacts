@@ -4,7 +4,7 @@ import { db, entitiesTable, researchCasesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getJob } from "./job-queue";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
-import { persistSourceBackedBureauContactsForEntity, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
+import { persistSourceBackedBureauContactsForEntity, supportsCandidateContactOnSameObservation, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -36,31 +36,21 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
   if (!records.length) return false;
   const sourceSet = new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)));
   if (!sourceSet.size) return false;
-  const value = finding.value.trim().toLowerCase();
-  const normalizeIdentity = (text: string) => text.toLowerCase().replace(/https?:\/\/\S+/gi, " ").replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
-  const normalizedPersonName = finding.scope === "candidate" && finding.personName ? normalizeIdentity(finding.personName) : "";
-  let valueObserved = false;
-  let identityObserved = !normalizedPersonName;
-  let supportingObservationCount = 0;
   const supportingUrls = new Set<string>();
   for (const record of records) {
     if (record.execution !== "success" || typeof record.observation !== "string" || record.action === "web_search" || record.action === "parallel_web_search" || record.action === "done") continue;
-    const matchedSources = record.observedUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)).filter((url) => sourceSet.has(url));
+    const matchedSources = record.observedUrls
+      .map(normalizeObservedUrl)
+      .filter((url): url is string => Boolean(url) && sourceSet.has(url));
     if (!matchedSources.length) continue;
-    const observation = record.observation.toLowerCase();
-    const identityText = normalizeIdentity(record.observation);
-    const hasValue = value.length > 0 && observation.includes(value);
-    const hasIdentity = !normalizedPersonName || identityText.includes(normalizedPersonName);
-    if (hasValue) valueObserved = true;
-    if (hasIdentity) identityObserved = true;
-    if (hasValue || hasIdentity) {
-      supportingObservationCount += 1;
-      for (const url of matchedSources) supportingUrls.add(url);
-    }
+    // Every claimed URL must itself contain the value and, for candidate claims,
+    // the exact person identity. Do not stitch a name from one page to a contact
+    // value from another page to manufacture a stronger attribution.
+    if (!supportsCandidateContactOnSameObservation(record.observation, finding, finding.value, finding.vectorType)) continue;
+    for (const url of matchedSources) supportingUrls.add(url);
   }
-  return valueObserved && identityObserved && supportingObservationCount > 0 && supportingUrls.size === sourceSet.size;
+  return supportingUrls.size === sourceSet.size;
 }
-
 
 export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] { const observed = claimGradeSourceUrlsFromTrajectory(records); return findings.filter((finding) => Array.isArray(finding.sourceUrls)).map((finding) => ({ ...finding, sourceUrls: [...new Set(finding.sourceUrls.map((url) => normalizeObservedUrl(String(url))).filter((url): url is string => Boolean(url)))] })).filter((finding) => finding.sourceUrls.length > 0 && finding.sourceUrls.every((url) => observed.has(url)) && claimAppearsInObservedMaterial(finding, records)); }
 function buildEvidenceGraphs(findings: AgenticFinding[], records: AgenticTrajectoryRecord[], runId: string | null): EvidenceGraph[] { const observedAt = new Date().toISOString(); return findings.map((finding, index) => { const urls = [...new Set(finding.sourceUrls.map((url) => { try { return new URL(url).href; } catch { return ""; } }).filter(Boolean))]; const observations = observationsFromSourceUrls(urls, { observedAt, runId, collectionMethod: "agentic-investigator-attribution", idPrefix: `${runId ?? "run"}:claim:${index + 1}` }); const claim = { id: `claim:${runId ?? "run"}:${index + 1}`, subject: finding.personName?.trim() || "organization", predicate: finding.vectorType, object: finding.value.trim(), scope: finding.scope === "unknown" ? "organization" : finding.scope, personName: finding.personName?.trim() || null, confidence: null } as const; const graph = buildClaimSupportGraph(claim, observations, "Investigator explicitly attributed this claim to the listed observed source URLs"); const validation = validateClaimSupportGraph(graph); if (!validation.valid) return { ...graph, edges: [] }; return graph; }).filter((graph) => graph.edges.length > 0); }
