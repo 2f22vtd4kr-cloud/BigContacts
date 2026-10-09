@@ -834,6 +834,8 @@ function buildRegistryEntity(
         liveSource: true,
         westernIngest: true,
         needsEnrichment: true,
+        proximityScore: registryAssessment.proximityScore,
+        confidence: registryAssessment.confidence,
         lastObservedAt: registryAssessment.lastObservedAt,
         reviewOnly: registryAssessment.reviewOnly,
         wealthStatus: registryAssessment.wealthStatus,
