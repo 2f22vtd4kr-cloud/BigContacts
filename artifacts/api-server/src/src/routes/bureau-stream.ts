@@ -57,6 +57,7 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
 
   let closed = false;
   let pollId: NodeJS.Timeout | undefined;
+  let tickInProgress = false;
   let hbId: NodeJS.Timeout | undefined;
 
   const close = () => {
@@ -81,7 +82,10 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
     });
   };
   const tick = async () => {
-    if (closed) return;
+    // setInterval does not await async callbacks; serialize polls so concurrent
+    // Redis reads cannot both classify the same event as unseen.
+    if (closed || tickInProgress) return;
+    tickInProgress = true;
     try {
       const events = await listBureauEvents({ caseId, limit: STREAM_READ_CAP });
       if (closed) return;
@@ -96,6 +100,8 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
       }
     } catch (err: any) {
       if (!closed) logger.debug({ err: err?.message }, "bureau-stream poll failed");
+    } finally {
+      tickInProgress = false;
     }
   };
 
