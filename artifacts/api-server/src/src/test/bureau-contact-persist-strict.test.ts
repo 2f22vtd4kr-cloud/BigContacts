@@ -10,7 +10,7 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: {},
 }));
 
-import { isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation } from "../lib/bureau-contact-persist-strict";
+import { isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("canonical immutable promotion control role", () => {
   it("accepts canonical Groq oversight and retains legacy Gemini compatibility", () => {
@@ -180,5 +180,38 @@ describe("same-source identity binding for candidate contact promotion", () => {
       "+1 212 555 0199",
       "phone",
     )).toBe(false);
+  });
+});
+
+
+describe("multi-source candidate contact attribution", () => {
+  const item = {
+    vectorType: "email",
+    value: "jane@example.com",
+    scope: "candidate",
+    personName: "Jane Example",
+    sourceUrls: ["https://example.com/team/jane", "https://example.com/contact"],
+  };
+
+  it("accepts exact identity and exact contact evidence from separate observed pages when both are cited", () => {
+    expect(supportsContactClaimAcrossObservations([
+      { observationText: "Jane Example — Founder", sourceUrls: ["https://example.com/team/jane"] },
+      { observationText: "Public contact: jane@example.com", sourceUrls: ["https://example.com/contact"] },
+    ], item, "jane@example.com", "email")).toBe(true);
+  });
+
+  it("rejects a contact-only cited source when the identity page is omitted", () => {
+    expect(supportsContactClaimAcrossObservations([
+      { observationText: "Jane Example — Founder", sourceUrls: ["https://example.com/team/jane"] },
+      { observationText: "Public contact: jane@example.com", sourceUrls: ["https://example.com/contact"] },
+    ], { ...item, sourceUrls: ["https://example.com/contact"] }, "jane@example.com", "email")).toBe(false);
+  });
+
+  it("rejects a cited page that contributes neither identity nor the exact contact value", () => {
+    expect(supportsContactClaimAcrossObservations([
+      { observationText: "Jane Example — Founder", sourceUrls: ["https://example.com/team/jane"] },
+      { observationText: "Public contact: jane@example.com", sourceUrls: ["https://example.com/contact"] },
+      { observationText: "About our company", sourceUrls: ["https://example.com/about"] },
+    ], { ...item, sourceUrls: [...item.sourceUrls, "https://example.com/about"] }, "jane@example.com", "email")).toBe(false);
   });
 });
