@@ -27,7 +27,7 @@ export const listEntitiesQueryMinContactConfidenceMax = 100;
 
 
 export const ListEntitiesQueryParams = zod.object({
-  "type": zod.coerce.string().optional().describe('Filter by entity type (HNWI, Corporation, Trust, Gatekeeper)'),
+  "type": zod.coerce.string().optional().describe('Filter by entity type (HNWI, Corporation, Trust, Gatekeeper, PersonCandidate)'),
   "minScore": zod.coerce.number().optional().describe('Minimum Bayesian investor score'),
   "search": zod.coerce.string().optional().describe('Full-text search on name'),
   "limit": zod.coerce.number().default(listEntitiesQueryLimitDefault),
