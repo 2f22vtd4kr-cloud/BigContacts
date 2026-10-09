@@ -689,17 +689,18 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
   // record gets a neutral route score until public contact evidence is observed.
   const proximityScore = registryAssessment.proximityScore;
 
-  // Contact vector from source type
+  // This is a discovery lead, not an observed direct route. Keep any suggested
+  // contact path in the Investigator's research context until a public route is
+  // actually observed and attributed.
   let contactMethod: string;
   if (person.signals.isLargeShareholder) {
-    contactMethod =
-      "SEC beneficial-ownership filing lead — independently verify the named individual, ownership context, and a legitimate contact path";
+    contactMethod = "Beneficial-ownership filing lead — individual identity and contact path not verified";
   } else if (person.signals.isBoardDirector) {
-    contactMethod = `Board director — approach via company registered office, LinkedIn, or known board colleague`;
+    contactMethod = "Board-role registry lead — direct contact path not observed";
   } else if (person.companyName) {
-    contactMethod = `Company officer at ${person.companyName} — approach via registered office or professional network`;
+    contactMethod = "Company-officer registry lead — direct contact path not observed";
   } else {
-    contactMethod = "Registry officer — approach via company registered address; research for direct contact";
+    contactMethod = "Registry person candidate — no direct contact route observed";
   }
 
   const noteFragments: string[] = [
@@ -723,17 +724,17 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
     notes: noteFragments.join(" "),
     sourceRegistries: JSON.stringify([person.sourceRegistry]),
     metadata: JSON.stringify({
-      proximityScore,
+      ...person.rawMetadata,
+      proximityScore: registryAssessment.proximityScore,
       country: person.signals.jurisdiction,
       confidence: registryAssessment.confidence,
       lastObservedAt: registryAssessment.lastObservedAt,
       westernIngest: true,
-      liveSource: true,   // real person from real public registry — not synthetic
-      needsEnrichment: true, // flag for MCTS enrichment queue
+      liveSource: true,   // source is real; it does not establish the claims by itself
+      needsEnrichment: true, // flag for model-directed research
       ...(person.companyName ? { companyName: person.companyName } : {}),
-      ...person.rawMetadata,
-      reviewOnly: entityType === "PersonCandidate",
-      wealthStatus: entityType === "PersonCandidate" ? "unverified" : "not_assessed",
+      reviewOnly: registryAssessment.reviewOnly,
+      wealthStatus: registryAssessment.wealthStatus,
     }),
     // Filing/shareholder evidence contributes to Signal, not personal access.
     isHot: false,
@@ -779,7 +780,7 @@ function buildRegistryEntity(
     hasRecentActivity: registryAssessment.hasRecentActivity,
     recentActivityDays: registryAssessment.recentActivityDays,
     networkDegree: 0,
-    hasGatekeeperConnection: result.type === "Gatekeeper",
+    hasGatekeeperConnection: registryAssessment.hasGatekeeperConnection,
     hasKnownInvestorConnection: false,
     hasShellCompany: false,
     hasAviationAsset: false,
