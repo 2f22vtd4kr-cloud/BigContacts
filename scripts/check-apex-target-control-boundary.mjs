@@ -36,6 +36,7 @@ const checks = [
   ["generic Apex entity creation contact fields are blocked", /if\s*\(req\.path\s*===\s*"\/entities"\)[\s\S]*?APEX_TYPES\.has\(type\)[\s\S]*?touchesApexContactFields\(body\)/.test(mutationGuard)],
   ["manual Apex batch contact fields are blocked", /if\s*\(req\.path\s*===\s*"\/entities\/import\/batch"\)[\s\S]*?draftTouchesApexContactFields/.test(mutationGuard)],
   ["target continuation validates the exact Right-hand review contract before Boss control", targetControlDecision.includes("normalizeTargetRightHandAdvice(") && targetControlDecision.includes("validateAtlasOpeningRightHandReview(parsed)") && targetControlDecision.includes('if (rightHand.status !== "completed")')],
+  ["per-act oversight uses the shared bounded Right-hand contract and range-valid Boss confidence", oversight.includes("validateAtlasOpeningRightHandReview(value)") && oversight.includes("isAtlasConfidenceScore(value!.confidence)") && targetControlDecision.includes("isAtlasConfidenceScore(value.confidence)")],
 ];
 let failed = false;
 for (const [name, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${name}`); if (!ok) failed = true; }

@@ -332,4 +332,17 @@ describe("Atlas control-plane contract regression", () => {
     expect(agenticCoreSource).toContain("discoveryTerminalGate([...priorTrajectoryRecords, ...records.slice(0, -1), { ...record, findings: action.findings }])");
   });
 
+  it("rejects out-of-range confidence and overlong Atlas control fields instead of clamping them", () => {
+    const rightHand = { decision: "stop", reason: "The case is exhausted.", direction: null, confidence: 0.8 };
+    expect(validateAtlasRightHandControl({ ...rightHand, confidence: 1.2 })).toBe(false);
+    expect(validateAtlasRightHandControl({ ...rightHand, confidence: -0.1 })).toBe(false);
+    expect(validateAtlasRightHandControl({ ...rightHand, reason: "r".repeat(1_201) })).toBe(false);
+    expect(validateAtlasRightHandControl({ ...rightHand, direction: "d".repeat(1_201) })).toBe(false);
+    const boss = { action: "stop", candidateName: null, direction: null, reason: "No further justified work.", confidence: 0.8 };
+    expect(validateAtlasBossControl({ ...boss, confidence: 1.2 })).toBe(false);
+    expect(validateAtlasBossControl({ ...boss, confidence: -0.1 })).toBe(false);
+    expect(validateAtlasBossControl({ ...boss, reason: "r".repeat(1_201) })).toBe(false);
+    expect(validateAtlasBossControl({ ...boss, direction: "d".repeat(1_201) })).toBe(false);
+  });
+
 });

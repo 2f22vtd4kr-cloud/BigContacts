@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTargetActRightHandPrompt, compactOversightAct, compactOversightContext, TARGET_ACT_RIGHT_HAND_PROMPT_MAX_CHARS } from "../lib/target-act-oversight";
+import { buildTargetActRightHandPrompt, compactOversightAct, compactOversightContext, TARGET_ACT_RIGHT_HAND_PROMPT_MAX_CHARS, validateTargetActRightHandAdvice, validateTargetActBossOversight } from "../lib/target-act-oversight";
 
 describe("target-act oversight prompt compaction", () => {
   it("keeps completed act observations bounded while retaining action and source anchors", () => {
@@ -45,4 +45,24 @@ describe("target-act oversight prompt compaction", () => {
     expect(context).toContain("CASE TAIL");
     expect(context).toContain("OVERSIGHT CONTEXT BOUND");
   });
+  it("uses the shared bounded Right-hand review contract and rejects malformed confidence", () => {
+    const valid = { decision: "continue", reason: "A public source remains unchecked.", focusLanes: ["official register"], confidence: 0.7 };
+    expect(validateTargetActRightHandAdvice(valid)).toBe(true);
+    expect(validateTargetActRightHandAdvice({ ...valid, confidence: 1.7 })).toBe(false);
+    expect(validateTargetActRightHandAdvice({ ...valid, confidence: -0.1 })).toBe(false);
+    expect(validateTargetActRightHandAdvice({ ...valid, decision: "d".repeat(301) })).toBe(false);
+    expect(validateTargetActRightHandAdvice({ ...valid, reason: "r".repeat(1_201) })).toBe(false);
+    expect(validateTargetActRightHandAdvice({ ...valid, focusLanes: Array.from({ length: 9 }, () => "lane") })).toBe(false);
+    expect(validateTargetActRightHandAdvice({ ...valid, unexpected: true })).toBe(false);
+  });
+
+  it("rejects out-of-range per-act Boss confidence and unbounded oversight strings", () => {
+    const valid = { action: "continue", direction: null, reason: "Current question is still useful.", confidence: 0.65 };
+    expect(validateTargetActBossOversight(valid)).toBe(true);
+    expect(validateTargetActBossOversight({ ...valid, confidence: 1.7 })).toBe(false);
+    expect(validateTargetActBossOversight({ ...valid, confidence: -0.1 })).toBe(false);
+    expect(validateTargetActBossOversight({ ...valid, reason: "r".repeat(1_201) })).toBe(false);
+    expect(validateTargetActBossOversight({ ...valid, action: "redirect", direction: "d".repeat(1_201) })).toBe(false);
+  });
+
 });

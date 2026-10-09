@@ -160,3 +160,12 @@ A shared `digSpanStatusFromExecutionStatus` mapping now handles terminal complet
 The Bureau Ops scene builder already represented unresolved terminal states as `unknown`, but the compact status row displayed `Done` for every non-live state except `failed`. Cancelled, queued, unknown, and missing terminal states were therefore mislabeled. A second issue appeared when more than one scene was active: older active scenes were forced to non-live with a fallback terminal `done`, and their narrative could still say `Now:`.
 
 The status-label rendering now maps `done`, `failed`, `cancelled`, `queued`, and `unknown` separately. Capped older active scenes become `unknown` unless a terminal status was already explicit, and their narrative prefix changes from `Now:` to `Unknown:` rather than claiming completion. Frontend regression checks cover the status-label table and the scene-capping contract.
+
+
+## Follow-up control-confidence and Right-hand contract parity
+
+The wider control-path audit found validators that converted out-of-range model confidence values into valid-looking numbers by clamping them: Atlas Right-hand/Boss transition validation and per-act Right-hand/Boss validation. The per-act Right-hand validator also lacked the opening review's string-length and focus-lane bounds. This was contract drift, not a reason to constrain research strategy.
+
+The validators now reject confidence outside `[0, 1]` instead of repairing it during validation. Atlas control fields have explicit length bounds; target per-act Right-hand advice reuses the same exact bounded review validator as opening and target continuation; per-act Boss control requires bounded reason/direction fields and a valid confidence score. These are oversight-envelope checks only: they do not prescribe Investigator action order, providers, domains, or research techniques.
+
+Added regression cases for negative and greater-than-one confidence, oversized reasons/directions/decisions/lane sets, and extra keys. Static architecture verification checks that the per-act path uses the shared validator. Exact-head CI remains authoritative; no Replit service, live provider call, or Apex run was used to validate this patch.

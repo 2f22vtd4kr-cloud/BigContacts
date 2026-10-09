@@ -30,21 +30,22 @@ function safeControlError(error: unknown, fallback: string): string {
 }
 
 function clampConfidence(value: unknown): number | null { return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null; }
+export function isAtlasConfidenceScore(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1; }
 const ALLOWED_ACTIONS = new Set<AtlasControlAction>(["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"]);
 
 export function validateAtlasRightHandControl(value: Record<string, unknown> | null): boolean {
   if (!value || !validateExactObjectFields(value, ["decision", "reason", "direction", "confidence"])) return false;
   const decision = typeof value.decision === "string" ? value.decision.trim().toLowerCase() : "";
   const direction = typeof value.direction === "string" ? value.direction.trim() : "";
-  const directionValid = value.direction === null || direction.length > 0;
+  const reason = typeof value.reason === "string" ? value.reason.trim() : "";
+  const directionValid = value.direction === null || (direction.length > 0 && direction.length <= 1_200);
   const pivotDirectionValid = decision !== "pivot_discovery" || direction.length > 0;
   return ALLOWED_ACTIONS.has(decision as AtlasControlAction)
-    && typeof value.reason === "string"
-    && value.reason.trim().length > 0
+    && reason.length > 0 && reason.length <= 1_200
     && (typeof value.direction === "string" || value.direction === null)
     && directionValid
     && pivotDirectionValid
-    && clampConfidence(value.confidence) !== null;
+    && isAtlasConfidenceScore(value.confidence);
 }
 
 function formatBossAttemptDiagnostics(attempts: Array<{ model: string; httpStatus: number | null; providerErrorCode: string | null }>): string {
@@ -70,15 +71,20 @@ export function validateAtlasBossControl(value: Record<string, unknown> | null):
   const candidateName = typeof value.candidateName === "string" ? value.candidateName.trim() : "";
   const direction = typeof value.direction === "string" ? value.direction.trim() : "";
   const targetAction = action === "research_candidate" || action === "revisit_candidate";
-  const candidateValid = targetAction ? candidateName.length > 0 : value.candidateName === null;
+  const candidateValid = targetAction ? candidateName.length > 0 && candidateName.length <= 300 : value.candidateName === null;
   const pivotDirectionValid = action !== "pivot_discovery" || direction.length > 0;
+  const reason = typeof value.reason === "string" ? value.reason.trim() : "";
+  const reasonValid = value.reason === null || (reason.length > 0 && reason.length <= 1_200);
+  const directionValid = value.direction === null || (direction.length > 0 && direction.length <= 1_200);
   return ALLOWED_ACTIONS.has(action as AtlasControlAction)
     && (typeof value.candidateName === "string" || value.candidateName === null)
-    && (typeof value.direction === "string" || value.direction === null)
-    && (typeof value.reason === "string" || value.reason === null)
     && candidateValid
+    && (typeof value.direction === "string" || value.direction === null)
+    && directionValid
+    && (typeof value.reason === "string" || value.reason === null)
+    && reasonValid
     && pivotDirectionValid
-    && clampConfidence(value.confidence) !== null;
+    && isAtlasConfidenceScore(value.confidence);
 }
 
 export type AtlasBossControlContractDiagnostic = {
@@ -108,7 +114,7 @@ export function diagnoseAtlasBossControlContract(raw: string | null | undefined,
   if (!(typeof value.candidateName === "string" || value.candidateName === null)) invalidFields.push("candidateName");
   if (!(typeof value.direction === "string" || value.direction === null)) invalidFields.push("direction");
   if (!(typeof value.reason === "string" || value.reason === null)) invalidFields.push("reason");
-  if (clampConfidence(value.confidence) === null) invalidFields.push("confidence");
+  if (!isAtlasConfidenceScore(value.confidence)) invalidFields.push("confidence");
   return { parseStatus: "object", contentChars: content.length, missingFields, unexpectedFields, invalidFields: [...new Set(invalidFields)].sort() };
 }
 
