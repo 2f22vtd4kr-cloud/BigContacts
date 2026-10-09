@@ -23,6 +23,56 @@ describe("Bureau multi-source attribution", () => {
     ], records);
     expect(result).toHaveLength(1);
   });
+  it("rejects substring identity matches such as Ann Li inside Joann Li", () => {
+    const finding = {
+      vectorType: "email" as const,
+      value: "ann@example.com",
+      personName: "Ann Li",
+      role: "Director",
+      scope: "candidate" as const,
+      sourceUrls: ["https://company.example/team"],
+      note: "ambiguous name",
+      promotionDecision: "promote" as const,
+    };
+    const records = [{
+      turn: 1,
+      model: "groq",
+      action: "visit",
+      args: {},
+      execution: "success" as const,
+      observation: "Joann Li — ann@example.com",
+      observedUrls: ["https://company.example/team"],
+      findings: [],
+    }];
+
+    expect(sourceBackedAgenticFindings([finding], [], records)).toEqual([]);
+  });
+
+  it("rejects candidate claims without a personName even when the value is observed", () => {
+    const finding = {
+      vectorType: "email" as const,
+      value: "jane@example.com",
+      personName: null,
+      role: null,
+      scope: "candidate" as const,
+      sourceUrls: ["https://company.example/contact"],
+      note: "missing identity",
+      promotionDecision: "promote" as const,
+    };
+    const records = [{
+      turn: 1,
+      model: "groq",
+      action: "visit",
+      args: {},
+      execution: "success" as const,
+      observation: "Contact jane@example.com",
+      observedUrls: ["https://company.example/contact"],
+      findings: [],
+    }];
+
+    expect(sourceBackedAgenticFindings([finding], [], records)).toEqual([]);
+  });
+
   it("rejects an other/generic claim when its claimed value never appears in observed material", () => {
     const finding = {
       vectorType: "other" as const,
