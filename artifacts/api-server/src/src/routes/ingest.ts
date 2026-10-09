@@ -28,6 +28,7 @@ import {
   type RegistryId,
 } from "../lib/registry-client";
 import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
+import { classifyActiveJobLaneStatus } from "../lib/job-queue-terminal-policy";
 import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
@@ -279,7 +280,12 @@ router.get("/ingest/job/active/:type", async (req, res): Promise<void> => {
     res.status(503).json({ error: "Active-job lock exists but its job record is missing; state is inconsistent.", code: "JOB_STATE_INCONSISTENT", jobId });
     return;
   }
-  if (job.status !== "running") {
+  const laneStatus = classifyActiveJobLaneStatus(job.status);
+  if (laneStatus === "unknown") {
+    res.status(503).json({ error: "Persisted job status is unrecognized; active state is inconsistent.", code: "JOB_STATE_INCONSISTENT", jobId });
+    return;
+  }
+  if (laneStatus === "terminal") {
     res.status(200).json({ type, jobId, job, active: false, jobStatus: job.status });
     return;
   }
