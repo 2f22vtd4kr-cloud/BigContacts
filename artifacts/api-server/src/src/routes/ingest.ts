@@ -33,7 +33,7 @@ import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
   createJob, updateJob, getJob, getJobStrict, getJobLog, getActiveJobs,
-  setActiveJob, getActiveJob, getActiveJobStrict, clearDedup, getDedupCount,
+  setActiveJob, getActiveJob, getActiveJobStrict, clearActiveJobIfMatches, clearDedup, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
 import { runFaaIngestion } from "../lib/faa-ingestor";
@@ -44,6 +44,32 @@ import { logger } from "../lib/logger";
 
 import migrationsRouter from "./ingest-migrations";
 import pipelineRouter   from "./ingest-pipeline";
+
+
+/**
+ * A job record is created before the lane claim to preserve the durable attempt.
+ * If the distributed claim loses or Redis becomes unavailable, terminalize that
+ * attempt and return before any ingestion worker is started. The compare-by-ID
+ * release cannot clear a different request's active lane.
+ */
+async function claimIngestionJobOrRespond(type: string, jobId: string, res: Response): Promise<boolean> {
+  try {
+    await setActiveJob(type, jobId);
+    return true;
+  } catch {
+    await clearActiveJobIfMatches(type, jobId).catch(() => false);
+    await updateJob(jobId, {
+      status: "failed",
+      message: "Could not claim the active ingestion lane; no work was started.",
+      finishedAt: new Date().toISOString(),
+    }).catch(() => undefined);
+    res.status(503).json({
+      error: "Could not claim the ingestion job; no work was started.",
+      code: "JOB_CLAIM_UNAVAILABLE",
+    });
+    return false;
+  }
+}
 
 const router: IRouter = Router();
 
@@ -163,7 +189,7 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
   if (doClean) await clearDedup();
 
   const jobId = await createJob("western-hnwi");
-  await setActiveJob("western-hnwi", jobId);
+  if (!(await claimIngestionJobOrRespond("western-hnwi", jobId, res))) return;
 
   (async () => {
     try {
@@ -216,7 +242,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
   if (doClean) await clearDedup();
 
   const jobId = await createJob("faa");
-  await setActiveJob("faa", jobId);
+  if (!(await claimIngestionJobOrRespond("faa", jobId, res))) return;
 
   (async () => {
     try {
@@ -370,7 +396,7 @@ router.post("/ingest/occrp", async (req, res): Promise<void> => {
   }
 
   const jobId = await createJob("occrp");
-  await setActiveJob("occrp", jobId);
+  if (!(await claimIngestionJobOrRespond("occrp", jobId, res))) return;
 
   (async () => {
     try {
@@ -421,7 +447,7 @@ router.post("/ingest/land-registry", async (req, res): Promise<void> => {
   }
 
   const jobId = await createJob("land-registry");
-  await setActiveJob("land-registry", jobId);
+  if (!(await claimIngestionJobOrRespond("land-registry", jobId, res))) return;
 
   (async () => {
     try {
@@ -462,7 +488,7 @@ router.post("/ingest/opensky", async (req, res): Promise<void> => {
   }
 
   const jobId = await createJob("opensky");
-  await setActiveJob("opensky", jobId);
+  if (!(await claimIngestionJobOrRespond("opensky", jobId, res))) return;
 
   (async () => {
     try {
