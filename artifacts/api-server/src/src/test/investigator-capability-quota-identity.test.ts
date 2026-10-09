@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getAvailableDistinctInvestigatorCapabilities,
   getAvailableInvestigatorCapabilities,
+  getInvestigatorCredentialAliases,
   type InvestigatorCapability,
 } from "../lib/investigator-capability-registry";
 
@@ -29,6 +30,13 @@ describe("Investigator credential quota identity", () => {
     const excluded: InvestigatorCapability[] = ["groq-investigator-2"];
     expect(getAvailableDistinctInvestigatorCapabilities(env, excluded)).toEqual([
       "groq-investigator-3",
+    ]);
+  });
+
+  it("expands an exhausted slot into every configured alias for the Boss", () => {
+    expect(getInvestigatorCredentialAliases(env, ["groq-investigator-2"])).toEqual([
+      "groq-investigator-1",
+      "groq-investigator-2",
     ]);
   });
 
