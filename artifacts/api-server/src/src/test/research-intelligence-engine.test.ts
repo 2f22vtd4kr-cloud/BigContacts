@@ -394,7 +394,7 @@ describe("Apex research intelligence", () => {
       turn: 3, action: "done", execution: "success", observation: "", urls: [], args: {},
       findings: [{
         vectorType: "email", value: "alex@example.test", personName: "Alex Example", role: "director",
-        scope: "candidate", sourceUrls: [identityUrl, contactUrl],
+        sourceUrls: [identityUrl, contactUrl],
         note: "Identity and contact are attributed across two observed pages.",
       }],
       sourceObservations: history,
@@ -419,7 +419,7 @@ describe("Apex research intelligence", () => {
       urls: [registryUrl], args: { query: "Alex Example Example Labs" },
       findings: [{
         vectorType: "other", value: "director at Example Labs", personName: "Alex Example", role: "director",
-        scope: "candidate", sourceUrls: [registryUrl], note: "Official company register entry.",
+        sourceUrls: [registryUrl], note: "Official company register entry.",
       }],
     });
     const state = engine.buildContext();
