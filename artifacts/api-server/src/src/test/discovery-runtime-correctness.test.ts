@@ -211,6 +211,14 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords");
   });
 
+  it("reserves the job-wide Investigator budget for Boss-directed continuation after the opening discovery act", () => {
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, depth.agenticMaxIterations)");
+    expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
+    expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations)");
+    expect(canonicalSource).toContain("const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)");
+  });
+
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
