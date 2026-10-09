@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { findingsToContacts, sourceBackedFindings } from "../lib/target-contact-agent";
+import { supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("target Investigator multi-source attribution", () => {
   it("does not turn an HTTP-only finding into a contact candidate", () => {
@@ -14,7 +15,7 @@ describe("target Investigator multi-source attribution", () => {
     const records = [{ turn: 1, model: "groq", action: "visit", args: {}, execution: "success" as const, observation: "Jane Example email jane@example.com", observedUrls: ["http://company.example/team"], findings: [] }];
     expect(sourceBackedFindings(findings, [], records)).toEqual([]);
   });
-  it("rejects identity and contact value appearing only on separate pages", () => {
+  it("keeps split-page attribution reviewable but ineligible for trusted contact promotion", () => {
     const findings = [{
       vectorType: "email" as const,
       value: "john.smith@example.com",
@@ -33,7 +34,13 @@ describe("target Investigator multi-source attribution", () => {
       "step1: visit https://company.example/leadership execution=success observed=https://company.example/leadership",
       "step2: visit https://company.example/contact execution=success observed=https://company.example/contact",
     ], records);
-    expect(backed).toHaveLength(0);
+    expect(backed).toHaveLength(1);
+    expect(supportsContactClaimAcrossObservations(
+      records.map((record) => ({ observationText: record.observation, sourceUrls: record.observedUrls })),
+      findings[0]!,
+      findings[0]!.value,
+      findings[0]!.vectorType,
+    )).toBe(false);
   });
 
   it("accepts multiple cited pages when at least one binds exact identity and contact together", () => {
