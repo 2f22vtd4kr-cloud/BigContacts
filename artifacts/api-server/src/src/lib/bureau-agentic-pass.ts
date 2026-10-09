@@ -67,7 +67,8 @@ function claimAppearsInObservedMaterial(finding:AgenticFinding,records:AgenticTr
     const hasIdentity = !candidate || candidateIdentityObserved(personName, identityText);
     if (hasValue) valueObserved = true;
     if (hasIdentity) identityObserved = true;
-    if (hasValue || hasIdentity) {
+    const supportsThisSource = candidate ? (hasValue || hasIdentity) : hasValue;
+    if (supportsThisSource) {
       support += 1;
       for (const url of matched) supportingUrls.add(url);
     }
