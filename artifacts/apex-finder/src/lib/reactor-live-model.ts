@@ -190,6 +190,17 @@ export function normalizeLiveActivityStatus(value?: string | null): LiveActivity
   if (status === "ok" || status === "done" || status === "complete" || status === "completed" || status === "success" || status === "succeeded") return "completed";
   return "unknown";
 }
+/** Operator-facing compact labels must preserve unknown, queued and cancelled states. */
+export function sceneStatusLabel(live: boolean, terminal: string | null | undefined): "Now" | "Fail" | "Stopped" | "Queued" | "Done" | "Unknown" {
+  if (live) return "Now";
+  switch (terminal) {
+    case "failed": return "Fail";
+    case "cancelled": return "Stopped";
+    case "queued": return "Queued";
+    case "done": return "Done";
+    default: return "Unknown";
+  }
+}
 
 function recordedHttpUrls(value?: string[]): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
