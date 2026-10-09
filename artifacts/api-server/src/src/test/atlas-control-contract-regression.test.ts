@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { validateResearchObjective } from "../lib/research-objective";
 import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
@@ -13,6 +14,33 @@ const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agent
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
+  it("preserves Investigator tool choice across Boss-directed discovery continuations", () => {
+    for (const direction of [
+      "Use parallel_web_search for the next step.",
+      "Call visit on the source page.",
+      "Search with SpiderFoot to enumerate contacts.",
+      "Switch to TheHarvester.",
+      "Route via browser_fetch.",
+      "Investigate this URL: https://example.test/person",
+    ]) {
+      expect(validateResearchObjective(direction).valid, direction).toBe(false);
+    }
+
+    for (const objective of [
+      "Investigate leadership changes at regional payment companies and verify candidate identity from public evidence.",
+      "Find independent coverage of an acquisition and determine which named executives have source-backed roles.",
+      "Reassess the open evidence and choose the highest-information next action yourself.",
+    ]) {
+      expect(validateResearchObjective(objective), objective).toEqual({ valid: true, direction: objective });
+    }
+
+    expect(canonicalDiscoverySource).toContain('import { validateResearchObjective } from "./research-objective";');
+    const validationIndex = canonicalDiscoverySource.indexOf("validateResearchObjective(proposedDirection)");
+    const handoffIndex = canonicalDiscoverySource.indexOf('runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective');
+    expect(validationIndex).toBeGreaterThan(-1);
+    expect(handoffIndex).toBeGreaterThan(validationIndex);
+  });
+
   it("records an Investigator provider-error turn before fail-closed termination", () => {
     const investigatorSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
