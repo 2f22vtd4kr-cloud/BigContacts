@@ -100,7 +100,7 @@ describe("agentic source provenance", () => {
     expect(sourceBackedAgenticFindings(raw, successfulTrajectory, [observation()])).toHaveLength(1);
   });
 
-  it("accepts multi-source attribution when both exact observed pages are cited on the same finding", () => {
+  it("rejects candidate contact attribution when identity and contact value appear only on separate pages", () => {
     const raw = [finding({
       sourceUrls: ["https://example.com/team/jane", "https://example.com/contact"],
     })];
@@ -112,8 +112,9 @@ describe("agentic source provenance", () => {
       "step1: visit https://example.com/team/jane execution=success observed=https://example.com/team/jane",
       "step2: visit https://example.com/contact execution=success observed=https://example.com/contact",
     ];
-    expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(1);
-    expect(sourceBackedAgenticFindings(raw, trajectory, records)).toHaveLength(1);
+    // Both pages were observed, but neither directly binds this person's identity to this email.
+    expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(0);
+    expect(sourceBackedAgenticFindings(raw, trajectory, records)).toHaveLength(0);
   });
 
   it("rejects split identity/contact attribution when the finding cites only the contact page", () => {
