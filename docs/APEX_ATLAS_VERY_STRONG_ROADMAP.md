@@ -1,8 +1,10 @@
 # Apex Atlas — Very Strong Engineering State and Release Roadmap
 
-**Updated:** 2026-09-20  
-**Reviewed branch:** `audit/apex-atlas-very-strong-v1`  
-**Production/certification branch:** `audit/genuine-five-green-final`
+**Updated:** 2026-10-09  
+**Canonical working branch:** `main`  
+**Current architecture authority:** `docs/context.md`, `README.md`, and the executable code on `main`.
+
+> **Historical-document warning:** This roadmap originated before the current main-branch control-plane migration. Any later section that names Gemini as Boss/Right-hand, Mistral as an active Investigator, or an audit branch as the production/certification branch is historical and superseded. The current canonical role law on `main` is Groq Boss + Groq Right-hand for control/oversight and the selected Groq Investigator capability for research. Do not restore retired providers based on this document. Static CI does not certify live deployment or empirical research quality.
 
 ## Design principles
 
