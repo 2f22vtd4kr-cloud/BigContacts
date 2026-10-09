@@ -173,7 +173,7 @@ describe("discovery runtime architecture", () => {
     ])).toBeNull();
   });
 
-  it("scopes Groq token-window snapshots to the selected model", () => {  it("scopes Groq token-window snapshots to the selected model", () => {
+  it("scopes Groq token-window snapshots to the selected model", () => {
     expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, model: string)");
     expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model))");
     expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
