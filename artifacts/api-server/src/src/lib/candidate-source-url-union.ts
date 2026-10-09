@@ -37,10 +37,10 @@ export function candidateSourceUrlsForIdentity(input: {
  * This is intentionally a small endpoint policy, not a research sequence.
  */
 export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string {
-  if (typeof value !== "string" || !/^https?:\/\/\S+$/i.test(value)) return false;
+  if (typeof value !== "string" || !/^https:\/\/\S+$/i.test(value)) return false;
   try {
     const url = new URL(value);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+    if (url.protocol !== "https:") return false;
     const host = url.hostname.toLowerCase().replace(/^www\./, "");
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (/(^|\.)google\.[a-z.]+$/.test(host) && /^\/search$/i.test(path)) return false;
@@ -60,7 +60,7 @@ export type AdmittedCandidateSourceSet = { name: string; sourceUrls: readonly st
 function normalizeAdmittedSourceUrl(raw: string): string | null {
   try {
     const url = new URL(raw);
-    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    if (url.protocol !== "https:") return null;
     url.hash = "";
     url.hostname = url.hostname.toLowerCase();
     return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href;
