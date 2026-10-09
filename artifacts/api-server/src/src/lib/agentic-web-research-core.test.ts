@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 
@@ -31,6 +31,17 @@ describe("provider-aware act timeout budget", () => {
   it("never exceeds the remaining job deadline, even when it is shorter than the provider window", () => {
     expect(deriveProviderBoundedActTimeoutMs(45_000, 125_000)).toBe(45_000);
     expect(deriveProviderBoundedActTimeoutMs(0, 125_000)).toBe(0);
+  });
+});
+
+describe("model-selectable Investigator capabilities", () => {
+  it("keeps runtime parsing and prompt/schema exposure limited to executable model capabilities", () => {
+    for (const action of ["web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"]) {
+      expect(isModelSelectableAgentAction(action)).toBe(true);
+    }
+    for (const action of ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot", "made_up_tool", "", null]) {
+      expect(isModelSelectableAgentAction(action)).toBe(false);
+    }
   });
 });
 
@@ -70,7 +81,10 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("TURN 24");
     expect(prompt).not.toContain('"action":{"type":"string","enum"');
     expect(prompt).not.toContain("APEX MISSION CONTRACT v");
-    expect(prompt).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | browser_fetch | registry_search | domain_lookup | harvest_domain | footprint_email | footprint_username_maigret | footprint_username_sherlock | footprint_spiderfoot | done.");
+    expect(prompt).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | browser_fetch | registry_search | domain_lookup | done.");
+    expect(prompt).not.toContain("footprint_email");
+    expect(prompt).not.toContain("footprint_username_maigret");
+    expect(prompt).not.toContain("harvest_domain");
     expect(prompt).toContain("VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.");
   });
 
@@ -169,6 +183,7 @@ describe("Investigator prompt architecture", () => {
     expect(schema?.properties?.searches?.minItems).toBeUndefined();
     expect(schema?.properties?.searches?.maxItems).toBeUndefined();
     expect(schema?.properties?.provider).toEqual({ type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null] });
+    expect(schema?.properties?.action?.enum).toEqual(["web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"]);
     expect(schema?.properties?.targetType).toEqual({ type: ["string", "null"] });
   });
 
@@ -219,6 +234,8 @@ describe("Investigator prompt architecture", () => {
     expect(describeAgentActionParseFailure("{")).toMatch(/^no_json_object chars=\d+ digest=/);
     expect(describeAgentActionParseFailure('{"foo":"bar"}')).toBe("missing_action");
     expect(describeAgentActionParseFailure('{"action":"invented"}')).toBe("unsupported_action action=invented");
+    expect(describeAgentActionParseFailure('{"action":"footprint_email","email":"person@example.com"}')).toBe("unsupported_action action=footprint_email");
+    expect(describeAgentActionParseFailure('{"action":"harvest_domain","domain":"example.com"}')).toBe("unsupported_action action=harvest_domain");
     expect(describeAgentActionParseFailure('{"action":"visit"}')).toBe("invalid_action_arguments action=visit invalid=url");
     expect(describeAgentActionParseFailure('{"action":"web_search","query":"anchor","provider":"serper"} trailing text {"noise":true}')).toContain("non_json_envelope chars=");
     expect(describeAgentActionParseFailure('{"action":"visit","url":"https://example.com"} {"action":"done"}')).toContain("multiple_json_objects chars=");
