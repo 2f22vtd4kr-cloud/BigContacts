@@ -8,6 +8,7 @@ const scopeStorage=new AsyncLocalStorage<string>();export type ProviderRetryOwne
 const DEFAULTS:Record<BudgetClass,Omit<ProviderConfig,"budgetClass">>={llm:{maxRequests:90,minIntervalMs:250,cacheTtlMs:0},search:{maxRequests:120,minIntervalMs:125,cacheTtlMs:60_000},scrape:{maxRequests:30,minIntervalMs:250,cacheTtlMs:5*60_000},registry:{maxRequests:150,minIntervalMs:125,cacheTtlMs:2*60_000},osint:{maxRequests:90,minIntervalMs:150,cacheTtlMs:60_000},generic:{maxRequests:300,minIntervalMs:75,cacheTtlMs:30_000}};
 const PROVIDER_CLASSES:Record<ExternalProvider,BudgetClass>={serper:"search",tavily:"search",exa:"search",groq:"llm",mistral:"llm",gemini:"llm",scrapfly:"scrape",zenrows:"scrape",browserless:"scrape",playwright:"scrape",rdap:"registry","companies-house":"registry",whoisjson:"registry",whoxy:"registry",registry:"registry",search:"search",osint:"osint",generic:"generic"};
 function providerConfig(provider:ExternalProvider):ProviderConfig{const budgetClass=PROVIDER_CLASSES[provider],defaults=DEFAULTS[budgetClass],suffix=provider.replace(/[^a-z0-9]/gi,"_").toUpperCase();return{budgetClass,maxRequests:boundedEnv(`APEX_PROVIDER_MAX_REQUESTS_${suffix}`,defaults.maxRequests,1,100_000),minIntervalMs:boundedEnv(`APEX_PROVIDER_MIN_INTERVAL_MS_${suffix}`,defaults.minIntervalMs,0,60_000),cacheTtlMs:defaults.cacheTtlMs};}
+function assertProviderBudgetAvailable(provider:ExternalProvider,state:ProviderState,scopeState:ProviderState,config:ProviderConfig):void{const now=Date.now();if(state.cooldownUntil>now)throw new ProviderQuotaError("cooldown",provider,state.cooldownUntil-now);if(now-state.windowStartedAt>=windowMs()){state.windowStartedAt=now;state.windowAttempts=0;}if(now-scopeState.windowStartedAt>=windowMs()){scopeState.windowStartedAt=now;scopeState.windowAttempts=0;}const providerLimited=state.windowAttempts>=config.maxRequests;const scopeLimited=scopeState.windowAttempts>=perScopeMaxRequests();if(providerLimited||scopeLimited){const expiresAt=Math.max(providerLimited?state.windowStartedAt+windowMs():now,scopeLimited?scopeState.windowStartedAt+windowMs():now);throw new ProviderQuotaError("budget_exhausted",provider,Math.max(1_000,Math.min(windowMs(),expiresAt-now)));}}
 function newState():ProviderState{const now=Date.now();return{active:0,lastStartedAt:0,windowStartedAt:now,windowAttempts:0,cooldownUntil:0,lastUsedAt:now};}
 function pruneProviderStates(now=Date.now()):void{const expiry=windowMs();for(const[key,state]of providerStates){if(state.active===0&&state.cooldownUntil<=now&&now-state.lastUsedAt>=expiry)providerStates.delete(key);}}
 function getState(key:string):ProviderState{const existing=providerStates.get(key);if(existing){existing.lastUsedAt=Date.now();return existing;}if(providerStates.size>=maxProviderStates()){pruneProviderStates();if(providerStates.size>=maxProviderStates())throw new ProviderQuotaError("budget_exhausted","generic",Math.max(1_000,windowMs()));}const created=newState();providerStates.set(key,created);return created;}
@@ -27,8 +28,91 @@ function parseRetryAfter(response:Response):number{const value=response.headers.
 export function classifyExternalProvider(url:string):ExternalProvider{let host="";try{host=new URL(url).hostname.toLowerCase();}catch{return "generic";}if(host.includes("serper.dev"))return "serper";if(host.includes("tavily.com"))return "tavily";if(host.includes("exa.ai"))return "exa";if(host.includes("groq.com"))return "groq";if(host.includes("mistral.ai"))return "mistral";if(host.includes("generativelanguage.googleapis.com")||host.includes("googleapis.com"))return "gemini";if(host.includes("scrapfly.io"))return "scrapfly";if(host.includes("zenrows.com"))return "zenrows";if(host.includes("browserless.io"))return "browserless";if(host.includes("companieshouse.gov.uk")||host.includes("api.company-information.service.gov.uk"))return "companies-house";if(host.includes("whoisjson.com"))return "whoisjson";if(host.includes("whoxy.com"))return "whoxy";if(host.includes("duckduckgo.com")||host.includes("google.com")||host.includes("bing.com"))return "search";if(/registry|opencorporates|gleif|sec\.gov|brreg|icij|occrp/i.test(host))return "registry";if(/holehe|maigret|sherlock|hunter|theharvester|gliner/i.test(host))return "osint";return "generic";}
 function cacheKey(provider:ExternalProvider,input:string|URL|Request,init?:RequestInit):string|null{if(requestMethod(input,init)!=="GET")return null;const headers=new Headers(input instanceof Request?input.headers:init?.headers);if(headers.has("authorization")||headers.has("x-api-key")||headers.has("x-goog-api-key")||headers.has("cookie"))return null;const url=requestUrl(input);if(isLocalUrl(url)||findQueryCredential(url))return null;try{const parsed=new URL(url);stripCredentialQueryParams(parsed);const variant=[headers.get("accept")??"",headers.get("accept-language")??"",headers.get("user-agent")??""].join("\n");const variantHash=createHash("sha256").update(variant).digest("hex").slice(0,16);return `${provider}|public|${variantHash}|${parsed.toString()}`;}catch{return null;}}
 function responseFromCache(entry:CacheEntry):Response{return new Response(entry.body.slice(),{status:entry.status,statusText:entry.statusText,headers:entry.headers});}function removeResponseCacheEntry(key:string):void{const entry=responseCache.get(key);if(!entry)return;responseCache.delete(key);responseCacheBytes=Math.max(0,responseCacheBytes-entry.body.byteLength);}function pruneResponseCache(now:number):void{for(const[key,entry]of responseCache)if(entry.expiresAt<=now)removeResponseCacheEntry(key);while(responseCache.size>=maxResponseCacheEntries()||responseCacheBytes>=maxResponseCacheBytes()){const oldest=responseCache.keys().next().value as string|undefined;if(!oldest)break;removeResponseCacheEntry(oldest);}}function makeRoomForResponse(bytes:number):void{const limit=maxResponseCacheBytes();while(responseCache.size>=maxResponseCacheEntries()||responseCacheBytes+bytes>limit){const oldest=responseCache.keys().next().value as string|undefined;if(!oldest)break;removeResponseCacheEntry(oldest);}}
- async function runProviderFetch(provider:ExternalProvider,input:string|URL|Request,init:RequestInit|undefined,fetcher:()=>Promise<Response>):Promise<Response>{const config=providerConfig(provider),account=accountFingerprint(input,init),state=getState(providerStateKey(provider,account)),now=Date.now();if(state.cooldownUntil>now){logger.warn({provider,block:"cooldown",retryAfterMs:state.cooldownUntil-now,accountDigest:account,scope:getScope()},"External provider call blocked by quota cooldown");throw new ProviderQuotaError("cooldown",provider,state.cooldownUntil-now);}if(now-state.windowStartedAt>=windowMs()){state.windowStartedAt=now;state.windowAttempts=0;}const scopeState=getScopeState(scopeKey(provider));if(now-scopeState.windowStartedAt>=windowMs()){scopeState.windowStartedAt=now;scopeState.windowAttempts=0;}if(state.windowAttempts>=config.maxRequests||scopeState.windowAttempts>=perScopeMaxRequests()){const retryAfterMs=Math.max(1_000,Math.min(windowMs(),state.windowStartedAt+windowMs()-now));logger.warn({provider,block:"budget_exhausted",retryAfterMs,accountDigest:account,scope:getScope(),providerAttempts:state.windowAttempts,scopeAttempts:scopeState.windowAttempts},"External provider call blocked by quota budget");throw new ProviderQuotaError("budget_exhausted",provider,retryAfterMs);}const key=cacheKey(provider,input,init);const existing=key?inFlight.get(key):undefined;if(existing)return(await existing).clone();const task=(async()=>{await acquireConcurrency(provider,init?.signal);try{const current=Date.now(),waitMs=Math.max(0,config.minIntervalMs-(current-state.lastStartedAt));if(waitMs>0)await abortableProviderDelay(waitMs,init?.signal);if(init?.signal?.aborted)throw new Error("External provider call cancelled.");state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;const response=await fetcher();const retryOwner=retryOwnerStorage.getStore()?.[provider]??"gate";if(isQuotaResponse(provider,response)){const retryMs=Math.max(parseRetryAfter(response),response.status===429?5_000:60_000);if(retryOwner==="gate"){state.cooldownUntil=Date.now()+retryMs;logger.warn({provider,httpStatus:response.status,retryAfterMs:retryMs,accountDigest:account,scope:getScope(),cooldownOwner:"quota_gate"},"External provider quota cooldown set");}else{logger.info({provider,httpStatus:response.status,retryAfterMs:retryMs,accountDigest:account,scope:getScope(),cooldownOwner:"caller"},"Provider retry ownership delegated to caller");}}const cacheControl=response.headers.get("cache-control")?.toLowerCase()??"";const hasSetCookie=response.headers.has("set-cookie");if(key&&response.ok&&config.cacheTtlMs>0&&!hasSetCookie&&!/no-store|private/.test(cacheControl)){const body=new Uint8Array(await response.clone().arrayBuffer());if(body.byteLength<=1_500_000&&body.byteLength<=maxResponseCacheBytes()){pruneResponseCache(Date.now());makeRoomForResponse(body.byteLength);responseCache.set(key,{expiresAt:Date.now()+config.cacheTtlMs,status:response.status,statusText:response.statusText,headers:[...response.headers.entries()],body});responseCacheBytes+=body.byteLength;}}return response;}finally{releaseConcurrency(provider);}})();if(key)inFlight.set(key,task);try{return await task;}finally{if(key&&inFlight.get(key)===task)inFlight.delete(key);}}
-export async function runProviderCall<T>(options:{provider:ExternalProvider;account?:string;scope?:string;signal?:AbortSignal},fn:()=>Promise<T>):Promise<T>{const provider=options.provider,account=options.account??"operation",scope=options.scope??getScope();return scopeStorage.run(scope,async()=>{const config=providerConfig(provider),state=getState(providerStateKey(provider,account)),scopeState=getScopeState(scopeKey(provider)),now=Date.now();if(state.cooldownUntil>now)throw new ProviderQuotaError("cooldown",provider,state.cooldownUntil-now);if(now-state.windowStartedAt>=windowMs()){state.windowStartedAt=now;state.windowAttempts=0;}if(now-scopeState.windowStartedAt>=windowMs()){scopeState.windowStartedAt=now;scopeState.windowAttempts=0;}if(state.windowAttempts>=config.maxRequests||scopeState.windowAttempts>=perScopeMaxRequests())throw new ProviderQuotaError("budget_exhausted",provider,Math.max(1_000,state.windowStartedAt+windowMs()-now));await acquireConcurrency(provider,options.signal);try{const waitMs=Math.max(0,config.minIntervalMs-(Date.now()-state.lastStartedAt));if(waitMs>0)await abortableProviderDelay(waitMs,options.signal);if(options.signal?.aborted)throw new Error("External provider call cancelled.");state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;try{const result=await fn();if(result instanceof Response&&isQuotaResponse(provider,result)&&retryOwnerStorage.getStore()?.[provider]!=="caller"){const retryMs=parseRetryAfter(result);state.cooldownUntil=Date.now()+Math.max(retryMs,result.status===429?5_000:60_000);}return result;}catch(error){if(error instanceof ProviderQuotaError&&error.code==="cooldown")state.cooldownUntil=Date.now()+error.retryAfterMs;throw error;}}finally{releaseConcurrency(provider);}});}
+ async function runProviderFetch(provider:ExternalProvider,input:string|URL|Request,init:RequestInit|undefined,fetcher:()=>Promise<Response>):Promise<Response>{
+ const key=cacheKey(provider,input,init);
+ if(key){
+  const cached=responseCache.get(key);
+  if(cached&&cached.expiresAt>Date.now()){
+   responseCache.delete(key);responseCache.set(key,cached);
+   return responseFromCache(cached);
+  }
+  if(cached)removeResponseCacheEntry(key);
+  const existing=inFlight.get(key);
+  if(existing)return(await existing).clone();
+ }
+ const config=providerConfig(provider),account=accountFingerprint(input,init),state=getState(providerStateKey(provider,account)),now=Date.now();
+ if(state.cooldownUntil>now){logger.warn({provider,block:"cooldown",retryAfterMs:state.cooldownUntil-now,accountDigest:account,scope:getScope()},"External provider call blocked by quota cooldown");throw new ProviderQuotaError("cooldown",provider,state.cooldownUntil-now);}
+ if(now-state.windowStartedAt>=windowMs()){state.windowStartedAt=now;state.windowAttempts=0;}
+ const scopeState=getScopeState(scopeKey(provider));
+ if(now-scopeState.windowStartedAt>=windowMs()){scopeState.windowStartedAt=now;scopeState.windowAttempts=0;}
+ if(state.windowAttempts>=config.maxRequests||scopeState.windowAttempts>=perScopeMaxRequests()){
+  const retryAfterMs=Math.max(1_000,Math.min(windowMs(),state.windowStartedAt+windowMs()-now));
+  logger.warn({provider,block:"budget_exhausted",retryAfterMs,accountDigest:account,scope:getScope(),providerAttempts:state.windowAttempts,scopeAttempts:scopeState.windowAttempts},"External provider call blocked by quota budget");
+  throw new ProviderQuotaError("budget_exhausted",provider,retryAfterMs);
+ }
+ const task=(async()=>{
+  await acquireConcurrency(provider,init?.signal);
+  try{
+   const current=Date.now(),waitMs=Math.max(0,config.minIntervalMs-(current-state.lastStartedAt));
+   if(waitMs>0)await abortableProviderDelay(waitMs,init?.signal);
+   if(init?.signal?.aborted)throw new Error("External provider call cancelled.");
+   // Budgets can be consumed while this call waits for a concurrency slot or
+   // rate-limit delay. Recheck synchronously immediately before the request.
+   assertProviderBudgetAvailable(provider,state,scopeState,config);
+   state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;
+   const response=await fetcher();
+   const retryOwner=retryOwnerStorage.getStore()?.[provider]??"gate";
+   if(isQuotaResponse(provider,response)){
+    const retryMs=Math.max(parseRetryAfter(response),response.status===429?5_000:60_000);
+    if(retryOwner==="gate"){
+     state.cooldownUntil=Date.now()+retryMs;
+     logger.warn({provider,httpStatus:response.status,retryAfterMs:retryMs,accountDigest:account,scope:getScope(),cooldownOwner:"quota_gate"},"External provider quota cooldown set");
+    }else logger.info({provider,httpStatus:response.status,retryAfterMs:retryMs,accountDigest:account,scope:getScope(),cooldownOwner:"caller"},"Provider retry ownership delegated to caller");
+   }
+   const cacheControl=response.headers.get("cache-control")?.toLowerCase()??"";
+   const hasSetCookie=response.headers.has("set-cookie");
+   if(key&&response.ok&&config.cacheTtlMs>0&&!hasSetCookie&&!/no-store|private/.test(cacheControl)){
+    const body=new Uint8Array(await response.clone().arrayBuffer());
+    if(body.byteLength<=1_500_000&&body.byteLength<=maxResponseCacheBytes()){
+     pruneResponseCache(Date.now());makeRoomForResponse(body.byteLength);
+     responseCache.set(key,{expiresAt:Date.now()+config.cacheTtlMs,status:response.status,statusText:response.statusText,headers:[...response.headers.entries()],body});
+     responseCacheBytes+=body.byteLength;
+    }
+   }
+   return response;
+  }finally{releaseConcurrency(provider);}
+ })();
+ if(key)inFlight.set(key,task);
+ try{return await task;}finally{if(key&&inFlight.get(key)===task)inFlight.delete(key);}
+}
+export async function runProviderCall<T>(options:{provider:ExternalProvider;account?:string;scope?:string;signal?:AbortSignal},fn:()=>Promise<T>):Promise<T>{
+ const provider=options.provider,account=options.account??"operation",scope=options.scope??getScope();
+ return scopeStorage.run(scope,async()=>{
+  const config=providerConfig(provider),state=getState(providerStateKey(provider,account)),scopeState=getScopeState(scopeKey(provider)),now=Date.now();
+  if(state.cooldownUntil>now)throw new ProviderQuotaError("cooldown",provider,state.cooldownUntil-now);
+  if(now-state.windowStartedAt>=windowMs()){state.windowStartedAt=now;state.windowAttempts=0;}
+  if(now-scopeState.windowStartedAt>=windowMs()){scopeState.windowStartedAt=now;scopeState.windowAttempts=0;}
+  if(state.windowAttempts>=config.maxRequests||scopeState.windowAttempts>=perScopeMaxRequests())throw new ProviderQuotaError("budget_exhausted",provider,Math.max(1_000,state.windowStartedAt+windowMs()-now));
+  await acquireConcurrency(provider,options.signal);
+  try{
+   const waitMs=Math.max(0,config.minIntervalMs-(Date.now()-state.lastStartedAt));
+   if(waitMs>0)await abortableProviderDelay(waitMs,options.signal);
+   if(options.signal?.aborted)throw new Error("External provider call cancelled.");
+   // Queue and rate-limit waits yield to other calls; reserve budget only after
+   // checking the live counters again, immediately before the actual operation.
+   assertProviderBudgetAvailable(provider,state,scopeState,config);
+   state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;
+   try{
+    const result=await fn();
+    if(result instanceof Response&&isQuotaResponse(provider,result)&&retryOwnerStorage.getStore()?.[provider]!=="caller"){
+     const retryMs=parseRetryAfter(result);
+     state.cooldownUntil=Date.now()+Math.max(retryMs,result.status===429?5_000:60_000);
+    }
+    return result;
+   }catch(error){if(error instanceof ProviderQuotaError&&error.code==="cooldown")state.cooldownUntil=Date.now()+error.retryAfterMs;throw error;}
+  }finally{releaseConcurrency(provider);}
+ });
+}
 export function withProviderScope<T>(scope:string,fn:()=>Promise<T>):Promise<T>{return scopeStorage.run(scope,fn);}export function withProviderRetryOwnership<T>(provider:ExternalProvider,owner:ProviderRetryOwner,fn:()=>Promise<T>):Promise<T>{const inherited=retryOwnerStorage.getStore()??{};return retryOwnerStorage.run({...inherited,[provider]:owner},fn);}export function installExternalQuotaGuard():void{const current=globalThis.fetch;if(current&&(current as typeof fetch&{__apexQuotaGuard?:boolean}).__apexQuotaGuard)return;const original=current.bind(globalThis);const guarded=(async(input:string|URL|Request,init?:RequestInit)=>{const url=requestUrl(input);if(isLocalUrl(url))return original(input,init);const provider=classifyExternalProvider(url);return runProviderFetch(provider,input,init,()=>original(input,init));}) as typeof fetch&{__apexQuotaGuard?:boolean};guarded.__apexQuotaGuard=true;globalThis.fetch=guarded;logger.info({globalConcurrency:globalConcurrency(),providerConcurrency:perProviderConcurrency(),windowMs:windowMs(),perScopeMaxRequests:perScopeMaxRequests(),maxWaiters:maxWaiters(),maxProviderStates:maxProviderStates(),maxResponseCacheEntries:maxResponseCacheEntries(),maxResponseCacheBytes:maxResponseCacheBytes()},"External provider quota gate installed");}
 export function getProviderGateSnapshot(){const now=Date.now(),byProvider=new Map<ExternalProvider,{active:number;windowAttempts:number;cooldownMs:number}>();for(const[key,state]of providerStates){const provider=key.split("|",1)[0] as ExternalProvider;const current=byProvider.get(provider)??{active:0,windowAttempts:0,cooldownMs:0};current.active+=state.active;current.windowAttempts=Math.max(current.windowAttempts,state.windowAttempts);current.cooldownMs=Math.max(current.cooldownMs,Math.max(0,state.cooldownUntil-now));byProvider.set(provider,current);}return{activeGlobal,providers:[...byProvider.entries()].map(([provider,state])=>({provider,...state}))};}
 export function resetProviderGateForTests(){providerStates.clear();scopeStates.clear();responseCache.clear();responseCacheBytes=0;inFlight.clear();waiters.length=0;activeGlobal=0;}
