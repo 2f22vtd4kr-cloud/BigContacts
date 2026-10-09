@@ -89,4 +89,26 @@ describe("provider gate response cache boundaries", () => {
     await expect(fetch("https://example.test/three")).resolves.toMatchObject({ ok: true });
     expect(calls).toBe(2);
   });
+  it("cancels a coalesced in-flight request without cancelling its shared owner", async () => {
+    let finish!: (response: Response) => void;
+    const sharedResponse = new Promise<Response>((resolve) => { finish = resolve; });
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      calls += 1;
+      return sharedResponse;
+    }));
+    installExternalQuotaGuard();
+
+    const owner = fetch("https://example.test/coalesced");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const controller = new AbortController();
+    const waiter = fetch("https://example.test/coalesced", { signal: controller.signal });
+    controller.abort();
+    await expect(waiter).rejects.toThrow("cancelled");
+
+    finish(new Response("ok", { status: 200 }));
+    await expect(owner).resolves.toMatchObject({ ok: true });
+    expect(calls).toBe(1);
+  });
+
 });
