@@ -10,7 +10,7 @@ pass("observation is inserted through transaction handle",/tx\.insert\(researchC
 pass("control decision is transaction-scoped",/target-oversight:case/.test(oversight)&&/tx\.insert\(researchCaseEventsTable\)/.test(oversight));
 pass("projection update is transaction-scoped",/tx\.update\(researchCasesTable\)/.test(oversight));
 pass("same-turn replay cannot cross run identity",/Stale control replay/.test(oversight));
-pass("control-decision payload has an immutable fingerprint",/function controlDigest\([\s\S]*createHash\("sha256"\)/.test(oversight)&&/controlDigest:controlDigest\(\{runId,controlTurn:turn,observationEventId:eventId,actDigest:digest,oversight\}\)/.test(oversight));
+pass("control-decision payload fingerprints the sanitized oversight projection",/function controlDigest\([\s\S]*createHash\("sha256"\)/.test(oversight)&&/controlDigest:controlDigest\(\{runId,controlTurn:turn,observationEventId:eventId,actDigest:digest,oversight:safeOversight\}\)/.test(oversight)&&/legacyControlDigest/.test(oversight));
 pass("mismatched control replay is rejected",/Immutable control-decision replay mismatch/.test(oversight));
 pass("projection is monotonic by control turn",/latestTurn/.test(oversight));
 pass("concurrent control commits serialize",/isolationLevel:"serializable"/.test(oversight));
