@@ -1,37 +1,40 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const root = process.cwd();
-const source = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/job-queue.ts"), "utf8");
-const launch = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
+const read = (p) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
+const queue = read("artifacts/api-server/src/src/lib/job-queue.ts");
+const launch = read("artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts");
+const ingest = read("artifacts/api-server/src/src/routes/ingest.ts");
 
-function section(text, start, end) {
-  const startIndex = text.indexOf(start);
-  if (startIndex < 0) return "";
-  const endIndex = text.indexOf(end, startIndex + start.length);
-  return text.slice(startIndex, endIndex < 0 ? text.length : endIndex);
+function exportedFunction(source, name) {
+  const start = source.indexOf(`export async function ${name}(`);
+  if (start < 0) return "";
+  const next = source.indexOf("\nexport ", start + 1);
+  return source.slice(start, next < 0 ? source.length : next);
 }
 
-const strictRead = section(source, "export async function getActiveJobStrict(", "export async function getActiveJob(");
-const compatibilityRead = section(source, "export async function getActiveJob(", "export async function getActiveJobs(");
-const multiRead = section(source, "export async function getActiveJobs(", "export function invalidateActiveJobCache(");
-const latestRead = section(source, "export async function getLatestJob(", "export async function updateAutoPipelineScheduler(");
-const ownerRelease = section(source, "export async function clearActiveJobIfMatches(", "export async function ownsActiveJob(");
+const getJob = exportedFunction(queue, "getJob");
+const getActiveJobStrict = exportedFunction(queue, "getActiveJobStrict");
+const getActiveJob = exportedFunction(queue, "getActiveJob");
+const getActiveJobs = exportedFunction(queue, "getActiveJobs");
+const clearActiveJobIfMatches = exportedFunction(queue, "clearActiveJobIfMatches");
+const getLatestJob = exportedFunction(queue, "getLatestJob");
 
 const checks = [
-  ["strict active-job read distinguishes unavailable from idle", /readSucceeded\s*=\s*false/.test(strictRead) && /classifyActiveJobRead\(readSucceeded,\s*jobId\)/.test(strictRead) && /classified\.state\s*===\s*"unavailable"\)\s*throw/.test(strictRead)],
-  ["canonical Atlas launch uses strict active-job read", /getActiveJobStrict\("atlas-run"\)/.test(launch)],
-  ["canonical Atlas stop fails closed when active-job state is unavailable", /router\.post\("\/ingest\/atlas-stop"[\s\S]*?getActiveJobStrict\("atlas-run"\)[\s\S]*?JOB_STATE_UNAVAILABLE/.test(launch)],
-  ["legacy best-effort accessor is explicitly separated from authoritative reads", /try\s*\{\s*return await getActiveJobStrict\(type\);\s*\}\s*catch\s*\{\s*return null;\s*\}/.test(compatibilityRead)],
-  ["multi-active read throws on Redis failure instead of returning an idle map", /if\(!readSucceeded\s*\|\|\s*!vals\)\s*throw new Error\("Permanent Redis job-state read failed; active job state is unknown\."\)/.test(multiRead)],
-  ["owner-bound release returns false when Redis state cannot be confirmed", /let ok\s*=\s*false/.test(ownerRelease) && /if\(!ok\)return false/.test(ownerRelease)],
-  ["latest-job read exits on Redis failure before returning the Redis result", /if\(!ok\)return null;return r;/.test(latestRead)],
+  ["durable job reads distinguish Redis transport failure from an empty hash", /let redisOk=false[\s\S]*if\(!redisOk\)return null[\s\S]*if\(!raw\|\|Object\.keys\(raw\)\.length===0\)/.test(getJob)],
+  ["authoritative active-lane reads throw when Redis state is unknown", /classifyActiveJobRead\(readSucceeded,jobId\)[\s\S]*classified\.state===\"unavailable\"\) throw new Error/.test(getActiveJobStrict)],
+  ["legacy best-effort active read is explicitly a wrapper, not an authority", /return await getActiveJobStrict\(type\);\}catch\{return null;\}/.test(getActiveJob)],
+  ["Atlas launch uses the authoritative active-lane read", launch.includes('getActiveJobStrict("atlas-run")')],
+  ["Atlas stop refuses to claim a stop while active-lane state is unavailable", /getActiveJobStrict\("atlas-run"\)[\s\S]*JOB_STATE_UNAVAILABLE/.test(launch.slice(launch.indexOf('router.post("/ingest/atlas-stop"')))],
+  ["multi-active authoritative read throws when Redis state is unknown", /if\(!readSucceeded\|\|!vals\) throw new Error/.test(getActiveJobs)],
+  ["owner-bound active release returns false on Redis transport failure", /let ok=false[\s\S]*if\(!ok\)return false/.test(clearActiveJobIfMatches)],
+  ["latest-job read does not expose stale memory state when Redis is unavailable", /let ok=false[\s\S]*if\(!ok\)return null/.test(getLatestJob)],
+  ["active-job HTTP polling exposes unavailable as 503, not as an idle lane", /getActiveJobStrict\(type\)[\s\S]*status\(503\)[\s\S]*JOB_STATE_UNAVAILABLE/.test(ingest)],
 ];
 
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
-for (const [name, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
 if (failures.length) {
   console.error("Job-state Redis fail-closed guard failed:", failures.join(", "));
   process.exit(1);
 }
-console.log("Job-state Redis fail-closed guard passed.");
+console.log(`Job-state Redis fail-closed guard passed (${checks.length} strict/source-boundary checks).`);
