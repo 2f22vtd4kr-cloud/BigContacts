@@ -49,6 +49,20 @@ function doneWith(findings: AgenticFinding[]): AgenticTrajectoryRecord {
 }
 
 describe("discovery terminal claim-evidence gate", () => {
+  it("recognizes a successful parallel search as an external action when stopping without findings", () => {
+    const parallelSearch: AgenticTrajectoryRecord = {
+      turn: 1,
+      model: "openai/gpt-oss-20b",
+      action: "parallel_web_search",
+      args: { searches: [{ query: "public leadership Jane Example", provider: "serper" }] },
+      execution: "success",
+      observation: "Search returned candidate leads for follow-up.",
+      observedUrls: ["https://search.example/results?q=Jane"],
+      findings: [],
+    };
+    expect(discoveryTerminalGate([parallelSearch, doneWith([])])).toEqual({ allowed: true, reason: null });
+  });
+
   it("accepts a candidate claim with exact contact value and token-bounded identity on its visited page", () => {
     expect(discoveryTerminalGate([
       observedPage(firstUrl, "Jane Example — Founder — jane@example.com"),
