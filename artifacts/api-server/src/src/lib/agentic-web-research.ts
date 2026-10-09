@@ -11,6 +11,7 @@ import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./researc
 import { shouldCheckpointResearchEpisode } from "./research-episode-policy";
 import { inferResearchCognitiveTask } from "./research-cognitive-routing";
 import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS } from "./agentic-web-research-core";
+import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import type { AgenticFinding } from "./agentic-web-research-core";
 
@@ -30,12 +31,6 @@ if (!(globalThis.fetch as GuardedFetch).__apexSsrfGuard) {
 
 export type { AgenticFinding, AgenticWebResearchResult, AgenticTrajectoryRecord } from "./agentic-web-research-core";
 export { getAgenticLlmHealth } from "./agentic-web-research-core";
-
-export function isAcceptedInvestigatorTerminal(input: { action: unknown; execution: unknown; stopReason: unknown }): boolean {
-  return input.action === "done"
-    && input.execution === "success"
-    && input.stopReason === "MODEL_DECIDED_DONE";
-}
 
 type CoreModule = typeof import("./agentic-web-research-core");
 type RunInput = Parameters<CoreModule["runAgenticWebResearch"]>[0] & { caseId?: number; oversightMode?: "internal" | "caller"; onTrajectoryRecord?: (record: CoreResult["trajectoryRecords"][number]) => void | Promise<void> };
