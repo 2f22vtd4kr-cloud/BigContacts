@@ -176,16 +176,6 @@ function sourceClassForHost(host: string | null): IntelligenceSourceClass {
   if (["reuters.com", "ft.com", "bloomberg.com", "wsj.com"].some((domain) => hostMatchesDomain(host, domain))) return "REPUTABLE_NEWS";
   return "UNKNOWN";
 }
-  if (!host) return "UNKNOWN";
-  if (/companieshouse\.gov\.uk$|company-information\.service\.gov\.uk$|sec\.gov$|brreg\.no$|bodacc\.fr$|gleif\.org$/.test(host)) return "REGULATORY";
-  if (/linkedin\.com$|x\.com$|twitter\.com$|instagram\.com$/.test(host)) return "SOCIAL_PROFILE";
-  if (/crunchbase\.com$|pitchbook\.com$|opencorporates\.com$/.test(host)) return "PROFESSIONAL_DIRECTORY";
-  if (/google\.|bing\.|serper\.dev$|tavily\.com$|exa\.ai$/.test(host)) return "SEARCH_RESULT";
-  if (/wikipedia\.org$|yahoo\.com$|medium\.com$/.test(host)) return "AGGREGATOR";
-  if (isOfficialGovernmentHost(host)) return "OFFICIAL_GOVERNANCE";
-  if (/news|reuters\.com$|ft\.com$|bloomberg\.com$|wsj\.com$/.test(host)) return "REPUTABLE_NEWS";
-  return "UNKNOWN";
-}
 function extractionMethodForAction(action: string): string {
   if (action.includes("registry")) return "registry_api";
   if (action.includes("search")) return "search_result";
