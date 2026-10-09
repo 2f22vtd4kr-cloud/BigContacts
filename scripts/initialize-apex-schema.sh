@@ -26,9 +26,10 @@ echo "[apex-schema] acquired single-writer schema lock."
 echo "[apex-schema] applying the repository's current Drizzle schema..."
 pnpm --filter @workspace/db run push
 
-echo "[apex-schema] applying Apex durable hardening and contact-outcome migrations..."
+echo "[apex-schema] applying Apex durable hardening and compatibility migrations..."
 pnpm --filter @workspace/db run harden
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/002-contact-outcome.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f lib/db/migrations/003-atlas-review-candidate-type.sql
 
 echo "[apex-schema] verifying required Apex durable tables and invariants..."
 (cd lib/db && node --input-type=module <<'NODE'

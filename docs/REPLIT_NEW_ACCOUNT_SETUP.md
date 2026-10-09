@@ -64,7 +64,7 @@ For first-time Postgres initialization only:
 APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 ```
 
-The helper runs the repository's current schema push and verifies required durable tables. Schema mutation must not remain enabled during ordinary boot.
+The helper runs the repository's current schema push, durable hardening migration `001`, contact-outcome migration `002`, and review-only candidate taxonomy migration `003`, then verifies the required durable tables. Migration `003` reclassifies only rows with the canonical discovery review-only markers; malformed/legacy metadata is left untouched. Schema mutation must not remain enabled during ordinary boot.
 
 Run preflight, architecture checks, typecheck, builds, and focused tests. Start the canonical API workflow on port `8080`.
 
