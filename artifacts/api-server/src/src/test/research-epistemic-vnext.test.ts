@@ -89,6 +89,36 @@ describe("research epistemic vNext", () => {
     expect(graph.independentUnitCount([first.sourceId, second.sourceId, other.sourceId])).toBe(2);
   });
 
+  it("does not count subdomains of one publisher as independent sources", () => {
+    const graph = new SourceLineageGraph();
+    const root = graph.register({
+      canonicalUrl: "https://example.com/about",
+      host: "example.com",
+      originSourceId: null,
+      publisher: null,
+      citedSourceIds: [],
+      contentFingerprint: "root-page",
+    });
+    const subdomain = graph.register({
+      canonicalUrl: "https://news.example.com/story",
+      host: "news.example.com",
+      originSourceId: null,
+      publisher: null,
+      citedSourceIds: [],
+      contentFingerprint: "subdomain-page",
+    });
+    const independent = graph.register({
+      canonicalUrl: "https://another-publisher.org/story",
+      host: "another-publisher.org",
+      originSourceId: null,
+      publisher: null,
+      citedSourceIds: [],
+      contentFingerprint: "independent-page",
+    });
+    expect(graph.independentUnitCount([root.sourceId, subdomain.sourceId])).toBe(1);
+    expect(graph.independentUnitCount([root.sourceId, subdomain.sourceId, independent.sourceId])).toBe(2);
+  });
+
   it("does not count known aggregator hosts as independent terminal sources", () => {
     const graph = new SourceLineageGraph();
     const aggregator = graph.register({ canonicalUrl: "https://crunchbase.com/profile/example", host: "crunchbase.com", originSourceId: null, publisher: null, citedSourceIds: [], contentFingerprint: "aggregator" });
