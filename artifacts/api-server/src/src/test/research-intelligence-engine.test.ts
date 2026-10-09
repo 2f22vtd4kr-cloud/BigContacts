@@ -158,4 +158,27 @@ describe("Apex research intelligence", () => {
     expect(hypothesis?.supportingEvidenceIds).toEqual(expect.arrayContaining(evidenceIds));
   });
 
+
+  it("keeps evidence fingerprints idempotent when a case is restored and the same source is revisited", () => {
+    const url = "https://registry.example.gov/jordan";
+    const input = { executionId: "restore-idempotence", target: "Jordan Example", objective: "resolve identity" };
+    const original = new ResearchIntelligenceEngine(input);
+    original.recordAction({
+      turn: 1, action: "visit", execution: "success", urls: [url],
+      observation: "Jordan Example other director of Alpha",
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [url] }],
+    });
+    const before = original.buildContext();
+    const restored = new ResearchIntelligenceEngine(input);
+    restored.restoreContext(before);
+    restored.recordAction({
+      turn: 2, action: "visit", execution: "success", urls: [url],
+      observation: "Jordan Example other director of Alpha",
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [url] }],
+    });
+    const after = restored.buildContext();
+    expect(after.evidenceCount).toBe(before.evidenceCount);
+    expect(after.atomicEvidence.map((item) => item.evidenceId)).toEqual(before.atomicEvidence.map((item) => item.evidenceId));
+  });
+
 });
