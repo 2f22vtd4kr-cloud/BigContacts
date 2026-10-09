@@ -19,5 +19,9 @@ describe("Reactor live telemetry source boundary", () => {
     expect(source).not.toContain("activeResponse.json()");
     expect(source).not.toContain("traceResponse.json()");
     expect(source).not.toContain("emit(EMPTY)");
+    expect(source).toContain("function sameActivity(a: LiveActivity, b: LiveActivity): boolean");
+    expect(source).toContain("a.inputSummary === b.inputSummary");
+    expect(source).toContain("a.tool === b.tool");
+    expect(source).toContain("sameOptionalStrings(a.sourceUrls, b.sourceUrls)");
   });
 });
