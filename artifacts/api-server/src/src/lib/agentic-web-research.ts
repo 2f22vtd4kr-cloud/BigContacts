@@ -52,7 +52,7 @@ function buildContinuationState(
   context: string,
   records: readonly CoreResult["trajectoryRecords"][number][],
 ): string {
-  const recentActs = records.slice(-4).map((record) => ({
+  const recentActs = records.slice(Math.max(0, records.length - 4)).map((record) => ({
     turn: record.turn,
     action: record.action,
     execution: record.execution,
