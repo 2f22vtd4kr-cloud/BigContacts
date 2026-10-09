@@ -137,12 +137,59 @@ async function resolveSafeAddress(hostname: string, signal?: AbortSignal): Promi
 function parseSafeUrl(rawUrl: string): URL { let url: URL; try { url = new URL(rawUrl); } catch { throw new Error("Outbound URL is invalid"); } if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Outbound URL must use HTTP(S)"); if (url.username || url.password) throw new Error("Outbound URL credentials are not permitted"); const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, ""); if (!hostname || BLOCKED_HOSTNAMES.has(hostname)) throw new Error("Outbound URL targets a blocked host"); return url; }
 export async function assertSafeOutboundUrl(rawUrl: string): Promise<URL> { const url = parseSafeUrl(rawUrl); await resolveSafeAddress(url.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "")); return url; }
 function requestHeaders(init: RequestInit, hostname: string, port: string): Record<string, string> { const headers: Record<string, string> = { "accept-encoding": "identity" }; if (init.headers instanceof Headers) init.headers.forEach((value, key) => { headers[key] = value; }); else if (Array.isArray(init.headers)) for (const [key, value] of init.headers) headers[key] = value; else if (init.headers) for (const [key, value] of Object.entries(init.headers)) headers[key] = String(value); if (!headers.host) headers.host = port ? `${hostname}:${port}` : hostname; return headers; }
-async function readRequestBodyCapped(body: BodyInit | null | undefined, signal?: AbortSignal): Promise<Buffer | undefined> { if (signal?.aborted) throw new Error("Outbound request aborted"); if (body == null) return undefined; const content = new Response(body).body; if (!content) return Buffer.alloc(0); const reader = content.getReader(); const chunks: Buffer[] = []; let bytes = 0; try { while (true) { if (signal?.aborted) { await reader.cancel().catch(() => undefined); throw new Error("Outbound request aborted"); } const result = signal ? await Promise.race([reader.read(), new Promise<never>((_, reject) => { const abort = () => reject(new Error("Outbound request aborted")); if (signal.aborted) abort(); else signal.addEventListener("abort", abort, { once: true }); })]) : await reader.read(); const { done, value } = result; if (done) break; const chunk = Buffer.from(value); bytes += chunk.byteLength; if (bytes > MAX_REQUEST_BYTES) { await reader.cancel().catch(() => undefined); throw new Error(`Outbound request exceeds ${MAX_REQUEST_BYTES} byte limit`); } chunks.push(chunk); } return Buffer.concat(chunks); } finally { reader.releaseLock(); } }
+async function readRequestBodyCapped(body: BodyInit | null | undefined, signal?: AbortSignal): Promise<Buffer | undefined> {
+ if (signal?.aborted) throw new Error("Outbound request aborted");
+ if (body == null) return undefined;
+ const content = new Response(body).body;
+ if (!content) return Buffer.alloc(0);
+ const reader = content.getReader();
+ const chunks: Buffer[] = [];
+ let bytes = 0;
+ const read = (): Promise<ReadableStreamReadResult<Uint8Array>> => {
+  if (!signal) return reader.read();
+  if (signal.aborted) return Promise.reject(new Error("Outbound request aborted"));
+  return new Promise((resolve, reject) => {
+   let settled = false;
+   const cleanup = () => signal.removeEventListener("abort", onAbort);
+   const finish = (error?: unknown, result?: ReadableStreamReadResult<Uint8Array>) => {
+    if (settled) return;
+    settled = true;
+    cleanup();
+    if (error !== undefined) reject(error);
+    else if (result) resolve(result);
+    else reject(new Error("Outbound request body read failed"));
+   };
+   const onAbort = () => {
+    void reader.cancel().catch(() => undefined);
+    finish(new Error("Outbound request aborted"));
+   };
+   signal.addEventListener("abort", onAbort, { once: true });
+   reader.read().then((result) => finish(undefined, result), (error) => finish(error));
+   if (signal.aborted) onAbort();
+  });
+ };
+ try {
+  while (true) {
+   const { done, value } = await read();
+   if (done) break;
+   const chunk = Buffer.from(value);
+   bytes += chunk.byteLength;
+   if (bytes > MAX_REQUEST_BYTES) {
+    await reader.cancel().catch(() => undefined);
+    throw new Error(`Outbound request exceeds ${MAX_REQUEST_BYTES} byte limit`);
+   }
+   chunks.push(chunk);
+  }
+  return Buffer.concat(chunks);
+ } finally {
+  reader.releaseLock();
+ }
+}
 export function responseBodyForStatus(status: number, body: Buffer): Buffer | null {
   return status === 204 || status === 205 || status === 304 ? null : body;
 }
 
-async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address: string): Promise<Response> { const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url; const url = new URL(rawUrl); const transport = url.protocol === "https:" ? https : http; const port = url.port || (url.protocol === "https:" ? "443" : "80"); const method = init.method || (typeof input !== "string" && !(input instanceof URL) ? input.method : "GET"); const headers = requestHeaders(init, url.hostname, url.port); const declaredRequestBytes = Number(headers["content-length"] ?? NaN); if (Number.isFinite(declaredRequestBytes) && declaredRequestBytes > MAX_REQUEST_BYTES) throw new Error(`Outbound request exceeds ${MAX_REQUEST_BYTES} byte limit`); const body = await readRequestBodyCapped(init.body); const signal = init.signal; return new Promise<Response>((resolve, reject) => { let settled = false; let abort: (() => void) | undefined; let deadlineTimer: ReturnType<typeof setTimeout> | undefined; const cleanup = () => { if (abort && signal) signal.removeEventListener("abort", abort); abort = undefined; if (deadlineTimer) clearTimeout(deadlineTimer); deadlineTimer = undefined; }; const finishError = (error: unknown) => { if (settled) return; settled = true; cleanup(); reject(error instanceof Error ? error : new Error(String(error))); }; const req = transport.request({ protocol: url.protocol, hostname: address, port, method, path: `${url.pathname}${url.search}` || "/", headers, ...(url.protocol === "https:" ? { servername: url.hostname } : {}), lookup: (_hostname, _options, callback) => callback(null, address, net.isIP(address) as 4 | 6) }, (res) => { const declared = Number(res.headers["content-length"] ?? NaN); if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) { res.resume(); finishError(new Error(`Outbound response exceeds ${MAX_RESPONSE_BYTES} byte limit`)); return; } const chunks: Buffer[] = []; let bytes = 0; res.on("data", (chunk) => { const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk); bytes += buffer.byteLength; if (bytes > MAX_RESPONSE_BYTES) { res.destroy(new Error(`Outbound response exceeds ${MAX_RESPONSE_BYTES} byte limit`)); return; } chunks.push(buffer); }); res.on("end", () => { if (settled) return; settled = true; cleanup(); const responseHeaders = new Headers(); for (const [key, value] of Object.entries(res.headers)) { if (Array.isArray(value)) responseHeaders.set(key, value.join(", ")); else if (value != null) responseHeaders.set(key, value); } const responseBody = responseBodyForStatus(res.statusCode ?? 0, Buffer.concat(chunks)); resolve(new Response(responseBody === null ? null : new Uint8Array(responseBody), { status: res.statusCode ?? 0, statusText: res.statusMessage ?? "", headers: responseHeaders })); }); res.on("error", finishError); }); req.on("error", finishError); deadlineTimer = setTimeout(() => req.destroy(new Error("Outbound request deadline exceeded")), REQUEST_DEADLINE_MS); req.setTimeout(12_000, () => req.destroy(new Error("Outbound request timed out"))); abort = () => req.destroy(new Error("Outbound request aborted")); if (signal?.aborted) return abort(); signal?.addEventListener("abort", abort, { once: true }); if (body) req.write(body); req.end(); }); }
+async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address: string): Promise<Response> { const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url; const url = new URL(rawUrl); const transport = url.protocol === "https:" ? https : http; const port = url.port || (url.protocol === "https:" ? "443" : "80"); const method = init.method || (typeof input !== "string" && !(input instanceof URL) ? input.method : "GET"); const headers = requestHeaders(init, url.hostname, url.port); const declaredRequestBytes = Number(headers["content-length"] ?? NaN); if (Number.isFinite(declaredRequestBytes) && declaredRequestBytes > MAX_REQUEST_BYTES) throw new Error(`Outbound request exceeds ${MAX_REQUEST_BYTES} byte limit`); const signal = init.signal; const body = await readRequestBodyCapped(init.body, signal); return new Promise<Response>((resolve, reject) => { let settled = false; let abort: (() => void) | undefined; let deadlineTimer: ReturnType<typeof setTimeout> | undefined; const cleanup = () => { if (abort && signal) signal.removeEventListener("abort", abort); abort = undefined; if (deadlineTimer) clearTimeout(deadlineTimer); deadlineTimer = undefined; }; const finishError = (error: unknown) => { if (settled) return; settled = true; cleanup(); reject(error instanceof Error ? error : new Error(String(error))); }; const req = transport.request({ protocol: url.protocol, hostname: address, port, method, path: `${url.pathname}${url.search}` || "/", headers, ...(url.protocol === "https:" ? { servername: url.hostname } : {}), lookup: (_hostname, _options, callback) => callback(null, address, net.isIP(address) as 4 | 6) }, (res) => { const declared = Number(res.headers["content-length"] ?? NaN); if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) { res.resume(); finishError(new Error(`Outbound response exceeds ${MAX_RESPONSE_BYTES} byte limit`)); return; } const chunks: Buffer[] = []; let bytes = 0; res.on("data", (chunk) => { const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk); bytes += buffer.byteLength; if (bytes > MAX_RESPONSE_BYTES) { res.destroy(new Error(`Outbound response exceeds ${MAX_RESPONSE_BYTES} byte limit`)); return; } chunks.push(buffer); }); res.on("end", () => { if (settled) return; settled = true; cleanup(); const responseHeaders = new Headers(); for (const [key, value] of Object.entries(res.headers)) { if (Array.isArray(value)) responseHeaders.set(key, value.join(", ")); else if (value != null) responseHeaders.set(key, value); } const responseBody = responseBodyForStatus(res.statusCode ?? 0, Buffer.concat(chunks)); resolve(new Response(responseBody === null ? null : new Uint8Array(responseBody), { status: res.statusCode ?? 0, statusText: res.statusMessage ?? "", headers: responseHeaders })); }); res.on("error", finishError); }); req.on("error", finishError); deadlineTimer = setTimeout(() => req.destroy(new Error("Outbound request deadline exceeded")), REQUEST_DEADLINE_MS); req.setTimeout(12_000, () => req.destroy(new Error("Outbound request timed out"))); abort = () => req.destroy(new Error("Outbound request aborted")); if (signal?.aborted) return abort(); signal?.addEventListener("abort", abort, { once: true }); if (body) req.write(body); req.end(); }); }
 
 export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
  const request = typeof input !== "string" && !(input instanceof URL) ? input : undefined;
