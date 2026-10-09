@@ -195,6 +195,14 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
   });
 
+  it("passes explicit bounded continuation state across one-action Investigator episodes", () => {
+    expect(researchSource).toContain('"CONTINUATION STATE"');
+    expect(researchSource).toContain("priorContext: boundInvestigatorPromptSection");
+    expect(researchSource).toContain("RECENT PRIOR ACTS");
+    expect(researchSource).toContain("do not repeat a completed query without a reason");
+    expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords");
+  });
+
   it("keeps runtime safety checks fail-closed and bounded", () => {
     expect(runtimeHardener).toMatch(/fail.?closed/i);
     expect(runtimeHardener).toMatch(/timeout|abort|cancel/i);
