@@ -670,7 +670,8 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
   // Public registry participation supplies a review lead, not an adjudicated
   // wealth class. Preserve organization/trust types; keep name-shaped people
   // as PersonCandidate until the canonical evidence-backed model path promotes them.
-  const entityType = normalizeUnverifiedRegistryType(classifyEntityType(person.name));
+  const classifiedType = classifyEntityType(person.name);
+  const entityType = classifiedType === "Trust" ? "Trust" : normalizeUnverifiedRegistryType(classifiedType);
   const bayesianScore = computeBayesianScore(prior, {
     entityType,
     assetCount: 0,
