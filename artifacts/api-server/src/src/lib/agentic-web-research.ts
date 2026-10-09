@@ -136,14 +136,14 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
         if (raw.action === "web_search" && typeof raw.args?.query === "string") searchQueriesUsed.push(raw.args.query);
         if (raw.action === "parallel_web_search" && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
       }
-      const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, { ...raw, turn: actionTurn }]) };
+      const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: actionTurn }]) };
       recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
       records = [...records, normalizedRecord];
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
       await input.onTrajectoryRecord?.(normalizedRecord);
       if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
       if (raw.findings.length) {
-              const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord]);
+              const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, normalizedRecord]);
               findings = [...findings, ...(grounded as CoreResult["findings"])];
             }
       if (isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
@@ -203,6 +203,11 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
       let oversight: TargetActOversight | null = null;
        let actionsSinceCheckpoint = 0;
        const knownIdentityNames = new Set<string>();
+       for (const historicalRecord of historyRecords) {
+         for (const finding of historicalRecord.findings) {
+           if (finding.personName?.trim()) knownIdentityNames.add(finding.personName.trim().toLowerCase());
+         }
+       }
        const callerOwnsOversight = input.oversightMode === "caller";
 
        const applyOversight = async (act: CoreResult["trajectoryRecords"][number], controlTurn: number): Promise<{ stop: boolean; unavailable: boolean }> => {
@@ -279,9 +284,9 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
 
          if (raw) {
-           const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, { ...raw, turn: actionTurn }]) };
+           const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: actionTurn }]) };
            const groundedTerminalFindings = raw.action === "done"
-             ? groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord])
+             ? groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, normalizedRecord])
              : [];
 
            if (raw.action === "done" && raw.findings.length > 0 && groundedTerminalFindings.length !== raw.findings.length) {
