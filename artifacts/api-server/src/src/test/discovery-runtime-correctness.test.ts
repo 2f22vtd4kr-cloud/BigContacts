@@ -204,6 +204,13 @@ describe("discovery runtime architecture", () => {
     expect(researchSource.slice(blockedTerminal, stopReturn)).not.toContain("if (checkpointResult.stop) continue");
   });
 
+  it("passes bounded continuation state and recent acts across one-action episodes", () => {
+    expect(researchSource).toContain("CONTINUATION STATE: Continue from accumulated durable observations");
+    expect(researchSource).toContain("priorContext: buildContinuationState");
+    expect(researchSource).toContain("RECENT PRIOR ACTS (newest last)");
+    expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords");
+  });
+
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
