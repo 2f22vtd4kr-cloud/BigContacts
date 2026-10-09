@@ -14,7 +14,7 @@ Apex Atlas is an AI-driven public-source research bureau, not a deterministic en
 
 Tools are capabilities, not mandatory stages. There is no hidden identity → company → social profile → email recipe.
 
-## 2. Canonical role/capability declaration
+### Detailed role descriptions
 
 - **Boss:** Groq Boss owns high-level case direction and model-selected transitions.
 - **Right-hand:** Groq Right-hand is bounded independent oversight of the Investigator's work; it does not take over the research trajectory.
