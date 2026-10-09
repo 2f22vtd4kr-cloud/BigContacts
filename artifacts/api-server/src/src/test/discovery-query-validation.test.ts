@@ -6,7 +6,7 @@ describe("discovery query quality guidance", () => {
   it("allows exact-identity lookups while flagging that the query may be broad", () => {
     const result = validateDiscoverySearchQuery("Elon Musk");
     expect(result.allowed).toBe(true);
-    expect(result.warning).toMatch(/exact-identity lookups can be useful/i);
+    expect(result.allowed ? result.warning : undefined).toMatch(/exact-identity lookups can be useful/i);
   });
 
   it("allows model-selected named identity plus contextual company token", () => {
@@ -21,7 +21,7 @@ describe("discovery query quality guidance", () => {
     ]) {
       const result = validateDiscoverySearchQuery(query);
       expect(result.allowed).toBe(true);
-      expect(result.warning).toBeTruthy();
+      expect(result.allowed ? result.warning : undefined).toBeTruthy();
     }
   });
 
@@ -33,13 +33,13 @@ describe("discovery query quality guidance", () => {
   it("does not hard-block a deliberate repeat that may cross-check a source or market", () => {
     const result = validateDiscoverySearchQuery("Slovenia casino", ["slovenia   casino"]);
     expect(result.allowed).toBe(true);
-    expect(result.warning).toMatch(/repeat was allowed/i);
+    expect(result.allowed ? result.warning : undefined).toMatch(/repeat was allowed/i);
   });
 
   it("allows fame-list searches but advises the model to evaluate actual yield", () => {
     const broad = validateDiscoverySearchQuery("billionaires richest people Forbes");
     expect(broad.allowed).toBe(true);
-    expect(broad.warning).toMatch(/still executed/i);
+    expect(broad.allowed ? broad.warning : undefined).toMatch(/still executed/i);
 
     const contextual = validateDiscoverySearchQuery("Forbes billionaires Slovenia casino");
     expect(contextual.allowed).toBe(true);
@@ -48,8 +48,8 @@ describe("discovery query quality guidance", () => {
   it("recognizes whitespace-separated tokens and explicit source anchors for accurate advisory scoring", () => {
     const result = validateDiscoverySearchQuery("site:sec.gov 2024 Form 4 Jordan Example");
     expect(result.allowed).toBe(true);
-    expect(result.warning ?? "").not.toMatch(/brief or context-light/i);
-    expect(result.warning ?? "").not.toMatch(/no explicit person, organization, geography, registry, domain/i);
+    expect(result.allowed ? result.warning ?? "" : "").not.toMatch(/brief or context-light/i);
+    expect(result.allowed ? result.warning ?? "" : "").not.toMatch(/no explicit person, organization, geography, registry, domain/i);
   });
 
   it("only hard-rejects an empty query at this quality-heuristic boundary", () => {
