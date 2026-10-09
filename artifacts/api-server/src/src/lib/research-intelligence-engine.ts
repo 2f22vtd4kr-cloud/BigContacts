@@ -198,11 +198,8 @@ function supportsHypothesisClaim(hypothesis: string, claim: string): boolean {
     .trim();
   const hypothesisClaim = extractPredicate(parseableHypothesis);
   const evidenceClaim = extractPredicate(claim);
-  if (
-    hypothesisClaim.predicate !== "asserts"
-    && evidenceClaim.predicate !== "asserts"
-    && normalize(hypothesisClaim.subject) === normalize(evidenceClaim.subject)
-  ) {
+  if (hypothesisClaim.predicate !== "asserts" && evidenceClaim.predicate !== "asserts") {
+    if (normalize(hypothesisClaim.subject) !== normalize(evidenceClaim.subject)) return false;
     if (hypothesisClaim.predicate !== evidenceClaim.predicate) return false;
     const normalizeObject = (value: string) => normalize(value).replace(/^(?:the|a|an)\s+/, "");
     if (normalizeObject(hypothesisClaim.object) !== normalizeObject(evidenceClaim.object)) return false;
