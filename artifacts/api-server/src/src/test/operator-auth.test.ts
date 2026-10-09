@@ -50,6 +50,34 @@ describe("operator authentication boundary", () => {
     const token = createOperatorSessionToken(config);
     expect(isOperatorAuthorized(request({ headers: { cookie: OPERATOR_SESSION_COOKIE + "=" + token } }), config)).toBe(true);
   });
+  it("allows an explicit bearer credential to authorize writes without browser Origin", () => {
+    const guard = createRequireOperatorAuth(() => ENV);
+    const req = request({
+      method: "POST",
+      path: "/research/bureau/cases/1/run-discovery",
+      headers: { authorization: "Bearer " + config.apiToken },
+    });
+    const res = response();
+    let next = 0;
+    guard(req, res.value, (() => { next += 1; }) as never);
+    expect(res.result.statusCode).toBe(200);
+    expect(next).toBe(1);
+  });
+  it("rejects cookie-authenticated writes without a trusted Origin", () => {
+    const guard = createRequireOperatorAuth(() => ENV);
+    const session = createOperatorSessionToken(config);
+    const req = request({
+      method: "POST",
+      path: "/research/bureau/cases/1/run-discovery",
+      headers: { cookie: OPERATOR_SESSION_COOKIE + "=" + session },
+    });
+    const res = response();
+    let next = 0;
+    guard(req, res.value, (() => { next += 1; }) as never);
+    expect(res.result.statusCode).toBe(403);
+    expect((res.result.body as { code: string }).code).toBe("OPERATOR_ORIGIN_REJECTED");
+    expect(next).toBe(0);
+  });
   it("leaves health/session bootstrap public but fails closed on data routes", () => {
     const guard = createRequireOperatorAuth(() => ({}));
     const health = response(); let healthNext = 0;
