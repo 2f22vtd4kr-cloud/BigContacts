@@ -10,7 +10,7 @@ const checks=[
 ["target Investigator exposes serialized live-step callback",target.includes("onInvestigationAct?:")],
 ["target Investigator serializes durable live-step callbacks",target.includes("investigationEventChain = investigationEventChain.then")],
 ["target Investigator drains durable live-step callbacks before completion",target.includes("await investigationEventChain;")],
-["canonical target runner checks durable job cancellation",runner.includes("getJob(atlasJobId)")&&runner.includes('job.status === "cancelled"')],
+["canonical target runner checks cancellation through authoritative durable reads",runner.includes("getJobStrict(atlasJobId)")&&runner.includes('job.status === "cancelled"')&&!/await getJob\(atlasJobId\)/.test(runner)],
 ["canonical target runner supplies cancellation to Investigator",runner.includes("shouldCancel: async () =>")],
 ["target oversight atomically persists immutable Investigator observation events",/db\.transaction\(async\(tx\)/.test(oversight)&&/actorRole:"head_investigator"/.test(oversight)&&/eventType:"tool_observation"/.test(oversight)],
 ["target oversight atomically persists immutable Boss decision events",/db\.transaction\(async\(tx\)/.test(oversight)&&/actorRole:"groq_boss"/.test(oversight)&&/eventType:"control_decision"/.test(oversight)],
