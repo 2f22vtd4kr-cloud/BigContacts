@@ -6,7 +6,7 @@ import { logger } from "./logger";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 import { resolveResearchDepth } from "./research-depth";
-import { persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations } from "./bureau-contact-persist-strict";
+import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsReviewableClaimAcrossObservations } from "./bureau-contact-persist-strict";
 import { publishBureauEvent } from "./bureau-live-log";
 import { recordDiscoveryTrace } from "./investigator-trace";
 
@@ -28,18 +28,37 @@ function observedUrlsFromTrajectory(trajectory:string[], records:AgenticTrajecto
   }
   return observed;
 }
-function claimGradeSourceUrlsFromTrajectory(records: AgenticTrajectoryRecord[] = []): Set<string> { const observed = new Set<string>(); for (const record of records) { if (record.execution !== "success" || (record.action !== "visit" && record.action !== "browser_fetch")) continue; for (const raw of record.observedUrls ?? []) { const normalized = normalizeObservedUrl(raw); if (normalized) observed.add(normalized); } } return observed; }
-function claimAppearsInObservedMaterial(finding:AgenticFinding,records:AgenticTrajectoryRecord[]):boolean {
+function isReviewableObservation(record: AgenticTrajectoryRecord): boolean {
+  return record.execution === "success"
+    && isClaimGradeObservationAction(record.action)
+    && typeof record.observation === "string"
+    && record.observation.trim().length > 0;
+}
+function claimGradeSourceUrlsFromTrajectory(records: AgenticTrajectoryRecord[] = []): Set<string> {
+  const observed = new Set<string>();
+  for (const record of records) {
+    if (!isReviewableObservation(record)) continue;
+    for (const raw of record.observedUrls ?? []) {
+      const normalized = normalizeObservedUrl(raw);
+      if (normalized) observed.add(normalized);
+    }
+  }
+  return observed;
+}
+function claimAppearsInObservedMaterial(finding: AgenticFinding, records: AgenticTrajectoryRecord[]): boolean {
   const sources = new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)));
   if (!sources.size || !finding.value.trim()) return false;
   const observations = records
-    .filter((record) => record.execution === "success" && typeof record.observation === "string" && (record.action === "visit" || record.action === "browser_fetch"))
+    .filter((record) => isReviewableObservation(record))
     .map((record) => ({
       observationText: record.observation ?? "",
-      sourceUrls: record.observedUrls.map(normalizeObservedUrl).filter((url): url is string => url !== null && sources.has(url)),
+      sourceUrls: (record.observedUrls ?? []).map(normalizeObservedUrl).filter((url): url is string => url !== null && sources.has(url)),
     }))
     .filter((record) => record.sourceUrls.length > 0);
-  return supportsContactClaimAcrossObservations(observations,finding,finding.value,finding.vectorType);
+  // Reviewable output may join complementary sources, but every cited URL must
+  // support exact identity or value text. Trusted promotion uses the stricter
+  // same-observation co-binding gate in bureau-contact-persist-strict.ts.
+  return supportsReviewableClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
 }
 export function sourceBackedAgenticFindings(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]):AgenticFinding[]{const observed=claimGradeSourceUrlsFromTrajectory(records);return findings.filter((f)=>Array.isArray(f.sourceUrls)).map((f)=>({...f,sourceUrls:[...new Set(f.sourceUrls.map(normalizeObservedUrl).filter((url):url is string=>Boolean(url)))]})).filter((f)=>f.sourceUrls.length>0&&f.sourceUrls.every((url)=>observed.has(url))&&claimAppearsInObservedMaterial(f,records));}
 export function findingsToContactEvidence(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>({vectorType:f.vectorType,value:f.value,scope:f.scope==="candidate"?"candidate":"organization",personName:f.scope==="candidate"?f.personName:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:f.note}));}
@@ -123,10 +142,10 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
     for(const record of offsetRecords.filter((candidate)=>input.finalize===true&&candidate.action==="done"&&candidate.execution==="success")){
       for(const[findingIndex,finding]of record.findings.entries()){
         if(!claimAppearsInObservedMaterial(finding,groundingRecords))continue;
-        const observationTurns=offsetRecords.filter((candidate)=>candidate.execution==="success"&&(candidate.action==="visit"||candidate.action==="browser_fetch")&&candidate.observedUrls.some((url)=>finding.sourceUrls.some((source)=>normalizeObservedUrl(url)===normalizeObservedUrl(source)))).map((candidate)=>candidate.turn).filter((turn,index,turns)=>turns.indexOf(turn)===index);
+        const observationTurns=offsetRecords.filter((candidate)=>isReviewableObservation(candidate)&&candidate.observedUrls.some((url)=>finding.sourceUrls.some((source)=>normalizeObservedUrl(url)===normalizeObservedUrl(source)))).map((candidate)=>candidate.turn).filter((turn,index,turns)=>turns.indexOf(turn)===index);
         const citedUrls=new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url):url is string=>Boolean(url)));
         const observationEventIds:number[] = groundingRecords
-          .filter((candidate)=>candidate.durableEventId!=null&&candidate.execution==="success"&&(candidate.action==="visit"||candidate.action==="browser_fetch")&&candidate.observedUrls.some((url)=>{const normalized=normalizeObservedUrl(url);return normalized!==null&&citedUrls.has(normalized);}))
+          .filter((candidate)=>candidate.durableEventId!=null&&isReviewableObservation(candidate)&&candidate.observedUrls.some((url)=>{const normalized=normalizeObservedUrl(url);return normalized!==null&&citedUrls.has(normalized);}))
           .map((candidate)=>candidate.durableEventId!);
         for(const turn of observationTurns){const key=`${input.runId}:turn:${turn}:trajectory`;const id=(await tx.select({id:researchCaseEventsTable.id}).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId,caseId),eq(researchCaseEventsTable.correlationKey,key))).limit(1))[0]?.id;if(id)observationEventIds.push(id);}
         const uniqueObservationEventIds=[...new Set(observationEventIds)].sort((a,b)=>a-b);
