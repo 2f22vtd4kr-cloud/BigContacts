@@ -8,8 +8,6 @@ const clean = (v: unknown) => String(v ?? "").replace(/\s+/g, " ").trim().slice(
 
 export function classifyApexError(input: unknown, status?: number): ApexUserError {
   const raw = clean(input), lower = raw.toLowerCase();
-  if (lower.includes("gemini boss") || (lower.includes("gemini") && (lower.includes("503") || lower.includes("high demand") || lower.includes("unavailable"))))
-    return {code:"GEMINI_BOSS_UNAVAILABLE",severity:"degraded",title:"Apex is waiting on Gemini Boss",message:"The planning model is temporarily unavailable. Apex stopped before research so it would not produce unsupported results.",why:"Gemini returned a temporary service-unavailable response or the selected model is under heavy demand.",nextSteps:["Wait a little and retry the same run.","Check System Status if the problem persists.","No Investigator fallback is used here because Gemini Boss and Investigator have different roles."],retryable:true,provider:"Gemini"};
   if (status===401 || status===403 || /unauthorized|authentication/i.test(lower))
     return {code:"AUTH_REQUIRED",severity:"critical",title:"Operator authentication is required",message:"Apex could not authorize this action.",why:"The session may have expired or the API rejected the current credentials.",nextSteps:["Sign in again.","If sign-in keeps failing, check operator authentication and restart the API."],retryable:true};
   if (status===409 || /already running|active run/.test(lower))
@@ -18,6 +16,11 @@ export function classifyApexError(input: unknown, status?: number): ApexUserErro
     return {code:"PROVIDER_TIMEOUT",severity:"warning",title:"A research service took too long",message:"Apex stopped or skipped the affected step rather than waiting indefinitely.",why:"External providers and web sources can become slow or unreachable.",nextSteps:["Retry the run.","Try a lighter research depth if repeated timeouts occur.","Check System Status for provider health."],retryable:true};
   if (status===429 || /rate limit|quota|too many requests/.test(lower))
     return {code:"PROVIDER_RATE_LIMIT",severity:"warning",title:"A provider is rate-limited",message:"A research provider has temporarily limited requests.",why:"The provider quota or rate limit was reached.",nextSteps:["Wait for the provider window to recover.","Retry later.","Review provider quotas in System Status if it keeps happening."],retryable:true};
+  // Treat Gemini Boss as temporarily unavailable only when the evidence supports that diagnosis.
+  // Provider identity alone is not a failure class: auth, quota, timeout, and configuration
+  // failures must retain their own remediation rather than being mislabeled as service demand.
+  if (lower.includes("gemini") && (status === 503 || /high demand|service unavailable|temporarily unavailable/.test(lower)) && !/quota|rate limit|too many requests|missing.*(?:key|secret|credential)/.test(lower))
+    return {code:"GEMINI_BOSS_UNAVAILABLE",severity:"degraded",title:"Apex is waiting on Gemini Boss",message:"The planning model is temporarily unavailable. Apex stopped before research so it would not produce unsupported results.",why:"Gemini returned a temporary service-unavailable response or the selected model is under heavy demand.",nextSteps:["Wait a little and retry the same run.","Check System Status if the problem persists.","No Investigator fallback is used here because Gemini Boss and Investigator have different roles."],retryable:true,provider:"Gemini"};
   if (/missing/.test(lower) && /key|secret|credential/.test(lower))
     return {code:"MISSING_CREDENTIAL",severity:"critical",title:"A required provider credential is missing",message:"Apex cannot complete this research step until the required provider is configured.",why:"The API started, but a required secret is not available to the runtime.",nextSteps:["Open System Status to identify the missing provider.","Add the required secret in the deployment environment.","Restart the API and retry."],retryable:false};
   if (/redis/.test(lower) && /unavailable|failed|error/.test(lower))
