@@ -90,8 +90,8 @@ export function buildTargetActRightHandPrompt(input:{
   const targetName=compactOversightText(input.targetName,240)??"unknown";
   const targetType=compactOversightText(input.targetType,120)??"unknown";
   const objective=compactOversightText(input.objective,1_600)??"";
-  const currentActPrompt=boundOversightPromptSection(JSON.stringify(input.currentAct),3_500);
-  const recentActsPrompt=boundOversightPromptSection(JSON.stringify(input.recentActs),4_500);
+  const currentActPrompt=boundOversightPromptSection(JSON.stringify(sanitizeObservableValue(input.currentAct)),3_500);
+  const recentActsPrompt=boundOversightPromptSection(JSON.stringify(sanitizeObservableValue(input.recentActs)),4_500);
   const prompt=`You are reviewing ONE completed Investigator act in an active target-scoped Apex Atlas investigation. You are the Right Hand, not the Investigator. Do not browse, do not select a tool, and do not invent evidence.
 
 Identify whether the act is useful, redundant, identity-risky, unsupported, contradictory, or likely to justify a different research question. Give Groq Right-hand concise advisory input for the next act. Do not make the final continuation decision. Do not provide a tool/provider/query/URL sequence.
