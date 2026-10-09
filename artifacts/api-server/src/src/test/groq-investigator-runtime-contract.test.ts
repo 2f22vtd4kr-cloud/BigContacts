@@ -93,7 +93,11 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties).toHaveProperty("profile");
     expect(schema?.properties).toHaveProperty("locale");
     expect(schema?.properties).toHaveProperty("market");
-    expect(schema?.required).toEqual(expect.arrayContaining(["target", "targetType", "profile", "locale", "market"]));
+    expect(schema?.properties?.provider).toMatchObject({
+      type: ["string", "null"],
+      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null],
+    });
+    expect(schema?.required).toEqual(expect.arrayContaining(["target", "targetType", "profile", "locale", "market", "provider"]));
   });
 
   it("does not down-route Investigator work by cognitive-task heuristics", () => {
