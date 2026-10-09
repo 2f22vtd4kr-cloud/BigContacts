@@ -12,7 +12,7 @@ describe("Bureau SSE close/snapshot race contract", () => {
   it("registers close handling before async snapshot/timer startup", () => {
     const source = readRoute();
     const timerDeclarations = source.indexOf("let pollId: NodeJS.Timeout | undefined;");
-    const closeHandler = source.indexOf("req.on(\"close\", close);");
+    const closeHandler = source.indexOf("res.on(\"close\", close);");
     const snapshotAwait = source.indexOf("await sendSnapshot().catch(() => undefined);");
     const closedGuard = source.indexOf("if (closed) return;\n\n  pollId = setInterval");
 
@@ -26,7 +26,8 @@ describe("Bureau SSE close/snapshot race contract", () => {
     const source = readRoute();
     expect(source).toContain("if (pollId) clearInterval(pollId);");
     expect(source).toContain("if (hbId) clearInterval(hbId);");
-    expect(source).toContain("req.on(\"close\", close);");
+    expect(source).toContain("res.on(\"close\", close);");
+    expect(source).not.toContain("req.on(\"close\", close);");
   });
 
   it("keeps the public HTTP event-ingest path permanently retired", () => {
