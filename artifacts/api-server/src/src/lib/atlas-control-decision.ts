@@ -51,6 +51,19 @@ function formatBossAttemptDiagnostics(attempts: Array<{ model: string; httpStatu
   return attempts.map((attempt) => `${attempt.model}:${attempt.httpStatus ?? "none"}${attempt.providerErrorCode ? `/${attempt.providerErrorCode}` : ""}`).join(",");
 }
 
+export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {
+  if (!value || !validateExactObjectFields(value, ["decision", "reason", "focusLanes", "confidence"])) return false;
+  const decision = typeof value.decision === "string" ? value.decision.trim() : "";
+  const reason = typeof value.reason === "string" ? value.reason.trim() : "";
+  const focusLanes = value.focusLanes;
+  return decision.length > 0 && decision.length <= 300
+    && reason.length > 0 && reason.length <= 1_200
+    && Array.isArray(focusLanes) && focusLanes.length <= 8
+    && focusLanes.every((lane) => typeof lane === "string" && lane.trim().length > 0 && lane.length <= 160)
+    && typeof value.confidence === "number" && Number.isFinite(value.confidence)
+    && value.confidence >= 0 && value.confidence <= 1;
+}
+
 export function validateAtlasBossControl(value: Record<string, unknown> | null): boolean {
   if (!value || !validateExactObjectFields(value, ["action", "candidateName", "direction", "reason", "confidence"])) return false;
   const action = typeof value.action === "string" ? value.action.trim().toLowerCase() : "";
@@ -111,6 +124,22 @@ export const ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT = {
       confidence: { type: "number" },
     },
     required: ["decision", "reason", "direction", "confidence"],
+    additionalProperties: false,
+  },
+} as const;
+
+export const ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT = {
+  type: "text",
+  mime_type: "application/json",
+  schema: {
+    type: "object",
+    properties: {
+      decision: { type: "string" },
+      reason: { type: "string" },
+      focusLanes: { type: "array", items: { type: "string" } },
+      confidence: { type: "number" },
+    },
+    required: ["decision", "reason", "focusLanes", "confidence"],
     additionalProperties: false,
   },
 } as const;
