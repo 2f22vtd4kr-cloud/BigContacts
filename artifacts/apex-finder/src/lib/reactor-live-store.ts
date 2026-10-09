@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { normalizeLiveActivities, type LiveActivity, type ReactorSpanLike } from "./reactor-live-model";
+import { readApiJson } from "./api-json";
 
 type StoreSnapshot = {
   runStatus: string;
@@ -65,11 +66,8 @@ async function pull(): Promise<void> {
       cache: "no-store",
       signal: myController.signal,
     });
-    if (!activeResponse.ok) {
-      if (myGeneration === generation && listeners.size > 0) emit(EMPTY);
-      return;
-    }
-    const activeData = await activeResponse.json() as Record<string, unknown>;
+    if (!activeResponse.ok) return;
+    const activeData = await readApiJson(activeResponse) as Record<string, unknown>;
     if (myGeneration !== generation || listeners.size === 0) return;
 
     const job = activeData?.job && typeof activeData.job === "object"
@@ -95,7 +93,7 @@ async function pull(): Promise<void> {
           signal: myController.signal,
         });
         if (traceResponse.ok) {
-          const traceData = await traceResponse.json() as Record<string, unknown>;
+          const traceData = await readApiJson(traceResponse) as Record<string, unknown>;
           rawSpans = Array.isArray(traceData?.trace) ? traceData.trace : [];
         }
       } catch (error) {
@@ -109,9 +107,9 @@ async function pull(): Promise<void> {
     const activities = normalizeLiveActivities(rawSpans as ReactorSpanLike[], 50);
     emit({ runStatus, activities });
   } catch (error) {
-    if (myGeneration === generation && !(error instanceof DOMException && error.name === "AbortError")) {
-      emit(EMPTY);
-    }
+    // A transport or malformed-payload failure is not proof of an idle Atlas run.
+    // readApiJson surfaces malformed successful responses; preserve the last snapshot.
+    if (error instanceof DOMException && error.name === "AbortError") return;
   } finally {
     // Only the current pull may clear the shared controller reference or arm
     // the next timer. Stale pulls can finish after a newer pull has started.
