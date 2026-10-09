@@ -137,7 +137,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
   acquireCoreRunSlot();
   const executionId = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const selectedInvestigator = input.investigatorLlm ?? "unknown";
-  const scope = input.caseId != null ? `agentic:case:${input.caseId}:investigator:${selectedInvestigator}` : `agentic:${executionId}:investigator:${selectedInvestigator}`;
+  const scope = input.caseId != null ? `agentic:case:${input.caseId}:run:${executionId}:investigator:${selectedInvestigator}` : `agentic:${executionId}:investigator:${selectedInvestigator}`;
   try {
     return await withAgenticExecutionScope(scope, async () => {
       const core = await import("./agentic-web-research-core");
