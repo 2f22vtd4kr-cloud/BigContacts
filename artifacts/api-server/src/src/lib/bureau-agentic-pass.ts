@@ -10,11 +10,12 @@ import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEnti
 import { publishBureauEvent } from "./bureau-live-log";
 import { recordDiscoveryTrace } from "./investigator-trace";
 import { spanFromLiveStep } from "./dig-span";
+import { sanitizeUrlForEvidence } from "./url-privacy";
 
 export type BureauAgenticPassResult = { status:"completed"|"unavailable"|"error"|"skipped"|"timeout"|"cancelled"; model:string; iterations:number; searches:number; visits:number; findings:AgenticFinding[]; modelFindings?:AgenticFinding[]; contactEvidence:Array<{vectorType:string;value:string;scope:string;personName:string|null;role:string|null;sourceUrls:string[];note:string}>; trajectory:string[]; trajectoryRecords?:AgenticTrajectoryRecord[]; caseId?:number; runId?:string; stopReason?:string; error?:string };
 const WEB_SPECIALISTS=new Set(["web","contact","footprint"]);
 export function isWebSpecialistAction(specialistId:string|null|undefined):boolean{return WEB_SPECIALISTS.has(String(specialistId??"").toLowerCase());}
-function normalizeObservedUrl(raw:string):string|null{try{const url=new URL(raw);if(!/^https?:$/i.test(url.protocol))return null;url.hash="";url.hostname=url.hostname.toLowerCase();return url.href.endsWith("/")?url.href.slice(0,-1):url.href;}catch{return null;}}
+function normalizeObservedUrl(raw:string):string|null{try{const safe=sanitizeUrlForEvidence(raw);if(safe.startsWith("["))return null;const url=new URL(safe);if(!/^https?:$/i.test(url.protocol))return null;url.hash="";url.hostname=url.hostname.toLowerCase();return url.href.endsWith("/")?url.href.slice(0,-1):url.href;}catch{return null;}}
 function observedUrlsFromTrajectory(trajectory:string[], records:AgenticTrajectoryRecord[]=[]):Set<string>{
   const observed=new Set<string>();
   for(const record of records){
