@@ -32,6 +32,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
   const [current] = await db.select().from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!current) { res.status(404).json({ error: "Target case not found" }); return; }
   const file = parseFile(current.caseFile); if (!file || file.target == null || current.caseType !== "target") { res.status(409).json({ error: "Only a canonical target case can run target continuation" }); return; }
   if (!Number.isInteger(Number(current.targetEntityId)) || Number(current.targetEntityId) <= 0) { res.status(409).json({ error: "Target case has no durable target entity" }); return; }
+  const targetEntityId = Number(current.targetEntityId);
   const active = await getActiveJob("atlas-run"); if (active) { const existing = await getJob(active); if (existing?.status === "running" || existing?.status === "queued") { res.status(409).json({ error: "An Atlas investigation is already running.", jobId: active }); return; } }
   let contextDocument: string; try { contextDocument = contextOf(file); } catch (error) { res.status(409).json({ error: error instanceof Error ? error.message : "Durable target context is missing." }); return; }
   let jobId: string | null = null;
@@ -52,7 +53,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
         status: researchCasesTable.status,
         currentAction: researchCasesTable.currentAction,
       }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
-      if (!locked || locked.caseType !== "target" || locked.targetEntityId !== current.targetEntityId) {
+      if (!locked || locked.caseType !== "target" || locked.targetEntityId !== targetEntityId) {
         throw Object.assign(new Error("Target continuation case binding changed before control authorization."), { statusCode: 409 });
       }
       if (locked.caseFile !== current.caseFile) {
@@ -75,7 +76,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
         .where(and(
           eq(researchCasesTable.id, caseId),
           eq(researchCasesTable.caseType, "target"),
-          eq(researchCasesTable.targetEntityId, current.targetEntityId),
+          eq(researchCasesTable.targetEntityId, targetEntityId),
           cancellationFenceSql(caseId),
         ))
         .returning({ id: researchCasesTable.id });
