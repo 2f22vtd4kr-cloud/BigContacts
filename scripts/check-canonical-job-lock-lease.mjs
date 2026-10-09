@@ -10,6 +10,7 @@ const checks = [
   ["owner-bound heartbeat exists", /renewCanonicalJob/.test(lock) && /ARGV\[1\]/.test(lock)],
   ["renewal cannot replace another owner", /== ARGV\[1\].*expire/s.test(lock)],
   ["lease loss durably fences bound cases", /fenceLeaseLostCases[\s\S]*status: "review"[\s\S]*canonical-lease-lost/.test(lock)],
+  ["lease-loss fencing preserves terminal job snapshots", lock.includes("if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end")],
   ["lease loss fences both target and discovery job bindings", /atlasJobId/.test(lock) && /jobId/.test(lock)],
   ["release remains owner-bound", /releaseCanonicalJob[\s\S]*redis\.eval/.test(lock)],
   ["canonical lease transitions invalidate the job-state cache", /invalidateActiveJobCache\(type\)/.test(lock)],
