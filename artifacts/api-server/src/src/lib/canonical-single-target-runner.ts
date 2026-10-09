@@ -5,6 +5,7 @@ import { getJobStrict, updateJob } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runTargetContactAgent } from "./target-contact-agent";
+import { persistSourceBackedBureauContactsForEntity } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth, type ResearchDepth } from "./research-depth";
 import { buildInvestigatorContext, compactInvestigationContext, type CompactionFinding, type CompactionTrajectoryRecord } from "./investigation-context-compaction";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
@@ -333,6 +334,31 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       recentActs: recentActs.slice(-4),
       jobId: atlasJobId,
     });
+    // The target agent may persist review-only candidate evidence before this point,
+    // but strict card-field promotion must wait until Boss/Right-hand oversight has
+    // durably written the immutable control-decision evidence graph for this run.
+    if (
+      latestResult.status === "completed"
+      && lastOversight.status === "completed"
+      && (lastOversight.evidenceGraphCount ?? 0) > 0
+      && (latestResult.promotionCandidates?.length ?? 0) > 0
+      && latestResult.promotionProvenance
+    ) {
+      const promotionJob = await getJobStrict(atlasJobId);
+      if (!promotionJob) throw new Error("Canonical Atlas job record missing before post-oversight contact promotion.");
+      if (promotionJob.status === "cancelled") { cancelled = true; break; }
+      if (promotionJob.status === "failed") break;
+      if (promotionJob.status !== "running") throw new Error("Canonical Atlas job is not running; refusing post-oversight contact promotion.");
+      if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost before post-oversight contact promotion.");
+      await persistSourceBackedBureauContactsForEntity(
+        target.id,
+        latestResult.promotionCandidates,
+        `target-contact-agentic:${atlasJobId}`,
+        atlasJobId,
+        latestResult.observedSourceUrls ?? [],
+        latestResult.promotionProvenance,
+      );
+    }
     recentActs.push(currentAct);
     if (recentActs.length > 4) recentActs.splice(0, recentActs.length - 4);
     const refreshed = await loadCase(caseRow.id); if (!refreshed) { lastOversight = null; break; } caseState = parseCaseFile(refreshed.caseFile ?? null); lastOversight = readOversight(caseState, latestResult.executionId ?? null, actNumber); const durableAfterAct = await loadDurableTargetTrajectory(caseRow.id); contextDocument = durableAfterAct.records.length ? buildInvestigatorContext({ targetName: target.name, companyName, objective: caseRow.objective, mode: "target", trajectoryRecords: durableAfterAct.records, lastObservation: durableAfterAct.records[durableAfterAct.records.length - 1]?.observation ?? "", findings: durableAfterAct.findings }) : appendDurableActContext(typeof caseState.contextDocument === "string" ? caseState.contextDocument : actContext, actNumber, latestResult, lastOversight); caseState.contextDocument = contextDocument; await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...caseState, contextDocument, lastOversight }), currentAction: latestResult.status === "completed" ? `investigator-act-${actNumber + 1}` : "investigator-act-failed", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)); const jobAfterAct = await getJobStrict(atlasJobId); if (!jobAfterAct) throw new Error("Canonical Atlas job record missing after target act; terminal state is unknown."); if (jobAfterAct.status === "cancelled") { cancelled = true; break; } if (jobAfterAct.status === "failed") break; if (jobAfterAct.status !== "running") throw new Error("Canonical Atlas job is not running after target act; refusing continuation."); if (latestResult.status !== "completed") break; if (!lastOversight || lastOversight.status !== "completed") break; if (lastOversight.action === "stop") break;
