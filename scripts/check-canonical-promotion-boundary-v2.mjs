@@ -17,6 +17,7 @@ const continuation = read("artifacts/api-server/src/src/routes/research/canonica
 const researchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
 const investigatorCore = read("artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
+const investigatorTrace = read("artifacts/api-server/src/src/lib/investigator-trace.ts");
 const terminalGate = read("artifacts/api-server/src/src/lib/research-terminal-gate.ts");
 const entityTaxonomy = read("artifacts/apex-finder/src/lib/entity-taxonomy.tsx");
 const entityPage = read("artifacts/apex-finder/src/pages/entities.tsx");
@@ -60,6 +61,7 @@ assert(entityPage.includes('"PersonCandidate"') && entityPage.includes("Candidat
 assert(entityRoute.includes('"Gatekeeper", "PersonCandidate"].includes(String(draft.type))'), "entity import API must round-trip PersonCandidate rather than coercing it to HNWI");
 assert(entityPage.includes('r.type === "PersonCandidate" ? "PersonCandidate"'), "entity editor must preserve PersonCandidate on add/edit round-trip");
 assert(migrations.includes("NOT IN ('HNWI', 'Gatekeeper', 'PersonCandidate')") && legacyMigrations.includes("PersonCandidate"), "type-reclassification routes must not reinterpret review candidates as HNWIs or organizations");
+assert(investigatorTrace.includes("Math.max(...existingSlots.map((s) => Number(s?.slot) || 0)) + 1") && investigatorTrace.includes("slots: slots.slice(-MAX_SLOTS)") && !investigatorTrace.includes("Math.min(MAX_SLOTS - 1"), "bounded Investigator telemetry retains newest records instead of permanently dropping records after the first ten");
 assert(terminalGate.includes("hasExplicitFalsificationAttempt(context)") && terminalGate.includes("action.execution !== \"success\"") && terminalGate.includes("intent.test(purpose)") && !terminalGate.includes("context.falsification.priority < 0.35"), "required falsification must be evidenced by a successful explicit disconfirmation action, not inferred from a low heuristic score");
 assert(atlas.includes("runCanonicalSingleTargetInvestigation"), "Atlas routes admitted targets through canonical single-target control");
 assert(hasAll(atlas, ["reviewOnly: true", "admission: \"investigator-explicit-promotion\"", "sourceUrl", "target-scoped Investigator research required"]), "discovery admission remains review-only identity state with source provenance and requires target-scoped research before contact promotion");
