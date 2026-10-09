@@ -63,7 +63,7 @@ describe("Apex Atlas prompt budget optimization", () => {
       history: Array.from({ length: 50 }, (_, i) => "history " + i + " ".repeat(400)),
       trajectoryRecords: Array.from({ length: 40 }, (_, i) => ({
         turn: i + 1, model: "groq-test", action: "visit", args: {}, execution: "success",
-        observedUrls: ["https://source-" + i + ".example/page"], observation: "observation ".repeat(800), findings: [],
+        observedUrls: ["https://source-" + i + ".example/page"], observation: (i === 39 ? "LATEST_OBSERVATION_SENTINEL " : "") + "observation ".repeat(800), findings: [],
       })),
       lastObservation: "latest ".repeat(2_000),
       findings: [],
@@ -73,6 +73,9 @@ describe("Apex Atlas prompt budget optimization", () => {
     const systemInstruction = apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only.";
     expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(7_200);
     expect(prompt.length).toBeLessThanOrEqual(7_200 - systemInstruction.length);
+    expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(prompt).toContain("LATEST TRAJECTORY RECORD");
+    expect(prompt).toContain("LATEST_OBSERVATION_SENTINEL");
   });
 
   it("does not duplicate a giant Investigator report into the control prompt budget", () => {
