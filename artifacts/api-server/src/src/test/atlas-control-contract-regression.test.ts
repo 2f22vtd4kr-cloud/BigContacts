@@ -270,4 +270,15 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("Right-hand returned an empty opening review response.");
     expect(canonicalDiscoverySource).toContain("if (rightHand.error || rightHand.status !== \"completed\")");
   });
+
+  it("merges each Boss-directed discovery episode into cumulative state exactly once", () => {
+    // The cumulative merge belongs at the continuation boundary. A second
+    // spread from nextDiscovery inflated all counts and duplicated findings,
+    // trajectory entries, and provenance after each successful pivot.
+    expect(canonicalDiscoverySource.match(/discovery = mergeDiscoveryResults\\(discovery, nextDiscovery\\);/g)).toHaveLength(1);
+    expect(canonicalDiscoverySource).not.toContain(
+      "searches: discovery.searches + nextDiscovery.searches, visits: discovery.visits + nextDiscovery.visits, iterations: discovery.iterations + nextDiscovery.iterations",
+    );
+  });
+
 });
