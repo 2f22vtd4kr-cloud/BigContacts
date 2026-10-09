@@ -1,11 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
 const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
+const canonicalDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
   it("records an Investigator provider-error turn before fail-closed termination", () => {
@@ -244,5 +245,29 @@ describe("Atlas control-plane contract regression", () => {
       direction: null,
       confidence: 0.8,
     })).toBe(false);
+  });
+
+  it("requires a complete, bounded schema-valid opening Right-hand review before Investigator execution", () => {
+    const valid = {
+      decision: "Proceed, with source-quality caution",
+      reason: "The assignment is coherent but the first evidence should come from a primary source.",
+      focusLanes: ["official leadership page", "registry records"],
+      confidence: 0.82,
+    };
+    expect(validateAtlasOpeningRightHandReview(valid)).toBe(true);
+    expect(validateAtlasOpeningRightHandReview(null)).toBe(false);
+    expect(validateAtlasOpeningRightHandReview({ ...valid, unexpected: true })).toBe(false);
+    expect(validateAtlasOpeningRightHandReview({ ...valid, reason: "  " })).toBe(false);
+    expect(validateAtlasOpeningRightHandReview({ ...valid, focusLanes: [""] })).toBe(false);
+    expect(validateAtlasOpeningRightHandReview({ ...valid, focusLanes: Array.from({ length: 9 }, () => "lane") })).toBe(false);
+    expect(validateAtlasOpeningRightHandReview({ ...valid, confidence: 1.2 })).toBe(false);
+    expect(validateAtlasOpeningRightHandReview({ ...valid, decision: "d".repeat(301) })).toBe(false);
+
+    expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.required).toEqual(["decision", "reason", "focusLanes", "confidence"]);
+    expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.additionalProperties).toBe(false);
+    expect(canonicalDiscoverySource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
+    expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandReview(parsed)");
+    expect(canonicalDiscoverySource).toContain("Right-hand returned an empty opening review response.");
+    expect(canonicalDiscoverySource).toContain("if (rightHand.error || rightHand.status !== \"completed\")");
   });
 });
