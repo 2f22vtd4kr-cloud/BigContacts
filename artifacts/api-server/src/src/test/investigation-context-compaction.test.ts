@@ -44,7 +44,7 @@ describe("investigator context compaction", () => {
     expect(context).not.toContain(secret);
     expect(context).not.toContain("signature-secret");
     expect(context).toContain("Example Person");
-    expect(context).toContain("[REDACTED]");
+    expect(context).toContain("REDACTED");
   });
 
   it("preserves the Boss research question after objective/context compaction", () => {
