@@ -127,19 +127,18 @@ If a test passes but runtime evidence contradicts it, preserve both facts and in
 
 ## Rule 5 — Architecture law
 
-The agent must preserve:
+The agent must preserve the architecture implemented on current `main`:
 
-- Gemini Boss;
-- Gemini Right-hand;
-- Groq/Mistral Investigator pool;
-- model-owned research trajectory;
-- real capability execution;
-- durable evidence;
-- provenance;
-- contradiction/identity state;
-- deterministic promotion;
-- truthful failures;
-- resource ceilings.
+- Groq Boss owns case direction and Investigator-capability selection;
+- Groq Right-hand provides independent bounded oversight, not research/tool selection;
+- the selected Groq Investigator capability owns the research trajectory;
+- configured role-scoped Groq Investigator credential slots are capabilities, not a scripted model/provider ladder;
+- actual model-selected capability execution, observations, durable evidence, provenance, identity hypotheses, contradictions, and contact attribution;
+- deterministic source-backed admission/promotion and evidence-backed terminal state;
+- truthful typed provider/tool/system failures;
+- cancellation, authorization, SSRF/egress and resource ceilings.
+
+Gemini/Mistral control or Investigator references in older incident documents are historical; they must not override `README.md`, `docs/context.md`, or executable code on current `main`.
 
 Do not turn the architecture into a scripted enrichment pipeline.
 
@@ -186,9 +185,9 @@ Never use “make boot green” as the only migration criterion.
 
 Verify actual provider identity from execution records.
 
-The Investigator provider must be Groq or Mistral.
+The canonical Investigator is a Boss-selected Groq capability. Groq is also the canonical provider family for Boss and Right-hand oversight.
 
-Gemini is oversight/control.
+Gemini, Mistral and DeepSeek/NVIDIA are retired from the canonical control/Investigator path.
 
 Provider failures are not successful research.
 
