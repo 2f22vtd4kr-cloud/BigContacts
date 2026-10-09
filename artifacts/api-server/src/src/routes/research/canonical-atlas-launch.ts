@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { and, eq, or, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
-import { createJob, getActiveJobStrict, getJob, updateJob } from "../../lib/job-queue";
+import { createJob, getActiveJobStrict, getJob, getJobStrict, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
@@ -50,7 +50,11 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
 
   const existingId = await getActiveJobStrict("atlas-run");
   if (existingId) {
-    const existing = await getJob(existingId);
+    const existing = await getJobStrict(existingId);
+    if (!existing) {
+      res.status(503).json({ error: "Atlas launch lock points to a missing job record; refusing to assume the lane is idle.", code: "JOB_STATE_INCONSISTENT", jobId: existingId });
+      return;
+    }
     // A lock owner is authoritative until its job reaches a terminal state.
     // This includes queued jobs: superseding one during the tiny window between
     // lock claim and job-state persistence could orphan a live pipeline owner.
@@ -172,6 +176,17 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
   const requestedJobId = typeof req.body?.jobId === "string" ? req.body.jobId.trim() : "";
   if (requestedJobId && requestedJobId !== activeJobId) {
     res.status(409).json({ ok: false, message: "Requested job is not the active Atlas job.", activeJobId });
+    return;
+  }
+  let activeJob;
+  try {
+    activeJob = await getJobStrict(activeJobId);
+  } catch {
+    res.status(503).json({ ok: false, code: "JOB_STATE_UNAVAILABLE", message: "Atlas cannot confirm the job record because the job-state store is unavailable; no stop was claimed." });
+    return;
+  }
+  if (!activeJob) {
+    res.status(503).json({ ok: false, code: "JOB_STATE_INCONSISTENT", message: "Atlas active-job lock points to a missing job record; no stop was claimed." });
     return;
   }
   const now = new Date();
