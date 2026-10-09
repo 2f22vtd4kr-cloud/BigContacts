@@ -82,6 +82,31 @@ describe("Apex research intelligence", () => {
     expect(after.atomicEvidence.map((item) => item.claim)).toEqual(before.atomicEvidence.map((item) => item.claim));
   });
 
+  it("keeps hypothesis confidence stable across reads and updates it only with new evidence", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "stable-posterior", target: "Jordan Example", objective: "resolve identity" });
+    const record = (turn: number, url: string) => engine.recordAction({
+      turn,
+      action: "visit",
+      execution: "success",
+      args: { hypothesis: "Jordan Example is director of Alpha", purpose: "verify the Alpha affiliation" },
+      urls: [url],
+      observation: "Jordan Example is director of Alpha",
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: [url], note: "source observation" }],
+    });
+
+    record(1, "https://one.example/profile");
+    const first = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha")!;
+    const repeatedRead = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha")!;
+    expect(repeatedRead.score).toBeCloseTo(first.score);
+
+    record(2, "https://two.example/profile");
+    const corroborated = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha")!;
+    expect(corroborated.supportingEvidenceIds).toHaveLength(2);
+    expect(corroborated.score).toBeGreaterThan(first.score);
+    const repeatedCorroboratedRead = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha")!;
+    expect(repeatedCorroboratedRead.score).toBeCloseTo(corroborated.score);
+  });
+
   it("keeps competing identity hypotheses explicit", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "hypotheses", target: "Jordan Example", objective: "resolve identity" });
     engine.addHypothesis({ label: "H1", entity: "Jordan Example A", score: 0.9 });
