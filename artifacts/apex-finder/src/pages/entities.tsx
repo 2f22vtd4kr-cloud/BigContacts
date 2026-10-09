@@ -36,7 +36,7 @@ interface AddEntityForm {
 
 interface RegistryResult {
   name: string;
-  type: "Corporation" | "HNWI" | "Gatekeeper";
+  type: "Corporation" | "HNWI" | "Gatekeeper" | "Trust" | "PersonCandidate";
   nationality?: string;
   knownResidences?: string;
   sourceRegistries?: string;
@@ -953,7 +953,7 @@ export default function EntityLedger() {
     catch { regsStr = r.sourceRegistries ?? ""; }
     openAddModal({
       name: r.name,
-      type: r.type === "Corporation" ? "Corporation" : r.type === "Gatekeeper" ? "Gatekeeper" : "HNWI",
+      type: r.type === "Corporation" || r.type === "Corp" ? "Corporation" : r.type === "Trust" ? "Trust" : r.type === "Gatekeeper" ? "Gatekeeper" : r.type === "PersonCandidate" ? "PersonCandidate" : "HNWI",
       nationality: r.nationality ?? "",
       knownResidences: r.knownResidences ?? "",
       notes: r.notes ?? "",
