@@ -1,6 +1,6 @@
 # Apex Atlas / BigContacts — Living Context
 
-> **Updated:** 2026-10-06  
+> **Updated:** 2026-10-09  
 > **Canonical branch:** `main`  
 > **Status:** active architecture handoff; static correctness is not production/live-research certification.
 
@@ -184,7 +184,7 @@ Static architecture gates are necessary but do not establish empirical research 
 
 Before production publication:
 
-1. current `main) passes the required architecture/type/build/test gates;
+1. current `main` passes the required architecture/type/build/test gates;
 2. schema initializes explicitly and normal boot runs with mutation disabled;
 3. canonical API boots and health is verified;
 4. Groq Boss and Groq Right-hand execute with role-scoped credentials;
@@ -196,6 +196,10 @@ Before production publication:
 
 Until those gates are met, describe the system as architecturally reviewed rather than production-certified.
 
-## 13. Historical material
+## 13. Security hardening note — 2026-10-09
+
+The SSRF-safe fetch boundary checks parsed IP literals and DNS answers before pinning a request to the chosen resolved address. IPv4-mapped IPv6 destinations are evaluated against their embedded IPv4 address; non-global, transition and special-purpose ranges are rejected. Regression coverage now includes IPv6 documentation space and `5f00::/16` SRv6 SID space. This is a source-level safeguard, not proof of every third-party browser proxy's egress policy, a production network, or live Replit acceptance.
+
+## 14. Historical material
 
 Older provider-specific incidents and migration notes remain in repository history and archived documents. They are historical evidence only. They must not override this current section or reintroduce retired control-plane providers.
