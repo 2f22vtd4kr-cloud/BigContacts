@@ -605,9 +605,19 @@ function groqTokenWindowWaitMs(response: Response, body: string): number | null 
 
 function groqHardRequestQuota(response: Response, body: string): boolean {
   if (response.status !== 429) return false;
-  const remainingRequests = Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
-  if (Number.isFinite(remainingRequests) && remainingRequests === 0) return true;
-  return providerErrorCode(body) === "quota_exceeded" || providerErrorCode(body) === "insufficient_quota";
+  const code = providerErrorCode(body);
+  if (code === "quota_exceeded" || code === "insufficient_quota") return true;
+
+  // Groq can report zero remaining requests alongside a token-window 429.
+  // The explicit error type takes precedence over that snapshot so a temporary
+  // token window is not durably excluded as a hard request-quota failure.
+  try {
+    const parsed = JSON.parse(body) as { error?: { type?: unknown } };
+    if (typeof parsed.error?.type === "string" && parsed.error.type.toLowerCase() === "tokens") return false;
+  } catch {}
+
+  const remainingRequests = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-requests"));
+  return remainingRequests === 0;
 }
 
 async function callGroqJson(
