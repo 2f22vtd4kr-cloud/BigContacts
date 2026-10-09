@@ -28,11 +28,11 @@ import {
   type RegistryId,
 } from "../lib/registry-client";
 import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
-import { getCache, setCache } from "../lib/redis";
+import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
   createJob, updateJob, getJob, getJobLog,
-  setActiveJob, getActiveJob, clearDedup, getDedupCount,
+  setActiveJob, getActiveJob, getActiveJobStrict, clearDedup, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
 import { runFaaIngestion } from "../lib/faa-ingestor";
@@ -256,7 +256,14 @@ router.get("/ingest/job/active/:type", async (req, res): Promise<void> => {
   }
   // Phase D: never 404 when idle — multi-case queues treat empty as success.
   // Terminal statuses are done | failed | cancelled (not "completed").
-  const jobId = await getActiveJob(type);
+  let jobId: string | null;
+  try {
+    await enablePermanentRedis();
+    jobId = await getActiveJobStrict(type);
+  } catch {
+    res.status(503).json({ error: "Job state is unavailable; active status is unknown.", code: "JOB_STATE_UNAVAILABLE" });
+    return;
+  }
   if (!jobId) {
     res.status(200).json({ type, jobId: null, job: null, active: false });
     return;
