@@ -46,7 +46,7 @@ export function classifyExternalProvider(url:string):ExternalProvider{
  if(hostIsOrWithin(host,"whoxy.com"))return "whoxy";
  if(["duckduckgo.com","google.com","bing.com"].some((domain)=>hostIsOrWithin(host,domain)))return "search";
  if(
-   ["opencorporates.com","gleif.org","sec.gov","brreg.no","icij.org","occrp.org","offeneregister.de","allabolag.se","openkvk.nl","ares.gov.cz","prh.fi","boe.es","cvrapi.dk","economie.fgov.be","opendatasoft.com","zefix.ch","atoka.io"].some((domain)=>hostIsOrWithin(host,domain))
+   ["opencorporates.com","gleif.org","sec.gov","brreg.no","icij.org","occrp.org","offeneregister.de","allabolag.se","openkvk.nl","ares.gov.cz","prh.fi","boe.es","cvrapi.dk","economie.fgov.be","opendatasoft.com","zefix.ch","atoka.io","registroimprese.it"].some((domain)=>hostIsOrWithin(host,domain))
  )return "registry";
  if(hostIsOrWithin(host,"hunter.io"))return "osint";
  return "generic";
