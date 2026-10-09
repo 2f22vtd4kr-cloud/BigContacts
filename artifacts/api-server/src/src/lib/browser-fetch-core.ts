@@ -81,7 +81,7 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
     const pw = await import("playwright").catch(() => null);
     if (!pw?.chromium) return { html: null, observedUrl: null };
     const ws = process.env.PLAYWRIGHT_WS_ENDPOINT ?? "";
-    const browser = ws ? await pw.chromium.connectOverCDP(ws) : await pw.chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
+    const browser: any = ws ? await pw.chromium.connectOverCDP(ws) : await pw.chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
     try {
       // Block service-worker traffic: Playwright's page routing is not an egress
       // boundary for requests issued by an uncontrolled service worker.
