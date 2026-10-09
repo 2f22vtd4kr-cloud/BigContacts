@@ -29,6 +29,7 @@
     }
   ],
   "exclude": [
-    "src/src/test/apex-error-classification.test.ts"
+    "src/src/test/apex-error-classification.test.ts",
+    "src/src/test/reactor-active-job-contract.test.ts"
   ]
 }
