@@ -57,10 +57,10 @@ checks.push(["exhausted Investigator capability cannot be silently reselected fo
 checks.push(["target Investigator hard quota has Boss-directed recovery",/isHardQuotaResult/.test(fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts","utf8"))&&/reassignTargetInvestigatorAfterHardQuota/.test(fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts","utf8"))&&/upstream_quota_exhausted/.test(fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts","utf8"))]);
 checks.push(["target Investigator iterations are charged to the Atlas global ceiling",/remainingTargetIterations = Math\.max\(0, depth\.agenticMaxIterations - investigatorIterationsUsed\)/.test(atlas)&&/maxInvestigatorIterations: remainingTargetIterations/.test(atlas)&&/investigatorIterationsUsed \+= Math\.max\(0, targetResult\.investigatorIterationsUsed\)/.test(atlas)]);
 checks.push(["incomplete Atlas terminal preserves truthful reason",/finalCaseAction = finalIncomplete[\s\S]{0,700}canonical-evidence-terminal-incomplete/.test(atlas)]);
-let failed = false; for (const [label, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (!ok) failed = true; }
-if (failed) { console.error("Atlas control durability guard failed."); process.exit(1); }
-
 checks.push(["target terminal requires completed oversight status", /isCanonicalTargetEpisodeComplete\(\{[\s\S]{0,650}oversightStatus: lastOversight\?\.status \?\? null[\s\S]{0,200}oversightAction: lastOversight\?\.action/.test(targetRunner)]);
 checks.push(["target terminal authority includes cancellation, resource and deadline fences", /input\.oversightStatus === "completed"[\s\S]*input\.oversightAction === "stop"[\s\S]*!input\.cancelled[\s\S]*!input\.resourceLimited[\s\S]*!input\.deadlineExceeded/.test(terminalAuthority)]);
+
+let failed = false; for (const [label, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (!ok) failed = true; }
+if (failed) { console.error("Atlas control durability guard failed."); process.exit(1); }
 
 console.log("Atlas control durability guard passed.");
