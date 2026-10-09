@@ -193,10 +193,17 @@ describe("multi-source candidate contact attribution", () => {
     sourceUrls: ["https://example.com/team/jane", "https://example.com/contact"],
   };
 
-  it("accepts exact identity and exact contact evidence from separate observed pages when both are cited", () => {
+  it("rejects identity and contact value split across separate pages at the trusted promotion boundary", () => {
     expect(supportsContactClaimAcrossObservations([
       { observationText: "Jane Example — Founder", sourceUrls: ["https://example.com/team/jane"] },
       { observationText: "Public contact: jane@example.com", sourceUrls: ["https://example.com/contact"] },
+    ], item, "jane@example.com", "email")).toBe(false);
+  });
+
+  it("accepts a candidate contact when one observed page binds identity and value exactly", () => {
+    expect(supportsContactClaimAcrossObservations([
+      { observationText: "Jane Example — Founder — jane@example.com", sourceUrls: ["https://example.com/team/jane"] },
+      { observationText: "Contact: jane@example.com", sourceUrls: ["https://example.com/contact"] },
     ], item, "jane@example.com", "email")).toBe(true);
   });
 
