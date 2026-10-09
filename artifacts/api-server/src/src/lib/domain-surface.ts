@@ -13,6 +13,7 @@ export type DomainSurfaceResult = {
   rdap: {
     ok: boolean;
     source?: string;
+    sourceUrl?: string;
     status?: string | string[];
     registration?: string | null;
     expiration?: string | null;
@@ -35,13 +36,92 @@ function cleanDomain(d: string): string {
   return d.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0].trim();
 }
 
+const MAX_RDAP_REDIRECTS = 4;
+const RDAP_REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const RDAP_CREDENTIAL_QUERY_PARAMETER = /^(?:api[_-]?key|apikey|key|token|api[_-]?token|access[_-]?token|client[_-]?secret|secret|password|authorization|signature|sig|x-api-key|x-auth-token)$/i;
+
+function safeRdapSourceUrl(url: URL): string | undefined {
+  if (url.username || url.password) return undefined;
+  if ([...url.searchParams.keys()].some((name) => RDAP_CREDENTIAL_QUERY_PARAMETER.test(name))) return undefined;
+  const safeUrl = new URL(url.href);
+  safeUrl.hash = "";
+  return safeUrl.toString();
+}
+
+async function fetchRdapResponse(
+  domain: string,
+  initialUrl: string,
+  signal: AbortSignal,
+): Promise<{ response: Response; sourceUrl?: string }> {
+  let currentUrl = new URL(initialUrl);
+  const visited = new Set<string>();
+  let redirectsFollowed = 0;
+
+  for (;;) {
+    if (signal.aborted) throw new Error("cancelled");
+    currentUrl.hash = "";
+    const currentKey = currentUrl.toString();
+    if (visited.has(currentKey)) throw new Error("RDAP redirect loop detected");
+    visited.add(currentKey);
+
+    // Count and govern every actual network request; a redirect chain is not a
+    // quota-free way around the provider gate. safeOutboundFetch revalidates DNS
+    // and pins the socket IP independently for each hop.
+    const response = await runProviderCall(
+      { provider: "rdap", account: domain, signal },
+      () => safeOutboundFetch(currentUrl, {
+        signal,
+        headers: { Accept: "application/rdap+json, application/json" },
+      }),
+    );
+    const location = response.headers.get("location");
+    if (!RDAP_REDIRECT_STATUSES.has(response.status) || !location) {
+      return { response, sourceUrl: safeRdapSourceUrl(currentUrl) };
+    }
+    if (redirectsFollowed >= MAX_RDAP_REDIRECTS) {
+      if (response.body) await response.body.cancel().catch(() => undefined);
+      throw new Error(`RDAP redirect limit exceeded (${MAX_RDAP_REDIRECTS})`);
+    }
+
+    let nextUrl: URL;
+    try {
+      nextUrl = new URL(location, currentUrl);
+    } catch {
+      if (response.body) await response.body.cancel().catch(() => undefined);
+      throw new Error("RDAP redirect location is invalid");
+    }
+    nextUrl.hash = "";
+    // RDAP redirects are untrusted control data. Keep the canonical lookup
+    // HTTPS-only, reject URL userinfo, and let the safe transport validate the
+    // actual DNS/IP destination before every outbound connection.
+    if (nextUrl.protocol !== "https:") {
+      if (response.body) await response.body.cancel().catch(() => undefined);
+      throw new Error("RDAP redirect refused: target must use HTTPS");
+    }
+    if (nextUrl.username || nextUrl.password) {
+      if (response.body) await response.body.cancel().catch(() => undefined);
+      throw new Error("RDAP redirect refused: URL credentials are not permitted");
+    }
+    if (visited.has(nextUrl.toString())) {
+      if (response.body) await response.body.cancel().catch(() => undefined);
+      throw new Error("RDAP redirect loop detected");
+    }
+
+    if (response.body) await response.body.cancel().catch(() => undefined);
+    currentUrl = nextUrl;
+    redirectsFollowed += 1;
+  }
+}
+
 async function rdapLookup(domain: string, signal?: AbortSignal): Promise<DomainSurfaceResult["rdap"]> {
   const tld = domain.split(".").pop() || "";
   const url = tld === "com" || tld === "net"
     ? `https://rdap.verisign.com/${tld}/v1/domain/${domain}`
     : `https://rdap.org/domain/${domain}`;
+  const requestTimeout = AbortSignal.timeout(12_000);
+  const requestSignal = signal ? AbortSignal.any([signal, requestTimeout]) : requestTimeout;
   try {
-    const res = await safeOutboundFetch(url, { signal: signal ?? AbortSignal.timeout(12_000), headers: { Accept: "application/json" } });
+    const { response: res, sourceUrl } = await fetchRdapResponse(domain, url, requestSignal);
     if (!res.ok) return { ok: false, error: `rdap ${res.status}` };
     const j = await res.json() as {
       events?: Array<{ eventAction: string; eventDate: string }>;
@@ -61,7 +141,7 @@ async function rdapLookup(domain: string, signal?: AbortSignal): Promise<DomainS
         }
       }
     }
-    return { ok: true, source: "rdap", status: j.status, registration: events.registration || null, expiration: events.expiration || null, registrarName };
+    return { ok: true, source: "rdap", sourceUrl, status: j.status, registration: events.registration || null, expiration: events.expiration || null, registrarName };
   } catch (e: any) {
     return { ok: false, error: e?.message || "rdap fetch failed" };
   }
@@ -92,6 +172,14 @@ async function whoisjsonLookup(domain: string, signal?: AbortSignal): Promise<Do
 }
 
 export type DomainLookupProvider = "rdap" | "whoisjson";
+/** Keep adapter response status aligned with the actual selected provider result. */
+export function domainSurfaceExecutionStatus(
+  surface: Pick<DomainSurfaceResult, "rdap" | "whoisjson">,
+  provider: DomainLookupProvider,
+): "success" | "error" {
+  return (provider === "rdap" ? surface.rdap.ok : surface.whoisjson.ok) ? "success" : "error";
+}
+
 export async function lookupDomainSurface(rawDomain: string, options: { provider: DomainLookupProvider; signal?: AbortSignal } ): Promise<DomainSurfaceResult> {
   const domain = cleanDomain(rawDomain);
   if (!domain || !domain.includes(".")) {
@@ -101,13 +189,15 @@ export async function lookupDomainSurface(rawDomain: string, options: { provider
   let rdap: DomainSurfaceResult["rdap"] = { ok: false, error: "not selected" };
   let whoisjson: DomainSurfaceResult["whoisjson"] = { ok: false, error: "not selected" };
   if (options.provider === "rdap") {
-    rdap = await runProviderCall({ provider: "rdap", account: domain, signal: options.signal }, () => rdapLookup(domain, options.signal));
+    rdap = await rdapLookup(domain, options.signal);
   } else {
     whoisjson = await runProviderCall({ provider: "whoisjson", account: domain, signal: options.signal }, () => whoisjsonLookup(domain, options.signal));
   }
   if (options.signal?.aborted) throw new Error("cancelled");
   const parts: string[] = [];
   if (rdap.ok) {
+    const status = Array.isArray(rdap.status) ? rdap.status.join(", ") : rdap.status;
+    if (status) parts.push(`status ${status}`);
     if (rdap.registration) parts.push(`registered ${rdap.registration.slice(0, 10)}`);
     if (rdap.expiration) parts.push(`expires ${rdap.expiration.slice(0, 10)}`);
     if (rdap.registrarName) parts.push(`registrar ${rdap.registrarName}`);
@@ -116,7 +206,12 @@ export async function lookupDomainSurface(rawDomain: string, options: { provider
     if (whoisjson.expires) parts.push(`expires ${String(whoisjson.expires).slice(0, 10)}`);
     if (whoisjson.registrarName) parts.push(`registrar ${whoisjson.registrarName}`);
   }
-  const summary = parts.length ? `Domain ${domain}: ${parts.join("; ")}` : `Domain ${domain}: selected provider ${options.provider} returned no usable surface`;
+  const selectedOk = options.provider === "rdap" ? rdap.ok : whoisjson.ok;
+  const summary = parts.length
+    ? `Domain ${domain}: ${parts.join("; ")}`
+    : selectedOk
+      ? `Domain ${domain}: ${options.provider} returned a valid response without registration dates or registrar details`
+      : `Domain ${domain}: ${options.provider} returned no usable surface`;
   return { domain, rdap, whoisjson, summary };
 }
 
