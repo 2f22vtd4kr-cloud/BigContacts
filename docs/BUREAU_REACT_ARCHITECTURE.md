@@ -14,6 +14,15 @@ Apex Atlas is an AI-driven public-source research bureau, not a deterministic en
 
 Tools are capabilities, not mandatory stages. There is no hidden identity → company → social profile → email recipe.
 
+## 2. Canonical role/capability declaration
+
+- **Boss:** Groq Boss owns high-level case direction and model-selected transitions.
+- **Right-hand:** Groq Right-hand is bounded independent oversight of the Investigator's work; it does not take over the research trajectory.
+- **Investigator LLM pool:** the configured Groq Investigator capability slots are the only canonical Investigator pool. Selection is explicit and capability-owned; there is no silent cross-provider or credential rotation.
+- **Two-layer architecture:** AI models own research reasoning and trajectory choices; the deterministic runtime owns authorization, bounded execution, provenance, durable state, cancellation, and terminal truth. Right-hand is oversight within this design, not a scripted third research layer.
+- **Search capability surface:** Tavily and Exa are independent enabled search capabilities available to the Investigator; neither imposes a required order.
+- **Browser/fetch capability surface:** Scrapfly and ZenRows are provider-backed retrieval/browser capabilities where configured; the Investigator chooses when their capability semantics fit the evidence gap.
+
 ## 2. Roles
 
 ### Groq Boss
