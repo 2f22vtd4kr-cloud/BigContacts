@@ -77,9 +77,9 @@ describe("safe outbound HTTP deadline boundary", () => {
       "utf8",
     );
     expect(source).toContain("const REQUEST_DEADLINE_MS = 12_000;");
-    expect(source).toContain('deadlineTimer = setTimeout(() => req.destroy(new Error("Outbound request deadline exceeded")), REQUEST_DEADLINE_MS)');
+    expect(source).toContain(`deadlineTimer = setTimeout(() => req.destroy(new Error("Outbound request deadline exceeded")), REQUEST_DEADLINE_MS)`);
     expect(source).toContain("if (deadlineTimer) clearTimeout(deadlineTimer)");
-    expect(source).toContain('req.setTimeout(12_000, () => req.destroy(new Error("Outbound request timed out")))');
+    expect(source).toContain(`req.setTimeout(12_000, () => req.destroy(new Error("Outbound request timed out")))`);
     const safeFetch = source.slice(source.indexOf("export async function safeOutboundFetch"), source.indexOf("export function isBlockedOutboundIpForTest"));
     expect(safeFetch.indexOf("setTimeout(() => controller.abort")).toBeGreaterThanOrEqual(0);
     expect(safeFetch.indexOf("setTimeout(() => controller.abort")).toBeLessThan(safeFetch.indexOf("resolveSafeAddress(hostname, signal)"));
