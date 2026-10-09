@@ -44,6 +44,10 @@ describe("Groq Right-hand model policy", () => {
 
     const second = new AbortController();
     const pending = waitForGroqRightHandRequestSlot(second.signal);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(getEventListeners(second.signal, "abort")).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(1);
     await vi.advanceTimersByTimeAsync(250);
     await pending;
 
@@ -59,6 +63,9 @@ describe("Groq Right-hand model policy", () => {
     const second = new AbortController();
     const pending = waitForGroqRightHandRequestSlot(second.signal);
     await Promise.resolve();
+    await Promise.resolve();
+    expect(getEventListeners(second.signal, "abort")).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(1);
     second.abort();
 
     await expect(pending).rejects.toThrow("cancelled");
