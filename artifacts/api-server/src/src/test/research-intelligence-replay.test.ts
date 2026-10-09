@@ -28,21 +28,26 @@ describe("durable Investigator intelligence replay", () => {
     expect(state.atomicEvidence).toHaveLength(24);
   });
 
-  it("binds multi-source findings to each page's own observed text during replay", () => {
+  it("retains split identity/contact observations as review-only evidence during replay", () => {
     const identityUrl = "https://example.test/team", contactUrl = "https://example.test/contact";
     const records: AgenticTrajectoryRecord[] = [
       { turn: 1, model: "test", action: "visit", args: {}, execution: "success", observation: "Alex Example is a director at Example Labs.", observedUrls: [identityUrl], findings: [] },
       { turn: 2, model: "test", action: "visit", args: {}, execution: "success", observation: "Public contact: alex@example.test", observedUrls: [contactUrl], findings: [{
         vectorType: "email", value: "alex@example.test", personName: "Alex Example", role: "director", scope: "candidate",
-        sourceUrls: [identityUrl, contactUrl], note: "Identity and contact are attributed across two observed pages.",
+        sourceUrls: [identityUrl, contactUrl], note: "Identity and contact are suggested across two observed pages.",
       }] },
     ];
     const engine = new ResearchIntelligenceEngine({ executionId: "cross-page-replay", target: "Alex Example", objective: "verify public contact" });
     replayInvestigatorIntelligence(engine, records);
-    const claims = engine.buildContext().atomicEvidence.filter((item) => item.kind === "finding" && item.claim.includes("alex@example.test"));
-    expect(claims.map((item) => item.sourceUrl).sort()).toEqual([contactUrl, identityUrl]);
-    expect(claims.find((item) => item.sourceUrl === identityUrl)?.spanBindingKind).toBe("identity");
-    expect(claims.find((item) => item.sourceUrl === contactUrl)?.spanBindingKind).toBe("value");
+    const state = engine.buildContext();
+    const identity = state.atomicEvidence.find((item) => item.sourceUrl === identityUrl && item.spanBindingKind === "identity");
+    const value = state.atomicEvidence.find((item) => item.sourceUrl === contactUrl && item.spanBindingKind === "value");
+    expect(identity?.kind).toBe("observation");
+    expect(identity?.claim).not.toContain("alex@example.test");
+    expect(value?.kind).toBe("observation");
+    expect(value?.claim).not.toContain("Alex Example email");
+    expect(state.facts.some((fact) => fact.claim === "Alex Example email alex@example.test")).toBe(false);
+    expect(state.contacts).toContainEqual(expect.objectContaining({ personName: "Alex Example", value: "alex@example.test", state: "DISCOVERED", sourceUrls: expect.arrayContaining([identityUrl, contactUrl]) }));
   });
 
   it("ignores search snippets and non-Investigator events", () => {
