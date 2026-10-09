@@ -538,7 +538,7 @@ router.post("/entities/import/batch", async (req, res): Promise<void> => {
           }
         }
 
-        const type = ["HNWI", "Corporation", "Trust", "Gatekeeper"].includes(String(draft.type))
+        const type = ["HNWI", "Corporation", "Trust", "Gatekeeper", "PersonCandidate"].includes(String(draft.type))
           ? String(draft.type)
           : "HNWI";
         const sourceRegs = Array.isArray(draft.sourceRegistries) && draft.sourceRegistries.length
