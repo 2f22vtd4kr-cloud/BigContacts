@@ -46,9 +46,9 @@ function context(independentSourceUnits: number, falsificationAttempt = false): 
     sourceIndependence: 0.7,
     providerDisagreements: [],
     atomicEvidence: [
-      { evidenceId: "e1", kind: "finding", claimId: "c1", claim: "claim 1", sourceUrl: "https://same.example/a", sourceHost: "same.example", sourceClass: "OFFICIAL_COMPANY", passage: "claim 1", attribution: "Test Target" },
-      { evidenceId: "e2", kind: "finding", claimId: "c2", claim: "claim 2", sourceUrl: "https://same.example/b", sourceHost: "same.example", sourceClass: "OFFICIAL_COMPANY", passage: "claim 2", attribution: "Test Target" },
-      { evidenceId: "e3", kind: "finding", claimId: "c3", claim: "claim 3", sourceUrl: "https://same.example/c", sourceHost: "same.example", sourceClass: "OFFICIAL_COMPANY", passage: "claim 3", attribution: "Test Target" },
+      { evidenceId: "e1", kind: "finding", claimId: "c1", claim: "claim 1", sourceUrl: "https://same.example/a", sourceHost: "same.example", sourceClass: "OFFICIAL_COMPANY", passage: "claim 1", spanBound: true, attribution: "Test Target" },
+      { evidenceId: "e2", kind: "finding", claimId: "c2", claim: "claim 2", sourceUrl: "https://same.example/b", sourceHost: "same.example", sourceClass: "OFFICIAL_COMPANY", passage: "claim 2", spanBound: true, attribution: "Test Target" },
+      { evidenceId: "e3", kind: "finding", claimId: "c3", claim: "claim 3", sourceUrl: "https://same.example/c", sourceHost: "same.example", sourceClass: "OFFICIAL_COMPANY", passage: "claim 3", spanBound: true, attribution: "Test Target" },
     ],
     actionYield: [],
     sourceLineage: [],
@@ -96,6 +96,15 @@ describe("research terminal gate", () => {
     const result = evaluateResearchTerminal(sample, "target");
     expect(result.allowed).toBe(false);
     expect(result.reasons).toContain("required_falsification_not_satisfied");
+  });
+
+  it("does not count a passage as an exact binding when spanBound is false", () => {
+    const sample = context(2, true);
+    sample.atomicEvidence[0]!.spanBound = false;
+    const result = evaluateResearchTerminal(sample, "target");
+    expect(result.allowed).toBe(false);
+    expect(result.reasons).toContain("exact_source_span_binding_incomplete");
+    expect(result.metrics.exactSpanBindings).toBe(2);
   });
 
   it("still blocks terminal admission when lineage resolves to one source unit", () => {
