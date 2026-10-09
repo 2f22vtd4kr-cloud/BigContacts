@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import {
   createOperatorSessionToken, isOperatorAuthorized, missingOperatorAuthNames,
   OPERATOR_AUTH_MIN_LENGTHS, OPERATOR_SESSION_COOKIE, OPERATOR_SESSION_TTL_SECONDS,
-  readOperatorAuthConfig, safeSecretEqual,
+  readOperatorAuthConfig, safeSecretEqual, isTrustedOperatorOrigin,
 } from "../lib/operator-auth";
 
 const router = Router();
@@ -58,6 +58,10 @@ router.get("/auth/session", (req: Request, res: Response): void => {
 });
 router.post("/auth/login", (req: Request, res: Response): void => {
   noStore(res);
+  if (!isTrustedOperatorOrigin(req)) {
+    res.status(403).json({ code: "OPERATOR_ORIGIN_REJECTED", error: "A trusted Origin is required for sign-in." });
+    return;
+  }
   const config = readOperatorAuthConfig();
   if (!config) { missingConfigResponse(res); return; }
   const address = requestAddress(req), now = Date.now(), attempt = loginAttemptFor(address, now);
@@ -81,8 +85,13 @@ router.post("/auth/login", (req: Request, res: Response): void => {
   appendSessionCookie(res, createOperatorSessionToken(config));
   res.status(200).json({ configured: true, authenticated: true, expiresInSeconds: OPERATOR_SESSION_TTL_SECONDS });
 });
-router.post("/auth/logout", (_req: Request, res: Response): void => {
-  noStore(res); clearSessionCookie(res);
+router.post("/auth/logout", (req: Request, res: Response): void => {
+  noStore(res);
+  if (!isTrustedOperatorOrigin(req)) {
+    res.status(403).json({ code: "OPERATOR_ORIGIN_REJECTED", error: "A trusted Origin is required for sign-out." });
+    return;
+  }
+  clearSessionCookie(res);
   res.status(200).json({ configured: Boolean(readOperatorAuthConfig()), authenticated: false });
 });
 export default router;
