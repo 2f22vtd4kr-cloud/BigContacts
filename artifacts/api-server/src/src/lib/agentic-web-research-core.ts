@@ -115,20 +115,17 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
       reason: "A fame/list-oriented discovery query needs a concrete organization, person-in-context, geography, domain or source anchor before spending a search call.",
     };
   }
-  // A short name-only query is too ambiguous in broad discovery mode: it can
-  // return an ungrounded celebrity list and consume provider budget without a
-  // sector, role, organization, geographic or source discriminator.
-  if (tokenCount <= 2 && concreteSignals === 0 && !hasExplicitSourceAnchor && !hasRegistryOrFilingAnchor) {
+  // Exact named-identity searches are valid anchors even when only two words long.
+  // Broad generic queries remain blocked; the model chooses the concrete anchor and
+  // subsequent capability, so this is a quality/resource boundary rather than a search plan.
+  if (!hasConcreteAnchor) {
     return {
       allowed: false,
-      reason: "A name-only or context-light discovery query needs a concrete research discriminator before spending a search call.",
+      reason: "Discovery search lacks a concrete anchor. Add a named person, organization, geography, registry, domain or source anchor before spending a search call.",
     };
   }
   if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) {
-    warnings.push("This query is brief or context-light. Use result quality to decide whether a pivot is justified; the rail does not select the next search or capability.");
-  }
-  if (!hasConcreteAnchor) {
-    warnings.push("No explicit person-in-context, organization, geography, registry, domain or source anchor was detected. Consider refining only if the observed evidence is weak.");
+    warnings.push("This query is brief or context-light; exact-identity lookups can still be useful. Use observed result quality to decide whether a pivot is justified; the rail does not select the next search or capability.");
   }
   return { allowed: true, ...(warnings.length ? { warning: warnings.join(" ") } : {}) };
 }
