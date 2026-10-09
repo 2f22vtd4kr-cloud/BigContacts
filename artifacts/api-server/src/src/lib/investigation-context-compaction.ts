@@ -147,15 +147,20 @@ export function buildBoundedInvestigatorObjective(input: {
   const embeddedDirection = markerAt >= 0
     ? input.base.slice(markerAt + pivotMarker.length).split("\n")[0]?.trim()
     : "";
-  const direction = (input.direction?.trim() || embeddedDirection).slice(0, 700);
+  const requestedDirection = input.direction?.trim() || embeddedDirection;
   const objectiveLabel = "PRIMARY CASE OBJECTIVE:\n";
-  const directionBlock = direction
-    ? "\n\nCURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n"
-      + direction
-      + "\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue."
-    : "";
+  const directionPrefix = "\n\nCURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n";
+  const directionSuffix = "\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue.";
   const decisionLaw = "\n\nChoose the next research action yourself from the available capabilities and observed evidence. Do not follow a prescribed tool order; prioritize information gain, identity discrimination, source independence, and the case objective.";
-  const baseBudget = Math.max(100, maxChars - objectiveLabel.length - directionBlock.length - decisionLaw.length);
+  // Reserve space for the primary objective, the decision-law suffix and a
+  // useful amount of base-objective evidence before choosing direction length.
+  const directionBudget = Math.max(0, Math.min(
+    700,
+    maxChars - objectiveLabel.length - directionPrefix.length - directionSuffix.length - decisionLaw.length - 100,
+  ));
+  const direction = requestedDirection.slice(0, directionBudget);
+  const directionBlock = direction ? directionPrefix + direction + directionSuffix : "";
+  const baseBudget = Math.max(0, maxChars - objectiveLabel.length - directionBlock.length - decisionLaw.length);
   let boundedBase = baseText;
   if (boundedBase.length > baseBudget) {
     const marker = "\n[OBJECTIVE MIDDLE OMITTED; preserve the case objective and Boss question above working history]\n";
