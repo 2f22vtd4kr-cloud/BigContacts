@@ -13,15 +13,15 @@ describe("discovery query quality guidance", () => {
     expect(validateDiscoverySearchQuery("Elon Musk Tesla").allowed).toBe(true);
   });
 
-  it("allows broad generic research hypotheses and returns advisory guidance", () => {
+  it("blocks generic research hypotheses until the model supplies a concrete anchor", () => {
     for (const query of [
       "2023 venture capital investment biotech company CEO",
       "2023 private equity acquisition tech startup executive",
       "2023 funding round software company founder interview",
     ]) {
       const result = validateDiscoverySearchQuery(query);
-      expect(result.allowed).toBe(true);
-      expect(result.allowed ? result.warning : undefined).toBeTruthy();
+      expect(result.allowed).toBe(false);
+      expect(result.allowed ? "" : result.reason).toMatch(/concrete anchor/i);
     }
   });
 
@@ -36,10 +36,10 @@ describe("discovery query quality guidance", () => {
     expect(result.allowed ? result.warning : undefined).toMatch(/repeat was allowed/i);
   });
 
-  it("allows fame-list searches but advises the model to evaluate actual yield", () => {
+  it("blocks unanchored fame-list searches but allows a contextualized pivot", () => {
     const broad = validateDiscoverySearchQuery("billionaires richest people Forbes");
-    expect(broad.allowed).toBe(true);
-    expect(broad.allowed ? broad.warning : undefined).toMatch(/still executed/i);
+    expect(broad.allowed).toBe(false);
+    expect(broad.allowed ? "" : broad.reason).toMatch(/fame\/list-oriented|concrete anchor/i);
 
     const contextual = validateDiscoverySearchQuery("Forbes billionaires Slovenia casino");
     expect(contextual.allowed).toBe(true);
