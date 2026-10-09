@@ -348,15 +348,20 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     let currentJob: Awaited<ReturnType<typeof getJobStrict>> = null;
     let jobStateUnavailable = false;
     try { currentJob = await getJobStrict(atlasJobId); } catch { jobStateUnavailable = true; }
-    const cancelledByJob = currentJob?.status === "cancelled" || rawMessage.includes("Canonical Atlas job cancelled;");
+    const cancelledByJob = currentJob?.status === "cancelled" || rawMessage.startsWith("Canonical Atlas job cancelled;");
+    const parentStateUnavailable = jobStateUnavailable
+      || (!currentJob && !cancelledByJob)
+      || /job record missing|job state unavailable|job record state is unknown/i.test(rawMessage);
+    const leaseUnavailableOrLost = /Canonical Atlas lease (?:was lost|state is unavailable)/i.test(rawMessage);
+    const parentAlreadyTerminal = Boolean(currentJob && currentJob.status !== "running" && currentJob.status !== "cancelled");
     const message = cancelledByJob
       ? "Target investigation was cancelled; the result is incomplete."
-      : jobStateUnavailable
+      : parentStateUnavailable
         ? "Target investigation stopped because durable job state is unavailable; the result is incomplete."
         : safeThrownErrorSummary("Canonical target investigation failed", error);
     await db.update(researchCasesTable).set({
       status: "review",
-      currentAction: cancelledByJob ? "cancelled" : "investigator-execution-failed",
+      currentAction: cancelledByJob ? "canonical-atlas-cancelled" : parentStateUnavailable ? "canonical-job-state-unavailable" : leaseUnavailableOrLost ? "canonical-lease-lost" : parentAlreadyTerminal ? "canonical-parent-job-terminal" : "investigator-execution-failed",
       updatedAt: new Date(),
     }).where(and(
       eq(researchCasesTable.id, caseRow.id),
