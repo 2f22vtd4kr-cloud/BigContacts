@@ -34,7 +34,7 @@ describe("Atlas control-plane contract regression", () => {
       expect(validateResearchObjective(objective), objective).toEqual({ valid: true, direction: objective });
     }
 
-    expect(canonicalDiscoverySource).toContain('import { validateResearchObjective } from "./research-objective";');
+    expect(canonicalDiscoverySource).toMatch(/import \{[^}]*\bvalidateResearchObjective\b[^}]*\} from "\.\/research-objective";/);
     const validationIndex = canonicalDiscoverySource.indexOf("validateResearchObjective(proposedDirection)");
     const handoffIndex = canonicalDiscoverySource.indexOf('runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective');
     expect(validationIndex).toBeGreaterThan(-1);
