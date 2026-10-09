@@ -47,7 +47,6 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
       if (requestId === requestGeneration.current && !requestController.signal.aborted) setReady(true);
     }
   }, []);
-  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
