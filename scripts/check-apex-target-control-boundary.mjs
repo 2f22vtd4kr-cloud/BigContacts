@@ -35,6 +35,7 @@ const checks = [
   ["target Investigator no longer writes contact card fields directly", !/db\.update\(entitiesTable\)\.set\(\{\s*contactOutcome:\s*outcome/.test(targetAgent)],
   ["generic Apex entity creation contact fields are blocked", /if\s*\(req\.path\s*===\s*"\/entities"\)[\s\S]*?APEX_TYPES\.has\(type\)[\s\S]*?touchesApexContactFields\(body\)/.test(mutationGuard)],
   ["manual Apex batch contact fields are blocked", /if\s*\(req\.path\s*===\s*"\/entities\/import\/batch"\)[\s\S]*?draftTouchesApexContactFields/.test(mutationGuard)],
+  ["target continuation validates the exact Right-hand review contract before Boss control", targetControlDecision.includes("normalizeTargetRightHandAdvice(") && targetControlDecision.includes("validateAtlasOpeningRightHandReview(parsed)") && targetControlDecision.includes('if (rightHand.status !== "completed")')],
 ];
 let failed = false;
 for (const [name, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${name}`); if (!ok) failed = true; }
