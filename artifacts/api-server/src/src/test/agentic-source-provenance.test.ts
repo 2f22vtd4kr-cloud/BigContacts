@@ -218,7 +218,8 @@ describe("agentic source provenance", () => {
       observedUrls: [url],
     });
     expect(sourceBackedAgenticFindings(raw, [], [registry])).toHaveLength(1);
-    expect(sourceBackedAgenticFindings(raw, [], [registry, observation({ action: "registry_search", execution: "http_error", observedUrls: ["https://registry.example.test/failed"], observation: "Jane Example — Founder — jane@example.com" })])).toHaveLength(1);
+    const failedRegistry = observation({ action: "registry_search", execution: "http_error", observedUrls: [url], observation: "Jane Example — Founder — jane@example.com" });
+    expect(sourceBackedAgenticFindings(raw, [], [failedRegistry])).toHaveLength(0);
     expect(sourceBackedAgenticFindings(raw, [], [observation({ action: "registry_search", observation: "", observedUrls: [url] })])).toHaveLength(0);
   });
 
