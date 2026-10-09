@@ -19,7 +19,7 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(compact.length).toBeLessThan(full.length * 0.651);
     expect(compact).toContain("search.serper");
     expect(compact).toContain("registry.search");
-    expect(compact).toContain("osint.spiderfoot");
+    expect(compact).not.toContain("osint.spiderfoot");
   });
 
   it("keeps Investigator working context under the tighter default without losing frontier anchors", () => {
