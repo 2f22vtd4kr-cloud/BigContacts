@@ -30,6 +30,24 @@ describe("wealth estimation eligibility", () => {
     }
   });
 
+  it("blocks legacy registry-only HNWI rows whose modern policy metadata is missing", () => {
+    expect(assessWealthEstimateEligibility({
+      type: "HNWI",
+      metadata: JSON.stringify({ confidence: "LOW" }),
+      sourceRegistries: JSON.stringify(["SEC EDGAR SC 13D/G"]),
+      totalAssetValue: 12_000_000,
+    })).toEqual({ eligible: false, reason: "registry_wealth_not_assessed" });
+  });
+
+  it("allows a registry-sourced person only after explicit wealth assessment and attributed assets", () => {
+    expect(assessWealthEstimateEligibility({
+      type: "HNWI",
+      metadata: JSON.stringify({ wealthStatus: "assessed" }),
+      sourceRegistries: JSON.stringify(["SEC EDGAR"]),
+      totalAssetValue: 12_000_000,
+    })).toEqual({ eligible: true, reason: "persisted_asset_value" });
+  });
+
   it("abstains when no persisted asset valuation exists", () => {
     expect(assessWealthEstimateEligibility({
       type: "HNWI",
