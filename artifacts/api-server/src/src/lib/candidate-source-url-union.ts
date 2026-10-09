@@ -43,12 +43,12 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
     if (url.protocol !== "http:" && url.protocol !== "https:") return false;
     const host = url.hostname.toLowerCase().replace(/^www\./, "");
     const path = url.pathname.replace(/\/+$/, "") || "/";
-    if (/\.google\.[a-z.]+$/.test(host) && /^\/search$/i.test(path)) return false;
+    if (/(^|\.)google\.[a-z.]+$/.test(host) && /^\/search$/i.test(path)) return false;
     if ((host === "bing.com" || host.endsWith(".bing.com")) && /^\/search$/i.test(path)) return false;
     if (host === "search.yahoo.com" && /^\/search$/i.test(path)) return false;
     if ((host === "duckduckgo.com" || host === "html.duckduckgo.com") && (path === "/" || /^\/html$/i.test(path)) && url.searchParams.has("q")) return false;
     if (host === "efts.sec.gov" && /^\/LATEST\/search-index(?:\/|$)/i.test(url.pathname)) return false;
-    if (url.search && /\/(?:search|search-index|search-results|results)$/i.test(path)) return false;
+    if (/\/(?:search|search-index|search-results|results)$/i.test(path)) return false;
     return true;
   } catch {
     return false;
