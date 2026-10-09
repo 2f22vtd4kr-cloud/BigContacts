@@ -17,7 +17,7 @@ assert(!/\bfetch\(/.test(core), "ReAct core still contains a direct fetch call o
 assert(/redirect: "manual"/.test(ssrf), "Canonical SSRF transport does not force manual redirect semantics.");
 assert(/MAX_RESPONSE_BYTES/.test(ssrf) && /res\.destroy/.test(ssrf), "Canonical SSRF transport is missing its streaming response ceiling.");
 assert(/MAX_REQUEST_BYTES/.test(ssrf) && /readRequestBodyCapped/.test(ssrf), "Canonical SSRF transport is missing a bounded request-body ceiling.");
-assert(/runProviderCall\\(\\{ provider, account: new URL\\(url\\)\\.hostname, signal \\}, \\(\\) => safeOutboundFetch\\(url, init\\)\\)/.test(browser), "browser scraping provider calls must use the canonical SSRF-safe transport.");
-assert(!/runProviderCall\\(\\{ provider, account: new URL\\(url\\)\\.hostname, signal \\}, \\(\\) => fetch\\(url, init\\)\\)/.test(browser), "browser provider adapters must not bypass the canonical transport via direct fetch.");
+assert(/runProviderCall\(\{ provider, account: new URL\(url\)\.hostname, signal \}, \(\) => safeOutboundFetch\(url, init\)\)/.test(browser), "browser scraping provider calls must use the canonical SSRF-safe transport.");
+assert(!/runProviderCall\(\{ provider, account: new URL\(url\)\.hostname, signal \}, \(\) => fetch\(url, init\)\)/.test(browser), "browser provider adapters must not bypass the canonical transport via direct fetch.");
 if (failures.length) { console.error("AGENTIC CORE TRANSPORT: FAIL"); for (const f of failures) console.error(`- ${f}`); process.exit(1); }
 console.log("AGENTIC CORE TRANSPORT: PASS");
