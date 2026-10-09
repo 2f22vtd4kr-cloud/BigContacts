@@ -195,10 +195,11 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     const cancellationFence = Boolean((error as { cancellationFence?: unknown })?.cancellationFence);
     if (cancellationFence) { await updateJob(jobId, { status: "cancelled", outcome: "incomplete", message: "Continuation rejected by the durable cancellation fence.", finishedAt: new Date().toISOString() }).catch(() => undefined); await releaseContinuationLane(jobId); res.status(409).json({ error: "This canonical target case is durably cancelled and cannot be resumed." }); return; }
     const message = error instanceof Error ? error.message : "Target control decision failed.";
-    const [updated] = await db.update(researchCasesTable).set({ status: "review", currentAction: "target-control-error", updatedAt: new Date() }).where(and(cancellationFenceSql(caseId), eq(researchCasesTable.caseType, "target"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`)).returning({ id: researchCasesTable.id });
+    const ownsLease = await isCanonicalJobOwner("atlas-run", jobId).catch(() => false);
+    const updated = ownsLease ? await transitionClaimedTargetCase({ caseId, jobId, currentAction: "target-control-error" }).catch(() => false) : false;
     const [latestCase] = await db.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
     const latestFile = parseFile(latestCase?.caseFile ?? null);
-    const durableFence = !latestCase || latestCase.status === "complete" || latestCase.status === "cancelled"
+    const durableFence = !ownsLease || !latestCase || latestCase.status === "complete" || latestCase.status === "cancelled"
       || (latestCase.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(latestCase.currentAction ?? "")))
       || String(latestFile?.atlasJobId ?? latestFile?.jobId ?? "") !== jobId;
     await updateJob(jobId, { status: updated ? "failed" : durableFence ? "cancelled" : "failed", outcome: "incomplete", message: updated ? message : durableFence ? "Target control failed after durable case/ownership fencing." : message, finishedAt: new Date().toISOString() }).catch(() => undefined);
