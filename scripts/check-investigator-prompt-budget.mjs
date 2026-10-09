@@ -8,7 +8,7 @@ const compaction = fs.readFileSync("artifacts/api-server/src/src/lib/investigati
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
-assert(/MAX_PROVIDER_PROMPT_CHARS = 9_000/.test(core), "final Investigator provider prompt ceiling must be 9,000 characters");
+assert(/MAX_PROVIDER_PROMPT_CHARS = 7_200/.test(core), "final Investigator provider prompt ceiling must be 7,200 characters");
 assert(/maxChars: 3_500/.test(core), "working Investigator context must use the tighter 3,500-character budget");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /1_200,\n  \);/.test(core), "intelligence state must be bounded to 1,200 characters");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(\), 1_000\)/.test(core), "capability guidance must be explicitly bounded");
