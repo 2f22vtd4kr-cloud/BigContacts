@@ -117,33 +117,48 @@ jobs:
             echo "APEX_OPERATOR_PASSWORD=$(openssl rand -hex 24)"
             echo "APEX_SESSION_SECRET=$(openssl rand -hex 32)"
           } >> "$GITHUB_ENV"
-      - name: Start Apex API
+      - name: Run authenticated live API and bounded Bureau smoke
         run: |
+          set -euo pipefail
           redis-cli ping
+          rm -f /tmp/apex-api.log /tmp/health.json /tmp/launch.json /tmp/atlas-status.json /tmp/atlas-trace.json /tmp/entities.json
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
-          for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
-          test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
-      - name: Launch bounded 3-target discovery-first Bureau smoke
-        run: |
-          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" -H 'Content-Type: application/json' -d '{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}' | tee /tmp/launch.json
-          JOB_ID="$(node -p 'require("/tmp/launch.json").jobId || ""')"
-          test -n "$JOB_ID"
-      - name: Poll Bureau
-        run: |
+          API_PID=$!
+          collect_live_state() {
+            JOB_ID="$(node -p 'try{require("/tmp/launch.json").jobId||""}catch{""}')"
+            curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
+            if [ -n "$JOB_ID" ]; then
+              curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | tee /tmp/atlas-status.json || true
+              curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace.json || true
+            fi
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
+            cat /tmp/apex-api.log || true
+            if kill -0 "$API_PID" 2>/dev/null; then kill "$API_PID" 2>/dev/null || true; fi
+            wait "$API_PID" 2>/dev/null || true
+          }
+          trap collect_live_state EXIT
+          READY=0
+          for i in $(seq 1 45); do
+            CODE="$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)"
+            if [ "$CODE" = "200" ]; then READY=1; break; fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then cat /tmp/apex-api.log; exit 1; fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then cat /tmp/apex-api.log; exit 1; fi
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
+            -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d '{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}' | tee /tmp/launch.json
+          node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1);console.log("job",x.jobId)'
+          JOB_ID="$(node -p 'require("/tmp/launch.json").jobId')"
           for i in $(seq 1 1200); do
             sleep 5
-            curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/atlas-status.json || true
-            STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
-            case "$STATUS" in done|completed) exit 0;; failed|cancelled) exit 1;; esac
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/atlas-status.json || true
+            STATUS="$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')"
+            case "$STATUS" in done|completed) exit 0;; failed|cancelled) cat /tmp/atlas-status.json; exit 1;; esac
           done
+          cat /tmp/atlas-status.json
           exit 1
-      - name: Collect live state
-        if: always()
-        run: |
-          curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
-          curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | tee /tmp/atlas-status.json || true
-          curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace.json || true
-          curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
       - name: Live autonomy and provenance audit
         if: always()
         run: node scripts/audit-live-bureau.mjs
