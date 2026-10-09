@@ -66,7 +66,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
       if (!latestFile || latestFile.target == null) {
         throw Object.assign(new Error("Target continuation case state is unreadable or not target-scoped."), { statusCode: 409 });
       }
-      if (!(await isCanonicalJobOwner("atlas-run", jobId)) {
+      if (!(await isCanonicalJobOwner("atlas-run", jobId))) {
         throw Object.assign(new Error("Canonical Atlas lease was lost while claiming target continuation."), { statusCode: 409 });
       }
       const claimedFile = { ...latestFile, atlasJobId: jobId, jobId, lastUpdatedBy: "groq-boss-target-control-claim" };
@@ -154,12 +154,20 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     const continuationEventKey = `target-continuation:case:${caseId}:job:${jobId}:turn:${controlTurn}`;
     await db.transaction(async (tx) => {
       const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
-      if (!locked || locked.caseType !== "target" || locked.targetEntityId !== current.targetEntityId || locked.caseFile !== current.caseFile) throw Object.assign(new Error("Target continuation case binding or durable projection changed before authorization projection."), { statusCode: 409 });
+      if (!locked || locked.caseType !== "target" || locked.targetEntityId !== current.targetEntityId) throw Object.assign(new Error("Target continuation case binding changed before authorization projection."), { statusCode: 409 });
       if (locked.status === "complete" || locked.status === "cancelled" || (locked.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(locked.currentAction ?? "")))) throw Object.assign(new Error(locked.status === "complete" ? "Target continuation case is durably complete and cannot be resumed." : "Target continuation case is durably cancelled and cannot be resumed."), { statusCode: 409, cancellationFence: true });
       if (locked.status === "complete") throw Object.assign(new Error("Target continuation refused to reopen a completed canonical case from a stale continuation request."), { statusCode: 409 });
       const lockedFile = parseFile(locked.caseFile); if (!lockedFile) throw Object.assign(new Error("Target continuation case state became unreadable before authorization projection."), { statusCode: 409 });
+      if (String(lockedFile.atlasJobId ?? lockedFile.jobId ?? "") !== jobId) throw Object.assign(new Error("Target continuation case is owned by another Atlas job."), { statusCode: 409 });
+      if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw Object.assign(new Error("Canonical Atlas lease was lost before continuation authorization projection."), { statusCode: 409 });
       const nextFile = { ...lockedFile, atlasJobId: jobId, jobId, contextDocument: nextContext, nextInvestigation: { ...(lockedFile.nextInvestigation ?? {}), targetControl: { action: decision.action, direction, reason: decision.reason, confidence: decision.confidence, rightHand: decision.rightHand, bossModel: decision.bossModel, jobId, controlTurn, recordedAt: new Date().toISOString() } }, lastUpdatedBy: "groq-boss-target-control" };
-      await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: `groq-${decision.action}`, iteration: controlTurn, updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+      const [authorized] = await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: `groq-${decision.action}`, iteration: controlTurn, updatedAt: new Date() }).where(and(
+        eq(researchCasesTable.id, caseId),
+        cancellationFenceSql(caseId),
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`,
+      )).returning({ id: researchCasesTable.id });
+      if (!authorized) throw Object.assign(new Error("Target continuation authorization lost its durable ownership fence."), { statusCode: 409, cancellationFence: true });
+      if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw Object.assign(new Error("Canonical Atlas lease was lost while committing continuation authorization."), { statusCode: 409 });
       await tx.insert(researchCaseEventsTable).values({ caseId, iteration: controlTurn, actorRole: "groq_boss", eventType: "assignment", status: "recorded", summary: `Groq Boss authorized ${decision.action} for target continuation.`, correlationKey: continuationEventKey, payload: JSON.stringify({ direction, reason: decision.reason, confidence: decision.confidence, bossModel: decision.bossModel, jobId, controlTurn, targetEntityId: current.targetEntityId }) }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
     }, { isolationLevel: "serializable" });
     await updateJob(jobId, { progress: 1, message: `Groq Boss authorized ${decision.action}; remounting target context for ${targetName}…`, result: JSON.stringify({ caseId, decision }) });
@@ -168,10 +176,17 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
   } catch (error) {
     const statusCode = Number((error as { statusCode?: unknown })?.statusCode ?? 503);
     const cancellationFence = Boolean((error as { cancellationFence?: unknown })?.cancellationFence);
-    if (cancellationFence) { await updateJob(jobId, { status: "cancelled", outcome: "incomplete", message: "Continuation rejected by the durable cancellation fence.", finishedAt: new Date().toISOString() }).catch(() => undefined); await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined); res.status(409).json({ error: "This canonical target case is durably cancelled and cannot be resumed." }); return; }
+    if (cancellationFence) { await updateJob(jobId, { status: "cancelled", outcome: "incomplete", message: "Continuation rejected by the durable cancellation fence.", finishedAt: new Date().toISOString() }).catch(() => undefined); await releaseContinuationLane(jobId); res.status(409).json({ error: "This canonical target case is durably cancelled and cannot be resumed." }); return; }
     const message = error instanceof Error ? error.message : "Target control decision failed.";
-    const [updated] = await db.update(researchCasesTable).set({ status: "review", currentAction: "target-control-error", updatedAt: new Date() }).where(and(cancellationFenceSql(caseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`)).returning({ id: researchCasesTable.id });
-    await updateJob(jobId, { status: updated ? "failed" : "cancelled", outcome: "incomplete", message: updated ? message : "Target control error occurred after the durable cancellation fence.", finishedAt: new Date().toISOString() }); await clearActiveJobIfOwned("atlas-run", jobId); res.status(updated ? (statusCode >= 400 && statusCode < 600 ? statusCode : 503) : 409).json({ error: updated ? message : "This canonical target case is durably cancelled and cannot be resumed.", jobId });
+    const [updated] = await db.update(researchCasesTable).set({ status: "review", currentAction: "target-control-error", updatedAt: new Date() }).where(and(cancellationFenceSql(caseId), eq(researchCasesTable.caseType, "target"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`)).returning({ id: researchCasesTable.id });
+    const [latestCase] = await db.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
+    const latestFile = parseFile(latestCase?.caseFile ?? null);
+    const durableFence = !latestCase || latestCase.status === "complete" || latestCase.status === "cancelled"
+      || (latestCase.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(latestCase.currentAction ?? "")))
+      || String(latestFile?.atlasJobId ?? latestFile?.jobId ?? "") !== jobId;
+    await updateJob(jobId, { status: updated ? "failed" : durableFence ? "cancelled" : "failed", outcome: "incomplete", message: updated ? message : durableFence ? "Target control failed after durable case/ownership fencing." : message, finishedAt: new Date().toISOString() }).catch(() => undefined);
+    await releaseContinuationLane(jobId);
+    res.status(updated ? (statusCode >= 400 && statusCode < 600 ? statusCode : 503) : durableFence ? 409 : 503).json({ error: updated ? message : durableFence ? "This canonical target case is fenced or owned by another Atlas job." : message, jobId });
   }
 });
 export default router;
