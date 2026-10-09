@@ -8,6 +8,7 @@ vi.mock("@workspace/db", () => ({
   researchCaseEventsTable: {},
 }));
 
+import { DISCOVERY_CANDIDATE_CLASSIFICATION } from "../lib/discovery-agent-admit";
 import {
   hasStrongIdentityEvidence,
   isWellFormedPersonCandidate,
@@ -183,5 +184,16 @@ describe("discovery agent identity boundary", () => {
     ])).toEqual([
       expect.objectContaining({ name: "Jane Example", company: "Example Co", promotionDecision: "promote" }),
     ]);
+  });
+});
+
+describe("discovery persistence classification", () => {
+  it("stores explicit candidate admissions as review-only, not as verified HNWI", () => {
+    expect(DISCOVERY_CANDIDATE_CLASSIFICATION).toEqual({
+      type: "PersonCandidate",
+      reviewOnly: true,
+      wealthStatus: "unverified",
+    });
+    expect(DISCOVERY_CANDIDATE_CLASSIFICATION.type).not.toBe("HNWI");
   });
 });
