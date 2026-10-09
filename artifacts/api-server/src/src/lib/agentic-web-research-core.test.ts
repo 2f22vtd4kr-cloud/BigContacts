@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, discoverySearchLivenessGate, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, discoverySearchLivenessGate, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 
@@ -196,6 +196,58 @@ describe("Investigator prompt architecture", () => {
     await expect(pending).rejects.toThrow("cancelled");
   });
 
+
+
+  it("grounds terminal claims against earlier successful page observations passed into a later act", () => {
+    const priorVisit = {
+      turn: 4,
+      model: "test-model",
+      action: "visit",
+      args: { url: "https://example.org/team" },
+      execution: "success",
+      observation: "Jane Doe is Head of Operations. Public email: jane.doe@example.org.",
+      observedUrls: ["https://example.org/team"],
+      findings: [],
+      providerFallback: [],
+    } as const;
+    const finding = {
+      vectorType: "email" as const,
+      value: "jane.doe@example.org",
+      personName: "Jane Doe",
+      role: "Head of Operations",
+      scope: "candidate" as const,
+      sourceUrls: ["https://example.org/team"],
+      note: "Public business contact",
+    };
+    const bound = bindModelFindingsToObservedSources([finding], [priorVisit as unknown as Parameters<typeof bindModelFindingsToObservedSources>[1][number]]);
+    expect(bound).toHaveLength(1);
+    expect(bound[0]?.sourceRecord.turn).toBe(4);
+    expect(bound[0]?.finding.sourceUrls).toEqual(["https://example.org/team"]);
+  });
+
+  it("never treats a search-result listing as a claim-grade prior page observation", () => {
+    const searchOnly = {
+      turn: 3,
+      model: "test-model",
+      action: "web_search",
+      args: { query: "Jane Doe contact" },
+      execution: "success",
+      observation: "Jane Doe jane.doe@example.org",
+      observedUrls: ["https://example.org/team"],
+      findings: [],
+      providerFallback: [],
+    } as const;
+    const finding = {
+      vectorType: "email" as const,
+      value: "jane.doe@example.org",
+      personName: "Jane Doe",
+      role: "Head of Operations",
+      scope: "candidate" as const,
+      sourceUrls: ["https://example.org/team"],
+      note: "Public business contact",
+    };
+    expect(bindModelFindingsToObservedSources([finding], [searchOnly as unknown as Parameters<typeof bindModelFindingsToObservedSources>[1][number]])).toHaveLength(0);
+  });
 
   it("does not treat a blocked or budget-exhausted model-selected done action as terminal", () => {
     expect(isAcceptedInvestigatorTerminal({ action: "done", execution: "blocked", stopReason: "ITERATION_BUDGET" })).toBe(false);
