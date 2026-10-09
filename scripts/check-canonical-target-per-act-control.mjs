@@ -74,7 +74,7 @@ const checks=[
 ["Apex contact fields are explicitly enumerated at the card boundary",/DIRECT_CONTACT_FIELDS/.test(mutationGuard)&&/contactOutcome/.test(mutationGuard)&&/metadata/.test(mutationGuard)],
 ["legacy enrichment routes remain retired",/RETIRED_MUTATING_ENRICHMENT_PATHS/.test(mutationGuard)&&/status\(410\)/.test(mutationGuard)],
 ];
-checks.push(["structured intelligence only receives grounded Investigator findings",/groundedFindingsForTrajectory/.test(agentic)&&/recordResult\(intelligence, normalizedRecord, records\)/.test(agentic)]);
+checks.push(["structured intelligence only receives grounded Investigator findings",/groundedFindingsForTrajectory/.test(agentic)&&/recordResult\(intelligence, normalizedRecord, \[\.\.\.historyRecords, \.\.\.records\]\)/.test(agentic)]);
 checks.push(["durable target trajectory replay excludes search findings",/const rawFindings = Array\.isArray\(payload\.findings\) && !\["web_search", "parallel_web_search"\]\.includes\(action\)/.test(runner)],);
 checks.push(["target Investigator act turns resume monotonically from durable trajectory",/const durableActTurn = durableTrajectory\.records\.reduce/.test(runner)&&/const firstActNumber = Math\.max\(1, durableActTurn \+ 1\)/.test(runner)&&/for \(let actNumber = firstActNumber;/.test(runner)]);
 checks.push(["canonical target unexpected failures close the durable case",/catch \(error\)/.test(runner)&&/investigator-execution-failed/.test(runner)&&/status: "review"/.test(runner)]);
