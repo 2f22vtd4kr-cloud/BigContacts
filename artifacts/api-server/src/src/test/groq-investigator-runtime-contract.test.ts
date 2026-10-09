@@ -100,6 +100,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties).toHaveProperty("profile");
     expect(schema?.properties).toHaveProperty("locale");
     expect(schema?.properties).toHaveProperty("market");
+    expect(schema?.properties?.expectedInformationGain).toEqual({ type: ["number", "null"] });
     expect(schema?.properties?.provider).toMatchObject({
       type: ["string", "null"],
       enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null],
