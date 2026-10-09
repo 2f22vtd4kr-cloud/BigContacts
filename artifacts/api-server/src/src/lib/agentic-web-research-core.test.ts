@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessGate, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 
@@ -14,7 +14,7 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
     observedUrls: [],
     findings: [],
     providerFallback: [],
-  } as Parameters<typeof discoverySearchLivenessGate>[0][number];
+  } as Parameters<typeof discoverySearchLivenessAdvisory>[0][number];
 }
 
 describe("provider-aware act timeout budget", () => {
@@ -89,15 +89,26 @@ describe("Investigator prompt architecture", () => {
     });
   });
 
-  it("blocks another search action after three successful search-only actions", () => {
+  it("offers non-binding guidance after three successful search-only actions", () => {
     const records = [
       livenessRecord("web_search", "success"),
       livenessRecord("parallel_web_search", "success"),
       livenessRecord("web_search", "success"),
     ];
-    const gate = discoverySearchLivenessGate(records);
-    expect(gate.allowed).toBe(false);
-    expect(gate.reason).toContain("three successful search actions");
+    const advisory = discoverySearchLivenessAdvisory(records);
+    expect(advisory).toContain("Advisory only");
+    expect(advisory).toContain("further searches remain available");
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "discover an attributable person",
+      history: [],
+      trajectoryRecords: records,
+      lastObservation: "Search results returned potentially useful leads.",
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toContain("OPTIONAL DISCOVERY TRAJECTORY GUIDANCE");
+    expect(prompt).toContain("this suggestion does not mandate visiting, browsing, or any particular provider");
   });
 
   it("resets only after a successful non-search capability observation", () => {
@@ -109,7 +120,7 @@ describe("Investigator prompt architecture", () => {
       livenessRecord("web_search", "success"),
       livenessRecord("web_search", "success"),
     ];
-    expect(discoverySearchLivenessGate(records)).toEqual({ allowed: true, reason: null });
+    expect(discoverySearchLivenessAdvisory(records)).toBeNull();
 
     const failedVisit = [
       livenessRecord("web_search", "success"),
@@ -117,7 +128,7 @@ describe("Investigator prompt architecture", () => {
       livenessRecord("web_search", "success"),
       livenessRecord("visit", "error"),
     ];
-    expect(discoverySearchLivenessGate(failedVisit).allowed).toBe(false);
+    expect(discoverySearchLivenessAdvisory(failedVisit)).toContain("Advisory only");
   });
 
   it("does not count failed or blocked searches as successful liveness progress", () => {
@@ -127,7 +138,7 @@ describe("Investigator prompt architecture", () => {
       livenessRecord("web_search", "blocked"),
       livenessRecord("web_search", "success"),
     ];
-    expect(discoverySearchLivenessGate(records)).toEqual({ allowed: true, reason: null });
+    expect(discoverySearchLivenessAdvisory(records)).toBeNull();
   });
 
   it("enforces the requested maximum when parsing model action text", () => {
