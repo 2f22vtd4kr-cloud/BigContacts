@@ -81,13 +81,20 @@ describe("Groq Investigator runtime contract", () => {
     }
   });
 
-  it("keeps every strict action capability representable, including SpiderFoot and locale routing", () => {
+  it("limits the strict model schema to executable actions while retaining the complete envelope", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "qwen/qwen3.8-27b",
       prompt: "x",
       cognitiveTask: "discovery",
     });
     const schema = (body.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown>; required?: string[] } } }).json_schema?.schema;
+    const actionSchema = schema?.properties?.action as { enum?: string[] } | undefined;
+    expect(actionSchema?.enum).toEqual(expect.arrayContaining([
+      "web_search", "parallel_web_search", "visit", "domain_lookup", "registry_search", "browser_fetch", "done",
+    ]));
+    for (const unavailable of ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"]) {
+      expect(actionSchema?.enum).not.toContain(unavailable);
+    }
     expect(schema?.properties).toHaveProperty("target");
     expect(schema?.properties).toHaveProperty("targetType");
     expect(schema?.properties).toHaveProperty("profile");
@@ -97,7 +104,7 @@ describe("Groq Investigator runtime contract", () => {
       type: ["string", "null"],
       enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null],
     });
-    expect(schema?.required).toEqual(expect.arrayContaining(["target", "targetType", "profile", "locale", "market", "provider"]));
+    expect(schema?.required).toEqual(expect.arrayContaining(["action", "target", "targetType", "profile", "locale", "market", "provider"]));
   });
 
   it("does not down-route Investigator work by cognitive-task heuristics", () => {
