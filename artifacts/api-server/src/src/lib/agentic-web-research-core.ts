@@ -124,7 +124,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
       reason: "A name-only or context-light discovery query needs a concrete research discriminator before spending a search call.",
     };
   }
-  if (tokenCount < 3 || concreteSignals < 1) {
+  if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) {
     warnings.push("This query is brief or context-light. Use result quality to decide whether a pivot is justified; the rail does not select the next search or capability.");
   }
   if (!hasConcreteAnchor) {
