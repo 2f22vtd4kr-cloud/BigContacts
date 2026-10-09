@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canApplyJobPatch, canApplyJobPatchWithoutRedis, classifyJobCreationVerification } from "../lib/job-queue-terminal-policy";
+import { canApplyJobPatch, canApplyJobPatchWithoutRedis, classifyActiveJobRead, classifyJobCreationVerification } from "../lib/job-queue-terminal-policy";
 
 describe("job queue terminal write policy", () => {
   it.each(["done", "failed", "cancelled"])("rejects every late update after %s", (status) => {
@@ -46,5 +46,17 @@ describe("atomic job creation reconciliation", () => {
     expect(classifyJobCreationVerification("job-1", "atlas-run", {
       type: "atlas-run", status: "queued",
     })).toBe("conflict");
+  });
+});
+
+describe("active job state read classification", () => {
+  it("distinguishes an authoritative idle lane from an unavailable state store", () => {
+    expect(classifyActiveJobRead(true, null)).toEqual({ state: "idle", jobId: null });
+    expect(classifyActiveJobRead(false, null)).toEqual({ state: "unavailable", jobId: null });
+  });
+
+  it("preserves the exact active job ID only after a successful state read", () => {
+    expect(classifyActiveJobRead(true, "job-123")).toEqual({ state: "active", jobId: "job-123" });
+    expect(classifyActiveJobRead(false, "job-123")).toEqual({ state: "unavailable", jobId: null });
   });
 });
