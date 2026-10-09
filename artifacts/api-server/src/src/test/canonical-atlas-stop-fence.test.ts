@@ -16,7 +16,7 @@ describe("canonical Atlas stop fence", () => {
   it("fences discovery-case creation and opening-event append against stop races", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
     expect(source).toContain("reconcileDiscoveryCaseCancellation");
-    expect(source).toContain('currentAction: "canonical-atlas-cancelled"');
+    expect(source).toMatch(/currentAction:\s*cancelled\s*\?\s*"canonical-atlas-cancelled"/);
     expect(source).toContain('eq(researchCasesTable.status, "active")');
     expect(source).toContain(".for(\"update\")");
     expect(source).toContain("refusing assignment event after cancellation");
@@ -54,7 +54,7 @@ describe("canonical Atlas stop fence", () => {
     expect(source).toContain('await setActiveJob("case-bureau-discovery", jobId!);');
     expect(source).toContain('await releaseCanonicalJob("atlas-run", jobId!).catch');
     expect(source).toContain("try {");
-    expect(source).toContain("Canonical discovery lock acquisition failed.");
+    expect(source).toContain('safeThrownErrorSummary("Canonical discovery lock acquisition failed", error)');
   });
 
   it("releases the target continuation lock if active-job binding fails", () => {
