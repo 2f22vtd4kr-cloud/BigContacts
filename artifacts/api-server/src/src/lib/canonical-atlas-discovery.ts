@@ -657,7 +657,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const proposedDirection = decision.direction || "Reassess the open evidence and choose the highest-information next action yourself.";
         const validatedDirection = validateResearchObjective(proposedDirection);
         if (!validatedDirection.valid) throw new Error(`Canonical Atlas rejected a Boss direction that attempted to prescribe an Investigator tool or destination: ${validatedDirection.reason}`);
-        const directedObjective = `${discoveryObjective}\\n\\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\\n${validatedDirection.direction}`;
+        const directedObjective = `${discoveryObjective}\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\n${validatedDirection.direction}`;
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
         const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed);
         if (remainingInvestigatorIterations <= 0) { investigatorResourceLimited = true; phaseSummary.controlSafetyCeiling = `Canonical Atlas Investigator iteration ceiling reached at ${investigatorIterationsUsed}/${depth.agenticMaxIterations}; refusing another discovery episode.`; break; }
