@@ -96,3 +96,5 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
   logger.info({ url, provider: options.provider, scope }, "browser_fetch selected provider failed or unconfigured");
   return { html: "", provider: options.provider, observedUrl: null };
 }
+
+export function browserFetchConfigured(): boolean { return Boolean(process.env.SCRAPFLY_API_KEY || process.env.ZENROWS_API_KEY || process.env.BROWSERLESS_TOKEN || process.env.PLAYWRIGHT_ENABLED === "1" || process.env.PLAYWRIGHT_ENABLED === "true"); }
