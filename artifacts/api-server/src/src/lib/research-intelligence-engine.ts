@@ -189,6 +189,21 @@ function extractPredicate(claim: string): { subject: string; predicate: string; 
   return { subject: match[1]!.trim(), predicate, object: match[2]!.trim() };
 }
 
+function supportsHypothesisClaim(hypothesis: string, claim: string): boolean {
+  const hypothesisClaim = extractPredicate(hypothesis);
+  const evidenceClaim = extractPredicate(claim);
+  if (
+    hypothesisClaim.predicate !== "asserts"
+    && evidenceClaim.predicate !== "asserts"
+    && normalize(hypothesisClaim.subject) === normalize(evidenceClaim.subject)
+    && hypothesisClaim.predicate === evidenceClaim.predicate
+  ) {
+    const normalizeObject = (value: string) => normalize(value).replace(/^(?:the|a|an)\\s+/, "");
+    if (normalizeObject(hypothesisClaim.object) !== normalizeObject(evidenceClaim.object)) return false;
+  }
+  return overlap(hypothesis, claim) >= 0.35;
+}
+
 export class ResearchIntelligenceEngine {
   private readonly evidence = new Map<string, IntelligenceEvidence>();
   private readonly claims = new Map<string, IntelligenceClaim>();
@@ -251,7 +266,7 @@ export class ResearchIntelligenceEngine {
     const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
     const modelPurpose = typeof input.args?.purpose === "string" ? input.args.purpose.trim() : "";
     if (modelHypothesis) {
-      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim") && overlap(modelHypothesis, evidence.claim) >= 0.35 && !evidence.contradicts.some((id) => { const competing = this.evidence.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); })).map((evidence) => evidence.id);
+      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim") && supportsHypothesisClaim(modelHypothesis, evidence.claim) && !evidence.contradicts.some((id) => { const competing = this.evidence.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); })).map((evidence) => evidence.id);
       this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, missingDiscriminators: modelPurpose ? [modelPurpose] : [] });
     }
     const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
