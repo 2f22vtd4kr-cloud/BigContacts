@@ -1,8 +1,5 @@
 import { Router, type IRouter } from "express";
-import authRouter from "./auth";
-import { apiAuthMiddleware } from "../lib/api-auth";
 import healthRouter from "./health";
-import authRouter from "./auth";
 import entitiesRouter from "./entities";
 import safeEntityMergeRouter from "./entity-merge-safe";
 import assetsRouter from "./assets";
@@ -32,13 +29,10 @@ import { requireOperatorAuth } from "../lib/operator-auth";
 const router: IRouter = Router();
 
 // Auth bootstrap must be public, but every operational route (including detailed health) is behind the server-side boundary.
-router.use(authRouter);
-router.use(apiAuthMiddleware);
 // Operator sign-in routes and public liveness precede the fail-closed guard.
 router.use(operatorAuthRouter);
 router.use(requireOperatorAuth);
 router.use(healthRouter);
-router.use(authRouter);
 router.use(normalizeAtlasLaunchBody);
 router.use(entityVisibilityGuard);
 router.use(legacyApexMutationGuard);
