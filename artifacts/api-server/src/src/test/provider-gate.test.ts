@@ -20,6 +20,7 @@ describe("provider quota gate", () => {
     delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GEMINI;
     delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GENERIC;
     delete process.env.APEX_EXTERNAL_GLOBAL_CONCURRENCY;
+    delete process.env.APEX_EXTERNAL_CACHE_BODY_READ_TIMEOUT_MS;
     resetProviderGateForTests();
   });
 
@@ -555,6 +556,38 @@ describe("provider quota gate", () => {
       expect(await first.text()).toBe("one");
       expect(await second.text()).toBe("two");
       expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("stalled public response body is not held open by cache capture", async () => {
+    const originalFetch = globalThis.fetch;
+    process.env.APEX_EXTERNAL_CACHE_BODY_READ_TIMEOUT_MS = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return new Response(new ReadableStream<Uint8Array>({ start() {} }), {
+        status: 200,
+        headers: { "cache-control": "public, max-age=60" },
+      });
+    }) as typeof fetch;
+    try {
+      const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+      installExternalQuotaGuard();
+      const fetchResult = globalThis.fetch("https://stalled-cache.example.test/resource");
+      const outcome = await Promise.race([
+        fetchResult.then((response) => ({ kind: "response" as const, response })),
+        new Promise<{ kind: "timeout" }>((resolve) => setTimeout(() => resolve({ kind: "timeout" }), 250)),
+      ]);
+      expect(outcome.kind).toBe("response");
+      if (outcome.kind === "response") {
+        expect(outcome.response.status).toBe(200);
+        await outcome.response.body?.cancel();
+      }
+      expect(calls).toBe(1);
     } finally {
       globalThis.fetch = originalFetch;
     }
