@@ -373,7 +373,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       status: "unavailable" as const,
       model: "none",
       raw: null,
-      error: error instanceof Error ? error.message : "Right-hand unavailable",
+      error: safeThrownErrorSummary("Groq Right-hand opening review unavailable", error),
     }));
     await assertAtlasJobActive(atlasJobId);
     let rightHand: { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null } = {
