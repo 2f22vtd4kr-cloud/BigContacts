@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
@@ -15,6 +15,32 @@ describe("Groq Investigator runtime contract", () => {
     expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: false });
     expect(validateDiscoverySearchQuery("Slovenia casino owners", ["Slovenia casino"])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Example Corp founder", [])).toEqual({ allowed: true });
+  });
+
+  it("aligns the prompt with every required property in the strict structured-action schema", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover evidence-backed public research leads.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "No research action selected yet.",
+      findings: [],
+      mode: "discovery",
+    });
+    const body = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-20b",
+      prompt,
+      cognitiveTask: "discovery",
+    });
+    const messages = body.messages as Array<{ content: string }>;
+    const submitted = messages.map((message) => message.content).join("\\n");
+
+    expect(submitted).toContain("all top-level schema properties are required");
+    expect(submitted).toContain('"url":null');
+    expect(submitted).toContain("Each parallel search item must include query, provider, locale, market, purpose");
+    expect(submitted).toContain("Each finding must include vectorType, value, personName, role, scope, sourceUrls, note, promotionDecision, promotionReason");
+    expect(submitted).toContain('"searches":[],"findings":[]');
+    expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(9_000);
   });
 
   it("uses the GPT-OSS-compatible reasoning contract", () => {
