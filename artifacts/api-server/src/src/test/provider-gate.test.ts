@@ -476,4 +476,67 @@ describe("provider quota gate", () => {
     }
   });
 
+  it("RequestInit headers override Request headers for cache eligibility", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async (input, init) => {
+      calls += 1;
+      const headers = new Headers(init?.headers !== undefined ? init.headers : input instanceof Request ? input.headers : undefined);
+      return new Response(headers.get("authorization") ?? "anonymous", { status: 200, headers: { "cache-control": "public, max-age=60" } });
+    }) as typeof fetch;
+    try {
+      const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+      installExternalQuotaGuard();
+      const request = new Request("https://auth-cache.example.test/resource");
+      const first = await globalThis.fetch(request, { headers: { authorization: "Bearer one" } });
+      const second = await globalThis.fetch(request, { headers: { authorization: "Bearer two" } });
+      expect(await first.text()).toBe("Bearer one");
+      expect(await second.text()).toBe("Bearer two");
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("custom request headers bypass shared response caching", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async (_input, init) => {
+      calls += 1;
+      const headers = new Headers(init?.headers);
+      return new Response(headers.get("x-tenant-id") ?? "none", { status: 200, headers: { "cache-control": "public, max-age=60" } });
+    }) as typeof fetch;
+    try {
+      const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+      installExternalQuotaGuard();
+      const first = await globalThis.fetch("https://tenant-cache.example.test/resource", { headers: { "x-tenant-id": "tenant-one" } });
+      const second = await globalThis.fetch("https://tenant-cache.example.test/resource", { headers: { "x-tenant-id": "tenant-two" } });
+      expect(await first.text()).toBe("tenant-one");
+      expect(await second.text()).toBe("tenant-two");
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("no-cache and max-age=0 responses are not reused", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return new Response(`version-${calls}`, { status: 200, headers: { "cache-control": "public, no-cache, max-age=0" } });
+    }) as typeof fetch;
+    try {
+      const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+      installExternalQuotaGuard();
+      const first = await globalThis.fetch("https://freshness-cache.example.test/resource");
+      const second = await globalThis.fetch("https://freshness-cache.example.test/resource");
+      expect(await first.text()).toBe("version-1");
+      expect(await second.text()).toBe("version-2");
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
 });
