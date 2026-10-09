@@ -10,6 +10,7 @@ import { buildInvestigatorContext, compactInvestigationContext, type CompactionF
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { reviewTargetInvestigationAct } from "./target-act-oversight";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
+import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, validateAtlasOpeningRightHandReview } from "./atlas-control-decision";
 import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
 import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; initialDirection?: string; manageJobLifecycle?: boolean; maxInvestigatorIterations?: number; excludedInvestigatorLlm?: readonly InvestigatorCapability[] };
@@ -196,16 +197,18 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
        });
       caseState.currentAction = "groq-right-hand-opening-review";
       const rightHandPrompt = "Review Groq Boss opening target assignment before the Investigator starts. Target: " + target.name + " (" + target.type + "). Objective: " + caseRow.objective + ". Boss selected Investigator capability: " + investigatorLlm + ". Boss report: " + (opening.report ?? "") + ". Next directions: " + JSON.stringify(opening.nextDirections) + ". Uncertainties: " + JSON.stringify(opening.uncertainties) + ". Return concise advisory observations only. Do not browse, choose tools, invent evidence, or replace the Investigator. Return JSON with decision, reason, focusLanes, confidence.";
-      const rightHandRaw = await runGroqRightHandFreeJson(rightHandPrompt, apexOrientationFor("right_hand") + "\nYou are Groq Right-hand. Review the Boss opening decision only. Do not browse, choose tools, or replace the selected Investigator capability. Reply with ONE JSON object.").catch((error) => ({ status: "unavailable" as const, model: "none", raw: null, error: error instanceof Error ? error.message : "Right-hand unavailable" }));
-      if (rightHandRaw.status !== "completed" || !rightHandRaw.raw) {
+      const rightHandRaw = await runGroqRightHandFreeJson(rightHandPrompt, apexOrientationFor("right_hand") + "\nYou are Groq Right-hand. Review the Boss opening decision only. Do not browse, choose tools, or replace the selected Investigator capability. Reply with ONE JSON object.", ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT).catch((error) => ({ status: "unavailable" as const, model: "none", raw: null, error: error instanceof Error ? error.message : "Right-hand unavailable" }));
+      if (rightHandRaw.status !== "completed" || !rightHandRaw.raw?.trim()) {
         await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...caseState, rightHandOpening: { status: "unavailable", model: rightHandRaw.model, error: rightHandRaw.error ?? "Right-hand unavailable" } }), status: "review", currentAction: "groq-right-hand-opening-failed", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`));
         await publishJob( { status: "failed", progress: 1, outcome: "incomplete", message: "Groq Right-hand opening review failed for " + target.name + "; Investigator execution blocked.", result: JSON.stringify({ caseId: caseRow.id, opening, rightHand: rightHandRaw }), finishedAt: new Date().toISOString() });
         return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review", exhaustedInvestigatorLlm: [], investigatorLlm };
       }
       let rightHandOpening: Record<string, unknown>;
       try {
-        const parsed = JSON.parse(rightHandRaw.raw) as Record<string, unknown>;
-        rightHandOpening = { status: "completed", model: rightHandRaw.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null };
+        const value: unknown = JSON.parse(rightHandRaw.raw);
+        const parsed = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+        if (!validateAtlasOpeningRightHandReview(parsed) || !parsed) throw new Error("Right-hand returned an invalid opening review contract.");
+        rightHandOpening = { status: "completed", model: rightHandRaw.model, decision: (parsed.decision as string).trim(), reason: (parsed.reason as string).trim(), focusLanes: (parsed.focusLanes as string[]).map((lane) => lane.trim()), confidence: parsed.confidence as number, error: null };
       } catch {
         await db.update(researchCasesTable).set({ status: "review", currentAction: "groq-right-hand-opening-invalid", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`));
         await publishJob( { status: "failed", progress: 1, outcome: "incomplete", message: "Groq Right-hand opening review was invalid for " + target.name + "; Investigator execution blocked.", result: JSON.stringify({ caseId: caseRow.id, opening, rightHand: rightHandRaw }), finishedAt: new Date().toISOString() });
