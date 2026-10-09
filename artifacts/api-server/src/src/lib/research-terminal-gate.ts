@@ -1,6 +1,13 @@
 import { evaluateTerminalGate, type EvidenceSufficiencyContract, type TerminalGateResult } from "./research-epistemic-vnext";
 import type { IntelligenceContext } from "./research-intelligence-engine";
 export type TerminalContractMode = "target" | "discovery";
+
+/** A model-selected done action is terminal only when the core accepts it. */
+export function isAcceptedInvestigatorTerminal(input: { action: unknown; execution: unknown; stopReason: unknown }): boolean {
+  return input.action === "done"
+    && input.execution === "success"
+    && input.stopReason === "MODEL_DECIDED_DONE";
+}
 export function defaultTerminalContract(mode: TerminalContractMode): EvidenceSufficiencyContract {
   return mode === "discovery"
     ? { minEvidence: 2, minIndependentSourceUnits: 2, requireExactSpanForFindings: false, requireFalsification: true, allowOpenQuestions: 1, allowHighSeverityContradictions: 0 }
