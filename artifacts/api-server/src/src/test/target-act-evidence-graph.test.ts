@@ -28,7 +28,7 @@ describe("target act evidence graph provenance", () => {
       findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", role: "Founder", scope: "candidate", sourceUrls: ["https://example.com/team/jane"] }],
       sourceRecords: [{ turn: 2, action: "visit", execution: "success", observation: "Jane Example — Founder — jane@example.com", observedUrls: ["https://example.com/team/jane"], findings: [] }],
     };
-    expect(buildActEvidenceGraphs(1, act, 2, "run-visited")).toHaveLength(1);
+    expect(buildActEvidenceGraphs(1, act, 2, "run-visited", new Map([[2, 202]]))).toHaveLength(1);
   });
   it("rejects a candidate contact graph when identity and value are only present on separate pages", () => {
     const contactUrl = "https://example.com/contact";

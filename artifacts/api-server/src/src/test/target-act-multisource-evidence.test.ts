@@ -31,11 +31,11 @@ describe("target act multi-source evidence", () => {
         { turn: 2, action: "browser_fetch", execution: "success", observation: "Jane Example — Founder", observedUrls: ["https://example.com/contact"], findings: [] },
       ],
     };
-    const graphs = buildActEvidenceGraphs(1, act, 4, "run-co-bound-source");
+    const graphs = buildActEvidenceGraphs(1, act, 4, "run-co-bound-source", new Map([[1, 41], [2, 42]]));
     expect(graphs).toHaveLength(1);
     expect(graphs[0]?.observations.map((observation) => observation.sourceUrl))
       .toEqual(["https://example.com/team"]);
-    expect(graphs[0]?.observations.every((observation) => observation.eventId === 4)).toBe(true);
+    expect(graphs[0]?.observations.every((observation) => observation.eventId === 41)).toBe(true);
   });
 
 });

@@ -152,7 +152,7 @@ function exactContactEvidenceExcerpt(observation: string, value: string, personN
   return span?.exact ? span.text : null;
 }
 
-export function buildActEvidenceGraphs(caseId:number,act:ActRecord,eventId:number,runId:string,sourceEventIds?:ReadonlyMap<number,number>):EvidenceGraph[]{
+export function buildActEvidenceGraphs(caseId:number,act:ActRecord,eventId:number,runId:string,sourceEventIds:ReadonlyMap<number,number>):EvidenceGraph[]{
   const sourceRecords=act.sourceRecords?.length?act.sourceRecords:[act];
   const graphs:EvidenceGraph[]=[];
   for(const[index,raw]of act.findings.entries()){
@@ -177,7 +177,7 @@ export function buildActEvidenceGraphs(caseId:number,act:ActRecord,eventId:numbe
       });
       if(!source?.observation)continue;
       // Canonical aggregate episodes are not claim-grade source observations.
-      const sourceEventId=sourceEventIds?.get(source.turn)??(sourceEventIds===undefined?eventId:undefined);
+      const sourceEventId=sourceEventIds.get(source.turn);
       if(!sourceEventId)continue;
       const excerpt=exactContactEvidenceExcerpt(source.observation,claim.object,candidateScoped?personName:null,claim.predicate);
       if(!excerpt)continue;
