@@ -284,7 +284,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            `RECENT PRIOR ACTS: ${JSON.stringify(recentPriorActs)}`,
            oversightContext.contextDocument,
            input.priorContext,
-         ].filter((value) => typeof value === "string" && value.trim()).join("\\n\\n");
+         ].filter((value) => typeof value === "string" && value.trim()).join("\n\n");
          const actInput: RunInput = {
            ...input,
            priorIntelligenceContext: intelligence.buildContext(),
