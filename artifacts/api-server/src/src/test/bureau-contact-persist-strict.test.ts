@@ -10,7 +10,7 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: {},
 }));
 
-import { hasCanonicalPromotionJobBinding, isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+import { hasCanonicalPromotionJobBinding, isAcceptedImmutablePromotionControlRole, isClaimGradeObservationAction, isContactPromotionEligibleEntityType, isImmutablePromotionObservationEventType, observedSourceBackedBureauContacts, sourceBackedBureauContacts, supportsCandidateContactOnSameObservation, supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("contact promotion entity-type eligibility", () => {
   it("allows a PersonCandidate to receive evidence-backed contact without classifying its wealth", () => {
@@ -305,4 +305,13 @@ describe("canonical job binding for trusted promotion", () => {
     expect(supportsContactClaimAcrossObservations(observations, candidate, "jane@example.com", "email")).toBe(false);
   });
 
+});
+
+describe("immutable promotion observation event types", () => {
+  it("accepts granular source anchors without confusing them with replayable tool-observation events", () => {
+    expect(isImmutablePromotionObservationEventType("source_observation")).toBe(true);
+    expect(isImmutablePromotionObservationEventType("tool_observation")).toBe(true);
+    expect(isImmutablePromotionObservationEventType("control_decision")).toBe(false);
+    expect(isImmutablePromotionObservationEventType("provider_error")).toBe(false);
+  });
 });
