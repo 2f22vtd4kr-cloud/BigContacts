@@ -7,8 +7,21 @@ import {
 
 const router = Router();
 const LOGIN_WINDOW_MS = 60_000, LOGIN_BLOCK_MS = 60_000, MAX_FAILED_LOGINS_PER_WINDOW = 8;
-type LoginAttempt = { windowStartedAt: number; failures: number; blockedUntil: number };
-const failedLogins = new Map<string, LoginAttempt>();
+export type LoginAttemptState = { windowStartedAt: number; failures: number; blockedUntil: number };
+const failedLogins = new Map<string, LoginAttemptState>();
+
+/**
+ * Preserve an active lockout even when the rolling failure-count window expires.
+ * The old reset-first logic cleared blockedUntil at windowStartedAt + 60s,
+ * shortening lockouts triggered near the end of that window.
+ */
+export function advanceLoginAttemptWindow(state: LoginAttemptState | undefined, now: number): LoginAttemptState {
+  if (state && state.blockedUntil > now) return state;
+  if (!state || now - state.windowStartedAt >= LOGIN_WINDOW_MS) {
+    return { windowStartedAt: now, failures: 0, blockedUntil: 0 };
+  }
+  return state;
+}
 function noStore(res: Response): void { res.setHeader("Cache-Control", "no-store"); res.setHeader("Pragma", "no-cache"); }
 function authProblem(code: "OPERATOR_AUTH_REQUIRED" | "OPERATOR_AUTH_NOT_CONFIGURED", missing: string[] = []) {
   const notConfigured = code === "OPERATOR_AUTH_NOT_CONFIGURED";
@@ -29,12 +42,10 @@ function missingConfigResponse(res: Response): void {
   res.status(503).json({ configured: false, authenticated: false, code: "OPERATOR_AUTH_NOT_CONFIGURED", error: "Operator authentication is not configured.", missing, userError: authProblem("OPERATOR_AUTH_NOT_CONFIGURED", missing) });
 }
 function requestAddress(req: Request): string { return req.socket.remoteAddress || "unknown"; }
-function loginAttemptFor(address: string, now: number): LoginAttempt {
-  let state = failedLogins.get(address);
-  if (!state || now - state.windowStartedAt >= LOGIN_WINDOW_MS) {
-    state = { windowStartedAt: now, failures: 0, blockedUntil: 0 };
-    failedLogins.set(address, state);
-  }
+function loginAttemptFor(address: string, now: number): LoginAttemptState {
+  const previous = failedLogins.get(address);
+  const state = advanceLoginAttemptWindow(previous, now);
+  if (state !== previous) failedLogins.set(address, state);
   while (failedLogins.size > 512) {
     const oldest = failedLogins.keys().next();
     if (oldest.done) break;
