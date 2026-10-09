@@ -57,7 +57,7 @@ const checks=[
 ["evidence graph observations can carry immutable event IDs",/eventId\?\s*:\s*number\s*\|\s*null/.test(evidence)],
 ["canonical act graphs require immutable observation anchors",/validateClaimSupportGraph\(graph,\s*true\)/.test(oversight)],
 ["Right Hand is mandatory before Boss continuation",/if\(rightHand\.status!=="completed"\)/.test(oversight)],
-["target per-act Right-hand contract is exact-field validated",/validateTargetActRightHandAdvice\(rightParsed\)/.test(oversight)&&/validateTargetActRightHandAdvice\(value\)/.test(oversight)&&/validateAtlasOpeningRightHandReview\(value\)/.test(oversight)&&/validateExactObjectFields\(value,\s*\["decision",\s*"reason",\s*"focusLanes",\s*"confidence"\]\)/.test(atlasDecision)],
+["target per-act Right-hand contract is exact-field validated",/validateTargetActRightHandAdvice\(rightParsed\)/.test(oversight)&&/export function validateTargetActRightHandAdvice\(value:[^\n]*\):boolean\s*\{\s*return validateAtlasOpeningRightHandReview\(value\);\s*\}/.test(oversight)&&/validateExactObjectFields\(value,\s*\["decision",\s*"reason",\s*"focusLanes",\s*"confidence"\]\)/.test(atlasDecision)],
 ["target per-act Boss contract is exact-field validated",/validateTargetActBossOversight\(parsed\)/.test(oversight)&&/validateExactFields\(value,\s*\["action",\s*"direction",\s*"reason",\s*"confidence"\]\)/.test(oversight)],
 ["completed-act observation compaction preserves its tail",/function compactOversightText/.test(oversight)&&/ACT OBSERVATION MIDDLE OMITTED/.test(oversight)],
 ["per-act control prompt bounds current act",/boundOversightPromptSection\(JSON\.stringify\(currentAct\),3500\)/.test(oversight)],
