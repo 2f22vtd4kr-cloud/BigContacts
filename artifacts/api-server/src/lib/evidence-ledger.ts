@@ -51,14 +51,35 @@ export function canonicalizeUrl(raw: string | null | undefined): string | null {
   return url.toString();
 }
 
+const REGISTRY_SOURCE_DOMAINS = new Set(["register.com","companieshouse.gov.uk","handelsregister.de","brreg.no","opencorporates.com","fca.org.uk","lei.info","gleif.org","edgar.sec.gov","inpi.fr","infogreffe.fr","sbi.gov.br","kvk.nl","kbo-bce.be","zefix.ch","cvr.dk","ytj.fi","bodacc.fr","ares.cnr.it","landregistry.gov.uk","hmlr.gov.uk","faa.gov"]);
+const PRESS_SOURCE_DOMAINS = new Set(["prnewswire.com","globenewswire.com","businesswire.com","reuters.com","apnews.com","bloomberg.com","forbes.com","wsj.com","ft.com","economist.com"]);
+const SOCIAL_SOURCE_DOMAINS = new Set(["twitter.com","x.com","linkedin.com","instagram.com","facebook.com","t.me","telegram.me","youtube.com","github.com","reddit.com","medium.com","substack.com"]);
+const SEARCH_SOURCE_DOMAINS = new Set(["google.com","bing.com","duckduckgo.com","yahoo.com","baidu.com","yandex.com","brave.com"]);
+
+function hostIsOrWithin(host: string, root: string): boolean {
+  return host === root || host.endsWith(`.${root}`);
+}
+
+function matchesAnySourceDomain(host: string, roots: ReadonlySet<string>): boolean {
+  return [...roots].some((root) => hostIsOrWithin(host, root));
+}
+
 export function getSourceFamily(hostname: string | null | undefined): SourceFamily {
-  const host = hostname?.trim().toLowerCase().replace(/^www\./, "") ?? "";
+  const host = hostname?.trim().toLowerCase().replace(/^www\\./, "").replace(/\\.$/, "") ?? "";
   if (!host) return "unknown";
-  if (/\b(go|gov|edu)\b/.test(host) || host.endsWith(".gov") || host.endsWith(".edu")) return "official";
-  if (/(registry|registr|register|companieshouse|handelsregister|brreg|opencorporates|sec\.gov|fca\.org\.uk|lei|gleif|edgar|inpi|infogreffe|sbi|kvk|kbo|zefix|cvr|ytj|bodacc|ares|landregistry|hmlr|faa)/.test(host)) return "registry";
-  if (/(press|news|media|prnewswire|globenewswire|businesswire|reuters|apnews|bloomberg|forbes|wsj|ft\.com|economist)/.test(host)) return "press";
-  if (/(twitter\.com|x\.com|linkedin\.com|instagram\.com|facebook\.com|t\.me|telegram\.me|youtube\.com|github\.com|reddit\.com|medium\.com|substack\.com)/.test(host)) return "social";
-  if (/(google\.com|bing\.com|duckduckgo\.com|yahoo\.com|search\.|baidu\.com|yandex\.com)/.test(host)) return "search";
+
+  // Domain suffixes are evaluated at label boundaries. A word appearing in an
+  // unrelated hostname (e.g. reuters.attacker.com) is not publisher evidence.
+  const officialSuffixes = [
+    ".gov", ".gov.uk", ".gov.au", ".govt.nz", ".gc.ca", ".gouv.fr",
+    ".go.jp", ".gob.mx", ".gov.in", ".gov.sg", ".gov.br", ".gov.za",
+    ".edu", ".edu.au", ".ac.uk", ".ac.nz",
+  ];
+  if (officialSuffixes.some((suffix) => host.endsWith(suffix))) return "official";
+  if (matchesAnySourceDomain(host, REGISTRY_SOURCE_DOMAINS)) return "registry";
+  if (matchesAnySourceDomain(host, PRESS_SOURCE_DOMAINS)) return "press";
+  if (matchesAnySourceDomain(host, SOCIAL_SOURCE_DOMAINS)) return "social";
+  if (matchesAnySourceDomain(host, SEARCH_SOURCE_DOMAINS)) return "search";
   return "unknown";
 }
 
