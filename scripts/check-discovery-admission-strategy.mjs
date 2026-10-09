@@ -17,15 +17,14 @@ if (violations.length) {
   );
 }
 
-// Keep the runtime's shared, token-boundary matcher on both the admission
-// support check and the evidence-event lookup. Checking only a local helper
-// definition allowed substring matching to be reintroduced at call sites.
+// The selected supporting event carries the same token-boundary identity proof
+// that is persisted as source evidence; do not require duplicate matcher calls.
 const matcherCallCount = (source.match(/candidateIdentityObserved\(name,\s*payload\.observation\)/g) ?? []).length;
 const importsSharedMatcher = /import\s*\{[^}]*\bcandidateIdentityObserved\b[^}]*\}\s*from\s*["\']\.\/identity-text-match["\']/.test(source);
 const matcherUsesTokenBoundaries = identityMatcher.includes("` ${normalizedText} `.includes(` ${normalizedName} `)");
 
-if (!importsSharedMatcher || matcherCallCount < 2 || !matcherUsesTokenBoundaries || !identityMatcher.includes("normalizedName.length >= 3")) {
-  throw new Error("Canonical discovery admission must use the shared token-boundary identity matcher for both observation support and persisted evidence.");
+if (!importsSharedMatcher || matcherCallCount < 1 || !matcherUsesTokenBoundaries || !identityMatcher.includes("normalizedName.length >= 3") || !source.includes("supportingEventId: supportingEvent.id") || !source.includes("sourceUrl: normalizedSource")) {
+  throw new Error("Canonical discovery admission must bind persisted evidence to the same token-boundary identity-supporting event.");
 }
 
 if (!/db\.transaction\(async \(tx\) => \{[\s\S]*tx\.update\(researchCasesTable\)[\s\S]*tx\.insert\(researchCaseEventsTable\)/.test(source)) {
