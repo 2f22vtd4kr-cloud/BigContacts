@@ -28,7 +28,11 @@
 6. Use the active role-scoped provider secret contract in `docs/context.md`; optional numbered Groq capability slots are separate selectable credentials.
 8. Run preflight, architecture checks, typecheck, builds, and focused tests before claiming readiness.
 
-## 2. First-time schema initialization
+## 2. Operator authentication
+
+Before using Apex, configure `APEX_OPERATOR_PASSWORD` (16+ characters), `APEX_API_AUTH_TOKEN` (32+), and `APEX_SESSION_SECRET` (32+ and stable across replicas/restarts). Run `node scripts/replit-preflight.mjs` to check provider and auth secret presence/length without printing values. Missing authentication is a fail-closed blocker; do not bypass the middleware.
+
+## 3. First-time schema initialization
 
 Apex intentionally fails closed if the durable provenance schema is missing.
 
@@ -42,7 +46,7 @@ The helper verifies required durable tables after the repository's current Drizz
 
 Do **not** leave `APEX_ALLOW_SCHEMA_PUSH=true` enabled for ordinary runtime boot.
 
-## 3. Canonical research launch
+## 4. Canonical research launch
 
 A canonical run is:
 
@@ -63,7 +67,7 @@ The Investigator can choose search, page retrieval, browser escalation, registri
 
 Poll the canonical job-status endpoint until terminal state and preserve the job/run identifiers. A completed job without valid durable trajectory/evidence is not a successful research result.
 
-## 4. Very Strong research controls
+## 5. Very Strong research controls
 
 The current reviewed branch additionally includes:
 
@@ -77,7 +81,7 @@ The current reviewed branch additionally includes:
 
 These controls are quality infrastructure. They are not a substitute for live research evaluation.
 
-## 5. Research-quality evaluation
+## 6. Research-quality evaluation
 
 Use **Apex Research Gauntlet v1** for empirical quality evaluation.
 
@@ -92,7 +96,7 @@ For release-quality evaluation:
 - allow unknown/insufficient evidence;
 - do not publish a single overall winner score.
 
-## 6. What this is NOT
+## 7. What this is NOT
 
 | Do not | Why |
 |---|---|
@@ -105,7 +109,7 @@ For release-quality evaluation:
 | Treat CI green as research-quality proof | Structural correctness and research quality are separate |
 | Enable schema push for ordinary boot | Runtime must fail closed rather than mutate production state |
 
-## 7. Quick verification
+## 8. Quick verification
 
 ```bash
 git log -1 --oneline
@@ -119,7 +123,7 @@ pnpm run check:provider-role-docs
 curl -sS http://127.0.0.1:8080/api/healthz
 ```
 
-## 8. Release stop condition
+## 9. Release stop condition
 
 Do not publish Apex until a fresh environment can:
 
