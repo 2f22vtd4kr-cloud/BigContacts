@@ -36,6 +36,36 @@ export async function readApiJson(res: Response): Promise<any> {
   }
 }
 
+let apiFetchNotificationsInstalled = false;
+
+/** Surface rejected API network requests even when a component/query catches the promise. */
+export function installApiFetchErrorNotifications(): void {
+  if (apiFetchNotificationsInstalled || typeof window === "undefined") return;
+  apiFetchNotificationsInstalled = true;
+  const originalFetch = window.fetch.bind(window);
+  window.fetch = async (input, init) => {
+    try {
+      return await originalFetch(input, init);
+    } catch (error) {
+      const request = typeof Request !== "undefined" && input instanceof Request ? input : undefined;
+      const signal = init?.signal ?? request?.signal;
+      const aborted = signal?.aborted || (error instanceof Error && /^(AbortError|CanceledError|CancelledError)$/.test(error.name));
+      const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.href : request?.url ?? String(input);
+      let isApiRequest = false;
+      try {
+        const pathname = new URL(rawUrl, window.location.href).pathname;
+        isApiRequest = pathname === "/api" || pathname.startsWith("/api/");
+      } catch {
+        isApiRequest = false;
+      }
+      if (isApiRequest && !aborted) {
+        emitApexError(classifyApexError(error instanceof Error ? error.message : "Network request failed"));
+      }
+      throw error;
+    }
+  };
+}
+
 export async function apiFetchJson(input: string, init?: RequestInit): Promise<{ res: Response; data: any }> {
   let res: Response;
   try {
