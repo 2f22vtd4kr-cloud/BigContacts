@@ -31,7 +31,7 @@ import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
 import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
 import {
-  createJob, updateJob, getJob, getJobLog,
+  createJob, updateJob, getJob, getJobStrict, getJobLog,
   setActiveJob, getActiveJob, getActiveJobStrict, clearDedup, getDedupCount,
 } from "../lib/job-queue";
 import { runWesternHnwiIngestion } from "../lib/western-hnwi-ingestion";
@@ -268,15 +268,19 @@ router.get("/ingest/job/active/:type", async (req, res): Promise<void> => {
     res.status(200).json({ type, jobId: null, job: null, active: false });
     return;
   }
-  const job = await getJob(jobId);
-  if (!job || job.status !== "running") {
-    res.status(200).json({
-      type,
-      jobId,
-      job: job ?? null,
-      active: false,
-      jobStatus: job?.status ?? null,
-    });
+  let job;
+  try {
+    job = await getJobStrict(jobId);
+  } catch {
+    res.status(503).json({ error: "Job record state is unavailable; active status is unknown.", code: "JOB_STATE_UNAVAILABLE" });
+    return;
+  }
+  if (!job) {
+    res.status(503).json({ error: "Active-job lock exists but its job record is missing; state is inconsistent.", code: "JOB_STATE_INCONSISTENT", jobId });
+    return;
+  }
+  if (job.status !== "running") {
+    res.status(200).json({ type, jobId, job, active: false, jobStatus: job.status });
     return;
   }
   res.json({ type, jobId, job, active: true });
@@ -285,7 +289,13 @@ router.get("/ingest/job/active/:type", async (req, res): Promise<void> => {
 // ── GET /ingest/job/:jobId ─────────────────────────────────────────────────────
 router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
   const { jobId } = req.params as { jobId: string };
-  const job = await getJob(jobId);
+  let job;
+  try {
+    job = await getJobStrict(jobId);
+  } catch {
+    res.status(503).json({ error: "Job state is unavailable; this job cannot be confirmed as present or absent.", code: "JOB_STATE_UNAVAILABLE" });
+    return;
+  }
   if (!job) { res.status(404).json({ error: "Job not found." }); return; }
 
   const log = await getJobLog(jobId);
