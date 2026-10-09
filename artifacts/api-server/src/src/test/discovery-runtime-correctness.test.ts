@@ -139,8 +139,8 @@ describe("discovery runtime architecture", () => {
     })).toBe(true);
     expect(isTransientInvestigatorCapacityError({ error: "upstream_quota_exhausted" })).toBe(false);
   });
-  it("blocks repeated discovery searches until a non-search observation occurs", async () => {
-    const { discoverySearchLivenessGate } = await import("../lib/agentic-web-research-core");
+  it("surfaces repeated discovery searches as guidance without blocking model choice", async () => {
+    const { discoverySearchLivenessAdvisory } = await import("../lib/agentic-web-research-core");
     const search = (turn: number) => ({
       turn,
       model: "groq",
@@ -151,12 +151,12 @@ describe("discovery runtime architecture", () => {
       observedUrls: ["https://example.com/source-" + turn],
       findings: [],
     });
-    expect(discoverySearchLivenessGate([search(1), search(2)])).toEqual({ allowed: true, reason: null });
-    expect(discoverySearchLivenessGate([search(1), search(2), search(3)])).toEqual({
-      allowed: false,
-      reason: expect.stringContaining("three successful search actions"),
-    });
-    expect(discoverySearchLivenessGate([
+    expect(discoverySearchLivenessAdvisory([search(1), search(2)])).toBeNull();
+    const repeatedSearchAdvice = discoverySearchLivenessAdvisory([search(1), search(2), search(3)]);
+    expect(repeatedSearchAdvice).toContain("Advisory only");
+    expect(repeatedSearchAdvice).toContain("further searches remain available");
+
+    expect(discoverySearchLivenessAdvisory([
       search(1),
       search(2),
       search(3),
@@ -170,10 +170,10 @@ describe("discovery runtime architecture", () => {
         observedUrls: ["https://example.com/source-3"],
         findings: [],
       },
-    ])).toEqual({ allowed: true, reason: null });
+    ])).toBeNull();
   });
 
-  it("scopes Groq token-window snapshots to the selected model", () => {
+  it("scopes Groq token-window snapshots to the selected model", () => {  it("scopes Groq token-window snapshots to the selected model", () => {
     expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(keyName: string, model: string)");
     expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model))");
     expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(keyName ?? \"unknown\", model, response)");
