@@ -331,10 +331,16 @@ export class ResearchIntelligenceEngine {
       this.evidence.set(fingerprint, restoredEvidence);
       this.evidenceByIdMap.set(evidenceId, restoredEvidence);
     }
+    const restoredEvidenceById = new Map([...this.evidence.values()].map((evidence) => [evidence.id, evidence]));
     for (const fact of context.facts) {
       const parsed = extractPredicate(fact.claim); const id = "cl_" + hash(fact.claim).slice(0, 20);
+      const evidenceIds = [...new Set(fact.evidenceIds)].filter((evidenceId) => restoredEvidenceById.has(evidenceId));
+      // Rebuild claim provenance from the evidence IDs that survived URL and
+      // source-class revalidation. A stale fact.sources projection is not an
+      // independent authority for source quality or source diversity.
+      const sourceHosts = [...new Set(evidenceIds.map((evidenceId) => restoredEvidenceById.get(evidenceId)?.sourceHost).filter((host): host is string => Boolean(host)))];
       this.claims.set(id, { id, subject: parsed.subject, predicate: parsed.predicate, object: parsed.object, status: "supported",
-        evidenceIds: [...new Set(fact.evidenceIds)].filter((evidenceId) => [...this.evidence.values()].some((evidence) => evidence.id === evidenceId)), sourceHosts: [...new Set(fact.sources)],
+        evidenceIds, sourceHosts,
         firstSeen: new Date(0).toISOString(), lastSeen: new Date(0).toISOString() });
     }
     const knownEvidenceIds = new Set([...this.evidence.values()].map((evidence) => evidence.id));

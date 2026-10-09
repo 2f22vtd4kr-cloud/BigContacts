@@ -324,6 +324,7 @@ describe("Apex research intelligence", () => {
     const persisted = original.buildContext();
     const staleProjection = {
       ...persisted,
+      facts: persisted.facts.map((fact) => ({ ...fact, sources: ["reuters.com"] })),
       atomicEvidence: persisted.atomicEvidence.map((item) => item.sourceUrl === url
         ? { ...item, sourceHost: "reuters.com", sourceClass: "REPUTABLE_NEWS" as const }
         : item),
@@ -340,6 +341,8 @@ describe("Apex research intelligence", () => {
     expect(evidence.length).toBeGreaterThan(0);
     expect(evidence.every((item) => item.sourceHost === "fake-news.example.com" && item.sourceClass === "UNKNOWN")).toBe(true);
     expect(state.sourceQualitySummary.some((item) => item.sourceClass === "REPUTABLE_NEWS" && item.count > 0)).toBe(false);
+    expect(state.facts.some((fact) => fact.sources.includes("fake-news.example.com"))).toBe(true);
+    expect(state.facts.some((fact) => fact.sources.includes("reuters.com"))).toBe(false);
     expect(lineage.length).toBeGreaterThan(0);
     expect(lineage.every((node) => node.host === "fake-news.example.com")).toBe(true);
   });
