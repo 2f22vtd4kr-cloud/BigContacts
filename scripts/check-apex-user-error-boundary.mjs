@@ -8,6 +8,8 @@ const api = read("artifacts/apex-finder/src/lib/api-json.ts");
 const errors = read("artifacts/apex-finder/src/lib/apex-errors.ts");
 const notice = read("artifacts/apex-finder/src/components/apex-error-notice.tsx");
 const main = read("artifacts/apex-finder/src/main.tsx");
+const atlasRun = read("artifacts/apex-finder/src/lib/use-atlas-run.ts");
+const reactorStore = read("artifacts/apex-finder/src/lib/reactor-live-store.ts");
 
 const checks = [
   ["failed API fetches emit a user-facing classified error", api.includes("res = await fetch(input, init)") && api.includes('emitApexError(classifyApexError(error instanceof Error ? error.message : "Network request failed"))')],
@@ -17,6 +19,8 @@ const checks = [
   ["structured server error payloads are validated before display", api.includes("isApexUserError(data?.userError)") && errors.includes("export function isApexUserError(value: unknown)")],
   ["Gemini outage classification does not swallow quota or credential failures", errors.includes("GEMINI_BOSS_UNAVAILABLE") && /quota|rate limit|too many requests|missing/.test(errors)],
   ["the notice exposes why and actionable next steps", notice.includes("Why:") && notice.includes("Next steps") && notice.includes('role="alert"')],
+  ["Atlas run polling classifies HTTP failures without clearing last known state", atlasRun.indexOf("await readApiJson(res)") >= 0 && atlasRun.indexOf("if (!res.ok)") > atlasRun.indexOf("await readApiJson(res)") && !atlasRun.includes("setRun({ active: false }); setReady(true); return;")],
+  ["Reactor status polling classifies HTTP failures and preserves its last snapshot", reactorStore.indexOf("await readApiJson(activeResponse)") >= 0 && reactorStore.indexOf("if (!activeResponse.ok)") > reactorStore.indexOf("await readApiJson(activeResponse)") && !reactorStore.includes("emit(EMPTY)")],
   ["global fetch and query/mutation handlers surface caught API failures", main.includes("installApiFetchErrorNotifications();") && main.includes("new QueryCache") && main.includes("new MutationCache") && main.includes("notifyApiOperationError")],
 ];
 
