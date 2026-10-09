@@ -638,7 +638,7 @@ describe("provider quota gate", () => {
     process.env.APEX_EXTERNAL_WINDOW_MS = "10000";
     process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC = "10";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC = "0";
-    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "1";
+    process.env.APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE = "1";
 
     const scope = "atlas-run:scope-retry-window-test";
     await withProviderScope(scope, () =>
