@@ -31,7 +31,7 @@ describe("canonical discovery terminal lock recovery", () => {
     expect(atlasCheck).toContain('activeAtlasJob.status === "failed"');
     expect(atlasCheck).toContain('activeAtlasJob.status === "cancelled"');
     expect(atlasCheck).toContain('releaseCanonicalJob("atlas-run", activeAtlasJobId)');
-    expect(atlasCheck).toContain('const remainingOwner = await getActiveJob("atlas-run");');
+    expect(atlasCheck).toContain('const remainingOwner = await getActiveJobStrict("atlas-run");');
     expect(atlasCheck).toContain("could not be cleared safely; refusing a new discovery launch");
   });
 });
