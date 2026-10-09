@@ -21,3 +21,29 @@ export function isCanonicalAtlasRunEvidenceComplete(
 ): boolean {
   return latestTerminal === "target" && Number.isInteger(researchedTargetEpisodes) && researchedTargetEpisodes > 0;
 }
+
+/**
+ * A target episode is terminal only when the Investigator and completed control
+ * oversight both agree to stop, there is claim-grade evidence, and no local
+ * cancellation or resource/deadline fence invalidated the episode.
+ */
+export function isCanonicalTargetEpisodeComplete(input: {
+  investigatorStatus: string | null;
+  stopReason: string | null;
+  evidenceGraphCount: number;
+  oversightStatus: string | null;
+  oversightAction: string | null;
+  cancelled: boolean;
+  resourceLimited: boolean;
+  deadlineExceeded: boolean;
+}): boolean {
+  return input.investigatorStatus === "completed"
+    && input.stopReason === "MODEL_DECIDED_DONE"
+    && Number.isInteger(input.evidenceGraphCount)
+    && input.evidenceGraphCount > 0
+    && input.oversightStatus === "completed"
+    && input.oversightAction === "stop"
+    && !input.cancelled
+    && !input.resourceLimited
+    && !input.deadlineExceeded;
+}
