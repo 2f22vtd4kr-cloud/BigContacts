@@ -70,15 +70,21 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
       && (record.action === "visit" || record.action === "browser_fetch"))
     .map((record) => ({
       observationText: record.observation ?? "",
-      sourceUrls: record.observedUrls
-        .map(normalizeObservedUrl)
-        .filter((url): url is string => typeof url === "string" && sourceSet.has(url)),
+      sourceUrls: record.observedUrls.map(normalizeObservedUrl).filter((url): url is string => url !== null && sourceSet.has(url)),
     }))
     .filter((record) => record.sourceUrls.length > 0);
   return supportsReviewContactClaimAcrossObservations(observations, finding);
 }
 
-export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] { const observed = claimGradeSourceUrlsFromTrajectory(records); return findings.filter((finding) => Array.isArray(finding.sourceUrls)).map((finding) => ({ ...finding, sourceUrls: [...new Set(finding.sourceUrls.map((url) => normalizeObservedUrl(String(url))).filter((url): url is string => Boolean(url)))] })).filter((finding) => finding.sourceUrls.length > 0 && finding.sourceUrls.every((url) => observed.has(url)) && claimAppearsIfunction buildEvidenceGraphs(findings: AgenticFinding[], records: AgenticTrajectoryRecord[], runId: string | null): EvidenceGraph[] {
+export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] {
+  const observed = claimGradeSourceUrlsFromTrajectory(records);
+  return findings
+    .filter((finding) => Array.isArray(finding.sourceUrls))
+    .map((finding) => ({ ...finding, sourceUrls: [...new Set(finding.sourceUrls.map((url) => normalizeObservedUrl(String(url))).filter((url): url is string => Boolean(url)))] }))
+    .filter((finding) => finding.sourceUrls.length > 0 && finding.sourceUrls.every((url) => observed.has(url)) && claimAppearsInObservedMaterial(finding, records));
+}
+
+function buildEvidenceGraphs(findings: AgenticFinding[], records: AgenticTrajectoryRecord[], runId: string | null): EvidenceGraph[] {
   const observedAt = new Date().toISOString();
   return findings.map((finding, index) => {
     const citedUrls = [...new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => url !== null))];
