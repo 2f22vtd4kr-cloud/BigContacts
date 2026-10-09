@@ -40,6 +40,7 @@ describe("Bureau Ops terminal-label truth boundary", () => {
     const source = fs.readFileSync(opsStagePath, "utf8");
     expect(source).toContain("sceneStatusLabel(scene.live, scene.terminal)");
     expect(source).toContain('terminal: capped[i].terminal ?? "unknown"');
+    expect(source).toContain('story: capped[i].story.replace(/^Now:\\s*/i, "Unknown: ")');
     expect(source).not.toContain('terminal: capped[i].terminal ?? "done"');
   });
 });
