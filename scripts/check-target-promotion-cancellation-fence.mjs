@@ -5,7 +5,7 @@ const target = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-
 const failures = [];
 const pass = (name, ok) => { if (!ok) failures.push(name); };
 
-pass("target agent has a durable job-state read at the promotion boundary", /getJob\(input\.jobId\)/.test(target));
+pass("target agent has a durable job-state read at the promotion boundary", /getJobStrict\(input\.jobId\)/.test(target));
 pass("target promotion is blocked unless the job remains running", /currentJob\.status !== \"running\"/.test(target) && /promotionJob\.status !== \"running\"/.test(target));
 pass("caller cancellation is rechecked after the Investigator act", /if \(input\.shouldCancel && await input\.shouldCancel\(\)/.test(target));
 pass("final cancellation fence sits immediately before strict contact persistence", /promotionJob\.status !== \"running\"[\s\S]{0,500}persistSourceBackedBureauContactsForEntity/.test(target));
