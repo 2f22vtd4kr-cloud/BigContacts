@@ -4,7 +4,7 @@
  * separators, never evidence that two different name tokens are equivalent.
  */
 export function normalizeCandidateIdentityName(value: string): string {
-  return value.normalize("NFKC").toLowerCase().replace(/[^\\p{L}\\p{N}]+/gu, " ").trim().replace(/\\s+/g, " ");
+  return value.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
 }
 
 /**
