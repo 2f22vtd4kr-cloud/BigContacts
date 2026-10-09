@@ -12,7 +12,7 @@ const checks = [
   ["agentic discovery has an explicit deadline timer", /const deadlineTimer = setTimeout\(\(\) => controller\.abort\(\), requestedHardTimeout\)/.test(agentic)],
   ["agentic discovery checks durable job state when a job is supplied", /const job = await getJob\(input\.jobId\)/.test(agentic) && /job\.status !== "running"/.test(agentic)],
   ["agentic discovery passes cancellation into the canonical core", /shouldCancel: async \(\) =>/.test(agentic) && /signal: controller\.signal/.test(agentic)],
-  ["canonical discovery continuation has a durable cancellation callback", /const shouldCancel\s*=\s*async\(\)\s*:\s*Promise<boolean>/.test(continuation) && /getJob\(jobId!?\)/.test(continuation)],
+  ["canonical discovery continuation has a durable cancellation callback", /const shouldCancel\s*=\s*async\(\)\s*:\s*Promise<boolean>/.test(continuation) && /getJobStrict\(jobId!?\)/.test(continuation)],
   ["canonical discovery continuation passes cancellation into Investigator execution", /runBureauAgenticWebPass\([\s\S]*?shouldCancel\s*\}\)/.test(continuation)],
   ["canonical discovery continuation checks cancellation after model stages", /cancelled after Right-hand review/.test(continuation) && /cancelled before Investigator admission/.test(continuation)],
   ["canonical discovery continuation checks cancellation immediately before durable projection", /cancelled before durable projection/.test(continuation)],
