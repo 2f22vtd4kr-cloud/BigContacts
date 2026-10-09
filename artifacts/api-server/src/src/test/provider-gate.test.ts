@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   ProviderQuotaError,
+  classifyExternalProvider,
   resetProviderGateForTests,
   runProviderCall,
   withProviderRetryOwnership,
@@ -8,6 +9,16 @@ import {
 } from "../lib/provider-gate";
 
 describe("provider quota gate", () => {
+  it("matches provider budget classes on hostname boundaries, not deceptive substrings", () => {
+    expect(classifyExternalProvider("https://api.groq.com/openai/v1/chat/completions")).toBe("groq");
+    expect(classifyExternalProvider("https://api.groq.com.attacker.invalid/openai/v1/chat/completions")).toBe("generic");
+    expect(classifyExternalProvider("https://fakegroq.com/openai/v1/chat/completions")).toBe("generic");
+    expect(classifyExternalProvider("https://api.company-information.service.gov.uk/search")).toBe("companies-house");
+    expect(classifyExternalProvider("https://api.company-information.service.gov.uk.attacker.invalid/search")).toBe("generic");
+    expect(classifyExternalProvider("https://data.brreg.no/enhetsregisteret/api/enheter")).toBe("registry");
+    expect(classifyExternalProvider("https://evilbrreg.no/enhetsregisteret/api/enheter")).toBe("generic");
+  });
+
   afterEach(() => {
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC;
