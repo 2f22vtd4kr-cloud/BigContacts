@@ -45,7 +45,7 @@ export interface RegistryResult {
  */
 export function classifyRegistryRecordType(source: string, formType?: string): RegistryResult["type"] {
   const normalizedSource = source.trim().toLowerCase();
-  const normalizedForm = String(formType ?? "").replace(/[\\s/]+/g, "").toUpperCase();
+  const normalizedForm = String(formType ?? "").replace(/[\s/]+/g, "").toUpperCase();
 
   if (normalizedSource === "companies-house-officers") return "PersonCandidate";
   if (normalizedSource === "sec-edgar") {
