@@ -88,7 +88,7 @@ export async function recordDiscoveryTrace(jobId: string, record: DiscoveryTrace
     const key = `${KEY_PREFIX}${jobId}`;
     const existing = await permGet<DiscoveryTrace>(key);
     const existingSlots = Array.isArray(existing?.slots) ? existing.slots : [];
-    const nextSlot = record.slot >= 0 ? record.slot : (existingSlots.length ? Math.min(MAX_SLOTS - 1, Math.max(...existingSlots.map((s) => Number(s?.slot) || 0)) + 1) : 0);
+    const nextSlot = record.slot >= 0 ? record.slot : (existingSlots.length ? Math.max(...existingSlots.map((s) => Number(s?.slot) || 0)) + 1 : 0);
     const slots = existingSlots.filter((s) => s?.slot !== nextSlot);
     slots.push({
       ...record,
@@ -100,7 +100,7 @@ export async function recordDiscoveryTrace(jobId: string, record: DiscoveryTrace
       error: clip(record.error, 500) || undefined,
     });
     slots.sort((a, b) => a.slot - b.slot);
-    await permSet(key, { jobId, updatedAt: new Date().toISOString(), slots: slots.slice(0, MAX_SLOTS) }, TRACE_TTL_SECONDS);
+    await permSet(key, { jobId, updatedAt: new Date().toISOString(), slots: slots.slice(-MAX_SLOTS) }, TRACE_TTL_SECONDS);
   } catch {
     // Observability must never change research behavior.
   }
