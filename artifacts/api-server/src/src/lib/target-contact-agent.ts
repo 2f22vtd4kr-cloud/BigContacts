@@ -4,7 +4,7 @@ import { db, entitiesTable, researchCasesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getJob } from "./job-queue";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
-import { persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
+import { hasExactObservedToken, persistSourceBackedBureauContactsForEntity, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -32,6 +32,35 @@ function observedUrlsFromTrajectory(trajectory: string[], records: AgenticTrajec
   return observed;
 }
 function claimGradeSourceUrlsFromTrajectory(records: AgenticTrajectoryRecord[] = []): Set<string> { const observed = new Set<string>(); for (const record of records) { if (record.execution !== "success" || (record.action !== "visit" && record.action !== "browser_fetch")) continue; for (const raw of record.observedUrls ?? []) { const normalized = normalizeObservedUrl(raw); if (normalized) observed.add(normalized); } } return observed; }
+function supportsReviewContactClaimAcrossObservations(
+  observations: Array<{ observationText: string; sourceUrls: string[] }>,
+  finding: AgenticFinding,
+): boolean {
+  const cited = new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)));
+  const personName = finding.personName?.trim() ?? "";
+  const candidate = finding.scope === "candidate";
+  if (!cited.size || (candidate && !personName) || !finding.value.trim()) return false;
+  let identityObserved = !candidate;
+  let valueObserved = false;
+  const supportingUrls = new Set<string>();
+  for (const observation of observations) {
+    const urls = observation.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url) && cited.has(url));
+    if (!urls.length || !observation.observationText.trim()) continue;
+    const identity = candidate && hasExactObservedToken(observation.observationText, personName);
+    const value = finding.vectorType === "phone"
+      ? (() => {
+          const digits = finding.value.replace(/\D/g, "");
+          const tokens = observation.observationText.match(/\+?\d[\d\s().-]{5,}\d/g) ?? [];
+          return digits.length >= 7 && tokens.some((token) => token.replace(/\D/g, "") === digits);
+        })()
+      : hasExactObservedToken(observation.observationText, finding.value);
+    if (identity) identityObserved = true;
+    if (value) valueObserved = true;
+    if (candidate ? identity || value : value) for (const url of urls) supportingUrls.add(url);
+  }
+  return identityObserved && valueObserved && [...cited].every((url) => supportingUrls.has(url));
+}
+
 function claimAppearsInObservedMaterial(finding: AgenticFinding, records: AgenticTrajectoryRecord[]): boolean {
   const sourceSet = new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)));
   if (!sourceSet.size) return false;
@@ -46,7 +75,7 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
         .filter((url): url is string => typeof url === "string" && sourceSet.has(url)),
     }))
     .filter((record) => record.sourceUrls.length > 0);
-  return supportsContactClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
+  return supportsReviewContactClaimAcrossObservations(observations, finding);
 }
 
 export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] { const observed = claimGradeSourceUrlsFromTrajectory(records); return findings.filter((finding) => Array.isArray(finding.sourceUrls)).map((finding) => ({ ...finding, sourceUrls: [...new Set(finding.sourceUrls.map((url) => normalizeObservedUrl(String(url))).filter((url): url is string => Boolean(url)))] })).filter((finding) => finding.sourceUrls.length > 0 && finding.sourceUrls.every((url) => observed.has(url)) && claimAppearsInObservedMaterial(finding, records)); }
