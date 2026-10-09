@@ -41,6 +41,9 @@ describe("public-registry evidence remains a low-confidence lead", () => {
     expect(source).toContain("confidence: registryAssessment.confidence");
     expect(source).toContain("lastObservedAt: registryAssessment.lastObservedAt");
     expect(source.indexOf("...person.rawMetadata")).toBeLessThan(source.indexOf("proximityScore: registryAssessment.proximityScore"));
+    expect(source.match(/proximityScore: registryAssessment\.proximityScore/g)).toHaveLength(2);
+    expect(source.match(/confidence: registryAssessment\.confidence/g)).toHaveLength(2);
+    expect(source).toContain("hasGatekeeperConnection: registryAssessment.hasGatekeeperConnection");
     expect(source).toContain("contactMethod = \"Board-role registry lead — direct contact path not observed\"");
   });
 
@@ -51,6 +54,20 @@ describe("public-registry evidence remains a low-confidence lead", () => {
     expect(assessment.proximityScore).toBe(3);
     expect(assessment.reviewOnly).toBe(true);
     expect(assessment.wealthStatus).toBe("unverified");
+  });
+
+  it("keeps the historical correction limited to pending, explicitly sourced legacy rows", () => {
+    const migration = fs.readFileSync(
+      path.resolve(process.cwd(), "../../lib/db/migrations/004-registry-candidate-truth.sql"),
+      "utf8",
+    );
+    expect(migration).toContain("parsed_metadata->>'needsEnrichment' <> 'true'");
+    expect(migration).toContain("source_name = 'companies-house-officers'");
+    expect(migration).toContain("source_name = 'sec-edgar'");
+    expect(migration).toContain("parsed_metadata->>'admission' = 'investigator-explicit-promotion'");
+    expect(migration).toContain("normalized_form LIKE 'SC13D%'");
+    expect(migration).toContain("normalized_form LIKE 'SC13G%'");
+    expect(migration).toContain("normalized_form LIKE 'DEF14A%'");
   });
 
   it("does not treat a registry fetch as recent underlying activity", () => {
