@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCanonicalActiveJobProjection } from "./reactor-live-model";
+import { normalizeLiveActivityStatus, normalizeReactorStatus, parseCanonicalActiveJobProjection } from "./reactor-live-model";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -8,6 +8,23 @@ const storePath = path.resolve(process.cwd(), "src/lib/reactor-live-store.ts");
 function readStore(): string {
   return fs.readFileSync(storePath, "utf8");
 }
+
+describe("Reactor status truth boundary", () => {
+  it("preserves explicit success, cancellation, queue, failure, and unknown states", () => {
+    expect(normalizeReactorStatus("ok")).toBe("done");
+    expect(normalizeReactorStatus("completed")).toBe("done");
+    expect(normalizeReactorStatus("cancelled")).toBe("cancelled");
+    expect(normalizeReactorStatus("queued")).toBe("queued");
+    expect(normalizeReactorStatus("failed")).toBe("failed");
+    expect(normalizeReactorStatus("")).toBe("unknown");
+    expect(normalizeReactorStatus("future-status")).toBe("unknown");
+    expect(normalizeLiveActivityStatus("ok")).toBe("completed");
+    expect(normalizeLiveActivityStatus("cancelled")).toBe("cancelled");
+    expect(normalizeLiveActivityStatus("queued")).toBe("queued");
+    expect(normalizeLiveActivityStatus("failed")).toBe("failed");
+    expect(normalizeLiveActivityStatus(undefined)).toBe("unknown");
+  });
+});
 
 describe("canonical Reactor active-job projection", () => {
   it("accepts only explicit idle, active, and internally consistent terminal states", () => {
