@@ -264,7 +264,8 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: `hard timeout ${requestedHardTimeout}ms`, executionId };
 
          const perActTimeout = Math.min(remaining, Math.max(30_000, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000));
-         const recentPriorActs = [...historyRecords, ...records].slice(-6).map((record) => ({
+         const allPriorActs = [...historyRecords, ...records];
+         const recentPriorActs = allPriorActs.slice(Math.max(0, allPriorActs.length - 6)).map((record) => ({
            turn: record.turn,
            action: record.action,
            execution: record.execution,
