@@ -173,6 +173,16 @@ function diagnosticPart(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" ? value as Record<string, unknown> : null;
 }
 
+/**
+ * Persist only the classified shape and digest of an unexpected exception.
+ * Raw provider/network messages may contain request details, endpoints or
+ * provider response text and must not cross into durable job/UI projections.
+ */
+export function safeThrownErrorSummary(prefix: string, error: unknown): string {
+  const diagnostic = describeThrownProviderError(error);
+  return `${prefix} (class=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`;
+}
+
 export function describeThrownProviderError(error: unknown): ProviderThrownDiagnostic {
   const top = diagnosticPart(error);
   const cause = diagnosticPart(top?.cause);
