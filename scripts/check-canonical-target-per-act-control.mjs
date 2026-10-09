@@ -54,7 +54,7 @@ const checks=[
 ["agentic wrapper loads oversight by exact case id",/loadTargetActOversightContext\(input\.caseId/.test(agentic)],
 ["target oversight has no target-name fallback",!/like\(researchCasesTable\.caseFile/.test(oversight)&&!/orderBy\(desc\(researchCasesTable\.updatedAt\)\)/.test(oversight)],
 ["evidence graph observations can carry immutable event IDs",/eventId\?\s*:\s*number\s*\|\s*null/.test(evidence)],
-["canonical act graphs require immutable observation anchors",/validateClaimSupportGraph\(graph,true\)/.test(oversight)],
+["canonical act graphs require immutable observation anchors",/validateClaimSupportGraph\(graph,\s*true\)/.test(oversight)],
 ["Right Hand is mandatory before Boss continuation",/if\(rightHand\.status!=="completed"\)/.test(oversight)],
 ["target per-act Right-hand contract is exact-field validated",/validateRightHandAdvice\(rightParsed\)/.test(oversight)&&/validateExactFields\(value,\["decision","reason","focusLanes","confidence"\]\)/.test(oversight)],
 ["target per-act Boss contract is exact-field validated",/validateBossOversight\(parsed\)/.test(oversight)&&/validateExactFields\(value,\["action","direction","reason","confidence"\]\)/.test(oversight)],
