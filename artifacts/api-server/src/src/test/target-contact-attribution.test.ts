@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findingsToContacts, sourceBackedFindings } from "../lib/target-contact-agent";
+import { findingsToContacts, sourceBackedFindings, sourceBackedReviewableFindings } from "../lib/target-contact-agent";
 import { supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("target Investigator multi-source attribution", () => {
@@ -30,11 +30,14 @@ describe("target Investigator multi-source attribution", () => {
       { turn: 1, model: "groq", action: "visit", args: {}, execution: "success" as const, observation: "John Smith is CFO of Example Corp.", observedUrls: ["https://company.example/leadership"], findings: [] },
       { turn: 2, model: "groq", action: "visit", args: {}, execution: "success" as const, observation: "Contact: john.smith@example.com", observedUrls: ["https://company.example/contact"], findings: [] },
     ];
-    const backed = sourceBackedFindings(findings, [
+    const trajectory = [
       "step1: visit https://company.example/leadership execution=success observed=https://company.example/leadership",
       "step2: visit https://company.example/contact execution=success observed=https://company.example/contact",
-    ], records);
-    expect(backed).toHaveLength(1);
+    ];
+    const backed = sourceBackedFindings(findings, trajectory, records);
+    const reviewable = sourceBackedReviewableFindings(findings, trajectory, records);
+    expect(backed).toHaveLength(0);
+    expect(reviewable).toHaveLength(1);
     expect(supportsContactClaimAcrossObservations(
       records.map((record) => ({ observationText: record.observation, sourceUrls: record.observedUrls })),
       findings[0]!,
