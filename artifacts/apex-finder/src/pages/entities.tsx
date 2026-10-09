@@ -19,7 +19,7 @@ import { ScoreboardStrip } from "@/components/scoreboard-strip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type EntityType = "HNWI" | "Corporation" | "Trust" | "Gatekeeper";
+type EntityType = "HNWI" | "Corporation" | "Trust" | "Gatekeeper" | "PersonCandidate";
 
 interface AddEntityForm {
   name: string;
@@ -1704,7 +1704,7 @@ export default function EntityLedger() {
           <div className="atlas-h-scroll flex items-center gap-2 px-3 py-2 pr-10 overflow-x-auto overscroll-x-contain touch-pan-x" style={{ scrollbarWidth: "thin" }}>
             {[
               { label: "All entities", value: null },
-              ...ENTITY_TYPES.map((value) => ({ label: value === "Corporation" ? "Company" : value === "HNWI" ? "Person" : value, value })),
+              ...ENTITY_TYPES.map((value) => ({ label: value === "Corporation" ? "Company" : value === "HNWI" ? "Person" : value === "PersonCandidate" ? "Candidate — wealth unverified" : value, value })),
             ].map(({ label, value }) => (
               <button
                 key={label}
