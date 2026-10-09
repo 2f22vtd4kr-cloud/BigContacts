@@ -17,6 +17,8 @@ const checks = [
   ["canonical discovery continuation checks cancellation after model stages", /cancelled after Right-hand review/.test(continuation) && /cancelled before Investigator admission/.test(continuation)],
   ["canonical discovery continuation checks cancellation immediately before durable projection", /cancelled before durable projection/.test(continuation)],
   ["canonical discovery continuation marks cancelled work non-authoritative", /canonical-continuation-cancelled/.test(continuation) && /status:updated\?"failed":"cancelled"/.test(continuation)],
+  ["canonical discovery continuation only completes a model-decided terminal", /deriveLatestEvidenceBackedTerminal\("discovery",discovery\.status,discovery\.stopReason\)/.test(continuation) && /did not reach accepted model-decided completion/.test(continuation)],
+  ["canonical discovery cancellation callback rejects every non-running durable job", /if\(!job\|\|job\.status!=="running"\)return true/.test(continuation)],
 ];
 
 const discoveryStart = agentic.indexOf('if (input.mode === "discovery")');
