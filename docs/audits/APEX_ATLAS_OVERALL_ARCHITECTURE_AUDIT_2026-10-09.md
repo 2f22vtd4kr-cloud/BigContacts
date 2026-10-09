@@ -139,3 +139,10 @@ The source-level gap is therefore **resolved in current source, pending exact-he
 A browser-safe operator session and a legacy API session verifier had briefly coexisted at separate levels of the Express mount. Those formats are incompatible: a browser cookie minted by `operator-auth.ts` would not validate under the legacy API-cookie verifier. The current `main` app mount has removed that legacy middleware; the route aggregator retains the canonical `operatorAuthRouter` → `requireOperatorAuth` boundary.
 
 Added regression coverage checking the actual app mount and router ordering, preventing the old middleware from being reintroduced ahead of the canonical guard, and verifying that the browser login payload matches the server's `password` contract. These wiring assertions and existing token/session unit tests do not establish deployment ingress policy and are not a substitute for exact-head CI or live route acceptance.
+
+
+## Follow-up security fix — preserve operator lockout deadline across window rollover
+
+The operator login limiter counted failed attempts in a 60-second window and set a 60-second block after the eighth failure. Its lookup path also reset the attempt record when the window elapsed, unconditionally clearing `blockedUntil`. An eighth failure near the end of the window could therefore be unblocked before its own deadline.
+
+The route now uses `advanceLoginAttemptWindow`, which preserves the existing state while `blockedUntil > now` and only opens a new failure window after the lockout expires. Added regression coverage at the precise boundary: a block begun near the end of one window must persist past that window and reset only at its own deadline. This is a source-level correction; exact-head CI and deployed authentication behavior remain to be verified.
