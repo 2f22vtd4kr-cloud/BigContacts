@@ -265,7 +265,8 @@ export class ResearchIntelligenceEngine {
         + Math.min(0.2, newHostCount * 0.1));
     const predictedInformationGain = clamp(input.predictedInformationGain ?? informationGain);
     this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain, findingNames: [...new Set(findings.map((finding) => String(finding.personName ?? "").trim()).filter(Boolean))].slice(0, 8), findingRoles: [...new Set(findings.map((finding) => String(finding.role ?? "").trim()).filter(Boolean))].slice(0, 8) });
-    // Reconcile newly observed competing claims before deciding which findings support this turn's hypothesis.
+    // Recompute live contradictions before hypothesis support is linked or ranked.
+    this.reconcileContradictions();
     const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
     const modelPurpose = typeof input.args?.purpose === "string" ? input.args.purpose.trim() : "";
     if (modelHypothesis) {
