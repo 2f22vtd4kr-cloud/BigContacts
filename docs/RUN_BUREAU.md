@@ -1,11 +1,11 @@
 # Apex Atlas — precise deployment and bureau run procedure
 
-**Updated:** 2026-09-21  
+**Updated:** 2026-10-09  
 **Canonical branch:** `main`  
 **Historical Very Strong review branch:** `audit/apex-atlas-very-strong-v1` (fully incorporated into `main`)  
 **Historical five-green branch:** `audit/genuine-five-green-final`  
 **Living context:** `docs/context.md`  
-**Master handoff:** `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md`
+**Master handoff:** `docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md` (read its 2026-10-09 current override first; historical body is not role authority)
 
 ## 0. Product law
 
