@@ -238,7 +238,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            objective,
            sharedContext: `${oversightContext.contextDocument}\n\n${renderIntelligenceContext(intelligence.buildContext())}`,
            act,
-           recentActs: [...historyRecords, ...records].slice(-4),
+           recentActs: (() => { const allActs = [...historyRecords, ...records]; return allActs.slice(Math.max(0, allActs.length - 4)); })(),
            intelligenceState: state,
          });
          if (oversight.direction) {
