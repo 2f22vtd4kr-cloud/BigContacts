@@ -44,7 +44,7 @@ function supportsReviewContactClaimAcrossObservations(
   let valueObserved = false;
   const supportingUrls = new Set<string>();
   for (const observation of observations) {
-    const urls = observation.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url) && cited.has(url));
+    const urls = observation.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => url !== null && cited.has(url));
     if (!urls.length || !observation.observationText.trim()) continue;
     const identity = candidate && hasExactObservedToken(observation.observationText, personName);
     const value = finding.vectorType === "phone"
