@@ -80,7 +80,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const organization = DISCOVERY_ORG_TERMS.test(normalized);
   const fame = DISCOVERY_FAME_TERMS.test(normalized);
   const concreteSignals = Number(role) + Number(sector) + Number(source) + Number(organization);
-  const tokens = normalized.split(/\\s+/).filter(Boolean);
+  const tokens = normalized.split(/\s+/).filter(Boolean);
   const tokenCount = tokens.length;
   const genericContextTerms = new Set([
     "people", "person", "list", "lists", "ranking", "rankings", "world", "global", "everyone",
@@ -94,7 +94,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   ]);
   const nonFameTokens = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token));
   const hasNamedOrConcreteToken = nonFameTokens.some((token) => {
-    if (/^\\d{4}$/.test(token)) return false;
+    if (/^\d{4}$/.test(token)) return false;
     const singular = token.endsWith("s") ? token.slice(0, -1) : token;
     return !DISCOVERY_SECTOR_TERMS.test(token)
       && !DISCOVERY_ROLE_TERMS.test(token)
@@ -102,8 +102,8 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
       && !DISCOVERY_ORG_TERMS.test(token)
       && !DISCOVERY_SOURCE_TERMS.test(token);
   });
-  const hasExplicitSourceAnchor = /(?:\\bsite:[^\\s]+|\\b(?:edgar|companies\\s*house|sec)\\b|\\b[a-z0-9-]+\\.(?:com|org|net|co\\.[a-z]{2}|si|eu)\\b)/i.test(normalized);
-  const hasRegistryOrFilingAnchor = /\\b(?:registry|edgar|companies\\s*house|sec)\\b/i.test(normalized);
+  const hasExplicitSourceAnchor = /(?:\bsite:[^\s]+|\b(?:edgar|companies\s*house|sec)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i.test(normalized);
+  const hasRegistryOrFilingAnchor = /\b(?:registry|edgar|companies\s*house|sec)\b/i.test(normalized);
   const hasConcreteAnchor = hasExplicitSourceAnchor || hasRegistryOrFilingAnchor || hasNamedOrConcreteToken;
 
   // These heuristics can advise the model, but must never decide which
