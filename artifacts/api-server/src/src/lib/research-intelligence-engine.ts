@@ -301,19 +301,24 @@ export class ResearchIntelligenceEngine {
       useful = true;
       findings.push(finding);
       for (const source of supportedSources) {
+        // Separate identity and value mentions are review evidence, not a supported composed claim.
+        const wholeClaimSupported = !finding.personName || source.binding === "identity_and_value";
         const evidenceId = this.recordEvidence({
-          kind: "finding", claim, value, sourceUrl: source.url, sourceTier: tierForHost(hostOf(source.url)),
+          kind: wholeClaimSupported ? "finding" : "observation",
+          claim: wholeClaimSupported ? claim : source.binding === "identity" ? "Observed identity: " + finding.personName : "Observed value: " + value,
+          value, sourceUrl: source.url, sourceTier: tierForHost(hostOf(source.url)),
           turn: source.turn, action: source.action, execution: "success", passage: source.span.text,
           spanStart: source.span.start, spanEnd: source.span.end, spanBindingKind: source.binding,
-          supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [],
+          supports: wholeClaimSupported && finding.personName ? [normalize(finding.personName)] : [], contradicts: [],
         });
-        admittedFindingEvidenceIds.add(evidenceId);
+        if (wholeClaimSupported) admittedFindingEvidenceIds.add(evidenceId);
       }
       const valueSourceUrls = supportedSources
         .filter((source) => source.binding === "value" || source.binding === "identity_and_value")
         .map((source) => source.url);
       if (["email", "phone", "linkedin", "website", "social"].includes(vector) && valueSourceUrls.length) {
-        this.recordContact(vector, value, valueSourceUrls, finding.personName ?? null);
+        const locallyBound = supportedSources.some((source) => source.binding === "identity_and_value");
+        this.recordContact(vector, value, findingUrls, finding.personName ?? null, locallyBound);
       }
     }
     if (!useful && input.execution !== "success") {
@@ -370,6 +375,9 @@ export class ResearchIntelligenceEngine {
     const lineageByUrl = new Map(context.sourceLineage.map((node) => [canonicalUrl(node.canonicalUrl) ?? node.canonicalUrl, node]));
     for (const item of context.atomicEvidence) {
       const parsed = extractPredicate(item.claim); const sourceUrl = item.sourceUrl ? canonicalUrl(item.sourceUrl) : null;
+      const splitClaim = item.kind === "finding" && (item.spanBindingKind === "identity" || item.spanBindingKind === "value");
+      const restoredKind = splitClaim ? "observation" : item.kind;
+      const restoredClaim = splitClaim ? (item.spanBindingKind === "identity" ? "Observed identity: " + parsed.subject : "Observed value: " + parsed.object) : item.claim;
       // Host and trust class are derived from the canonical URL, never from a
       // persisted projection. This repairs stale classifications after policy
       // changes and prevents a stale host field from upgrading source quality.
@@ -378,7 +386,7 @@ export class ResearchIntelligenceEngine {
       const sourceLineage = sourceUrl ? lineageByUrl.get(sourceUrl) : undefined;
       const fingerprint = hash(item.kind + "|" + normalize(item.claim) + "|" + normalize(parsed.object) + "|" + (sourceUrl ?? ""));
       const evidenceId = item.evidenceId || ("ev_" + fingerprint.slice(0, 20));
-      const restoredEvidence: IntelligenceEvidence = { id: evidenceId, kind: item.kind, claim: item.claim, value: parsed.object, sourceUrl, sourceHost,
+      const restoredEvidence: IntelligenceEvidence = { id: evidenceId, kind: restoredKind, claim: restoredClaim, value: parsed.object, sourceUrl, sourceHost,
         sourceTier: tierForHost(sourceHost), sourceClass, extractionMethod: "durable_replay",
         retrievedAt: new Date(0).toISOString(), lastSeen: new Date(0).toISOString(), turn: 0, action: "durable_replay",
         execution: "success", supports: item.attribution ? [item.attribution] : [], contradicts: [], passage: item.passage,
@@ -409,11 +417,13 @@ export class ResearchIntelligenceEngine {
       this.hypotheses.set(hypothesis.id, { ...hypothesis, priorScore: hypothesis.priorScore ?? hypothesis.score, supportingEvidenceIds, contradictingEvidenceIds, missingDiscriminators: [...hypothesis.missingDiscriminators] });
     }
     for (const contact of context.contacts) {
+      const hasLocalAttributionSupport = Boolean(contact.personName) && context.atomicEvidence.some((item) => item.kind === "finding" && item.spanBindingKind === "identity_and_value" && normalize(item.claim) === normalize(contact.personName + " " + contact.vector + " " + contact.value) && item.sourceUrl && contact.sourceUrls.includes(item.sourceUrl));
+      const restoredContactState = contact.personName && !hasLocalAttributionSupport && ["ATTRIBUTED", "CORROBORATED"].includes(contact.state) ? "DISCOVERED" : contact.state;
       const sourceUrls = [...new Set(contact.sourceUrls)].filter((url) => sourceClassForHost(hostOf(url)) !== "SEARCH_RESULT");
       if (!sourceUrls.length) continue;
       const sourceHosts = [...new Set(sourceUrls.map(hostOf).filter((host): host is string => Boolean(host)))];
       const key = contact.vector + "|" + normalize(contact.personName ?? "") + "|" + normalize(contact.value);
-      this.contacts.set(key, { ...contact, sourceUrls, sourceHosts });
+      this.contacts.set(key, { ...contact, state: restoredContactState, sourceUrls, sourceHosts });
     }
     for (const negative of context.negativeFindings) this.negativeFindings.add(negative);
     for (const action of context.recentActions) this.actions.push({ ...action, args: { ...action.args }, urls: [...action.urls], findingNames: [...action.findingNames], findingRoles: [...action.findingRoles] });
@@ -513,19 +523,35 @@ export class ResearchIntelligenceEngine {
     return id;
   }
 
-  private recordContact(vector: string, value: string, urls: string[], personName: string | null): void {
-    const key = `${vector}|${normalize(personName ?? "")}|${normalize(value)}`; const existing = this.contacts.get(key); const now = new Date().toISOString(); const hosts = [...new Set(urls.map(hostOf).filter((v): v is string => Boolean(v)))];
+  private recordContact(vector: string, value: string, urls: string[], personName: string | null, locallyBound = false): void {
+    const key = vector + "|" + normalize(personName ?? "") + "|" + normalize(value);
+    const existing = this.contacts.get(key);
+    const now = new Date().toISOString();
+    const canonicalUrls = [...new Set(urls.map(canonicalUrl).filter((url): url is string => Boolean(url)))];
+    const hosts = [...new Set(canonicalUrls.map(hostOf).filter((host): host is string => Boolean(host)))];
     if (existing) {
       existing.lastSeen = now;
-      existing.sourceUrls = [...new Set([...existing.sourceUrls, ...urls])];
+      existing.sourceUrls = [...new Set([...existing.sourceUrls, ...canonicalUrls])];
       existing.sourceHosts = [...new Set([...existing.sourceHosts, ...hosts])];
-      existing.attributionStrength = clamp(Math.max(existing.attributionStrength, personName ? 0.85 : 0.45));
-      if (existing.sourceHosts.length >= 2 && !["REJECTED", "VERIFIED", "STALE", "CONTRADICTED"].includes(existing.state)) existing.state = "CORROBORATED";
+      // Domain count alone must not convert a review-only join into attribution.
+      if (locallyBound && personName) {
+        existing.attributionStrength = clamp(Math.max(existing.attributionStrength, 0.85));
+        if (!["REJECTED", "VERIFIED", "STALE", "CONTRADICTED"].includes(existing.state)) {
+          const families = new Set(existing.sourceUrls.map((url) => sourceFamily(hostOf(url))).filter((family) => family !== "unknown"));
+          existing.state = families.size >= 2 ? "CORROBORATED" : "ATTRIBUTED";
+        }
+      } else if (!personName) {
+        existing.attributionStrength = clamp(Math.max(existing.attributionStrength, 0.45));
+      }
       return;
     }
-    this.contacts.set(key, { personName, value, vector, state: personName ? "ATTRIBUTED" : "OBSERVED", sourceUrls: urls, sourceHosts: hosts, firstSeen: now, lastSeen: now, attributionStrength: personName ? 0.85 : 0.45 });
+    this.contacts.set(key, {
+      personName, value, vector,
+      state: personName ? (locallyBound ? "ATTRIBUTED" : "DISCOVERED") : "OBSERVED",
+      sourceUrls: canonicalUrls, sourceHosts: hosts, firstSeen: now, lastSeen: now,
+      attributionStrength: personName ? (locallyBound ? 0.85 : 0.25) : 0.45,
+    });
   }
-
   private countNewHosts(urls: string[]): number { const known = new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean)); return urls.map(hostOf).filter((host): host is string => Boolean(host) && !known.has(host)).length; }
 
   private reconcileContradictions(): void {
@@ -586,7 +612,7 @@ export class ResearchIntelligenceEngine {
     const claims = [...this.claims.values()];
     const evidenceFor = (claim: IntelligenceClaim) => claim.evidenceIds.map((id) => this.evidenceByIdMap.get(id)).filter((item): item is IntelligenceEvidence => Boolean(item));
     const substantive = (claim: IntelligenceClaim) => evidenceFor(claim).some((item) => item.kind === "finding" || item.kind === "claim");
-    const facts = claims.filter((claim) => claim.status === "supported" && substantive(claim)).sort((a, b) => b.evidenceIds.length - a.evidenceIds.length).map((claim) => ({ claim: `${claim.subject} ${claim.predicate} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] })); for (const contact of this.contacts.values()) { const claim = `${contact.personName ?? this.input.target} ${contact.vector} ${contact.value}`; if (!facts.some((fact) => fact.claim === claim)) { const evidenceIds = [...this.evidence.values()].filter((item) => item.value === contact.value && item.claim.toLowerCase().startsWith(`${(contact.personName ?? this.input.target).toLowerCase()} `)).map((item) => item.id); facts.push({ claim, evidenceIds, sources: [...contact.sourceHosts] }); } }
+    const facts = claims.filter((claim) => claim.status === "supported" && substantive(claim)).sort((a, b) => b.evidenceIds.length - a.evidenceIds.length).map((claim) => ({ claim: `${claim.subject} ${claim.predicate} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] })); for (const contact of this.contacts.values()) { if (!["ATTRIBUTED", "CORROBORATED", "VERIFIED"].includes(contact.state)) continue; const claim = `${contact.personName ?? this.input.target} ${contact.vector} ${contact.value}`; if (!facts.some((fact) => fact.claim === claim)) { const evidenceIds = [...this.evidence.values()].filter((item) => item.value === contact.value && item.claim.toLowerCase().startsWith(`${(contact.personName ?? this.input.target).toLowerCase()} `)).map((item) => item.id); facts.push({ claim, evidenceIds, sources: [...contact.sourceHosts] }); } }
     const contradictionGroups = new Map<string, IntelligenceEvidence[]>(); for (const evidence of this.evidence.values()) { const parsed = extractPredicate(evidence.claim); const key = normalize(`${parsed.subject}|${parsed.predicate}`); const list = contradictionGroups.get(key) ?? []; list.push(evidence); contradictionGroups.set(key, list); } const contradictions = [...contradictionGroups.values()].filter((list) => { const predicate = extractPredicate(list[0]?.claim ?? "").predicate; return !["email", "phone", "social", "website"].includes(predicate) && new Set(list.map((item) => normalize(extractPredicate(item.claim).object))).size > 1; }).map((list) => { const ids = [...new Set(list.map((item) => item.id))]; const first = extractPredicate(list[0]?.claim ?? ""); return { claim: `${first.subject} ${first.predicate} ${first.object}`, evidenceIds: ids, sources: [...new Set(list.map((item) => item.sourceHost).filter(Boolean) as string[])] }; });
     const unresolved = [...this.hypotheses.values()].flatMap((item) => item.missingDiscriminators).filter(Boolean);
     const openQuestions = [...new Set([...unresolved, ...contradictions.map((item) => `Resolve contradiction: ${item.claim}`)])];
