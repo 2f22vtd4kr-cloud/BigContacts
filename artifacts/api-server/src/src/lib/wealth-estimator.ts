@@ -279,6 +279,7 @@ export async function estimateWealthBatch(
   const eligibleEntities = entities.filter((entity) => assessWealthEstimateEligibility({
     type: entity.type,
     metadata: entity.metadata,
+    sourceRegistries: entity.sourceRegistries,
     totalAssetValue: entity.totalAssetValue,
   }).eligible);
   const skippedByPolicy = entities.length - eligibleEntities.length;
