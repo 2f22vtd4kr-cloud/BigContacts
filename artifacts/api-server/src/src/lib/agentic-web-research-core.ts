@@ -13,6 +13,8 @@ import { renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registr
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
 import { ResearchIntelligenceEngine, renderIntelligenceContext, type IntelligenceContext } from "./research-intelligence-engine";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { candidateIdentityObserved } from "./identity-text-match";
+import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import { inferResearchCognitiveTask, rankGroqModelsForTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, type InvestigatorCapability } from "./investigator-capability-registry";
 import { evaluateResearchTerminal } from "./research-terminal-gate";
@@ -1014,6 +1016,7 @@ export function discoverySearchLivenessGate(records: readonly AgenticTrajectoryR
 
 export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[]): { allowed: boolean; reason: string | null } {
   if (!records.length) return { allowed: false, reason: "Discovery cannot terminate before any Investigator action." };
+
   const successfulExternalActions = records.filter((record) =>
     record.execution === "success" &&
     ["web_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"].includes(record.action),
@@ -1034,30 +1037,71 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
       reason: "Discovery terminal stop is premature: the Investigator has not completed a successful external research action.",
     };
   }
+
   const terminal = records[records.length - 1];
   if (terminal.action === "done" && terminal.findings.length > 0) {
+    // Search snippets are leads, never source proof. Every cited URL must be a
+    // claim-grade page actually retrieved successfully, and every cited page
+    // must support this claim (or the identity/contact link for a candidate).
     const successfulRecords = records.filter((record) =>
       record.execution === "success" &&
-      !["web_search", "parallel_web_search", "done"].includes(record.action) &&
+      (record.action === "visit" || record.action === "browser_fetch") &&
       typeof record.observation === "string",
     );
-    const ungrounded = terminal.findings.filter((finding) => {
-      const sources = new Set(finding.sourceUrls.map((url) => {
-        try { const parsed = new URL(url); parsed.hash = ""; parsed.hostname = parsed.hostname.toLowerCase(); return parsed.href.endsWith("/") ? parsed.href.slice(0, -1) : parsed.href; }
-        catch { return ""; }
-      }).filter(Boolean));
+    const ungrounded = terminal.findings.some((finding) => {
+      if (!finding.sourceUrls.length || !finding.value.trim()) return true;
+      const sources = new Set<string>();
+      for (const rawUrl of finding.sourceUrls) {
+        try {
+          const url = new URL(rawUrl);
+          if ((url.protocol !== "http:" && url.protocol !== "https:") || !isClaimGradeDiscoverySourceUrl(url.href)) return true;
+          url.hash = "";
+          url.hostname = url.hostname.toLowerCase();
+          sources.add(url.href.endsWith("/") ? url.href.slice(0, -1) : url.href);
+        } catch {
+          return true;
+        }
+      }
       if (!sources.size) return true;
-      const sourceRecords = successfulRecords.filter((record) => record.observedUrls.some((url) => {
-        try { const parsed = new URL(url); parsed.hash = ""; parsed.hostname = parsed.hostname.toLowerCase(); return sources.has(parsed.href.endsWith("/") ? parsed.href.slice(0, -1) : parsed.href); }
-        catch { return false; }
-      }));
-      if (!sourceRecords.length) return true;
-      const valueBound = sourceRecords.some((record) => Boolean(bindExactSourceSpan(record.observation ?? "", finding.value)?.exact));
-      const identityBound = finding.scope !== "candidate" || !finding.personName
-        || sourceRecords.some((record) => Boolean(bindExactSourceSpan(record.observation ?? "", finding.personName ?? "")?.exact));
+
+      const candidate = finding.scope === "candidate";
+      const personName = typeof finding.personName === "string" ? finding.personName.trim() : "";
+      if (candidate && !personName) return true;
+
+      const normalizedObservedUrls = (record: AgenticTrajectoryRecord): Set<string> => new Set(
+        record.observedUrls.map((raw) => {
+          try {
+            const url = new URL(raw);
+            url.hash = "";
+            url.hostname = url.hostname.toLowerCase();
+            return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href;
+          } catch { return ""; }
+        }).filter(Boolean),
+      );
+      let valueBound = false;
+      let identityBound = !candidate;
+
+      for (const sourceUrl of sources) {
+        const sourceRecords = successfulRecords.filter((record) => normalizedObservedUrls(record).has(sourceUrl));
+        if (!sourceRecords.length) return true;
+
+        let sourceSupportsClaim = false;
+        for (const record of sourceRecords) {
+          const observation = record.observation ?? "";
+          const identityText = observation
+            .replace(/https?:\/\/\S+/gi, " ")
+            .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
+          const hasValue = Boolean(bindExactSourceSpan(observation, finding.value)?.exact);
+          const hasIdentity = candidate && candidateIdentityObserved(personName, identityText);
+          if (hasValue) valueBound = true;
+          if (hasIdentity) identityBound = true;
+          if (candidate ? (hasValue || hasIdentity) : hasValue) sourceSupportsClaim = true;
+        }
+        if (!sourceSupportsClaim) return true;
+      }
       return !valueBound || !identityBound;
     });
-    if (ungrounded.length) return { allowed: false, reason: "Discovery terminal stop blocked: one or more claimed findings were not grounded in successfully observed cited material." };
+    if (ungrounded) return { allowed: false, reason: "Discovery terminal stop blocked: one or more claimed findings lacked identity/contact support on every successfully retrieved cited page." };
   }
   return { allowed: true, reason: null };
 }
