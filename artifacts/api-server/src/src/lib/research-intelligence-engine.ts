@@ -57,6 +57,8 @@ export interface IdentityHypothesis {
   label: string;
   entity: string;
   score: number;
+  /** Immutable prior used to recompute posterior from the current evidence set. */
+  priorScore?: number;
   logOdds?: number;
   supportingEvidenceIds: string[];
   contradictingEvidenceIds: string[];
@@ -290,7 +292,7 @@ export class ResearchIntelligenceEngine {
       const supportingEvidenceIds = [...hypothesis.supportingEvidenceIds].filter((id) => knownEvidenceIds.has(id));
       const contradictingEvidenceIds = [...hypothesis.contradictingEvidenceIds].filter((id) => knownEvidenceIds.has(id));
       if ((hypothesis.supportingEvidenceIds.length > 0 || hypothesis.contradictingEvidenceIds.length > 0) && !supportingEvidenceIds.length && !contradictingEvidenceIds.length) continue;
-      this.hypotheses.set(hypothesis.id, { ...hypothesis, supportingEvidenceIds, contradictingEvidenceIds, missingDiscriminators: [...hypothesis.missingDiscriminators] });
+      this.hypotheses.set(hypothesis.id, { ...hypothesis, priorScore: hypothesis.priorScore ?? hypothesis.score, supportingEvidenceIds, contradictingEvidenceIds, missingDiscriminators: [...hypothesis.missingDiscriminators] });
     }
     for (const contact of context.contacts) {
       const sourceUrls = [...new Set(contact.sourceUrls)].filter((url) => sourceClassForHost(hostOf(url)) !== "SEARCH_RESULT");
@@ -318,7 +320,15 @@ export class ResearchIntelligenceEngine {
 
   addHypothesis(input: { label: string; entity: string; score?: number; supportingEvidenceIds?: string[]; contradictingEvidenceIds?: string[]; missingDiscriminators?: string[] }): void {
     const id = hash(`${normalize(input.label)}|${normalize(input.entity)}`).slice(0, 16);
-    this.hypotheses.set(id, { id, label: input.label, entity: input.entity, score: clamp(input.score ?? 0.5), supportingEvidenceIds: [...new Set(input.supportingEvidenceIds ?? [])], contradictingEvidenceIds: [...new Set(input.contradictingEvidenceIds ?? [])], missingDiscriminators: [...new Set(input.missingDiscriminators ?? [])], status: "alternative" });
+    const previous = this.hypotheses.get(id);
+    const priorScore = previous?.priorScore ?? previous?.score ?? clamp(input.score ?? 0.5);
+    this.hypotheses.set(id, {
+      id, label: input.label, entity: input.entity, score: priorScore, priorScore,
+      supportingEvidenceIds: [...new Set([...(previous?.supportingEvidenceIds ?? []), ...(input.supportingEvidenceIds ?? [])])],
+      contradictingEvidenceIds: [...new Set([...(previous?.contradictingEvidenceIds ?? []), ...(input.contradictingEvidenceIds ?? [])])],
+      missingDiscriminators: [...new Set([...(previous?.missingDiscriminators ?? []), ...(input.missingDiscriminators ?? [])])],
+      status: previous?.status ?? "alternative",
+    });
     this.rankHypotheses();
   }
 
@@ -328,11 +338,14 @@ export class ResearchIntelligenceEngine {
     const sourceClass = sourceClassForHost(sourceHost);
     const lineage = input.sourceUrl ? this.sourceLineage.register({ canonicalUrl: input.sourceUrl, host: sourceHost ?? input.sourceUrl, originSourceId: null, publisher: null, citedSourceIds: [], contentFingerprint: input.passage ? hash(normalize(input.passage)) : null }) : null;
     const extractionMethod = extractionMethodForAction(input.action);
-    const fingerprint = hash(`${input.kind}|${normalize(input.claim)}|${normalize(input.value)}|${input.sourceUrl ?? ""}`);
+    const parsed = extractPredicate(input.claim);
+    // The durable projection stores claim + parsed predicate/object, not the
+    // original extraction value. Use the same canonical fingerprint inputs on
+    // both live writes and restore so resumed duplicate observations stay idempotent.
+    const fingerprint = hash(`${input.kind}|${normalize(input.claim)}|${normalize(parsed.object)}|${input.sourceUrl ?? ""}`);
     const existing = this.evidence.get(fingerprint);
     if (existing) { existing.lastSeen = retrievedAt; return existing.id; }
     const id = `ev_${fingerprint.slice(0, 20)}`;
-    const parsed = extractPredicate(input.claim);
     const claimKey = hash(`${normalize(parsed.subject)}|${normalize(parsed.predicate)}|${normalize(parsed.object)}`);
     const previous = this.claims.get(claimKey);
     const claimId = previous?.id ?? `cl_${claimKey.slice(0, 20)}`;
@@ -409,7 +422,9 @@ export class ResearchIntelligenceEngine {
           identitySpecificity: overlap(hypothesis.entity, evidence!.claim),
         })),
       ];
-      const posterior = updateHypothesisPosterior(hypothesis.score, signals);
+      // Recompute from the stable prior; buildContext/rankHypotheses may run repeatedly.
+      if (hypothesis.priorScore == null) hypothesis.priorScore = hypothesis.score;
+      const posterior = updateHypothesisPosterior(hypothesis.priorScore, signals);
       hypothesis.score = posterior.score;
       hypothesis.logOdds = posterior.logOdds;
       if (hypothesis.score >= 0.75) hypothesis.missingDiscriminators = hypothesis.missingDiscriminators.filter((item) => item.trim());

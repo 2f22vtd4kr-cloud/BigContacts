@@ -7,6 +7,9 @@ const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-con
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
 const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 const canonicalDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const bureauPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+const agenticResearchSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
+const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
@@ -279,10 +282,23 @@ describe("Atlas control-plane contract regression", () => {
     // The cumulative merge belongs at the continuation boundary. A second
     // spread from nextDiscovery inflated all counts and duplicated findings,
     // trajectory entries, and provenance after each successful pivot.
-    expect(canonicalDiscoverySource.match(/discovery = mergeDiscoveryResults\\(discovery, nextDiscovery\\);/g)).toHaveLength(1);
+    expect(canonicalDiscoverySource.match(/discovery = mergeDiscoveryResults\(discovery, nextDiscovery\);/g)).toHaveLength(1);
     expect(canonicalDiscoverySource).not.toContain(
       "searches: discovery.searches + nextDiscovery.searches, visits: discovery.visits + nextDiscovery.visits, iterations: discovery.iterations + nextDiscovery.iterations",
     );
+  });
+
+
+  it("carries discovery search history across Boss-directed episodes and quota recovery", () => {
+    expect(canonicalDiscoverySource).toContain("priorTrajectoryRecords: discovery.trajectoryRecords ?? []");
+    expect(canonicalDiscoverySource).toContain("priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])]");
+    expect(bureauPassSource).toContain("priorTrajectoryRecords:input.priorTrajectoryRecords");
+    expect(agenticResearchSource).toContain("priorTrajectoryRecords: [...(input.priorTrajectoryRecords ?? []), ...records]");
+  });
+
+
+  it("passes the current model terminal findings into the discovery source gate", () => {
+    expect(agenticCoreSource).toContain("discoveryTerminalGate([...priorTrajectoryRecords, ...records.slice(0, -1), { ...record, findings: action.findings }])");
   });
 
 });
