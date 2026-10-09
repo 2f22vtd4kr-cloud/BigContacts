@@ -6,8 +6,8 @@ import { assessIdentityCollision } from "./identity-collision";
 import { countIndependentSourceHosts } from "./source-corroboration";
 export type BureauContactLike = { vectorType?: string | null; value?: string | null; scope?: string | null; personName?: string | null; role?: string | null; sourceUrls?: string[] | null; note?: string | null; tier?: string | null; state?: string | null; promote?: boolean | null };
 export type InvestigatorPromotionProvenance = { caseId: number; runId: string; jobId?: string | null };
-const HTTP_SOURCE=/^https?:\/\/\S+$/i; const SEARCH_QUERY_URL=[/google\.[^/]+\/search(?:[/?]|$)/i,/bing\.com\/search(?:[/?]|$)/i,/search\.yahoo\.com\/search(?:[/?]|$)/i,/duckduckgo\.com\/(?:html\/)?\?(?:[^#]*&)?q=/i,/efts\.sec\.gov\/LATEST\/search-index(?:[/?]|$)/i];
-function isClaimSourceUrl(url:string):boolean{return HTTP_SOURCE.test(url)&&!SEARCH_QUERY_URL.some((pattern)=>pattern.test(url));}
+const HTTPS_SOURCE=/^https:\/\/\S+$/i; const SEARCH_QUERY_URL=[/google\.[^/]+\/search(?:[/?]|$)/i,/bing\.com\/search(?:[/?]|$)/i,/search\.yahoo\.com\/search(?:[/?]|$)/i,/duckduckgo\.com\/(?:html\/)?\?(?:[^#]*&)?q=/i,/efts\.sec\.gov\/LATEST\/search-index(?:[/?]|$)/i];
+function isClaimSourceUrl(url:string):boolean{return HTTPS_SOURCE.test(url)&&!SEARCH_QUERY_URL.some((pattern)=>pattern.test(url));}
 function hasExactObservedToken(text:string,value:string):boolean{
  const source=text.toLowerCase(),needle=value.trim().toLowerCase();
  if(!needle)return false;
@@ -65,7 +65,7 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
 export function isClaimGradeObservationAction(action: unknown): boolean {
   return action === "visit" || action === "browser_fetch";
 }
-function normalizeSourceUrl(raw:string):string|null{try{const url=new URL(raw);if(!/^https?:$/i.test(url.protocol))return null;url.hash="";url.hostname=url.hostname.toLowerCase();return url.href.endsWith("/")?url.href.slice(0,-1):url.href;}catch{return null;}}
+function normalizeSourceUrl(raw:string):string|null{try{const url=new URL(raw);if(url.protocol!=="https:")return null;url.hash="";url.hostname=url.hostname.toLowerCase();return url.href.endsWith("/")?url.href.slice(0,-1):url.href;}catch{return null;}}
 function normalizeObservedUrls(urls:readonly string[]|null|undefined):Set<string>{const observed=new Set<string>();for(const raw of urls??[]){if(typeof raw!=="string")continue;const url=normalizeSourceUrl(raw);if(url&&isClaimSourceUrl(url))observed.add(url);}return observed;}
 function mapVectorType(raw:string,value:string):string{const t=raw.toLowerCase().trim();if(["email","phone","website","domain","address","social","linkedin","twitter","instagram","telegram"].includes(t))return t;if(value.includes("@"))return "email";if(/^\+?[\d\s().-]{7,}$/.test(value))return "phone";if(/^https?:\/\//i.test(value))return "website";return "other";}
 function sanitizeValue(vectorType:string,value:string):string|null{const trimmed=value.trim();if(!trimmed)return null;if(vectorType==="other"&&/^person:/i.test(trimmed))return null;if(vectorType==="email")return sanitizePublicEmail(trimmed);if(vectorType==="phone")return sanitizePublicPhone(trimmed);if(vectorType==="domain"||vectorType==="website"){const v=trimmed.replace(/^https?:\/\//i,"").replace(/^www\./i,"").split("/")[0]??"";if(!/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}$/i.test(v))return null;return v.toLowerCase();}return trimmed;}
