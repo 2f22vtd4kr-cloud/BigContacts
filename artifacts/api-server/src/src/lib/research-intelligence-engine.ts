@@ -338,11 +338,14 @@ export class ResearchIntelligenceEngine {
     const sourceClass = sourceClassForHost(sourceHost);
     const lineage = input.sourceUrl ? this.sourceLineage.register({ canonicalUrl: input.sourceUrl, host: sourceHost ?? input.sourceUrl, originSourceId: null, publisher: null, citedSourceIds: [], contentFingerprint: input.passage ? hash(normalize(input.passage)) : null }) : null;
     const extractionMethod = extractionMethodForAction(input.action);
-    const fingerprint = hash(`${input.kind}|${normalize(input.claim)}|${normalize(input.value)}|${input.sourceUrl ?? ""}`);
+    const parsed = extractPredicate(input.claim);
+    // The durable projection stores claim + parsed predicate/object, not the
+    // original extraction value. Use the same canonical fingerprint inputs on
+    // both live writes and restore so resumed duplicate observations stay idempotent.
+    const fingerprint = hash(`${input.kind}|${normalize(input.claim)}|${normalize(parsed.object)}|${input.sourceUrl ?? ""}`);
     const existing = this.evidence.get(fingerprint);
     if (existing) { existing.lastSeen = retrievedAt; return existing.id; }
     const id = `ev_${fingerprint.slice(0, 20)}`;
-    const parsed = extractPredicate(input.claim);
     const claimKey = hash(`${normalize(parsed.subject)}|${normalize(parsed.predicate)}|${normalize(parsed.object)}`);
     const previous = this.claims.get(claimKey);
     const claimId = previous?.id ?? `cl_${claimKey.slice(0, 20)}`;
