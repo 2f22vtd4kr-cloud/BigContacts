@@ -198,7 +198,131 @@ async function searchCvrDenmark(query: string, limit: number, signal?: AbortSign
 async function searchZefixSwitzerland(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const resp = await registryFetch("registry", "https://www.zefix.ch/ZefixREST/api/v1/firm/search.json", { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, body: JSON.stringify({ name: query, maxEntries: Math.min(limit, 20), searchType: "0" }), signal: createRegistryRequestSignal(signal, 12_000) }); if (!resp.ok) { const body = await resp.text().catch(() => ""); throw new Error(`Zefix ${resp.status}: ${body.slice(0, 200) || resp.statusText}`); } const data = (await resp.json()) as any; const firms: any[] = Array.isArray(data) ? data : (data?.list ?? []); const results: RegistryResult[] = []; for (const firm of firms.slice(0, limit)) { const name: string = firm?.name ?? ""; if (!name) continue; const uid: string = firm?.uid ?? firm?.ehraid ?? ""; const canton: string = firm?.cantonAbbreviation ?? firm?.legalSeat ?? ""; const municipality: string = firm?.legalSeat ?? ""; const address = [municipality, canton, "Switzerland"].filter(Boolean).join(", "); results.push({ name, type: "Corporation", nationality: "CH", knownResidences: address || undefined, sourceRegistries: JSON.stringify(["Zefix Switzerland"]), notes: [uid ? `UID: ${uid}` : null, firm?.status ? `Status: ${firm.status}` : null, canton ? `Canton: ${canton}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "zefix-switzerland", uid, ehraid: firm?.ehraid ?? null, canton, legalSeat: firm?.legalSeat ?? null, status: firm?.status ?? null, chid: firm?.chid ?? null }) }); } return results; }
 async function searchOffeneregisterGermany(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const sql = `SELECT id, current_name, registered_address, company_type_code, jurisdiction_code, current_status FROM companies WHERE current_name LIKE '%${query.replace(/'/g, "''")}%' LIMIT ${Math.min(limit, 20)}`; const url = `https://db.offeneregister.de/handelsregister.json?sql=${encodeURIComponent(sql)}`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 15_000) }); if (!resp.ok) throw new Error(`Offeneregister Germany HTTP ${resp.status}`); const data = (await resp.json()) as any; const rows: any[] = data?.rows ?? []; const columns: string[] = data?.columns ?? []; const results: RegistryResult[] = []; for (const row of rows) { const get = (col: string) => { const i = columns.indexOf(col); return i >= 0 ? row[i] : null; }; const name: string = get("current_name") ?? ""; if (!name) continue; const address: string = get("registered_address") ?? ""; const companyType: string = get("company_type_code") ?? ""; const jurisdiction: string = get("jurisdiction_code") ?? ""; const status: string = get("current_status") ?? ""; const id: string = get("id") ?? ""; results.push({ name, type: "Corporation", nationality: "DE", knownResidences: address || undefined, sourceRegistries: JSON.stringify(["Handelsregister Germany (offeneregister.de)"]), notes: [companyType ? `Type: ${companyType}` : null, jurisdiction ? `Court: ${jurisdiction}` : null, status ? `Status: ${status}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "offeneregister-germany", id, companyType, jurisdiction, status, offeneregisterUrl: id ? `https://offeneregister.de/companies/${id}` : null }) }); } return results; }
 async function searchBolagsverketSweden(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const url = `https://www.allabolag.se/api/search/company?query=${encodeURIComponent(query)}&limit=${Math.min(limit, 20)}`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)", "X-Requested-With": "XMLHttpRequest" }, signal: createRegistryRequestSignal(signal, 12_000) }); if (!resp.ok) throw new Error(`Allabolag ${resp.status}`); const data = (await resp.json()) as any; const hits: any[] = data?.hits ?? data?.results ?? data?.companies ?? []; const results: RegistryResult[] = []; for (const hit of hits.slice(0, limit)) { const name: string = hit?.name ?? hit?.companyName ?? ""; if (!name) continue; const orgNumber: string = hit?.orgNumber ?? hit?.organizationNumber ?? hit?.org_number ?? ""; const city: string = hit?.city ?? hit?.municipality ?? ""; const status: string = hit?.status ?? ""; const legalForm: string = hit?.legalForm ?? hit?.legal_form ?? ""; const address = [hit?.address, city, "Sweden"].filter(Boolean).join(", "); results.push({ name, type: "Corporation", nationality: "SE", knownResidences: address || city ? address : undefined, sourceRegistries: JSON.stringify(["Bolagsverket Sweden"]), notes: [orgNumber ? `Org: ${orgNumber}` : null, legalForm ? `Form: ${legalForm}` : null, status ? `Status: ${status}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "bolagsverket-sweden", orgNumber, legalForm, status, city }) }); } return results; }
-async function searchYtjFinland(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { try { const url = `https://avoindata.prh.fi/opendata-ytj-api/v3/companies?name=${encodeURIComponent(query)}&maxResults=${Math.min(limit, 5)}`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 14_000) }); if (!resp.ok) throw new Error(`YTJ Finland HTTP ${resp.status}`); const data = (await resp.json()) as any; const companies: any[] = data?.companies ?? []; const results: RegistryResult[] = []; for (const co of companies.slice(0, limit)) { const businessId: string = co?.businessId?.value ?? ""; if (!businessId) continue; const names: any[] = co?.names ?? []; const currentName = names.find((n: any) => n?.type === "1" && !n?.endDate) ?? names[0]; const name: string = currentName?.name ?? ""; if (!name) continue; const forms: any[] = co?.companyForms ?? []; const formDesc = forms[0]?.descriptions?.find((d: any) => d?.languageCode === "3")?.description ?? forms[0]?.descriptions?.[0]?.description ?? ""; const regDate: string = co?.businessId?.registrationDate ?? ""; let address = "Finland"; let phone: string | null = null; let email: string | null = null; let website: string | null = null; try { const detResp = await registryFetch("registry", `https://avoindata.prh.fi/opendata-ytj-api/v3/companies/${encodeURIComponent(businessId)}`, { headers: { Accept: "application/json" }, signal: createRegistryRequestSignal(signal, 8_000) }); if (detResp.ok) { const det = (await detResp.json()) as any; const det0 = det?.companies?.[0] ?? det; const addrs: any[] = det0?.addresses ?? []; const mainAddr = addrs.find((a: any) => a?.type === "1" && !a?.endDate) ?? addrs[0]; if (mainAddr) address = [mainAddr.street, mainAddr.postCode, mainAddr.city, "Finland"].filter(Boolean).join(", "); const contacts: any[] = det0?.contactDetails ?? []; for (const c of contacts) { const v: string = c?.value ?? ""; if (!v) continue; if ((c?.type === "3" || v.startsWith("+") || /^\d[\d\s\-()]{6,}/.test(v)) && !phone) phone = v; else if ((c?.type === "4" || v.includes("@")) && !email) email = v; else if ((c?.type === "5" || /^https?:/.test(v)) && !website) website = v; } } } catch { /* use defaults */ } const noteParts = [`Y-tunnus: ${businessId}`, formDesc ? `Form: ${formDesc}` : null, regDate ? `Registered: ${regDate}` : null, phone ? `Phone: ${phone}` : null, email ? `Email: ${email}` : null, website ? `Website: ${website}` : null].filter(Boolean); results.push({ name, type: "Corporation", nationality: "FI", knownResidences: address, sourceRegistries: JSON.stringify(["YTJ Finland"]), notes: noteParts.join(". "), metadata: JSON.stringify({ source: "ytj-finland", businessId, companyForm: formDesc || null, registrationDate: regDate || null, phone, email, website }) }); } return results; } catch (err: any) { logger.debug({ err: err?.message }, "YTJ Finland search failed"); throw err; } }
+async function searchYtjFinland(
+  query: string,
+  limit: number,
+  signal?: AbortSignal,
+): Promise<RegistryResult[]> {
+  try {
+    const url = `https://avoindata.prh.fi/opendata-ytj-api/v3/companies?name=${encodeURIComponent(query)}&maxResults=${Math.min(limit, 5)}`;
+    const response = await registryFetch("registry", url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)",
+      },
+      signal: createRegistryRequestSignal(signal, 14_000),
+    });
+    if (!response.ok) throw new Error(`YTJ Finland HTTP ${response.status}`);
+
+    const data = (await response.json()) as any;
+    const companies: any[] = data?.companies ?? [];
+    const results: RegistryResult[] = [];
+
+    for (const company of companies.slice(0, limit)) {
+      const businessId: string = company?.businessId?.value ?? "";
+      if (!businessId) continue;
+
+      const names: any[] = company?.names ?? [];
+      const currentName = names.find((name: any) => name?.type === "1" && !name?.endDate) ?? names[0];
+      const name: string = currentName?.name ?? "";
+      if (!name) continue;
+
+      const forms: any[] = company?.companyForms ?? [];
+      const formDescription =
+        forms[0]?.descriptions?.find((description: any) => description?.languageCode === "3")?.description ??
+        forms[0]?.descriptions?.[0]?.description ??
+        "";
+      const registrationDate: string = company?.businessId?.registrationDate ?? "";
+      let address = "Finland";
+      let phone: string | null = null;
+      let email: string | null = null;
+      let website: string | null = null;
+
+      // Detail records enrich the primary search result but do not replace it.
+      // A detail outage may leave this company with less metadata; cancellation
+      // must still propagate so the caller cannot report a cancelled run as success.
+      try {
+        const detailResponse = await registryFetch(
+          "registry",
+          `https://avoindata.prh.fi/opendata-ytj-api/v3/companies/${encodeURIComponent(businessId)}`,
+          {
+            headers: { Accept: "application/json" },
+            signal: createRegistryRequestSignal(signal, 8_000),
+          },
+        );
+        if (detailResponse.ok) {
+          const detail = (await detailResponse.json()) as any;
+          const detailCompany = detail?.companies?.[0] ?? detail;
+          const addresses: any[] = detailCompany?.addresses ?? [];
+          const mainAddress =
+            addresses.find((item: any) => item?.type === "1" && !item?.endDate) ?? addresses[0];
+          if (mainAddress) {
+            address = [mainAddress.street, mainAddress.postCode, mainAddress.city, "Finland"]
+              .filter(Boolean)
+              .join(", ");
+          }
+
+          const contactDetails: any[] = detailCompany?.contactDetails ?? [];
+          for (const contact of contactDetails) {
+            const value: string = contact?.value ?? "";
+            if (!value) continue;
+            if (
+              (contact?.type === "3" || value.startsWith("+") || /^\d[\d\s\-()]{6,}/.test(value)) &&
+              !phone
+            ) {
+              phone = value;
+            } else if ((contact?.type === "4" || value.includes("@")) && !email) {
+              email = value;
+            } else if ((contact?.type === "5" || /^https?:/i.test(value)) && !website) {
+              website = value;
+            }
+          }
+        }
+      } catch (error) {
+        if (signal?.aborted) throw error;
+        logger.debug(
+          { businessId, error: error instanceof Error ? error.message : "unknown detail lookup error" },
+          "YTJ Finland detail enrichment unavailable; retaining primary registry result",
+        );
+      }
+
+      const noteParts = [
+        `Y-tunnus: ${businessId}`,
+        formDescription ? `Form: ${formDescription}` : null,
+        registrationDate ? `Registered: ${registrationDate}` : null,
+        phone ? `Phone: ${phone}` : null,
+        email ? `Email: ${email}` : null,
+        website ? `Website: ${website}` : null,
+      ].filter(Boolean);
+
+      results.push({
+        name,
+        type: "Corporation",
+        nationality: "FI",
+        knownResidences: address,
+        sourceRegistries: JSON.stringify(["YTJ Finland"]),
+        notes: noteParts.join(". "),
+        metadata: JSON.stringify({
+          source: "ytj-finland",
+          businessId,
+          companyForm: formDescription || null,
+          registrationDate: registrationDate || null,
+          phone,
+          email,
+          website,
+        }),
+      });
+    }
+
+    return results;
+  } catch (error) {
+    logger.debug(
+      { error: error instanceof Error ? error.message : "unknown lookup error" },
+      "YTJ Finland search failed",
+    );
+    throw error;
+  }
+}
 async function searchAtokaItaly(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> {
   const results: RegistryResult[] = [];
   const seen = new Set<string>();
