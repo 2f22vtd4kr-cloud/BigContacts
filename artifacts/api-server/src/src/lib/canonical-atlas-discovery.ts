@@ -760,21 +760,48 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await clearActiveJobIfOwned(lockKey, atlasJobId); return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
   } catch (error) {
     const rawMessage = error instanceof Error ? error.message : "";
-    const cancelled = rawMessage.includes("Canonical Atlas job cancelled;");
+    let durableJob: Awaited<ReturnType<typeof getJobStrict>> = null;
+    let jobStateUnavailable = false;
+    try {
+      durableJob = await getJobStrict(atlasJobId);
+    } catch {
+      jobStateUnavailable = true;
+    }
+    // Error text is not proof of an operator stop. Only durable state may
+    // classify a cancellation; an unknown Redis state remains unknown.
+    const cancelled = !jobStateUnavailable && durableJob?.status === "cancelled";
+    const jobMissing = !jobStateUnavailable && !durableJob;
+    const leaseLost = !jobStateUnavailable && durableJob?.status === "running" && /Canonical Atlas lease was lost/i.test(rawMessage);
+    const currentAction = cancelled
+      ? "canonical-atlas-cancelled"
+      : jobStateUnavailable
+        ? "canonical-job-state-unavailable"
+        : jobMissing
+          ? "canonical-atlas-job-missing"
+          : leaseLost
+            ? "canonical-lease-lost"
+            : "canonical-atlas-failed";
     const message = cancelled
       ? "Canonical Atlas discovery cancelled; outcome incomplete."
-      : safeThrownErrorSummary("Canonical Atlas discovery failed", error);
+      : jobStateUnavailable
+        ? "Canonical Atlas job state unavailable; discovery stopped without claiming cancellation."
+        : safeThrownErrorSummary("Canonical Atlas discovery failed", error);
     await db.update(researchCasesTable).set({
       status: "review",
-      currentAction: cancelled ? "canonical-atlas-cancelled" : "canonical-atlas-failed",
+      currentAction,
       updatedAt: new Date(),
     }).where(and(
       sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
       inArray(researchCasesTable.status, ["active", "review"]),
       sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-complete','canonical-atlas-cancelled','canonical-lease-lost')`,
     ));
-    await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
-    await clearActiveJobIfOwned(lockKey, atlasJobId);
+    // Let the outer launch boundary reconcile job status if Redis reads are
+    // unavailable; do not persist a guessed cancellation.
+    if (!jobStateUnavailable) {
+      await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
+    }
+    try { await clearActiveJobIfOwned(lockKey, atlasJobId); } catch {
+      // Outer launch boundary owns the final cleanup attempt.
+    }
     throw error;
-  }
-}
+  }}
