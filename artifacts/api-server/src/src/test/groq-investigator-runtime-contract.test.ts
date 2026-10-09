@@ -59,12 +59,12 @@ describe("Groq Investigator runtime contract", () => {
     const messages = body.messages as Array<{ content: string }>;
     const submitted = messages.map((message) => message.content).join("\\n");
 
-    expect(submitted).toContain("all top-level schema properties are required");
+    expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(submitted).toContain('"url":null');
-    expect(submitted).toContain("Each parallel search item must include query, provider, locale, market, purpose");
-    expect(submitted).toContain("Each finding must include vectorType, value, personName, role, scope, sourceUrls, note, promotionDecision, promotionReason");
+    expect(submitted).toContain("Parallel searches need 2–4 objects, each with query/provider/locale/market/purpose");
+    expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
     expect(submitted).toContain('"searches":[],"findings":[]');
-    expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(9_000);
+    expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(7_200);
   });
 
   it("uses the GPT-OSS-compatible reasoning contract", () => {
