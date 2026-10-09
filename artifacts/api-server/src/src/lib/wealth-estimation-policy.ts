@@ -1,6 +1,7 @@
 export type WealthEstimateEligibilityInput = {
   type: string | null | undefined;
   metadata: string | null | undefined;
+  sourceRegistries?: string | null;
   totalAssetValue: number;
 };
 
@@ -43,10 +44,15 @@ export function assessWealthEstimateEligibility(
   const wealthStatus = typeof metadata.wealthStatus === "string"
     ? metadata.wealthStatus.trim().toLowerCase()
     : "";
+  const hasRegistryProvenance = typeof input.sourceRegistries === "string"
+    && input.sourceRegistries.trim() !== ""
+    && input.sourceRegistries.trim() !== "[]"
+    && input.sourceRegistries.trim().toLowerCase() !== "null";
   if (
     metadata.westernIngest === true
     || wealthStatus === "unverified"
     || wealthStatus === "not_assessed"
+    || (hasRegistryProvenance && wealthStatus !== "assessed")
   ) {
     return { eligible: false, reason: "registry_wealth_not_assessed" };
   }
