@@ -18,9 +18,9 @@ export type ReactorMethod =
   | "case"
   | "unknown";
 
-export type ReactorEventStatus = "queued" | "active" | "done" | "failed";
+export type ReactorEventStatus = "queued" | "active" | "done" | "failed" | "cancelled" | "unknown";
 
-export type LiveActivityStatus = "queued" | "active" | "completed" | "failed";
+export type LiveActivityStatus = "queued" | "active" | "completed" | "failed" | "cancelled" | "unknown";
 
 export interface ReactorSource {
   title?: string;
@@ -131,11 +131,13 @@ export function classifyReactorMethod(event: Pick<ReactorLiveEvent, "method" | "
 
 /** Normalize status at the rendering boundary without inventing activity. */
 export function normalizeReactorStatus(value?: string | null): ReactorEventStatus {
-  const status = String(value ?? "").toLowerCase();
+  const status = String(value ?? "").trim().toLowerCase();
   if (status === "active" || status === "running" || status === "in_progress") return "active";
   if (status === "queued" || status === "pending" || status === "waiting") return "queued";
-  if (status === "error" || status === "failed" || status === "failure" || status === "timeout") return "failed";
-  return "done";
+  if (status === "error" || status === "failed" || status === "failure" || status === "timeout" || status === "blocked") return "failed";
+  if (status === "cancelled" || status === "canceled" || status === "stopped") return "cancelled";
+  if (status === "done" || status === "complete" || status === "completed" || status === "ok" || status === "success" || status === "succeeded") return "done";
+  return "unknown";
 }
 
 export interface CanonicalActiveJobProjection {
@@ -180,11 +182,13 @@ export function parseCanonicalActiveJobProjection(value: unknown): CanonicalActi
 
 /** Convert raw span status into the shared live-activity vocabulary. */
 export function normalizeLiveActivityStatus(value?: string | null): LiveActivityStatus {
-  const status = String(value ?? "").toLowerCase();
+  const status = String(value ?? "").trim().toLowerCase();
   if (status === "active" || status === "running" || status === "in_progress") return "active";
   if (status === "queued" || status === "pending" || status === "waiting") return "queued";
-  if (status === "error" || status === "failed" || status === "failure" || status === "timeout") return "failed";
-  return "completed";
+  if (status === "error" || status === "failed" || status === "failure" || status === "timeout" || status === "blocked") return "failed";
+  if (status === "cancelled" || status === "canceled" || status === "stopped") return "cancelled";
+  if (status === "ok" || status === "done" || status === "complete" || status === "completed" || status === "success" || status === "succeeded") return "completed";
+  return "unknown";
 }
 
 function recordedHttpUrls(value?: string[]): string[] | undefined {
