@@ -26,6 +26,7 @@ import { logger } from "./logger";
 import { filterHumanNamesWithLLM, isDeterministicallySafeHumanName } from "./llm-name-validator";
 import {
   getRandomDiscoveryRegistries,
+  normalizeUnverifiedRegistryType,
   searchRegistry,
   type RegistryId,
   type RegistryResult,
@@ -666,7 +667,10 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
   else if (person.signals.isCompanyOfficer) prior = 0.25;
   if (person.signals.hasRecentFiling) prior = Math.min(prior + 0.05, 0.92);
 
-  const entityType = classifyEntityType(person.name);
+  // Public registry participation supplies a review lead, not an adjudicated
+  // wealth class. Preserve organization/trust types; keep name-shaped people
+  // as PersonCandidate until the canonical evidence-backed model path promotes them.
+  const entityType = normalizeUnverifiedRegistryType(classifyEntityType(person.name));
   const bayesianScore = computeBayesianScore(prior, {
     entityType,
     assetCount: 0,
@@ -741,6 +745,8 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
       needsEnrichment: true, // flag for MCTS enrichment queue
       ...(person.companyName ? { companyName: person.companyName } : {}),
       ...person.rawMetadata,
+      reviewOnly: entityType === "PersonCandidate",
+      wealthStatus: entityType === "PersonCandidate" ? "unverified" : "not_assessed",
     }),
     // Filing/shareholder evidence contributes to Signal, not personal access.
     isHot: false,
@@ -773,10 +779,12 @@ function buildRegistryEntity(
   registry: RegistryId,
 ): { entity: InsertEntity; key: string } {
   const jurisdiction = (result.nationality ?? "XX").slice(0, 2).toUpperCase();
-  const isPerson = result.type === "HNWI" || result.type === "Gatekeeper";
-  const prior = result.type === "HNWI" ? 0.42 : result.type === "Gatekeeper" ? 0.3 : 0.2;
+  // Defend the persistence boundary even if a caller supplies a legacy class.
+  const persistedType = normalizeUnverifiedRegistryType(result.type);
+  const isPerson = persistedType === "PersonCandidate";
+  const prior = persistedType === "PersonCandidate" ? 0.15 : 0.2;
   const bayesianScore = computeBayesianScore(prior, {
-    entityType: result.type,
+    entityType: persistedType,
     assetCount: 0,
     assetCategories: [],
     totalAssetValue: 0,
@@ -813,7 +821,7 @@ function buildRegistryEntity(
     key: dedupKey(result.name, jurisdiction),
     entity: {
       name: result.name,
-      type: result.type,
+      type: persistedType,
       bayesianScore,
       nationality: result.nationality ?? null,
       estimatedNetWorth: null,
@@ -839,6 +847,8 @@ function buildRegistryEntity(
         westernIngest: true,
         needsEnrichment: true,
         lastVerified: new Date().toISOString().slice(0, 10),
+        reviewOnly: persistedType === "PersonCandidate",
+        wealthStatus: persistedType === "PersonCandidate" ? "unverified" : "not_assessed",
       }),
       isHot: false,
     },
