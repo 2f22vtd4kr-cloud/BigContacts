@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ResearchIntelligenceEngine } from "../lib/research-intelligence-engine";
+import { ResearchIntelligenceEngine, renderIntelligenceContext } from "../lib/research-intelligence-engine";
 
 describe("Apex research intelligence", () => {
   it("requires domain boundaries before assigning trusted source classes", () => {
@@ -449,6 +449,28 @@ describe("Apex research intelligence", () => {
     expect(evidence?.sourceClass).toBe("REGULATORY");
     expect(evidence?.spanBindingKind).toBe("identity_and_value");
     expect(evidence?.passage).toContain("Alex Example");
+  });
+
+  it("redacts URL secrets from the rendered model-facing intelligence state", () => {
+    const accessSecret = "intelligence-oauth-secret";
+    const signatureSecret = "intelligence-signature-secret";
+    const engine = new ResearchIntelligenceEngine({
+      executionId: "url-privacy-intelligence",
+      target: "Example",
+      objective: "Review public source observations.",
+    });
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      execution: "success",
+      urls: [`https://example.com/profile?X-Amz-Signature=${signatureSecret}`],
+      observation: `Redirected to https://example.com/callback?access_token=${accessSecret}&state=keep`,
+    });
+    const rendered = renderIntelligenceContext(engine.buildContext());
+    expect(rendered).not.toContain(accessSecret);
+    expect(rendered).not.toContain(signatureSecret);
+    expect(rendered).toContain("REDACTED");
+    expect(rendered).toContain("state=keep");
   });
 
 
