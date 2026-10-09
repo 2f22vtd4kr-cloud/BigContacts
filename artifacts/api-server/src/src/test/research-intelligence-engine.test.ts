@@ -220,7 +220,7 @@ describe("Apex research intelligence", () => {
 
   it("moves contact evidence through outcome feedback without inventing proof", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "feedback", target: "Example Target", objective: "find a public contact" });
-    engine.recordAction({ turn: 1, action: "done", execution: "success", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://example.com/contact"] }] });
+    engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://example.com/contact"], observation: "Example Target email person@example.com", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://example.com/contact"] }] });
     engine.recordFeedback({ outcome: "bounced", value: "person@example.com" });
     expect(engine.buildContext().contacts[0]?.state).toBe("STALE");
     expect(engine.getFeedbackStats().bounced).toBe(1);
