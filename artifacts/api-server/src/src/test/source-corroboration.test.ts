@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { sanitizeUrlForEvidence } from "../lib/url-privacy";
 import { buildClaimSupportGraph, countIndependentSourceHosts, graphHasIndependentCorroboration, meetsTwoSourceRule, isAggregatorHost, hostnameOf, observationsFromSourceUrls, publisherDomain, validateClaimSupportGraph } from "../lib/source-corroboration";
 describe("source-corroboration",()=>{
+ it("does not persist URL credentials or secret-like query parameters",()=>{const raw="https://user:password@example.com/contact?access_token=top-secret-token&ref=profile#access_token=fragment-secret&display=full";const safe=sanitizeUrlForEvidence(raw);expect(safe).toContain("example.com/contact");expect(safe).toContain("ref=profile");expect(safe).not.toContain("user");expect(safe).not.toContain("password");expect(safe).not.toContain("top-secret-token");expect(safe).not.toContain("fragment-secret");const observations=observationsFromSourceUrls([raw]);expect(observations).toHaveLength(1);expect(observations[0].sourceUrl).not.toContain("top-secret-token");expect(observations[0].sourceUrl).not.toContain("fragment-secret");});
+
  it("parses hostname",()=>{expect(hostnameOf("https://www.example.com/path")).toBe("example.com");});
  it("detects aggregator hosts",()=>{expect(isAggregatorHost("zoominfo.com")).toBe(true);expect(isAggregatorHost("www.thatsthem.com")).toBe(true);expect(isAggregatorHost("crunchbase.com")).toBe(true);expect(isAggregatorHost("sec.gov")).toBe(false);});
  it("normalizes a DNS root dot before aggregator filtering and source counting",()=>{expect(hostnameOf("https://www.zoominfo.com./p/a")).toBe("zoominfo.com");expect(isAggregatorHost("zoominfo.com.")).toBe(true);expect(countIndependentSourceHosts(["https://zoominfo.com./p/a","https://apollo.io./p/b"])).toBe(0);});
