@@ -39,16 +39,6 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
     ...(isSingle ? { singleTargetId: opts.singleTargetId } : {}),
   };
 
-  let integrityNote = "";
-  try {
-    const hr = await fetch(`${BASE}/api/healthz`, { cache: "no-store" });
-    if (hr.ok) {
-      const hj = await readApiJson(hr);
-      const level = hj?.bureauIntegrity ?? hj?.lanesHonesty?.bureauIntegrity;
-      if (level === "critical") integrityNote = " (bureauIntegrity=critical — dig may underperform; check search/LLM secrets)";
-    }
-  } catch { /* healthz optional */ }
-
   try {
     const res = await fetch(`${BASE}/api/ingest/atlas-run`, {
       method: "POST",
@@ -68,7 +58,7 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
       };
     }
     if (!res.ok) return { ok: false, message: data?.error ?? `Launch failed (HTTP ${res.status})` };
-    return { ok: true, jobId: data?.jobId, message: (data?.message ?? "Apex Atlas pipeline started.") + integrityNote };
+    return { ok: true, jobId: data?.jobId, message: data?.message ?? "Apex Atlas pipeline started." };
   } catch (e: any) {
     return { ok: false, message: e?.message ?? "Could not reach api-server. Deploy the research API and proxy /api to launch Atlas." };
   }
