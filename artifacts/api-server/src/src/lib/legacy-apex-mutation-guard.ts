@@ -3,7 +3,7 @@ import { db, entitiesTable } from "@workspace/db";
 import { inArray, eq, or, sql } from "drizzle-orm";
 const RETIRED_MUTATING_ENRICHMENT_PATHS=new Set(["/ingest/web-osint-enrich","/ingest/in-house-enrich","/ingest/social-discovery","/ingest/messenger-discovery","/ingest/foundation-filings","/ingest/companies-house-enrich","/ingest/occrp","/ingest/deep-web-osint","/ingest/broad-discovery","/entities/rehydrate-contacts","/entities/fix-outcome-honesty","/entities/refresh-surface","/improve/apply-safe"]);
 const APEX_TYPES=new Set(["HNWI","Gatekeeper"]),VALID_IMPORT_TYPES=new Set(["HNWI","Corporation","Trust","Gatekeeper"]),DIRECT_CONTACT_FIELDS=new Set(["email","phone","phoneSource","emailSource","linkedinUrl","twitterHandle","instagramHandle","telegramHandle","contactMethod","knownResidences","contactOutcome","contactConfidence"]),CONTACT_METADATA_FIELDS=new Set(["email","phone","phoneSource","emailSource","linkedinUrl","twitterHandle","instagramHandle","telegramHandle","contactMethod","contactOutcome","contactConfidence","agenticContactProvenance"]);
-function isRetiredEnrichmentPath(path:string):boolean{return RETIRED_MUTATING_ENRICHMENT_PATHS.has(path);}
+function isRetiredEnrichmentPath(path:string):boolean{return RETIRED_MUTATING_ENRICHMENT_PATHS.has(path)||/^\\/entities\\/\\d+\\/refresh-surface$/.test(path);}
 function isLegacyScopedEnrichmentPath(path:string):boolean{return path.startsWith("/enrich/");}
 function isDirectEntityCardPatch(path:string):boolean{return /^\/entities\/\d+$/.test(path);}
 function isEntityMergePath(path:string):boolean{return /^\/entities\/\d+\/merge\/\d+$/.test(path);}
