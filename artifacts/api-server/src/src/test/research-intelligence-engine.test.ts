@@ -60,6 +60,27 @@ describe("Apex research intelligence", () => {
     expect(evidence.some((item) => item.sourceUrl === contactUrl && item.spanBound === true && item.spanBindingKind === "value")).toBe(true);
   });
 
+  it("upgrades deduplicated evidence when a later observation binds identity and value together", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "evidence-span-upgrade", target: "John Smith", objective: "verify contact" });
+    const sourceUrl = "https://company.example/leadership";
+    const finding = { vectorType: "email", value: "john.smith@example.com", personName: "John Smith", role: "CFO", sourceUrls: [sourceUrl] };
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      urls: [sourceUrl], observation: "John Smith is CFO of Example Corp.",
+      findings: [finding],
+    });
+    engine.recordAction({
+      turn: 2, action: "visit", execution: "success",
+      urls: [sourceUrl], observation: "John Smith is CFO of Example Corp. Contact: john.smith@example.com",
+      findings: [finding],
+    });
+    const evidence = engine.buildContext().atomicEvidence.filter((item) => item.kind === "finding" && item.sourceUrl === sourceUrl);
+    expect(evidence).toHaveLength(1);
+    expect(evidence[0]?.spanBound).toBe(true);
+    expect(evidence[0]?.spanBindingKind).toBe("identity_and_value");
+    expect(evidence[0]?.passage).toContain("john.smith@example.com");
+  });
+
   it("keeps search-result leads out of evidence and source-coverage metrics", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "search-leads", target: "Example Target", objective: "discover attributable people" });
     engine.recordAction({
