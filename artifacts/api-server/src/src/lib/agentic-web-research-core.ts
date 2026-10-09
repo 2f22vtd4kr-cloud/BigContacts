@@ -500,7 +500,11 @@ const groqRateLimitSnapshots = new Map<string, GroqRateLimitSnapshot>();
 export function resetGroqRateLimitSnapshotsForTests(): void {
   groqRateLimitSnapshots.clear();
 }
-function groqRateLimitSnapshotKey(keyName: string, model: string): string { return `${keyName}:${model}`; }
+function groqRateLimitSnapshotKey(keyName: string, model: string, credentialKey: string): string {
+  // Rate-limit snapshots belong to the actual credential, not the environment
+  // variable slot: a rotated key must not inherit another key's quota cooldown.
+  return `${keyName}:${digestDiagnosticText(credentialKey)}:${model}`;
+}
 
 function parseGroqDurationMs(raw: string | null): number | null {
   const value = raw?.trim() ?? "";
@@ -520,7 +524,7 @@ export function parseOptionalRateLimitNumber(raw: string | null): number | null 
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
 }
 
-function captureGroqRateLimitSnapshot(keyName: string, model: string, response: Response): GroqRateLimitSnapshot {
+function captureGroqRateLimitSnapshot(keyName: string, model: string, response: Response, credentialKey: string): GroqRateLimitSnapshot {
   const remainingTokensValue = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-tokens"));
   const remainingRequestsValue = parseOptionalRateLimitNumber(response.headers.get("x-ratelimit-remaining-requests"));
   const snapshot: GroqRateLimitSnapshot = {
@@ -530,7 +534,7 @@ function captureGroqRateLimitSnapshot(keyName: string, model: string, response: 
     resetRequestsMs: parseGroqDurationMs(response.headers.get("x-ratelimit-reset-requests")),
     observedAt: Date.now(),
   };
-  groqRateLimitSnapshots.set(groqRateLimitSnapshotKey(keyName, model), snapshot);
+  groqRateLimitSnapshots.set(groqRateLimitSnapshotKey(keyName, model, credentialKey), snapshot);
   return snapshot;
 }
 
@@ -561,8 +565,8 @@ export async function waitForAbortableDelay(delayMs: number, signal: AbortSignal
   });
 }
 
-async function waitForKnownGroqTokenWindow(keyName: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal): Promise<"ready" | "token_window_wait_exceeded"> {
-  const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model));
+async function waitForKnownGroqTokenWindow(keyName: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal, credentialKey: string): Promise<"ready" | "token_window_wait_exceeded"> {
+  const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model, credentialKey));
   if (!snapshot || snapshot.remainingTokens == null || snapshot.resetTokensMs == null) return "ready";
   const estimated = groqPromptTokenEstimate(promptChars) + completionBudget;
   if (snapshot.remainingTokens >= estimated) return "ready";
@@ -657,6 +661,7 @@ async function callGroqJson(
           workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
           groqInvestigatorCompletionBudget(cognitiveTask),
           signal,
+          key,
         );
         if (quotaReadiness === "token_window_wait_exceeded") {
           lastProviderError = "upstream_token_window_wait_exceeded";
@@ -685,7 +690,7 @@ async function callGroqJson(
 
         if (response.status === 429) {
           const hardQuota = groqHardRequestQuota(response, body);
-          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response, key);
           let providerErrorCode: string | null = null;
           let providerErrorType: string | null = null;
           try {
@@ -742,7 +747,7 @@ async function callGroqJson(
             }
           })();
           lastProviderError = providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
-          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response, key);
           let providerErrorType: string | null = null;
           try {
             const parsed = JSON.parse(body) as { error?: { type?: unknown } };
@@ -837,7 +842,7 @@ async function callGroqJson(
         }
 
         const raw = data.choices?.[0]?.message?.content?.trim() || "";
-        const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+        const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response, key);
         recordAgenticLlmAttempt({
           provider: "groq",
           model,
