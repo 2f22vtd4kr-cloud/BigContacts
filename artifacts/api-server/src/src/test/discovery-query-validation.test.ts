@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { validateDiscoverySearchQuery } from "../lib/agentic-web-research-core";
+import { providerSearchExecutionStatus, validateDiscoverySearchQuery } from "../lib/agentic-web-research-core";
 
 describe("discovery query quality rail", () => {
   it("blocks context-free two-token identity searches", () => {
@@ -30,5 +30,19 @@ describe("discovery query quality rail", () => {
     expect(validateDiscoverySearchQuery("billionaires richest people Forbes").allowed).toBe(false);
     expect(validateDiscoverySearchQuery("billionaires richest people Forbes casino").allowed).toBe(false);
     expect(validateDiscoverySearchQuery("Forbes billionaires Slovenia casino").allowed).toBe(true);
+  });
+});
+
+describe("agentic provider search outcome semantics", () => {
+  it("treats a successful zero-result search as a completed tool call", () => {
+    expect(providerSearchExecutionStatus({ status: "empty" })).toBe("success");
+  });
+
+  it("keeps actual provider failures visible as errors", () => {
+    expect(providerSearchExecutionStatus({ status: "error" })).toBe("error");
+  });
+
+  it("treats a search that returns valid sources as successful", () => {
+    expect(providerSearchExecutionStatus({ status: "success" })).toBe("success");
   });
 });
