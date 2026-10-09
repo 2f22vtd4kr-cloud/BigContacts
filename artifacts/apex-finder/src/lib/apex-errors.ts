@@ -40,6 +40,19 @@ export function classifyApexError(input: unknown, status?: number): ApexUserErro
   return {code:"UNKNOWN_ERROR",severity:"error",title:"Apex could not complete that action",message:raw||"The operation did not complete.",why:"Apex could not safely determine that the requested operation completed successfully.",nextSteps:["Retry the action once.","If it repeats, open System Status and review the latest run.","Do not treat the failed operation as successful."],retryable:true};
 }
 
+export function isApexUserError(value: unknown): value is ApexUserError {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.code === "string"
+    && ["info", "warning", "degraded", "error", "critical"].includes(String(candidate.severity))
+    && typeof candidate.title === "string"
+    && typeof candidate.message === "string"
+    && typeof candidate.why === "string"
+    && Array.isArray(candidate.nextSteps)
+    && candidate.nextSteps.every((step) => typeof step === "string")
+    && typeof candidate.retryable === "boolean"
+    && (candidate.provider === undefined || typeof candidate.provider === "string");
+}
 export function emitApexError(error: ApexUserError) {
   window.dispatchEvent(new CustomEvent("apex:error", { detail: error }));
 }
