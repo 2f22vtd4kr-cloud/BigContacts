@@ -17,6 +17,7 @@ export const REDIS_TTL_POLICY = {
 } as const;
 
 import { logger } from "./logger";
+import { selectCanonicalPermanentSlotIndex, selectContactCacheSlotIndex } from "./permanent-redis-policy";
 
 let _localClient: Redis | null = null;
 let _permanentClients: Redis[] = [];
@@ -46,7 +47,7 @@ function buildClient(url: string, label: string, slotIndex?: number): Redis {
     if (err.message?.includes("max requests limit exceeded")) {
       if (slotIndex !== undefined && !_quotaExhaustedSlots.has(slotIndex)) {
         _quotaExhaustedSlots.add(slotIndex);
-        logger.warn({ slot: slotIndex + 1, label }, `[${label}] Quota exhausted — slot marked as unavailable; falling through to next slot`);
+        logger.warn({ slot: slotIndex + 1, label }, `[${label}] Quota exhausted — slot marked unavailable; authoritative state remains pinned to REDIS_URL_1`);
       }
       client.disconnect();
     } else {
@@ -79,7 +80,7 @@ export async function connectPermanentRedis(): Promise<void> {
     logger.info("Permanent Redis connection deferred — manual mode has no boot-time Redis traffic");
     return;
   }
-  _quotaExhaustedSlots.clear();
+  // Quota exhaustion is sticky for this process. A new process/operator action is required to retry the canonical store.
   for (let i = 1; i <= 9; i++) {
     const url = process.env[`REDIS_URL_${i}`];
     if (!url) break;
@@ -116,20 +117,20 @@ export async function disconnectRedis(): Promise<void> {
 export function getRedisClient(): Redis | null { return _localClient; }
 
 /**
- * Returns the first healthy, non-quota-exhausted permanent client.
- * Never falls back to local Redis: permanent callers own distributed/durable state.
+ * Returns only REDIS_URL_1, the canonical durable store. REDIS_URL_2+ are
+ * independent databases, not replicas, and must never inherit job/lease state
+ * merely because the canonical store is quota-exhausted.
  */
 export function getPermanentClient(): Redis | null {
   if (!_permanentRedisEnabled) return null;
-  return _permanentClients.find(
-    (c, i) => c?.status === "ready" && !_quotaExhaustedSlots.has(i),
-  ) ?? null;
+  const index = selectCanonicalPermanentSlotIndex(_permanentClients, _quotaExhaustedSlots);
+  return index === null ? null : _permanentClients[index] ?? null;
 }
 
+/** Canonical state operations have exactly one authoritative Redis slot. */
 export function getAllPermanentClients(): Redis[] {
-  return _permanentClients.filter(
-    (c, i) => c?.status === "ready" && !_quotaExhaustedSlots.has(i),
-  );
+  const client = getPermanentClient();
+  return client ? [client] : [];
 }
 
 export function isSlotQuotaExhausted(slot: number): boolean {
@@ -142,31 +143,9 @@ export function clearQuotaExhaustedSlots(): void {
   logger.info("Cleared sticky Redis quota-exhausted slot flags");
 }
 
-let _lastQuotaRecoverAt = 0;
+/** Monthly-capped Redis slots are not health-probed automatically: explicit operator action is required. */
 export async function tryRecoverExhaustedSlots(): Promise<number> {
-  if (_quotaExhaustedSlots.size === 0) return 0;
-  const now = Date.now();
-  if (now - _lastQuotaRecoverAt < 30_000) return 0;
-  _lastQuotaRecoverAt = now;
-  let recovered = 0;
-  for (const idx of [..._quotaExhaustedSlots]) {
-    const client = _permanentClients[idx];
-    if (!client || client.status !== "ready") continue;
-    try {
-      const pong = await Promise.race([
-        client.ping(),
-        new Promise<string>((_, rej) => setTimeout(() => rej(new Error("ping-timeout")), 2500)),
-      ]);
-      if (String(pong).toUpperCase() === "PONG") {
-        _quotaExhaustedSlots.delete(idx);
-        recovered += 1;
-        logger.info({ slot: idx + 1 }, "Redis slot recovered from sticky exhausted flag");
-      }
-    } catch (err: any) {
-      if (String(err?.message || "").includes("max requests limit exceeded")) continue;
-    }
-  }
-  return recovered;
+  return 0;
 }
 
 export function markClientExhausted(client: Redis): void {
@@ -320,11 +299,9 @@ export function getRedisHealthSnapshot(): { status: "ok" | "error" | "not_connec
 
 const CONTACT_PREFIX = "contact:v1:";
 export function getContactCacheClient(): Redis | null {
-  const primary = getPermanentClient();
-  if (primary) return primary;
-  const slot2 = _permanentClients[1];
-  if (slot2?.status === "ready" && !_quotaExhaustedSlots.has(1)) return slot2;
-  return null;
+  if (!_permanentRedisEnabled) return null;
+  const index = selectContactCacheSlotIndex(_permanentClients, _quotaExhaustedSlots);
+  return index === null ? null : _permanentClients[index] ?? null;
 }
 export interface CachedContact {
   name: string; email?: string | null; phone?: string | null; phoneSource?: string | null; linkedinUrl?: string | null; linkedinHeadline?: string | null; twitterHandle?: string | null; twitterBio?: string | null; instagramHandle?: string | null; telegramHandle?: string | null; telegramBio?: string | null; personalWebsite?: string | null; foundationName?: string | null; website?: string | null; twitter?: string | null; contactConfidence: number; enrichmentSources: string[]; enrichedAt: string; emailConfidence?: number; phoneConfidence?: number; sourceHits?: Record<string, number>; reviewOnlyContacts?: Array<Record<string, unknown>>;
