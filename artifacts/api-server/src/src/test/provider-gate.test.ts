@@ -560,4 +560,27 @@ describe("provider quota gate", () => {
     }
   });
 
+  it("oversized public GET responses are not cached after a bounded clone read", async () => {
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return new Response(`version-${calls}-${"x".repeat(1_500_001)}`, {
+        status: 200,
+        headers: { "cache-control": "public, max-age=60" },
+      });
+    }) as typeof fetch;
+    try {
+      const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+      installExternalQuotaGuard();
+      const first = await globalThis.fetch("https://large-public-cache.example.test/resource");
+      const second = await globalThis.fetch("https://large-public-cache.example.test/resource");
+      expect((await first.text()).startsWith("version-1-")).toBe(true);
+      expect((await second.text()).startsWith("version-2-")).toBe(true);
+      expect(calls).toBe(2);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
 });
