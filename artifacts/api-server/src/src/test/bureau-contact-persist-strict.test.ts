@@ -132,15 +132,32 @@ describe("Batch 44 provenance regressions", () => {
 
 
 describe("claim-grade observation boundary", () => {
-  it("admits successful non-search capability observations while excluding lead-only/control actions", () => {
-    expect(isClaimGradeObservationAction("visit")).toBe(true);
-    expect(isClaimGradeObservationAction("browser_fetch")).toBe(true);
-    expect(isClaimGradeObservationAction("registry_search")).toBe(true);
-    expect(isClaimGradeObservationAction("domain_lookup")).toBe(true);
-    expect(isClaimGradeObservationAction("footprint_spiderfoot")).toBe(true);
-    expect(isClaimGradeObservationAction("web_search")).toBe(false);
-    expect(isClaimGradeObservationAction("parallel_web_search")).toBe(false);
-    expect(isClaimGradeObservationAction("done")).toBe(false);
+  it("allows only implemented claim-bearing capability actions", () => {
+    for (const action of [
+      "visit",
+      "browser_fetch",
+      "registry_search",
+      "domain_lookup",
+      "harvest_domain",
+      "footprint_email",
+      "footprint_username_maigret",
+      "footprint_username_sherlock",
+      "footprint_spiderfoot",
+    ]) {
+      expect(isClaimGradeObservationAction(action)).toBe(true);
+    }
+    for (const action of [
+      "web_search",
+      "parallel_web_search",
+      "done",
+      "investigator_provider_error",
+      "made_up_tool",
+      "unknown_legacy_action",
+      "",
+    ]) {
+      expect(isClaimGradeObservationAction(action)).toBe(false);
+    }
+    expect(isClaimGradeObservationAction(null)).toBe(false);
   });
 });
 
