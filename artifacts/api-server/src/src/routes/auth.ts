@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import {
   API_SESSION_TTL_SECONDS,
   apiSessionCookieHeader,
@@ -11,7 +11,7 @@ import {
 
 const router = Router();
 
-function originAllowed(req: Parameters<Parameters<typeof router.post>[1]>[0]): boolean {
+function originAllowed(req: Request): boolean {
   return isAllowedLoginOrigin({
     origin: req.get("origin"),
     host: req.get("host"),
