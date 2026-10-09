@@ -107,8 +107,53 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
  }
  return identityObserved && valueObserved && identityAndValueBoundTogether && [...cited].every((url) => supportingUrls.has(url));
 }
+/**
+ * Review-only attribution may combine independently observed sources, but
+ * each cited URL must contribute exact identity or value evidence. This is
+ * intentionally weaker than supportsContactClaimAcrossObservations: trusted
+ * candidate promotion still requires identity and value to be locally bound
+ * in the same observation.
+ */
+export function supportsReviewableClaimAcrossObservations(
+ observations: readonly ObservedClaimMaterial[],
+ item: BureauContactLike,
+ cleanValue: string,
+ vectorType: string,
+): boolean {
+ const cited = new Set((item.sourceUrls ?? []).map((url) => normalizeSourceUrl(String(url))).filter((url): url is string => Boolean(url)));
+ if (!cited.size || !cleanValue.trim()) return false;
+ const candidate = String(item.scope ?? "").toLowerCase() === "candidate";
+ const personName = typeof item.personName === "string" ? item.personName.trim() : "";
+ if (candidate && !personName) return false;
+ let identityObserved = !candidate;
+ let valueObserved = false;
+ const supportingUrls = new Set<string>();
+ for (const observation of observations) {
+  const urls = observation.sourceUrls
+   .map((url) => normalizeSourceUrl(String(url)))
+   .filter((url): url is string => url !== null && cited.has(url));
+  if (!urls.length || !observation.observationText.trim()) continue;
+  const identity = candidate && hasExactObservedToken(observation.observationText, personName);
+  const value = vectorType === "phone"
+   ? (() => {
+      const digits = cleanValue.replace(/\D/g, "");
+      const tokens = observation.observationText.match(/\+?\d[\d\s().-]{5,}\d/g) ?? [];
+      return digits.length >= 7 && tokens.some((token) => token.replace(/\D/g, "") === digits);
+     })()
+   : hasExactObservedToken(observation.observationText, cleanValue);
+  if (identity) identityObserved = true;
+  if (value) valueObserved = true;
+  if (candidate ? identity || value : value) for (const url of urls) supportingUrls.add(url);
+ }
+ return identityObserved && valueObserved && [...cited].every((url) => supportingUrls.has(url));
+}
+
 export function isClaimGradeObservationAction(action: unknown): boolean {
-  return action === "visit" || action === "browser_fetch";
+  // Source quality is established by the successful URL-bound observation and
+  // exact-span checks, not by forcing a visit/browser ladder. Search snippets
+  // are lead-only; terminal/control actions are never evidence observations.
+  return typeof action === "string" && action.trim().length > 0
+    && !["web_search", "parallel_web_search", "done", "investigator_provider_error"].includes(action);
 }
 function normalizeSourceUrl(raw:string):string|null{try{const url=new URL(raw);if(url.protocol!=="https:")return null;url.hash="";url.hostname=url.hostname.toLowerCase();return url.href.endsWith("/")?url.href.slice(0,-1):url.href;}catch{return null;}}
 function normalizeObservedUrls(urls:readonly string[]|null|undefined):Set<string>{const observed=new Set<string>();for(const raw of urls??[]){if(typeof raw!=="string")continue;const url=normalizeSourceUrl(raw);if(url&&isClaimSourceUrl(url))observed.add(url);}return observed;}
