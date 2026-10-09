@@ -9,9 +9,10 @@ vi.mock("@workspace/db", () => ({
 }));
 
 import { sourceBackedAgenticFindings } from "../lib/bureau-agentic-pass";
+import { supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("Bureau multi-source attribution", () => {
-  it("rejects a candidate contact when identity and value are observed only on separate cited pages", () => {
+  it("keeps cross-page candidate attribution reviewable but rejects it at trusted-promotion co-binding", () => {
     const finding = { vectorType: "email" as const, value: "jane@example.com", personName: "Jane Smith", role: "CFO", scope: "candidate" as const, sourceUrls: ["https://company.example/leadership", "https://company.example/contact"], note: "multi-source", promotionDecision: "promote" as const };
     const records = [
       { turn: 1, model: "groq", action: "visit", args: {}, execution: "success" as const, observation: "Jane Smith is CFO.", observedUrls: ["https://company.example/leadership"], findings: [] },
@@ -21,7 +22,10 @@ describe("Bureau multi-source attribution", () => {
       "step1: visit https://company.example/leadership execution=success observed=https://company.example/leadership",
       "step2: visit https://company.example/contact execution=success observed=https://company.example/contact",
     ], records);
-    expect(result).toHaveLength(0);
+    const materials = records.map((record) => ({ observationText: record.observation, sourceUrls: record.observedUrls }));
+    expect(result).toHaveLength(1);
+    expect(supportsReviewableClaimAcrossObservations(materials, finding, finding.value, finding.vectorType)).toBe(true);
+    expect(supportsContactClaimAcrossObservations(materials, finding, finding.value, finding.vectorType)).toBe(false);
   });
   it("rejects substring identity matches such as Ann Li inside Joann Li", () => {
     const finding = {
