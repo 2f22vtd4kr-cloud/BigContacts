@@ -5,7 +5,7 @@ import { z } from "zod/v4";
 export const entitiesTable = pgTable("entities", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  type: text("type").notNull(), // 'HNWI' | 'Corporation' | 'Trust' | 'Gatekeeper'
+  type: text("type").notNull(), // 'HNWI' | 'Corporation' | 'Trust' | 'Gatekeeper' | 'PersonCandidate'
   bayesianScore: doublePrecision("bayesian_score").notNull().default(0.05),
   nationality: text("nationality"),
   estimatedNetWorth: doublePrecision("estimated_net_worth"),
