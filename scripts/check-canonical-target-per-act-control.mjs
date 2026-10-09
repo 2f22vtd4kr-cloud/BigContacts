@@ -24,6 +24,7 @@ const checks=[
 ["canonical runner fails closed when oversight is unavailable",/!lastOversight \|\| lastOversight\.status !== "completed"/.test(runner)],
 ["redirect becomes a research objective, not a tool command",/Investigator research objective/.test(runner)],
 ["canonical runner establishes one global target deadline",/const deadline = Date\.now\(\) \+ hardTimeoutMs/.test(runner)],
+["canonical target act deadline preserves provider decision window unless remaining job budget is shorter",/import \{ AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, deriveProviderBoundedActTimeoutMs/.test(runner)&&/deriveProviderBoundedActTimeoutMs\(remainingMs, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS\)/.test(runner)&&/return Math\.min\(remaining, Math\.max\(providerBudget, Math\.min\(actMaximum, Math\.floor\(remaining \/ 2\)\)\)\)/.test(core)],
 ["canonical runner refuses to start a sub-30-second act",/remainingMs < 30_000/.test(runner)],
 ["canonical target finalization is fenced to an active case",/\.where\(and\(eq\(researchCasesTable\.id, caseRow\.id\), eq\(researchCasesTable\.status, \"active\"\),[\s\S]*atlasJobId/.test(runner)],
 ["canonical agentic target wrapper actively aborts at its deadline",/setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(agentic)],
