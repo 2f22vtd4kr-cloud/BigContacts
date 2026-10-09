@@ -60,7 +60,7 @@ export function compactOversightAct(record:ActRecord):Record<string,unknown>{
     args: compactOversightArgs(safeRecord.args ?? {}),
     execution: safeRecord.execution,
     observation: compactOversightText(safeRecord.observation, 2_200),
-    observedUrls: headTail(safeRecord.observedUrls.map(sanitizeUrlForEvidence), 6),
+    observedUrls: headTail(safeRecord.observedUrls.map((url) => sanitizeUrlForEvidence(url)), 6),
     findings: sanitizeObservableValue(compactOversightFindings(safeRecord.findings)),
     stopReason: safeRecord.stopReason ?? null,
   };
