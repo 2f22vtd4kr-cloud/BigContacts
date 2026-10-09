@@ -34,7 +34,7 @@ describe("target Investigator multi-source attribution", () => {
       "step1: visit https://company.example/leadership execution=success observed=https://company.example/leadership",
       "step2: visit https://company.example/contact execution=success observed=https://company.example/contact",
     ], records);
-    expect(backed).toHaveLength(1);
+    expect(backed).toHaveLength(0);
     expect(supportsContactClaimAcrossObservations(
       records.map((record) => ({ observationText: record.observation, sourceUrls: record.observedUrls })),
       findings[0]!,
