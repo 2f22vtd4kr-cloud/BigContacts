@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { and, eq, sql, desc } from "drizzle-orm";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
-import { createJob, getActiveJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../../lib/job-queue";
+import { createJob, getActiveJobStrict, getJobStrict, setActiveJob, updateJob, clearActiveJobIfOwned } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob, isCanonicalJobOwner } from "../../lib/canonical-job-lock";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { decideTargetNextAction } from "../../lib/target-control-decision";
 import { enablePermanentRedis } from "../../lib/redis";
 import { withProviderScope } from "../../lib/provider-gate";
 import { safeThrownErrorSummary } from "../../lib/provider-error-diagnostics";
+import { classifyActiveJobLaneStatus } from "../../lib/job-queue-terminal-policy";
 const router = Router();
 const cancellationFenceSql = (caseId: number) => sql`NOT (status = 'cancelled' OR (status = 'review' AND current_action IN ('canonical-atlas-cancelled','canonical-lease-lost','canonical-continuation-cancelled'))) AND id = ${caseId}`;
 function parseFile(raw: string | null): Record<string, any> | null { try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; } }
@@ -64,7 +65,38 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
   const file = parseFile(current.caseFile); if (!file || file.target == null || current.caseType !== "target") { res.status(409).json({ error: "Only a canonical target case can run target continuation" }); return; }
   if (!Number.isInteger(Number(current.targetEntityId)) || Number(current.targetEntityId) <= 0) { res.status(409).json({ error: "Target case has no durable target entity" }); return; }
   const targetEntityId = Number(current.targetEntityId);
-  const active = await getActiveJob("atlas-run"); if (active) { const existing = await getJob(active); if (existing?.status === "running" || existing?.status === "queued") { res.status(409).json({ error: "An Atlas investigation is already running.", jobId: active }); return; } }
+  try {
+    const active = await getActiveJobStrict("atlas-run");
+    if (active) {
+      const existing = await getJobStrict(active);
+      if (!existing) {
+        res.status(503).json({ error: "The active Atlas lane points to a missing durable job record; refusing continuation.", code: "JOB_STATE_INCONSISTENT", jobId: active });
+        return;
+      }
+      const activeStatus = classifyActiveJobLaneStatus(existing.status);
+      if (activeStatus === "unknown") {
+        res.status(503).json({ error: "The active Atlas lane has an unrecognized job status; refusing continuation.", code: "JOB_STATE_INCONSISTENT", jobId: active });
+        return;
+      }
+      if (activeStatus === "active") {
+        res.status(409).json({ error: "An Atlas investigation already owns the execution lane.", jobId: active, status: existing.status });
+        return;
+      }
+      // Release only the exact terminal owner observed above. The Lua owner
+      // comparison protects a newer worker that wins the lane concurrently.
+      const released = await releaseCanonicalJob("atlas-run", active);
+      if (!released) {
+        const remaining = await getActiveJobStrict("atlas-run");
+        if (remaining) {
+          res.status(503).json({ error: "The terminal Atlas lane owner could not be safely released; refusing continuation.", code: "JOB_STATE_INCONSISTENT", jobId: remaining });
+          return;
+        }
+      }
+    }
+  } catch {
+    res.status(503).json({ error: "Canonical Atlas active-job state is unavailable; refusing continuation.", code: "JOB_STATE_UNAVAILABLE" });
+    return;
+  }
   let contextDocument: string; try { contextDocument = contextOf(file); } catch (error) { res.status(409).json({ error: safeThrownErrorSummary("Durable target context is missing", error) }); return; }
   let jobId: string | null = null;
   try { jobId = await createJob("atlas-run"); const claimed = await claimCanonicalJob("atlas-run", jobId); if (!claimed) { await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Another canonical Atlas job owns the distributed execution lock.", finishedAt: new Date().toISOString() }); res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId }); return; } await setActiveJob("atlas-run", jobId); } catch (error) { if (jobId) { await updateJob(jobId, { status: "failed", outcome: "incomplete", message: safeThrownErrorSummary("Canonical Atlas lock acquisition failed", error), finishedAt: new Date().toISOString() }).catch(() => undefined); await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined); await releaseCanonicalJob("atlas-run", jobId).catch(() => undefined); } res.status(503).json({ error: safeThrownErrorSummary("Canonical Atlas lock acquisition failed", error), jobId }); return; }
