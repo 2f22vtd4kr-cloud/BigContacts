@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, discoverySearchLivenessGate, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessGate, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 
@@ -16,6 +16,23 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
     providerFallback: [],
   } as Parameters<typeof discoverySearchLivenessGate>[0][number];
 }
+
+describe("provider-aware act timeout budget", () => {
+  it("does not put the provider capacity window under a shorter act timeout", () => {
+    expect(deriveProviderBoundedActTimeoutMs(90_000, 125_000)).toBe(90_000);
+    expect(deriveProviderBoundedActTimeoutMs(125_000, 125_000)).toBe(125_000);
+  });
+
+  it("keeps normal acts bounded while respecting longer configured provider windows", () => {
+    expect(deriveProviderBoundedActTimeoutMs(600_000, 125_000)).toBe(180_000);
+    expect(deriveProviderBoundedActTimeoutMs(500_000, 300_000)).toBe(300_000);
+  });
+
+  it("never exceeds the remaining job deadline, even when it is shorter than the provider window", () => {
+    expect(deriveProviderBoundedActTimeoutMs(45_000, 125_000)).toBe(45_000);
+    expect(deriveProviderBoundedActTimeoutMs(0, 125_000)).toBe(0);
+  });
+});
 
 describe("Investigator prompt architecture", () => {
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
