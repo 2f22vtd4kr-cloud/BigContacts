@@ -251,13 +251,13 @@ export class ResearchIntelligenceEngine {
     const candidateFindings = input.execution === "success" && !["web_search", "parallel_web_search"].includes(input.action) ? (input.findings ?? []) : [];
     const sourceObservationInputs = [
       ...(input.sourceObservations ?? []),
-      ...(input.execution === "success" && ["visit", "browser_fetch"].includes(input.action)
+      ...(input.execution === "success" && !["web_search", "parallel_web_search", "done"].includes(input.action)
         ? [{ turn: input.turn, action: input.action, execution: input.execution, observation: input.observation, urls }]
         : []),
     ];
     const sourceObservationsByUrl = new Map<string, Array<{ turn: number; action: string; observation: string }>>();
     for (const source of sourceObservationInputs) {
-      if (source.execution !== "success" || !["visit", "browser_fetch"].includes(source.action) || !source.observation?.trim()) continue;
+      if (source.execution !== "success" || ["web_search", "parallel_web_search", "done"].includes(source.action) || !source.observation?.trim()) continue;
       for (const rawUrl of source.urls ?? []) {
         const sourceUrl = canonicalUrl(rawUrl);
         if (!sourceUrl) continue;

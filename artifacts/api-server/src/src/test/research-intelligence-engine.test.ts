@@ -410,4 +410,24 @@ describe("Apex research intelligence", () => {
   });
 
 
+  it("accepts source-backed findings from successful registry and OSINT observations", () => {
+    const registryUrl = "https://find-and-update.company-information.service.gov.uk/company/12345678";
+    const engine = new ResearchIntelligenceEngine({ executionId: "registry-evidence", target: "Alex Example", objective: "verify public role" });
+    engine.recordAction({
+      turn: 1, action: "registry_search", execution: "success",
+      observation: "Alex Example is listed as a director at Example Labs.",
+      urls: [registryUrl], args: { query: "Alex Example Example Labs" },
+      findings: [{
+        vectorType: "other", value: "director at Example Labs", personName: "Alex Example", role: "director",
+        scope: "candidate", sourceUrls: [registryUrl], note: "Official company register entry.",
+      }],
+    });
+    const state = engine.buildContext();
+    const evidence = state.atomicEvidence.find((item) => item.kind === "finding" && item.sourceUrl === registryUrl);
+    expect(evidence?.sourceClass).toBe("REGULATORY");
+    expect(evidence?.spanBindingKind).toBe("identity_and_value");
+    expect(evidence?.passage).toContain("Alex Example");
+  });
+
+
 });
