@@ -49,3 +49,30 @@ export function sanitizeUrlOccurrences(text: string, urls: readonly string[]): s
   }
   return safeText;
 }
+
+
+/**
+ * Redacts URL credentials from free-form telemetry, observations and model-authored
+ * text without changing non-URL prose. Keeps trailing punctuation outside the URL.
+ */
+export function sanitizeUrlsInText(text: string): string {
+  return text.replace(/https?:\/\/[^\s<>"'`]+/gi, (candidate) => {
+    const trailing = candidate.match(/[),.;!?\]}]+$/)?.[0] ?? "";
+    const rawUrl = trailing ? candidate.slice(0, -trailing.length) : candidate;
+    return sanitizeUrlForEvidence(rawUrl) + trailing;
+  });
+}
+
+/** Recursively sanitizes a value before it becomes observable or durable. */
+export function sanitizeObservableValue<T>(value: T): T {
+  if (typeof value === "string") return sanitizeUrlsInText(value) as T;
+  if (Array.isArray(value)) return value.map((item) => sanitizeObservableValue(item)) as T;
+  if (value && typeof value === "object") {
+    const output: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      output[key] = sanitizeObservableValue(item);
+    }
+    return output as T;
+  }
+  return value;
+}
