@@ -30,3 +30,20 @@ export function classifyJobCreationVerification(
     ? "durable"
     : "conflict";
 }
+
+export type ActiveJobReadClassification =
+  | { state: "active"; jobId: string }
+  | { state: "idle"; jobId: null }
+  | { state: "unavailable"; jobId: null };
+
+/**
+ * A failed Redis read is not proof that a lane is idle. Keep those states
+ * distinct so operator status surfaces never manufacture an "inactive" result.
+ */
+export function classifyActiveJobRead(
+  readSucceeded: boolean,
+  jobId: string | null,
+): ActiveJobReadClassification {
+  if (!readSucceeded) return { state: "unavailable", jobId: null };
+  return jobId ? { state: "active", jobId } : { state: "idle", jobId: null };
+}
