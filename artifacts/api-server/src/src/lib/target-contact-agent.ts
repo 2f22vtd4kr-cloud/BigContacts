@@ -4,7 +4,7 @@ import { db, entitiesTable, researchCasesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { getJob } from "./job-queue";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
-import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
+import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsContactClaimAcrossObservations, supportsReviewableClaimAcrossObservations, type BureauContactLike, type InvestigatorPromotionProvenance } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -64,6 +64,27 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
   return supportsContactClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
 }
 
+function claimReviewablyAppearsInObservedMaterial(finding: AgenticFinding, records: AgenticTrajectoryRecord[]): boolean {
+  const sourceSet = new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)));
+  if (!sourceSet.size) return false;
+  const observations = records
+    .filter((record) => isReviewableObservation(record))
+    .map((record) => ({
+      observationText: record.observation ?? "",
+      sourceUrls: (record.observedUrls ?? []).map(normalizeObservedUrl).filter((url): url is string => url !== null && sourceSet.has(url)),
+    }))
+    .filter((record) => record.sourceUrls.length > 0);
+  return supportsReviewableClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
+}
+
+export function sourceBackedReviewableFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] {
+  const observed = claimGradeSourceUrlsFromTrajectory(records);
+  return findings
+    .filter((finding) => Array.isArray(finding.sourceUrls))
+    .map((finding) => ({ ...finding, sourceUrls: [...new Set(finding.sourceUrls.map((url) => normalizeObservedUrl(String(url))).filter((url): url is string => Boolean(url)))] }))
+    .filter((finding) => finding.sourceUrls.length > 0 && finding.sourceUrls.every((url) => observed.has(url)) && claimReviewablyAppearsInObservedMaterial(finding, records));
+}
+
 export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] {
   const observed = claimGradeSourceUrlsFromTrajectory(records);
   return findings
@@ -76,21 +97,19 @@ function buildEvidenceGraphs(findings: AgenticFinding[], records: AgenticTraject
   const observedAt = new Date().toISOString();
   return findings.map((finding, index) => {
     const citedUrls = [...new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => url !== null))];
-    // A review-only multi-source attribution can be valid across separate pages,
-    // but a single-claim support graph may include only pages that individually
-    // bind the exact claim. Never draw a "supports" edge from an identity-only
-    // page to a contact value that the page does not show.
-    const supportingUrls = citedUrls.filter((url) => records.some((record) => {
-      if (record.execution !== "success" || (record.action !== "visit" && record.action !== "browser_fetch")) return false;
-      const observed = record.observedUrls.map(normalizeObservedUrl).some((observedUrl) => observedUrl === url);
-      if (!observed || !record.observation?.trim()) return false;
-      return supportsContactClaimAcrossObservations(
-        [{ observationText: record.observation, sourceUrls: [url] }],
-        { ...finding, sourceUrls: [url] },
-        finding.value,
-        finding.vectorType,
-      );
-    }));
+    // Review graphs may combine complementary pages, but every cited URL
+    // must contribute exact identity or value evidence to the complete claim.
+    const reviewMaterials = records
+      .filter((record) => isReviewableObservation(record))
+      .map((record) => ({
+        observationText: record.observation ?? "",
+        sourceUrls: (record.observedUrls ?? []).map(normalizeObservedUrl).filter((url): url is string => url !== null && citedUrls.includes(url)),
+      }))
+      .filter((record) => record.sourceUrls.length > 0);
+    const reviewableAcrossSources = citedUrls.length > 0
+      && citedUrls.every((url) => records.some((record) => isReviewableObservation(record) && record.observedUrls.some((observedUrl) => normalizeObservedUrl(observedUrl) === url)))
+      && supportsReviewableClaimAcrossObservations(reviewMaterials, finding, finding.value, finding.vectorType);
+    const supportingUrls = reviewableAcrossSources ? citedUrls : [];
     if (!supportingUrls.length) return null;
     const observations = observationsFromSourceUrls(supportingUrls, { observedAt, runId, collectionMethod: "agentic-investigator-attribution", idPrefix: `${runId ?? "run"}:claim:${index + 1}` });
     const claim = {
@@ -126,7 +145,7 @@ export async function runTargetContactAgent(input: { entityId: number; caseId?: 
   try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : agentic.status === "cancelled" ? "cancelled" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits} stop=${agentic.stopReason}`, endedAt: new Date().toISOString() }); } catch {}
   if (input.shouldCancel && await input.shouldCancel()) return { iterations: agentic.iterations, status: "cancelled", model: agentic.model, findings: 0, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory, trajectoryRecords: agentic.trajectoryRecords, evidenceGraphs: [], phone: null, email: null, phoneSource: null, contactOutcome: null, executionId: agentic.executionId };
   if (input.jobId) { const currentJob = await getJob(input.jobId); if (!currentJob || currentJob.status !== "running") return { iterations: agentic.iterations, status: "cancelled", model: agentic.model, findings: 0, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory, trajectoryRecords: agentic.trajectoryRecords, evidenceGraphs: [], phone: null, email: null, phoneSource: null, contactOutcome: null, executionId: agentic.executionId }; }
-  const modelFindings = agentic.modelFindings ?? []; const groundingRecords = agentic.groundingTrajectoryRecords ?? agentic.trajectoryRecords; const backedFindings = sourceBackedFindings(modelFindings, agentic.trajectory, groundingRecords); const evidenceSource = input.jobId ? `target-contact-agentic:${input.jobId}` : "target-contact-agentic"; const evidenceGraphs = buildEvidenceGraphs(backedFindings, groundingRecords, agentic.executionId ?? null); const contacts = findingsToContacts(backedFindings, name); const observedSourceUrls = [...observedUrlsFromTrajectory(agentic.trajectory, groundingRecords)]; const runId = input.caseId ? (agentic.executionId ?? null) : null; const provenance: InvestigatorPromotionProvenance | undefined = input.caseId && runId ? { caseId: input.caseId, runId, jobId: input.jobId ?? null } : undefined;
+  const modelFindings = agentic.modelFindings ?? []; const groundingRecords = agentic.groundingTrajectoryRecords ?? agentic.trajectoryRecords; const reviewableFindings = sourceBackedReviewableFindings(modelFindings, agentic.trajectory, groundingRecords); const backedFindings = sourceBackedFindings(modelFindings, agentic.trajectory, groundingRecords); const evidenceSource = input.jobId ? `target-contact-agentic:${input.jobId}` : "target-contact-agentic"; const evidenceGraphs = buildEvidenceGraphs(reviewableFindings, groundingRecords, agentic.executionId ?? null); const contacts = findingsToContacts(backedFindings, name); const observedSourceUrls = [...observedUrlsFromTrajectory(agentic.trajectory, groundingRecords)]; const runId = input.caseId ? (agentic.executionId ?? null) : null; const provenance: InvestigatorPromotionProvenance | undefined = input.caseId && runId ? { caseId: input.caseId, runId, jobId: input.jobId ?? null } : undefined;
   if (input.shouldCancel && await input.shouldCancel()) return { iterations: agentic.iterations, status: "cancelled", model: agentic.model, findings: 0, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory, trajectoryRecords: agentic.trajectoryRecords, evidenceGraphs: [], phone: null, email: null, phoneSource: null, contactOutcome: null, executionId: agentic.executionId };
   if (input.jobId) { const promotionJob = await getJob(input.jobId); if (!promotionJob || promotionJob.status !== "running") return { iterations: agentic.iterations, status: "cancelled", model: agentic.model, findings: 0, searches: 0, visits: 0, trajectory: agentic.trajectory, trajectoryRecords: agentic.trajectoryRecords, evidenceGraphs: [], phone: null, email: null, phoneSource: null, contactOutcome: null, executionId: agentic.executionId }; }
   await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, evidenceSource, input.jobId, observedSourceUrls, provenance);
