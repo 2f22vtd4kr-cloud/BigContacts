@@ -36,6 +36,26 @@ describe("research epistemic vNext", () => {
     expect(bindExactSourceSpan("Jane Doe works at Example Ltd.", "john@example.org", "Jane Doe")).toBeNull();
   });
 
+  it("stores the subject and value together in a claim-grade span", () => {
+    const span = bindExactSourceSpan(
+      "Jane Doe — Director at Example Ltd. Public email: jane@example.org.",
+      "jane@example.org",
+      "Jane Doe",
+    );
+    expect(span?.exact).toBe(true);
+    expect(span?.text).toContain("Jane Doe");
+    expect(span?.text).toContain("jane@example.org");
+  });
+
+  it("does not bind a value to an identity mentioned far away in the same observation", () => {
+    const distantIdentity = "Jane Doe is listed as a director. " + "unrelated context ".repeat(80) + "Contact: jane@example.org.";
+    const span = bindExactSourceSpan(distantIdentity, "jane@example.org", "Jane Doe");
+    expect(span?.valueMatched).toBe(true);
+    expect(span?.subjectMatched).toBe(false);
+    expect(span?.exact).toBe(false);
+  });
+
+
   it("ranks actions by information value and cost", () => {
     const ranked = rankActionCandidates([
       { id: "cheap", action: "search", questionId: "q1", expectedInformationGain: 0.7, identityDiscrimination: 0.7, evidenceQuality: 0.7, falsificationValue: 0.4, successProbability: 0.8, estimatedLatencyMs: 1000, estimatedTokenCost: 500, estimatedProviderCost: 0, sourceDiversityGain: 0.8 },

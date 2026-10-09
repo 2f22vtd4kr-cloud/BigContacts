@@ -42,26 +42,57 @@ function findExactTokenIndex(text: string, value: string, fromIndex = 0): number
 }
 
 export function bindExactSourceSpan(observation: string, value: string, subject?: string | null, maxChars = 900): SourceSpan | null {
-  const text = observation.trim(); const needle = value.trim(); if (!text || !needle) return null;
-  const lower = text.toLowerCase(); const valueIndex = findExactTokenIndex(lower, needle); if (valueIndex < 0) return null;
+  const text = observation.trim();
+  const needle = value.trim().toLowerCase();
+  if (!text || !needle) return null;
+  const lower = text.toLowerCase();
+  const valueIndex = findExactTokenIndex(lower, needle);
+  if (valueIndex < 0) return null;
+
   const subjectNeedle = subject?.trim().toLowerCase() || "";
-  const subjectIndex = subjectNeedle ? findExactTokenIndex(lower, subjectNeedle, Math.max(0, valueIndex - 900)) : -1;
-  const starts = [text.lastIndexOf("\n", valueIndex), text.lastIndexOf(".", valueIndex), text.lastIndexOf("!", valueIndex), text.lastIndexOf("?", valueIndex)];
-  const start = Math.max(0, Math.max(...starts) + 1);
-  const ends = [text.indexOf("\n", valueIndex + needle.length), text.indexOf(".", valueIndex + needle.length), text.indexOf("!", valueIndex + needle.length), text.indexOf("?", valueIndex + needle.length)].filter((n) => n >= 0);
-  const end = Math.min(text.length, ends.length ? Math.min(...ends) + 1 : valueIndex + needle.length + maxChars);
-  const boundedEnd = Math.min(end, start + maxChars); const spanText = text.slice(start, boundedEnd).trim();
+  let subjectIndex = -1;
+  if (subjectNeedle) {
+    // Find the nearest exact subject token around the value. Do not let a name
+    // hundreds of lines elsewhere turn a value-only passage into a joint claim.
+    const subjectIndexes: number[] = [];
+    let cursor = lower.indexOf(subjectNeedle);
+    while (cursor >= 0) {
+      if (hasExactTokenBoundary(lower, cursor, subjectNeedle)) subjectIndexes.push(cursor);
+      cursor = lower.indexOf(subjectNeedle, cursor + 1);
+    }
+    subjectIndex = subjectIndexes
+      .filter((index) => Math.abs(index - valueIndex) <= maxChars)
+      .sort((left, right) => Math.abs(left - valueIndex) - Math.abs(right - valueIndex))[0] ?? -1;
+  }
+
+  const relevantStart = subjectIndex >= 0 ? Math.min(subjectIndex, valueIndex) : valueIndex;
+  const relevantEnd = Math.max(valueIndex + needle.length, subjectIndex >= 0 ? subjectIndex + subjectNeedle.length : valueIndex + needle.length);
+  const starts = [text.lastIndexOf("\\n", relevantStart), text.lastIndexOf(".", relevantStart), text.lastIndexOf("!", relevantStart), text.lastIndexOf("?", relevantStart)];
+  const sentenceStart = Math.max(0, Math.max(...starts) + 1);
+  const ends = [text.indexOf("\\n", relevantEnd), text.indexOf(".", relevantEnd), text.indexOf("!", relevantEnd), text.indexOf("?", relevantEnd)].filter((index) => index >= 0);
+  const sentenceEnd = Math.min(text.length, ends.length ? Math.min(...ends) + 1 : relevantEnd + maxChars);
+
+  // Keep both tokens in the stored passage even when they lie in adjacent
+  // sentences. If their distance exceeds the bounded span, this is not an exact
+  // subject/value binding and must not satisfy terminal evidence requirements.
+  let start = sentenceStart;
+  let end = sentenceEnd;
+  if (end - start > maxChars) {
+    start = Math.max(0, Math.min(relevantStart, relevantEnd - maxChars));
+    end = Math.min(text.length, start + maxChars);
+  }
+  const spanText = text.slice(start, end).trim();
   const localSubjectIndex = subjectNeedle ? findExactTokenIndex(spanText.toLowerCase(), subjectNeedle) : -1;
-  const exact = findExactTokenIndex(spanText.toLowerCase(), needle) >= 0;
-  return { text: spanText, start, end: boundedEnd, subjectMatched: subjectIndex >= 0 || localSubjectIndex >= 0, valueMatched: exact, exact: exact && (!subjectNeedle || subjectIndex >= 0 || localSubjectIndex >= 0) };
-}
-const SECOND_LEVEL_SUFFIXES = new Set(["co.uk", "org.uk", "gov.uk", "ac.uk", "com.au", "net.au", "org.au", "com.br", "com.cn", "com.hk", "com.mx", "com.sg", "co.jp", "co.nz", "co.za", "com.tr"]);
-function canonicalPublisher(host: string): string {
-  const normalized = host.trim().toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
-  const parts = normalized.split(".").filter(Boolean);
-  if (parts.length <= 2) return normalized;
-  const suffix = parts.slice(-2).join(".");
-  return SECOND_LEVEL_SUFFIXES.has(suffix) ? parts.slice(-3).join(".") : suffix;
+  const valueMatched = findExactTokenIndex(spanText.toLowerCase(), needle) >= 0;
+  const subjectMatched = !subjectNeedle || localSubjectIndex >= 0;
+  return {
+    text: spanText,
+    start,
+    end,
+    subjectMatched: Boolean(subjectNeedle) ? subjectMatched : false,
+    valueMatched,
+    exact: valueMatched && subjectMatched,
+  };
 }
 export function sourceLineageId(url: string, contentFingerprint?: string | null): string { return contentFingerprint ? "content:" + digest(contentFingerprint).slice(0, 24) : "source:" + digest(canonicalHost(url) ?? url).slice(0, 24); }
 
