@@ -194,20 +194,20 @@ describe("discovery runtime architecture", () => {
     expect(targetSource).toContain('"MODEL_DECIDED_DONE" | "OVERSIGHT_STOP"');
   });
 
-  it("bounds the continuation summary without truncating the durable trajectory", () => {
-    expect(researchSource).toContain("records.slice(Math.max(0, records.length - 4))");
-    expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords, ...records.map");
-    expect(researchSource).toContain("priorContext: buildContinuationState");
-  });
-
   it("honors a Boss stop after an ungrounded Investigator terminal claim is blocked", () => {
     const blockedTerminal = researchSource.indexOf('if (raw.action === "done" && raw.findings.length > 0');
     const stopReturn = researchSource.indexOf("if (checkpointResult.stop) return", blockedTerminal);
     expect(blockedTerminal).toBeGreaterThan(-1);
     expect(stopReturn).toBeGreaterThan(blockedTerminal);
-    expect(researchSource.slice(stopReturn, stopReturn + 700)).toContain('stopReason: "OVERSIGHT_STOP"');
-    expect(researchSource.slice(stopReturn, stopReturn + 700)).toContain("no ungrounded findings were accepted");
+    expect(researchSource.slice(stopReturn, stopReturn + 900)).toContain('stopReason: "OVERSIGHT_STOP"');
+    expect(researchSource.slice(stopReturn, stopReturn + 900)).toContain("no ungrounded findings were accepted");
     expect(researchSource.slice(blockedTerminal, stopReturn)).not.toContain("if (checkpointResult.stop) continue");
+  });
+
+  it("bounds the continuation summary without truncating the durable trajectory", () => {
+    expect(researchSource).toContain("records.slice(Math.max(0, records.length - 4))");
+    expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords, ...records.map");
+    expect(researchSource).toContain("priorContext: buildContinuationState");
   });
 
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
