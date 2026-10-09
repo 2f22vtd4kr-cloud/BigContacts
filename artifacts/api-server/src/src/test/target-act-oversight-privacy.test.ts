@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { compactOversightAct } from "../lib/target-act-oversight";
+import { buildTargetActRightHandPrompt, compactOversightAct } from "../lib/target-act-oversight";
 
 describe("target act URL privacy boundary", () => {
   it("sanitizes URL secrets from the Boss-facing act projection", () => {
@@ -31,6 +31,24 @@ describe("target act URL privacy boundary", () => {
     expect(serialized).not.toContain("alice:password");
     expect(serialized).toContain("Alice Example");
     expect(serialized).toContain("REDACTED");
+  });
+
+  it("redacts URL secrets from Right-hand and Boss-facing prompt context", () => {
+    const secret = "oversight-objective-secret";
+    const prompt = buildTargetActRightHandPrompt({
+      targetName: "Example",
+      targetType: "person",
+      objective: "Check this redirect https://example.com/callback?access_token=" + secret,
+      sharedContext: "Prior observation https://example.com/profile?token=" + secret,
+      currentAct: { action: "visit", observation: "Observed https://example.com/?api_key=" + secret },
+      recentActs: [],
+    });
+    expect(prompt).not.toContain(secret);
+    expect(prompt).toContain("OBJECTIVE:");
+    const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/target-act-oversight.ts"), "utf8");
+    expect(source).toContain("const safePromptObjective=sanitizeUrlsInText(input.objective)");
+    expect(source).toContain("${safePromptObjective}");
+    expect(source).toContain("return sanitizeObservableValue(oversight)");
   });
 
   it("sanitizes the immutable act event and control decision before persistence", () => {
