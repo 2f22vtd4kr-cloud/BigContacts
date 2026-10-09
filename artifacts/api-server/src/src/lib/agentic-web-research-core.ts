@@ -966,7 +966,7 @@ function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.l
 const AGENTIC_STRUCTURED_SCHEMA = {
   type: "object",
   properties: {
-    action: { type: "string", enum: ["web_search","parallel_web_search","visit","footprint_email","footprint_username_maigret","footprint_username_sherlock","domain_lookup","registry_search","harvest_domain","footprint_spiderfoot","browser_fetch","done"] },
+    action: { type: "string", enum: ["web_search","parallel_web_search","visit","domain_lookup","registry_search","browser_fetch","done"] },
     // Keep the provider-facing strict schema to Groq's documented structural
     // subset. The runtime parser remains authoritative for action/provider
     // combinations and cardinality, so those safety checks are not weakened.
