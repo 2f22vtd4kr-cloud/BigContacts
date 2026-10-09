@@ -58,7 +58,7 @@ router.post("/ingest/sync-faa-coordinates", async (_req: Request, res: Response)
 // ── POST /ingest/reclassify-entity-types ─────────────────────────────────────
 router.post("/ingest/reclassify-entity-types", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const rows = await db.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable);
+    const rows = await db.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable).where(sql`${entitiesTable.type} <> 'PersonCandidate'`);
 
     const corps: number[] = [];
     const trusts: number[] = [];
