@@ -48,5 +48,12 @@ describe("canonicalCaseContinuationGuard", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
     expect(source).toContain("initialContext=contextOf(lockedFile)");
     expect(source).toContain("for(\"update\")");
+    expect(source).toContain('active=await getActiveJobStrict("atlas-run")');
+    expect(source).toContain('legacyActive=await getActiveJobStrict("case-bureau-discovery")');
+    expect(source).toContain("existing=await getJobStrict(active)");
+    expect(source).toContain("existing=await getJobStrict(legacyActive)");
+    expect(source).toContain("Canonical active-job state is unknown; refusing continuation");
+    expect(source).not.toContain('const active=await getActiveJob("atlas-run")');
+    expect(source).not.toContain('const legacyActive=await getActiveJob("case-bureau-discovery")');
   });
 });
