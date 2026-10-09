@@ -21,12 +21,35 @@ function baseUrl(): string {
   return (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 }
 
+function sameOptionalStrings(a: string[] | undefined, b: string[] | undefined): boolean {
+  return a === b || (a !== undefined && b !== undefined
+    && a.length === b.length && a.every((value, index) => value === b[index]));
+}
+
+function sameActivity(a: LiveActivity, b: LiveActivity): boolean {
+  return a.id === b.id
+    && a.parentId === b.parentId
+    && a.jobId === b.jobId
+    && a.target === b.target
+    && a.actor === b.actor
+    && a.agent === b.agent
+    && a.operation === b.operation
+    && a.tool === b.tool
+    && a.spanType === b.spanType
+    && a.status === b.status
+    && a.startedAt === b.startedAt
+    && a.endedAt === b.endedAt
+    && a.inputSummary === b.inputSummary
+    && a.resultSummary === b.resultSummary
+    && sameOptionalStrings(a.sourceUrls, b.sourceUrls);
+}
+
 function emit(next: StoreSnapshot): void {
   const sameStatus = snapshot.runStatus === next.runStatus;
   const sameActivities = snapshot.activities.length === next.activities.length
-    && snapshot.activities.every((a, i) => {
-      const b = next.activities[i];
-      return a.id === b.id && a.status === b.status && a.startedAt === b.startedAt && a.endedAt === b.endedAt && a.resultSummary === b.resultSummary;
+    && snapshot.activities.every((activity, index) => {
+      const nextActivity = next.activities[index];
+      return nextActivity !== undefined && sameActivity(activity, nextActivity);
     });
   if (sameStatus && sameActivities) return;
   snapshot = next;
