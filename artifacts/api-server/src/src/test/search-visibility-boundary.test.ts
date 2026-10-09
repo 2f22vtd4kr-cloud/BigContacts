@@ -22,6 +22,15 @@ describe("search hidden-entity visibility boundary", () => {
     expect(source).toContain("eq(entitiesTable.isHidden,false)");
     expect(source).toContain("filteredResults=filteredResults.filter(r=>visibleIds.has(Number(r.id)))");
   });
+  it("does not let hidden relationships satisfy the intelligent-search relationship filter", () => {
+    const source = fs.readFileSync(
+      path.resolve(process.cwd(), "src/src/routes/search.ts"),
+      "utf8",
+    );
+    expect(source).toContain('import { visibleRelationshipScope } from "../lib/relationship-visibility";');
+    expect(source).toContain("where(and(visibleRelationshipScope(),or(inArray(relationshipsTable.sourceEntityId,ids)");
+  });
+
   it("excludes hidden-owned assets from the public aggregate facets and versions the cache", () => {
     const source = fs.readFileSync(
       path.resolve(process.cwd(), "src/src/routes/search.ts"),
