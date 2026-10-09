@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeUrlForEvidence } from "../lib/url-privacy";
+import { sanitizeUrlForEvidence, sanitizeUrlsInText } from "../lib/url-privacy";
 import { buildClaimSupportGraph, countIndependentSourceHosts, graphHasIndependentCorroboration, meetsTwoSourceRule, isAggregatorHost, hostnameOf, observationsFromSourceUrls, publisherDomain, validateClaimSupportGraph } from "../lib/source-corroboration";
 describe("source-corroboration",()=>{
  it("does not persist URL credentials or secret-like query parameters",()=>{const raw="https://user:password@example.com/contact?access_token=top-secret-token&ref=profile#access_token=fragment-secret&display=full";const safe=sanitizeUrlForEvidence(raw);expect(safe).toContain("example.com/contact");expect(safe).toContain("ref=profile");expect(safe).not.toContain("user");expect(safe).not.toContain("password");expect(safe).not.toContain("top-secret-token");expect(safe).not.toContain("fragment-secret");const observations=observationsFromSourceUrls([raw]);expect(observations).toHaveLength(1);expect(observations[0].sourceUrl).not.toContain("top-secret-token");expect(observations[0].sourceUrl).not.toContain("fragment-secret");});
@@ -11,6 +11,17 @@ describe("source-corroboration",()=>{
   for (const secret of ["aws-signature-secret","AWSACCESSKEY","temporary-token","google-signature-secret","fragment-credential"]) expect(safe).not.toContain(secret);
   expect(safe).toContain("X-Amz-Signature=%5BREDACTED%5D");
   expect(safe).toContain("X-Goog-Signature=%5BREDACTED%5D");
+ });
+ it("redacts URL secrets in excerpts while preserving their factual text",()=>{
+   const raw="https://example.com/contact?access_token=excerpt-secret&ref=public";
+   const observations=observationsFromSourceUrls([raw],{observedAt:"2026-10-09T00:00:00.000Z",excerptByUrl:{[raw]:"Alice Example contact page; see "+raw},idPrefix:"privacy-excerpt"});
+   expect(observations).toHaveLength(1);
+   expect(observations[0].sourceUrl).toContain("ref=public");
+   expect(observations[0].excerpt).toContain("Alice Example contact page");
+   expect(observations[0].excerpt).not.toContain("excerpt-secret");
+   const text=sanitizeUrlsInText("Redirected to "+raw+" and https://cdn.example/file?X-Amz-Signature=cloud-secret.");
+   expect(text).not.toContain("excerpt-secret");
+   expect(text).not.toContain("cloud-secret");
  });
  it("parses hostname",()=>{expect(hostnameOf("https://www.example.com/path")).toBe("example.com");});
  it("detects aggregator hosts",()=>{expect(isAggregatorHost("zoominfo.com")).toBe(true);expect(isAggregatorHost("www.thatsthem.com")).toBe(true);expect(isAggregatorHost("crunchbase.com")).toBe(true);expect(isAggregatorHost("sec.gov")).toBe(false);});
