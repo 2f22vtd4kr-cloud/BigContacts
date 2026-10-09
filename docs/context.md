@@ -203,3 +203,16 @@ The SSRF-safe fetch boundary checks parsed IP literals and DNS answers before pi
 ## 14. Historical material
 
 Older provider-specific incidents and migration notes remain in repository history and archived documents. They are historical evidence only. They must not override this current section or reintroduce retired control-plane providers.
+
+
+## 15. Operator authentication boundary
+
+The canonical API fails closed for research data, contact data, diagnostics, and run/control endpoints until all three operator controls are configured in the deployment secret manager:
+
+- `APEX_OPERATOR_PASSWORD` — at least 16 characters; used only at the sign-in endpoint.
+- `APEX_API_AUTH_TOKEN` — at least 32 characters; bearer credential for trusted API clients.
+- `APEX_SESSION_SECRET` — at least 32 characters; signs stateless operator sessions and must remain stable across replicas/restarts.
+
+The browser uses a signed, 12-hour, `HttpOnly`, `SameSite=Strict` cookie. The login endpoint applies a bounded per-process failed-password throttle. Secret values are never returned by health/session diagnostics or the preflight script. Only `GET /api/healthz` remains public for liveness; `GET /api/auth/session` and login/logout bootstrap endpoints are public so the UI can establish or clear a session. All other canonical API routes require a valid session or `Authorization: Bearer <APEX_API_AUTH_TOKEN>`.
+
+This is an application operator boundary, not a substitute for TLS, deployment access controls, secure secret storage, or rate limiting at the edge. Missing auth configuration is a blocker, not a condition to bypass for convenience.
