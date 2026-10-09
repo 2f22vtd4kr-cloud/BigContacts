@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveLatestEvidenceBackedTerminal } from "../lib/canonical-terminal-authority";
+import { deriveLatestEvidenceBackedTerminal, isCanonicalTargetEpisodeComplete } from "../lib/canonical-terminal-authority";
 
 describe("canonical Atlas terminal authority", () => {
   it("allows a completed target episode to become the current terminal", () => {
@@ -34,6 +34,27 @@ describe("canonical Atlas terminal authority", () => {
     const { isCanonicalAtlasRunEvidenceComplete } = await import("../lib/canonical-terminal-authority");
     expect(isCanonicalAtlasRunEvidenceComplete("target", 0)).toBe(false);
     expect(isCanonicalAtlasRunEvidenceComplete("target", 1)).toBe(true);
+  });
+
+
+  it("requires completed Right-hand/Boss oversight and evidence for target terminal", () => {
+    const complete = {
+      investigatorStatus: "completed",
+      stopReason: "MODEL_DECIDED_DONE",
+      evidenceGraphCount: 1,
+      oversightStatus: "completed",
+      oversightAction: "stop",
+      cancelled: false,
+      resourceLimited: false,
+      deadlineExceeded: false,
+    };
+    expect(isCanonicalTargetEpisodeComplete(complete)).toBe(true);
+    expect(isCanonicalTargetEpisodeComplete({ ...complete, oversightStatus: "unavailable" })).toBe(false);
+    expect(isCanonicalTargetEpisodeComplete({ ...complete, oversightAction: "continue" })).toBe(false);
+    expect(isCanonicalTargetEpisodeComplete({ ...complete, evidenceGraphCount: 0 })).toBe(false);
+    expect(isCanonicalTargetEpisodeComplete({ ...complete, deadlineExceeded: true })).toBe(false);
+    expect(isCanonicalTargetEpisodeComplete({ ...complete, resourceLimited: true })).toBe(false);
+    expect(isCanonicalTargetEpisodeComplete({ ...complete, cancelled: true })).toBe(false);
   });
 
 });
