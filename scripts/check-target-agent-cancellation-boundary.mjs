@@ -3,6 +3,7 @@ import path from "node:path";
 const root=process.cwd();
 const target=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/target-contact-agent.ts"),"utf8");
 const runner=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/canonical-single-target-runner.ts"),"utf8");
+const discovery=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"),"utf8");
 const oversight=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/target-act-oversight.ts"),"utf8");
 const checks=[
 ["target Investigator accepts cancellation callback",target.includes("shouldCancel?: () => boolean | Promise<boolean>")],
@@ -12,6 +13,7 @@ const checks=[
 ["target Investigator drains durable live-step callbacks before completion",target.includes("await investigationEventChain;")],
 ["canonical target runner checks cancellation through authoritative durable reads",runner.includes("getJobStrict(atlasJobId)")&&runner.includes('job.status === "cancelled"')&&!/await getJob\(atlasJobId\)/.test(runner)],
 ["canonical target runner supplies cancellation to Investigator",runner.includes("shouldCancel: async () =>")],
+["discovery catch confirms persisted cancellation instead of matching error text",/durableJob = await getJobStrict\(atlasJobId\)/.test(discovery)&&/durableJob\?\.status === "cancelled"/.test(discovery)&&discovery.includes("jobStateUnavailable")&&!/rawMessage\.includes\("Canonical Atlas job cancelled;"/.test(discovery)],
 ["target oversight atomically persists immutable Investigator observation events",/db\.transaction\(async\(tx\)/.test(oversight)&&/actorRole:"head_investigator"/.test(oversight)&&/eventType:"tool_observation"/.test(oversight)],
 ["target oversight atomically persists immutable Boss decision events",/db\.transaction\(async\(tx\)/.test(oversight)&&/actorRole:"groq_boss"/.test(oversight)&&/eventType:"control_decision"/.test(oversight)],
 ["target observation persistence is idempotently correlated",/onConflictDoNothing\(\{target:\[researchCaseEventsTable\.caseId,researchCaseEventsTable\.correlationKey\]\}\)/.test(oversight)],
