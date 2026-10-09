@@ -17,6 +17,9 @@ describe("provider quota gate", () => {
     expect(classifyExternalProvider("https://api.company-information.service.gov.uk.attacker.invalid/search")).toBe("generic");
     expect(classifyExternalProvider("https://data.brreg.no/enhetsregisteret/api/enheter")).toBe("registry");
     expect(classifyExternalProvider("https://evilbrreg.no/enhetsregisteret/api/enheter")).toBe("generic");
+    expect(classifyExternalProvider("https://startup.registroimprese.it/isin/api/v1/startup/search")).toBe("registry");
+    expect(classifyExternalProvider("https://registry.attacker.invalid/record")).toBe("generic");
+    expect(classifyExternalProvider("https://maigret.attacker.invalid/api")).toBe("generic");
   });
 
   afterEach(() => {
