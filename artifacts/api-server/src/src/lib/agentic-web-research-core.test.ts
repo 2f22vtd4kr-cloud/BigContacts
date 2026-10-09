@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, discoverySearchLivenessGate, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
+
+function livenessRecord(action: string, execution: "success" | "error" | "blocked") {
+  return {
+    turn: 1,
+    model: "test-model",
+    action,
+    args: {},
+    execution,
+    observation: execution === "success" ? "observed tool response" : "no response",
+    observedUrls: [],
+    findings: [],
+    providerFallback: [],
+  } as Parameters<typeof discoverySearchLivenessGate>[0][number];
+}
 
 describe("Investigator prompt architecture", () => {
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
@@ -55,6 +69,52 @@ describe("Investigator prompt architecture", () => {
       allowed: false,
       reason: expect.stringContaining("concrete anchor"),
     });
+  });
+
+  it("blocks another search action after three successful search-only actions", () => {
+    const records = [
+      livenessRecord("web_search", "success"),
+      livenessRecord("parallel_web_search", "success"),
+      livenessRecord("web_search", "success"),
+    ];
+    const gate = discoverySearchLivenessGate(records);
+    expect(gate.allowed).toBe(false);
+    expect(gate.reason).toContain("three successful search actions");
+  });
+
+  it("resets only after a successful non-search capability observation", () => {
+    const records = [
+      livenessRecord("web_search", "success"),
+      livenessRecord("parallel_web_search", "success"),
+      livenessRecord("web_search", "success"),
+      livenessRecord("visit", "success"),
+      livenessRecord("web_search", "success"),
+      livenessRecord("web_search", "success"),
+    ];
+    expect(discoverySearchLivenessGate(records)).toEqual({ allowed: true, reason: null });
+
+    const failedVisit = [
+      livenessRecord("web_search", "success"),
+      livenessRecord("web_search", "success"),
+      livenessRecord("web_search", "success"),
+      livenessRecord("visit", "error"),
+    ];
+    expect(discoverySearchLivenessGate(failedVisit).allowed).toBe(false);
+  });
+
+  it("does not count failed or blocked searches as successful liveness progress", () => {
+    const records = [
+      livenessRecord("web_search", "success"),
+      livenessRecord("web_search", "error"),
+      livenessRecord("web_search", "blocked"),
+      livenessRecord("web_search", "success"),
+    ];
+    expect(discoverySearchLivenessGate(records)).toEqual({ allowed: true, reason: null });
+  });
+
+  it("enforces the requested maximum when parsing model action text", () => {
+    expect(describeAgentActionParseFailure(JSON.stringify({ action: "x".repeat(80) })))
+      .toBe(`unsupported_action action=${"x".repeat(40)}`);
   });
 
   it("keeps the structured response contract at the provider boundary", () => {
