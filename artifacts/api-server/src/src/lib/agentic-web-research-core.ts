@@ -806,7 +806,7 @@ async function callGroqJson(
             }
           })();
           lastProviderError = providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
-          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+          const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
           let providerErrorType: string | null = null;
           try {
             const parsed = JSON.parse(body) as { error?: { type?: unknown } };
@@ -901,7 +901,7 @@ async function callGroqJson(
         }
 
         const raw = data.choices?.[0]?.message?.content?.trim() || "";
-        const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", model, response);
+        const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
         recordAgenticLlmAttempt({
           provider: "groq",
           model,
