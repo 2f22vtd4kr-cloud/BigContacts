@@ -2,6 +2,7 @@
 import fs from "node:fs";
 
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/job-queue.ts", "utf8");
+const ingest = fs.readFileSync("artifacts/api-server/src/src/routes/ingest.ts", "utf8");
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
@@ -19,6 +20,18 @@ assert(/if\(prev&&!canApplyJobPatch\(prev\.status\)\)return;/.test(source), "ter
 assert(/createJob\(type:string\):Promise<string>\{[\s\S]*const createLua="local k=KEYS\[1\]; if redis.call\('exists',k\)==1 then return -1 end;[\s\S]*redis.call\('set',KEYS\[2\],ARGV\[#ARGV\],'EX',ttl\); return 1"/.test(source), "durable job snapshot, TTL, and latest-job index must be written atomically");
 assert(/classifyJobCreationVerification\(jobId,type,persisted\)/.test(source) && /if\(verification==="durable"\)return jobId;[\s\S]*throw new Error\("Canonical job creation was not durably confirmed; refusing to launch\."\)/.test(source), "an ambiguous create response may launch only after an exact queued snapshot is confirmed durable");
 const memoryFallbackStart = source.indexOf("if(!getPermanentClient()){"); const firstDurableWrite = source.indexOf("const wrote=await safeRedis", memoryFallbackStart); assert(memoryFallbackStart >= 0 && firstDurableWrite > memoryFallbackStart && source.slice(memoryFallbackStart, firstDurableWrite).includes("memoryOnlyJobs.add(jobId)") && source.slice(memoryFallbackStart, firstDurableWrite).includes("return jobId;"), "memory-only fallback is allowed only before any canonical Redis write attempt");
+
+
+const claimHelperStart = ingest.indexOf("async function claimIngestionJobOrRespond");
+const claimHelperEnd = claimHelperStart >= 0 ? ingest.indexOf("\n}", claimHelperStart) : -1;
+const claimHelper = claimHelperEnd > claimHelperStart ? ingest.slice(claimHelperStart, claimHelperEnd + 2) : "";
+assert(claimHelperStart >= 0 && claimHelperEnd > claimHelperStart, "ingestion job claim failure helper must exist as a bounded function");
+assert(claimHelper.includes("await setActiveJob(type, jobId)") && claimHelper.includes("clearActiveJobIfMatches(type, jobId)") && /status:\s*"failed"/.test(claimHelper) && /res\.status\(503\)/.test(claimHelper), "failed active-lane claims must release only matching ownership, terminalize the unstarted job, and return an explicit unavailable response");
+for (const type of ["western-hnwi", "faa", "occrp", "land-registry", "opensky"]) {
+  const uses = [...ingest.matchAll(new RegExp(`claimIngestionJobOrRespond\\("${type}", jobId, res\\)`, "g"))].length;
+  assert(uses === 1, `${type} must claim its active lane through the failure-cleaning helper exactly once`);
+}
+assert(!/await setActiveJob\("(western-hnwi|faa|occrp|land-registry|opensky)", jobId\)/.test(ingest), "legacy ingestion handlers must not leave a queued job behind on a thrown lane-claim failure");
 
 if (failures.length) {
   console.error("JOB QUEUE AUTHORITATIVE READ: FAIL");
