@@ -4,6 +4,7 @@ const atlas=fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-di
 const agentic=fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts","utf8");
 const oversight=fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts","utf8");
 const evidence=fs.readFileSync("artifacts/api-server/src/src/lib/source-corroboration.ts","utf8");
+const intelligence=fs.readFileSync("artifacts/api-server/src/src/lib/research-intelligence-engine.ts","utf8");
 const mutationGuard=fs.readFileSync("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts","utf8");
 const core=fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts","utf8");
 const control=fs.readFileSync("artifacts/api-server/src/src/lib/target-control-decision.ts","utf8");

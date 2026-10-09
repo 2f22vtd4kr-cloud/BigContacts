@@ -99,7 +99,7 @@ describe("RDAP redirect correctness and provenance", () => {
     safeOutboundFetchMock.mockImplementation(async (input: string | URL | Request) => {
       const previous = new URL(String(input));
       const next = new URL(previous.href);
-      next.hostname = \`rdap-hop-\${requestedUrls().length}.example\`;
+      next.hostname = `rdap-hop-${requestedUrls().length}.example`;
       return redirect(next.toString());
     });
 
