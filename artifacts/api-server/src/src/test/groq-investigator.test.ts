@@ -572,4 +572,48 @@ describe("Groq Investigator provider boundary", () => {
     expect(fetchMock.mock.calls.length).toBe(2);
   });
 
+  it("rejects a non-terminal tool action without model-authored rationale and retries once without executing it", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-action-rationale-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let calls = 0;
+    mocks.safeOutboundFetch.mockImplementation(async () => {
+      calls += 1;
+      const content = calls === 1
+        ? JSON.stringify({
+            action: "web_search",
+            query: "Example Corp founder",
+            provider: "serper",
+            hypothesis: "An independently reported company profile may identify an accountable operator",
+            expectedInformationGain: 0.7,
+          })
+        : JSON.stringify({
+            action: "done", query: null, provider: null, url: null, email: null,
+            username: null, domain: null, registry: null, thought: "No evidence was gathered",
+            hypothesis: null, purpose: null, expectedInformationGain: 0,
+            locale: null, market: null, target: null, targetType: null, profile: null,
+            searches: [], findings: [],
+          });
+      return new Response(JSON.stringify({
+        choices: [{ message: { content } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example Corp",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 2,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(result.trajectoryRecords[0]).toMatchObject({
+      action: "parse_failure",
+      execution: "error",
+    });
+    expect(result.trajectoryRecords[0]?.observation).toContain("missing_action_rationale");
+    expect(result.trajectoryRecords[1]?.action).toBe("done");
+    // Two provider calls means the malformed action was corrected before web search ran.
+    expect(calls).toBe(2);
+  });
+
 });
