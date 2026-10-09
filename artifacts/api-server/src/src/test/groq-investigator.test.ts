@@ -6,9 +6,24 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../lib/ssrf-safe-fetch", () => ({ safeOutboundFetch: mocks.safeOutboundFetch }));
 
-import { bindModelFindingsToObservedSources, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { bindModelFindingsToObservedSources, parseOptionalRateLimitNumber, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capability-registry";
 import { resetProviderGateForTests } from "../lib/provider-gate";
+
+describe("Groq rate-limit header parsing", () => {
+  it("preserves missing and malformed headers as unknown rather than zero capacity", () => {
+    expect(parseOptionalRateLimitNumber(null)).toBeNull();
+    expect(parseOptionalRateLimitNumber("")).toBeNull();
+    expect(parseOptionalRateLimitNumber("  ")).toBeNull();
+    expect(parseOptionalRateLimitNumber("not-a-number")).toBeNull();
+    expect(parseOptionalRateLimitNumber("-1")).toBeNull();
+  });
+
+  it("parses valid non-negative capacity values including zero", () => {
+    expect(parseOptionalRateLimitNumber("0")).toBe(0);
+    expect(parseOptionalRateLimitNumber(" 123 ")).toBe(123);
+  });
+});
 
 describe("Groq Investigator provider boundary", () => {
   it("advertises exactly the configured key-bound capabilities", () => {
