@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
 const continuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts", "utf8");
+const control = fs.readFileSync("artifacts/api-server/src/src/lib/target-control-decision.ts", "utf8");
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 assert(continuation.indexOf("groq-target-control-pending") >= 0
@@ -20,10 +21,11 @@ assert(/async function releaseContinuationLane\(jobId: string\)/.test(continuati
   && /releaseCanonicalJob\("atlas-run", jobId\)/.test(continuation)
   && /await releaseContinuationLane\(jobId\)/.test(continuation),
   "all early continuation exits must clear the owned active pointer and stop the canonical lease timer");
-assert(/const durableOwner = parseFile\(locked\.caseFile\)/.test(continuation)
-  && /durableOwner\.atlasJobId \?\? durableOwner\.jobId/.test(continuation)
-  && /await isCanonicalJobOwner\("atlas-run", jobId\)/.test(continuation),
-  "target continuation authorization projection must revalidate durable case ownership and live lease");
+assert(/const lockedFile = parseFile\(locked\.caseFile\)/.test(continuation)
+  && /await isCanonicalJobOwner\("atlas-run", jobId\)/.test(continuation)
+  && /String\(ownershipFile\.atlasJobId \?\? ownershipFile\.jobId \?\? ""\) !== input\.jobId/.test(control)
+  && /await isCanonicalJobOwner\("atlas-run", input\.jobId\)/.test(control),
+  "target continuation and the durable Boss-decision writer must revalidate case/job ownership and live lease");
 
 assert(/nextFile = \{ \.\.\.lockedFile, atlasJobId: jobId, jobId,/.test(continuation), "target continuation must durably rebind the case to its new canonical Atlas job before remounting the target runner");
 assert((continuation.match(/async function transitionClaimedTargetCase\(/g) ?? []).length === 1
