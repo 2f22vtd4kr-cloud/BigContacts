@@ -93,7 +93,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   ]);
   const nonFameTokens = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token));
   const hasNamedOrConcreteToken = nonFameTokens.some((token) => {
-    if (/^\d{4}$/.test(token)) return false;
+    if (/^\d+$/.test(token)) return false;
     const singular = token.endsWith("s") ? token.slice(0, -1) : token;
     return !DISCOVERY_SECTOR_TERMS.test(token)
       && !DISCOVERY_ROLE_TERMS.test(token)
