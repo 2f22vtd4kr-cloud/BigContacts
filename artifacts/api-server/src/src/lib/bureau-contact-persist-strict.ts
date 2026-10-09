@@ -40,23 +40,23 @@ export function hasExactObservedToken(text:string,value:string):boolean{
 function exactTokenOffsets(text:string,value:string):number[]{
  const source=text.toLowerCase(),needle=value.trim().toLowerCase();
  if(!needle)return[];
- const continues=(character:string)=>Boolean(character)&&/[\\p{L}\\p{N}_@+-]/u.test(character);
+ const continues=(character:string)=>Boolean(character)&&/[\p{L}\p{N}_@+-]/u.test(character);
  const offsets:number[]=[];let index=source.indexOf(needle);
  while(index>=0){
   const afterIndex=index+needle.length,before=source[index-1]??"",after=source[afterIndex]??"";
-  if(!continues(before)&&!continues(after)&&!(after==="."&&/[\\p{L}\\p{N}]/u.test(source[afterIndex+1]??""))&&!(needle.includes("@")&&before==="."))offsets.push(index);
+  if(!continues(before)&&!continues(after)&&!(after==="."&&/[\p{L}\p{N}]/u.test(source[afterIndex+1]??""))&&!(needle.includes("@")&&before==="."))offsets.push(index);
   index=source.indexOf(needle,index+1);
  }
  return offsets;
 }
 function hasBoundPhoneAndIdentity(observationText:string,personName:string,cleanValue:string,maxDistance=320):boolean{
- const digits=cleanValue.replace(/\\D/g,"");
+ const digits=cleanValue.replace(/\D/g,"");
  if(digits.length<7)return false;
  const identityOffsets=exactTokenOffsets(observationText,personName);
  if(!identityOffsets.length)return false;
- const phonePattern=/\\+?\\d[\\d\\s().-]{5,}\\d/g;
+ const phonePattern=/\+?\d[\d\s().-]{5,}\d/g;
  for(const match of observationText.matchAll(phonePattern)){
-  if((match[0]??"").replace(/\\D/g,"")!==digits)continue;
+  if((match[0]??"").replace(/\D/g,"")!==digits)continue;
   const valueStart=match.index??-1,valueEnd=valueStart+match[0].length;
   if(identityOffsets.some((identityStart)=>Math.max(0,Math.max(identityStart-valueEnd,valueStart-(identityStart+personName.length)))<=maxDistance))return true;
  }
@@ -74,9 +74,9 @@ export function supportsCandidateContactOnSameObservation(observationText:string
   return Boolean(name&&hasBoundIdentityAndValue(observationText,name,cleanValue,vectorType));
  }
  if(vectorType==="phone"){
-  const digits=cleanValue.replace(/\\D/g,"");
-  const phoneTokens:string[]=observationText.match(/\\+?\\d[\\d\\s().-]{5,}\\d/g)??[];
-  return digits.length>=7&&phoneTokens.some(token=>token.replace(/\\D/g,"")===digits);
+  const digits=cleanValue.replace(/\D/g,"");
+  const phoneTokens:string[]=observationText.match(/\+?\d[\d\s().-]{5,}\d/g)??[];
+  return digits.length>=7&&phoneTokens.some(token=>token.replace(/\D/g,"")===digits);
  }
  return hasExactObservedToken(observationText,cleanValue);
 }
@@ -96,7 +96,7 @@ export function supportsContactClaimAcrossObservations(observations: readonly Ob
   if (!urls.length || !observation.observationText.trim()) continue;
   const identity = candidate && hasExactObservedToken(observation.observationText, personName);
   const value = vectorType === "phone"
-   ? (() => { const digits = cleanValue.replace(/\\D/g, ""); const tokens = observation.observationText.match(/\\+?\\d[\\d\\s().-]{5,}\\d/g) ?? []; return digits.length >= 7 && tokens.some((token) => token.replace(/\\D/g, "") === digits); })()
+   ? (() => { const digits = cleanValue.replace(/\D/g, ""); const tokens = observation.observationText.match(/\+?\d[\d\s().-]{5,}\d/g) ?? []; return digits.length >= 7 && tokens.some((token) => token.replace(/\D/g, "") === digits); })()
    : hasExactObservedToken(observation.observationText, cleanValue);
   if (identity) identityObserved = true;
   if (value) valueObserved = true;
