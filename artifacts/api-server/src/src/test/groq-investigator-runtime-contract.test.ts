@@ -16,7 +16,9 @@ describe("Groq Investigator runtime contract", () => {
   it("enforces concrete, non-duplicate discovery search quality before provider calls", async () => {
     const { validateDiscoverySearchQuery } = await import("../lib/agentic-web-research-core");
     expect(validateDiscoverySearchQuery("billionaires richest people Forbes", [])).toMatchObject({ allowed: false });
-    expect(validateDiscoverySearchQuery("Elon Musk", [])).toMatchObject({ allowed: false });
+    const exactIdentity = validateDiscoverySearchQuery("Elon Musk", []);
+    expect(exactIdentity.allowed).toBe(true);
+    expect(exactIdentity.allowed ? exactIdentity.warning : undefined).toMatch(/brief or context-light/i);
     expect(validateDiscoverySearchQuery("Slovenia casino", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Brazil mining", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("famous casino owners", [])).toMatchObject({ allowed: false });
