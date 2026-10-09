@@ -36,4 +36,13 @@ describe("Bureau SSE close/snapshot race contract", () => {
     expect(source).toContain("res.status(410)");
     expect(source).toContain("server-internal");
   });
+  it("polls the full retained event window so bursts larger than the snapshot cannot be silently skipped", () => {
+    const source = readRoute();
+    expect(source).toContain("const STREAM_READ_CAP = 300;");
+    expect(source).toContain("const SNAPSHOT_VISIBLE_LIMIT = 50;");
+    expect(source).toContain("const retained = await listBureauEvents({ caseId, limit: STREAM_READ_CAP });");
+    expect(source).toContain("events: retained.slice(0, SNAPSHOT_VISIBLE_LIMIT)");
+    expect(source).toContain("const events = await listBureauEvents({ caseId, limit: STREAM_READ_CAP });");
+  });
+
 });
