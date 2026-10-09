@@ -181,4 +181,41 @@ describe("Apex research intelligence", () => {
     expect(after.atomicEvidence.map((item) => item.evidenceId)).toEqual(before.atomicEvidence.map((item) => item.evidenceId));
   });
 
+
+  it("does not treat an unrelated contact finding as support for a role hypothesis", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-relevance", target: "Jordan Example", objective: "verify role" });
+    const url = "https://example.com/contact";
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      args: { hypothesis: "Jordan Example is director of Alpha", purpose: "verify the director role" },
+      urls: [url], observation: "Jordan Example email jordan@example.com",
+      findings: [{ vectorType: "email", value: "jordan@example.com", personName: "Jordan Example", sourceUrls: [url] }],
+    });
+    const hypothesis = engine.buildContext().hypotheses.find((item) => item.label === "Jordan Example is director of Alpha");
+    expect(hypothesis).toBeDefined();
+    expect(hypothesis?.supportingEvidenceIds).toHaveLength(0);
+  });
+
+  it("lowers a hypothesis posterior when a linked observation contradicts its supported claim", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypothesis-contradiction", target: "Alex Example", objective: "verify directorship" });
+    const alphaUrl = "https://registry.example.gov/alex";
+    const betaUrl = "https://news.example.com/alex";
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      args: { hypothesis: "Alex Example is director of Alpha", purpose: "verify the directorship" },
+      urls: [alphaUrl], observation: "Alex Example is director of Alpha",
+      findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: [alphaUrl] }],
+    });
+    const prior = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example is director of Alpha")?.score;
+    engine.recordAction({
+      turn: 2, action: "visit", execution: "success",
+      urls: [betaUrl], observation: "Alex Example is director of Beta",
+      findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: [betaUrl] }],
+    });
+    const updated = engine.buildContext().hypotheses.find((item) => item.label === "Alex Example is director of Alpha");
+    expect(prior).toBeDefined();
+    expect(updated?.contradictingEvidenceIds.length).toBeGreaterThan(0);
+    expect(updated?.score).toBeLessThan(prior!);
+  });
+
 });
