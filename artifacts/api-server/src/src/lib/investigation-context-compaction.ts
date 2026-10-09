@@ -130,6 +130,48 @@ function fitSection(section: string, remaining: number): string {
   return section.slice(0, head).trimEnd() + marker + (tail > 0 ? section.slice(-tail).trimStart() : "");
 }
 
+/**
+ * Compose the short objective field independently from durable history/context.
+ * The prompt builder keeps only the first 2,000 objective characters, so a
+ * Boss-directed question must not be appended after large state/history blobs.
+ */
+export function buildBoundedInvestigatorObjective(input: {
+  base: string;
+  direction?: string | null;
+  maxChars?: number;
+}): string {
+  const maxChars = Math.min(1_900, Math.max(1_000, Math.floor(input.maxChars ?? 1_800)));
+  const pivotMarker = "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:";
+  const markerAt = input.base.indexOf(pivotMarker);
+  const baseText = (markerAt >= 0 ? input.base.slice(0, markerAt) : input.base).trim();
+  const embeddedDirection = markerAt >= 0
+    ? input.base.slice(markerAt + pivotMarker.length).split("\n")[0]?.trim()
+    : "";
+  const direction = (input.direction?.trim() || embeddedDirection).slice(0, 700);
+  const objectiveLabel = "PRIMARY CASE OBJECTIVE:\n";
+  const directionBlock = direction
+    ? "\n\nCURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n"
+      + direction
+      + "\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue."
+    : "";
+  const decisionLaw = "\n\nChoose the next research action yourself from the available capabilities and observed evidence. Do not follow a prescribed tool order; prioritize information gain, identity discrimination, source independence, and the case objective.";
+  const baseBudget = Math.max(100, maxChars - objectiveLabel.length - directionBlock.length - decisionLaw.length);
+  let boundedBase = baseText;
+  if (boundedBase.length > baseBudget) {
+    const marker = "\n[OBJECTIVE MIDDLE OMITTED; preserve the case objective and Boss question above working history]\n";
+    if (baseBudget <= marker.length + 4) {
+      boundedBase = boundedBase.slice(0, baseBudget);
+    } else {
+      const available = baseBudget - marker.length;
+      const head = Math.ceil(available * 0.62);
+      boundedBase = boundedBase.slice(0, head).trimEnd()
+        + marker
+        + boundedBase.slice(-(available - head)).trimStart();
+    }
+  }
+  return (objectiveLabel + boundedBase + directionBlock + decisionLaw).slice(0, maxChars);
+}
+
 export function buildInvestigatorContext(input: InvestigatorContextInput): string {
   const budget = getInvestigatorContextBudget();
   if (input.maxChars !== undefined) {
