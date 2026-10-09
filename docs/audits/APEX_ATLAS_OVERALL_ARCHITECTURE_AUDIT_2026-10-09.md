@@ -153,3 +153,10 @@ The route now uses `advanceLoginAttemptWindow`, which preserves the existing sta
 The live tool-span mapper now preserves missing and unknown statuses as `unknown`, but the target-agent completion span had a separate hard-coded mapping: it emitted `ok` for every status except `timeout` and `cancelled`. That incorrectly labeled `unavailable` and `error` Investigator results as successful. Both live-step producers also defaulted a missing status to `ok`, bypassing the safer mapper.
 
 A shared `digSpanStatusFromExecutionStatus` mapping now handles terminal completion, error, cancellation, and unknown states. Target-agent stage telemetry uses that mapping, and target/discovery live-step producers no longer invent success when the source status is absent. Regression coverage checks the status table and both production call sites. This is observability correctness; it does not by itself prove the underlying research outcome succeeded.
+
+
+## Follow-up UI truth fix — stale or unknown work is not Done
+
+The Bureau Ops scene builder already represented unresolved terminal states as `unknown`, but the compact status row displayed `Done` for every non-live state except `failed`. Cancelled, queued, unknown, and missing terminal states were therefore mislabeled. A second issue appeared when more than one scene was active: older active scenes were forced to non-live with a fallback terminal `done`, and their narrative could still say `Now:`.
+
+The status-label rendering now maps `done`, `failed`, `cancelled`, `queued`, and `unknown` separately. Capped older active scenes become `unknown` unless a terminal status was already explicit, and their narrative prefix changes from `Now:` to `Unknown:` rather than claiming completion. Frontend regression checks cover the status-label table and the scene-capping contract.
