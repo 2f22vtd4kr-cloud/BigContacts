@@ -7,6 +7,7 @@ import { computeAccessScore } from "../lib/access-score";
 import { reachabilityOrderExpr } from "../lib/reachability-rank";
 import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
+import { visibleRelationshipScope } from "../lib/relationship-visibility";
 import { scoreFixtureCard, meanScore, passesScoreboardMilestone } from "../lib/scoreboard-rubric";
 
 const router: IRouter = Router();
@@ -232,6 +233,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
   const cached = await getCache<object>("dashboard:stats");
   if (cached) { res.json(cached); return; }
   const visibleEntity = eq(entitiesTable.isHidden, false);
+  const visibleRelationship = visibleRelationshipScope();
 
   const [
     [entityCount],
@@ -253,7 +255,7 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
         isNull(assetsTable.ownerEntityId),
         eq(entitiesTable.isHidden, false),
       )),
-    db.select({ cnt: sql<number>`count(*)::int` }).from(relationshipsTable),
+    db.select({ cnt: sql<number>`count(*)::int` }).from(relationshipsTable).where(visibleRelationship),
     db.select({ avg: sql<number>`round(avg(${entitiesTable.bayesianScore})::numeric, 4)` }).from(entitiesTable).where(visibleEntity),
     db.select({ cnt: sql<number>`count(*)::int` }).from(entitiesTable).where(and(
       visibleEntity,
@@ -261,13 +263,15 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
       eq(entitiesTable.contactOutcome, "direct_contact_verified"),
       sql`${entitiesTable.type} NOT IN ('Corporation', 'Corp', 'Trust')`,
     )),
-    db.select({ cnt: sql<number>`count(*)::int` }).from(researchSessionsTable),
+    db.select({ cnt: sql<number>`count(*)::int` }).from(researchSessionsTable).innerJoin(entitiesTable, eq(researchSessionsTable.targetEntityId, entitiesTable.id)).where(visibleEntity),
     db
       .select({
         status: sql<string>`'research_review'`,
         count: sql<number>`count(*)::int`,
       })
-      .from(researchSessionsTable),
+      .from(researchSessionsTable)
+      .innerJoin(entitiesTable, eq(researchSessionsTable.targetEntityId, entitiesTable.id))
+      .where(visibleEntity),
     db
       .select({
         category: assetsTable.category,
