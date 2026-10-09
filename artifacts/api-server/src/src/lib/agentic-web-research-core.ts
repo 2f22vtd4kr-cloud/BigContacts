@@ -517,6 +517,29 @@ function groqPromptTokenEstimate(promptChars: number): number {
   return Math.ceil(Math.max(0, promptChars) / 4);
 }
 
+export async function waitForAbortableDelay(delayMs: number, signal: AbortSignal): Promise<void> {
+  if (signal.aborted) throw new Error("cancelled");
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", abort);
+    };
+    const finish = (error?: Error) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      if (error) reject(error);
+      else resolve();
+    };
+    const abort = () => finish(new Error("cancelled"));
+    timer = setTimeout(() => finish(), Math.max(0, delayMs));
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort();
+  });
+}
+
 async function waitForKnownGroqTokenWindow(keyName: string, model: string, promptChars: number, completionBudget: number, signal: AbortSignal): Promise<"ready" | "token_window_wait_exceeded"> {
   const snapshot = groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(keyName, model));
   if (!snapshot || snapshot.remainingTokens == null || snapshot.resetTokensMs == null) return "ready";
@@ -525,11 +548,7 @@ async function waitForKnownGroqTokenWindow(keyName: string, model: string, promp
   const resetMs = Math.max(0, snapshot.resetTokensMs - (Date.now() - snapshot.observedAt));
   if (resetMs > AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - 5_000) return "token_window_wait_exceeded";
   if (resetMs <= 0) return "ready";
-  await new Promise<void>((resolve, reject) => {
-    const timer = setTimeout(resolve, resetMs);
-    const abort = () => { clearTimeout(timer); reject(new Error("cancelled")); };
-    signal.addEventListener("abort", abort, { once: true });
-  });
+  await waitForAbortableDelay(resetMs, signal);
   return "ready";
 }
 
@@ -666,7 +685,7 @@ async function callGroqJson(
           if (!hardQuota && tokenWaitMs !== null) {
             if (tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - 5_000 && retry429 < 1 && Date.now() + tokenWaitMs < started + AGENTIC_PROVIDER_DECISION_TIMEOUT_MS) {
               retry429 += 1;
-              await new Promise((resolve) => setTimeout(resolve, tokenWaitMs));
+              await waitForAbortableDelay(tokenWaitMs, signal);
               continue;
             }
             return { model, raw: "", error: "upstream_token_window_wait_exceeded" };
@@ -678,7 +697,7 @@ async function callGroqJson(
             return { model, raw: "", error: "upstream_rate_limited" };
           }
           retry429 += 1;
-          await new Promise((resolve) => setTimeout(resolve, delay));
+          await waitForAbortableDelay(delay, signal);
           continue;
         }
 
