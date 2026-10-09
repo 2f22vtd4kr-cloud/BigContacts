@@ -67,9 +67,9 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
 
   const relevantStart = subjectIndex >= 0 ? Math.min(subjectIndex, valueIndex) : valueIndex;
   const relevantEnd = Math.max(valueIndex + needle.length, subjectIndex >= 0 ? subjectIndex + subjectNeedle.length : valueIndex + needle.length);
-  const starts = [text.lastIndexOf("\\n", relevantStart), text.lastIndexOf(".", relevantStart), text.lastIndexOf("!", relevantStart), text.lastIndexOf("?", relevantStart)];
+  const starts = [text.lastIndexOf("\n", relevantStart), text.lastIndexOf(".", relevantStart), text.lastIndexOf("!", relevantStart), text.lastIndexOf("?", relevantStart)];
   const sentenceStart = Math.max(0, Math.max(...starts) + 1);
-  const ends = [text.indexOf("\\n", relevantEnd), text.indexOf(".", relevantEnd), text.indexOf("!", relevantEnd), text.indexOf("?", relevantEnd)].filter((index) => index >= 0);
+  const ends = [text.indexOf("\n", relevantEnd), text.indexOf(".", relevantEnd), text.indexOf("!", relevantEnd), text.indexOf("?", relevantEnd)].filter((index) => index >= 0);
   const sentenceEnd = Math.min(text.length, ends.length ? Math.min(...ends) + 1 : relevantEnd + maxChars);
 
   // Keep both tokens in the stored passage even when they lie in adjacent
@@ -93,6 +93,14 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
     valueMatched,
     exact: valueMatched && subjectMatched,
   };
+}
+const SECOND_LEVEL_SUFFIXES = new Set(["co.uk", "org.uk", "gov.uk", "ac.uk", "com.au", "net.au", "org.au", "com.br", "com.cn", "com.hk", "com.mx", "com.sg", "co.jp", "co.nz", "co.za", "com.tr"]);
+function canonicalPublisher(host: string): string {
+  const normalized = host.trim().toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
+  const parts = normalized.split(".").filter(Boolean);
+  if (parts.length <= 2) return normalized;
+  const suffix = parts.slice(-2).join(".");
+  return SECOND_LEVEL_SUFFIXES.has(suffix) ? parts.slice(-3).join(".") : suffix;
 }
 export function sourceLineageId(url: string, contentFingerprint?: string | null): string { return contentFingerprint ? "content:" + digest(contentFingerprint).slice(0, 24) : "source:" + digest(canonicalHost(url) ?? url).slice(0, 24); }
 
