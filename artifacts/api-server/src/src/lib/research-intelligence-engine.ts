@@ -202,8 +202,8 @@ function supportsHypothesisClaim(hypothesis: string, claim: string): boolean {
     hypothesisClaim.predicate !== "asserts"
     && evidenceClaim.predicate !== "asserts"
     && normalize(hypothesisClaim.subject) === normalize(evidenceClaim.subject)
-    && hypothesisClaim.predicate === evidenceClaim.predicate
   ) {
+    if (hypothesisClaim.predicate !== evidenceClaim.predicate) return false;
     const normalizeObject = (value: string) => normalize(value).replace(/^(?:the|a|an)\s+/, "");
     if (normalizeObject(hypothesisClaim.object) !== normalizeObject(evidenceClaim.object)) return false;
   }
