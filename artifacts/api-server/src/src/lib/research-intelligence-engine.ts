@@ -558,6 +558,7 @@ export class ResearchIntelligenceEngine {
         sourceClass: evidence.sourceClass,
         passage: evidence.passage,
         spanBound: evidence.spanBound === true,
+        spanBindingKind: evidence.spanBindingKind,
         attribution: evidence.attribution ?? null,
       }));
     const actionYield = [...this.actionYield.entries()].map(([action, stat]) => summarizeActionYield(action, stat));
