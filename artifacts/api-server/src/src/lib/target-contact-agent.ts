@@ -40,7 +40,7 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
       && typeof record.observation === "string"
       && (record.action === "visit" || record.action === "browser_fetch"))
     .map((record) => ({
-      observationText: record.observation,
+      observationText: record.observation ?? "",
       sourceUrls: record.observedUrls
         .map(normalizeObservedUrl)
         .filter((url): url is string => typeof url === "string" && sourceSet.has(url)),
