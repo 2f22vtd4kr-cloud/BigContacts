@@ -3,6 +3,17 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("search hidden-entity visibility boundary", () => {
+  it("reports actual HNWI totals rather than requested page size", () => {
+    const source = fs.readFileSync(
+      path.resolve(process.cwd(), "src/src/routes/search.ts"),
+      "utf8",
+    );
+    expect(source).toContain("sql<number>\`count(*)::int\`");
+    expect(source).toContain("const total=proximityMin>0?proximityMatchCount:Number(totalResult?.[0]?.total??0)");
+    expect(source).toContain("const totalIsLowerBound=proximityMin>0&&scanOffset>=MAX_PROXIMITY_SCAN");
+    expect(source).toContain("while(proximityMin>0?scanOffset<MAX_PROXIMITY_SCAN:rows.length<targetRows)");
+  });
+
   it("excludes hidden entities from the direct HNWI SQL query and isolates its cache namespace", () => {
     const source = fs.readFileSync(
       path.resolve(process.cwd(), "src/src/routes/search.ts"),
