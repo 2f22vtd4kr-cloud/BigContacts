@@ -129,7 +129,15 @@ describe("Groq Boss control-plane adapter", () => {
     expect(result.error).toBeNull();
     expect(result.model).toBe(GROQ_BOSS_MODEL);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(result.attempts).toHaveLength(0);
+    expect(result.attempts).toEqual([
+      {
+        model: GROQ_BOSS_MODEL,
+        keyName: "GROQ_BOSS_API_KEY",
+        httpStatus: 503,
+        providerErrorCode: null,
+        failureClass: "provider_unavailable",
+      },
+    ]);
   });
 
   it("retries strict schema rejection once in JSON-object mode on the same model", async () => {
