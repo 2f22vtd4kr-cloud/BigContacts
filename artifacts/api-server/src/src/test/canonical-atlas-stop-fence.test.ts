@@ -134,7 +134,7 @@ describe("canonical Atlas stop fence", () => {
     const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop"'));
     const jobQueue = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/job-queue.ts"), "utf8");
 
-    expect(jobQueue).toContain("if(pending=='1') then return -2 end");
+    expect(jobQueue).toContain("if pending=='1' then return -2 end");
     expect(jobQueue).toContain('if(prev.cancelRequested)return "already_requested"');
     expect(stopBlock).toContain('cancellationRequest === "already_requested"');
     expect(stopBlock).toContain("CANCELLATION_IN_PROGRESS");
