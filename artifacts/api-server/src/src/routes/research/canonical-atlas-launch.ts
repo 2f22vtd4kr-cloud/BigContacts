@@ -8,6 +8,7 @@ import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { checkAtlasSchemaReadiness } from "../../lib/schema-readiness";
 import { describeThrownProviderError } from "../../lib/provider-error-diagnostics";
+import { classifyActiveJobLaneStatus } from "../../lib/job-queue-terminal-policy";
 import { withProviderScope } from "../../lib/provider-gate";
 import { parseCanonicalSingleTargetId } from "../../middlewares/normalize-atlas-launch-body";
 
@@ -198,6 +199,33 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
     res.status(503).json({ ok: false, code: "JOB_STATE_INCONSISTENT", message: "Atlas active-job lock points to a missing job record; no stop was claimed." });
     return;
   }
+
+  // An active-job key can briefly outlive its job's terminal transition.
+  // Never overwrite the real terminal result or mutate completed cases just
+  // because the lease-release callback has not yet run.
+  const laneStatus = classifyActiveJobLaneStatus(activeJob.status);
+  if (laneStatus === "terminal") {
+    res.json({
+      ok: true,
+      jobId: activeJobId,
+      status: activeJob.status,
+      message: activeJob.status === "cancelled"
+        ? "Atlas was already stopped."
+        : "Atlas job is already terminal; no stop was applied.",
+    });
+    return;
+  }
+  if (laneStatus !== "active") {
+    res.status(503).json({
+      ok: false,
+      code: "JOB_STATE_INCONSISTENT",
+      message: "Persisted Atlas job status is unrecognized; no stop was claimed.",
+      jobId: activeJobId,
+      status: activeJob.status,
+    });
+    return;
+  }
+
   const now = new Date();
   try {
     await db.update(researchCasesTable)
@@ -219,6 +247,52 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
     message: "Stopped by operator.",
     finishedAt: now.toISOString(),
   });
+
+  // updateJob's best-effort writer can return without confirming Redis state.
+  // The API must not acknowledge cancellation until a strict durable read
+  // confirms that the active job is actually terminalized as cancelled.
+  let confirmedJob;
+  try {
+    confirmedJob = await getJobStrict(activeJobId);
+  } catch {
+    res.status(503).json({
+      ok: false,
+      code: "CANCELLATION_STATE_UNCONFIRMED",
+      message: "The durable case cancellation fence was recorded, but the job state could not confirm cancellation.",
+      jobId: activeJobId,
+    });
+    return;
+  }
+  if (!confirmedJob) {
+    res.status(503).json({
+      ok: false,
+      code: "JOB_STATE_INCONSISTENT",
+      message: "The active-job lock points to a missing job record after the stop request; cancellation is unconfirmed.",
+      jobId: activeJobId,
+    });
+    return;
+  }
+  if (confirmedJob.status !== "cancelled") {
+    const confirmedLaneStatus = classifyActiveJobLaneStatus(confirmedJob.status);
+    if (confirmedLaneStatus === "terminal") {
+      res.status(409).json({
+        ok: false,
+        jobId: activeJobId,
+        status: confirmedJob.status,
+        message: "Atlas reached a different terminal state before cancellation could be confirmed; stop is not reported as successful.",
+      });
+      return;
+    }
+    res.status(503).json({
+      ok: false,
+      code: "CANCELLATION_STATE_UNCONFIRMED",
+      message: "The job state did not confirm cancellation; stop is not reported as successful.",
+      jobId: activeJobId,
+      status: confirmedJob.status,
+    });
+    return;
+  }
+
   res.json({ ok: true, jobId: activeJobId, status: "cancelled", message: "Atlas stopped." });
 });
 
