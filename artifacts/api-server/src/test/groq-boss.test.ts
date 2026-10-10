@@ -140,7 +140,8 @@ describe("Groq Boss control-plane adapter", () => {
 
   it("classifies malformed successful HTTP bodies as invalid responses, not network failures", async () => {
     process.env.GROQ_BOSS_API_KEY = "test-groq-key";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    // A fresh Response is required on each model attempt because the body can be consumed only once.
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response("not-json", { status: 200, headers: { "content-type": "application/json" } }),
     );
 
