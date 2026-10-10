@@ -29,7 +29,64 @@ const forbidden = [
   /action === "footprint_username"/,
 ];
 const failures = forbidden.filter((pattern) => pattern.test(source)).map((pattern) => pattern.toString());
+
+// Validate capabilities against the canonical TypeScript AgentAction union rather
+// than the whole file: stale comments or examples must not satisfy this guard.
+function maskComments(sourceText) {
+  const chars = sourceText.split("");
+  let mode = "code";
+  let quote = null;
+  let escaped = false;
+  for (let i = 0; i < sourceText.length; i += 1) {
+    const character = sourceText[i];
+    const next = sourceText[i + 1];
+    if (mode === "code") {
+      if (character === "/" && next === "/") { chars[i] = chars[i + 1] = " "; mode = "line-comment"; i += 1; }
+      else if (character === "/" && next === "*") { chars[i] = chars[i + 1] = " "; mode = "block-comment"; i += 1; }
+      else if (character === "\"" || character === "'") { quote = character; mode = "string"; escaped = false; }
+    } else if (mode === "line-comment") {
+      if (character === "\n") mode = "code"; else chars[i] = " ";
+    } else if (mode === "block-comment") {
+      if (character === "*" && next === "/") { chars[i] = chars[i + 1] = " "; mode = "code"; i += 1; }
+      else if (character !== "\n" && character !== "\r") chars[i] = " ";
+    } else if (mode === "string") {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) { quote = null; mode = "code"; }
+    }
+  }
+  return chars.join("");
+}
+function extractTypeAlias(sourceText, typeName) {
+  sourceText = maskComments(sourceText);
+  const declaration = new RegExp(`\\btype\\s+${typeName}\\s*=`).exec(sourceText);
+  if (!declaration) return null;
+  const start = declaration.index;
+  let depth = 0;
+  let quote = null;
+  let escaped = false;
+  for (let i = start + declaration[0].length; i < sourceText.length; i += 1) {
+    const character = sourceText[i];
+    if (quote !== null) {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) quote = null;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character === "{") depth += 1;
+    else if (character === "}") depth -= 1;
+    else if (character === ";" && depth === 0) return sourceText.slice(start, i + 1);
+  }
+  return null;
+}
+
+const actionUnion = extractTypeAlias(source, "AgentAction");
+if (!actionUnion) failures.push("could not locate the complete AgentAction type union");
 const requiredActions = ['action: "web_search"','action: "visit"','action: "footprint_email"','action: "footprint_username_maigret"','action: "footprint_username_sherlock"','action: "domain_lookup"','action: "registry_search"','action: "harvest_domain"','action: "browser_fetch"','action: "done"'];
-for (const marker of requiredActions) if (!source.includes(marker)) failures.push(`missing action surface: ${marker}`);
+for (const marker of requiredActions) if (!actionUnion?.includes(marker)) failures.push(`missing action surface in AgentAction union: ${marker}`);
 if (failures.length) { console.error("FAIL: Bureau free-ReAct integrity regression"); for (const failure of failures) console.error(` - ${failure}`); process.exit(1); }
 console.log("OK: canonical Bureau Dig retains free-ReAct action surface with no explicit force-hop/playbook markers");

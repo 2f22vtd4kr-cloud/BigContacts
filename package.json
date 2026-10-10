@@ -8,7 +8,7 @@
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "check:no-force-dig": "bash scripts/check-no-force-dig.sh",
-    "check:free-react": "node scripts/check-bureau-free-react.mjs",
+    "check:free-react": "node scripts/check-bureau-free-react.mjs && node --test scripts/check-bureau-free-react.test.mjs",
     "check:canonical-route-contracts": "node scripts/check-canonical-route-contracts.mjs",
     "check:job-queue-authoritative-read": "node scripts/check-job-queue-authoritative-read.mjs",
     "check:canonical-launch-failure-boundary": "node scripts/check-canonical-launch-failure-boundary.mjs",
