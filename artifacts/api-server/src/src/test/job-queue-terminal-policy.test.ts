@@ -6,8 +6,12 @@ describe("job queue terminal write policy", () => {
     expect(canApplyJobPatch(status)).toBe(false);
   });
 
-  it.each(["queued", "running", "paused", "", null, undefined])("allows updates while status is nonterminal (%s)", (status) => {
+  it.each(["queued", "running", "paused"])("allows updates for known nonterminal status %s", (status) => {
     expect(canApplyJobPatch(status)).toBe(true);
+  });
+
+  it.each(["", null, undefined, "completed", "mystery"])("rejects updates for missing or unknown status (%s)", (status) => {
+    expect(canApplyJobPatch(status)).toBe(false);
   });
 });
 
@@ -16,6 +20,7 @@ describe("job queue Redis outage write policy", () => {
     expect(canApplyJobPatchWithoutRedis("running", true)).toBe(true);
     expect(canApplyJobPatchWithoutRedis("queued", false)).toBe(false);
     expect(canApplyJobPatchWithoutRedis(undefined, false)).toBe(false);
+    expect(canApplyJobPatchWithoutRedis("completed", true)).toBe(false);
   });
 
   it.each(["done", "failed", "cancelled"])("never updates a terminal memory-only job after Redis recovery or outage (%s)", (status) => {
