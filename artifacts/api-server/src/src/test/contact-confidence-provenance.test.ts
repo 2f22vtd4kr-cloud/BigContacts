@@ -17,6 +17,8 @@ describe("value-bound selected email provenance", () => {
 
     expect(isHeuristicEmailEvidence({
       email: "jane@officialcompany.com",
+      // This unselected source label is stale; the value-bound selected provenance wins.
+      emailSource: "pattern-generated",
       metadata,
     })).toBe(false);
     expect(computeContactConfidence({
