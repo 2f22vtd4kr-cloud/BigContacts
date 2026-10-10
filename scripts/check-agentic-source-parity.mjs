@@ -13,7 +13,7 @@ const extractorSource = extractorStart >= 0 ? source.slice(extractorStart, extra
 const checks = [
   ["canonical investigator wrapper exists", wrapper.includes("agentic-web-research-core")],
   ["canonical investigator uses runtime capability registry", source.includes("getAvailableInvestigatorCapabilities") && source.includes("investigatorCapabilityKeyName")],
-  ["selected capability reaches Groq execution adapter", /callGroqJson\\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm(?:,|\\))/.test(source)],
+  ["selected capability reaches Groq execution adapter", /callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm(?:,|\))/.test(source)],
   ["selected capability is not a closed vendor contract", !/FAILOVER_CHAIN:\s*Groq -> Groq/.test(source)],
   ["investigator lane does not call Gemini", !/callGeminiJson|GEMINI_API_KEY/i.test(source)],
   ["investigator lane does not call NVIDIA", !/callNvidiaJson|NVIDIA_API_KEY/i.test(source)],
