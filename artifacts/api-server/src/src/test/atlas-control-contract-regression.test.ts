@@ -52,8 +52,41 @@ describe("Atlas control-plane contract regression", () => {
     expect(rejectedBranch).toContain("investigatorActionExecuted: false");
     expect(rejectedBranch).toContain("continue;");
     expect(rejectedBranch).not.toContain("Canonical Atlas rejected a Boss direction");
+    expect(rejectedBranch).toContain("priorAction = previousAcceptedAction;");
+    expect(rejectedBranch).toContain("priorCandidate = previousAcceptedCandidate;");
     expect(canonicalDiscoverySource).toContain("controlValidationFeedback: directionValidationFeedback ?");
     expect(controlSource).toContain('controlValidationFeedback: typeof parsed.controlValidationFeedback === "string"');
+
+    const feedback = "Rejected concrete URL/tool destination. No Investigator tool was executed.";
+    const investigatorReport = JSON.stringify({
+      provider: "groq-investigator-1",
+      controlValidationFeedback: feedback,
+      status: "completed",
+      searches: 2,
+      visits: 0,
+      findings: [],
+      modelFindings: [],
+      openQuestions: [],
+    });
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({
+      investigatorReport,
+      compactState: "Current discovery case state.",
+    });
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport,
+      compactState: "Current discovery case state.",
+      rightHand: {
+        status: "completed",
+        decision: "await_anchor",
+        reason: "Control-only review; no new evidence.",
+        direction: null,
+        confidence: 0.9,
+        model: "openai/gpt-oss-120b",
+        error: null,
+      },
+    });
+    expect(rightHandPrompt).toContain(feedback);
+    expect(bossPrompt).toContain(feedback);
     expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
   });
 
