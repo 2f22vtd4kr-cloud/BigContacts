@@ -239,6 +239,7 @@ describe("Groq Investigator provider boundary", () => {
 
   it("does not promote a browser-fetched source URL when the selected scraper cannot attest its final navigation URL", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-browser-source-key";
+    process.env.BROWSERLESS_TOKEN = "test-browserless-token";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     mocks.browserFetchHtml.mockResolvedValue({
       html: "<html><body>Jane Example — Founder — jane@example.com</body></html>",
