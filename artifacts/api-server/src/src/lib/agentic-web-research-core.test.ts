@@ -224,6 +224,53 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("this suggestion does not mandate visiting, browsing, or any particular provider");
   });
 
+  it("surfaces duplicate searches, repeat visits, and low-yield observations as advisory context", () => {
+    const duplicateSearches = [
+      {
+        ...livenessRecord("web_search", "success"),
+        args: { query: "Vention leadership", provider: "serper", locale: "en", market: "us" },
+      },
+      {
+        ...livenessRecord("web_search", "success"),
+        args: { query: "  VENTION   LEADERSHIP ", provider: "serper", locale: "en", market: "us" },
+      },
+    ];
+    const repeatedSearchAdvice = discoverySearchLivenessAdvisory(duplicateSearches);
+    expect(repeatedSearchAdvice).toContain("Repeated normalized search request(s)");
+    expect(repeatedSearchAdvice).toContain('"vention leadership"');
+    expect(repeatedSearchAdvice).toContain("advisory only");
+
+    const repeatedVisits = [
+      {
+        ...livenessRecord("visit", "success"),
+        args: { url: "https://example.com/team#leadership" },
+        observedUrls: ["https://example.com/team"],
+      },
+      {
+        ...livenessRecord("visit", "success"),
+        args: { url: "https://EXAMPLE.com/team#contact" },
+        observedUrls: ["https://example.com/team"],
+      },
+    ];
+    expect(discoverySearchLivenessAdvisory(repeatedVisits)).toContain("Previously requested URL(s) appeared again");
+
+    const lowYield = [
+      { ...livenessRecord("web_search", "success"), observation: "Search returned no usable results.", observedUrls: [] },
+      { ...livenessRecord("registry_search", "success"), observation: "No registry hits.", observedUrls: [] },
+    ];
+    expect(discoverySearchLivenessAdvisory(lowYield)).toContain("low-yield results");
+    expect(discoverySearchLivenessAdvisory(lowYield)).toContain("not a reason to fabricate a candidate");
+
+    const sameSourceFamily = [
+      { ...livenessRecord("visit", "success"), args: { url: "https://example.com/team" }, observedUrls: ["https://example.com/team"] },
+      { ...livenessRecord("visit", "success"), args: { url: "https://example.com/about" }, observedUrls: ["https://example.com/about"] },
+      { ...livenessRecord("browser_fetch", "success"), args: { url: "https://www.example.com/leadership" }, observedUrls: ["https://www.example.com/leadership"] },
+    ];
+    const sourceAdvice = discoverySearchLivenessAdvisory(sameSourceFamily);
+    expect(sourceAdvice).toContain("Source-family concentration");
+    expect(sourceAdvice).toContain("do not prescribe a tool");
+  });
+
   it("resets only after a successful non-search capability observation", () => {
     const records = [
       livenessRecord("web_search", "success"),
