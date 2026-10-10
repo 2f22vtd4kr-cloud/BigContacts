@@ -23,6 +23,9 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonical).toContain("failureKind=${failureDiagnostic.kind}");
     expect(canonical).toContain('failureStage = "model_action_validation"');
     expect(canonical).toContain('failureStage = "terminal_persistence"');
+    expect(canonical).toContain("let failureStatePersistenceFailed = false;");
+    expect(canonical).toContain("failureStatePersistence=case_update_failed");
+    expect(canonical).toContain("Preserve the original thrown exception");
     expect(classifyCanonicalAtlasFailure({ stage: "tool_execution", error: new Error("tool failed") })).toEqual({ domain: "tool_execution", kind: "request_failure" });
   });
 });
