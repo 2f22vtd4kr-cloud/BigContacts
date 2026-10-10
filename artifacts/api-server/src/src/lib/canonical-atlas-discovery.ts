@@ -376,8 +376,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // actual Boss decision; it does not pre-steer the Boss or choose the tools.
     const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
       runGroqRightHandFreeJson(
-        `Review Groq Boss's opening Atlas decision before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report: ${boss.report ?? ""}. Next directions: ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Return concise oversight/advisory observations only. Do not browse, do not choose tools, do not replace the Investigator, and do not invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
-        "You are the Groq Right-hand. Review the Boss opening decision only. Advise the Boss; do not act as Investigator, do not browse, do not choose tools, and do not replace the selected Groq/Groq Investigator. Reply with ONE JSON object.",
+        `Review Groq Boss's opening Atlas decision against the exact research objective before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified control hypothesis, not source evidence): ${boss.report ?? ""}. Next directions (unverified control hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead. Return concise oversight/advisory observations only. Do not browse, choose tools, replace the Investigator, or invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
+        "You are the Groq Right-hand. Independently check the Boss opening claims against the human mission; treat Boss-generated reports and directions as unverified hypotheses, not evidence. Explicitly flag unsupported scope and never treat internal memory/storage/workflow terminology as a sector or lead. Advise the Boss only; do not act as Investigator, browse, choose tools, or replace the selected Investigator. Reply with ONE JSON object.",
         ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
       ),
     ).catch((error) => ({
@@ -668,7 +668,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         await assertAtlasJobActive(atlasJobId);
-         latestEvidenceBackedTerminal = null;
         const proposedDirection = decision.direction || "Reassess the open evidence and choose the highest-information next action yourself.";
         const validatedDirection = validateResearchObjective(proposedDirection);
         if (!validatedDirection.valid) {
@@ -725,6 +724,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
         const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed);
         if (remainingInvestigatorIterations <= 0) { investigatorResourceLimited = true; phaseSummary.controlSafetyCeiling = `Canonical Atlas Investigator iteration ceiling reached at ${investigatorIterationsUsed}/${depth.agenticMaxIterations}; refusing another discovery episode.`; break; }
+        // Only clear the previous evidence-backed terminal after control validation and
+        // all budget/iteration guards pass, at the exact point a new Investigator act starts.
+        latestEvidenceBackedTerminal = null;
         let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [] });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), discovery.trajectoryRecords ?? []);

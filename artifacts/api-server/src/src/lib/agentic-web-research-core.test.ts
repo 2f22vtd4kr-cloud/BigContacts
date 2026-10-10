@@ -1,7 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
+
+const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
 function livenessRecord(action: string, execution: "success" | "error" | "blocked") {
   return {
@@ -31,6 +35,50 @@ describe("provider-aware act timeout budget", () => {
   it("never exceeds the remaining job deadline, even when it is shorter than the provider window", () => {
     expect(deriveProviderBoundedActTimeoutMs(45_000, 125_000)).toBe(45_000);
     expect(deriveProviderBoundedActTimeoutMs(0, 125_000)).toBe(0);
+  });
+});
+
+describe("page visit response classification", () => {
+  it("makes the 2 MB outbound response cap actionable without treating the page as evidence", () => {
+    const failure = describeToolVisitFailure(new Error("Outbound response exceeds 2000000 byte limit"));
+    expect(failure.status).toBe("error");
+    expect(failure.observation).toContain("response_size_limit_exceeded max_bytes=2000000");
+    expect(failure.observation).toContain("page content was not observed and must not be cited");
+    expect(failure.observation).toContain("search snippets remain unverified leads");
+    const pageReaderLimit = describeToolVisitFailure(new Error("browser response exceeds 1500000 byte limit"));
+    expect(pageReaderLimit.observation).toContain("response_size_limit_exceeded max_bytes=1500000");
+    expect(pageReaderLimit.observation).toContain("page content was not observed and must not be cited");
+  });
+
+  it("blocks obvious PDF URLs before either HTML-only page fetcher can issue a request", () => {
+    const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {');
+    const domainLookupStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {', visitStart);
+    const visitDispatch = agenticCoreSource.slice(visitStart, domainLookupStart);
+    const browserStart = agenticCoreSource.indexOf('if (action.action === "browser_fetch") {', visitStart);
+    const registryStart = agenticCoreSource.indexOf('if (action.action === "registry_search") {', browserStart);
+    const browserDispatch = agenticCoreSource.slice(browserStart, registryStart);
+    expect(visitStart).toBeGreaterThan(-1);
+    expect(domainLookupStart).toBeGreaterThan(visitStart);
+    expect(browserStart).toBeGreaterThan(visitStart);
+    expect(registryStart).toBeGreaterThan(browserStart);
+    expect(visitDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
+    expect(visitDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(visitDispatch.indexOf("toolVisit(canonical"));
+    expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
+    expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(browserDispatch.indexOf('import("./browser-fetch")'));
+    expect(browserDispatch).toContain("no browser provider request was made");
+  });
+
+  it("does not treat PDF bytes as an observed HTML/text page", () => {
+    expect(isPdfPageResponse("https://example.test/report.pdf", "application/octet-stream")).toBe(true);
+    expect(isPdfPageResponse("https://example.test/report", "application/pdf; charset=binary")).toBe(true);
+    expect(isPdfPageResponse("https://example.test/officers", "text/html; charset=utf-8")).toBe(false);
+  });
+
+  it("classifies an outbound request deadline as timeout rather than a generic network error", () => {
+    const failure = describeToolVisitFailure(new Error("Outbound request deadline exceeded"));
+    expect(failure.status).toBe("timeout");
+    expect(failure.observation).toContain("request timed out");
+    expect(failure.observation).not.toContain("digest=");
   });
 });
 
@@ -86,6 +134,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
     expect(prompt).toContain("VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.");
+    expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries.");
+    expect(prompt).toContain("Search snippets remain leads, not evidence.");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
