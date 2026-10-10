@@ -13,7 +13,7 @@ assert(/if\(redisResult===0\|\|redisResult===null\)return;/.test(source), "Redis
 assert(/if\(!raw\|\|Object\.keys\(raw\)\.length===0\)return memoryOnlyJobs\.has\(jobId\)\?/.test(source), "a successful Redis miss must never return stale durable-job memory");
 assert(/const value=await rc\.hgetall\(jk\(jobId\)\);redisOk=true;/.test(source), "Redis read success must be recorded only after the command resolves");
 assert(/if\(!redisOk\)return null;/.test(source), "Redis command failure must fail closed for authoritative job reads");
-assert(/if not current or current=='cancelled' or current=='done' or current=='failed' then return 0 end/.test(source), "Redis must reject late writes after terminal state and must not resurrect a missing job hash");
+assert(/if current~='queued' and current~='running' and current~='paused' then return 0 end/.test(source), "Redis must reject writes when persisted status is missing, terminal, or unrecognized");
 assert(/if\(redisResult===0\|\|redisResult===null\)return;/.test(source), "a rejected terminal write or ambiguous Redis failure must not rewrite the cached status as cancelled");
 assert(/if\(memoryOnlyJobs\.has\(jobId\)\)\{[\s\S]*canApplyJobPatchWithoutRedis\(prev\.status,true\)[\s\S]*return;\}/.test(source), "Redis outage updates must be restricted to explicitly memory-only jobs");
 assert(/if\(prev&&!canApplyJobPatch\(prev\.status\)\)return;/.test(source), "terminal local state must prevent reopening even during Redis inconsistency");
