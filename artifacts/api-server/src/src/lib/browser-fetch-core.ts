@@ -48,10 +48,15 @@ async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<Brow
     const data = await readJsonCapped<{ result?: { content?: string; url?: string } }>(resp, signal);
     const html = data?.result?.content ?? "";
     const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
-    return {
-      html: usable ? html : null,
-      observedUrl: usable ? await verifiedProviderFinalUrl(data?.result?.url) : null,
-    };
+    const reportedUrl = data?.result?.url;
+    const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl) : null;
+    // If the provider reports a destination, failure to validate that destination
+    // means the returned document must not be exposed to the model at all. Missing
+    // navigation metadata remains lead-only, but a known unsafe redirect fails closed.
+    if (usable && typeof reportedUrl === "string" && reportedUrl.trim() && !observedUrl) {
+      return { html: null, observedUrl: null };
+    }
+    return { html: usable ? html : null, observedUrl };
   } catch (err: any) {
     if (signal?.aborted) throw new Error("browser fetch cancelled");
     logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "scrapfly fetch failed");
@@ -72,10 +77,14 @@ async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<Brows
     if (!resp.ok) return { html: null, observedUrl: null };
     const html = await readResponseTextCapped(resp, signal);
     const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
-    return {
-      html: usable ? html : null,
-      observedUrl: usable ? await verifiedProviderFinalUrl(resp.headers.get("Zr-Final-Url")) : null,
-    };
+    const reportedUrl = resp.headers.get("Zr-Final-Url");
+    const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl) : null;
+    // A known but unsafe redirect invalidates the document itself, not just its
+    // provenance label. Missing final-URL metadata remains lead-only.
+    if (usable && reportedUrl?.trim() && !observedUrl) {
+      return { html: null, observedUrl: null };
+    }
+    return { html: usable ? html : null, observedUrl };
   } catch (err: any) {
     if (signal?.aborted) throw new Error("browser fetch cancelled");
     logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "zenrows fetch failed");
