@@ -16,11 +16,10 @@ import {
   identityCandidatesTable,
 } from "@workspace/db";
 import {
-  sanitizePublicEmail,
-  sanitizePublicPhone,
   sanitizePublicSocialUrl,
   sanitizePublicSocialHandle,
 } from "../lib/contact-validation";
+import { selectMergedContactEvidence } from "../lib/contact-merge-selection";
 import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "../lib/contact-confidence";
 import { delCachePattern } from "../lib/redis";
 
@@ -59,16 +58,18 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
       const mergedMeta = { ...parseObject(target.metadata), ...parseObject(primary.metadata), mergedFrom: targetId, mergedAt: new Date().toISOString() };
       const mergedResidences = primary.knownResidences ?? target.knownResidences;
       const mergedNotes = [primary.notes, target.notes].filter(Boolean).join("\n\n---\n\n") || null;
-      const mergedEmail = sanitizePublicEmail(primary.email) ?? sanitizePublicEmail(target.email);
-      const mergedPhone = sanitizePublicPhone(primary.phone) ?? sanitizePublicPhone(target.phone);
+      const selectedContact = selectMergedContactEvidence(primary, target);
+      const mergedEmail = selectedContact.email;
+      const mergedPhone = selectedContact.phone;
+      const mergedEmailMetadata = selectedContact.emailMetadata;
       const mergedLinkedIn = sanitizePublicSocialUrl(primary.linkedinUrl, "linkedin", "person") ?? sanitizePublicSocialUrl(target.linkedinUrl, "linkedin", "person");
       const mergedTwitter = sanitizePublicSocialHandle(primary.twitterHandle, "twitter") ?? sanitizePublicSocialHandle(target.twitterHandle, "twitter");
       const mergedInstagram = sanitizePublicSocialHandle(primary.instagramHandle, "instagram") ?? sanitizePublicSocialHandle(target.instagramHandle, "instagram");
       const mergedTelegram = primary.telegramHandle ?? target.telegramHandle;
-      const mergedPhoneSource = primary.phoneSource ?? target.phoneSource;
-      const mergedConfidence = computeContactConfidence({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences });
-      const mergedOutcome = computeContactOutcome({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences });
-      const mergedHot = hasMeaningfulDirectContact({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource });
+      const mergedPhoneSource = selectedContact.phoneSource;
+      const mergedConfidence = computeContactConfidence({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
+      const mergedOutcome = computeContactOutcome({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
+      const mergedHot = hasMeaningfulDirectContact({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, metadata: mergedEmailMetadata });
 
       await tx.update(assetsTable).set({ ownerEntityId: id }).where(eq(assetsTable.ownerEntityId, targetId));
       await tx.update(relationshipsTable).set({ sourceEntityId: id }).where(eq(relationshipsTable.sourceEntityId, targetId));
