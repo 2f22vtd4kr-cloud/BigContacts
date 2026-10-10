@@ -22,7 +22,8 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
   } as Parameters<typeof discoverySearchLivenessAdvisory>[0][number];
 }
 
-describe("provider-aware act timeout budget", () => {  it("classifies canonical errors into finite, safe domain and kind labels", () => {
+describe("canonical failure diagnostics", () => {
+  it("classifies canonical errors into finite, safe domain and kind labels", () => {
     expect(classifyCanonicalAtlasFailure({ stage: "boss_opening_request", error: new Error("upstream request failed") })).toEqual({ domain: "model_provider", kind: "request_failure" });
     expect(classifyCanonicalAtlasFailure({ stage: "model_action_validation", error: new Error("rejected URL") })).toEqual({ domain: "model_action", kind: "invalid_contract" });
     expect(classifyCanonicalAtlasFailure({ stage: "external_page_fetch", error: new Error("Outbound response exceeds 2000000 byte limit") })).toEqual({ domain: "external_page_fetch", kind: "response_size_limit" });
@@ -32,8 +33,10 @@ describe("provider-aware act timeout budget", () => {  it("classifies canonical 
     expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("ignored"), cancelled: true })).toEqual({ domain: "lease_job_state", kind: "cancelled" });
     expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("request timed out") })).toEqual({ domain: "unexpected_programming_error", kind: "timeout" });
   });
+});
 
 describe("provider-aware act timeout budget", () => {
+
   it("does not put the provider capacity window under a shorter act timeout", () => {
     expect(deriveProviderBoundedActTimeoutMs(90_000, 125_000)).toBe(90_000);
     expect(deriveProviderBoundedActTimeoutMs(125_000, 125_000)).toBe(125_000);
