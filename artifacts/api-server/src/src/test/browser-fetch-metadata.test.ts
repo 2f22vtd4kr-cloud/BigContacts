@@ -21,11 +21,12 @@ describe("hosted browser fetch final-URL provenance", () => {
     vi.stubEnv("ZENROWS_API_KEY", "test-zenrows-key");
     vi.stubEnv("BROWSERLESS_TOKEN", "");
     vi.stubEnv("PLAYWRIGHT_ENABLED", "0");
-    vi.mocked(assertSafeOutboundUrl).mockImplementation(async (candidate: string | URL) => {
-      const parsed = new URL(String(candidate));
+    vi.mocked(assertSafeOutboundUrl).mockImplementation(async (rawUrl: string) => {
+      const parsed = new URL(rawUrl);
       if (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost") {
         throw new Error("blocked IP address");
       }
+      return parsed;
     });
   });
 
