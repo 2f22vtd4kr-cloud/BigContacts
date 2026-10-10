@@ -27,14 +27,36 @@ function createCampaignFiles({ outcomeForRun = () => "insufficient_evidence", om
   const runs = cases.flatMap((item) =>
     Array.from({ length: TRIALS_PER_CASE }, (_, index) => {
       const run = {
+        schemaVersion: "research-run-v1",
         runId: `${item.caseId}-run-${index + 1}`,
         caseId: item.caseId,
+        system: "apex-canonical",
+        systemVersion: "test-commit",
+        registryVersion: "1.1.1",
         trialId: `trial-${String(index + 1).padStart(3, "0")}`,
+        configuration: { investigatorPool: ["groq-investigator-1"] },
         taskEnvelope,
+        identities: [],
+        claims: [],
+        contacts: [],
+        contradictions: [],
         observations: [],
         trajectory: [],
+        failureRecords: [],
       };
-      if (!omitOutcomeForRun(run)) run.outcome = outcomeForRun(run);
+      if (!omitOutcomeForRun(run)) {
+        run.outcome = outcomeForRun(run);
+        if (run.outcome === "verified") {
+          run.observations = [{
+            id: `${run.runId}-obs-1`,
+            url: "https://official.example/profile",
+            observedUrl: "https://official.example/profile",
+            sourceClass: "official",
+            execution: "success",
+          }];
+          run.trajectory = [{ turn: 1, action: "visit", status: "success" }];
+        }
+      }
       return run;
     }),
   );
