@@ -537,6 +537,14 @@ describe("Investigator prompt architecture", () => {
     expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: "Chief Financial Officer" }] }]).allowed).toBe(false);
     expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: null }] }]).allowed).toBe(false);
     expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: null, promotionDecision: "reject" }] }]).allowed).toBe(true);
+
+    const nameOnlyPage = { ...page, args: { url: "https://www.aryon.security/leadership" }, observedUrls: ["https://www.aryon.security/leadership"], observation: "Ron Arbel" };
+    const jointIdentityAndRolePage = { ...page, args: { url: sourceUrl }, observation: "Ron Arbel — Co-Founder and CEO" };
+    expect(discoveryTerminalGate([
+      nameOnlyPage,
+      jointIdentityAndRolePage,
+      { ...terminal, findings: [{ ...finding, sourceUrls: ["https://www.aryon.security/leadership", sourceUrl] }] },
+    ]).allowed).toBe(false);
   });
 
   it("accepts done only after the core succeeds and returns an evidence-gated terminal reason", () => {
