@@ -510,7 +510,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let consecutiveInvestigatorProviderUnavailable = isInvestigatorProviderUnavailable(discovery) ? 1 : 0;
     await assertAtlasJobActive(atlasJobId);
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: discovery.findings, atlasJobId, discoveryCaseId });
-    let admitted = admission.names; let admittedCandidateSources = admission.candidates; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = quotaExhaustedInvestigators.size > 0 ? 1 + quotaExhaustedInvestigators.size : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null;
+    let admitted = admission.names; let admittedCandidateSources = admission.candidates; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = quotaExhaustedInvestigators.size > 0 ? 1 + quotaExhaustedInvestigators.size : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDirection: { controlTurn: number; reason: string } | null = null;
     const researchedNames = new Set<string>();
     phaseSummary.assignment = `${selectedInvestigator} currently selected by Groq; opening capability=${boss.investigatorLlm}; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     if (discoveryOnly) {
@@ -587,8 +587,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
       }
       controlTurns += 1;
+      const directionValidationFeedback = rejectedControlDirection;
       const decision = await decideAtlasNextAction({ objective: discoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls }) => { const finding = discovery.findings.find((candidate) => normalizeCandidateIdentityName(candidate.personName ?? "") === normalizeCandidateIdentityName(name) && candidate.promotionDecision === "promote" && candidate.scope === "candidate"); return { name, role: finding?.role ?? null, sourceUrls }; }), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: discovery.findings.map((finding) => ({ personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, investigatorReport: JSON.stringify({
         provider: boss.investigatorLlm,
+        controlValidationFeedback: directionValidationFeedback ? `The previous Boss pivot at control turn ${directionValidationFeedback.controlTurn} was rejected by deterministic control validation: ${directionValidationFeedback.reason}. No Investigator tool was executed. Choose a corrected research question or a different valid control action; do not include a concrete URL or prescribe a provider/tool. This feedback is control state, not research evidence.` : null,
         status: discovery.status,
         searches: discovery.searches,
         visits: discovery.visits,
@@ -604,6 +606,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           stopReason: record.stopReason,
         })) ?? [],
       }, null, 2) });
+      if (directionValidationFeedback) rejectedControlDirection = null;
       await assertAtlasJobActive(atlasJobId);
       phaseSummary[`control_${controlTurns}`] = `${decision.action}${decision.candidateName ? `:${decision.candidateName}` : ""}${decision.direction ? ` — ${decision.direction}` : ""}`;
       await db.update(researchCasesTable).set({
@@ -668,7 +671,56 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
          latestEvidenceBackedTerminal = null;
         const proposedDirection = decision.direction || "Reassess the open evidence and choose the highest-information next action yourself.";
         const validatedDirection = validateResearchObjective(proposedDirection);
-        if (!validatedDirection.valid) throw new Error(`Canonical Atlas rejected a Boss direction that attempted to prescribe an Investigator tool or destination: ${validatedDirection.reason}`);
+        if (!validatedDirection.valid) {
+          // A malformed Boss pivot is a rejected control decision, not a reason to
+          // terminate the whole Atlas job. Preserve the rejection and ask the model
+          // control plane for another decision; never execute the rejected URL/tool.
+          const rejectionReason = validatedDirection.reason;
+          rejectedControlDirection = { controlTurn: controlTurns, reason: rejectionReason };
+          finalControlAction = null;
+          phaseSummary[`control_${controlTurns}_rejected`] = `Boss pivot rejected before Investigator execution: ${rejectionReason}; requesting another model-owned control decision.`;
+          await assertAtlasJobActive(atlasJobId);
+          await db.transaction(async (tx) => {
+            const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile })
+              .from(researchCasesTable)
+              .where(and(
+                eq(researchCasesTable.id, discoveryCaseId),
+                eq(researchCasesTable.status, "active"),
+                sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+                sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+              ))
+              .for("update")
+              .limit(1);
+            if (!lockedCase) throw new Error("Canonical Atlas discovery ownership was lost while recording a rejected Boss pivot.");
+            const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
+              .from(researchCaseEventsTable)
+              .where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
+              .orderBy(desc(researchCaseEventsTable.id))
+              .limit(1);
+            await tx.update(researchCasesTable).set({
+              status: "active",
+              currentAction: "canonical-control-direction-rejected",
+              lastDecisionAt: new Date(),
+              updatedAt: new Date(),
+            }).where(and(
+              eq(researchCasesTable.id, discoveryCaseId),
+              eq(researchCasesTable.status, "active"),
+              sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+              sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+            ));
+            await tx.insert(researchCaseEventsTable).values({
+              caseId: discoveryCaseId,
+              iteration: Number(latestEvent?.iteration ?? 0) + 1,
+              actorRole: "groq_boss",
+              eventType: "observation",
+              status: "rejected",
+              summary: `Atlas rejected invalid model-directed pivot at control turn ${controlTurns}; no Investigator action executed.`,
+              correlationKey: `${atlasJobId}:control-direction-rejected:${controlTurns}`,
+              payload: JSON.stringify({ jobId: atlasJobId, controlTurn: controlTurns, action: "pivot_discovery", reason: rejectionReason, investigatorActionExecuted: false, recovery: "request-new-model-control-decision" }),
+            }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
+          }, { isolationLevel: "serializable" });
+          continue;
+        }
         const directedObjective = formatBossDirectedObjective(discoveryObjective, validatedDirection.direction);
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
         const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed);
