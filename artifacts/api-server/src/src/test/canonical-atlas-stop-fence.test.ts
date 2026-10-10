@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { classifyActiveJobLaneStatus } from "../lib/job-queue-terminal-policy";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -82,6 +83,73 @@ describe("canonical Atlas stop fence", () => {
     expect(timer).toContain("Canonical lease renewal failed; retrying before fencing");
     expect(timer).toContain("if (!renewed)");
     expect(timer).not.toContain("catch(() => { const current = leaseTimers.get(timerKey)");
+  });
+
+
+  it("matches active cases with a null currentAction without weakening terminal exclusions", () => {
+    const source = fs.readFileSync(routePath, "utf8");
+    const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop"'));
+    expect(source).toContain("isNull(researchCasesTable.currentAction)");
+    expect(stopBlock).toContain("or(isNull(researchCasesTable.currentAction), sql`");
+    expect(stopBlock).toContain("'canonical-atlas-cancelled', 'canonical-lease-lost'");
+  });
+
+  it("never reports a successful stop when a completed or failed job was not cancelled", () => {
+    const source = fs.readFileSync(routePath, "utf8");
+    const responder = source.slice(source.indexOf("function respondToTerminalAtlasStop"), source.indexOf('router.post("/ingest/atlas-stop"'));
+    const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop"'));
+    expect(classifyActiveJobLaneStatus("done")).toBe("terminal");
+    expect(classifyActiveJobLaneStatus("failed")).toBe("terminal");
+    expect(classifyActiveJobLaneStatus("cancelled")).toBe("terminal");
+    expect(responder).toContain('if (status === "cancelled")');
+    expect(responder).toContain("res.status(409).json");
+    expect(responder).toContain("ok: false");
+    expect(stopBlock).toContain("respondToTerminalAtlasStop(res, activeJobId, activeJob.status)");
+    expect(stopBlock).toContain("respondToTerminalAtlasStop(res, activeJobId, beforeFence.status)");
+    expect(stopBlock).toContain("respondToTerminalAtlasStop(res, activeJobId, current.status)");
+    expect(stopBlock).toContain("respondToTerminalAtlasStop(res, activeJobId, latest.status)");
+  });
+
+  it("reserves cancellation, permits truthful terminal races, and preserves the fail-closed status allow-list", () => {
+    const route = fs.readFileSync(routePath, "utf8");
+    const stopBlock = route.slice(route.indexOf('router.post("/ingest/atlas-stop"'));
+    const jobQueue = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/job-queue.ts"), "utf8");
+    expect(jobQueue).toContain("requestJobCancellation");
+    expect(jobQueue).toContain("cancelRequested=='1' and incoming~='cancelled' and incoming~='done' and incoming~='failed'");
+    expect(jobQueue).toContain("if(prev?.cancelRequested && patch.status!==\"cancelled\" && patch.status!==\"done\" && patch.status!==\"failed\")return;");
+    expect(jobQueue).toContain("current~='queued' and current~='running' and current~='paused'");
+    expect(jobQueue).toContain("if incoming=='cancelled' or incoming=='done' or incoming=='failed' then redis.call('hdel',k,'cancelRequested') end;");
+    expect(stopBlock).toContain("await clearJobCancellationRequest(activeJobId)");
+    expect(stopBlock.indexOf("await requestJobCancellation(activeJobId)")).toBeLessThan(
+      stopBlock.indexOf("await db.update(researchCasesTable)"),
+    );
+    expect(stopBlock.indexOf("await db.update(researchCasesTable)")).toBeLessThan(
+      stopBlock.indexOf("await updateJob(activeJobId, {"),
+    );
+  });
+
+
+  it("allows only one stop handler to own the active cancellation reservation", () => {
+    const source = fs.readFileSync(routePath, "utf8");
+    const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop"'));
+    const jobQueue = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/job-queue.ts"), "utf8");
+
+    expect(jobQueue).toContain("if pending=='1' then return -2 end");
+    expect(jobQueue).toContain('if(prev.cancelRequested)return "already_requested"');
+    expect(stopBlock).toContain('cancellationRequest === "already_requested"');
+    expect(stopBlock).toContain("CANCELLATION_IN_PROGRESS");
+    expect(stopBlock).toContain("no second stop attempt was applied");
+  });
+
+  it("keeps the case non-promotable and reconciles its action if another terminal outcome wins", () => {
+    const route = fs.readFileSync(routePath, "utf8");
+    const stopBlock = route.slice(route.indexOf('router.post("/ingest/atlas-stop"'));
+    expect(stopBlock).toContain("canonical-atlas-stop-raced-with-");
+    expect(stopBlock).toContain('eq(researchCasesTable.status, "review")');
+    expect(stopBlock).toContain('eq(researchCasesTable.currentAction, "canonical-atlas-cancelled")');
+    expect(stopBlock).toContain("eq(researchCasesTable.id, matchingCases[0]!.id)");
+    expect(stopBlock).toContain("CANCELLATION_STATE_UNCONFIRMED");
+    expect(stopBlock).toContain('if (confirmedJob.status !== "cancelled")');
   });
 
 });
