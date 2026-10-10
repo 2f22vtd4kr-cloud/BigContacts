@@ -51,7 +51,10 @@ function maskSource(source, maskStrings) {
 }
 
 function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\import fs from "node:fs";");
+  if (!/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value)) {
+    throw new Error("Expected a JavaScript identifier for call-site matching.");
+  }
+  return value;
 }
 
 function hasCallSite(source, functionName, awaited = false) {
@@ -99,7 +102,6 @@ const control = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atla
 const candidateSourceUnion = fs.readFileSync("artifacts/api-server/src/src/lib/candidate-source-url-union.ts", "utf8");
 const researchRouter = fs.readFileSync("artifacts/api-server/src/src/routes/research.ts", "utf8");
 
-const routeText = maskSource(route, false);
 const controlText = maskSource(control, false);
 const routeCode = maskSource(route, true);
 const controlCode = maskSource(control, true);
@@ -122,18 +124,18 @@ const checks = [
   ["canonical Atlas pipeline function body is identifiable", pipelineBody !== null],
   ["case discovery route delegates to canonical Atlas control plane", hasCallSite(route, "runCanonicalAtlasPipeline")],
   ["case discovery route is HTTP/lifecycle-only", !/runGeminiBossDiscovery|runDeepSeekFreeJson|runBureauAgenticWebPass|persistSourceBackedBureauContactsForEntity/.test(routeCode)],
-  ["case discovery route passes an existing durable case", /\\bdiscoveryCaseId\\s*:\\s*caseId\\b/.test(routeCode)],
-  ["case discovery route requests discovery-only execution", /\\bdiscoveryOnly\\s*:\\s*true\\b/.test(routeCode)],
+  ["case discovery route passes an existing durable case", /\bdiscoveryCaseId\s*:\s*caseId\b/.test(routeCode)],
+  ["case discovery route requests discovery-only execution", /\bdiscoveryOnly\s*:\s*true\b/.test(routeCode)],
   ["canonical Atlas control plane invokes Groq Boss and Groq Right-hand", pipelineBody !== null && hasCallSite(pipelineBody, "runGroqBossDiscovery", true) && hasCallSite(pipelineBody, "runGroqRightHandFreeJson")],
   ["canonical Atlas control plane invokes the selected Investigator", pipelineBody !== null && hasCallSite(pipelineBody, "runBureauAgenticWebPass", true)],
-  ["canonical Atlas control plane supports an existing discovery case", /\\bdiscoveryCaseId\\?\\s*:\\s*number\\b/.test(controlCode)],
-  ["canonical Atlas control plane has a discovery-only mode", /\\bdiscoveryOnly\\?\\s*:\\s*boolean\\b/.test(controlCode)],
+  ["canonical Atlas control plane supports an existing discovery case", /\bdiscoveryCaseId\?\s*:\s*number\b/.test(controlCode)],
+  ["canonical Atlas control plane has a discovery-only mode", /\bdiscoveryOnly\?\s*:\s*boolean\b/.test(controlCode)],
   ["discovery uses first-class empty target rather than Discovery slot", !controlText.includes('targetName: "Discovery slot"')],
   ["discovery identity admission no longer creates synthetic contact evidence", !controlText.includes('value: `person:${name}`')],
   ["discovery admission requires candidate scope", controlText.includes('finding.promotionDecision === "promote"') && controlText.includes('finding.scope === "candidate"')],
   ["discovery admission requires successful observed HTTP provenance", controlText.includes("candidateSourceUrls") && controlText.includes('payload.execution === "success"') && controlText.includes("payload.observedUrls") && controlText.includes("candidateSourceUrls.includes(normalized)")],
   ["canonical route is mounted before retired legacy execution routes", researchRouterCode.indexOf(canonicalMount) >= 0 && researchRouterCode.indexOf(legacyMount) >= 0 && researchRouterCode.indexOf(canonicalMount) < researchRouterCode.indexOf(legacyMount)],
-  ["research router no longer mounts the retired casesRouter", !/router\\.use\\(casesRouter\\)/.test(researchRouterCode)],
+  ["research router no longer mounts the retired casesRouter", !/router\.use\(casesRouter\)/.test(researchRouterCode)],
 ];
 
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
