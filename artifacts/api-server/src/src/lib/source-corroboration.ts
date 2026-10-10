@@ -1,7 +1,9 @@
 import { sanitizeUrlForEvidence, sanitizeUrlsInText } from "./url-privacy";
 /** Independent source corroboration and evidence-graph primitives. */
 const AGGREGATOR_HOSTS=new Set(["zoominfo.com","apollo.io","rocketreach.co","signalhire.com","contactout.com","hunter.io","clearbit.com","lusha.com","spokeo.com","whitepages.com","beenverified.com","intelius.com","peoplefinder.com","peoplefinders.com","fastpeoplesearch.com","truepeoplesearch.com","thatsthem.com","radaris.com","crunchbase.com","pitchbook.com","dnb.com","opencorporates.com","theorg.com","veripages.com","idcrawl.com"]);
-const SECOND_LEVEL_SUFFIXES=new Set(["co.uk","org.uk","gov.uk","ac.uk","com.au","net.au","org.au","com.br","com.cn","com.hk","com.mx","com.sg","co.jp","co.nz","com.za","com.tr"]);
+const SECOND_LEVEL_SUFFIXES=new Set(["co.uk","org.uk","gov.uk","ac.uk","com.au","net.au","org.au","com.br","com.cn","com.hk","com.mx","com.sg","co.jp","co.nz","co.za","com.za","com.tr"]);
+// Pragmatic registrable-root handling for common second-level labels under ccTLDs;
+// this is not a full Public Suffix List, so unfamiliar registry patterns remain a limitation.
 const COUNTRY_CODE_SECOND_LEVEL_LABELS=new Set(["ac","co","com","edu","gov","mil","net","org","go","ne","or","id","pe","nom","gen","firm","ind"]);
 export type EvidenceNodeKind="observation"|"claim"|"promotion"|"validation";export type EvidenceEdgeKind="supports"|"contradicts"|"derives_from"|"attributes_to"|"promotes"|"validates";
 export interface EvidenceObservation{id:string;sourceUrl:string;sourceHost:string;observedAt:string;runId?:string|null;caseId?:number|null;turn?:number|null;collectionMethod?:string|null;eventId?:number|null;excerpt?:string|null;}export interface EvidenceClaim{id:string;subject:string;predicate:string;object:string;scope:"candidate"|"organization"|"target";personName?:string|null;confidence?:number|null;}export interface EvidenceEdge{from:string;to:string;kind:EvidenceEdgeKind;createdAt:string;reason?:string|null;}export interface EvidenceGraph{observations:EvidenceObservation[];claims:EvidenceClaim[];edges:EvidenceEdge[];}
