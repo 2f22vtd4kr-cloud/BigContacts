@@ -23,6 +23,36 @@ describe("Phase J3 identity resolver", () => {
     ]));
   });
 
+  it("preserves Unicode scripts and legal-suffix-like personal surnames during identity matching", () => {
+    expect(normalizeIdentityName("Володимир Зеленський")).toBe("володимир зеленський");
+
+    const left = buildIdentityBundle({
+      id: 1,
+      name: "John Sá",
+      type: "HNWI",
+      nationality: "PT",
+      sourceRegistries: JSON.stringify(["SEC EDGAR"]),
+      metadata: JSON.stringify({ companyNumber: "C123456", companyName: "Northstar Holdings" }),
+    });
+    const right = buildIdentityBundle({
+      id: 2,
+      name: "Ana Sá",
+      type: "HNWI",
+      nationality: "PT",
+      sourceRegistries: JSON.stringify(["Companies House UK"]),
+      metadata: JSON.stringify({ companyNumber: "C123456", companyName: "Northstar Holdings" }),
+    });
+
+    const match = scoreIdentityMatch(left, right);
+    expect(match).not.toBeNull();
+    expect(match?.signals).toEqual(expect.arrayContaining([
+      "shared_registry_identifier",
+      "shared_affiliation",
+      "shared_location",
+      "cross_registry",
+    ]));
+  });
+
   it("rejects a same-name match without contextual evidence", () => {
     const left = buildIdentityBundle({
       id: 1,
