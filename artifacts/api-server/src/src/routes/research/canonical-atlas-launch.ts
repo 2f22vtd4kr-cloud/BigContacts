@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
 import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
@@ -239,7 +239,7 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
       sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${activeJobId}`,
       sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${activeJobId}`,
     ),
-    sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`,
+    or(isNull(researchCasesTable.currentAction), sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`),
   );
   let matchingCases: Array<{ id: number }>;
   try {
@@ -341,7 +341,7 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
           sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${activeJobId}`,
           sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${activeJobId}`,
         ),
-        sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`,
+        or(isNull(researchCasesTable.currentAction), sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`),
       ))
       .returning({ id: researchCasesTable.id });
   } catch (error) {
