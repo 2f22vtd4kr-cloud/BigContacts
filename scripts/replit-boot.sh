@@ -30,6 +30,8 @@ if [[ "${APEX_ALLOW_SCHEMA_PUSH:-false}" == "true" ]]; then
   # Use the complete single-writer initializer so durable invariants and
   # compatibility migrations are installed together with the Drizzle schema.
   bash scripts/initialize-apex-schema.sh
+  # The schema-push opt-in is a one-shot migration permission, not runtime config.
+  unset APEX_ALLOW_SCHEMA_PUSH
 else
   echo "[replit-boot] schema push skipped (set APEX_ALLOW_SCHEMA_PUSH=true only for an explicit migration)"
 fi
