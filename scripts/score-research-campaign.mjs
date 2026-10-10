@@ -15,6 +15,6 @@ const outcomes={}; for(const r of runs){const k=String(r.outcome||"unknown");out
 const overSampled=[...byCase.entries()].filter(([,rs])=>rs.length>3).map(([id,rs])=>({caseId:id,trials:rs.length}));
 const systemFailures=runs.filter(r=>r.outcome==="system_failure").length;
 const report={schemaVersion:"research-campaign-results-v1",registryVersion:gt.version,caseCount:gt.cases.length,runCount:runs.length,minimumTrialsPerCase:3,exactTrialsPerCase:3,missingCases:missing,underSampled,overSampled,outcomes,systemFailures,releaseGateEligible:gt.cases.length>=50&&runs.length===gt.cases.length*3&&missing.length===0&&underSampled.length===0&&overSampled.length===0&&systemFailures===0};
-fs.writeFileSync(outFile||"research-campaign-results.json",JSON.stringify(report,null,2)+"\\n");
+fs.writeFileSync(outFile||"research-campaign-results.json",JSON.stringify(report,null,2)+"\n");
 console.log(JSON.stringify(report,null,2));
 if(missing.length||underSampled.length||overSampled.length||systemFailures>0||runs.length!==gt.cases.length*3) process.exitCode=1;
