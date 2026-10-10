@@ -58,7 +58,14 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
       };
     }
     if (!res.ok) return { ok: false, message: data?.error ?? `Launch failed (HTTP ${res.status})` };
-    return { ok: true, jobId: data?.jobId, message: data?.message ?? "Apex Atlas pipeline started." };
+    const jobId = typeof data?.jobId === "string" ? data.jobId.trim() : "";
+    if (!jobId) {
+      return {
+        ok: false,
+        message: data?.error ?? "Launch response did not include a valid job ID.",
+      };
+    }
+    return { ok: true, jobId, message: data?.message ?? "Apex Atlas pipeline started." };
   } catch (e: any) {
     return { ok: false, message: e?.message ?? "Could not reach api-server. Deploy the research API and proxy /api to launch Atlas." };
   }
