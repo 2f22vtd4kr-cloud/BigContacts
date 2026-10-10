@@ -5,23 +5,35 @@ import { selectMergedContactEvidence } from "../lib/contact-merge-selection";
 describe("safe entity merge contact-source binding", () => {
   it("does not let an unselected target row's heuristic email source taint the primary email", () => {
     const selected = selectMergedContactEvidence(
-      { email: "jane@officialcompany.com", metadata: JSON.stringify({ profileVerified: true }) },
-      { email: "jane@targetcompany.com", metadata: JSON.stringify({ enrichmentSources: ["pattern-generated"] }) },
+      { email: "jane@officialcompany.com", emailSource: "official-public-profile", metadata: JSON.stringify({ profileVerified: true }) },
+      { email: "jane@targetcompany.com", emailSource: "pattern-generated", metadata: JSON.stringify({ enrichmentSources: ["pattern-generated"] }) },
     );
 
     expect(selected.email).toBe("jane@officialcompany.com");
     expect(selected.emailMetadata).toBe(JSON.stringify({ profileVerified: true }));
-    expect(isHeuristicEmailEvidence({ email: selected.email, metadata: selected.emailMetadata })).toBe(false);
+    expect(selected.emailSource).toBe("official-public-profile");
+    expect(isHeuristicEmailEvidence({ email: selected.email, emailSource: selected.emailSource, metadata: selected.emailMetadata })).toBe(false);
   });
 
   it("retains heuristic provenance when the selected email comes from the target row", () => {
     const selected = selectMergedContactEvidence(
-      { email: null, metadata: JSON.stringify({ unrelated: true }) },
-      { email: "jane@targetcompany.com", metadata: JSON.stringify({ enrichmentSources: ["pattern-generated"] }) },
+      { email: null, emailSource: "unknown", metadata: JSON.stringify({ unrelated: true }) },
+      { email: "jane@targetcompany.com", emailSource: "pattern-generated", metadata: JSON.stringify({ enrichmentSources: ["profile-import"] }) },
     );
 
     expect(selected.email).toBe("jane@targetcompany.com");
-    expect(isHeuristicEmailEvidence({ email: selected.email, metadata: selected.emailMetadata })).toBe(true);
+    expect(selected.emailSource).toBe("pattern-generated");
+    expect(isHeuristicEmailEvidence({ email: selected.email, emailSource: selected.emailSource, metadata: selected.emailMetadata })).toBe(true);
+  });
+
+  it("uses the selected row's explicit heuristic emailSource even when metadata does not repeat it", () => {
+    const selected = selectMergedContactEvidence(
+      { email: null, metadata: JSON.stringify({ unrelated: true }) },
+      { email: "jane@targetcompany.com", emailSource: "pattern-generated", metadata: JSON.stringify({ profileImported: true }) },
+    );
+
+    expect(selected.emailSource).toBe("pattern-generated");
+    expect(isHeuristicEmailEvidence({ email: selected.email, emailSource: selected.emailSource, metadata: selected.emailMetadata })).toBe(true);
   });
 
   it("uses the phone source belonging to the row whose phone was selected", () => {
