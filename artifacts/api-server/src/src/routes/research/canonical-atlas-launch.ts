@@ -284,7 +284,7 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
   // matching active case cancelled. If this DB fence fails, report that the
   // cancellation is incomplete rather than claiming the job is still active.
   try {
-    await db.update(researchCasesTable)
+    const fencedCases = await db.update(researchCasesTable)
       .set({ status: "review", currentAction: "canonical-atlas-cancelled", updatedAt: now })
       .where(and(
         eq(researchCasesTable.status, "active"),
@@ -292,7 +292,18 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
           sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${activeJobId}`,
           sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${activeJobId}`,
         ),
-      ));
+      ))
+      .returning({ id: researchCasesTable.id });
+    if (fencedCases.length !== 1) {
+      res.status(503).json({
+        ok: false,
+        code: "CANCELLATION_FENCE_UNCONFIRMED",
+        message: "The job is cancelled, but exactly one matching active case could not be fenced; stop is not fully confirmed.",
+        jobId: activeJobId,
+        matchedCaseCount: fencedCases.length,
+      });
+      return;
+    }
   } catch (error) {
     res.status(503).json({
       ok: false,
