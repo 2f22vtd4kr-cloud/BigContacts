@@ -349,7 +349,7 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
   if (rightHand.status !== "completed") return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Right-hand was unavailable; Atlas transition is fail-closed.", confidence: null, rightHand, bossModel: null, error: rightHand.error ?? "Right-hand unavailable." });
   const selection = await resolveGroqBossModel(); if (!selection?.model) return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Boss unavailable; Atlas transition is fail-closed rather than deterministic.", confidence: null, rightHand, bossModel: null, error: "No Groq Boss model available." });
   const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, rightHand });
-  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: 768, thinkingLevel: "low" });
+  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: 1536, thinkingLevel: "medium" });
     if (!generated.raw) {
       const failureCategory = classifyAtlasBossGenerationFailure(generated);
       const failure = formatAtlasBossGenerationFailure(generated);
