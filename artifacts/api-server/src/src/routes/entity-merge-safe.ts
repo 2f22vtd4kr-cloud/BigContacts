@@ -79,8 +79,8 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
         mergedAt: new Date().toISOString(),
       };
       const mergedConfidence = computeContactConfidence({ type: primary.type, email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
-      const mergedOutcome = computeContactOutcome({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
-      const mergedHot = hasMeaningfulDirectContact({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, metadata: mergedEmailMetadata });
+      const mergedOutcome = computeContactOutcome({ type: primary.type, email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
+      const mergedHot = hasMeaningfulDirectContact({ type: primary.type, email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, metadata: mergedEmailMetadata });
 
       await tx.update(assetsTable).set({ ownerEntityId: id }).where(eq(assetsTable.ownerEntityId, targetId));
       await tx.update(relationshipsTable).set({ sourceEntityId: id }).where(eq(relationshipsTable.sourceEntityId, targetId));
