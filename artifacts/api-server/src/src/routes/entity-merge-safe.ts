@@ -78,7 +78,7 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
         mergedFrom: targetId,
         mergedAt: new Date().toISOString(),
       };
-      const mergedConfidence = computeContactConfidence({ type: primary.type, email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
+      const mergedConfidence = computeContactConfidence({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
       const mergedOutcome = computeContactOutcome({ type: primary.type, email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
       const mergedHot = hasMeaningfulDirectContact({ type: primary.type, email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, metadata: mergedEmailMetadata });
 
