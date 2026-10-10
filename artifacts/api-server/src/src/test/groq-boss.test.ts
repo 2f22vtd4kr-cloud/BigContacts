@@ -5,13 +5,16 @@ import { resolve } from "node:path";
 const caseBureauSource = readFileSync(resolve(process.cwd(), "src/src/lib/case-bureau.ts"), "utf8");
 import { generateGroqBossText } from "../lib/groq-boss";
 
-describe("Groq Boss token-window recovery", () => {
+describe("Groq Boss discovery prompt grounding", () => {
   it("keeps internal case-memory wording from becoming a false research anchor", () => {
     expect(caseBureauSource).not.toContain("durable tree shaft");
     expect(caseBureauSource).toContain("The case context is the durable shared record for this Bureau.");
     expect(caseBureauSource).toContain("Internal memory, storage, and workflow terminology are infrastructure concepts only");
     expect(caseBureauSource).toContain("do not turn wording from these instructions into a research premise.");
   });
+});
+
+describe("Groq Boss token-window recovery", () => {
 
   beforeEach(() => {
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
