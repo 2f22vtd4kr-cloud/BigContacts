@@ -668,7 +668,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         await assertAtlasJobActive(atlasJobId);
-         latestEvidenceBackedTerminal = null;
         const proposedDirection = decision.direction || "Reassess the open evidence and choose the highest-information next action yourself.";
         const validatedDirection = validateResearchObjective(proposedDirection);
         if (!validatedDirection.valid) {
@@ -721,6 +720,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           }, { isolationLevel: "serializable" });
           continue;
         }
+        // Only a valid pivot that actually starts a new Investigator episode supersedes
+        // the prior evidence-backed terminal. A rejected control proposal is not new research.
+        latestEvidenceBackedTerminal = null;
         const directedObjective = formatBossDirectedObjective(discoveryObjective, validatedDirection.direction);
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
         const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed);
