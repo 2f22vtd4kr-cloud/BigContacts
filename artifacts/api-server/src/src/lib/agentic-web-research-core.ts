@@ -1582,7 +1582,7 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
   }
 
   if (!cues.length) return null;
-  return "Discovery liveness context — advisory only, not an ordered route: "
+  return "Advisory only: discovery liveness context, not an ordered route. "
     + cues.join(" ")
     + " Choose any next action or stopping point from the evidence; these cues do not prescribe a tool, provider, page, source family, or hop order.";
 }
