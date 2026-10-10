@@ -86,6 +86,20 @@ test("writes parseable JSON and accepts completed insufficient-evidence trials",
   }
 });
 
+test("accepts the documented completed outcome vocabulary", () => {
+  for (const outcome of ["verified", "wrong_answer", "exhausted", "contradicted"]) {
+    const run = createCampaignFiles({ outcomeForRun: () => outcome });
+    try {
+      assert.equal(run.status, 0, `${outcome}: ${run.stderr}`);
+      assert.doesNotMatch(run.stderr, /unsupported outcome/i);
+      const report = JSON.parse(readFileSync(run.reportFile, "utf8"));
+      assert.equal(report.outcomes[outcome], CASE_COUNT * TRIALS_PER_CASE);
+    } finally {
+      run.cleanup();
+    }
+  }
+});
+
 test("cancellation is reported separately and blocks campaign eligibility", () => {
   let first = true;
   const run = createCampaignFiles({
