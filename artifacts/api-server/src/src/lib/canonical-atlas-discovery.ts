@@ -586,6 +586,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await clearActiveJobIfOwned(lockKey, atlasJobId);
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
       }
+      const previousAcceptedAction = priorAction;
+      const previousAcceptedCandidate = priorCandidate;
       controlTurns += 1;
       const directionValidationFeedback = rejectedControlDirection;
       const decision = await decideAtlasNextAction({ objective: discoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls }) => { const finding = discovery.findings.find((candidate) => normalizeCandidateIdentityName(candidate.personName ?? "") === normalizeCandidateIdentityName(name) && candidate.promotionDecision === "promote" && candidate.scope === "candidate"); return { name, role: finding?.role ?? null, sourceUrls }; }), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: discovery.findings.map((finding) => ({ personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, investigatorReport: JSON.stringify({
@@ -677,6 +679,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           // control plane for another decision; never execute the rejected URL/tool.
           const rejectionReason = validatedDirection.reason;
           rejectedControlDirection = { controlTurn: controlTurns, reason: rejectionReason };
+          // The model's requested pivot was not applied. Keep the control history
+          // supplied to the next model turn aligned with accepted transitions only.
+          priorAction = previousAcceptedAction;
+          priorCandidate = previousAcceptedCandidate;
           finalControlAction = null;
           phaseSummary[`control_${controlTurns}_rejected`] = `Boss pivot rejected before Investigator execution: ${rejectionReason}; requesting another model-owned control decision.`;
           await assertAtlasJobActive(atlasJobId);
