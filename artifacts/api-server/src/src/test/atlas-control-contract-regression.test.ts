@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
+import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
 import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
@@ -13,6 +14,17 @@ const bureauPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau
 const agenticResearchSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
+
+describe("Atlas control-plane contract regression", () => {
+  it("persists finite safe diagnostic stage/domain/kind labels at the canonical failure boundary", () => {
+    const canonical = fs.readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+    expect(canonical).toContain("classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, leaseLost })");
+    expect(canonical).toContain("failureDomain=${failureDiagnostic.domain}");
+    expect(canonical).toContain("failureKind=${failureDiagnostic.kind}");
+    expect(canonical).toContain('failureStage = "model_action_validation"');
+    expect(canonical).toContain('failureStage = "terminal_persistence"');
+    expect(classifyCanonicalAtlasFailure({ stage: "tool_execution", error: new Error("tool failed") })).toEqual({ domain: "tool_execution", kind: "request_failure" });
+  });
 
 describe("Atlas control-plane contract regression", () => {
   it("does not seed the discovery Boss with a fabricated sector phrase", () => {
