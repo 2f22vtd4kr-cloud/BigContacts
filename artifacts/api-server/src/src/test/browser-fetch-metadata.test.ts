@@ -65,7 +65,7 @@ describe("hosted browser fetch final-URL provenance", () => {
     expect(assertSafeOutboundUrl).toHaveBeenCalledWith("https://research.example/article/final");
   });
 
-  it("keeps content lead-only when a provider reports a non-public final destination", async () => {
+  it("discards content when a provider reports a non-public final destination", async () => {
     vi.mocked(safeOutboundFetch).mockResolvedValueOnce(new Response(html, {
       headers: { "Zr-Final-Url": "http://127.0.0.1/private" },
     }));
@@ -75,8 +75,24 @@ describe("hosted browser fetch final-URL provenance", () => {
       scope: "zenrows-private-final-url-test",
     });
 
-    expect(result.html).toBe(html);
+    expect(result.html).toBe("");
     expect(result.observedUrl).toBeNull();
+    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("http://127.0.0.1/private");
+  });
+
+  it("discards Scrapfly content when its reported final destination is unsafe", async () => {
+    vi.mocked(safeOutboundFetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      result: { content: html, url: "http://127.0.0.1/private" },
+    }), { headers: { "content-type": "application/json" } }));
+
+    const result = await browserFetchHtml("https://research.example/redirect", {
+      provider: "scrapfly",
+      scope: "scrapfly-private-final-url-test",
+    });
+
+    expect(result.html).toBe("");
+    expect(result.observedUrl).toBeNull();
+    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("http://127.0.0.1/private");
   });
 
   it("keeps ZenRows content lead-only when final-navigation metadata is absent", async () => {
