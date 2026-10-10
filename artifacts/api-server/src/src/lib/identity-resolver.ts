@@ -86,8 +86,8 @@ function isCorporateEntityType(entityType: string): boolean {
 
 function tokens(value: string, stripCorporateSuffixes = false): string[] {
   const result = normalizeIdentityName(value).split(" ").filter((token) => token.length >= 2);
-  if (stripCorporateSuffixes) {
-    while (result.length && CORPORATE_SUFFIXES.has(result[result.length - 1]!)) result.pop();
+  if (stripCorporateSuffixes && result.length && CORPORATE_SUFFIXES.has(result[result.length - 1]!)) {
+    result.pop();
   }
   return result;
 }
