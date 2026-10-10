@@ -4,7 +4,7 @@ import { logger } from "./logger";
 import { canApplyJobPatch, canApplyJobPatchWithoutRedis, classifyActiveJobRead, classifyJobCreationVerification } from "./job-queue-terminal-policy";
 async function safeRedis<T>(fn:(rc:import("ioredis").Redis)=>Promise<T>,fallback:T):Promise<T>{return withPermanentClient(fn,fallback);}
 export type JobStatus="queued"|"running"|"paused"|"done"|"failed"|"cancelled";
-export interface JobState{jobId:string;type:string;status:JobStatus;progress:number;inserted:number;skipped:number;errors:number;total:number;startedAt:string;finishedAt?:string;atlasPhase?:number;atlasPhaseTotal?:number;entityProgress?:number;entityTotal?:number;entityNames?:string;atlasTelemetry?:string;outcome?:"complete"|"incomplete";resumable?:string;targetIds?:string;targetIndex?:number;targetTotal?:number;currentTargetId?:number;currentPhase?:string;completedTargetIds?:string;failedTargetIds?:string;retryCounts?:string;result?:string;message:string;}
+export interface JobState{jobId:string;type:string;status:JobStatus;progress:number;inserted:number;skipped:number;errors:number;total:number;startedAt:string;finishedAt?:string;atlasPhase?:number;atlasPhaseTotal?:number;entityProgress?:number;entityTotal?:number;entityNames?:string;atlasTelemetry?:string;outcome?:"complete"|"incomplete";resumable?:string;targetIds?:string;targetIndex?:number;targetTotal?:number;currentTargetId?:number;currentPhase?:string;completedTargetIds?:string;failedTargetIds?:string;retryCounts?:string;result?:string;message:string;cancelRequested?:boolean;}
 export type AutoPipelineSchedulerStatus={enabled:boolean;active:boolean;activatedAt?:string;lastTriggerAt?:string;nextTriggerAt?:string;lastLabel?:string;lastStatus?:"triggered"|"completed"|"skipped_lock"|"no_targets"|"error";lastJobId?:string;lastMessage?:string;cycles:number;skippedDueToLock:number;providerNoTarget:number;};
 const JOB_TTL=60*60*24*7;const MAX_MEMORY_JOBS=256;const memoryOnlyJobs=new Set<string>();const memoryJobs=new Map<string,JobState>();const memoryLogs=new Map<string,string[]>();const memoryLatestByType=new Map<string,string>();const memoryActiveByType=new Map<string,string>();const LOG_CAP=200;const AUTO_PIPELINE_SCHEDULER_KEY="apex:autopipeline:scheduler";function jk(id:string){return`apex:job:${id}`;}function lk(id:string){return`apex:job:${id}:log`;}function trimMemoryJobs(){while(memoryJobs.size>MAX_MEMORY_JOBS){const first=memoryJobs.keys().next().value as string|undefined;if(!first)break;memoryJobs.delete(first);memoryLogs.delete(first);memoryOnlyJobs.delete(first);}}
 export async function createJob(type:string):Promise<string>{
@@ -46,8 +46,9 @@ export async function createJob(type:string):Promise<string>{
 export async function updateJob(jobId:string,patch:Partial<JobState>):Promise<void>{
   const prev=memoryJobs.get(jobId);
   if(prev&&!canApplyJobPatch(prev.status))return;
+  if(prev?.cancelRequested && patch.status!=="cancelled")return;
   if(memoryOnlyJobs.has(jobId)){
-    if(prev&&canApplyJobPatchWithoutRedis(prev.status,true))memoryJobs.set(jobId,{...prev,...patch});
+    if(prev&&canApplyJobPatchWithoutRedis(prev.status,true))memoryJobs.set(jobId,{...prev,...patch,cancelRequested:patch.status==="cancelled"?undefined:(patch.cancelRequested??prev.cancelRequested)});
     trimMemoryJobs();
     return;
   }
@@ -58,19 +59,57 @@ export async function updateJob(jobId:string,patch:Partial<JobState>):Promise<vo
     const args:string[]=[];
     for(const[k,v]of Object.entries(flat)){args.push(k,v);}
     return Number(await rc.eval(
-      "local k=KEYS[1]; local current=redis.call('hget',k,'status'); local incoming=ARGV[1]; if current~='queued' and current~='running' and current~='paused' then return 0 end; for i=2,#ARGV,2 do redis.call('hset',k,ARGV[i],ARGV[i+1]); end; return 1",
+      "local k=KEYS[1]; local current=redis.call('hget',k,'status'); local incoming=ARGV[1]; if current~='queued' and current~='running' and current~='paused' then return 0 end; local cancelRequested=redis.call('hget',k,'cancelRequested'); if cancelRequested=='1' and incoming~='cancelled' then return 0 end; if incoming=='cancelled' then redis.call('hdel',k,'cancelRequested') end; for i=2,#ARGV,2 do redis.call('hset',k,ARGV[i],ARGV[i+1]); end; return 1",
       1,jk(jobId),patch.status===undefined?"":String(patch.status),...args
     ));
   },null as number|null);
   if(redisResult===0||redisResult===null)return;
-  if(prev)memoryJobs.set(jobId,{...prev,...patch});
+  if(prev)memoryJobs.set(jobId,{...prev,...patch,cancelRequested:patch.status==="cancelled"?undefined:(patch.cancelRequested??prev.cancelRequested)});
   else if(patch.jobId||patch.type)memoryJobs.set(jobId,{jobId,type:String(patch.type??"unknown"),status:(patch.status as JobStatus)??"running",progress:Number(patch.progress??0),inserted:Number(patch.inserted??0),skipped:Number(patch.skipped??0),errors:Number(patch.errors??0),total:Number(patch.total??0),startedAt:String(patch.startedAt??new Date().toISOString()),message:String(patch.message??""),...patch}as JobState);
   trimMemoryJobs();
+}
+export type JobCancellationRequestResult = "requested" | "terminal" | "missing" | "unavailable";
+
+/** Reserve cancellation atomically while preserving the durable-case-first terminal transition. */
+export async function requestJobCancellation(jobId:string):Promise<JobCancellationRequestResult>{
+  const prev=memoryJobs.get(jobId);
+  if(memoryOnlyJobs.has(jobId)){
+    if(!prev)return "missing";
+    if(!canApplyJobPatch(prev.status))return "terminal";
+    memoryJobs.set(jobId,{...prev,cancelRequested:true});
+    return "requested";
+  }
+  const result=await safeRedis(async rc=>Number(await rc.eval(
+    "local k=KEYS[1]; local current=redis.call('hget',k,'status'); if not current then return -1 end; if current~='queued' and current~='running' and current~='paused' then return 0 end; redis.call('hset',k,'cancelRequested','1'); return 1",
+    1,jk(jobId),
+  )),null as number|null);
+  if(result===1){if(prev)memoryJobs.set(jobId,{...prev,cancelRequested:true});return "requested";}
+  if(result===0)return "terminal";
+  if(result===-1)return "missing";
+  return "unavailable";
+}
+
+export async function clearJobCancellationRequest(jobId:string):Promise<boolean>{
+  const prev=memoryJobs.get(jobId);
+  if(memoryOnlyJobs.has(jobId)){
+    if(!prev)return false;
+    if(!prev.cancelRequested)return true;
+    if(!canApplyJobPatch(prev.status))return true;
+    memoryJobs.set(jobId,{...prev,cancelRequested:undefined});
+    return true;
+  }
+  const result=await safeRedis(async rc=>Number(await rc.eval(
+    "local k=KEYS[1]; local current=redis.call('hget',k,'status'); if not current then return -1 end; local pending=redis.call('hget',k,'cancelRequested'); if pending~='1' then return 1 end; redis.call('hdel',k,'cancelRequested'); return 1",
+    1,jk(jobId),
+  )),null as number|null);
+  if(result!==1)return false;
+  if(prev)memoryJobs.set(jobId,{...prev,cancelRequested:undefined});
+  return true;
 }
 export async function clearJobFields(jobId:string,fields:string[]):Promise<void>{if(!fields.length)return;await safeRedis(async rc=>{await rc.hdel(jk(jobId),...fields);await rc.expire(jk(jobId),JOB_TTL);},undefined);}
 export async function appendJobLog(jobId:string,line:string,opts?:{dedupeKey?:string}):Promise<void>{if(opts?.dedupeKey){const ok=await safeRedis(async rc=>{const set=await rc.set(`apex:joblog:dedupe:${jobId}:${opts.dedupeKey}`,"1","EX",86400,"NX");return set==="OK"||set===true;},true);if(!ok)return;}const memCheck=memoryLogs.get(jobId)??[];if(memCheck[0]&&memCheck[0].includes(line.slice(0,120)))return;const ts=`${new Date().toISOString()} ${line}`;const mem=memoryLogs.get(jobId)??[];mem.unshift(ts);memoryLogs.set(jobId,mem.slice(0,LOG_CAP));trimMemoryJobs();await safeRedis(async rc=>{await rc.lpush(lk(jobId),ts);await rc.ltrim(lk(jobId),0,LOG_CAP-1);await rc.expire(lk(jobId),JOB_TTL);},undefined);void import("./bureau-live-log").then(m=>m.mirrorJobLogLine(jobId,line)).catch(()=>undefined);}
 function parsePersistedJobState(jobId:string,raw:Record<string,string>):JobState{
-  return{jobId:raw.jobId??jobId,type:raw.type??"unknown",status:(raw.status??"queued")as JobStatus,progress:Number(raw.progress??0),inserted:Number(raw.inserted??0),skipped:Number(raw.skipped??0),errors:Number(raw.errors??0),total:Number(raw.total??0),startedAt:raw.startedAt??"",finishedAt:raw.finishedAt,message:raw.message??"",atlasPhase:raw.atlasPhase!==undefined?Number(raw.atlasPhase):undefined,atlasPhaseTotal:raw.atlasPhaseTotal!==undefined?Number(raw.atlasPhaseTotal):undefined,entityProgress:raw.entityProgress!==undefined?Number(raw.entityProgress):undefined,entityTotal:raw.entityTotal!==undefined?Number(raw.entityTotal):undefined,entityNames:raw.entityNames,atlasTelemetry:raw.atlasTelemetry,outcome:raw.outcome==="incomplete"||raw.outcome==="complete"?raw.outcome:undefined,resumable:raw.resumable,targetIds:raw.targetIds,targetIndex:raw.targetIndex!==undefined?Number(raw.targetIndex):undefined,targetTotal:raw.targetTotal!==undefined?Number(raw.targetTotal):undefined,currentTargetId:raw.currentTargetId!==undefined?Number(raw.currentTargetId):undefined,currentPhase:raw.currentPhase,completedTargetIds:raw.completedTargetIds,failedTargetIds:raw.failedTargetIds,retryCounts:raw.retryCounts,result:raw.result};
+  return{jobId:raw.jobId??jobId,type:raw.type??"unknown",status:(raw.status??"queued")as JobStatus,cancelRequested:raw.cancelRequested==="1",progress:Number(raw.progress??0),inserted:Number(raw.inserted??0),skipped:Number(raw.skipped??0),errors:Number(raw.errors??0),total:Number(raw.total??0),startedAt:raw.startedAt??"",finishedAt:raw.finishedAt,message:raw.message??"",atlasPhase:raw.atlasPhase!==undefined?Number(raw.atlasPhase):undefined,atlasPhaseTotal:raw.atlasPhaseTotal!==undefined?Number(raw.atlasPhaseTotal):undefined,entityProgress:raw.entityProgress!==undefined?Number(raw.entityProgress):undefined,entityTotal:raw.entityTotal!==undefined?Number(raw.entityTotal):undefined,entityNames:raw.entityNames,atlasTelemetry:raw.atlasTelemetry,outcome:raw.outcome==="incomplete"||raw.outcome==="complete"?raw.outcome:undefined,resumable:raw.resumable,targetIds:raw.targetIds,targetIndex:raw.targetIndex!==undefined?Number(raw.targetIndex):undefined,targetTotal:raw.targetTotal!==undefined?Number(raw.targetTotal):undefined,currentTargetId:raw.currentTargetId!==undefined?Number(raw.currentTargetId):undefined,currentPhase:raw.currentPhase,completedTargetIds:raw.completedTargetIds,failedTargetIds:raw.failedTargetIds,retryCounts:raw.retryCounts,result:raw.result};
 }
 export async function getJob(jobId:string):Promise<JobState|null>{
   if(memoryOnlyJobs.has(jobId))return memoryJobs.get(jobId)??null;
