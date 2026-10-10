@@ -503,7 +503,7 @@ function parseDiscoveryContactEvidenceStrict(value: unknown): DiscoveryContactEv
  * from target-scoped extraction: the mission is the subject, while separate
  * search-capable investigators supply web context and all returned people remain review-only.
  */
-export async function runGroqBossDiscovery(input: {
+export type GroqBossDiscoveryInput = {
   file?: DiscoveryCaseFile;
   objective: string;
   motivation: string;
@@ -521,30 +521,11 @@ export async function runGroqBossDiscovery(input: {
   startingLane?: string;
   /** Investigator capabilities that are unavailable for this Boss decision (for example, an explicitly exhausted request quota). */
   excludedInvestigatorLlm?: readonly InvestigatorCapability[];
-}): Promise<GeminiBossDiscoveryResult> {
-  const selection = await resolveGeminiBossModel();
-  if (selection.status !== "resolved") {
-    return {
-      status: selection.status,
-      model: selection.model,
-      investigatorLlm: null,
-      report: null,
-      candidates: [],
-      citations: [],
-      nextDirections: [],
-      uncertainties: [],
-      error: selection.status === "pending"
-        ? "No Groq Boss model is available because GROQ_BOSS_API_KEY is not configured."
-        : "Configured Groq credentials did not expose a usable Boss model.",
-    };
-  }
+};
 
+export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, availableInvestigators: readonly InvestigatorCapability[]): string {
   const excluded = new Set(input.excludedInvestigatorLlm ?? []);
-  const availableInvestigators = getAvailableInvestigatorCapabilities().filter((capability) => !excluded.has(capability));
-  if (!availableInvestigators.length) return { status: "unavailable", model: selection.model, investigatorLlm: null, report: null, candidates: [], citations: [], nextDirections: [], uncertainties: [], error: excluded.size
-    ? "No alternate configured Investigator capability remains after explicit Boss-directed exclusion of exhausted capabilities."
-    : "No Investigator capability is currently available; refusing an unselected or deterministic substitute." };
-  const prompt = `${buildBossOpeningPrompt(input)}
+  return `${buildBossOpeningPrompt(input)}
 
 This is a shared case-context review. Read the current investigation progress and investigator reports below
 before deciding what should be researched next. The case context is the durable shared record for this Bureau.
@@ -588,6 +569,32 @@ Return ONLY JSON in this shape:
   "uncertainties": ["identity, attribution, or access uncertainty"]
 }
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
+}
+
+export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promise<GeminiBossDiscoveryResult> {
+  const selection = await resolveGeminiBossModel();
+  if (selection.status !== "resolved") {
+    return {
+      status: selection.status,
+      model: selection.model,
+      investigatorLlm: null,
+      report: null,
+      candidates: [],
+      citations: [],
+      nextDirections: [],
+      uncertainties: [],
+      error: selection.status === "pending"
+        ? "No Groq Boss model is available because GROQ_BOSS_API_KEY is not configured."
+        : "Configured Groq credentials did not expose a usable Boss model.",
+    };
+  }
+
+  const excluded = new Set(input.excludedInvestigatorLlm ?? []);
+  const availableInvestigators = getAvailableInvestigatorCapabilities().filter((capability) => !excluded.has(capability));
+  if (!availableInvestigators.length) return { status: "unavailable", model: selection.model, investigatorLlm: null, report: null, candidates: [], citations: [], nextDirections: [], uncertainties: [], error: excluded.size
+    ? "No alternate configured Investigator capability remains after explicit Boss-directed exclusion of exhausted capabilities."
+    : "No Investigator capability is currently available; refusing an unselected or deterministic substitute." };
+  const prompt = buildGroqBossDiscoveryPrompt(input, availableInvestigators);
   try {
     const generated = await generateGeminiBossText(selection, prompt, {
       responseFormat: buildBossDiscoveryResponseFormat(availableInvestigators),
