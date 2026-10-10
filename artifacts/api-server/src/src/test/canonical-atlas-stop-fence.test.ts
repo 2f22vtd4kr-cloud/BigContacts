@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
+import { classifyActiveJobLaneStatus } from "../lib/job-queue-terminal-policy";
 
 const routePath = path.resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts");
 
@@ -82,6 +83,40 @@ describe("canonical Atlas stop fence", () => {
     expect(timer).toContain("Canonical lease renewal failed; retrying before fencing");
     expect(timer).toContain("if (!renewed)");
     expect(timer).not.toContain("catch(() => { const current = leaseTimers.get(timerKey)");
+  });
+
+  it("does not treat a stale active-job key as authority to cancel a terminal job", () => {
+    const source = fs.readFileSync(routePath, "utf8");
+    const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop"'));
+    for (const status of ["done", "failed", "cancelled"]) {
+      expect(classifyActiveJobLaneStatus(status)).toBe("terminal");
+    }
+    expect(classifyActiveJobLaneStatus("running")).toBe("active");
+    expect(classifyActiveJobLaneStatus("unrecognized")).toBe("unknown");
+
+    const statusCheck = stopBlock.indexOf("classifyActiveJobLaneStatus(activeJob.status)");
+    const durableCaseFence = stopBlock.indexOf("await db.update(researchCasesTable)");
+    expect(statusCheck).toBeGreaterThan(-1);
+    expect(durableCaseFence).toBeGreaterThan(statusCheck);
+    expect(stopBlock).toContain("status: activeJob.status");
+    expect(stopBlock).toContain("Atlas job is already terminal; no stop was applied.");
+    expect(stopBlock).toContain("Persisted Atlas job status is unrecognized; no stop was claimed.");
+  });
+
+  it("only acknowledges operator cancellation after strict persisted-state confirmation", () => {
+    const source = fs.readFileSync(routePath, "utf8");
+    const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop"'));
+    const cancelWrite = stopBlock.indexOf("await updateJob(activeJobId, {");
+    const strictReadBack = stopBlock.indexOf("await getJobStrict(activeJobId)", cancelWrite + 1);
+    const successResponse = stopBlock.indexOf(
+      'res.json({ ok: true, jobId: activeJobId, status: "cancelled", message: "Atlas stopped." });',
+    );
+
+    expect(cancelWrite).toBeGreaterThan(-1);
+    expect(strictReadBack).toBeGreaterThan(cancelWrite);
+    expect(successResponse).toBeGreaterThan(strictReadBack);
+    expect(stopBlock).toContain('confirmedJob.status !== "cancelled"');
+    expect(stopBlock).toContain("CANCELLATION_STATE_UNCONFIRMED");
   });
 
 });
