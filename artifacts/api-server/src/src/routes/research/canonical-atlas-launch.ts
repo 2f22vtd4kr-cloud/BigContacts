@@ -318,6 +318,16 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
       respondToTerminalAtlasStop(res, activeJobId, current.status);
       return;
     }
+    if (cancellationRequest === "already_requested") {
+      res.status(409).json({
+        ok: false,
+        code: "CANCELLATION_IN_PROGRESS",
+        message: "Another stop request already holds the cancellation reservation; no second stop attempt was applied.",
+        jobId: activeJobId,
+        status: current?.status ?? "unknown",
+      });
+      return;
+    }
     res.status(503).json({
       ok: false,
       code: cancellationRequest === "missing" ? "JOB_STATE_INCONSISTENT" : "JOB_STATE_UNAVAILABLE",
