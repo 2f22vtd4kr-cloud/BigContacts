@@ -211,6 +211,24 @@ describe("contact candidate reconciliation", () => {
     expect(organization.scopes.every((s) => s === "organization")).toBe(true);
   });
 
+  it("does not allow a rejected social candidate to become a personal research pivot", () => {
+    const rejected = reconcileContactCandidates([{
+      vectorType: "social",
+      value: "https://example.com/jane-doe",
+      source: "profile parser",
+      sourceUrl: "https://press.example.org/jane-doe",
+      details: {
+        scope: "target_person",
+        personName: "Jane Doe",
+        exactClaimObserved: true,
+      },
+    }]).candidates[0]!;
+
+    expect(rejected.state).toBe("rejected");
+    expect(rejected.exactClaimObserved).toBe(true);
+    expect(isEligiblePersonalSocialCandidate(rejected)).toBe(false);
+  });
+
   it("matches social claims by normalized profile URL and requires fetched-claim metadata", () => {
     expect(exactContactValueMatches(
       "social",
