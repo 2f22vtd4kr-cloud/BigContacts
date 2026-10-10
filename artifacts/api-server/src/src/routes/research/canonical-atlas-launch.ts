@@ -227,10 +227,134 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
   }
 
   const now = new Date();
+  const casePredicate = and(
+    eq(researchCasesTable.status, "active"),
+    or(
+      sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${activeJobId}`,
+      sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${activeJobId}`,
+    ),
+    sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`,
+  );
+  let matchingCases: Array<{ id: number }>;
+  try {
+    matchingCases = await db.select({ id: researchCasesTable.id })
+      .from(researchCasesTable)
+      .where(casePredicate)
+      .limit(2);
+  } catch (error) {
+    res.status(503).json({
+      ok: false,
+      code: "CANCELLATION_FENCE_UNCONFIRMED",
+      message: "Atlas could not identify the durable active case; no stop was claimed.",
+      error: `database cancellation lookup failure (digest=${describeThrownProviderError(error).messageDigest ?? "none"})`,
+    });
+    return;
+  }
+  if (matchingCases.length !== 1) {
+    res.status(503).json({
+      ok: false,
+      code: "JOB_STATE_INCONSISTENT",
+      message: "Atlas stop requires exactly one matching active case; no stop was claimed.",
+      jobId: activeJobId,
+      matchedCaseCount: matchingCases.length,
+    });
+    return;
+  }
 
-  // Atomically attempt the terminal transition first. updateJob's Redis Lua
-  // script refuses to mutate a job that has already reached done/failed/cancelled.
-  // Therefore a concurrent worker completion wins without us touching its case.
+  // Recheck the strict job snapshot immediately before the durable fence. The
+  // case update below is also conditional on status=active, so if completion
+  // wins the DB transition first, the stop cannot mutate the terminal case.
+  let beforeFence: Awaited<ReturnType<typeof getJobStrict>>;
+  try {
+    beforeFence = await getJobStrict(activeJobId);
+  } catch {
+    res.status(503).json({
+      ok: false,
+      code: "JOB_STATE_UNAVAILABLE",
+      message: "Atlas could not reconfirm the job before the durable case fence; no stop was claimed.",
+      jobId: activeJobId,
+    });
+    return;
+  }
+  if (!beforeFence) {
+    res.status(503).json({
+      ok: false,
+      code: "JOB_STATE_INCONSISTENT",
+      message: "The active-job lock points to a missing job record before the durable case fence; no stop was claimed.",
+      jobId: activeJobId,
+    });
+    return;
+  }
+  const beforeFenceStatus = classifyActiveJobLaneStatus(beforeFence.status);
+  if (beforeFenceStatus === "terminal") {
+    res.json({
+      ok: true,
+      jobId: activeJobId,
+      status: beforeFence.status,
+      message: beforeFence.status === "cancelled"
+        ? "Atlas was already stopped."
+        : "Atlas job is already terminal; no stop was applied.",
+    });
+    return;
+  }
+  if (beforeFenceStatus !== "active") {
+    res.status(503).json({
+      ok: false,
+      code: "JOB_STATE_INCONSISTENT",
+      message: "Persisted Atlas job status changed to an unrecognized value; no stop was claimed.",
+      jobId: activeJobId,
+      status: beforeFence.status,
+    });
+    return;
+  }
+
+  let fencedCases: Array<{ id: number }>;
+  try {
+    fencedCases = await db.update(researchCasesTable)
+      .set({ status: "review", currentAction: "canonical-atlas-cancelled", updatedAt: now })
+      .where(and(
+        eq(researchCasesTable.id, matchingCases[0]!.id),
+        eq(researchCasesTable.status, "active"),
+        or(
+          sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${activeJobId}`,
+          sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${activeJobId}`,
+        ),
+        sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`,
+      ))
+      .returning({ id: researchCasesTable.id });
+  } catch (error) {
+    res.status(503).json({
+      ok: false,
+      code: "CANCELLATION_FENCE_UNCONFIRMED",
+      message: "Atlas stop could not establish the durable database cancellation fence; job remains active.",
+      error: `database cancellation failure (digest=${describeThrownProviderError(error).messageDigest ?? "none"})`,
+    });
+    return;
+  }
+  if (fencedCases.length !== 1) {
+    let latest: Awaited<ReturnType<typeof getJobStrict>> = null;
+    try { latest = await getJobStrict(activeJobId); } catch { /* state remains unknown */ }
+    if (latest && classifyActiveJobLaneStatus(latest.status) === "terminal") {
+      res.json({
+        ok: true,
+        jobId: activeJobId,
+        status: latest.status,
+        message: latest.status === "cancelled"
+          ? "Atlas was already stopped."
+          : "Atlas job reached a terminal state before the case cancellation fence; no stop was applied.",
+      });
+      return;
+    }
+    res.status(409).json({
+      ok: false,
+      code: "CANCELLATION_FENCE_NOT_APPLIED",
+      message: "The case transitioned before the stop fence could be applied; no job cancellation was attempted.",
+      jobId: activeJobId,
+      status: latest?.status ?? "unknown",
+    });
+    return;
+  }
+
   await updateJob(activeJobId, {
     status: "cancelled",
     outcome: "incomplete",
@@ -238,6 +362,8 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
     finishedAt: now.toISOString(),
   });
 
+  // updateJob's Redis Lua script refuses to overwrite a terminal job. Confirm
+  // that cancellation won before acknowledging the operator request.
   let confirmedJob: Awaited<ReturnType<typeof getJobStrict>>;
   try {
     confirmedJob = await getJobStrict(activeJobId);
@@ -245,7 +371,7 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
     res.status(503).json({
       ok: false,
       code: "CANCELLATION_STATE_UNCONFIRMED",
-      message: "Atlas could not confirm whether cancellation won; the case was not marked cancelled.",
+      message: "The durable case cancellation fence was recorded, but the job state could not confirm cancellation.",
       jobId: activeJobId,
     });
     return;
@@ -254,7 +380,7 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
     res.status(503).json({
       ok: false,
       code: "JOB_STATE_INCONSISTENT",
-      message: "The active-job lock points to a missing job record after the stop request; the case was not marked cancelled.",
+      message: "The active-job lock points to a missing job record after the stop request; cancellation is unconfirmed.",
       jobId: activeJobId,
     });
     return;
@@ -266,51 +392,16 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
         ok: false,
         jobId: activeJobId,
         status: confirmedJob.status,
-        message: "Atlas reached a different terminal state before cancellation won; no case cancellation was applied.",
+        message: "Atlas reached a different terminal state before cancellation could be confirmed; stop is not reported as successful.",
       });
       return;
     }
     res.status(503).json({
       ok: false,
       code: "CANCELLATION_STATE_UNCONFIRMED",
-      message: "The job state did not confirm cancellation; no case cancellation was applied.",
+      message: "The job state did not confirm cancellation; stop is not reported as successful.",
       jobId: activeJobId,
       status: confirmedJob.status,
-    });
-    return;
-  }
-
-  // Only the request that wins the atomic job transition may now mark the
-  // matching active case cancelled. If this DB fence fails, report that the
-  // cancellation is incomplete rather than claiming the job is still active.
-  try {
-    const fencedCases = await db.update(researchCasesTable)
-      .set({ status: "review", currentAction: "canonical-atlas-cancelled", updatedAt: now })
-      .where(and(
-        eq(researchCasesTable.status, "active"),
-        or(
-          sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${activeJobId}`,
-          sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${activeJobId}`,
-        ),
-      ))
-      .returning({ id: researchCasesTable.id });
-    if (fencedCases.length !== 1) {
-      res.status(503).json({
-        ok: false,
-        code: "CANCELLATION_FENCE_UNCONFIRMED",
-        message: "The job is cancelled, but exactly one matching active case could not be fenced; stop is not fully confirmed.",
-        jobId: activeJobId,
-        matchedCaseCount: fencedCases.length,
-      });
-      return;
-    }
-  } catch (error) {
-    res.status(503).json({
-      ok: false,
-      code: "CANCELLATION_FENCE_UNCONFIRMED",
-      message: "The job is cancelled, but the durable case cancellation fence could not be written; stop is not fully confirmed.",
-      jobId: activeJobId,
-      error: `database cancellation failure (digest=${describeThrownProviderError(error).messageDigest ?? "none"})`,
     });
     return;
   }
