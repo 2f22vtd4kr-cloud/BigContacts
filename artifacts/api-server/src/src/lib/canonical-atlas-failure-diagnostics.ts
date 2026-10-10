@@ -141,7 +141,7 @@ export function classifyCanonicalAtlasFailure(input: {
       return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
     }
     if (error.code === "quota_exceeded"
-      || /daily quota|quota exceeded|request quota exhausted|requests per day/i.test(error.message)) {
+      || /upstream[_\s]quota[_\s]exhausted|daily quota|quota exceeded|request quota exhausted|requests per day/i.test(error.message)) {
       return { domain: "model_provider", kind: "hard_request_quota" };
     }
     if (error.status === 429 || /HTTP\s+429|too many requests/i.test(error.message)) {
