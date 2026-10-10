@@ -36,8 +36,6 @@ const promptUsesSharedActionList = (agentic.includes('"AVAILABLE ACTIONS: " + av
   && agentic.includes("const availableActions = availableBrowserProviders.length")
   && agentic.includes('MODEL_SELECTABLE_AGENT_ACTIONS.filter((action) => action !== "browser_fetch")')
   && agentic.includes("getAvailableBrowserFetchProviders()");
-  && /const availableActions = availableBrowserProviders\.length[\\s\\S]*?MODEL_SELECTABLE_AGENT_ACTIONS\.filter\(\(action\) => action !== "browser_fetch"\)/.test(agentic)
-  && /getAvailableBrowserFetchProviders\(\)/.test(agentic);
 const nonExecutablePythonActions = ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"];
 
 pass("launch gate inspects source without executing repository code", !canonicalSources.some((source) => /execFileSync\(|spawnSync\(|child_process/.test(source)));
