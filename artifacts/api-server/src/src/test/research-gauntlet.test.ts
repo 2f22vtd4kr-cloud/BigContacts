@@ -84,8 +84,8 @@ function groundTruth(): GroundTruth {
       contacts: [],
       contradictions: [],
       sources: [
-        { url: officialUrl, sourceClass: "official" },
-        { url: registryUrl, sourceClass: "registry" },
+        { url: officialUrl, sourceClass: "official", independentReview: true },
+        { url: registryUrl, sourceClass: "registry", independentReview: true },
       ],
     }],
   };
@@ -171,6 +171,23 @@ describe("production research Gauntlet scorer", () => {
   it("fails closed when ground-truth claims omit required source URLs", () => {
     const output = evaluateWithProductionScorer(validRun(), (doc) => {
       doc.cases[0].claims[0].requiredSourceUrls = [];
+    });
+    expect(output.cases[0].claimSupportCorrectness).toBe(0);
+    expect(output.cases[0].unsupportedClaimRate).toBe(1);
+  });
+
+  it("does not accept required URLs that are absent from the independently reviewed source registry", () => {
+    const run = validRun();
+    const unreviewedOfficial = "https://unreviewed.example/profile";
+    const unreviewedRegistry = "https://unreviewed.example/person";
+    run.observations[0].url = unreviewedOfficial;
+    run.observations[0].observedUrl = unreviewedOfficial;
+    run.observations[1].url = unreviewedRegistry;
+    run.observations[1].observedUrl = unreviewedRegistry;
+
+    const output = evaluateWithProductionScorer(run, (doc) => {
+      doc.cases[0].claims[0].requiredSourceUrls = [unreviewedOfficial, unreviewedRegistry];
+      doc.cases[0].claims[0].requiredSourceClasses = [];
     });
     expect(output.cases[0].claimSupportCorrectness).toBe(0);
     expect(output.cases[0].unsupportedClaimRate).toBe(1);
