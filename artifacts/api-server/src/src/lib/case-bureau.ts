@@ -530,6 +530,7 @@ export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, avai
 This is a shared case-context review. Read the current investigation progress and investigator reports below
 before deciding what should be researched next. The case context is the durable shared record for this Bureau.
 Internal memory, storage, and workflow terminology are infrastructure concepts only—not a company, sector, geography, or research lead. Derive research directions from the human mission and observed source evidence; do not turn wording from these instructions into a research premise.
+If the objective does not specify an industry, organization, person, or geography, you may propose a testable starting hypothesis, but explicitly label it as a hypothesis rather than an established fact or something supplied by the objective. The Investigator should test that hypothesis against observed public evidence and pivot if it is unsupported.
 You have no web access and must not use or request Google Search grounding. Do not wait for a preselected entity.
 Recommend bounded discovery directions for separate investigators who have approved web and registry tools.
 Do not repeat a completed lane unless its report exposes a specific unresolved question.
