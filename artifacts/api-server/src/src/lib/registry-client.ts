@@ -151,6 +151,51 @@ export function getRandomDiscoveryRegistries(): RegistryId[] {
   );
 }
 
+function firstRegistryRecordName(...candidates: unknown[]): string | null {
+  for (const candidate of candidates) {
+    if (typeof candidate !== "string") continue;
+    const name = candidate.trim();
+    if (name) return name;
+  }
+  return null;
+}
+
+export function normalizeOpenCorporatesCompany(item: any): RegistryResult | null {
+  const co = item?.company;
+  const name = firstRegistryRecordName(co?.name);
+  if (!name) return null;
+
+  const jurisdictionCode: string = co?.jurisdiction_code ?? "";
+  const jurisdiction = (jurisdictionCode.split("_")[0]?.toUpperCase() ?? jurisdictionCode.toUpperCase()) || "Unknown";
+  const address = co?.registered_address;
+  const addressText = address
+    ? [address.street_address, address.locality, address.country].filter(Boolean).join(", ")
+    : undefined;
+
+  return {
+    name,
+    type: "Corporation",
+    nationality: jurisdiction || undefined,
+    knownResidences: addressText,
+    sourceRegistries: JSON.stringify(["OpenCorporates", `${jurisdiction} Registry`]),
+    notes: [
+      `Reg #${co?.company_number ?? "—"}`,
+      co?.company_type ? `Type: ${co.company_type}` : null,
+      co?.current_status ? `Status: ${co.current_status}` : null,
+      co?.incorporation_date ? `Inc: ${co.incorporation_date}` : null,
+    ].filter(Boolean).join(" | "),
+    metadata: JSON.stringify({
+      source: "opencorporates",
+      companyNumber: co?.company_number,
+      jurisdictionCode: co?.jurisdiction_code,
+      companyType: co?.company_type,
+      currentStatus: co?.current_status,
+      incorporationDate: co?.incorporation_date,
+      openCorporatesUrl: co?.opencorporates_url,
+    }),
+  };
+}
+
 async function searchOpenCorporates(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> {
   const url = `https://api.opencorporates.com/v0.4/companies/search?q=${encodeURIComponent(query)}&per_page=${Math.min(limit, 20)}&order=score`;
   const resp = await registryFetch("registry", url, {
@@ -163,14 +208,83 @@ async function searchOpenCorporates(query: string, limit: number, signal?: Abort
   }
   const data = (await resp.json()) as any;
   const companies: any[] = data?.results?.companies ?? [];
-  return companies.map((item: any) => {
-    const co = item?.company ?? {};
-    const jcode: string = co?.jurisdiction_code ?? "";
-    const jurisdiction = (jcode.split("_")[0]?.toUpperCase() ?? jcode.toUpperCase()) || "Unknown";
-    const addr = co?.registered_address;
-    const addrStr = addr ? [addr.street_address, addr.locality, addr.country].filter(Boolean).join(", ") : undefined;
-    return { name: co?.name ?? "Unknown Company", type: "Corporation" as const, nationality: jurisdiction || undefined, knownResidences: addrStr, sourceRegistries: JSON.stringify(["OpenCorporates", `${jurisdiction} Registry`]), notes: [`Reg #${co?.company_number ?? "—"}`, co?.company_type ? `Type: ${co.company_type}` : null, co?.current_status ? `Status: ${co.current_status}` : null, co?.incorporation_date ? `Inc: ${co.incorporation_date}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "opencorporates", companyNumber: co?.company_number, jurisdictionCode: co?.jurisdiction_code, companyType: co?.company_type, currentStatus: co?.current_status, incorporationDate: co?.incorporation_date, openCorporatesUrl: co?.opencorporates_url }) };
-  });
+  return companies
+    .map(normalizeOpenCorporatesCompany)
+    .filter((result): result is RegistryResult => result !== null);
+}
+
+export function normalizeCompaniesHouseCompany(item: any): RegistryResult | null {
+  const name = firstRegistryRecordName(item?.title);
+  if (!name) return null;
+
+  const address = item?.registered_office_address;
+  const addressText = address
+    ? [address.premises, address.address_line_1, address.locality, address.postal_code, address.country]
+        .filter(Boolean)
+        .join(", ")
+    : undefined;
+
+  return {
+    name,
+    type: "Corporation",
+    nationality: "GB",
+    knownResidences: addressText,
+    sourceRegistries: JSON.stringify(["Companies House UK"]),
+    notes: [
+      `Reg #${item?.company_number ?? "—"}`,
+      item?.company_type ? `Type: ${item.company_type}` : null,
+      item?.company_status ? `Status: ${item.company_status}` : null,
+      item?.date_of_creation ? `Created: ${item.date_of_creation}` : null,
+      item?.sic_codes?.length ? `SIC: ${item.sic_codes.join(", ")}` : null,
+    ].filter(Boolean).join(" | "),
+    metadata: JSON.stringify({
+      source: "companies-house",
+      companyNumber: item?.company_number,
+      companyType: item?.company_type,
+      companyStatus: item?.company_status,
+      dateOfCreation: item?.date_of_creation,
+      sicCodes: item?.sic_codes,
+    }),
+  };
+}
+
+export function normalizeCompaniesHouseOfficer(item: any): RegistryResult | null {
+  const name = firstRegistryRecordName(item?.title);
+  if (!name) return null;
+
+  const address = item?.address;
+  const addressText = address
+    ? [address.premises, address.address_line_1, address.locality, address.postal_code, address.country]
+        .filter(Boolean)
+        .join(", ")
+    : undefined;
+  const dob = item?.date_of_birth;
+  const dobText = dob ? `${dob.month}/${dob.year}` : null;
+
+  return {
+    name,
+    type: classifyRegistryRecordType("companies-house-officers"),
+    nationality: item?.nationality ?? undefined,
+    knownResidences: addressText,
+    sourceRegistries: JSON.stringify(["Companies House UK (Officers)"]),
+    notes: [
+      item?.officer_role ? `Role: ${item.officer_role}` : null,
+      dobText ? `DOB: ${dobText}` : null,
+      item?.occupation ? `Occupation: ${item.occupation}` : null,
+      item?.appointed_on ? `Appointed: ${item.appointed_on}` : null,
+      "Officer record only; personal wealth not established.",
+    ].filter(Boolean).join(" | "),
+    metadata: JSON.stringify({
+      source: "companies-house-officers",
+      officerRole: item?.officer_role,
+      dateOfBirth: item?.date_of_birth,
+      nationality: item?.nationality,
+      occupation: item?.occupation,
+      appointedOn: item?.appointed_on,
+      reviewOnly: true,
+      wealthStatus: "unverified",
+    }),
+  };
 }
 
 async function searchCompaniesHouse(query: string, apiKey: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> {
@@ -189,30 +303,93 @@ async function searchCompaniesHouse(query: string, apiKey: string, limit: number
   if (failedEndpoints.length) {
     throw new Error(`Companies House lookup incomplete: ${failedEndpoints.join(", ")}.`);
   }
+
   const results: RegistryResult[] = [];
   if (companiesResp.ok) {
     const data = (await companiesResp.json()) as any;
-    for (const item of data?.items ?? []) { const addr = item?.registered_office_address; const addrStr = addr ? [addr.premises, addr.address_line_1, addr.locality, addr.postal_code, addr.country].filter(Boolean).join(", ") : undefined; results.push({ name: item?.title ?? "Unknown Company", type: "Corporation", nationality: "GB", knownResidences: addrStr, sourceRegistries: JSON.stringify(["Companies House UK"]), notes: [`Reg #${item?.company_number ?? "—"}`, item?.company_type ? `Type: ${item.company_type}` : null, item?.company_status ? `Status: ${item.company_status}` : null, item?.date_of_creation ? `Created: ${item.date_of_creation}` : null, item?.sic_codes?.length ? `SIC: ${item.sic_codes.join(", ")}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "companies-house", companyNumber: item?.company_number, companyType: item?.company_type, companyStatus: item?.company_status, dateOfCreation: item?.date_of_creation, sicCodes: item?.sic_codes }) }); }
+    for (const item of data?.items ?? []) {
+      const result = normalizeCompaniesHouseCompany(item);
+      if (result) results.push(result);
+    }
   }
   if (officersResp.ok) {
     const data = (await officersResp.json()) as any;
-    for (const item of data?.items ?? []) { const addr = item?.address; const addrStr = addr ? [addr.premises, addr.address_line_1, addr.locality, addr.postal_code, addr.country].filter(Boolean).join(", ") : undefined; const dob = item?.date_of_birth; const dobStr = dob ? `${dob.month}/${dob.year}` : null; const type = classifyRegistryRecordType("companies-house-officers");
-      results.push({ name: item?.title ?? "Unknown Officer", type, nationality: item?.nationality ?? undefined, knownResidences: addrStr, sourceRegistries: JSON.stringify(["Companies House UK (Officers)"]), notes: [item?.officer_role ? `Role: ${item.officer_role}` : null, dobStr ? `DOB: ${dobStr}` : null, item?.occupation ? `Occupation: ${item.occupation}` : null, item?.appointed_on ? `Appointed: ${item.appointed_on}` : null, "Officer record only; personal wealth not established."].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "companies-house-officers", officerRole: item?.officer_role, dateOfBirth: item?.date_of_birth, nationality: item?.nationality, occupation: item?.occupation, appointedOn: item?.appointed_on, reviewOnly: true, wealthStatus: "unverified" }) }); }
+    for (const item of data?.items ?? []) {
+      const result = normalizeCompaniesHouseOfficer(item);
+      if (result) results.push(result);
+    }
   }
   return results;
+}
+
+export function normalizeSecEdgarHit(hit: any): RegistryResult | null {
+  const src = hit?._source ?? {};
+  const entityName = firstRegistryRecordName(src?.entity_name, src?.display_names?.[0]?.name);
+  if (!entityName) return null;
+
+  const formType: string = src?.form_type ?? "";
+  const fileDate: string = src?.file_date ?? "";
+  const businessLocation: string = src?.biz_location ?? src?.inc_states ?? "US";
+  const type = classifyRegistryRecordType("sec-edgar", formType);
+
+  return {
+    name: entityName,
+    type,
+    nationality: "US",
+    knownResidences: businessLocation || undefined,
+    sourceRegistries: JSON.stringify(["SEC EDGAR", `Form ${formType}`]),
+    notes: [
+      formType ? `Filing: ${formType}` : null,
+      fileDate ? `Date: ${fileDate}` : null,
+      src?.period_of_report ? `Period: ${src.period_of_report}` : null,
+      type === "PersonCandidate"
+        ? "SEC filing lead; personal wealth and current beneficial ownership require verification."
+        : type === "Corporation"
+          ? "Proxy statement identifies a corporate filer, not a personal gatekeeper by itself."
+          : null,
+    ].filter(Boolean).join(" | "),
+    metadata: JSON.stringify({
+      source: "sec-edgar",
+      formType,
+      fileDate,
+      entityName,
+      bizLocation: src?.biz_location,
+      incStates: src?.inc_states,
+      cik: src?.entity_id,
+      reviewOnly: type === "PersonCandidate",
+      wealthStatus: type === "PersonCandidate" ? "unverified" : "not_assessed",
+    }),
+  };
 }
 
 async function searchSecEdgar(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> {
   const searchUrl = `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(`"${query}"`)}&forms=SC+13D,SC+13G,DEF+14A&dateRange=custom&startdt=2018-01-01`;
-  const resp = await registryFetch("registry", searchUrl, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research research@apexfinder.private" }, signal: createRegistryRequestSignal(signal, 12_000) });
-  if (!resp.ok) { const body = await resp.text().catch(() => ""); throw new Error(`SEC EDGAR ${resp.status}: ${body.slice(0, 200) || resp.statusText}`); }
-  const data = (await resp.json()) as any; const hits: any[] = data?.hits?.hits ?? []; const seen = new Set<string>(); const results: RegistryResult[] = [];
-  for (const hit of hits) { if (results.length >= limit) break; const src = hit?._source ?? {}; const entityName: string = src?.entity_name ?? src?.display_names?.[0]?.name ?? "Unknown"; const formType: string = src?.form_type ?? ""; const fileDate: string = src?.file_date ?? ""; const biz: string = src?.biz_location ?? src?.inc_states ?? "US"; const key = entityName.toLowerCase(); if (seen.has(key)) continue; seen.add(key); const type = classifyRegistryRecordType("sec-edgar", formType); results.push({ name: entityName, type, nationality: "US", knownResidences: biz || undefined, sourceRegistries: JSON.stringify(["SEC EDGAR", `Form ${formType}`]), notes: [formType ? `Filing: ${formType}` : null, fileDate ? `Date: ${fileDate}` : null, src?.period_of_report ? `Period: ${src.period_of_report}` : null, type === "PersonCandidate" ? "SEC filing lead; personal wealth and current beneficial ownership require verification." : type === "Corporation" ? "Proxy statement identifies a corporate filer, not a personal gatekeeper by itself." : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "sec-edgar", formType, fileDate, entityName, bizLocation: src?.biz_location, incStates: src?.inc_states, cik: src?.entity_id, reviewOnly: type === "PersonCandidate", wealthStatus: type === "PersonCandidate" ? "unverified" : "not_assessed" }) }); }
+  const resp = await registryFetch("registry", searchUrl, {
+    headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research research@apexfinder.private" },
+    signal: createRegistryRequestSignal(signal, 12_000),
+  });
+  if (!resp.ok) {
+    const body = await resp.text().catch(() => "");
+    throw new Error(`SEC EDGAR ${resp.status}: ${body.slice(0, 200) || resp.statusText}`);
+  }
+
+  const data = (await resp.json()) as any;
+  const hits: any[] = data?.hits?.hits ?? [];
+  const seen = new Set<string>();
+  const results: RegistryResult[] = [];
+  for (const hit of hits) {
+    if (results.length >= limit) break;
+    const result = normalizeSecEdgarHit(hit);
+    if (!result) continue;
+    const key = result.name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    results.push(result);
+  }
   return results;
 }
 
 export function normalizeBrregEntity(item: any): RegistryResult | null { const orgnr = String(item?.organisasjonsnummer ?? "").trim(); const name = String(item?.navn ?? "").trim(); if (!orgnr || !name) return null; const address = item?.forretningsadresse ?? item?.postadresse; const addressText = address ? [...(Array.isArray(address.adresse) ? address.adresse : []), address.postnummer, address.poststed, address.land].filter(Boolean).join(", ") : undefined; const website = item?.hjemmeside ? (/^https?:\/\//i.test(String(item.hjemmeside)) ? String(item.hjemmeside) : `https://${item.hjemmeside}`) : undefined; return { name, type: "Corporation", nationality: "NO", knownResidences: addressText, sourceRegistries: JSON.stringify(["BRREG Norway — Enhetsregisteret"]), notes: [`Org #${orgnr}`, item?.organisasjonsform?.beskrivelse ? `Form: ${item.organisasjonsform.beskrivelse}` : null, item?.naeringskode1?.beskrivelse ? `Industry: ${item.naeringskode1.beskrivelse}` : null, item?.stiftelsesdato ? `Founded: ${item.stiftelsesdato}` : null, item?.telefon ? `Phone: ${item.telefon}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "brreg-norway", productionReviewStatus: "review_required", orgnr, organizationForm: item?.organisasjonsform, website, phone: item?.telefon, industry: item?.naeringskode1, municipality: address?.kommune, registeredDate: item?.registreringsdatoEnhetsregisteret, updatedDate: item?.oppdateringsdato, brregUrl: `https://data.brreg.no/enhetsregisteret/api/enheter/${orgnr}` }) }; }
-
 async function searchBrreg(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const params = new URLSearchParams({ navn: query, size: String(Math.min(limit, 20)) }); const resp = await registryFetch("registry", `https://data.brreg.no/enhetsregisteret/api/enheter?${params.toString()}`, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research" }, signal: createRegistryRequestSignal(signal, 12_000) }); if (!resp.ok) { const body = await resp.text().catch(() => ""); throw new Error(`BRREG ${resp.status}: ${body.slice(0, 200) || resp.statusText}`); } const data = (await resp.json()) as any; return (data?._embedded?.enheter ?? []).map(normalizeBrregEntity).filter((result: RegistryResult | null): result is RegistryResult => Boolean(result)).slice(0, limit); }
 export function normalizeAresEntity(item: any): RegistryResult | null { const ico = String(item?.ico ?? item?.icoId ?? "").trim(); const name = String(item?.obchodniJmeno ?? "").trim(); if (!ico || !name) return null; const address = item?.sidlo; const addressText = String(address?.textovaAdresa ?? "").trim() || [address?.nazevUlice, address?.cisloDomovni, address?.nazevObce, address?.psc, address?.nazevStatu].filter(Boolean).join(", ") || undefined; return { name, type: "Corporation", nationality: "CZ", knownResidences: addressText, sourceRegistries: JSON.stringify(["ARES Czech Republic"]), notes: [`IČO ${ico}`, item?.pravniForma ? `Legal form: ${item.pravniForma}` : null, item?.datumVzniku ? `Founded: ${item.datumVzniku}` : null, item?.datumAktualizace ? `Updated: ${item.datumAktualizace}` : null, item?.dic ? `VAT: ${item.dic}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "ares-czechia", productionReviewStatus: "review_required", ico, vatId: item?.dic, legalForm: item?.pravniForma, legalFormRos: item?.pravniFormaRos, foundedDate: item?.datumVzniku, updatedDate: item?.datumAktualizace, primarySource: item?.primarniZdroj, aresUrl: `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${ico}` }) }; }
 async function searchAres(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const normalizedQuery = query.trim(); if (/^\d{8}$/.test(normalizedQuery)) { const exact = await registryFetch("registry", `https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/${encodeURIComponent(normalizedQuery)}`, { headers: { Accept: "application/json" }, signal: createRegistryRequestSignal(signal, 12_000) }); if (exact.status === 404) return []; if (!exact.ok) { const body = await exact.text().catch(() => ""); throw new Error(`ARES ${exact.status}: ${body.slice(0, 200) || exact.statusText}`); } const result = normalizeAresEntity(await exact.json()); return result ? [result] : []; } const resp = await registryFetch("registry", "https://ares.gov.cz/ekonomicke-subjekty-v-be/rest/ekonomicke-subjekty/vyhledat", { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json" }, body: JSON.stringify({ obchodniJmeno: query, strankovani: { pocet: Math.min(limit, 20), start: 0 } }), signal: createRegistryRequestSignal(signal, 12_000) }); if (!resp.ok) { const body = await resp.text().catch(() => ""); if (resp.status === 400 && /příliš mnoho výsledků|too many results/i.test(body)) throw new Error("ARES query is too broad. Search with a more specific Czech company name or an 8-digit IČO."); throw new Error(`ARES ${resp.status}: ${body.slice(0, 200) || resp.statusText}`); } const data = (await resp.json()) as any; return (data?.ekonomickeSubjekty ?? []).map(normalizeAresEntity).filter((result: RegistryResult | null): result is RegistryResult => Boolean(result)).slice(0, limit); }

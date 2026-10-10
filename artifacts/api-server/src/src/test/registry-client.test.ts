@@ -9,6 +9,10 @@ import {
   normalizeRegistryId,
   formatRegistryResultLead,
   registryResultLeadUrls,
+  normalizeOpenCorporatesCompany,
+  normalizeCompaniesHouseCompany,
+  normalizeCompaniesHouseOfficer,
+  normalizeSecEdgarHit,
 } from "../lib/registry-client";
 import { describe, expect, it } from "vitest";
 
@@ -35,6 +39,58 @@ describe("registry candidate classification safety", () => {
 
   it("does not infer a trusted class for unrecognized registry record kinds", () => {
     expect(classifyRegistryRecordType("unknown-registry", "unknown-form")).toBe("Corporation");
+  });
+});
+
+describe("registry result requires a source-backed entity name", () => {
+  it("drops OpenCorporates rows with missing or blank company names", () => {
+    expect(normalizeOpenCorporatesCompany({ company: { company_number: "123" } })).toBeNull();
+    expect(normalizeOpenCorporatesCompany({ company: { name: "   ", company_number: "123" } })).toBeNull();
+  });
+
+  it("trims actual OpenCorporates names without inventing placeholder entities", () => {
+    const result = normalizeOpenCorporatesCompany({
+      company: {
+        name: "  Example Holdings  ",
+        company_number: "123",
+        jurisdiction_code: "dk",
+        opencorporates_url: "https://opencorporates.com/companies/dk/123",
+      },
+    });
+    expect(result?.name).toBe("Example Holdings");
+    expect(result?.sourceRegistries).toContain("OpenCorporates");
+    expect(result?.name).not.toMatch(/^Unknown(?: Company| Officer)?$/);
+  });
+
+  it("drops Companies House company and officer rows without real names", () => {
+    expect(normalizeCompaniesHouseCompany({ company_number: "123" })).toBeNull();
+    expect(normalizeCompaniesHouseCompany({ title: "  " })).toBeNull();
+    expect(normalizeCompaniesHouseOfficer({ officer_role: "director" })).toBeNull();
+    expect(normalizeCompaniesHouseOfficer({ title: "" })).toBeNull();
+  });
+
+  it("normalizes valid Companies House names and preserves officer review status", () => {
+    expect(normalizeCompaniesHouseCompany({ title: "  Example Limited  ", company_number: "123" })?.name)
+      .toBe("Example Limited");
+    const officer = normalizeCompaniesHouseOfficer({ title: "  Alex Example  ", officer_role: "director" });
+    expect(officer?.name).toBe("Alex Example");
+    expect(officer?.type).toBe("PersonCandidate");
+    expect(officer?.notes).toContain("personal wealth not established");
+  });
+
+  it("drops SEC hits without an entity name and falls through blank preferred fields", () => {
+    expect(normalizeSecEdgarHit({ _source: { form_type: "SC 13D" } })).toBeNull();
+    const result = normalizeSecEdgarHit({
+      _source: {
+        entity_name: "   ",
+        display_names: [{ name: " Example Person " }],
+        form_type: "SC 13D",
+        entity_id: "0000123",
+      },
+    });
+    expect(result?.name).toBe("Example Person");
+    expect(result?.type).toBe("PersonCandidate");
+    expect(normalizeSecEdgarHit({ _source: { entity_name: "", display_names: [{ name: "" }] } })).toBeNull();
   });
 });
 
