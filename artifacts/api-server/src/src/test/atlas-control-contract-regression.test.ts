@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { validateResearchObjective } from "../lib/research-objective";
+import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
@@ -14,6 +15,17 @@ const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agent
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
+  it("does not seed the discovery Boss with a fabricated sector phrase", () => {
+    const prompt = buildGroqBossDiscoveryPrompt({
+      objective: "Discover real named people for subsequent public-contact research.",
+      motivation: "Find verifiable public-source identity anchors.",
+      geography: "Public web; geography chosen from the evidence.",
+    }, ["groq-investigator-1"]);
+    expect(prompt).not.toContain("durable tree shaft");
+    expect(prompt).toContain("not a sector or target");
+    expect(prompt).toContain("explicitly label it as a hypothesis");
+  });
+
   it("preserves Investigator tool choice across Boss-directed discovery continuations", () => {
     for (const direction of [
       "Use parallel_web_search for the next step.",
