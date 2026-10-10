@@ -22,8 +22,65 @@ function throwIfAborted(signal?: AbortSignal): void { if (signal?.aborted) throw
 function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> { if (!signal) return promise; return new Promise<T>((resolve, reject) => { const abort = () => reject(new Error("browser fetch cancelled")); if (signal.aborted) return abort(); signal.addEventListener("abort", abort, { once: true }); void promise.then((v) => { signal.removeEventListener("abort", abort); resolve(v); }, (e) => { signal.removeEventListener("abort", abort); reject(e); }); }); }
 async function readResponseTextCapped(response: Response, signal?: AbortSignal): Promise<string> { throwIfAborted(signal); const declared = Number(response.headers.get("content-length") ?? NaN); if (Number.isFinite(declared) && declared > MAX_BROWSER_RESPONSE_BYTES) throw new Error(`browser response exceeds ${MAX_BROWSER_RESPONSE_BYTES} byte limit`); const reader = response.body?.getReader(); if (!reader) return (await response.text()).slice(0, MAX_BROWSER_RESPONSE_BYTES); const chunks: Uint8Array[] = []; let bytes = 0; try { for (;;) { throwIfAborted(signal); const part = await reader.read(); if (part.done) break; bytes += part.value.byteLength; if (bytes > MAX_BROWSER_RESPONSE_BYTES) { await reader.cancel().catch(() => undefined); throw new Error(`browser response exceeds ${MAX_BROWSER_RESPONSE_BYTES} byte limit`); } chunks.push(part.value); } } finally { reader.releaseLock(); } return new TextDecoder().decode(Buffer.concat(chunks.map((x) => Buffer.from(x)))); }
 async function readJsonCapped<T>(response: Response, signal?: AbortSignal): Promise<T> { return JSON.parse(await readResponseTextCapped(response, signal)) as T; }
-async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<string | null> { const key = process.env.SCRAPFLY_API_KEY ?? ""; if (!key) return null; throwIfAborted(signal); try { const u = new URL("https://api.scrapfly.io/scrape"); u.searchParams.set("key", key); u.searchParams.set("url", url); u.searchParams.set("asp", "true"); u.searchParams.set("render_js", "true"); const resp = await providerFetch("scrapfly", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal); if (!resp.ok) return null; const data = await readJsonCapped<{ result?: { content?: string } }>(resp, signal); const html = data?.result?.content ?? ""; return html.length > MAX_BROWSER_RESPONSE_BYTES ? null : html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "scrapfly fetch failed"); return null; } }
-async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<string | null> { const key = process.env.ZENROWS_API_KEY ?? ""; if (!key) return null; throwIfAborted(signal); try { const u = new URL("https://api.zenrows.com/v1/"); u.searchParams.set("apikey", key); u.searchParams.set("url", url); u.searchParams.set("js_render", "true"); u.searchParams.set("premium_proxy", "true"); const resp = await providerFetch("zenrows", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "zenrows fetch failed"); return null; } }
+async function verifiedProviderFinalUrl(rawUrl: unknown): Promise<string | null> {
+  if (typeof rawUrl !== "string" || !rawUrl.trim()) return null;
+  try {
+    const parsed = new URL(rawUrl.trim());
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    await assertSafeOutboundUrl(parsed.href);
+    return sanitizeUrlForEvidence(parsed.href);
+  } catch {
+    return null;
+  }
+}
+async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<BrowserFetchAttempt> {
+  const key = process.env.SCRAPFLY_API_KEY ?? "";
+  if (!key) return { html: null, observedUrl: null };
+  throwIfAborted(signal);
+  try {
+    const u = new URL("https://api.scrapfly.io/scrape");
+    u.searchParams.set("key", key);
+    u.searchParams.set("url", url);
+    u.searchParams.set("asp", "true");
+    const resp = await providerFetch("scrapfly", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal);
+    if (!resp.ok) return { html: null, observedUrl: null };
+    const data = await readJsonCapped<{ result?: { content?: string; url?: string } }>(resp, signal);
+    const html = data?.result?.content ?? "";
+    const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
+    return {
+      html: usable ? html : null,
+      observedUrl: usable ? await verifiedProviderFinalUrl(data?.result?.url) : null,
+    };
+  } catch (err: any) {
+    if (signal?.aborted) throw new Error("browser fetch cancelled");
+    logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "scrapfly fetch failed");
+    return { html: null, observedUrl: null };
+  }
+}
+async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<BrowserFetchAttempt> {
+  const key = process.env.ZENROWS_API_KEY ?? "";
+  if (!key) return { html: null, observedUrl: null };
+  throwIfAborted(signal);
+  try {
+    const u = new URL("https://api.zenrows.com/v1/");
+    u.searchParams.set("apikey", key);
+    u.searchParams.set("url", url);
+    u.searchParams.set("js_render", "true");
+    u.searchParams.set("premium_proxy", "true");
+    const resp = await providerFetch("zenrows", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal);
+    if (!resp.ok) return { html: null, observedUrl: null };
+    const html = await readResponseTextCapped(resp, signal);
+    const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
+    return {
+      html: usable ? html : null,
+      observedUrl: usable ? await verifiedProviderFinalUrl(resp.headers.get("Zr-Final-Url")) : null,
+    };
+  } catch (err: any) {
+    if (signal?.aborted) throw new Error("browser fetch cancelled");
+    logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "zenrows fetch failed");
+    return { html: null, observedUrl: null };
+  }
+}
 async function fetchViaBrowserlessContent(url: string, signal?: AbortSignal): Promise<string | null> { const token = process.env.BROWSERLESS_TOKEN ?? ""; if (!token) return null; throwIfAborted(signal); try { const endpoint = process.env.BROWSERLESS_CONTENT_URL ?? `https://production-sfo.browserless.io/content?token=${encodeURIComponent(token)}`; const resp = await providerFetch("browserless", endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url, gotoOptions: { waitUntil: "domcontentloaded", timeout: timeoutMs() } }), signal: signal ?? AbortSignal.timeout(timeoutMs() + 5_000) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "browserless content fetch failed"); return null; } }
 type BrowserFetchAttempt = { html: string | null; observedUrl: string | null };
 
@@ -146,12 +203,13 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
     return { html: "", provider: "budget_exhausted", observedUrl: null };
   }
   rememberBrowserFetchScope(scope, count + 1);
-  // The hosted scraping APIs return HTML but not authoritative final-navigation
-  // metadata. Until their response contract exposes it, keep their content as
-  // a lead only. Playwright can attest the effective document URL directly.
+  // Scrapfly result.url and ZenRows' Zr-Final-Url report the effective URL after
+  // redirects. Validate that reported destination before exposing it as an observed
+  // source. Browserless /content has no equivalent in this adapter and remains
+  // lead-only; Playwright attests the effective URL through the pinned transport.
   const attempts: Array<[BrowserProvider, () => Promise<BrowserFetchAttempt>]> = [
-    ["scrapfly", async () => ({ html: await fetchViaScrapfly(url, options.signal), observedUrl: null })],
-    ["zenrows", async () => ({ html: await fetchViaZenRows(url, options.signal), observedUrl: null })],
+    ["scrapfly", () => fetchViaScrapfly(url, options.signal)],
+    ["zenrows", () => fetchViaZenRows(url, options.signal)],
     ["browserless", async () => ({ html: await fetchViaBrowserlessContent(url, options.signal), observedUrl: null })],
     ["playwright", () => fetchViaPlaywright(url, options.signal)],
   ];
