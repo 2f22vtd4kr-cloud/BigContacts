@@ -109,6 +109,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
     expect(prompt).toContain("VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.");
+    expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries.");
+    expect(prompt).toContain("Search snippets remain leads, not evidence.");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
