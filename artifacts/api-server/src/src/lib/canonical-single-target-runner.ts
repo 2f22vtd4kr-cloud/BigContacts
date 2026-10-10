@@ -334,13 +334,21 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       recentActs: recentActs.slice(-4),
       jobId: atlasJobId,
     });
+    // The review function returns the control decision, while its immutable
+    // evidence graphs are persisted separately. Resolve the same run/control turn
+    // from durable case state before using the graph count as a promotion gate.
+    // A missing or mismatched durable record must remain fail-closed.
+    const reviewedCase = await loadCase(caseRow.id);
+    lastOversight = reviewedCase
+      ? readOversight(parseCaseFile(reviewedCase.caseFile), latestResult.executionId ?? null, actNumber)
+      : null;
     // The target agent may persist review-only candidate evidence before this point,
     // but strict card-field promotion must wait until Boss/Right-hand oversight has
     // durably written the immutable control-decision evidence graph for this run.
     if (
       latestResult.status === "completed"
-      && lastOversight.status === "completed"
-      && (lastOversight.evidenceGraphCount ?? 0) > 0
+      && lastOversight?.status === "completed"
+      && (lastOversight?.evidenceGraphCount ?? 0) > 0
       && (latestResult.promotionCandidates?.length ?? 0) > 0
       && latestResult.promotionProvenance
     ) {
