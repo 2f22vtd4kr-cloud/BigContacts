@@ -139,6 +139,9 @@ export function isPromotableDirectContactUrl(url: string): boolean {
 export function isEligiblePersonalSocialCandidate(
   candidate: Pick<ReconciledCandidate, "scopes" | "sourceUrls" | "sourceDomains" | "state" | "exactClaimObserved">,
 ): boolean {
+  // Rejected values can retain source and exact-claim metadata for audit, but
+  // that metadata must never make an invalid candidate eligible as a pivot.
+  if (candidate.state === "rejected") return false;
   if (candidate.sourceUrls.length === 0) return false;
   if (!candidate.exactClaimObserved) return false;
   if (candidate.scopes.includes("target_person")) return true;
@@ -280,15 +283,12 @@ export function reconcileContactCandidates(
     const blockedSourceUrls = (item.vectorType === "email" || item.vectorType === "phone")
       ? rawUrls.filter((url) => !isPromotableDirectContactUrl(url))
       : [];
-    // Source independence is based on the registrable publisher domain, not
-    // raw hostnames: www.example.org and press.example.org are one publisher.
+    // Source independence is based on registrable publisher domains, not raw hosts.
     const domains = urls
       .map((url) => {
         try { return publisherDomain(new URL(url).hostname); } catch { return null; }
       })
-      .filter((domain): domain is string =>
-        typeof domain === "string" && domain.length > 0 && !isAggregatorHost(domain),
-      );
+      .filter((domain): domain is string => typeof domain === "string" && domain.length > 0 && !isAggregatorHost(domain));
     const scope = scopeFor(item);
     const personName = typeof item.details?.personName === "string"
       ? item.details.personName.trim()
