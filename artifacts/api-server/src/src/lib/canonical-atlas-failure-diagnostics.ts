@@ -23,6 +23,7 @@ export type AtlasFailureKind =
   | "invalid_provider_request"
   | "provider_auth_failure"
   | "provider_endpoint_not_found"
+  | "provider_capacity_exhausted"
   | "invalid_contract"
   | "pdf_unsupported"
   | "response_size_limit"
@@ -86,6 +87,27 @@ function safeErrorShape(error: unknown): { name: string; message: string; code: 
   return { name, message, code, status };
 }
 
+/**
+ * Classify the bounded provider error codes returned by the Investigator Groq adapter.
+ * The input is a code, never a raw error message or response body.
+ */
+export function classifyInvestigatorProviderError(value: string): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
+  const code = value.trim().toLowerCase();
+  if (code === "upstream_quota_exhausted" || code === "quota_exceeded") return { domain: "model_provider", kind: "hard_request_quota" };
+  if (code === "local_provider_cooldown") return { domain: "model_provider", kind: "local_provider_cooldown" };
+  if (code === "local_provider_budget_exhausted") return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
+  if (code === "upstream_rate_limited" || code === "rate_limited" || /^http_429(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_rate_limited" };
+  if (/^http_400(?:$|:)/.test(code) || code === "request_size" || code === "json_schema_rejected" || code === "json_object_compatibility_rejected") return { domain: "model_provider", kind: "invalid_provider_request" };
+  if (/^http_(401|403)(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_auth_failure" };
+  if (/^http_404(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_endpoint_not_found" };
+  if (/^http_5\d\d(?:$|:)/.test(code) || code === "provider_unavailable") return { domain: "model_provider", kind: "provider_unavailable" };
+  if (code === "upstream_token_window_wait_exceeded" || code === "upstream_capacity_exhausted" || code === "agenticproviderqueuefullerror") return { domain: "model_provider", kind: "provider_capacity_exhausted" };
+  if (code === "invalid_json_response" || code === "empty_response") return { domain: "model_provider", kind: "invalid_contract" };
+  if (code === "timeout" || code === "timed out") return { domain: "model_provider", kind: "timeout" };
+  if (code === "cancelled") return { domain: "lease_job_state", kind: "cancelled" };
+  if (code === "network_error") return { domain: "model_provider", kind: "request_failure" };
+  return { domain: "unexpected_programming_error", kind: "unexpected_exception" };
+}
 /** Return only stable category labels; never return the raw error text. */
 export function classifyCanonicalAtlasFailure(input: {
   stage: AtlasFailureStage;
