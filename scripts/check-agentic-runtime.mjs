@@ -35,7 +35,22 @@ assert(/authorizePythonSandboxRequest/.test(python) && /const authorization = au
 assert(/capability: "network_osint"/.test(python) && /destinationPolicy: "approved-public-web-only"/.test(python), "Python OSINT egress policy is constrained");
 assert(/state === "attested"/.test(python) && /allowedCapabilities\.includes\("network_osint"\)/.test(python), "Python availability requires attested capability");
 assert(/function authorizePythonSandboxRequest/.test(sandbox) && /attested/.test(sandbox), "sandbox contract defines attestation boundary");
-for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester"]) assert(new RegExp(`${name}[\\s\\S]*?authorizeNetworkPython`).test(python), `${name} is governed by sandbox authorization`);
+function exportedAsyncFunctionSegment(sourceText, name) {
+  const marker = `export async function ${name}(`;
+  const start = sourceText.indexOf(marker);
+  if (start < 0) return "";
+  const nextExport = sourceText.indexOf("\nexport async function ", start + marker.length);
+  return sourceText.slice(start, nextExport < 0 ? undefined : nextExport);
+}
+const unguardedPythonToolFixture = [
+  "export async function runHolehe(email) { return { available: false }; }",
+  "export async function runMaigret(username) { const blocked = authorizeNetworkPython(); return { available: false, error: blocked }; }",
+].join("\n");
+assert(!/authorizeNetworkPython/.test(exportedAsyncFunctionSegment(unguardedPythonToolFixture, "runHolehe")), "sandbox authorization checks are scoped to the named tool and reject a later tool’s authorization call");
+for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester"]) {
+  const toolSource = exportedAsyncFunctionSegment(python, name);
+  assert(/const blocked = authorizeNetworkPython\(/.test(toolSource), `${name} is governed by sandbox authorization within its own function`);
+}
 assert(/available: false/.test(python), "Python capabilities default unavailable");
 assert(/return \{ holehe: enabled, maigret: enabled, sherlock: enabled, theHarvester: enabled, openDeepResearch: enabled \}/.test(python), "Python availability derives from attested capability");
 assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts"/.test(shim), "apex-runtime is compatibility-only");
