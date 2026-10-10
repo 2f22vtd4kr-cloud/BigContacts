@@ -43,7 +43,7 @@ function extractTypeAlias(sourceText, typeName) {
     const character = sourceText[i];
     if (quote !== null) {
       if (escaped) escaped = false;
-      else if (character === "\\\\") escaped = true;
+      else if (character === "\\") escaped = true;
       else if (character === quote) quote = null;
       continue;
     }
