@@ -26,6 +26,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonical).toContain("let failureStatePersistenceFailed = false;");
     expect(canonical).toContain("failureStatePersistence=case_update_failed");
     expect(canonical).toContain("Preserve the original thrown exception");
+    expect(bureauPassSource).toContain("failureDomain:record.failureDomain??null,failureKind:record.failureKind??null");
     expect(classifyCanonicalAtlasFailure({ stage: "tool_execution", error: new Error("tool failed") })).toEqual({ domain: "tool_execution", kind: "request_failure" });
   });
 });
