@@ -1,7 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
+
+const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
 function livenessRecord(action: string, execution: "success" | "error" | "blocked") {
   return {
@@ -41,6 +45,24 @@ describe("page visit response classification", () => {
     expect(failure.observation).toContain("response_size_limit_exceeded max_bytes=2000000");
     expect(failure.observation).toContain("page content was not observed and must not be cited");
     expect(failure.observation).toContain("search snippets remain unverified leads");
+  });
+
+  it("blocks obvious PDF URLs before either HTML-only page fetcher can issue a request", () => {
+    const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {');
+    const domainLookupStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {', visitStart);
+    const visitDispatch = agenticCoreSource.slice(visitStart, domainLookupStart);
+    const browserStart = agenticCoreSource.indexOf('if (action.action === "browser_fetch") {', visitStart);
+    const registryStart = agenticCoreSource.indexOf('if (action.action === "registry_search") {', browserStart);
+    const browserDispatch = agenticCoreSource.slice(browserStart, registryStart);
+    expect(visitStart).toBeGreaterThan(-1);
+    expect(domainLookupStart).toBeGreaterThan(visitStart);
+    expect(browserStart).toBeGreaterThan(visitStart);
+    expect(registryStart).toBeGreaterThan(browserStart);
+    expect(visitDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
+    expect(visitDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(visitDispatch.indexOf("toolVisit(canonical"));
+    expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
+    expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(browserDispatch.indexOf('import("./browser-fetch")'));
+    expect(browserDispatch).toContain("no browser provider request was made");
   });
 
   it("does not treat PDF bytes as an observed HTML/text page", () => {
