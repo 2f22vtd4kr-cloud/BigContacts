@@ -201,7 +201,7 @@ describe("Groq Right-hand model policy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("fails closed on a hard 429 instead of rotating credentials", async () => {
+  it("fails closed on a hard 429 instead of silently rotating credentials", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-primary-key");
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY_2", "right-hand-secondary-key");
 
@@ -231,12 +231,13 @@ describe("Groq Right-hand model policy", () => {
 
     const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
 
-    expect(result.status).toBe("completed");
+    expect(result.status).toBe("unavailable");
+    expect(result.error).toContain('"rateLimitKind":"requests"');
     const chatCalls = fetchMock.mock.calls
-      .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
-    expect(chatCalls).toHaveLength(2);
+      .filter(([input]) => String(input) === "https://api.groq.ai/openai/v1/chat/completions" || String(input) === "https://api.groq.com/openai/v1/chat/completions");
+    expect(chatCalls).toHaveLength(1);
     expect(new Headers(chatCalls[0]?.[1]?.headers).get("authorization")).toContain("right-hand-primary-key");
-    expect(new Headers(chatCalls[1]?.[1]?.headers).get("authorization")).toContain("right-hand-secondary-key");
+    expect(new Headers(chatCalls[0]?.[1]?.headers).get("authorization")).not.toContain("right-hand-secondary-key");
   });
 
   it("waits for a token-window reset on a hard 429 before giving up the model", async () => {
