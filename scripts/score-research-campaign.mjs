@@ -5,7 +5,6 @@ const [gtFile,runsFile,outFile]=process.argv.slice(2);
 if(!gtFile||!runsFile){console.error("Usage: node scripts/score-research-campaign.mjs <ground-truth.json> <runs.json> [output.json]");process.exit(2);}
 const gt=JSON.parse(fs.readFileSync(gtFile,"utf8")), runsDoc=JSON.parse(fs.readFileSync(runsFile,"utf8")), runs=Array.isArray(runsDoc)?runsDoc:runsDoc.runs;
 if(gt.schemaVersion!=="research-gauntlet-v1"||gt.status!=="grounded-reviewed") throw new Error("Ground truth must be grounded-reviewed.");
-execFileSync(process.execPath, ["scripts/validate-research-campaign.mjs", gtFile, runsFile], { stdio: "inherit" });
 if(!Array.isArray(runs)) throw new Error("runs[] required.");
 const supportedOutcomes = new Set(["verified", "insufficient_evidence", "wrong_answer", "system_failure", "cancelled", "exhausted", "contradicted"]);
 for (const [index, run] of runs.entries()) {
@@ -16,6 +15,7 @@ for (const [index, run] of runs.entries()) {
   throw new Error(`Run ${runLabel} has unsupported outcome ${outcomeLabel}; expected one of: ${[...supportedOutcomes].join(", ")}.`);
  }
 }
+execFileSync(process.execPath, ["scripts/validate-research-campaign.mjs", gtFile, runsFile], { stdio: "inherit" });
 const cases=new Map(gt.cases.map(c=>[String(c.caseId),c])); const byCase=new Map();
 for(const r of runs){ if(!cases.has(String(r.caseId))) throw new Error("Unknown case "+r.caseId); (byCase.get(String(r.caseId))||byCase.set(String(r.caseId),[]).get(String(r.caseId))).push(r); }
 const missing=[...cases.keys()].filter(id=>(byCase.get(id)||[]).length===0);
