@@ -149,6 +149,11 @@ describe("Atlas control-plane contract regression", () => {
     expect(bossSource).toContain("responseFormat");
   });
 
+  it("gives the evidence-constrained Boss control decision medium reasoning and enough completion budget", () => {
+    expect(controlSource).toContain('maxOutputTokens: 1536, thinkingLevel: "medium"');
+    expect(controlSource).not.toContain('maxOutputTokens: 768, thinkingLevel: "low"');
+  });
+
   it("keeps local validation after provider structured-output compatibility handling", () => {
     expect(controlSource).toContain("const rightHandContractValid =");
     expect(controlSource).toContain("const bossContractValid =");
