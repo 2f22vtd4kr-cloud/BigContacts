@@ -65,7 +65,7 @@ describe("target act URL privacy boundary", () => {
     expect(source).toContain("const safePromptObjective=sanitizeUrlsInText(input.objective)");
     expect(source).toContain("${safePromptObjective}");
     expect(source).toContain("return sanitizeObservableValue(oversight)");
-    expect(source).toContain('const prompt=sanitizeUrlsInText(`${apexOrientationCompact("boss")}\n');
+    expect(source).toMatch(/return boundOversightPromptSection\\(sanitizeUrlsInText\\(prompt\\),\\s*TARGET_ACT_RIGHT_HAND_PROMPT_MAX_CHARS\\)/);
     expect(source).toContain("JSON.stringify(sanitizeObservableValue(input.currentAct))");
     expect(source).toContain("JSON.stringify(sanitizeObservableValue(input.recentActs))");
   });
