@@ -10,6 +10,9 @@ export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provid
 /** Browser/proxy escalation is an Investigator-selected outbound operation. */
 export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null }> {
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
+  if (!isBrowserFetchProviderAvailable(options.provider)) {
+    return { html: "", provider: "provider_unavailable", observedUrl: null };
+  }
   await assertSafeOutboundUrl(url);
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
   if (options.provider === "playwright") {
