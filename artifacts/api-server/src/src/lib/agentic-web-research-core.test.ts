@@ -31,6 +31,7 @@ describe("canonical failure diagnostics", () => {
     expect(classifyCanonicalAtlasFailure({ stage: "investigator_episode", error: new Error("unexpected") })).toEqual({ domain: "unexpected_programming_error", kind: "unexpected_exception" });
     expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("ignored"), leaseLost: true })).toEqual({ domain: "lease_job_state", kind: "lease_lost" });
     expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("ignored"), cancelled: true })).toEqual({ domain: "lease_job_state", kind: "cancelled" });
+    expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("already failed"), jobStateMismatch: true })).toEqual({ domain: "lease_job_state", kind: "job_state_mismatch" });
     expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("request timed out") })).toEqual({ domain: "unexpected_programming_error", kind: "timeout" });
   });
 });
