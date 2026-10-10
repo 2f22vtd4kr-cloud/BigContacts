@@ -1,9 +1,9 @@
 import { assertSafeOutboundUrl } from "./ssrf-safe-fetch";
-import { browserFetchConfigured, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml } from "./browser-fetch-core";
+import { browserFetchConfigured, getAvailableBrowserFetchProviders, isBrowserFetchProviderAvailable, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml } from "./browser-fetch-core";
 import { browserFetchHtml as unsafeBrowserFetchHtml, type BrowserProvider } from "./browser-fetch-core";
 import { runProviderCall } from "./provider-gate";
 
-export { browserFetchConfigured, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml };
+export { browserFetchConfigured, getAvailableBrowserFetchProviders, isBrowserFetchProviderAvailable, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml };
 
 export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
 
