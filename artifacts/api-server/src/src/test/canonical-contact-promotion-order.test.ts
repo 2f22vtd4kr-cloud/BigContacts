@@ -25,8 +25,8 @@ describe("canonical target contact promotion ordering", () => {
     expect(promotion).toBeGreaterThan(durableRead);
     expect(promotionGuard).toBeGreaterThan(oversight);
     const promotionBlock = targetRunner.slice(promotionGuard, targetRunner.indexOf("recentActs.push(currentAct)", promotion));
-    expect(promotionBlock).toMatch(/lastOversight\\??\\.status === "completed"/);
-    expect(promotionBlock).toMatch(/\\(lastOversight\\??\\.evidenceGraphCount \\?\\? 0\\) > 0/);
+    expect(promotionBlock.includes('lastOversight.status === "completed"') || promotionBlock.includes('lastOversight?.status === "completed"')).toBe(true);
+    expect(promotionBlock.includes("(lastOversight.evidenceGraphCount ?? 0) > 0") || promotionBlock.includes("(lastOversight?.evidenceGraphCount ?? 0) > 0")).toBe(true);
     expect(targetRunner).toContain("readOversight(parseCaseFile(reviewedCase.caseFile), latestResult.executionId ?? null, actNumber)");
     expect(promotionBlock).toContain('promotionJob.status !== "running"');
     expect(promotionBlock).toContain('isCanonicalJobOwner("atlas-run", atlasJobId)');
