@@ -21,6 +21,8 @@ export type AtlasFailureKind =
   | "local_provider_budget_exhausted"
   | "provider_rate_limited"
   | "invalid_provider_request"
+  | "provider_auth_failure"
+  | "provider_endpoint_not_found"
   | "invalid_contract"
   | "pdf_unsupported"
   | "response_size_limit"
@@ -123,9 +125,14 @@ export function classifyCanonicalAtlasFailure(input: {
     if (error.status === 429 || /HTTP\s+429|too many requests/i.test(error.message)) {
       return { domain: "model_provider", kind: "provider_rate_limited" };
     }
-    if (error.status === 400 || error.status === 401 || error.status === 403 || error.status === 404
-      || /invalid request|malformed request|unauthorized|forbidden/i.test(error.message)) {
+    if (error.status === 400 || /invalid request|malformed request/i.test(error.message)) {
       return { domain: "model_provider", kind: "invalid_provider_request" };
+    }
+    if (error.status === 401 || error.status === 403 || /unauthorized|forbidden/i.test(error.message)) {
+      return { domain: "model_provider", kind: "provider_auth_failure" };
+    }
+    if (error.status === 404) {
+      return { domain: "model_provider", kind: "provider_endpoint_not_found" };
     }
     if ((error.status !== null && error.status >= 500 && error.status <= 599)
       || /provider unavailable|HTTP\s+5\d\d/i.test(error.message)) {
