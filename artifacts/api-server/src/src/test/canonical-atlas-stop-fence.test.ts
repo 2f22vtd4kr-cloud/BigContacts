@@ -118,7 +118,7 @@ describe("canonical Atlas stop fence", () => {
     expect(jobQueue).toContain("cancelRequested=='1' and incoming~='cancelled' and incoming~='done' and incoming~='failed'");
     expect(jobQueue).toContain("if(prev?.cancelRequested && patch.status!==\"cancelled\" && patch.status!==\"done\" && patch.status!==\"failed\")return;");
     expect(jobQueue).toContain("current~='queued' and current~='running' and current~='paused'");
-    expect(jobQueue).toContain("redis.call('hdel',k,'cancelRequested')");
+    expect(jobQueue).toContain("if incoming=='cancelled' or incoming=='done' or incoming=='failed' then redis.call('hdel',k,'cancelRequested') end;");
     expect(stopBlock).toContain("await clearJobCancellationRequest(activeJobId)");
     expect(stopBlock.indexOf("await requestJobCancellation(activeJobId)")).toBeLessThan(
       stopBlock.indexOf("await db.update(researchCasesTable)"),
