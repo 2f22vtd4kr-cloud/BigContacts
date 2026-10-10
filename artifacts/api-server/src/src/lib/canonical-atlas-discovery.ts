@@ -278,6 +278,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const availableAlternates = getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities);
       if (!availableAlternates.length) throw new Error(`Groq Investigator capability ${failedCapability} exhausted its hard request quota and no alternate configured Investigator capability remains.`);
       await assertAtlasJobActive(atlasJobId);
+      failureStage = "boss_opening_request";
       const reassignment = await runGroqBossDiscovery({
         objective: `${discoveryObjective}\n\nHARD PROVIDER QUOTA RECOVERY: The previously selected Investigator capability ${failedCapability} returned an explicit upstream request-quota exhaustion. This is a control-plane resource failure, not research evidence. Select a different currently configured Investigator capability from the runtime registry so the same investigation can continue. Do not repeat or substitute the exhausted capability.\n\nFAILURE: ${failure}`,
         motivation: "Recover one canonical investigation from an explicitly exhausted Investigator request quota. Preserve the existing evidence and let the Boss select the replacement capability; do not prescribe research steps.",
@@ -295,6 +296,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (reassignment.status !== "completed" || !replacement || replacement === failedCapability || quotaExhaustedInvestigators.has(replacement) || !availableAlternates.includes(replacement)) {
         throw new Error(reassignment.error ?? "Groq Boss did not select a valid alternate Investigator capability after hard quota exhaustion.");
       }
+      failureStage = "case_persistence";
       await db.transaction(async (tx) => {
         const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration })
           .from(researchCasesTable)
@@ -324,6 +326,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         if (remainingIterations <= 0) break;
         const failedCapability = selectedInvestigator;
         const replacement = await reassignInvestigatorAfterHardQuota(failedCapability, result.error ?? "upstream_quota_exhausted");
+        failureStage = "investigator_episode";
         const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: remainingIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])] });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
@@ -435,18 +438,23 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }
     await assertAtlasJobActive(atlasJobId);
     if (rightHandRaw.status !== "completed") {
+      failureStage = "case_persistence";
       await db.update(researchCasesTable)
         .set({ status: "review", currentAction: "groq-right-hand-unavailable", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
+      failureStage = "right_hand_opening_review";
       throw new Error(`Groq Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
     }
     if (rightHand.error || rightHand.status !== "completed") {
+      failureStage = "case_persistence";
       await db.update(researchCasesTable)
         .set({ status: "review", currentAction: "groq-right-hand-invalid", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
+      failureStage = "right_hand_opening_review";
       throw new Error(`Groq Right-hand returned invalid oversight: ${rightHand.error}`);
     }
 
+    failureStage = "case_persistence";
     await db.transaction(async (tx) => {
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
         .from(researchCasesTable)
@@ -488,6 +496,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`,
       result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }),
     });
+    failureStage = "case_persistence";
     await db.transaction(async (tx) => {
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
         .from(researchCasesTable)
@@ -528,6 +537,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       let caseFile: Record<string, any> = {}; try { const parsed = current?.caseFile ? JSON.parse(current.caseFile) : {}; if (parsed && typeof parsed === "object") caseFile = parsed; } catch { caseFile = {}; }
       const candidates = admittedCandidateSources.map(({ name, sourceUrls }) => ({ name, type: "review_candidate", relevance: "Explicit Investigator discovery admission candidate", reachability: "Requires target-scoped Investigator research", sourceUrls, contactEvidence: [], state: "review_only", admittedEntityId: null }));
       await assertAtlasJobActive(atlasJobId);
+      failureStage = "case_persistence";
       await db.transaction(async (tx) => {
         const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`)).for("update").limit(1);
         if (!locked) throw new Error("Canonical discovery admission projection lost its active case fence.");
@@ -539,6 +549,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }, { isolationLevel: "serializable" });
       const durableStatus = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited && admitted.length > 0 ? "complete" : "review";
       const terminal = deriveCanonicalTerminalDecision({ durableCaseStatus: durableStatus, locallyCancelled: discovery.status === "cancelled" });
+      failureStage = "terminal_persistence";
       await db.update(researchCasesTable).set({
         status: terminal.caseStatus,
         currentAction: durableStatus === "complete" ? "review" : "canonical-discovery-incomplete",
@@ -621,6 +632,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (directionValidationFeedback) rejectedControlDirection = null;
       await assertAtlasJobActive(atlasJobId);
       phaseSummary[`control_${controlTurns}`] = `${decision.action}${decision.candidateName ? `:${decision.candidateName}` : ""}${decision.direction ? ` — ${decision.direction}` : ""}`;
+      failureStage = "case_persistence";
       await db.update(researchCasesTable).set({
         status: decision.status === "completed" ? (decision.action === "stop" ? "review" : "active") : "review",
         currentAction: decision.status === "completed" ? (decision.action === "stop" ? "canonical-discovery-stopped" : `canonical-control-${decision.action}`) : "canonical-control-unavailable",
@@ -640,6 +652,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "research_candidate" || decision.action === "revisit_candidate") {
         await assertAtlasJobActive(atlasJobId);
         const name = decision.candidateName; if (!name) continue;
+        failureStage = "case_persistence";
         const entityRows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata }).from(entitiesTable).where(and(sql`LOWER(${entitiesTable.name}) = LOWER(${name})`, inArray(entitiesTable.type, ["HNWI", "Gatekeeper", "PersonCandidate"]))).limit(16);
         const entity = entityRows.find((row) => {
           try { const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; return Number(metadata.discoveryCaseId) === discoveryCaseId; } catch { return false; }
@@ -738,6 +751,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           }, { isolationLevel: "serializable" });
           continue;
         }
+        failureStage = "orchestration";
         const directedObjective = formatBossDirectedObjective(discoveryObjective, validatedDirection.direction);
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
         const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed);
@@ -796,7 +810,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // The cumulative result was already updated by mergeDiscoveryResults above.
         // Do not append this episode a second time: that doubles its metrics and
         // trajectory/finding records on every Boss-directed continuation.
-        admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: nextDiscovery.findings, atlasJobId, discoveryCaseId });
+        failureStage = "candidate_admission_persistence";
+      admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: nextDiscovery.findings, atlasJobId, discoveryCaseId });
         admittedCandidateSources = mergeDurablyAdmittedCandidateSources([admittedCandidateSources, admission.candidates]);
         admitted = admittedCandidateSources.map(({ name }) => name);
         materialized += admission.materialized;
