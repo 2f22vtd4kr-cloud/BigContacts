@@ -129,7 +129,50 @@ describe("Groq Boss control-plane adapter", () => {
     expect(result.error).toBeNull();
     expect(result.model).toBe(GROQ_BOSS_MODEL);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(result.attempts).toHaveLength(0);
+    expect(result.attempts).toEqual([{
+      model: GROQ_BOSS_MODEL,
+      keyName: "GROQ_BOSS_API_KEY",
+      httpStatus: 503,
+      providerErrorCode: null,
+      failureClass: "provider_unavailable",
+    }]);
+  });
+
+  it("classifies malformed successful HTTP bodies as invalid responses, not network failures", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("not-json", { status: 200, headers: { "content-type": "application/json" } }),
+    );
+
+    const result = await generateGroqBossText({
+      model: GROQ_BOSS_MODEL,
+      status: "resolved",
+      inspectedKeyCount: 1,
+      candidateCount: 1,
+      candidateModels: [GROQ_BOSS_MODEL],
+      keyName: "GROQ_BOSS_API_KEY",
+    }, "Return JSON.", { maxOutputTokens: 128, thinkingLevel: "low" });
+
+    expect(result.raw).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.attempts).toEqual([
+      {
+        model: GROQ_BOSS_MODEL,
+        keyName: "GROQ_BOSS_API_KEY",
+        httpStatus: 200,
+        providerErrorCode: null,
+        failureClass: "invalid_response",
+      },
+      {
+        model: "openai/gpt-oss-20b",
+        keyName: "GROQ_BOSS_API_KEY",
+        httpStatus: 200,
+        providerErrorCode: null,
+        failureClass: "invalid_response",
+      },
+    ]);
+    expect(result.attempts.some((attempt) => attempt.failureClass === "network_error")).toBe(false);
+    expect(result.error).toContain("[invalid_response]");
   });
 
   it("retries strict schema rejection once in JSON-object mode on the same model", async () => {
