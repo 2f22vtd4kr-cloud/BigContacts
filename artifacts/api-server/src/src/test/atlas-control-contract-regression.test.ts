@@ -102,7 +102,9 @@ describe("Atlas control-plane contract regression", () => {
     expect(nextInvestigatorPass).toBeGreaterThan(acceptedPivotTerminalReset);
     expect(canonicalDiscoverySource).toContain("const controlValidationFeedback = rejectedControlDecision;");
     expect(canonicalDiscoverySource).toContain("controlValidationFeedback.kind === \"pivot_direction\"");
-    expect(canonicalDiscoverySource).toContain("controlValidationFeedback.kind === \"candidate_selection\"");
+    expect(canonicalDiscoverySource).toContain("previous Boss candidate selection at control turn");
+    expect(canonicalDiscoverySource).toContain("Do not treat a name in source text or a Right-hand suggestion as candidate admission.");
+    expect(canonicalDiscoverySource).toContain("Choose a valid model-owned control action; if more discovery is needed");
     expect(controlSource).toContain('controlValidationFeedback: typeof parsed.controlValidationFeedback === "string"');
 
     const feedback = "Rejected concrete URL/tool destination. No Investigator tool was executed.";
