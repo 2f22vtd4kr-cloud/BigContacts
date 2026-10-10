@@ -627,13 +627,13 @@ export function parseAgentAction(raw: string): AgentAction | null { return parse
 function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveTask): "low" | "medium" | "high" {
   const configured = (process.env.GROQ_AGENTIC_REASONING_EFFORT || "").trim().toLowerCase();
   const requested = configured === "low" || configured === "medium" || configured === "high" ? configured : "";
-  const defaultEffort = task === "contradiction_resolution" || task === "final_adjudication" ? "high" : task === "contact_extraction" ? "low" : "medium";
+  const defaultEffort = task === "contradiction_resolution" || task === "final_adjudication" ? "high" : "medium";
   return (requested || defaultEffort) as "low" | "medium" | "high";
 }
 
 function groqInvestigatorCompletionBudget(task: ResearchCognitiveTask): number {
   if (task === "contradiction_resolution" || task === "final_adjudication") return 1536;
-  if (task === "contact_extraction") return 768;
+  if (task === "contact_extraction") return 1024;
   return 1024;
 }
 
