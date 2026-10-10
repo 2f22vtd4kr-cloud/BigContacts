@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { and, eq, or, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
-import { createJob, getActiveJobStrict, getJob, getJobStrict, updateJob } from "../../lib/job-queue";
+import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
@@ -308,6 +308,36 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
     return;
   }
 
+  // Reserve the race atomically without terminalizing the job. While this marker
+  // exists, updateJob refuses competing progress/completion/failure patches. The
+  // durable DB case fence must still land before the final cancelled status.
+  const cancellationRequest = await requestJobCancellation(activeJobId);
+  if (cancellationRequest !== "requested") {
+    let current: Awaited<ReturnType<typeof getJobStrict>> = null;
+    try { current = await getJobStrict(activeJobId); } catch { /* state remains unknown */ }
+    if (current && classifyActiveJobLaneStatus(current.status) === "terminal") {
+      res.json({
+        ok: true,
+        jobId: activeJobId,
+        status: current.status,
+        message: current.status === "cancelled"
+          ? "Atlas was already stopped."
+          : "Atlas job is already terminal; no stop was applied.",
+      });
+      return;
+    }
+    res.status(503).json({
+      ok: false,
+      code: cancellationRequest === "missing" ? "JOB_STATE_INCONSISTENT" : "JOB_STATE_UNAVAILABLE",
+      message: cancellationRequest === "missing"
+        ? "The active-job record disappeared before cancellation could be reserved; no stop was claimed."
+        : "Atlas could not atomically reserve cancellation; no stop was claimed.",
+      jobId: activeJobId,
+      status: current?.status ?? "unknown",
+    });
+    return;
+  }
+
   let fencedCases: Array<{ id: number }>;
   try {
     fencedCases = await db.update(researchCasesTable)
@@ -323,15 +353,30 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
       ))
       .returning({ id: researchCasesTable.id });
   } catch (error) {
+    let markerCleared = false;
+    try { markerCleared = await clearJobCancellationRequest(activeJobId); } catch { /* report unknown cancellation state */ }
     res.status(503).json({
       ok: false,
-      code: "CANCELLATION_FENCE_UNCONFIRMED",
-      message: "Atlas stop could not establish the durable database cancellation fence; job remains active.",
+      code: markerCleared ? "CANCELLATION_FENCE_UNCONFIRMED" : "CANCELLATION_STATE_UNCONFIRMED",
+      message: markerCleared
+        ? "Atlas stop could not establish the durable database cancellation fence; the job remains eligible to continue."
+        : "The database cancellation fence failed and the cancellation reservation could not be cleared; job state needs operator review.",
       error: `database cancellation failure (digest=${describeThrownProviderError(error).messageDigest ?? "none"})`,
     });
     return;
   }
   if (fencedCases.length !== 1) {
+    let markerCleared = false;
+    try { markerCleared = await clearJobCancellationRequest(activeJobId); } catch { /* state remains unknown */ }
+    if (!markerCleared) {
+      res.status(503).json({
+        ok: false,
+        code: "CANCELLATION_STATE_UNCONFIRMED",
+        message: "The case transitioned before the stop fence, and the cancellation reservation could not be cleared.",
+        jobId: activeJobId,
+      });
+      return;
+    }
     let latest: Awaited<ReturnType<typeof getJobStrict>> = null;
     try { latest = await getJobStrict(activeJobId); } catch { /* state remains unknown */ }
     if (latest && classifyActiveJobLaneStatus(latest.status) === "terminal") {
