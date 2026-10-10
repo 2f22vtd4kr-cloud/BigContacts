@@ -47,6 +47,7 @@ export function atlasFailureDomainForStage(stage: AtlasFailureStage): AtlasFailu
   switch (stage) {
     case "boss_opening_request":
     case "right_hand_opening_review":
+    case "oversight_control_decision":
       return "model_provider";
     case "model_action_validation":
       return "model_action";
