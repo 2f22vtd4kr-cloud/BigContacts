@@ -110,13 +110,13 @@ describe("canonical Atlas stop fence", () => {
     expect(stopBlock).toContain("respondToTerminalAtlasStop(res, activeJobId, latest.status)");
   });
 
-  it("atomically reserves cancellation and preserves the current main fail-closed status allow-list", () => {
+  it("reserves cancellation, permits truthful terminal races, and preserves the fail-closed status allow-list", () => {
     const route = fs.readFileSync(routePath, "utf8");
     const stopBlock = route.slice(route.indexOf('router.post("/ingest/atlas-stop"'));
     const jobQueue = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/job-queue.ts"), "utf8");
     expect(jobQueue).toContain("requestJobCancellation");
-    expect(jobQueue).toContain("cancelRequested=='1' and incoming~='cancelled'");
-    expect(jobQueue).toContain("if(prev?.cancelRequested && patch.status!==\"cancelled\")return;");
+    expect(jobQueue).toContain("cancelRequested=='1' and incoming~='cancelled' and incoming~='done' and incoming~='failed'");
+    expect(jobQueue).toContain("if(prev?.cancelRequested && patch.status!==\"cancelled\" && patch.status!==\"done\" && patch.status!==\"failed\")return;");
     expect(jobQueue).toContain("current~='queued' and current~='running' and current~='paused'");
     expect(jobQueue).toContain("redis.call('hdel',k,'cancelRequested')");
     expect(stopBlock).toContain("await clearJobCancellationRequest(activeJobId)");
@@ -126,6 +126,20 @@ describe("canonical Atlas stop fence", () => {
     expect(stopBlock.indexOf("await db.update(researchCasesTable)")).toBeLessThan(
       stopBlock.indexOf("await updateJob(activeJobId, {"),
     );
+  });
+
+
+  it("allows only one stop handler to own the active cancellation reservation", () => {
+    const source = fs.readFileSync(routePath, "utf8");
+    const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop"'));
+    const jobQueue = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/job-queue.ts"), "utf8");
+
+    expect(jobQueue).toContain("if(pending=='1')return -2");
+    expect(jobQueue).toContain("if(pending=='1') then return -2 end");
+    expect(jobQueue).toContain('if(prev.cancelRequested)return "already_requested"');
+    expect(stopBlock).toContain('cancellationRequest === "already_requested"');
+    expect(stopBlock).toContain("CANCELLATION_IN_PROGRESS");
+    expect(stopBlock).toContain("no second stop attempt was applied");
   });
 
   it("keeps the case non-promotable and reconciles its action if another terminal outcome wins", () => {
