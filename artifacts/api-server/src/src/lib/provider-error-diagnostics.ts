@@ -5,6 +5,7 @@ export type ProviderFailureClass =
   | "unauthorized"
   | "forbidden"
   | "rate_limited"
+  | "request_size"
   | "provider_unavailable"
   | "not_found"
   | "http_error"
@@ -24,6 +25,8 @@ export function classifyProviderHttpStatus(status: number): ProviderFailureClass
   if (status === 404) return "not_found";
   if (status === 408) return "timeout";
   if (status === 429) return "rate_limited";
+  // HTTP 413 is an explicit request-size rejection, not quota exhaustion.
+  if (status === 413) return "request_size";
   if (status >= 500) return "provider_unavailable";
   return "http_error";
 }
