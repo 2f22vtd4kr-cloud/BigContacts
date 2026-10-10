@@ -108,15 +108,20 @@ describe("canonical Atlas stop fence", () => {
     const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop"'));
     const cancelWrite = stopBlock.indexOf("await updateJob(activeJobId, {");
     const strictReadBack = stopBlock.indexOf("await getJobStrict(activeJobId)", cancelWrite + 1);
+    const losingRaceGuard = stopBlock.indexOf('if (confirmedJob.status !== "cancelled")', strictReadBack);
+    const durableCaseFence = stopBlock.indexOf("await db.update(researchCasesTable)", strictReadBack);
     const successResponse = stopBlock.indexOf(
       'res.json({ ok: true, jobId: activeJobId, status: "cancelled", message: "Atlas stopped." });',
     );
 
     expect(cancelWrite).toBeGreaterThan(-1);
     expect(strictReadBack).toBeGreaterThan(cancelWrite);
-    expect(successResponse).toBeGreaterThan(strictReadBack);
+    expect(losingRaceGuard).toBeGreaterThan(strictReadBack);
+    expect(durableCaseFence).toBeGreaterThan(losingRaceGuard);
+    expect(successResponse).toBeGreaterThan(durableCaseFence);
     expect(stopBlock).toContain('confirmedJob.status !== "cancelled"');
     expect(stopBlock).toContain("CANCELLATION_STATE_UNCONFIRMED");
+    expect(stopBlock).toContain("CANCELLATION_FENCE_UNCONFIRMED");
   });
 
 });
