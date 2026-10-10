@@ -1487,6 +1487,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         pageFormatGuidance,
         discoveryQualityGate,
         ...(discoveryAdmissionContract ? [discoveryAdmissionContract] : []),
+        ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", discoveryLivenessAdvisory, "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
       ].join("\n\n");
       const emergencyFixed = emergencyPrefix.length + stateLabel.length + outputContract.length + latestRecordTail.length + separators;
       const emergencyBudget = maxUserPromptChars - emergencyFixed;
