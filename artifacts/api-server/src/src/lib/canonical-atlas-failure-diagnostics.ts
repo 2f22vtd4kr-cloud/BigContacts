@@ -16,6 +16,9 @@ export type AtlasFailureDomain =
 
 export type AtlasFailureKind =
   | "request_failure"
+  | "hard_request_quota"
+  | "provider_rate_limited"
+  | "invalid_provider_request"
   | "invalid_contract"
   | "pdf_unsupported"
   | "response_size_limit"
@@ -68,13 +71,15 @@ export function atlasFailureDomainForStage(stage: AtlasFailureStage): AtlasFailu
   }
 }
 
-function safeErrorShape(error: unknown): { name: string; message: string; code: string } {
+function safeErrorShape(error: unknown): { name: string; message: string; code: string; status: number | null } {
   const value = error && typeof error === "object" ? error as Record<string, unknown> : {};
   const cause = value.cause && typeof value.cause === "object" ? value.cause as Record<string, unknown> : {};
   const name = error instanceof Error ? error.name : typeof value.name === "string" ? value.name : "unknown";
   const message = error instanceof Error ? error.message : typeof value.message === "string" ? value.message : "";
   const code = typeof value.code === "string" ? value.code : typeof cause.code === "string" ? cause.code : "";
-  return { name, message, code };
+  const rawStatus = value.status ?? value.statusCode ?? cause.status ?? cause.statusCode;
+  const status = typeof rawStatus === "number" && Number.isInteger(rawStatus) ? rawStatus : typeof rawStatus === "string" && /^\d{3}$/.test(rawStatus) ? Number(rawStatus) : null;
+  return { name, message, code, status };
 }
 
 /** Return only stable category labels; never return the raw error text. */
@@ -97,6 +102,33 @@ export function classifyCanonicalAtlasFailure(input: {
   }
   if (error.name === "AbortError" || /timeout|timed out|deadline exceeded|aborted/i.test(error.message)) {
     return { domain: atlasFailureDomainForStage(input.stage), kind: "timeout" };
+  }
+  const isModelProviderStage = input.stage === "boss_opening_request"
+    || input.stage === "right_hand_opening_review"
+    || input.stage === "oversight_control_decision";
+  if (isModelProviderStage) {
+    // A locally classified hard quota exhaustion is distinct from ordinary HTTP 429.
+    if (error.name === "ProviderQuotaError" || error.code === "quota_exceeded"
+      || /daily quota|quota exceeded|request quota exhausted|requests per day/i.test(error.message)) {
+      return { domain: "model_provider", kind: "hard_request_quota" };
+    }
+    if (error.status === 429 || /HTTP\s+429|too many requests/i.test(error.message)) {
+      return { domain: "model_provider", kind: "provider_rate_limited" };
+    }
+    if (error.status === 400 || error.status === 401 || error.status === 403 || error.status === 404
+      || /invalid request|malformed request|unauthorized|forbidden/i.test(error.message)) {
+      return { domain: "model_provider", kind: "invalid_provider_request" };
+    }
+    if ((error.status !== null && error.status >= 500 && error.status <= 599)
+      || /provider unavailable|HTTP\s+5\d\d/i.test(error.message)) {
+      return { domain: "model_provider", kind: "provider_unavailable" };
+    }
+    if (error.code && /^(ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN)/i.test(error.code)) {
+      return { domain: "model_provider", kind: "request_failure" };
+    }
+    // An unexpected local exception while executing a provider stage must not
+    // automatically be mislabeled as an upstream failure.
+    return { domain: "unexpected_programming_error", kind: "unexpected_exception" };
   }
   if (input.stage === "model_action_validation") {
     return { domain: "model_action", kind: "invalid_contract" };
