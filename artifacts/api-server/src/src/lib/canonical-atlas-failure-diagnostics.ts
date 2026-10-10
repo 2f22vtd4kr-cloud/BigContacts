@@ -17,6 +17,8 @@ export type AtlasFailureDomain =
 export type AtlasFailureKind =
   | "request_failure"
   | "hard_request_quota"
+  | "local_provider_cooldown"
+  | "local_provider_budget_exhausted"
   | "provider_rate_limited"
   | "invalid_provider_request"
   | "invalid_contract"
@@ -108,7 +110,13 @@ export function classifyCanonicalAtlasFailure(input: {
     || input.stage === "oversight_control_decision";
   if (isModelProviderStage) {
     // A locally classified hard quota exhaustion is distinct from ordinary HTTP 429.
-    if (error.name === "ProviderQuotaError" || error.code === "quota_exceeded"
+    if (error.name === "ProviderQuotaError" && error.code === "cooldown") {
+      return { domain: "model_provider", kind: "local_provider_cooldown" };
+    }
+    if (error.name === "ProviderQuotaError" && error.code === "budget_exhausted") {
+      return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
+    }
+    if (error.code === "quota_exceeded"
       || /daily quota|quota exceeded|request quota exhausted|requests per day/i.test(error.message)) {
       return { domain: "model_provider", kind: "hard_request_quota" };
     }
