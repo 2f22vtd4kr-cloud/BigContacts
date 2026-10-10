@@ -75,6 +75,16 @@ test("accepts a system-failure run with no observations or trajectory", () => {
   assert.match(result.stdout, /"trajectory": 0/);
 });
 
+test("rejects verified outcomes without observations and trajectory", () => {
+  const run = sampleRun();
+  run.observations = [];
+  run.trajectory = [];
+  run.outcome = "verified";
+  const result = runValidator(run);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Verified runs require non-empty observations and trajectory/);
+});
+
 test("still rejects blank and duplicate observation IDs", () => {
   const blank = sampleRun();
   blank.observations = [{ id: " " }];
