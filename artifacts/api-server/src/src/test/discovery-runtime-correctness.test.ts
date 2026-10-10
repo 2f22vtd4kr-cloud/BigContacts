@@ -173,6 +173,25 @@ describe("discovery runtime architecture", () => {
     ])).toBeNull();
   });
 
+  it("blocks exact repeated actions while allowing a changed research rationale", async () => {
+    const { redundantResearchActionReason } = await import("../lib/agentic-web-research-core");
+    const prior = {
+      turn: 1,
+      model: "groq",
+      action: "web_search",
+      args: { query: "Example Ltd leadership", provider: "serper", hypothesis: "Identify named officers", purpose: "test the official leadership source" },
+      execution: "success" as const,
+      observation: "Search returned an official leadership page.",
+      observedUrls: ["https://example.com/team"],
+      findings: [],
+    };
+    const same = { query: " example LTD   leadership ", provider: "serper", hypothesis: "Identify named officers", purpose: "test the official leadership source" };
+    expect(redundantResearchActionReason("web_search", same, [prior])).toContain("repeat_action_guard");
+    expect(redundantResearchActionReason("web_search", { ...same, provider: "tavily" }, [prior])).toBeNull();
+    expect(redundantResearchActionReason("web_search", { ...same, purpose: "corroborate the role in a filing" }, [prior])).toBeNull();
+    expect(redundantResearchActionReason("web_search", { ...same, hypothesis: "Test a different ownership lead" }, [prior])).toBeNull();
+  });
+
   it("scopes Groq token-window snapshots to the selected model", () => {
     expect(researchCoreSource).toContain("function groqRateLimitSnapshotKey(quotaAccount: string, model: string)");
     expect(researchCoreSource).toContain("groqRateLimitSnapshots.get(groqRateLimitSnapshotKey(quotaAccount, model))");
