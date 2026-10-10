@@ -71,6 +71,55 @@ describe("research terminal gate", () => {
     expect(result.metrics.independentSourceUnits).toBe(2);
   });
 
+  it("recognizes explicit falsification intent in nested parallel-search queries", () => {
+    const sample = context(2);
+    sample.recentActions = [{
+      turn: 4,
+      action: "parallel_web_search",
+      args: {
+        searches: [
+          { query: "find evidence that could disprove the leading identity hypothesis", provider: "serper" },
+        ],
+      },
+      execution: "success",
+      observation: "Parallel search completed.",
+      urls: ["https://independent.example/results"],
+      findingCount: 0,
+      useful: false,
+      informationGain: 0.3,
+      findingNames: [],
+      findingRoles: [],
+    }];
+
+    const result = evaluateResearchTerminal(sample, "target");
+    expect(result.allowed).toBe(true);
+  });
+
+  it("does not treat arbitrary parallel-search queries as falsification", () => {
+    const sample = context(2);
+    sample.recentActions = [{
+      turn: 4,
+      action: "parallel_web_search",
+      args: {
+        searches: [
+          { query: "official company page current executive", provider: "serper" },
+        ],
+      },
+      execution: "success",
+      observation: "Parallel search completed.",
+      urls: ["https://independent.example/results"],
+      findingCount: 0,
+      useful: false,
+      informationGain: 0.3,
+      findingNames: [],
+      findingRoles: [],
+    }];
+
+    const result = evaluateResearchTerminal(sample, "target");
+    expect(result.allowed).toBe(false);
+    expect(result.reasons).toContain("required_falsification_not_satisfied");
+  });
+
   it("blocks a required falsification when the trajectory has no explicit disproof attempt", () => {
     const result = evaluateResearchTerminal(context(2), "target");
     expect(result.allowed).toBe(false);

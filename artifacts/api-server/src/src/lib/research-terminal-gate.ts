@@ -33,7 +33,17 @@ export function hasExplicitFalsificationAttempt(context: IntelligenceContext): b
     const purpose = typeof args.purpose === "string" ? args.purpose : "";
     const hypothesis = typeof args.hypothesis === "string" ? args.hypothesis : "";
     const query = typeof args.query === "string" ? args.query : "";
-    return intent.test(purpose) || intent.test(hypothesis) || intent.test(query);
+    const nestedQueries = Array.isArray(args.searches)
+      ? args.searches.flatMap((search: unknown) => {
+          if (!search || typeof search !== "object" || !("query" in search)) return [];
+          const nestedQuery = (search as { query?: unknown }).query;
+          return typeof nestedQuery === "string" ? [nestedQuery] : [];
+        })
+      : [];
+    return intent.test(purpose)
+      || intent.test(hypothesis)
+      || intent.test(query)
+      || nestedQueries.some((nestedQuery) => intent.test(nestedQuery));
   });
 }
 
