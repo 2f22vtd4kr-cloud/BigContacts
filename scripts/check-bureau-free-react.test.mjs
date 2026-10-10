@@ -48,8 +48,8 @@ test("rejects action markers hidden in comments inside the AgentAction alias", (
   const commentOnlyMarkers = requiredMarkers
     .filter((marker) => marker !== 'action: "visit"')
     .map((marker) => `  // ${marker}`)
-    .join("\\n");
-  const brokenCore = `type AgentAction = { action: "visit";\\n${commentOnlyMarkers}\\n};\\nfunction boundedPositiveNumber() {}`;
+    .join("\n");
+  const brokenCore = `type AgentAction = { action: "visit";\n${commentOnlyMarkers}\n};\nfunction boundedPositiveNumber() {}`;
   const result = runGuard(brokenCore);
   assert.notEqual(result.status, 0, `guard incorrectly counted markers inside alias comments: ${result.stdout}`);
   assert.match(result.stderr, /missing action surface/);
