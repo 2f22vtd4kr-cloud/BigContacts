@@ -17,14 +17,17 @@ describe("canonical target contact promotion ordering", () => {
 
   it("retries strict promotion only after the immutable Boss oversight evidence is persisted", () => {
     const oversight = targetRunner.indexOf("lastOversight = await reviewTargetInvestigationAct({");
+    const durableRead = targetRunner.indexOf("lastOversight = reviewedCase", oversight);
     const promotion = targetRunner.indexOf("await persistSourceBackedBureauContactsForEntity(", oversight);
     const promotionGuard = targetRunner.lastIndexOf("if (\n      latestResult.status === \"completed\"", promotion);
     expect(oversight).toBeGreaterThanOrEqual(0);
-    expect(promotion).toBeGreaterThan(oversight);
+    expect(durableRead).toBeGreaterThan(oversight);
+    expect(promotion).toBeGreaterThan(durableRead);
     expect(promotionGuard).toBeGreaterThan(oversight);
     const promotionBlock = targetRunner.slice(promotionGuard, targetRunner.indexOf("recentActs.push(currentAct)", promotion));
-    expect(promotionBlock).toContain('lastOversight.status === "completed"');
-    expect(promotionBlock).toContain("(lastOversight.evidenceGraphCount ?? 0) > 0");
+    expect(promotionBlock).toMatch(/lastOversight\\??\\.status === "completed"/);
+    expect(promotionBlock).toMatch(/\\(lastOversight\\??\\.evidenceGraphCount \\?\\? 0\\) > 0/);
+    expect(targetRunner).toContain("readOversight(parseCaseFile(reviewedCase.caseFile), latestResult.executionId ?? null, actNumber)");
     expect(promotionBlock).toContain('promotionJob.status !== "running"');
     expect(promotionBlock).toContain('isCanonicalJobOwner("atlas-run", atlasJobId)');
     expect(promotionBlock).toContain("latestResult.promotionProvenance");
