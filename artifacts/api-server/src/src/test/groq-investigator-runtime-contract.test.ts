@@ -63,6 +63,9 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(submitted).toContain("DISCOVERY ADMISSION CONTRACT");
+    expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
+    expect(submitted).toContain("Falsification requirement:");
     expect(submitted).toContain('"url":null');
     expect(submitted).toContain("Parallel searches need 2–4 objects, each with query/provider/locale/market/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
