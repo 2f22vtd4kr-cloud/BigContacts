@@ -714,9 +714,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
               actorRole: "groq_boss",
               eventType: "observation",
               status: "rejected",
-              summary: `Atlas rejected invalid model-directed pivot at control turn ${controlTurns}; no Investigator action executed.`,
+              summary: `Atlas rejected invalid model-directed ${decision.action} at control turn ${controlTurns}; no Investigator action executed.`,
               correlationKey: `${atlasJobId}:control-direction-rejected:${controlTurns}`,
-              payload: JSON.stringify({ jobId: atlasJobId, controlTurn: controlTurns, action: "pivot_discovery", reason: rejectionReason, investigatorActionExecuted: false, recovery: "request-new-model-control-decision" }),
+              payload: JSON.stringify({ jobId: atlasJobId, controlTurn: controlTurns, action: decision.action, reason: rejectionReason, investigatorActionExecuted: false, recovery: "request-new-model-control-decision" }),
             }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
           }, { isolationLevel: "serializable" });
           continue;
