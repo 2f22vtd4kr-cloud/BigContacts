@@ -536,6 +536,7 @@ describe("Investigator prompt architecture", () => {
     expect(discoveryTerminalGate([page, terminal])).toEqual({ allowed: true, reason: null });
     expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: "Chief Financial Officer" }] }]).allowed).toBe(false);
     expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: null }] }]).allowed).toBe(false);
+    expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: null, promotionDecision: "reject" }] }]).allowed).toBe(true);
   });
 
   it("accepts done only after the core succeeds and returns an evidence-gated terminal reason", () => {
