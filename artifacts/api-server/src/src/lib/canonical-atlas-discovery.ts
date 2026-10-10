@@ -195,10 +195,11 @@ async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number)
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
   const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const maxConsecutiveInvestigatorProviderUnavailable = 2; const isInvestigatorProviderUnavailable = (result: { status?: string; stopReason?: string; error?: string; trajectoryRecords?: Array<{ action?: string; observation?: string }> }) => result.status === "unavailable" && result.stopReason === "LLM_UNAVAILABLE" && !isTransientInvestigatorCapacityError(result) && (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error"); const isInvestigatorHardQuotaExhausted = (result: { status?: string; stopReason?: string; error?: string; trajectoryRecords?: Array<{ action?: string; observation?: string }> }) => result.status === "unavailable" && result.stopReason === "LLM_UNAVAILABLE" && (result.error === "upstream_quota_exhausted" || (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error" && /upstream_quota_exhausted/i.test(record.observation ?? ""))); const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 3) || 3)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   const discoveryObjective = opts.discoveryObjective?.trim() || "Discover real named people for subsequent target-scoped public-contact research. Start from a concrete business or operating context and a plausible geography, sector, company ecosystem, transaction, registry, filing, trade publication, official company surface, or other evidence-bearing anchor selected from the live case objective. Avoid defaulting to celebrities, billionaire/richest-person lists, generic wealth searches, or context-free famous names. Write each search from the current hypothesis and observed evidence, pivot when results are generic or repetitive, and choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.";
-  await assertAtlasJobActive(atlasJobId);
-  await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Groq Right-hand review → model-owned Investigator discovery…" });
-  let failureStage: AtlasFailureStage = "boss_opening_request";
+  let failureStage: AtlasFailureStage = "job_state_or_lease";
   try {
+    await assertAtlasJobActive(atlasJobId);
+    await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Groq Right-hand review → model-owned Investigator discovery…" });
+    failureStage = "boss_opening_request";
     await assertAtlasJobActive(atlasJobId);
     // Canonical opening order is intentional: Groq Boss establishes the case direction
     // and selects the Investigator first. The independent Right-hand reviews that Boss
@@ -863,6 +864,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // classify a cancellation; an unknown Redis state remains unknown.
     const cancelled = !jobStateUnavailable && durableJob?.status === "cancelled";
     const jobMissing = !jobStateUnavailable && !durableJob;
+    const jobStateMismatch = !jobStateUnavailable && Boolean(durableJob) && durableJob?.status !== "running" && !cancelled;
     const leaseLost = !jobStateUnavailable && durableJob?.status === "running" && /Canonical Atlas lease was lost/i.test(rawMessage);
     const currentAction = cancelled
       ? "canonical-atlas-cancelled"
@@ -873,7 +875,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           : leaseLost
             ? "canonical-lease-lost"
             : "canonical-atlas-failed";
-    const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, leaseLost });
+    const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
     const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
     const message = cancelled
       ? `Canonical Atlas discovery cancelled; outcome incomplete. (${diagnosticSuffix})`
