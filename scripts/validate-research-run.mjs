@@ -45,7 +45,7 @@ if (ids.some((id) => !id) || new Set(ids).size !== ids.length) {
 }
 
 const known = new Set(ids);
-for (const collection of ["claims", "contacts", "contradictions"]) {
+for (const collection of ["identities", "claims", "contacts", "contradictions"]) {
   for (const item of doc[collection]) {
     for (const id of item.supportingObservationIds || []) {
       if (!known.has(String(id))) {
