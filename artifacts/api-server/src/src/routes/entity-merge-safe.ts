@@ -61,23 +61,24 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
       const mergedEmail = selectedContact.email;
       const mergedPhone = selectedContact.phone;
       const mergedEmailMetadata = selectedContact.emailMetadata;
+      const mergedEmailSource = selectedContact.emailSource;
       const mergedLinkedIn = sanitizePublicSocialUrl(primary.linkedinUrl, "linkedin", "person") ?? sanitizePublicSocialUrl(target.linkedinUrl, "linkedin", "person");
       const mergedTwitter = sanitizePublicSocialHandle(primary.twitterHandle, "twitter") ?? sanitizePublicSocialHandle(target.twitterHandle, "twitter");
       const mergedInstagram = sanitizePublicSocialHandle(primary.instagramHandle, "instagram") ?? sanitizePublicSocialHandle(target.instagramHandle, "instagram");
       const mergedTelegram = primary.telegramHandle ?? target.telegramHandle;
       const mergedPhoneSource = selectedContact.phoneSource;
-      const selectedEmailIsHeuristic = isHeuristicEmailEvidence({ email: mergedEmail, metadata: mergedEmailMetadata });
+      const selectedEmailIsHeuristic = isHeuristicEmailEvidence({ email: mergedEmail, emailSource: mergedEmailSource, metadata: mergedEmailMetadata });
       const mergedMeta = {
         ...parseObject(target.metadata),
         ...parseObject(primary.metadata),
         selectedContactProvenance: {
-          email: mergedEmail ? { value: mergedEmail, heuristic: selectedEmailIsHeuristic } : null,
+          email: mergedEmail ? { value: mergedEmail, source: mergedEmailSource, heuristic: selectedEmailIsHeuristic } : null,
           phone: mergedPhone ? { value: mergedPhone, source: mergedPhoneSource } : null,
         },
         mergedFrom: targetId,
         mergedAt: new Date().toISOString(),
       };
-      const mergedConfidence = computeContactConfidence({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
+      const mergedConfidence = computeContactConfidence({ type: primary.type, email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
       const mergedOutcome = computeContactOutcome({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
       const mergedHot = hasMeaningfulDirectContact({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, metadata: mergedEmailMetadata });
 
@@ -105,7 +106,7 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
       await tx.update(entitiesTable).set({
         sourceRegistries: JSON.stringify(mergedSources), metadata: JSON.stringify(mergedMeta), knownResidences: mergedResidences ?? null,
         notes: mergedNotes ?? primary.notes, estimatedNetWorth: primary.estimatedNetWorth ?? target.estimatedNetWorth,
-        email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn,
+        email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn,
         twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram,
         contactConfidence: mergedConfidence, contactOutcome: mergedOutcome,
         bayesianScore: Math.max(primary.bayesianScore ?? 0, target.bayesianScore ?? 0), isHot: mergedHot, updatedAt: new Date(),
