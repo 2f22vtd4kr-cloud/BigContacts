@@ -88,7 +88,7 @@ describe("canonical Atlas stop fence", () => {
 
   it("matches active cases with a null currentAction without weakening terminal exclusions", () => {
     const source = fs.readFileSync(routePath, "utf8");
-    const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop")'));
+    const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop"'));
     expect(source).toContain("isNull(researchCasesTable.currentAction)");
     expect(stopBlock).toContain("or(isNull(researchCasesTable.currentAction), sql`");
     expect(stopBlock).toContain("'canonical-atlas-cancelled', 'canonical-lease-lost'");
