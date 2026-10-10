@@ -503,7 +503,7 @@ function parseDiscoveryContactEvidenceStrict(value: unknown): DiscoveryContactEv
  * from target-scoped extraction: the mission is the subject, while separate
  * search-capable investigators supply web context and all returned people remain review-only.
  */
-export async function runGroqBossDiscovery(input: {
+export type GroqBossDiscoveryInput = {
   file?: DiscoveryCaseFile;
   objective: string;
   motivation: string;
@@ -521,7 +521,55 @@ export async function runGroqBossDiscovery(input: {
   startingLane?: string;
   /** Investigator capabilities that are unavailable for this Boss decision (for example, an explicitly exhausted request quota). */
   excludedInvestigatorLlm?: readonly InvestigatorCapability[];
-}): Promise<GeminiBossDiscoveryResult> {
+};
+
+export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, availableInvestigators: readonly InvestigatorCapability[]): string {
+  const excluded = new Set(input.excludedInvestigatorLlm ?? []);
+  return `${buildBossOpeningPrompt(input)}
+
+This is a shared case-context review. Read the current investigation progress and investigator reports below before deciding what should be researched next. The case context below is durable working memory for this Bureau, not a sector or target; infer scope only from the objective and observed evidence.
+You have no web access and must not use or request Google Search grounding. Do not wait for a preselected entity.
+Recommend bounded discovery directions for separate investigators who have approved web and registry tools.
+Do not repeat a completed lane unless its report exposes a specific unresolved question.
+If the objective does not specify an industry, organization, person, or geography, you may propose a testable starting hypothesis, but explicitly label it as a hypothesis rather than an established fact or something supplied by the objective. The Investigator should test that hypothesis against observed public evidence and pivot if it is unsupported.
+Investigator capability availability at this moment: ${JSON.stringify(availableInvestigators)}. Select only an available capability; the harness will not substitute a different Investigator after your decision.
+The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence and do not let it select a target. The Investigator owns the research trajectory within the stated mission; no fixed lane order or research sequence is imposed.
+Excluded Investigator capabilities for this decision: ${JSON.stringify([...excluded])}. These exclusions are control-plane safety state, not a research instruction; never select an excluded capability.
+Starting lane: ${input.startingLane ?? "not specified"}
+Right-hand advisor note: ${JSON.stringify(input.rightHandAdvice ?? null)}
+Current shared case context:
+${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigator reports exist; this is the opening brief."}
+Return ONLY JSON in this shape:
+{
+  "report": "concise evidence-led opening assessment",
+  "investigatorLlm": "one capability from the available runtime Investigator registry",
+  "candidates": [
+    {
+      "name": "candidate name",
+      "type": "person | company | investment_group | intermediary",
+      "relevance": "why this candidate fits the mission",
+      "reachability": "realistic public route or unresolved",
+      "sourceUrls": ["exact URLs supporting this candidate"],
+      "contactEvidence": [
+        {
+          "vectorType": "email | phone | linkedin | twitter | instagram | telegram | website | organization_contact | other",
+          "value": "exact publicly reported value",
+          "scope": "person | organization | unknown",
+          "personName": "person attributed to the route or null",
+          "role": "role at the organization or null",
+          "sourceUrls": ["exact URLs that visibly support this route"],
+          "note": "attribution or verification caveat"
+        }
+      ]
+    }
+  ],
+  "nextDirections": ["bounded next investigation direction"],
+  "uncertainties": ["identity, attribution, or access uncertainty"]
+}
+Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
+}
+
+export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promise<GeminiBossDiscoveryResult> {
   const selection = await resolveGeminiBossModel();
   if (selection.status !== "resolved") {
     return {
@@ -544,49 +592,7 @@ export async function runGroqBossDiscovery(input: {
   if (!availableInvestigators.length) return { status: "unavailable", model: selection.model, investigatorLlm: null, report: null, candidates: [], citations: [], nextDirections: [], uncertainties: [], error: excluded.size
     ? "No alternate configured Investigator capability remains after explicit Boss-directed exclusion of exhausted capabilities."
     : "No Investigator capability is currently available; refusing an unselected or deterministic substitute." };
-  const prompt = `${buildBossOpeningPrompt(input)}
-
-This is a shared case-context review. Read the current investigation progress and investigator reports below
-before deciding what should be researched next. The case context below is durable working memory for this Bureau, not a sector or target; infer scope only from the objective and observed evidence.
-You have no web access and must not use or request Google Search grounding. Do not wait for a preselected entity.
-Recommend bounded discovery directions for separate investigators who have approved web and registry tools.
-Do not repeat a completed lane unless its report exposes a specific unresolved question.
-Investigator capability availability at this moment: ${JSON.stringify(availableInvestigators)}. Select only an available capability; the harness will not substitute a different Investigator after your decision.
-The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence
-and do not let it select a target. The Investigator owns the research trajectory within the stated mission; no fixed lane order or research sequence is imposed.
-Excluded Investigator capabilities for this decision: ${JSON.stringify([...excluded])}. These exclusions are control-plane safety state, not a research instruction; never select an excluded capability.
-Starting lane: ${input.startingLane ?? "not specified"}
-Right-hand advisor note: ${JSON.stringify(input.rightHandAdvice ?? null)}
-Current shared case context:
-${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigator reports exist; this is the opening brief."}
-Return ONLY JSON in this shape:
-     {
-  "report": "concise evidence-led opening assessment",
-  "investigatorLlm": "one capability from the available runtime Investigator registry",
-  "candidates": [
-    {
-      "name": "candidate name",
-      "type": "person | company | investment_group | intermediary",
-      "relevance": "why this candidate fits the mission",
-      "reachability": "realistic public route or unresolved",
-       "sourceUrls": ["exact URLs supporting this candidate"],
-       "contactEvidence": [
-         {
-           "vectorType": "email | phone | linkedin | twitter | instagram | telegram | website | organization_contact | other",
-           "value": "exact publicly reported value",
-           "scope": "person | organization | unknown",
-           "personName": "person attributed to the route or null",
-           "role": "role at the organization or null",
-           "sourceUrls": ["exact URLs that visibly support this route"],
-           "note": "attribution or verification caveat"
-         }
-       ]
-    }
-  ],
-  "nextDirections": ["bounded next investigation direction"],
-  "uncertainties": ["identity, attribution, or access uncertainty"]
-}
-Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
+  const prompt = buildGroqBossDiscoveryPrompt(input, availableInvestigators);
   try {
     const generated = await generateGeminiBossText(selection, prompt, {
       responseFormat: buildBossDiscoveryResponseFormat(availableInvestigators),
