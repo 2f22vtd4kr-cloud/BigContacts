@@ -11,9 +11,14 @@ const observationIndex=(run)=>{
   const classes=new Map();
   for(const o of (run.observations||[])){
     const id=String(o?.id||""); if(!id) continue;
-    const url=normUrl(o.url||o.observedUrl||o.normalizedUrl||"");
-    byId.set(id,{url,sourceClass:String(o.sourceClass||o.sourceType||"unknown")});
-    if(url){urls.set(id,url);classes.set(id,String(o.sourceClass||o.sourceType||"unknown"));}
+    // Prefer the URL actually observed after navigation; a requested URL is not
+    // evidence that the request succeeded or that the destination was the same.
+    const url=normUrl(o.observedUrl||o.normalizedUrl||o.url||"");
+    const successful=o.execution==="success";
+    const sourceClass=String(o.sourceClass||o.sourceType||"unknown");
+    byId.set(id,{url,sourceClass,successful});
+    // Failed fetches and observations without a source URL cannot ground claims.
+    if(url&&successful){urls.set(id,url);classes.set(id,sourceClass);}
   }
   return {byId,urls,classes};
 };
@@ -21,23 +26,35 @@ const evidenceCoverage=(refs,gold,idx,sourceRegistry)=>{
   const observedUrls=asSet(refs.map(id=>idx.urls.get(String(id))).filter(Boolean).map(normUrl));
   const requiredUrls=asSet((gold?.requiredSourceUrls||[]).map(normUrl));
   const requiredClasses=asSet(gold?.requiredSourceClasses||[]);
-  const urlsCovered=[...requiredUrls].every(url=>observedUrls.has(url));
-  const classByUrl=new Map((sourceRegistry||[]).map(source=>[normUrl(source.url), String(source.sourceClass ?? "unknown")]));
-  const classCovered=requiredClasses.length===0 || [...requiredClasses].every(requiredClass=>[...observedUrls].some(url=>classByUrl.get(url)===requiredClass));
+  // Fail closed on incomplete ground truth instead of allowing every() over an
+  // empty source list to vacuously declare a claim supported.
+  const urlsCovered=requiredUrls.size>=2&&[...requiredUrls].every(url=>observedUrls.has(url));
+  const classByUrl=new Map((sourceRegistry||[]).map(source=>[normUrl(source.url),String(source.sourceClass??"unknown")]));
+  const classCovered=requiredClasses.length===0||[...requiredClasses].every(requiredClass=>[...observedUrls].some(url=>classByUrl.get(url)===requiredClass));
   return {urlsCovered,classCovered,covered:urlsCovered&&classCovered};
 };
 function scoreRun(gt,run){
  const expected=Array.isArray(gt.identities)?gt.identities:[], expectedIds=asSet(expected.filter(x=>!x.distractor).map(x=>String(x.id))), distractors=asSet(expected.filter(x=>x.distractor).map(x=>String(x.id)));
- const observedIdentityEvidenceIds=new Set((run.observations||[]).map(o=>String(o?.id||"")).filter(Boolean)); const evidenceBackedPredictedIds=asSet((run.identities||[]).filter(x=>Array.isArray(x.supportingObservationIds)&&x.supportingObservationIds.length>0&&x.supportingObservationIds.every(id=>observedIdentityEvidenceIds.has(String(id)))).map(x=>String(x.groundTruthIdentityId||""))), predictedIds=evidenceBackedPredictedIds;
+ const idx=observationIndex(run);
+ // A reference to an ID alone is not evidence; the observation must represent
+ // a successful retrieval with an actual source URL.
+ const observedIdentityEvidenceIds=new Set(idx.urls.keys());
+ const evidenceBackedPredictedIds=asSet((run.identities||[]).filter(x=>Array.isArray(x.supportingObservationIds)&&x.supportingObservationIds.length>0&&x.supportingObservationIds.every(id=>observedIdentityEvidenceIds.has(String(id)))).map(x=>String(x.groundTruthIdentityId||""))), predictedIds=evidenceBackedPredictedIds;
  const tp=[...predictedIds].filter(id=>expectedIds.has(id)).length;
  const identityPrecision=rate(tp,predictedIds.size), identityRecall=rate(tp,expectedIds.size), fp=[...predictedIds].filter(id=>!expectedIds.has(id)||distractors.has(id)).length;
- const idx=observationIndex(run);
  const expectedClaims=new Map((gt.claims||[]).map(c=>[String(c.id),c])), claims=Array.isArray(run.claims)?run.claims:[]; let supported=0;
  for(const claim of claims){const e=expectedClaims.get(String(claim.groundTruthClaimId||"")); const refs=(claim.supportingObservationIds||[]).map(String); if(e&&e.subjectIdentityId===claim.groundTruthIdentityId&&e.predicate===claim.predicate&&String(e.object)===String(claim.object)&&evidenceCoverage(refs,e,idx,gt.sources).covered)supported++;}
  const expectedContacts=new Map((gt.contacts||[]).map(c=>[String(c.id),c])), contacts=Array.isArray(run.contacts)?run.contacts:[]; let contactTp=0;
  for(const c of contacts){const e=expectedContacts.get(String(c.groundTruthContactId||"")); const refs=(c.supportingObservationIds||[]).map(String); if(e&&String(c.groundTruthIdentityId||"")===String(e.subjectIdentityId)&&String(c.type||"")===String(e.type)&&String(c.value||"")===String(e.value||"")&&String(c.state||"")===String(e.expectedState||"")&&evidenceCoverage(refs,e,idx,gt.sources).covered)contactTp++;}
  const expectedContradictions=asSet((gt.contradictions||[]).map(c=>String(c.id))), predictedContradictions=asSet((run.contradictions||[]).map(c=>String(c.groundTruthContradictionId||""))), contradictionTp=[...expectedContradictions].filter(id=>predictedContradictions.has(id)).length;
- return {caseId:String(gt.caseId),trialId:String(run.trialId||""),system:String(run.system||""),outcome:String(run.outcome||"unknown"),systemFailure:run.outcome==="system_failure",identityPrecision,identityRecall,falsePositiveIdentityRate:rate(fp,predictedIds.size),claimSupportCorrectness:rate(supported,claims.length),unsupportedClaimRate:rate(claims.length-supported,claims.length),contactPrecision:rate(contactTp,contacts.length),contactRecall:rate(contactTp,expectedContacts.size),contradictionRecall:rate(contradictionTp,expectedContradictions.size),trajectoryLength:Array.isArray(run.trajectory)?run.trajectory.length:null,successfulObservations:(run.observations||[]).filter(o=>o&&o.execution==="success").length,evidenceBackedClaims:supported};
+ // System failures remain visible as operational failures, not research misses.
+ // Return null for quality metrics so these runs are excluded from their means.
+ const systemFailure=run.outcome==="system_failure";
+ return {caseId:String(gt.caseId),trialId:String(run.trialId||""),system:String(run.system||""),outcome:String(run.outcome||"unknown"),systemFailure,
+  identityPrecision:systemFailure?null:identityPrecision,identityRecall:systemFailure?null:identityRecall,falsePositiveIdentityRate:systemFailure?null:rate(fp,predictedIds.size),
+  claimSupportCorrectness:systemFailure?null:rate(supported,claims.length),unsupportedClaimRate:systemFailure?null:rate(claims.length-supported,claims.length),
+  contactPrecision:systemFailure?null:rate(contactTp,contacts.length),contactRecall:systemFailure?null:rate(contactTp,expectedContacts.size),contradictionRecall:systemFailure?null:rate(contradictionTp,expectedContradictions.size),
+  trajectoryLength:Array.isArray(run.trajectory)?run.trajectory.length:null,successfulObservations:(run.observations||[]).filter(o=>o&&o.execution==="success").length,evidenceBackedClaims:systemFailure?null:supported};
 }
 const args=process.argv.slice(2); if(args.length!==2){console.error("Usage: node scripts/evaluate-research-gauntlet.mjs <ground-truth.json> <runs.json>");process.exit(2);}
 const gtDoc=readJson(args[0]), runsDoc=readJson(args[1]);
