@@ -1,15 +1,18 @@
 import { assertSafeOutboundUrl } from "./ssrf-safe-fetch";
-import { browserFetchConfigured, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml } from "./browser-fetch-core";
+import { browserFetchConfigured, getAvailableBrowserFetchProviders, isBrowserFetchProviderAvailable, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml } from "./browser-fetch-core";
 import { browserFetchHtml as unsafeBrowserFetchHtml, type BrowserProvider } from "./browser-fetch-core";
 import { runProviderCall } from "./provider-gate";
 
-export { browserFetchConfigured, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml };
+export { browserFetchConfigured, getAvailableBrowserFetchProviders, isBrowserFetchProviderAvailable, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml };
 
 export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
 
 /** Browser/proxy escalation is an Investigator-selected outbound operation. */
 export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null }> {
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
+  if (!isBrowserFetchProviderAvailable(options.provider)) {
+    return { html: "", provider: "provider_unavailable", observedUrl: null };
+  }
   await assertSafeOutboundUrl(url);
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
   if (options.provider === "playwright") {

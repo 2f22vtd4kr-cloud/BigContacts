@@ -10,7 +10,7 @@ vi.mock("../lib/provider-gate", () => ({
 }));
 
 import { assertSafeOutboundUrl, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
-import { browserFetchHtml, resetBrowserFetchCount } from "../lib/browser-fetch-core";
+import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured } from "../lib/browser-fetch-core";
 
 const html = `<html><body>${"public research evidence ".repeat(8)}</body></html>`;
 
@@ -33,6 +33,29 @@ describe("hosted browser fetch final-URL provenance", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     resetBrowserFetchCount();
+  });
+
+  it("advertises only configured browser providers", () => {
+    expect(getAvailableBrowserFetchProviders()).toEqual(["scrapfly", "zenrows"]);
+    expect(browserFetchConfigured()).toBe(true);
+  });
+
+  it("rejects an unavailable selected provider before any outbound provider request", async () => {
+    vi.stubEnv("SCRAPFLY_API_KEY", "");
+    vi.stubEnv("ZENROWS_API_KEY", "");
+    vi.stubEnv("BROWSERLESS_TOKEN", "");
+    vi.stubEnv("PLAYWRIGHT_ENABLED", "0");
+
+    expect(getAvailableBrowserFetchProviders()).toEqual([]);
+    expect(browserFetchConfigured()).toBe(false);
+
+    const result = await browserFetchHtml("https://research.example/article", {
+      provider: "scrapfly",
+      scope: "unconfigured-provider-test",
+    });
+
+    expect(result).toEqual({ html: "", provider: "provider_unavailable", observedUrl: null });
+    expect(safeOutboundFetch).not.toHaveBeenCalled();
   });
 
   it("preserves Scrapfly's provider-reported final URL only after public-URL validation", async () => {

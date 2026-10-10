@@ -32,7 +32,10 @@ const jobQueue = read("artifacts/api-server/src/src/lib/job-queue.ts");
 const canonicalSources = [wrapper, agentic, strict, batch, discovery, orchestrator, registry, pythonTools, aiExtractor, entities, legacyAtlas, legacyGuard, launchQuarantine, routesIndex, canonicalLaunch, canonicalRunner, jobQueue];
 const modelSelectableActions = agentic.match(/const MODEL_SELECTABLE_AGENT_ACTIONS = \[([\s\S]*?)\] as const/)?.[1] ?? "";
 const schemaUsesSharedActionList = /action:\s*\{\s*type:\s*"string",\s*enum:\s*\[\.\.\.MODEL_SELECTABLE_AGENT_ACTIONS\]/.test(agentic);
-const promptUsesSharedActionList = /"AVAILABLE ACTIONS: "\s*\+\s*MODEL_SELECTABLE_AGENT_ACTIONS\.join\(" \| "\)/.test(agentic);
+const promptUsesSharedActionList = (agentic.includes('"AVAILABLE ACTIONS: " + availableActions.join(" | ")') || agentic.includes('"AVAILABLE ACTIONS: " + MODEL_SELECTABLE_AGENT_ACTIONS.join(" | ")'))
+  && agentic.includes("const availableActions = availableBrowserProviders.length")
+  && agentic.includes('MODEL_SELECTABLE_AGENT_ACTIONS.filter((action) => action !== "browser_fetch")')
+  && agentic.includes("getAvailableBrowserFetchProviders()");
 const nonExecutablePythonActions = ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"];
 
 pass("launch gate inspects source without executing repository code", !canonicalSources.some((source) => /execFileSync\(|spawnSync\(|child_process/.test(source)));

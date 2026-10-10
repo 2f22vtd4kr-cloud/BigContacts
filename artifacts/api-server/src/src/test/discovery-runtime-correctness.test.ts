@@ -83,6 +83,39 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toMatch(/directSourceAction\s*=\s*payload\.action\s*===\s*"visit"\s*\|\|\s*payload\.action\s*===\s*"browser_fetch"/);
   });
 
+  it("records duplicate blocks and removes the blanket visited-URL stop", () => {
+    expect(researchCoreSource).toContain("repeat_action_guard");
+    expect(researchCoreSource).toContain("redundantResearchActionReason");
+    expect(researchCoreSource).toContain("parallelRequestKeys.has(parallelRequestKey)");
+    expect(researchCoreSource).toContain("isBrowserFetchProviderAvailable(action.provider)");
+    expect(researchCoreSource).not.toContain("visited.has(canonical)");
+    expect(researchCoreSource).toContain("There is no required first tool, hop order, or fixed search sequence");
+  });
+
+  it("allows a repeated page visit when the Investigator changes the research rationale", async () => {
+    const { redundantResearchActionReason } = await import("../lib/agentic-web-research-core");
+    const prior = {
+      turn: 1,
+      model: "groq",
+      action: "visit",
+      args: { url: "https://example.com/team#leadership", hypothesis: "Identify current officers", purpose: "verify the officer list" },
+      execution: "success" as const,
+      observation: "The page identifies an officer.",
+      observedUrls: ["https://example.com/team"],
+      findings: [],
+    };
+    expect(redundantResearchActionReason("visit", {
+      url: "https://EXAMPLE.com/team",
+      hypothesis: "Check whether the page reveals a different ownership clue",
+      purpose: "test a distinct source-backed question",
+    }, [prior])).toBeNull();
+    expect(redundantResearchActionReason("visit", {
+      url: "https://example.com/team",
+      hypothesis: "Identify current officers",
+      purpose: "verify the officer list",
+    }, [prior])).toContain("repeat_action_guard");
+  });
+
   it("keeps agentic web research capability-oriented rather than a hard-coded research ladder", () => {
     expect(researchSource).toMatch(/tool|capabilit|action/i);
     expect(researchSource).not.toMatch(/force[_-]?dig|fixed.*provider.*sequence|always.*search.*then.*visit/i);
@@ -171,6 +204,37 @@ describe("discovery runtime architecture", () => {
         findings: [],
       },
     ])).toBeNull();
+  });
+
+  it("blocks exact repeated actions while allowing a changed research rationale", async () => {
+    const { redundantResearchActionReason } = await import("../lib/agentic-web-research-core");
+    const prior = {
+      turn: 1,
+      model: "groq",
+      action: "web_search",
+      args: { query: "Example Ltd leadership", provider: "serper", hypothesis: "Identify named officers", purpose: "test the official leadership source" },
+      execution: "success" as const,
+      observation: "Search returned an official leadership page.",
+      observedUrls: ["https://example.com/team"],
+      findings: [],
+    };
+    const same = { query: " example LTD   leadership ", provider: "serper", hypothesis: "Identify named officers", purpose: "test the official leadership source" };
+    expect(redundantResearchActionReason("web_search", same, [prior])).toContain("repeat_action_guard");
+    expect(redundantResearchActionReason("web_search", { ...same, provider: "tavily" }, [prior])).toBeNull();
+    expect(redundantResearchActionReason("web_search", { ...same, purpose: "corroborate the role in a filing" }, [prior])).toBeNull();
+    expect(redundantResearchActionReason("web_search", { ...same, hypothesis: "Test a different ownership lead" }, [prior])).toBeNull();
+    const alternate = { ...prior, turn: 2, args: { ...prior.args, purpose: "verify a filing" } };
+    expect(redundantResearchActionReason("web_search", same, [prior, alternate])).toContain("repeat_action_guard");
+
+    const newObservation = {
+      ...prior,
+      turn: 2,
+      action: "visit",
+      args: { url: "https://example.com/team", hypothesis: "Inspect the retrieved page", purpose: "verify a role from its source context" },
+      observation: "Retrieved page adds a concrete named-role attribution.",
+      observedUrls: ["https://example.com/team"],
+    };
+    expect(redundantResearchActionReason("web_search", same, [prior, newObservation])).toBeNull();
   });
 
   it("scopes Groq token-window snapshots to the selected model", () => {

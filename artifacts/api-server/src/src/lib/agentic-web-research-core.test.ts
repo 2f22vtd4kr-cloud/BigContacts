@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError } from "./canonical-atlas-failure-diagnostics";
@@ -175,7 +176,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("TURN 24");
     expect(prompt).not.toContain('"action":{"type":"string","enum"');
     expect(prompt).not.toContain("APEX MISSION CONTRACT v");
-    expect(prompt).toContain("AVAILABLE ACTIONS: web_search | parallel_web_search | visit | browser_fetch | registry_search | domain_lookup | done.");
+    const availableBrowserProviders = getAvailableBrowserFetchProviders();
+    const expectedActions = ["web_search", "parallel_web_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
+    expect(prompt).toContain("AVAILABLE ACTIONS: " + expectedActions.join(" | ") + ".");
     expect(prompt).not.toContain("footprint_email");
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
@@ -219,6 +222,53 @@ describe("Investigator prompt architecture", () => {
     });
     expect(prompt).toContain("OPTIONAL DISCOVERY TRAJECTORY GUIDANCE");
     expect(prompt).toContain("this suggestion does not mandate visiting, browsing, or any particular provider");
+  });
+
+  it("surfaces duplicate searches, repeat visits, and low-yield observations as advisory context", () => {
+    const duplicateSearches = [
+      {
+        ...livenessRecord("web_search", "success"),
+        args: { query: "Vention leadership", provider: "serper", locale: "en", market: "us" },
+      },
+      {
+        ...livenessRecord("web_search", "success"),
+        args: { query: "  VENTION   LEADERSHIP ", provider: "serper", locale: "en", market: "us" },
+      },
+    ];
+    const repeatedSearchAdvice = discoverySearchLivenessAdvisory(duplicateSearches);
+    expect(repeatedSearchAdvice).toContain("Repeated normalized search request(s)");
+    expect(repeatedSearchAdvice).toContain('"vention leadership"');
+    expect(repeatedSearchAdvice).toContain("Advisory only");
+
+    const repeatedVisits = [
+      {
+        ...livenessRecord("visit", "success"),
+        args: { url: "https://example.com/team#leadership" },
+        observedUrls: ["https://example.com/team"],
+      },
+      {
+        ...livenessRecord("visit", "success"),
+        args: { url: "https://EXAMPLE.com/team#contact" },
+        observedUrls: ["https://example.com/team"],
+      },
+    ];
+    expect(discoverySearchLivenessAdvisory(repeatedVisits)).toContain("Previously requested URL(s) appeared again");
+
+    const lowYield = [
+      { ...livenessRecord("web_search", "success"), observation: "Search returned no usable results.", observedUrls: [] },
+      { ...livenessRecord("registry_search", "success"), observation: "No registry hits.", observedUrls: [] },
+    ];
+    expect(discoverySearchLivenessAdvisory(lowYield)).toContain("low-yield results");
+    expect(discoverySearchLivenessAdvisory(lowYield)).toContain("not a reason to fabricate a candidate");
+
+    const sameSourceFamily = [
+      { ...livenessRecord("visit", "success"), args: { url: "https://example.com/team" }, observedUrls: ["https://example.com/team"] },
+      { ...livenessRecord("visit", "success"), args: { url: "https://example.com/about" }, observedUrls: ["https://example.com/about"] },
+      { ...livenessRecord("browser_fetch", "success"), args: { url: "https://www.example.com/leadership" }, observedUrls: ["https://www.example.com/leadership"] },
+    ];
+    const sourceAdvice = discoverySearchLivenessAdvisory(sameSourceFamily);
+    expect(sourceAdvice).toContain("Source-family concentration");
+    expect(sourceAdvice).toContain("do not prescribe a tool");
   });
 
   it("resets only after a successful non-search capability observation", () => {
@@ -279,8 +329,9 @@ describe("Investigator prompt architecture", () => {
     expect(schema?.additionalProperties).toBe(false);
     expect(schema?.properties?.searches?.minItems).toBeUndefined();
     expect(schema?.properties?.searches?.maxItems).toBeUndefined();
-    expect(schema?.properties?.provider).toEqual({ type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null] });
-    expect(schema?.properties?.action?.enum).toEqual(["web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"]);
+    const availableBrowserProviders = getAvailableBrowserFetchProviders();
+    expect(schema?.properties?.provider).toEqual({ type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null] });
+    expect(schema?.properties?.action?.enum).toEqual(["web_search", "parallel_web_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"]);
     expect(schema?.properties?.targetType).toEqual({ type: ["string", "null"] });
   });
 

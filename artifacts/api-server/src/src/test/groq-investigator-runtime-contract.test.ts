@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
@@ -113,9 +114,13 @@ describe("Groq Investigator runtime contract", () => {
     });
     const schema = (body.response_format as { json_schema?: { schema?: { properties?: Record<string, unknown>; required?: string[] } } }).json_schema?.schema;
     const actionSchema = schema?.properties?.action as { enum?: string[] } | undefined;
-    expect(actionSchema?.enum).toEqual(expect.arrayContaining([
-      "web_search", "parallel_web_search", "visit", "domain_lookup", "registry_search", "browser_fetch", "done",
-    ]));
+    const availableBrowserProviders = getAvailableBrowserFetchProviders();
+    const expectedActions = [
+      "web_search", "parallel_web_search", "visit",
+      ...(availableBrowserProviders.length ? ["browser_fetch"] : []),
+      "registry_search", "domain_lookup", "done",
+    ];
+    expect(actionSchema?.enum).toEqual(expectedActions);
     for (const unavailable of ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"]) {
       expect(actionSchema?.enum).not.toContain(unavailable);
     }
@@ -127,7 +132,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties?.expectedInformationGain).toEqual({ type: ["number", "null"] });
     expect(schema?.properties?.provider).toMatchObject({
       type: ["string", "null"],
-      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null],
+      enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null],
     });
     expect(schema?.required).toEqual(expect.arrayContaining(["action", "target", "targetType", "profile", "locale", "market", "provider"]));
   });

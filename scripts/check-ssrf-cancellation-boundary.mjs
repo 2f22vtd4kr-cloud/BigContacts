@@ -16,7 +16,13 @@ pass("streamed outbound request bodies abort while waiting for chunks", /readReq
 pass("redirects remain manual", /redirect: \"manual\"/.test(source));
 pass("request and response byte caps remain enforced", /MAX_REQUEST_BYTES = 1_000_000/.test(source) && /MAX_RESPONSE_BYTES = 2_000_000/.test(source));
 pass("browser escalation imports canonical URL validation and pinned outbound transport", /import \{ assertSafeOutboundUrl, safeOutboundFetch \} from \"\.\/ssrf-safe-fetch\";/.test(browserSource));
-pass("browser escalation validates the target URL before proxy providers", /throwIfAborted\(options\.signal\);\s*await assertSafeOutboundUrl\(url\);[\s\S]*const attempts:/.test(browserSource));
+pass("browser escalation rejects unavailable providers before egress, then validates URL before proxy providers",
+  browserSource.includes("throwIfAborted(options.signal);") &&
+  browserSource.includes("if (!availableProviders.includes(options.provider))") &&
+  browserSource.includes('return { html: "", provider: "provider_unavailable", observedUrl: null };') &&
+  browserSource.indexOf("throwIfAborted(options.signal);") < browserSource.indexOf("if (!availableProviders.includes(options.provider))") &&
+  browserSource.indexOf("if (!availableProviders.includes(options.provider))") < browserSource.indexOf("await assertSafeOutboundUrl(url);") &&
+  browserSource.indexOf("await assertSafeOutboundUrl(url);") < browserSource.indexOf("const attempts:"));
 pass("browser proxy providers use the pinned outbound transport", /runProviderCall\(\{ provider, account: new URL\(url\)\.hostname, signal \}, \(\) => safeOutboundFetch\(url, init\)\)/.test(browserSource));
 
 if (failures.length) {
