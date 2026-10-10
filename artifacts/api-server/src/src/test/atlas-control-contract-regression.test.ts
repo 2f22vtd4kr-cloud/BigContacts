@@ -33,7 +33,7 @@ describe("Atlas control-plane contract regression", () => {
       objective: "Discover real named people for subsequent public-contact research.",
       motivation: "Find verifiable public-source identity anchors.",
       geography: "Public web; geography chosen from the evidence.",
-    }, ["groq-investigator-1"]);
+    }, []);
     expect(prompt).not.toContain("durable tree shaft");
     expect(prompt).toContain("infrastructure concepts only");
     expect(prompt).toContain("explicitly label it as a hypothesis");
