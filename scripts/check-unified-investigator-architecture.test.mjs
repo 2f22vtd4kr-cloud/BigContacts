@@ -60,6 +60,8 @@ try {
   const { call } = findControlCall(canonicalSource);
   const replacement = "/* stale marker only: decideAtlasNextAction( is no longer executed */ Promise.resolve(null as unknown as Awaited<ReturnType<typeof decideAtlasNextAction>>)";
   const mutated = canonicalSource.slice(0, call.getStart()) + replacement + canonicalSource.slice(call.end);
+  // Prove the pre-fix whole-file text predicate would have accepted this exact mutation.
+  assert.equal(/decideAtlasNextAction\\s*\\(/.test(mutated), true, "legacy text-only marker should still match even after the executable call is removed");
   writeFileSync(canonicalPath, mutated, "utf8");
 
   const mutatedResult = runGuard(fixtureRoot);
