@@ -115,7 +115,7 @@ for (const invalid of [
   test(`rejects ${invalid.name} instead of treating it as a valid sample`, () => {
     let first = true;
     const run = createCampaignFiles({
-      outcomeForRun() { return invalid.outcome; },
+      outcomeForRun() { return invalid.outcome ?? "insufficient_evidence"; },
       omitOutcomeForRun() {
         if (first) {
           first = false;
