@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -81,6 +81,17 @@ test("rejects unknown outcome values", t => {
   const result = invoke(validator, fixture);
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /has invalid outcome/);
+});
+
+test("rejects runs produced against a different registry version", t => {
+  const fixture = makeFixture();
+  t.after(fixture.cleanup);
+  const records = JSON.parse(readFileSync(fixture.runsFile, "utf8"));
+  records.runs[0].registryVersion = "1.1.0";
+  writeFileSync(fixture.runsFile, JSON.stringify(records));
+  const result = invoke(validator, fixture);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /registryVersion does not match ground truth/);
 });
 
 test("accepts truthful system-failure runs with empty observations and trajectory", t => {
