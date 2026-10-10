@@ -89,7 +89,7 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("parallelRequestKeys.has(parallelRequestKey)");
     expect(researchCoreSource).toContain("isBrowserFetchProviderAvailable(action.provider)");
     expect(researchCoreSource).not.toContain("visited.has(canonical)");
-    expect(researchCoreSource).toContain("there is no required first tool, hop order, or fixed search sequence");
+    expect(researchCoreSource).toContain("There is no required first tool, hop order, or fixed search sequence");
   });
 
   it("allows a repeated page visit when the Investigator changes the research rationale", async () => {
