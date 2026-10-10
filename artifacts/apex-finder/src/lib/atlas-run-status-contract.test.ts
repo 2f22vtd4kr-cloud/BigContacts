@@ -53,6 +53,8 @@ describe("canonical Atlas run polling contract", () => {
     [],
     {},
     { active: false },
+    { jobId: null, job: null, active: false },
+    { type: "another-lane", jobId: null, job: null, active: false },
     { active: false, jobId: null, job: { jobId: "stale" } },
     { active: true, jobId: "job-1", job: null },
     { active: true, jobId: "job-1", job: { jobId: "other", status: "running" } },
