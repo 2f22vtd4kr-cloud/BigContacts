@@ -27,10 +27,10 @@ describe("safe entity merge contact-source binding", () => {
   it("uses the phone source belonging to the row whose phone was selected", () => {
     const selected = selectMergedContactEvidence(
       { phone: null, phoneSource: "EDGAR-Issuer-Phone" },
-      { phone: "+14155550123", phoneSource: "official-person-profile" },
+      { phone: "+14154251234", phoneSource: "official-person-profile" },
     );
 
-    expect(selected.phone).toBe("+14155550123");
+    expect(selected.phone).toBe("+14154251234");
     expect(selected.phoneSource).toBe("official-person-profile");
     expect(computeContactOutcome({ type: "HNWI", phone: selected.phone, phoneSource: selected.phoneSource })).toBe("direct_contact_candidate");
     expect(hasMeaningfulDirectContact({ type: "HNWI", phone: selected.phone, phoneSource: selected.phoneSource })).toBe(true);
