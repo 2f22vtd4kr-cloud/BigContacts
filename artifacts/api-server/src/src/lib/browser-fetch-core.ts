@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
 /** Optional browser / anti-bot escalation for Investigator page retrieval. */
@@ -8,6 +9,30 @@ import { runProviderCall } from "./provider-gate";
 
 export type BrowserProvider = "scrapfly" | "zenrows" | "browserless" | "playwright";
 export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
+
+const require = createRequire(import.meta.url);
+
+/** Return only browser providers that are configured and actually executable. */
+export function getAvailableBrowserFetchProviders(): BrowserProvider[] {
+  const available: BrowserProvider[] = [];
+  if (Boolean(process.env.SCRAPFLY_API_KEY?.trim())) available.push("scrapfly");
+  if (Boolean(process.env.ZENROWS_API_KEY?.trim())) available.push("zenrows");
+  if (Boolean(process.env.BROWSERLESS_TOKEN?.trim())) available.push("browserless");
+  const playwrightEnabled = process.env.PLAYWRIGHT_ENABLED === "1" || process.env.PLAYWRIGHT_ENABLED === "true";
+  if (playwrightEnabled) {
+    try {
+      require.resolve("playwright");
+      available.push("playwright");
+    } catch {
+      // Enabled but not installed is not an executable capability.
+    }
+  }
+  return available;
+}
+
+export function isBrowserFetchProviderAvailable(provider: BrowserProvider): boolean {
+  return getAvailableBrowserFetchProviders().includes(provider);
+}
 const MAX_BROWSER_RESPONSE_BYTES = 2_000_000;
 const MAX_BROWSER_FETCH_SCOPES = 256;
 export function isChallengeHtml(html: string): boolean { if (!html || html.length < 40) return false; const head = html.slice(0, 8_000).toLowerCase(); return (/just a moment/.test(head) && /cloudflare/.test(head)) || /cf-browser-verification|cf-challenge|attention required!\s*\|\s*cloudflare/.test(head) || (/enable javascript and cookies to continue/.test(head) && html.length < 30_000) || /^HTTP 403/.test(html) || /^HTTP 503/.test(html); }
@@ -205,6 +230,11 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
 }
 export async function browserFetchHtml(url: string, options: BrowserFetchOptions): Promise<{ html: string; provider: string; observedUrl: string | null }> {
   throwIfAborted(options.signal);
+  const availableProviders = getAvailableBrowserFetchProviders();
+  if (!availableProviders.includes(options.provider)) {
+    logger.info({ provider: options.provider, availableProviders }, "browser_fetch selected provider unavailable; no outbound request attempted");
+    return { html: "", provider: "provider_unavailable", observedUrl: null };
+  }
   await assertSafeOutboundUrl(url);
   const scope = options.scope?.trim() || getAgenticExecutionScope();
   const count = getBrowserFetchCount(scope);
@@ -238,4 +268,4 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
   return { html: "", provider: options.provider, observedUrl: null };
 }
 
-export function browserFetchConfigured(): boolean { return Boolean(process.env.SCRAPFLY_API_KEY || process.env.ZENROWS_API_KEY || process.env.BROWSERLESS_TOKEN || process.env.PLAYWRIGHT_ENABLED === "1" || process.env.PLAYWRIGHT_ENABLED === "true"); }
+export function browserFetchConfigured(): boolean { return getAvailableBrowserFetchProviders().length > 0; }
