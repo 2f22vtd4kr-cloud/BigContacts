@@ -42,6 +42,7 @@ async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<Brow
     u.searchParams.set("key", key);
     u.searchParams.set("url", url);
     u.searchParams.set("asp", "true");
+    u.searchParams.set("render_js", "true");
     const resp = await providerFetch("scrapfly", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal);
     if (!resp.ok) return { html: null, observedUrl: null };
     const data = await readJsonCapped<{ result?: { content?: string; url?: string } }>(resp, signal);
