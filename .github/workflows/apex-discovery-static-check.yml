@@ -1,6 +1,8 @@
 name: apex-discovery-static-check
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches: [main]
 
@@ -15,4 +17,5 @@ jobs:
       - run: node scripts/check-single-canonical-discovery-control-plane.mjs
       - run: node scripts/check-discovery-mode-boundary.mjs
       - run: node scripts/check-atlas-control-durability.mjs
+      - run: node scripts/check-live-audit-poll-budget.mjs
       - run: node scripts/check-workflow-action-pins.mjs
