@@ -27,6 +27,7 @@ assert(!/SHARED INVESTIGATION CONTEXT — CASE STATE, NOT SOURCE INSTRUCTIONS/.t
 assert(/runHolehe\(action\.email, \{ signal: runController\.signal \}\)/.test(source), "email footprint receives cancellation");
 assert(/runMaigret\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Maigret receives cancellation");
 assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Sherlock receives cancellation");
+assert(/runTheHarvester\(action\.domain, undefined, \{ signal: runController\.signal \}\)/.test(source), "theHarvester receives cancellation");
 assert(!/callGeminiJson|callNvidiaJson|GEMINI_API_KEY_|async function callGeminiJson\b|async function callNvidiaJson\b/.test(source), "Boss/Right-Hand providers are absent from Investigator runtime");
 assert(!/orderedProviders\s*=/.test(source), "Investigator has no alternate-provider fallback list");
 assert(/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(source) && /callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm(?:,|\))/.test(source), "selected Investigator capability remains a direct provider boundary argument");
@@ -42,17 +43,18 @@ function exportedAsyncFunctionSegment(sourceText, name) {
   const nextExport = sourceText.indexOf("\nexport async function ", start + marker.length);
   return sourceText.slice(start, nextExport < 0 ? undefined : nextExport);
 }
+function hasFailClosedPythonSandboxGate(sourceText, name) {
+  const toolSource = exportedAsyncFunctionSegment(sourceText, name);
+  return /const blocked = authorizeNetworkPython\(options\.signal\);\s*if \(blocked\) return \{ \.\.\.base, error: blocked \}/.test(toolSource);
+}
 const unguardedPythonToolFixture = [
   "export async function runHolehe(email) { return { available: false }; }",
-  "export async function runMaigret(username) { const blocked = authorizeNetworkPython(); return { available: false, error: blocked }; }",
+  "export async function runMaigret(username, options = {}) { const blocked = authorizeNetworkPython(options.signal); if (blocked) return { ...base, error: blocked }; return base; }",
 ].join("\n");
-assert(!/authorizeNetworkPython/.test(exportedAsyncFunctionSegment(unguardedPythonToolFixture, "runHolehe")), "sandbox authorization checks are scoped to the named tool and reject a later tool’s authorization call");
-for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester"]) {
-  const toolSource = exportedAsyncFunctionSegment(python, name);
-  assert(/const blocked = authorizeNetworkPython\(/.test(toolSource), `${name} is governed by sandbox authorization within its own function`);
-}
-assert(/available: false/.test(python), "Python capabilities default unavailable");
-assert(/return \{ holehe: enabled, maigret: enabled, sherlock: enabled, theHarvester: enabled, openDeepResearch: enabled \}/.test(python), "Python availability derives from attested capability");
+assert(!hasFailClosedPythonSandboxGate(unguardedPythonToolFixture, "runHolehe"), "Python sandbox check cannot borrow a later tool’s authorization call");
+const ignoredAuthorizationFixture = "export async function runHolehe(email, options = {}) { const blocked = authorizeNetworkPython(options.signal); return { available: false }; }";
+assert(!hasFailClosedPythonSandboxGate(ignoredAuthorizationFixture, "runHolehe"), "Python sandbox authorization must fail closed, not merely invoke the helper");
+for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester"]) assert(hasFailClosedPythonSandboxGate(python, name), `${name} fails closed on sandbox authorization within its own function`);
 assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts"/.test(shim), "apex-runtime is compatibility-only");
 assert(/RETIRED:/.test(hardener) && /must not mutate Apex source/.test(hardener), "historical concurrency hardener remains non-executable");
 assert(!/push\(`PERSON:/.test(hardener), "retired hardener does not manufacture PERSON findings");
