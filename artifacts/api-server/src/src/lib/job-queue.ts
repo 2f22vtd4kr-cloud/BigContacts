@@ -59,12 +59,12 @@ export async function updateJob(jobId:string,patch:Partial<JobState>):Promise<vo
     const args:string[]=[];
     for(const[k,v]of Object.entries(flat)){args.push(k,v);}
     return Number(await rc.eval(
-      "local k=KEYS[1]; local current=redis.call('hget',k,'status'); local incoming=ARGV[1]; if current~='queued' and current~='running' and current~='paused' then return 0 end; local cancelRequested=redis.call('hget',k,'cancelRequested'); if cancelRequested=='1' and incoming~='cancelled' then return 0 end; for i=2,#ARGV,2 do redis.call('hset',k,ARGV[i],ARGV[i+1]); end; return 1",
+      "local k=KEYS[1]; local current=redis.call('hget',k,'status'); local incoming=ARGV[1]; if current~='queued' and current~='running' and current~='paused' then return 0 end; local cancelRequested=redis.call('hget',k,'cancelRequested'); if cancelRequested=='1' and incoming~='cancelled' then return 0 end; if incoming=='cancelled' then redis.call('hdel',k,'cancelRequested') end; for i=2,#ARGV,2 do redis.call('hset',k,ARGV[i],ARGV[i+1]); end; return 1",
       1,jk(jobId),patch.status===undefined?"":String(patch.status),...args
     ));
   },null as number|null);
   if(redisResult===0||redisResult===null)return;
-  if(prev)memoryJobs.set(jobId,{...prev,...patch});
+  if(prev)memoryJobs.set(jobId,{...prev,...patch,cancelRequested:patch.status==="cancelled"?undefined:(patch.cancelRequested??prev.cancelRequested)});
   else if(patch.jobId||patch.type)memoryJobs.set(jobId,{jobId,type:String(patch.type??"unknown"),status:(patch.status as JobStatus)??"running",progress:Number(patch.progress??0),inserted:Number(patch.inserted??0),skipped:Number(patch.skipped??0),errors:Number(patch.errors??0),total:Number(patch.total??0),startedAt:String(patch.startedAt??new Date().toISOString()),message:String(patch.message??""),...patch}as JobState);
   trimMemoryJobs();
 }
@@ -104,7 +104,7 @@ export async function clearJobCancellationRequest(jobId:string):Promise<boolean>
     return true;
   }
   const result=await safeRedis(async rc=>Number(await rc.eval(
-    "local k=KEYS[1]; local current=redis.call('hget',k,'status'); if not current then return -1 end; local pending=redis.call('hget',k,'cancelRequested'); if pending~='1' then return 1 end; if current~='queued' and current~='running' and current~='paused' then return 1 end; redis.call('hdel',k,'cancelRequested'); return 1",
+    "local k=KEYS[1]; local current=redis.call('hget',k,'status'); if not current then return -1 end; local pending=redis.call('hget',k,'cancelRequested'); if pending~='1' then return 1 end; redis.call('hdel',k,'cancelRequested'); return 1",
     1,jk(jobId),
   )),null as number|null);
   if(result!==1)return false;
