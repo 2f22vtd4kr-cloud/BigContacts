@@ -22,10 +22,10 @@ const forbidden = [
   /force_(?:company|related|visit|search|hop)/i,
   /GROK-PARITY/i,
   /force_company_surface/i,
-  /(?<!no\\s)(?:mandatory|required)\\s+(?:step|hop|search)/i,
-  /Begin\\. Choose an initial web_search query/i,
-  /Prefer\\s+Serper.*Tavily.*Exa/i,
-  /Serper\\s*[→>-]+\\s*Tavily\\s*[→>-]+\\s*Exa/i,
+  /(?<!no\s)(?:mandatory|required)\s+(?:step|hop|search)/i,
+  /Begin\. Choose an initial web_search query/i,
+  /Prefer\s+Serper.*Tavily.*Exa/i,
+  /Serper\s*[→>-]+\s*Tavily\s*[→>-]+\s*Exa/i,
   /action === "footprint_username"/,
 ];
 const failures = forbidden.filter((pattern) => pattern.test(source)).map((pattern) => pattern.toString());
@@ -33,7 +33,7 @@ const failures = forbidden.filter((pattern) => pattern.test(source)).map((patter
 // Validate capabilities against the canonical TypeScript AgentAction union rather
 // than the whole file: stale comments or examples must not satisfy this guard.
 function extractTypeAlias(sourceText, typeName) {
-  const declaration = new RegExp(`\\\\btype\\\\s+${typeName}\\\\s*=`).exec(sourceText);
+  const declaration = new RegExp(`\\btype\\s+${typeName}\\s*=`).exec(sourceText);
   if (!declaration) return null;
   const start = declaration.index;
   let depth = 0;
@@ -47,7 +47,7 @@ function extractTypeAlias(sourceText, typeName) {
       else if (character === quote) quote = null;
       continue;
     }
-    if (character === '"' || character === "'" || character === "`") {
+    if (character === '"' || character === "'") {
       quote = character;
       continue;
     }
