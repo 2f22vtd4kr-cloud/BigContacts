@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { validateResearchObjective } from "../lib/research-objective";
+import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
+import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
 import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
@@ -14,6 +16,35 @@ const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agent
 const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-single-target-runner.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
+  it("persists finite safe diagnostic stage/domain/kind labels at the canonical failure boundary", () => {
+    const canonical = canonicalDiscoverySource;
+    expect(canonical).toContain("classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost })");
+    expect(canonical).toContain("failureDomain=${failureDiagnostic.domain}");
+    expect(canonical).toContain("failureKind=${failureDiagnostic.kind}");
+    expect(canonical).toContain('failureStage = "model_action_validation"');
+    expect(canonical).toContain('failureStage = "terminal_persistence"');
+    expect(canonical).toContain('failureStage = "job_state_or_lease"');
+    expect(canonical).toContain("let failureStatePersistenceFailed = false;");
+    expect(canonical).toContain("failureStatePersistence=case_update_failed");
+    expect(canonical).toContain("failureStatePersistenceFailed = true;");
+    expect(canonical).toContain("const terminalMessage = failureStatePersistenceFailed ?");
+    expect(bureauPassSource).toContain("failureDomain:record.failureDomain??null,failureKind:record.failureKind??null");
+    expect(classifyCanonicalAtlasFailure({ stage: "tool_execution", error: new Error("tool failed") })).toEqual({ domain: "tool_execution", kind: "request_failure" });
+  });
+});
+
+describe("Atlas control-plane contract regression", () => {
+  it("does not seed the discovery Boss with a fabricated sector phrase", () => {
+    const prompt = buildGroqBossDiscoveryPrompt({
+      objective: "Discover real named people for subsequent public-contact research.",
+      motivation: "Find verifiable public-source identity anchors.",
+      geography: "Public web; geography chosen from the evidence.",
+    }, []);
+    expect(prompt).not.toContain("durable tree shaft");
+    expect(prompt).toContain("infrastructure concepts only");
+    expect(prompt).toContain("explicitly label it as a hypothesis");
+  });
+
   it("preserves Investigator tool choice across Boss-directed discovery continuations", () => {
     for (const direction of [
       "Use parallel_web_search for the next step.",
@@ -52,6 +83,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(rejectedBranch).toContain("investigatorActionExecuted: false");
     expect(rejectedBranch).toContain("continue;");
     expect(rejectedBranch).not.toContain("Canonical Atlas rejected a Boss direction");
+    expect(rejectedBranch).toContain("priorAction = previousAcceptedAction;");
+    expect(rejectedBranch).toContain("priorCandidate = previousAcceptedCandidate;");
     expect(rejectedBranch).not.toContain("latestEvidenceBackedTerminal = null");
     const budgetGuard = canonicalDiscoverySource.indexOf("if (discoveryBudget < 30_000)", acceptedPivotBoundary);
     const iterationGuard = canonicalDiscoverySource.indexOf("if (remainingInvestigatorIterations <= 0)", acceptedPivotBoundary);
@@ -63,6 +96,13 @@ describe("Atlas control-plane contract regression", () => {
     expect(nextInvestigatorPass).toBeGreaterThan(acceptedPivotTerminalReset);
     expect(canonicalDiscoverySource).toContain("controlValidationFeedback: directionValidationFeedback ?");
     expect(controlSource).toContain('controlValidationFeedback: typeof parsed.controlValidationFeedback === "string"');
+
+    const feedback = "Rejected concrete URL/tool destination. No Investigator tool was executed.";
+    const investigatorReport = JSON.stringify({ provider: "groq-investigator-1", controlValidationFeedback: feedback, status: "completed", searches: 2, visits: 0, findings: [], modelFindings: [], openQuestions: [] });
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState: "Current discovery case state." });
+    const bossPrompt = buildAtlasBossControlPrompt({ investigatorReport, compactState: "Current discovery case state.", rightHand: { status: "completed", decision: "await_anchor", reason: "Control-only review; no new evidence.", direction: null, confidence: 0.9, model: "openai/gpt-oss-120b", error: null } });
+    expect(rightHandPrompt).toContain(feedback);
+    expect(bossPrompt).toContain(feedback);
     expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
   });
 

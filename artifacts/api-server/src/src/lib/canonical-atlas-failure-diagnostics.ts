@@ -1,0 +1,201 @@
+/**
+ * Safe, finite diagnostics for the canonical Atlas execution boundary.
+ *
+ * These labels describe the last named execution boundary and a bounded failure
+ * kind. They must never include request bodies, raw URLs, provider messages,
+ * credentials, cookies, or model reasoning.
+ */
+export type AtlasFailureDomain =
+  | "model_provider"
+  | "model_action"
+  | "tool_execution"
+  | "external_page_fetch"
+  | "persistence_database"
+  | "lease_job_state"
+  | "unexpected_programming_error";
+
+export type AtlasFailureKind =
+  | "request_failure"
+  | "hard_request_quota"
+  | "local_provider_cooldown"
+  | "local_provider_budget_exhausted"
+  | "provider_rate_limited"
+  | "invalid_provider_request"
+  | "provider_auth_failure"
+  | "provider_endpoint_not_found"
+  | "provider_capacity_exhausted"
+  | "invalid_contract"
+  | "pdf_unsupported"
+  | "response_size_limit"
+  | "http_error"
+  | "provider_unavailable"
+  | "timeout"
+  | "cancelled"
+  | "job_missing"
+  | "job_state_unavailable"
+  | "job_state_mismatch"
+  | "lease_lost"
+  | "unexpected_exception";
+
+export type AtlasFailureStage =
+  | "boss_opening_request"
+  | "right_hand_opening_review"
+  | "oversight_control_decision"
+  | "investigator_episode"
+  | "model_action_validation"
+  | "tool_execution"
+  | "external_page_fetch"
+  | "case_persistence"
+  | "candidate_admission_persistence"
+  | "control_event_persistence"
+  | "terminal_persistence"
+  | "job_state_or_lease"
+  | "orchestration";
+
+export function atlasFailureDomainForStage(stage: AtlasFailureStage): AtlasFailureDomain {
+  switch (stage) {
+    case "boss_opening_request":
+    case "right_hand_opening_review":
+    case "oversight_control_decision":
+      return "model_provider";
+    case "model_action_validation":
+      return "model_action";
+    case "tool_execution":
+      return "tool_execution";
+    case "external_page_fetch":
+      return "external_page_fetch";
+    case "case_persistence":
+    case "candidate_admission_persistence":
+    case "control_event_persistence":
+    case "terminal_persistence":
+      return "persistence_database";
+    case "job_state_or_lease":
+      return "lease_job_state";
+    default:
+      return "unexpected_programming_error";
+  }
+}
+
+function safeErrorShape(error: unknown): { name: string; message: string; code: string; status: number | null } {
+  const value = error && typeof error === "object" ? error as Record<string, unknown> : {};
+  const cause = value.cause && typeof value.cause === "object" ? value.cause as Record<string, unknown> : {};
+  const name = error instanceof Error ? error.name : typeof value.name === "string" ? value.name : "unknown";
+  const message = error instanceof Error ? error.message : typeof value.message === "string" ? value.message : "";
+  const code = typeof value.code === "string" ? value.code : typeof cause.code === "string" ? cause.code : "";
+  const rawStatus = value.status ?? value.statusCode ?? cause.status ?? cause.statusCode;
+  const status = typeof rawStatus === "number" && Number.isInteger(rawStatus) ? rawStatus : typeof rawStatus === "string" && /^\d{3}$/.test(rawStatus) ? Number(rawStatus) : null;
+  return { name, message, code, status };
+}
+
+/**
+ * Classify the bounded provider error codes returned by the Investigator Groq adapter.
+ * The input is a code, never a raw error message or response body.
+ */
+export function classifyInvestigatorProviderError(value: string): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
+  const code = value.trim().toLowerCase();
+  if (code === "upstream_quota_exhausted" || code === "quota_exceeded") return { domain: "model_provider", kind: "hard_request_quota" };
+  if (code === "local_provider_cooldown") return { domain: "model_provider", kind: "local_provider_cooldown" };
+  if (code === "local_provider_budget_exhausted") return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
+  if (code === "upstream_rate_limited" || code === "rate_limited" || /^http_429(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_rate_limited" };
+  if (/^http_400(?:$|:)/.test(code) || code === "request_size" || code === "json_schema_rejected" || code === "json_object_compatibility_rejected") return { domain: "model_provider", kind: "invalid_provider_request" };
+  if (/^http_(401|403)(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_auth_failure" };
+  if (/^http_404(?:$|:)/.test(code)) return { domain: "model_provider", kind: "provider_endpoint_not_found" };
+  if (/^http_5\d\d(?:$|:)/.test(code) || code === "provider_unavailable") return { domain: "model_provider", kind: "provider_unavailable" };
+  if (code === "upstream_token_window_wait_exceeded" || code === "upstream_capacity_exhausted" || code === "agenticproviderqueuefullerror") return { domain: "model_provider", kind: "provider_capacity_exhausted" };
+  if (code === "invalid_json_response" || code === "empty_response") return { domain: "model_provider", kind: "invalid_contract" };
+  if (code === "timeout" || code === "timed out") return { domain: "model_provider", kind: "timeout" };
+  if (code === "cancelled") return { domain: "lease_job_state", kind: "cancelled" };
+  if (code === "network_error") return { domain: "model_provider", kind: "request_failure" };
+  return { domain: "unexpected_programming_error", kind: "unexpected_exception" };
+}
+/** Return only stable category labels; never return the raw error text. */
+export function classifyCanonicalAtlasFailure(input: {
+  stage: AtlasFailureStage;
+  error: unknown;
+  cancelled?: boolean;
+  jobStateUnavailable?: boolean;
+  jobMissing?: boolean;
+  jobStateMismatch?: boolean;
+  leaseLost?: boolean;
+}): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
+  const error = safeErrorShape(input.error);
+  if (input.cancelled) return { domain: "lease_job_state", kind: "cancelled" };
+  if (input.jobStateUnavailable) return { domain: "lease_job_state", kind: "job_state_unavailable" };
+  if (input.jobMissing) return { domain: "lease_job_state", kind: "job_missing" };
+  if (input.jobStateMismatch) return { domain: "lease_job_state", kind: "job_state_mismatch" };
+  if (input.leaseLost || /canonical atlas lease (?:was )?lost|lease ownership.*lost/i.test(error.message)) {
+    return { domain: "lease_job_state", kind: "lease_lost" };
+  }
+  if (error.name === "AbortError" || /timeout|timed out|deadline exceeded|aborted/i.test(error.message)) {
+    return { domain: atlasFailureDomainForStage(input.stage), kind: "timeout" };
+  }
+  const isModelProviderStage = input.stage === "boss_opening_request"
+    || input.stage === "right_hand_opening_review"
+    || input.stage === "oversight_control_decision";
+  if (isModelProviderStage) {
+    // A locally classified hard quota exhaustion is distinct from ordinary HTTP 429.
+    if (error.name === "ProviderQuotaError" && error.code === "cooldown") {
+      return { domain: "model_provider", kind: "local_provider_cooldown" };
+    }
+    if (error.name === "ProviderQuotaError" && error.code === "budget_exhausted") {
+      return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
+    }
+    if (error.code === "quota_exceeded"
+      || /upstream[_\s]quota[_\s]exhausted|daily quota|quota exceeded|request quota exhausted|requests per day/i.test(error.message)) {
+      return { domain: "model_provider", kind: "hard_request_quota" };
+    }
+    if (error.status === 429 || /HTTP\s+429|too many requests/i.test(error.message)) {
+      return { domain: "model_provider", kind: "provider_rate_limited" };
+    }
+    if (error.status === 400 || /invalid request|malformed request/i.test(error.message)) {
+      return { domain: "model_provider", kind: "invalid_provider_request" };
+    }
+    if (error.status === 401 || error.status === 403 || /unauthorized|forbidden/i.test(error.message)) {
+      return { domain: "model_provider", kind: "provider_auth_failure" };
+    }
+    if (error.status === 404) {
+      return { domain: "model_provider", kind: "provider_endpoint_not_found" };
+    }
+    if ((error.status !== null && error.status >= 500 && error.status <= 599)
+      || /provider unavailable|HTTP\s+5\d\d/i.test(error.message)) {
+      return { domain: "model_provider", kind: "provider_unavailable" };
+    }
+    if (error.code && /^(ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN)/i.test(error.code)) {
+      return { domain: "model_provider", kind: "request_failure" };
+    }
+    // An unexpected local exception while executing a provider stage must not
+    // automatically be mislabeled as an upstream failure.
+    return { domain: "unexpected_programming_error", kind: "unexpected_exception" };
+  }
+  if (input.stage === "model_action_validation") {
+    return { domain: "model_action", kind: "invalid_contract" };
+  }
+  if (input.stage === "external_page_fetch") {
+    if (/(?:outbound|browser) response exceeds \d+ byte limit/i.test(error.message)) {
+      return { domain: "external_page_fetch", kind: "response_size_limit" };
+    }
+    if (/HTTP\s+[45]\d\d/i.test(error.message)) {
+      return { domain: "external_page_fetch", kind: "http_error" };
+    }
+    return { domain: "external_page_fetch", kind: "request_failure" };
+  }
+  if (input.stage === "tool_execution") {
+    return { domain: "tool_execution", kind: "request_failure" };
+  }
+  if (input.stage === "boss_opening_request" || input.stage === "right_hand_opening_review" || input.stage === "oversight_control_decision") {
+    return { domain: "model_provider", kind: "request_failure" };
+  }
+  if (input.stage === "job_state_or_lease") {
+    return { domain: "lease_job_state", kind: "unexpected_exception" };
+  }
+  if (input.stage === "case_persistence" || input.stage === "candidate_admission_persistence" || input.stage === "control_event_persistence" || input.stage === "terminal_persistence") {
+    return { domain: "persistence_database", kind: "unexpected_exception" };
+  }
+  if (/provider unavailable|HTTP\s+5\d\d/i.test(error.message) && /provider|groq|model/i.test(error.message)) {
+    return { domain: "model_provider", kind: "provider_unavailable" };
+  }
+  if (error.code && /^(ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN)/i.test(error.code)) {
+    return { domain: atlasFailureDomainForStage(input.stage), kind: "request_failure" };
+  }
+  return { domain: atlasFailureDomainForStage(input.stage), kind: "unexpected_exception" };
+}

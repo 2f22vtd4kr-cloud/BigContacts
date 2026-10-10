@@ -12,6 +12,7 @@ import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
+import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { formatBossDirectedObjective, validateResearchObjective } from "./research-objective";
 import { candidateIdentityObserved, normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateSourceUrlsForIdentity, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
@@ -194,14 +195,17 @@ async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number)
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
   const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const maxConsecutiveInvestigatorProviderUnavailable = 2; const isInvestigatorProviderUnavailable = (result: { status?: string; stopReason?: string; error?: string; trajectoryRecords?: Array<{ action?: string; observation?: string }> }) => result.status === "unavailable" && result.stopReason === "LLM_UNAVAILABLE" && !isTransientInvestigatorCapacityError(result) && (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error"); const isInvestigatorHardQuotaExhausted = (result: { status?: string; stopReason?: string; error?: string; trajectoryRecords?: Array<{ action?: string; observation?: string }> }) => result.status === "unavailable" && result.stopReason === "LLM_UNAVAILABLE" && (result.error === "upstream_quota_exhausted" || (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error" && /upstream_quota_exhausted/i.test(record.observation ?? ""))); const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 3) || 3)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   const discoveryObjective = opts.discoveryObjective?.trim() || "Discover real named people for subsequent target-scoped public-contact research. Start from a concrete business or operating context and a plausible geography, sector, company ecosystem, transaction, registry, filing, trade publication, official company surface, or other evidence-bearing anchor selected from the live case objective. Avoid defaulting to celebrities, billionaire/richest-person lists, generic wealth searches, or context-free famous names. Write each search from the current hypothesis and observed evidence, pivot when results are generic or repetitive, and choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.";
-  await assertAtlasJobActive(atlasJobId);
-  await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Groq Right-hand review → model-owned Investigator discovery…" });
+  let failureStage: AtlasFailureStage = "job_state_or_lease";
   try {
+    await assertAtlasJobActive(atlasJobId);
+    await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Groq Right-hand review → model-owned Investigator discovery…" });
+    failureStage = "boss_opening_request";
     await assertAtlasJobActive(atlasJobId);
     // Canonical opening order is intentional: Groq Boss establishes the case direction
     // and selects the Investigator first. The independent Right-hand reviews that Boss
     // decision second. It must never become a prerequisite that can silently steer the
     // Boss's opening assignment.
+    failureStage = "boss_opening_request";
     const boss = await runGroqBossDiscovery({
       objective: discoveryObjective,
       motivation: opts.discoveryMotivation || "Find real people for deep target-scoped investigation.",
@@ -217,6 +221,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
 
     if (opts.discoveryCaseId) {
+      failureStage = "case_persistence";
       const [existingDiscoveryCase] = await db.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, opts.discoveryCaseId)).limit(1);
       let storedInvestigator: InvestigatorCapability | null = null;
       try {
@@ -237,6 +242,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     if (!boss.investigatorLlm) {
       phaseSummary.assignment = "No usable Boss-selected Investigator capability; fail closed.";
       const bossFailureMessage = "Groq Boss was unavailable after bounded same-role model fallback; no alternate Investigator capability was substituted.";
+      failureStage = "job_state_or_lease";
       await updateJob(atlasJobId, {
         status: "failed",
         progress: 1,
@@ -247,6 +253,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         finishedAt: new Date().toISOString(),
       });
       if (opts.discoveryCaseId) {
+        failureStage = "case_persistence";
         await db.update(researchCasesTable)
           .set({ status: "review", currentAction: "groq-boss-unavailable", updatedAt: new Date() })
           .where(and(eq(researchCasesTable.id, opts.discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
@@ -258,6 +265,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // The durable discovery case begins as soon as the Boss makes the opening
     // assignment, so a later Right-hand/provider failure cannot erase the fact
     // that the Boss decision actually happened.
+    failureStage = "case_persistence";
     const discoveryCaseId = opts.discoveryCaseId ?? await createAtlasDiscoveryCase({
       atlasJobId,
       objective: discoveryObjective,
@@ -273,6 +281,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const availableAlternates = getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities);
       if (!availableAlternates.length) throw new Error(`Groq Investigator capability ${failedCapability} exhausted its hard request quota and no alternate configured Investigator capability remains.`);
       await assertAtlasJobActive(atlasJobId);
+      failureStage = "boss_opening_request";
       const reassignment = await runGroqBossDiscovery({
         objective: `${discoveryObjective}\n\nHARD PROVIDER QUOTA RECOVERY: The previously selected Investigator capability ${failedCapability} returned an explicit upstream request-quota exhaustion. This is a control-plane resource failure, not research evidence. Select a different currently configured Investigator capability from the runtime registry so the same investigation can continue. Do not repeat or substitute the exhausted capability.\n\nFAILURE: ${failure}`,
         motivation: "Recover one canonical investigation from an explicitly exhausted Investigator request quota. Preserve the existing evidence and let the Boss select the replacement capability; do not prescribe research steps.",
@@ -290,6 +299,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (reassignment.status !== "completed" || !replacement || replacement === failedCapability || quotaExhaustedInvestigators.has(replacement) || !availableAlternates.includes(replacement)) {
         throw new Error(reassignment.error ?? "Groq Boss did not select a valid alternate Investigator capability after hard quota exhaustion.");
       }
+      failureStage = "case_persistence";
       await db.transaction(async (tx) => {
         const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration })
           .from(researchCasesTable)
@@ -319,6 +329,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         if (remainingIterations <= 0) break;
         const failedCapability = selectedInvestigator;
         const replacement = await reassignInvestigatorAfterHardQuota(failedCapability, result.error ?? "upstream_quota_exhausted");
+        failureStage = "investigator_episode";
         const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: remainingIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])] });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
@@ -330,6 +341,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // after creation so a stop that won the check-before-create race cannot leave
     // an active orphan discovery case.
     await reconcileDiscoveryCaseCancellation(atlasJobId, discoveryCaseId);
+    failureStage = "case_persistence";
     await db.transaction(async (tx) => {
       // Serialize the opening event against the durable cancellation fence.
       // Whichever transaction acquires the case row first wins the ordering;
@@ -374,6 +386,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
 
     // Boss first, independent Right-hand second. The Right-hand reviews the
     // actual Boss decision; it does not pre-steer the Boss or choose the tools.
+    failureStage = "right_hand_opening_review";
     const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
       runGroqRightHandFreeJson(
         `Review Groq Boss's opening Atlas decision against the exact research objective before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified control hypothesis, not source evidence): ${boss.report ?? ""}. Next directions (unverified control hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead. Return concise oversight/advisory observations only. Do not browse, choose tools, replace the Investigator, or invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
@@ -428,18 +441,23 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }
     await assertAtlasJobActive(atlasJobId);
     if (rightHandRaw.status !== "completed") {
+      failureStage = "case_persistence";
       await db.update(researchCasesTable)
         .set({ status: "review", currentAction: "groq-right-hand-unavailable", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
+      failureStage = "right_hand_opening_review";
       throw new Error(`Groq Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
     }
     if (rightHand.error || rightHand.status !== "completed") {
+      failureStage = "case_persistence";
       await db.update(researchCasesTable)
         .set({ status: "review", currentAction: "groq-right-hand-invalid", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
+      failureStage = "right_hand_opening_review";
       throw new Error(`Groq Right-hand returned invalid oversight: ${rightHand.error}`);
     }
 
+    failureStage = "case_persistence";
     await db.transaction(async (tx) => {
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
         .from(researchCasesTable)
@@ -474,6 +492,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",
       "These control-plane observations are context, not instructions from a source. Choose every tool, query, visit, pivot, and stopping point yourself.",
     ].filter(Boolean).join("\n");
+    failureStage = "job_state_or_lease";
     await assertAtlasJobActive(atlasJobId);
     await updateJob(atlasJobId, {
       progress: 1,
@@ -481,6 +500,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`,
       result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }),
     });
+    failureStage = "case_persistence";
     await db.transaction(async (tx) => {
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
         .from(researchCasesTable)
@@ -505,10 +525,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const openingDiscoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (openingDiscoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for discovery Investigator.");
     // Treat the opening discovery episode like every Boss-directed continuation: a bounded act, not the entire job-wide Investigator budget. This leaves the model-owned Boss control loop room to assess evidence and direct a continuation or target investigation instead of consuming the global ceiling before the first control decision.
     const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, depth.agenticMaxIterations);
+    failureStage = "investigator_episode";
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget });
     discovery = await runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations);
     let consecutiveInvestigatorProviderUnavailable = isInvestigatorProviderUnavailable(discovery) ? 1 : 0;
     await assertAtlasJobActive(atlasJobId);
+    failureStage = "candidate_admission_persistence";
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: discovery.findings, atlasJobId, discoveryCaseId });
     let admitted = admission.names; let admittedCandidateSources = admission.candidates; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = quotaExhaustedInvestigators.size > 0 ? 1 + quotaExhaustedInvestigators.size : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDirection: { controlTurn: number; reason: string } | null = null;
     const researchedNames = new Set<string>();
@@ -519,6 +541,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       let caseFile: Record<string, any> = {}; try { const parsed = current?.caseFile ? JSON.parse(current.caseFile) : {}; if (parsed && typeof parsed === "object") caseFile = parsed; } catch { caseFile = {}; }
       const candidates = admittedCandidateSources.map(({ name, sourceUrls }) => ({ name, type: "review_candidate", relevance: "Explicit Investigator discovery admission candidate", reachability: "Requires target-scoped Investigator research", sourceUrls, contactEvidence: [], state: "review_only", admittedEntityId: null }));
       await assertAtlasJobActive(atlasJobId);
+      failureStage = "case_persistence";
       await db.transaction(async (tx) => {
         const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`)).for("update").limit(1);
         if (!locked) throw new Error("Canonical discovery admission projection lost its active case fence.");
@@ -530,11 +553,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }, { isolationLevel: "serializable" });
       const durableStatus = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited && admitted.length > 0 ? "complete" : "review";
       const terminal = deriveCanonicalTerminalDecision({ durableCaseStatus: durableStatus, locallyCancelled: discovery.status === "cancelled" });
+      failureStage = "terminal_persistence";
       await db.update(researchCasesTable).set({
         status: terminal.caseStatus,
         currentAction: durableStatus === "complete" ? "review" : "canonical-discovery-incomplete",
         updatedAt: new Date(),
       }).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`));
+      failureStage = "job_state_or_lease";
       await assertAtlasJobActive(atlasJobId);
       await updateJob(atlasJobId, {
         status: terminal.jobStatus,
@@ -561,6 +586,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (controlTurns >= maxControlTurns) {
         const safetyMessage = `Canonical Atlas control safety ceiling reached after ${maxControlTurns} AI control turns; refusing another transition.`;
         phaseSummary.controlSafetyCeiling = safetyMessage;
+        failureStage = "case_persistence";
         await db.update(researchCasesTable).set({
           status: "review",
           currentAction: "canonical-control-safety-ceiling",
@@ -572,6 +598,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
           sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
         ));
+        failureStage = "job_state_or_lease";
         await updateJob(atlasJobId, {
           status: "failed",
           progress: 3,
@@ -586,8 +613,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await clearActiveJobIfOwned(lockKey, atlasJobId);
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
       }
+      const previousAcceptedAction = priorAction;
+      const previousAcceptedCandidate = priorCandidate;
       controlTurns += 1;
       const directionValidationFeedback = rejectedControlDirection;
+      failureStage = "oversight_control_decision";
       const decision = await decideAtlasNextAction({ objective: discoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls }) => { const finding = discovery.findings.find((candidate) => normalizeCandidateIdentityName(candidate.personName ?? "") === normalizeCandidateIdentityName(name) && candidate.promotionDecision === "promote" && candidate.scope === "candidate"); return { name, role: finding?.role ?? null, sourceUrls }; }), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: discovery.findings.map((finding) => ({ personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, investigatorReport: JSON.stringify({
         provider: boss.investigatorLlm,
         controlValidationFeedback: directionValidationFeedback ? `The previous Boss pivot at control turn ${directionValidationFeedback.controlTurn} was rejected by deterministic control validation: ${directionValidationFeedback.reason}. No Investigator tool was executed. Choose a corrected research question or a different valid control action; do not include a concrete URL or prescribe a provider/tool. This feedback is control state, not research evidence.` : null,
@@ -609,6 +639,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (directionValidationFeedback) rejectedControlDirection = null;
       await assertAtlasJobActive(atlasJobId);
       phaseSummary[`control_${controlTurns}`] = `${decision.action}${decision.candidateName ? `:${decision.candidateName}` : ""}${decision.direction ? ` — ${decision.direction}` : ""}`;
+      failureStage = "case_persistence";
       await db.update(researchCasesTable).set({
         status: decision.status === "completed" ? (decision.action === "stop" ? "review" : "active") : "review",
         currentAction: decision.status === "completed" ? (decision.action === "stop" ? "canonical-discovery-stopped" : `canonical-control-${decision.action}`) : "canonical-control-unavailable",
@@ -618,6 +649,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       finalControlAction = decision.action;
       if (decision.status !== "completed") {
         const terminalMessage = decision.reason || decision.error || "Atlas control decision became unavailable; discovery stopped fail-closed for review.";
+        failureStage = "job_state_or_lease";
         await updateJob(atlasJobId, { status: "failed", progress: 3, total: 4, atlasPhase: 3, atlasPhaseTotal: 4, outcome: "incomplete", message: terminalMessage, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, runs: discoveryRuns }, control: { turns: controlTurns, decision } }), finishedAt: new Date().toISOString() });
         await clearActiveJobIfOwned(lockKey, atlasJobId);
         return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
@@ -628,6 +660,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "research_candidate" || decision.action === "revisit_candidate") {
         await assertAtlasJobActive(atlasJobId);
         const name = decision.candidateName; if (!name) continue;
+        failureStage = "case_persistence";
         const entityRows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata }).from(entitiesTable).where(and(sql`LOWER(${entitiesTable.name}) = LOWER(${name})`, inArray(entitiesTable.type, ["HNWI", "Gatekeeper", "PersonCandidate"]))).limit(16);
         const entity = entityRows.find((row) => {
           try { const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; return Number(metadata.discoveryCaseId) === discoveryCaseId; } catch { return false; }
@@ -637,6 +670,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await assertAtlasJobActive(atlasJobId);
         const targetBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (targetBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for target investigation.");
         const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed); if (remainingTargetIterations <= 0) { investigatorResourceLimited = true; phaseSummary.controlSafetyCeiling = `Canonical Atlas Investigator iteration ceiling reached at ${investigatorIterationsUsed}/${depth.agenticMaxIterations}; refusing another target episode.`; break; }
+        failureStage = "investigator_episode";
         const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: [...quotaExhaustedInvestigators] });
         for (const exhausted of targetResult.exhaustedInvestigatorLlm) quotaExhaustedInvestigators.add(exhausted);
         if (quotaExhaustedInvestigators.has(selectedInvestigator)) {
@@ -669,6 +703,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         await assertAtlasJobActive(atlasJobId);
         const proposedDirection = decision.direction || "Reassess the open evidence and choose the highest-information next action yourself.";
+        failureStage = "model_action_validation";
         const validatedDirection = validateResearchObjective(proposedDirection);
         if (!validatedDirection.valid) {
           // A malformed Boss pivot is a rejected control decision, not a reason to
@@ -676,9 +711,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           // control plane for another decision; never execute the rejected URL/tool.
           const rejectionReason = validatedDirection.reason;
           rejectedControlDirection = { controlTurn: controlTurns, reason: rejectionReason };
+          // This pivot was rejected, so the next control turn must see only the last accepted transition.
+          priorAction = previousAcceptedAction;
+          priorCandidate = previousAcceptedCandidate;
           finalControlAction = null;
           phaseSummary[`control_${controlTurns}_rejected`] = `Boss pivot rejected before Investigator execution: ${rejectionReason}; requesting another model-owned control decision.`;
           await assertAtlasJobActive(atlasJobId);
+          failureStage = "control_event_persistence";
           await db.transaction(async (tx) => {
             const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile })
               .from(researchCasesTable)
@@ -715,11 +754,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
               status: "rejected",
               summary: `Atlas rejected invalid model-directed ${decision.action} at control turn ${controlTurns}; no Investigator action executed.`,
               correlationKey: `${atlasJobId}:control-direction-rejected:${controlTurns}`,
-              payload: JSON.stringify({ jobId: atlasJobId, controlTurn: controlTurns, action: decision.action, reason: rejectionReason, investigatorActionExecuted: false, recovery: "request-new-model-control-decision" }),
+              payload: JSON.stringify({ jobId: atlasJobId, controlTurn: controlTurns, action: decision.action, reason: rejectionReason, failureDomain: "model_action", failureKind: "invalid_contract", investigatorActionExecuted: false, recovery: "request-new-model-control-decision" }),
             }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
           }, { isolationLevel: "serializable" });
           continue;
         }
+        failureStage = "orchestration";
         const directedObjective = formatBossDirectedObjective(discoveryObjective, validatedDirection.direction);
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
         const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed);
@@ -727,6 +767,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // Only clear the previous evidence-backed terminal after control validation and
         // all budget/iteration guards pass, at the exact point a new Investigator act starts.
         latestEvidenceBackedTerminal = null;
+        failureStage = "investigator_episode";
         let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [] });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), discovery.trajectoryRecords ?? []);
@@ -740,6 +781,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const lastProviderError = [...(nextDiscovery.trajectoryRecords ?? [])].reverse().find((record) => record.action === "investigator_provider_error")?.observation ?? nextDiscovery.error ?? "Investigator provider remained unavailable.";
           const recoveryMessage = `Canonical Atlas Investigator provider remained unavailable for ${consecutiveInvestigatorProviderUnavailable} consecutive discovery episodes; refusing further AI control churn and parking for review.`;
           phaseSummary.investigatorProviderRecovery = recoveryMessage;
+          failureStage = "case_persistence";
           await db.update(researchCasesTable).set({
             status: "review",
             currentAction: "canonical-investigator-provider-unavailable",
@@ -751,6 +793,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
             sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
           ));
+          failureStage = "job_state_or_lease";
           await updateJob(atlasJobId, {
             status: "failed",
             progress: 3,
@@ -777,7 +820,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // The cumulative result was already updated by mergeDiscoveryResults above.
         // Do not append this episode a second time: that doubles its metrics and
         // trajectory/finding records on every Boss-directed continuation.
-        admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: nextDiscovery.findings, atlasJobId, discoveryCaseId });
+        failureStage = "candidate_admission_persistence";
+      admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: nextDiscovery.findings, atlasJobId, discoveryCaseId });
         admittedCandidateSources = mergeDurablyAdmittedCandidateSources([admittedCandidateSources, admission.candidates]);
         admitted = admittedCandidateSources.map(({ name }) => name);
         materialized += admission.materialized;
@@ -802,6 +846,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? `canonical-control-${finalControlAction ?? "incomplete"}`
             : "canonical-evidence-terminal-incomplete"
       : "canonical-atlas-complete";
+    failureStage = "terminal_persistence";
     await db.update(researchCasesTable).set({
       status: finalCaseStatus,
       currentAction: finalCaseAction,
@@ -813,6 +858,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
       sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
     ));
+    failureStage = "job_state_or_lease";
     await updateJob(atlasJobId, { status: finalIncomplete ? "failed" : "done", progress: finalIncomplete ? 3 : 4, total: 4, atlasPhase: finalIncomplete ? 3 : 4, atlasPhaseTotal: 4, outcome: finalIncomplete ? "incomplete" : "complete", message: finalIncomplete ? (investigatorResourceLimited ? `Canonical Investigator iteration ceiling reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : deadlineExceeded ? `Canonical Atlas deadline reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : finalControlAction !== "stop" ? `Canonical Atlas control ended without a durable stop decision (${finalControlAction ?? "none"}); case preserved for review.` : "Canonical Atlas control stopped without an evidence-backed terminal state; case preserved for review.") : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [], runs: discoveryRuns }, control: { turns: controlTurns, finalAction: finalControlAction, finalCandidate: priorCandidate, investigatorIterationsUsed, investigatorIterationCeiling: depth.agenticMaxIterations, investigatorResourceLimited }, phaseSummary }), finishedAt: new Date().toISOString() });
     await clearActiveJobIfOwned(lockKey, atlasJobId); return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
   } catch (error) {
@@ -828,6 +874,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // classify a cancellation; an unknown Redis state remains unknown.
     const cancelled = !jobStateUnavailable && durableJob?.status === "cancelled";
     const jobMissing = !jobStateUnavailable && !durableJob;
+    const jobStateMismatch = !jobStateUnavailable && Boolean(durableJob) && durableJob?.status !== "running" && !cancelled;
     const leaseLost = !jobStateUnavailable && durableJob?.status === "running" && /Canonical Atlas lease was lost/i.test(rawMessage);
     const currentAction = cancelled
       ? "canonical-atlas-cancelled"
@@ -838,24 +885,41 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           : leaseLost
             ? "canonical-lease-lost"
             : "canonical-atlas-failed";
+    const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
+    const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
     const message = cancelled
-      ? "Canonical Atlas discovery cancelled; outcome incomplete."
+      ? `Canonical Atlas discovery cancelled; outcome incomplete. (${diagnosticSuffix})`
       : jobStateUnavailable
-        ? "Canonical Atlas job state unavailable; discovery stopped without claiming cancellation."
-        : safeThrownErrorSummary("Canonical Atlas discovery failed", error);
-    await db.update(researchCasesTable).set({
-      status: "review",
-      currentAction,
-      updatedAt: new Date(),
-    }).where(and(
-      sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
-      inArray(researchCasesTable.status, ["active", "review"]),
-      sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-complete','canonical-atlas-cancelled','canonical-lease-lost')`,
-    ));
+        ? `Canonical Atlas job state unavailable; discovery stopped without claiming cancellation. (${diagnosticSuffix})`
+        : `${safeThrownErrorSummary("Canonical Atlas discovery failed", error)} (${diagnosticSuffix})`;
+    let failureStatePersistenceFailed = false;
+    try {
+      await db.update(researchCasesTable).set({
+        status: "review",
+        currentAction,
+        updatedAt: new Date(),
+      }).where(and(
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+        inArray(researchCasesTable.status, ["active", "review"]),
+        sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-complete','canonical-atlas-cancelled','canonical-lease-lost')`,
+      ));
+    } catch {
+      // A failed diagnostic write must not replace the exception that caused
+      // this catch. The job message below records this secondary persistence
+      // failure if the job-state store remains available.
+      failureStatePersistenceFailed = true;
+    }
     // Let the outer launch boundary reconcile job status if Redis reads are
-    // unavailable; do not persist a guessed cancellation.
+    // unavailable; do not persist a guessed cancellation. Preserve the original
+    // thrown exception if this best-effort terminal write also fails.
     if (!jobStateUnavailable) {
-      await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
+      const terminalMessage = failureStatePersistenceFailed ? `${message} (failureStatePersistence=case_update_failed)` : message;
+      try {
+        await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", message: terminalMessage, finishedAt: new Date().toISOString() });
+      } catch {
+        // There is no safe durable sink left at this boundary. Preserve the
+        // original error so the outer launch boundary can reconcile it.
+      }
     }
     try { await clearActiveJobIfOwned(lockKey, atlasJobId); } catch {
       // Outer launch boundary owns the final cleanup attempt.
