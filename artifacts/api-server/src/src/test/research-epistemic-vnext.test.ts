@@ -146,6 +146,37 @@ describe("research epistemic vNext", () => {
     expect(graph.independentUnitCount([aggregator.sourceId, primary.sourceId])).toBe(1);
   });
 
+  it("keeps an observed primary source when identical content was first registered from an aggregator", () => {
+    const aggregator = {
+      canonicalUrl: "https://crunchbase.com/profile/example",
+      host: "crunchbase.com",
+      originSourceId: null,
+      publisher: null,
+      citedSourceIds: [],
+      contentFingerprint: "identical-observed-passage",
+    };
+    const primary = {
+      canonicalUrl: "https://registry.gov/profile/example",
+      host: "registry.gov",
+      originSourceId: null,
+      publisher: null,
+      citedSourceIds: [],
+      contentFingerprint: "identical-observed-passage",
+    };
+
+    for (const orderedSources of [[aggregator, primary], [primary, aggregator]]) {
+      const graph = new SourceLineageGraph();
+      const nodes = orderedSources.map((source) => graph.register(source));
+      expect(graph.independentUnitCount(nodes.map((node) => node.sourceId))).toBe(1);
+      expect(graph.snapshot()).toEqual([
+        expect.objectContaining({
+          canonicalUrl: primary.canonicalUrl,
+          host: primary.host,
+        }),
+      ]);
+    }
+  });
+
   it("rejects terminal completion when evidence requirements are not met", () => {
     const result = evaluateTerminalGate(
       { evidenceCount: 2, independentSourceUnits: 1, exactSpanBindings: 1, openQuestions: 1, highSeverityContradictions: 0, falsificationSatisfied: false },

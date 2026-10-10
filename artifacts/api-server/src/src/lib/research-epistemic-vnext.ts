@@ -102,7 +102,22 @@ export class SourceLineageGraph {
   register(input: Omit<SourceLineageNode, "sourceId"> & { sourceId?: string }): SourceLineageNode {
     const canonicalUrl = input.canonicalUrl.trim(); const sourceId = input.sourceId ?? sourceLineageId(canonicalUrl, input.contentFingerprint);
     const existing = this.nodes.get(sourceId);
-    if (existing) { existing.citedSourceIds = [...new Set([...existing.citedSourceIds, ...input.citedSourceIds])]; existing.originSourceId = existing.originSourceId ?? input.originSourceId; existing.publisher = existing.publisher ?? input.publisher; existing.contentFingerprint = existing.contentFingerprint ?? input.contentFingerprint; return existing; }
+    if (existing) {
+      existing.citedSourceIds = [...new Set([...existing.citedSourceIds, ...input.citedSourceIds])];
+      existing.originSourceId = existing.originSourceId ?? input.originSourceId;
+      existing.publisher = existing.publisher ?? input.publisher;
+      existing.contentFingerprint = existing.contentFingerprint ?? input.contentFingerprint;
+      // Identical observed passages may be encountered on both aggregators and
+      // primary sources. Keep one lineage unit, but do not let an aggregator
+      // visited first mask a directly observed non-aggregator source.
+      const incomingHost = canonicalHost(canonicalUrl) ?? input.host;
+      if (isAggregatorHost(existing.host) && !isAggregatorHost(incomingHost)) {
+        existing.canonicalUrl = canonicalUrl;
+        existing.host = incomingHost;
+        existing.publisher = input.publisher ?? canonicalPublisher(incomingHost);
+      }
+      return existing;
+    }
     const node: SourceLineageNode = { ...input, sourceId, canonicalUrl }; this.nodes.set(sourceId, node); return node;
   }
   linkDerivative(derivedUrl: string, originUrl: string): void {
