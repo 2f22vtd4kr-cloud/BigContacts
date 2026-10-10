@@ -58,7 +58,7 @@ export async function updateJob(jobId:string,patch:Partial<JobState>):Promise<vo
     const args:string[]=[];
     for(const[k,v]of Object.entries(flat)){args.push(k,v);}
     return Number(await rc.eval(
-      "local k=KEYS[1]; local current=redis.call('hget',k,'status'); local incoming=ARGV[1]; if not current or current=='cancelled' or current=='done' or current=='failed' then return 0 end; for i=2,#ARGV,2 do redis.call('hset',k,ARGV[i],ARGV[i+1]); end; return 1",
+      "local k=KEYS[1]; local current=redis.call('hget',k,'status'); local incoming=ARGV[1]; if current~='queued' and current~='running' and current~='paused' then return 0 end; for i=2,#ARGV,2 do redis.call('hset',k,ARGV[i],ARGV[i+1]); end; return 1",
       1,jk(jobId),patch.status===undefined?"":String(patch.status),...args
     ));
   },null as number|null);
