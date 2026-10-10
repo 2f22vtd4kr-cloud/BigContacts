@@ -103,4 +103,39 @@ describe("research intelligence atomic evidence", () => {
     expect(context.providerDisagreements.length).toBe(1);
     expect(context.actionYield.length).toBeGreaterThan(0);
   });
+  it("does not raise hypothesis confidence for a copied passage at a second URL", () => {
+    const engine = new ResearchIntelligenceEngine({
+      executionId: "copied-passage-confidence",
+      target: "Alice Example",
+      objective: "Resolve a founder identity hypothesis",
+    });
+    const hypothesis = "Alice Example is founder of Example Labs";
+    const recordVisit = (turn: number, url: string) => engine.recordAction({
+      turn,
+      action: "visit",
+      args: { hypothesis, purpose: "test founder attribution" },
+      execution: "success",
+      observation: hypothesis,
+      urls: [url],
+      findings: [{
+        vectorType: "is",
+        value: "founder of Example Labs",
+        personName: "Alice Example",
+        sourceUrls: [url],
+      }],
+    });
+
+    recordVisit(1, "https://publisher-one.example/alice");
+    const first = engine.buildContext();
+    const firstHypothesis = first.hypotheses.find((item) => item.label === hypothesis);
+    expect(firstHypothesis).toBeDefined();
+    expect(first.independentSourceUnits).toBe(1);
+
+    recordVisit(2, "https://publisher-two.example/alice-copy");
+    const second = engine.buildContext();
+    const secondHypothesis = second.hypotheses.find((item) => item.label === hypothesis);
+    expect(second.independentSourceUnits).toBe(1);
+    expect(secondHypothesis?.score).toBeCloseTo(firstHypothesis!.score, 8);
+  });
+
 });
