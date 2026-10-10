@@ -1321,6 +1321,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
     : "ASSIGNMENT TARGET: " + input.targetName;
+  const emergencyAssignment = input.mode === "discovery"
+    ? assignment
+    : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const workingContext = buildInvestigatorContext({
     targetName: input.targetName,
     companyName: input.companyName,
@@ -1473,7 +1476,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // Preserve the complete output schema and mode-critical evidence rules.
       // Drop advisory/auxiliary material before falling back to a minimal prompt.
       const emergencyPrefix = [
-        assignment,
+        emergencyAssignment,
         researchContract,
         actionLiveness,
         availableActionsGuidance,
@@ -1497,7 +1500,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // If even the essential prose cannot fit, keep the schema/output example
       // and admission/falsification laws intact; remove optional research prose.
       const minimalEmergencyPrefix = [
-        assignment,
+        emergencyAssignment,
         availableActionsGuidance,
         providerGuidance,
         evidenceLaw,
