@@ -56,14 +56,15 @@ assert(/buildInvestigatorContext/.test(source.research), "Investigator ReAct pro
 assert(/investigation-context-compaction/.test(source.research), "Investigator ReAct path does not import the context-management boundary.");
 
 // Right-hand is Groq oversight, independent of Boss and never an Investigator fallback.
-assert(/MISTRAL_API_KEY/.test(source.rightHand), "Groq Right-hand does not use the dedicated MISTRAL_API_KEY.");
+assert(/GROQ_RIGHT_HAND_KEY_ENV\s*=\s*"GROQ_RIGHT_HAND_API_KEY"/.test(source.rightHand), "Groq Right-hand must use the dedicated GROQ_RIGHT_HAND_API_KEY.");
 assert(!/process\.env\.GEMINI_API_KEY|GEMINI_RIGHT_HAND_API_KEY/.test(source.rightHand), "Groq Right-hand still references the retired Gemini Right-hand credential.");
-assert(/MISTRAL_RIGHT_HAND_MODEL\s*=/.test(source.rightHand), "Groq Right-hand does not declare a canonical preferred model.");
+assert(/GROQ_RIGHT_HAND_MODEL\s*=\s*"openai\/gpt-oss-120b"/.test(source.rightHand), "Groq Right-hand does not declare the canonical preferred Groq model.");
 assert(/resolveModelChain/.test(source.rightHand), "Groq Right-hand does not expose runtime model selection.");
-assert(/MISTRAL_MODELS_API|catalogCandidates/.test(source.rightHand), "Groq Right-hand does not resolve candidates from the live Groq catalog.");
+assert(/GROQ_RIGHT_HAND_MODELS_API\s*=\s*"https:\/\/api\.groq\.com\/openai\/v1\/models"/.test(source.rightHand) && /catalogCandidates/.test(source.rightHand), "Groq Right-hand does not resolve compatible candidates from the live Groq model catalog.");
 assert(/MAX_MODEL_ATTEMPTS/.test(source.rightHand), "Groq Right-hand fallback attempts are not visibly bounded.");
 assert(/catalogCandidates/.test(source.rightHand), "Groq Right-hand does not expose catalog-derived compatible candidates.");
 assert(!/DEEPSEEK|NVIDIA_NIM|nvidia/i.test(source.rightHand), "retired DeepSeek/NVIDIA provider remains in the Right-hand implementation.");
+assert(!/MISTRAL_API_KEY|MISTRAL_RIGHT_HAND_MODEL|api\.mistral\.ai/i.test(source.rightHand), "retired Mistral Right-hand transport remains in the canonical Groq Right-hand implementation.");
 assert(/case-file|case file/i.test(source.rightHand) && /brows/i.test(source.rightHand), "Right-hand is not explicitly case-file-only/no-browse.");
 assert(/actionId|decision|confidence/.test(source.rightHand), "Right-hand structured decision contract is missing.");
 assert(/existing|queued|queue/i.test(source.rightHand), "Right-hand lacks the existing queued-action constraint.");
