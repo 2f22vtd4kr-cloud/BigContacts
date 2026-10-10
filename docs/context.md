@@ -205,14 +205,15 @@ The SSRF-safe fetch boundary checks parsed IP literals and DNS answers before pi
 Older provider-specific incidents and migration notes remain in repository history and archived documents. They are historical evidence only. They must not override this current section or reintroduce retired control-plane providers.
 
 
-## 15. Operator authentication boundary
+## 15. Operator authentication — disabled for current Replit deployment
 
-The canonical API fails closed for research data, contact data, diagnostics, and run/control endpoints until all three operator controls are configured in the deployment secret manager:
+Effective 2026-10-10, app-level operator sign-in and bearer-token authentication are intentionally disabled at the user's direction so autonomous Replit launches can reach discovery without a separate login/session/token step.
 
-- `APEX_OPERATOR_PASSWORD` — at least 16 characters; used only at the sign-in endpoint.
-- `APEX_API_AUTH_TOKEN` — at least 32 characters; bearer credential for trusted API clients.
-- `APEX_SESSION_SECRET` — at least 32 characters; signs stateless operator sessions and must remain stable across replicas/restarts.
+- The React desk mounts the product router directly.
+- The active API route aggregator does not mount operator-auth routes or `requireOperatorAuth` middleware.
+- Replit preflight checks active provider/integration secrets only; it does not require operator password, API bearer-token, or session-secret controls.
+- Older operator-auth implementation files may remain in the repository but are not mounted in the active route/UI path.
 
-The browser uses a signed, 12-hour, `HttpOnly`, `SameSite=Strict` cookie. The login endpoint applies a bounded per-process failed-password throttle. Secret values are never returned by health/session diagnostics or the preflight script. Only `GET /api/healthz` remains public for liveness; `GET /api/auth/session` and login/logout bootstrap endpoints are public so the UI can establish or clear a session. All other canonical API routes require a valid session or `Authorization: Bearer <APEX_API_AUTH_TOKEN>`.
+This is an explicit deployment choice, not a claim that the API is protected: anyone who can reach the deployment URL can call operational endpoints. Do not expose this deployment to an untrusted public audience.
 
-This is an application operator boundary, not a substitute for TLS, deployment access controls, secure secret storage, or rate limiting at the edge. Missing auth configuration is a blocker, not a condition to bypass for convenience.
+This change does not relax the canonical research workflow, provider-role/quota behavior, active-job lock, identity, source provenance, evidence/admission, cancellation, or durable persistence guards.
