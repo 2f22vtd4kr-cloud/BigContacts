@@ -45,6 +45,9 @@ describe("page visit response classification", () => {
     expect(failure.observation).toContain("response_size_limit_exceeded max_bytes=2000000");
     expect(failure.observation).toContain("page content was not observed and must not be cited");
     expect(failure.observation).toContain("search snippets remain unverified leads");
+    const pageReaderLimit = describeToolVisitFailure(new Error("browser response exceeds 1500000 byte limit"));
+    expect(pageReaderLimit.observation).toContain("response_size_limit_exceeded max_bytes=1500000");
+    expect(pageReaderLimit.observation).toContain("page content was not observed and must not be cited");
   });
 
   it("blocks obvious PDF URLs before either HTML-only page fetcher can issue a request", () => {
