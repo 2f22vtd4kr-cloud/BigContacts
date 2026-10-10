@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError } from "./canonical-atlas-failure-diagnostics";
@@ -324,6 +324,41 @@ describe("Investigator prompt architecture", () => {
     expect(context.match(/https:\/\/example\.com\/anchor/g)?.length).toBe(1);
   });
 
+
+  it("rejects invalid parallel search cardinality and entries instead of silently rewriting the model action", () => {
+    const searches = (count: number) => Array.from({ length: count }, (_, index) => ({
+      query: `model-query-${index + 1}`,
+      provider: "serper",
+      locale: null,
+      market: null,
+      purpose: `model-purpose-${index + 1}`,
+    }));
+    const action = (items: unknown[]) => JSON.stringify({
+      action: "parallel_web_search",
+      searches: items,
+      hypothesis: "compare independent public-source routes",
+      purpose: "test the parallel action contract",
+      expectedInformationGain: 0.5,
+    });
+
+    const tooMany = action(searches(5));
+    expect(describeAgentActionParseFailure(tooMany)).toBe("invalid_action_arguments action=parallel_web_search searches_max=4");
+    expect(parseAgentAction(tooMany)).toBeNull();
+
+    const mixed = action([...searches(2), null]);
+    expect(describeAgentActionParseFailure(mixed)).toBe("invalid_action_arguments action=parallel_web_search invalid=searches");
+    expect(parseAgentAction(mixed)).toBeNull();
+
+    const valid = parseAgentAction(action(searches(2)));
+    expect(describeAgentActionParseFailure(action(searches(2)))).toBe("");
+    expect(valid).toMatchObject({
+      action: "parallel_web_search",
+      searches: [
+        { query: "model-query-1", provider: "serper" },
+        { query: "model-query-2", provider: "serper" },
+      ],
+    });
+  });
 
   it("classifies malformed and ambiguous Investigator envelopes without persisting response text", () => {
     expect(describeAgentActionParseFailure("")).toBe("empty_response");
