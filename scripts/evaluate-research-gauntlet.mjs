@@ -43,7 +43,8 @@ function scoreRun(gt,run){
  const idx=observationIndex(run);
  // A reference to an ID alone is not evidence; the observation must represent
  // a successful retrieval with an actual source URL.
- const observedIdentityEvidenceIds=new Set(idx.urls.keys());
+ const reviewedSourceUrls=new Set((gt.sources||[]).filter(source=>source?.independentReview===true).map(source=>normUrl(source.url)));
+ const observedIdentityEvidenceIds=new Set([...idx.urls.entries()].filter(([,url])=>reviewedSourceUrls.has(url)).map(([id])=>id));
  const evidenceBackedPredictedIds=asSet((run.identities||[]).filter(x=>Array.isArray(x.supportingObservationIds)&&x.supportingObservationIds.length>0&&x.supportingObservationIds.every(id=>observedIdentityEvidenceIds.has(String(id)))).map(x=>String(x.groundTruthIdentityId||""))), predictedIds=evidenceBackedPredictedIds;
  const tp=[...predictedIds].filter(id=>expectedIds.has(id)).length;
  const identityPrecision=rate(tp,predictedIds.size), identityRecall=rate(tp,expectedIds.size), fp=[...predictedIds].filter(id=>!expectedIds.has(id)||distractors.has(id)).length;
