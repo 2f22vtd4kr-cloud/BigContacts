@@ -81,7 +81,8 @@ function normalizedDomainResource(value: unknown): string {
   let domain = cleanText(value, 160).toLowerCase();
   if (domain.startsWith("https://")) domain = domain.slice(8);
   else if (domain.startsWith("http://")) domain = domain.slice(7);
-  return domain.replace(/\\/+$/, "");
+  while (domain.endsWith("/")) domain = domain.slice(0, -1);
+  return domain;
 }
 
 /** Stable identity for a concrete, model-selected research request; it does not encode a research itinerary. */
