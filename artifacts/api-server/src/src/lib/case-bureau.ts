@@ -547,7 +547,7 @@ export async function runGroqBossDiscovery(input: {
   const prompt = `${buildBossOpeningPrompt(input)}
 
 This is a shared case-context review. Read the current investigation progress and investigator reports below
-before deciding what should be researched next. The case context is the durable tree shaft for this Bureau.
+before deciding what should be researched next. The case context below is durable working memory for this Bureau, not a sector or target; infer scope only from the objective and observed evidence.
 You have no web access and must not use or request Google Search grounding. Do not wait for a preselected entity.
 Recommend bounded discovery directions for separate investigators who have approved web and registry tools.
 Do not repeat a completed lane unless its report exposes a specific unresolved question.
