@@ -12,7 +12,7 @@ export type AtlasFailureDomain =
   | "external_page_fetch"
   | "persistence_database"
   | "lease_job_state"
-  | "orchestration";
+  | "unexpected_programming_error";
 
 export type AtlasFailureKind =
   | "request_failure"
@@ -31,6 +31,7 @@ export type AtlasFailureKind =
 export type AtlasFailureStage =
   | "boss_opening_request"
   | "right_hand_opening_review"
+  | "oversight_control_decision"
   | "investigator_episode"
   | "model_action_validation"
   | "tool_execution"
@@ -46,6 +47,7 @@ export function atlasFailureDomainForStage(stage: AtlasFailureStage): AtlasFailu
   switch (stage) {
     case "boss_opening_request":
     case "right_hand_opening_review":
+    case "oversight_control_decision":
       return "model_provider";
     case "model_action_validation":
       return "model_action";
@@ -61,7 +63,7 @@ export function atlasFailureDomainForStage(stage: AtlasFailureStage): AtlasFailu
     case "job_state_or_lease":
       return "lease_job_state";
     default:
-      return "orchestration";
+      return "unexpected_programming_error";
   }
 }
 
