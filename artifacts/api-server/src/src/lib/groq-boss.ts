@@ -295,6 +295,13 @@ export async function generateGroqBossText(
           const responseBody = await response.text();
 
           if (response.status === 503 && transient503Retries < MAX_503_RETRIES_PER_MODEL && Date.now() < deadline) {
+            const failureClass = classifyProviderHttpStatus(response.status);
+            const code = providerErrorCode(responseBody);
+            attempts.push({ model, keyName: entry.name, httpStatus: 503, providerErrorCode: code, failureClass });
+            logger.warn(
+              { role: "groq_boss", phase: "request_retry", model, keyName: entry.name, httpStatus: 503, providerErrorCode: code, failureClass },
+              "Groq Boss transient provider failure; retrying the same model",
+            );
             transient503Retries += 1;
             const delay = Math.min(retryAfterMs(response, 750), Math.max(0, deadline - Date.now()));
             if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
