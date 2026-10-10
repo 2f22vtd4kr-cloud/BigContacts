@@ -41,6 +41,22 @@ describe("Atlas control-plane contract regression", () => {
     expect(handoffIndex).toBeGreaterThan(validationIndex);
   });
 
+  it("recovers from a rejected Boss pivot without executing its prescribed URL/tool", () => {
+    const rejectedBranchStart = canonicalDiscoverySource.indexOf("if (!validatedDirection.valid) {");
+    const nextObjective = canonicalDiscoverySource.indexOf("const directedObjective = formatBossDirectedObjective", rejectedBranchStart);
+    const rejectedBranch = canonicalDiscoverySource.slice(rejectedBranchStart, nextObjective);
+    expect(rejectedBranchStart).toBeGreaterThan(-1);
+    expect(nextObjective).toBeGreaterThan(rejectedBranchStart);
+    expect(rejectedBranch).toContain('currentAction: "canonical-control-direction-rejected"');
+    expect(rejectedBranch).toContain('status: "rejected"');
+    expect(rejectedBranch).toContain("investigatorActionExecuted: false");
+    expect(rejectedBranch).toContain("continue;");
+    expect(rejectedBranch).not.toContain("Canonical Atlas rejected a Boss direction");
+    expect(canonicalDiscoverySource).toContain("controlValidationFeedback: directionValidationFeedback ?");
+    expect(controlSource).toContain('controlValidationFeedback: typeof parsed.controlValidationFeedback === "string"');
+    expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
+  });
+
   it("records an Investigator provider-error turn before fail-closed termination", () => {
     const investigatorSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
