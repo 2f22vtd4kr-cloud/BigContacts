@@ -52,6 +52,11 @@ describe("Atlas control-plane contract regression", () => {
     expect(rejectedBranch).toContain("investigatorActionExecuted: false");
     expect(rejectedBranch).toContain("continue;");
     expect(rejectedBranch).not.toContain("Canonical Atlas rejected a Boss direction");
+    expect(rejectedBranch).not.toContain("latestEvidenceBackedTerminal = null");
+    const acceptedPivotTerminalReset = canonicalDiscoverySource.indexOf("latestEvidenceBackedTerminal = null;", nextObjective);
+    const nextInvestigatorPass = canonicalDiscoverySource.indexOf('runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective', nextObjective);
+    expect(acceptedPivotTerminalReset).toBeGreaterThan(nextObjective);
+    expect(nextInvestigatorPass).toBeGreaterThan(acceptedPivotTerminalReset);
     expect(canonicalDiscoverySource).toContain("controlValidationFeedback: directionValidationFeedback ?");
     expect(controlSource).toContain('controlValidationFeedback: typeof parsed.controlValidationFeedback === "string"');
     expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
