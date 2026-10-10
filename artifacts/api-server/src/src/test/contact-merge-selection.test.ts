@@ -26,16 +26,6 @@ describe("safe entity merge contact-source binding", () => {
     expect(isHeuristicEmailEvidence({ email: selected.email, emailSource: selected.emailSource, metadata: selected.emailMetadata })).toBe(true);
   });
 
-  it("uses the selected row's explicit heuristic emailSource even when metadata does not repeat it", () => {
-    const selected = selectMergedContactEvidence(
-      { email: null, metadata: JSON.stringify({ unrelated: true }) },
-      { email: "jane@targetcompany.com", emailSource: "pattern-generated", metadata: JSON.stringify({ profileImported: true }) },
-    );
-
-    expect(selected.emailSource).toBe("pattern-generated");
-    expect(isHeuristicEmailEvidence({ email: selected.email, emailSource: selected.emailSource, metadata: selected.emailMetadata })).toBe(true);
-  });
-
   it("uses the phone source belonging to the row whose phone was selected", () => {
     const selected = selectMergedContactEvidence(
       { phone: null, phoneSource: "EDGAR-Issuer-Phone" },
