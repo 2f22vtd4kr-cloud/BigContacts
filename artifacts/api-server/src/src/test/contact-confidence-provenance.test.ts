@@ -23,14 +23,17 @@ describe("value-bound selected email provenance", () => {
     })).toBe(false);
     expect(computeContactConfidence({
       email: "jane@officialcompany.com",
+      emailSource: "pattern-generated",
       metadata,
     })).toBe(35);
     expect(hasMeaningfulDirectContact({
       email: "jane@officialcompany.com",
+      emailSource: "pattern-generated",
       metadata,
     })).toBe(true);
     expect(computeContactOutcome({
       email: "jane@officialcompany.com",
+      emailSource: "pattern-generated",
       metadata,
     })).toBe("direct_contact_candidate");
   });
