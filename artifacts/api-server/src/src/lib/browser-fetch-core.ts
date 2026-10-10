@@ -53,7 +53,7 @@ async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<Brow
     // If the provider reports a destination, failure to validate that destination
     // means the returned document must not be exposed to the model at all. Missing
     // navigation metadata remains lead-only, but a known unsafe redirect fails closed.
-    if (usable && typeof reportedUrl === "string" && reportedUrl.trim() && !observedUrl) {
+    if (usable && reportedUrl != null && (typeof reportedUrl !== "string" || Boolean(reportedUrl.trim())) && !observedUrl) {
       return { html: null, observedUrl: null };
     }
     return { html: usable ? html : null, observedUrl };
