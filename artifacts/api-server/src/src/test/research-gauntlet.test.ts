@@ -50,7 +50,7 @@ type GroundTruth = {
     }>;
     contacts: unknown[];
     contradictions: unknown[];
-    sources: Array<{ url: string; sourceClass: string }>;
+    sources: Array<{ url: string; sourceClass: string; independentReview: boolean }>;
   }>;
 };
 
