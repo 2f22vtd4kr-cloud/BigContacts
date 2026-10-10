@@ -1359,6 +1359,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries. If a URL or response is identified as PDF or response_size_limit_exceeded, treat it as unobserved and do not cite it. Do not retry the same binary URL through the other page-fetch action; choose another readable public source if one exists. Search snippets remain leads, not evidence.",
     "",
     "DISCOVERY QUALITY GATE: in discovery mode, establish a concrete organization/person/domain/registry/filing/source anchor before spending generic person-finding searches. This is a quality gate, not a prescribed search sequence; you choose how to establish the anchor.",
+    ...(input.mode === "discovery" ? [
+      "DISCOVERY ADMISSION CONTRACT: A person enters Atlas's admitted set only through your own accepted done action with a finding: vectorType=other, value=the exact full name shown in a successfully fetched page, personName=that same name, role=the page-stated role/title, scope=candidate, sourceUrls=[the exact fetched non-search URL], note=brief attribution, promotionDecision=promote, promotionReason=why the observed source supports this identity and role. The cited page must directly support both the name and role. Search snippets, URL lists, guesses, and CONTACT FACTS (observed, not attributed) are not admission evidence. When evidence meets this bar, emit done with the source-backed candidate finding; otherwise continue model-selected research. Never invent or infer the person's title.",
+    ] : []),
     ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", discoveryLivenessAdvisory, "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
     "",
     "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
@@ -1638,7 +1641,8 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
 
       const candidate = finding.scope === "candidate";
       const personName = typeof finding.personName === "string" ? finding.personName.trim() : "";
-      if (candidate && !personName) return true;
+      const role = typeof finding.role === "string" ? finding.role.trim() : "";
+      if (candidate && (!personName || !role)) return true;
 
       const normalizedObservedUrls = (record: AgenticTrajectoryRecord): Set<string> => new Set(
         record.observedUrls.map((raw) => {
@@ -1652,6 +1656,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
       );
       let valueBound = false;
       let identityBound = !candidate;
+      let roleBound = !candidate;
 
       for (const sourceUrl of sources) {
         const sourceRecords = successfulRecords.filter((record) => normalizedObservedUrls(record).has(sourceUrl));
@@ -1665,13 +1670,15 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
             .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
           const hasValue = Boolean(bindExactSourceSpan(observation, finding.value)?.exact);
           const hasIdentity = candidate && candidateIdentityObserved(personName, identityText);
+          const hasRole = candidate && Boolean(bindExactSourceSpan(observation, role)?.exact);
           if (hasValue) valueBound = true;
           if (hasIdentity) identityBound = true;
+          if (hasIdentity && hasRole) roleBound = true;
           if (candidate ? (hasValue || hasIdentity) : hasValue) sourceSupportsClaim = true;
         }
         if (!sourceSupportsClaim) return true;
       }
-      return !valueBound || !identityBound;
+      return !valueBound || !identityBound || !roleBound;
     });
     if (ungrounded) return { allowed: false, reason: "Discovery terminal stop blocked: one or more claimed findings lacked identity/contact support on every successfully retrieved cited page." };
   }
