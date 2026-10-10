@@ -24,7 +24,10 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
 
 describe("canonical failure diagnostics", () => {
   it("classifies canonical errors into finite, safe domain and kind labels", () => {
-    expect(classifyCanonicalAtlasFailure({ stage: "boss_opening_request", error: new Error("upstream request failed") })).toEqual({ domain: "model_provider", kind: "request_failure" });
+    expect(classifyCanonicalAtlasFailure({ stage: "boss_opening_request", error: Object.assign(new Error("provider temporarily unavailable"), { status: 503 }) })).toEqual({ domain: "model_provider", kind: "provider_unavailable" });
+    expect(classifyCanonicalAtlasFailure({ stage: "boss_opening_request", error: Object.assign(new Error("HTTP 429"), { status: 429 }) })).toEqual({ domain: "model_provider", kind: "provider_rate_limited" });
+    expect(classifyCanonicalAtlasFailure({ stage: "boss_opening_request", error: Object.assign(new Error("daily quota exhausted"), { name: "ProviderQuotaError", code: "quota_exceeded" }) })).toEqual({ domain: "model_provider", kind: "hard_request_quota" });
+    expect(classifyCanonicalAtlasFailure({ stage: "boss_opening_request", error: new Error("local programming defect") })).toEqual({ domain: "unexpected_programming_error", kind: "unexpected_exception" });
     expect(classifyCanonicalAtlasFailure({ stage: "model_action_validation", error: new Error("rejected URL") })).toEqual({ domain: "model_action", kind: "invalid_contract" });
     expect(classifyCanonicalAtlasFailure({ stage: "external_page_fetch", error: new Error("Outbound response exceeds 2000000 byte limit") })).toEqual({ domain: "external_page_fetch", kind: "response_size_limit" });
     expect(classifyCanonicalAtlasFailure({ stage: "case_persistence", error: new Error("database write failed") })).toEqual({ domain: "persistence_database", kind: "unexpected_exception" });
