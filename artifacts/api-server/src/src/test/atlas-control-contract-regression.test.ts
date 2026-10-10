@@ -17,7 +17,7 @@ const canonicalTargetSource = readFileSync(resolve(process.cwd(), "src/src/lib/c
 
 describe("Atlas control-plane contract regression", () => {
   it("persists finite safe diagnostic stage/domain/kind labels at the canonical failure boundary", () => {
-    const canonical = fs.readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+    const canonical = canonicalDiscoverySource;
     expect(canonical).toContain("classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, leaseLost })");
     expect(canonical).toContain("failureDomain=${failureDiagnostic.domain}");
     expect(canonical).toContain("failureKind=${failureDiagnostic.kind}");
