@@ -259,7 +259,7 @@ describe("Investigator prompt architecture", () => {
       { ...livenessRecord("registry_search", "success"), observation: "No registry hits.", observedUrls: [] },
     ];
     expect(discoverySearchLivenessAdvisory(lowYield)).toContain("low-yield results");
-    expect(discoverySearchLivenessAdvisory(lowYield)).toContain("not a reason to fabricate a candidate");
+    expect(discoverySearchLivenessAdvisory(lowYield)).toContain("not as a reason to fabricate a candidate");
 
     const sameSourceFamily = [
       { ...livenessRecord("visit", "success"), args: { url: "https://example.com/team" }, observedUrls: ["https://example.com/team"] },
