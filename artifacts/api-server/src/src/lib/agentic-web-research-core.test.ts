@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 
@@ -31,6 +31,29 @@ describe("provider-aware act timeout budget", () => {
   it("never exceeds the remaining job deadline, even when it is shorter than the provider window", () => {
     expect(deriveProviderBoundedActTimeoutMs(45_000, 125_000)).toBe(45_000);
     expect(deriveProviderBoundedActTimeoutMs(0, 125_000)).toBe(0);
+  });
+});
+
+describe("page visit response classification", () => {
+  it("makes the 2 MB outbound response cap actionable without treating the page as evidence", () => {
+    const failure = describeToolVisitFailure(new Error("Outbound response exceeds 2000000 byte limit"));
+    expect(failure.status).toBe("error");
+    expect(failure.observation).toContain("response_size_limit_exceeded max_bytes=2000000");
+    expect(failure.observation).toContain("page content was not observed and must not be cited");
+    expect(failure.observation).toContain("search snippets remain unverified leads");
+  });
+
+  it("does not treat PDF bytes as an observed HTML/text page", () => {
+    expect(isPdfPageResponse("https://example.test/report.pdf", "application/octet-stream")).toBe(true);
+    expect(isPdfPageResponse("https://example.test/report", "application/pdf; charset=binary")).toBe(true);
+    expect(isPdfPageResponse("https://example.test/officers", "text/html; charset=utf-8")).toBe(false);
+  });
+
+  it("classifies an outbound request deadline as timeout rather than a generic network error", () => {
+    const failure = describeToolVisitFailure(new Error("Outbound request deadline exceeded"));
+    expect(failure.status).toBe("timeout");
+    expect(failure.observation).toContain("request timed out");
+    expect(failure.observation).not.toContain("digest=");
   });
 });
 
