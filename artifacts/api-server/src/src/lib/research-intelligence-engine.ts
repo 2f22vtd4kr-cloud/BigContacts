@@ -581,19 +581,45 @@ export class ResearchIntelligenceEngine {
       const linkedContradictions = hypothesis.supportingEvidenceIds.flatMap((id) => this.evidenceByIdMap.get(id)?.contradicts ?? []);
       hypothesis.contradictingEvidenceIds = [...new Set([...hypothesis.contradictingEvidenceIds, ...linkedContradictions])]
         .filter((id) => this.evidenceByIdMap.has(id));
+      // A copied passage may be observed at many URLs, but the source-lineage
+      // graph intentionally gives those copies one lineage ID. Keep at most one
+      // posterior signal per lineage and direction so duplicate pages cannot
+      // manufacture confidence. Prefer the strongest source-quality signal
+      // among records sharing that lineage.
+      const signalsForLineages = (evidenceIds: string[], direction: "support" | "contradict") => {
+        const byLineage = new Map<string, {
+          signal: {
+            direction: "support" | "contradict";
+            sourceReliability: number;
+            sourceIndependence: number;
+            identitySpecificity: number;
+          };
+          strength: number;
+        }>();
+        for (const id of evidenceIds) {
+          const evidence = this.evidenceByIdMap.get(id);
+          if (!evidence) continue;
+          const signal = {
+            direction,
+            sourceReliability: evidence.sourceTier === "A" ? 0.9 : evidence.sourceTier === "C" ? 0.55 : 0.7,
+            sourceIndependence: scoreSourceIndependence({
+              sourceHosts: evidence.sourceHost ? [evidence.sourceHost] : [],
+              sourceClasses: [evidence.sourceClass],
+            }),
+            identitySpecificity: overlap(hypothesis.entity, evidence.claim),
+          };
+          const strength = signal.sourceReliability * 0.45
+            + signal.sourceIndependence * 0.35
+            + signal.identitySpecificity * 0.2;
+          const lineageId = evidence.sourceLineageId || evidence.id;
+          const previous = byLineage.get(lineageId);
+          if (!previous || strength > previous.strength) byLineage.set(lineageId, { signal, strength });
+        }
+        return [...byLineage.values()].map(({ signal }) => signal);
+      };
       const signals = [
-        ...hypothesis.supportingEvidenceIds.map((id) => this.evidenceByIdMap.get(id)).filter(Boolean).map((evidence) => ({
-          direction: "support" as const,
-          sourceReliability: evidence!.sourceTier === "A" ? 0.9 : evidence!.sourceTier === "C" ? 0.55 : 0.7,
-          sourceIndependence: scoreSourceIndependence({ sourceHosts: evidence!.sourceHost ? [evidence!.sourceHost] : [], sourceClasses: [evidence!.sourceClass] }),
-          identitySpecificity: overlap(hypothesis.entity, evidence!.claim),
-        })),
-        ...hypothesis.contradictingEvidenceIds.map((id) => this.evidenceByIdMap.get(id)).filter(Boolean).map((evidence) => ({
-          direction: "contradict" as const,
-          sourceReliability: evidence!.sourceTier === "A" ? 0.9 : evidence!.sourceTier === "C" ? 0.55 : 0.7,
-          sourceIndependence: scoreSourceIndependence({ sourceHosts: evidence!.sourceHost ? [evidence!.sourceHost] : [], sourceClasses: [evidence!.sourceClass] }),
-          identitySpecificity: overlap(hypothesis.entity, evidence!.claim),
-        })),
+        ...signalsForLineages(hypothesis.supportingEvidenceIds, "support"),
+        ...signalsForLineages(hypothesis.contradictingEvidenceIds, "contradict"),
       ];
       // Recompute from the stable prior; buildContext/rankHypotheses may run repeatedly.
       if (hypothesis.priorScore == null) hypothesis.priorScore = hypothesis.score;
