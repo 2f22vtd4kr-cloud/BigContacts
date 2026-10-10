@@ -68,7 +68,7 @@ const checks=[
 ["target oversight refuses cancelled/fenced cases before provider calls",/status:researchCasesTable\.status/.test(oversight)&&/if\(row\.status!=="active"\)return null/.test(oversight)&&/findTargetCase\(input\.caseId,input\.targetName\)/.test(oversight)],
 ["Right Hand failure stops the next Investigator act",/Groq Right-hand oversight was unavailable/.test(oversight)],
 ["discovery is not accidentally target-gated",/input\.mode === "discovery"/.test(agentic)],
-["selected Investigator executes only the Boss-selected capability",/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(core)&&/callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm\)/.test(core)&&!/orderedProviders/.test(core)&&!/for\s*\(const \[name, fn\] of orderedProviders\)/.test(core)],
+["selected Investigator executes only the Boss-selected capability",/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(core)&&/callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm(?:,|\))/.test(core)&&!/orderedProviders/.test(core)&&!/for\s*\(const \[name, fn\] of orderedProviders\)/.test(core)],
 ["selected Investigator records no cross-provider fallback",/fallback: \[\]/.test(core)],
 ["canonical ReAct domain lookup receives cancellation",/lookupDomainSurface\(action\.domain, \{ provider: action\.provider, signal: runController\.signal \}\)/.test(core)],
 ["canonical ReAct registry lookup receives cancellation",/searchRegistry\(\{ query: action\.query, registry: action\.registry as any, limit: 8, signal: runController\.signal \}\)/.test(core)],
