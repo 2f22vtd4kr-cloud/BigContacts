@@ -162,10 +162,19 @@ export function redundantResearchActionReason(
   const resource = researchActionResource(action, args);
   if (!resource) return null;
 
+  const currentHypothesis = normalizedActionRationale(args.hypothesis);
+  const currentPurpose = normalizedActionRationale(args.purpose);
+  if (!currentHypothesis || !currentPurpose) return null;
+
+  // Match the same rationale, not merely the most recent use of this resource.
+  // Otherwise a model could alternate two purposes forever without adding evidence.
   let matchedIndex = -1;
   for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
     const previous = priorRecords[index]!;
-    if (researchActionResource(previous.action, previous.args) === resource) {
+    if (researchActionResource(previous.action, previous.args) !== resource) continue;
+    const previousHypothesis = normalizedActionRationale(previous.args.hypothesis);
+    const previousPurpose = normalizedActionRationale(previous.args.purpose);
+    if (previousHypothesis === currentHypothesis && previousPurpose === currentPurpose) {
       matchedIndex = index;
       break;
     }
@@ -173,12 +182,6 @@ export function redundantResearchActionReason(
   if (matchedIndex < 0) return null;
 
   const previous = priorRecords[matchedIndex]!;
-  const previousHypothesis = normalizedActionRationale(previous.args.hypothesis);
-  const previousPurpose = normalizedActionRationale(previous.args.purpose);
-  const currentHypothesis = normalizedActionRationale(args.hypothesis);
-  const currentPurpose = normalizedActionRationale(args.purpose);
-  if (!previousHypothesis || !previousPurpose || !currentHypothesis || !currentPurpose) return null;
-  if (previousHypothesis !== currentHypothesis || previousPurpose !== currentPurpose) return null;
 
   const knownEvidence = new Set(
     priorRecords.slice(0, matchedIndex + 1)
