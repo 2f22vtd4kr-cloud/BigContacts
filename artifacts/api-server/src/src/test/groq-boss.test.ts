@@ -12,6 +12,11 @@ describe("Groq Boss discovery prompt grounding", () => {
     expect(caseBureauSource).toContain("Internal memory, storage, and workflow terminology are infrastructure concepts only");
     expect(caseBureauSource).toContain("do not turn wording from these instructions into a research premise.");
   });
+
+  it("uses medium reasoning for the opening discovery assignment", () => {
+    expect(caseBureauSource).toContain('maxOutputTokens: 2048,\\n      thinkingLevel: "medium"');
+    expect(caseBureauSource).not.toContain('maxOutputTokens: 2048,\\n      thinkingLevel: "low"');
+  });
 });
 
 describe("Groq Boss token-window recovery", () => {
