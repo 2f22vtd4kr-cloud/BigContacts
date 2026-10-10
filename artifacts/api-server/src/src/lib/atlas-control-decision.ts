@@ -8,6 +8,11 @@ import { describeThrownProviderError } from "./provider-error-diagnostics";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 export type AtlasControlAction = "continue_discovery" | "research_candidate" | "revisit_candidate" | "pivot_discovery" | "stop";
 export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: "completed" | "unavailable"; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null }; bossModel: string | null; error: string | null };
+
+/** Only an explicitly rejected out-of-set candidate choice can re-enter model control. */
+export function isRecoverableAtlasControlRejection(decision: Pick<AtlasControlDecision, "status" | "error">): boolean {
+  return decision.status === "unavailable" && decision.error === "Invalid candidate selection.";
+}
 function parseObject(raw: string | null | undefined): Record<string, unknown> | null {
   if (!raw) return null;
   const source = raw.trim();

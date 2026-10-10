@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
-import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -383,6 +383,35 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalTargetSource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
     expect(canonicalTargetSource).toContain("validateAtlasOpeningRightHandReview(parsed)");
     expect(canonicalTargetSource).toContain("!rightHandRaw.raw?.trim()");
+  });
+
+  it("recovers only from an out-of-set candidate selection without relaxing admission", () => {
+    expect(isRecoverableAtlasControlRejection({
+      status: "unavailable",
+      error: "Invalid candidate selection.",
+    })).toBe(true);
+    expect(isRecoverableAtlasControlRejection({
+      status: "unavailable",
+      error: "Groq Right-hand was unavailable.",
+    })).toBe(false);
+    expect(isRecoverableAtlasControlRejection({
+      status: "completed",
+      error: "Invalid candidate selection.",
+    })).toBe(false);
+
+    const rejectionAt = canonicalDiscoverySource.indexOf("if (isRecoverableAtlasControlRejection(decision))");
+    const failClosedAt = canonicalDiscoverySource.indexOf('if (decision.status !== "completed")', rejectionAt);
+    expect(rejectionAt).toBeGreaterThan(-1);
+    expect(failClosedAt).toBeGreaterThan(rejectionAt);
+    const recovery = canonicalDiscoverySource.slice(rejectionAt, failClosedAt);
+    expect(recovery).toContain('currentAction: "canonical-control-candidate-rejected"');
+    expect(recovery).toContain('status: "rejected"');
+    expect(recovery).toContain('failureKind: "invalid_candidate_selection"');
+    expect(recovery).toContain("admittedCandidateCount: admittedCandidateSources.length");
+    expect(recovery).toContain("no target investigation executed");
+    expect(recovery).toContain("continue;");
+    expect(canonicalDiscoverySource).toContain('rejectedControlDecision = { controlTurn: controlTurns, reason: rejectionReason, kind: "candidate_selection" }');
+    expect(canonicalDiscoverySource).toContain("the candidate was absent from the durable admitted-candidate list");
   });
 
   it("merges each Boss-directed discovery episode into cumulative state exactly once", () => {
