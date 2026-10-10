@@ -164,6 +164,7 @@ describe("production research Gauntlet scorer", () => {
     run.observations[1].observedUrl = "https://redirected.invalid/other";
 
     const output = evaluateWithProductionScorer(run);
+    expect(output.cases[0].identityRecall).toBe(0);
     expect(output.cases[0].claimSupportCorrectness).toBe(0);
     expect(output.cases[0].unsupportedClaimRate).toBe(1);
   });
@@ -189,6 +190,7 @@ describe("production research Gauntlet scorer", () => {
       doc.cases[0].claims[0].requiredSourceUrls = [unreviewedOfficial, unreviewedRegistry];
       doc.cases[0].claims[0].requiredSourceClasses = [];
     });
+    expect(output.cases[0].identityRecall).toBe(0);
     expect(output.cases[0].claimSupportCorrectness).toBe(0);
     expect(output.cases[0].unsupportedClaimRate).toBe(1);
   });
