@@ -80,7 +80,7 @@
     "bench:campaign": "pnpm run build:research-gauntlet && node scripts/score-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json benchmarks/research-runs-v1.example.json",
     "bench:failure-observatory": "node scripts/build-failure-observatory.mjs",
     "check:evidence-graph": "node scripts/validate-evidence-graph.mjs benchmarks/evidence-graph-v2.example.json",
-    "check:research-campaign": "pnpm run build:research-gauntlet && node scripts/validate-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json benchmarks/research-runs-v1.example.json",
+    "check:research-campaign": "pnpm run build:research-gauntlet && node --test scripts/validate-research-campaign.test.mjs && node scripts/validate-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json benchmarks/research-runs-v1.example.json",
     "check:failure-records": "node scripts/validate-failure-records.mjs benchmarks/research-runs-v1.example.json",
     "build:research-gauntlet": "node scripts/build-research-gauntlet.mjs benchmarks/research-gauntlet-v1.json benchmarks/research-gauntlet-v1-extension.json /tmp/research-gauntlet-v1-combined.json",
     "bench:empirical-campaign": "pnpm run build:research-gauntlet && npx --yes tsx@4.20.5 scripts/run-research-campaign.ts /tmp/research-gauntlet-v1-combined.json research-runs-v1.json",
