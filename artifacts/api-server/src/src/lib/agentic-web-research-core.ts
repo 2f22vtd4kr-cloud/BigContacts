@@ -1643,9 +1643,11 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
       if (!sources.size) return true;
 
       const candidate = finding.scope === "candidate";
+      const promotedCandidate = candidate && finding.promotionDecision === "promote";
       const personName = typeof finding.personName === "string" ? finding.personName.trim() : "";
       const role = typeof finding.role === "string" ? finding.role.trim() : "";
-      if (candidate && (!personName || !role)) return true;
+      if (candidate && !personName) return true;
+      if (promotedCandidate && !role) return true;
 
       const normalizedObservedUrls = (record: AgenticTrajectoryRecord): Set<string> => new Set(
         record.observedUrls.map((raw) => {
@@ -1659,7 +1661,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
       );
       let valueBound = false;
       let identityBound = !candidate;
-      let roleBound = !candidate;
+      let roleBound = !promotedCandidate;
 
       for (const sourceUrl of sources) {
         const sourceRecords = successfulRecords.filter((record) => normalizedObservedUrls(record).has(sourceUrl));
@@ -1673,7 +1675,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
             .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
           const hasValue = Boolean(bindExactSourceSpan(observation, finding.value)?.exact);
           const hasIdentity = candidate && candidateIdentityObserved(personName, identityText);
-          const hasRole = candidate && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);
+          const hasRole = promotedCandidate && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);
           if (hasValue) valueBound = true;
           if (hasIdentity) identityBound = true;
           if (hasIdentity && hasRole) roleBound = true;
