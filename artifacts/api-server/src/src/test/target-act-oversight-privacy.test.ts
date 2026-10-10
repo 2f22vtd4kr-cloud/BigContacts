@@ -70,12 +70,22 @@ describe("target act URL privacy boundary", () => {
     expect(source).toContain("JSON.stringify(sanitizeObservableValue(input.recentActs))");
   });
 
+  it("sanitizes target and discovery case projections before durable persistence", () => {
+    const targetSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/target-act-oversight.ts"), "utf8");
+    const discoverySource = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+    expect(targetSource).toContain("caseFile:JSON.stringify(sanitizeObservableValue(caseFile))");
+    expect(discoverySource).toContain("caseFile:JSON.stringify(sanitizeObservableValue({...current,evidenceState:durableEvidenceState");
+    expect(discoverySource).toContain("JSON.stringify(sanitizeObservableValue({jobId:input.jobId??null,runId:input.runId");
+  });
+
   it("sanitizes the immutable act event and control decision before persistence", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/target-act-oversight.ts"), "utf8");
     expect(source).toContain("const safeAct=sanitizeObservableValue(act)");
     expect(source).toContain("const safeOversight=sanitizeObservableValue(oversight)");
     expect(source).toContain("actDigest(safeAct,runId,turn)");
-    expect(source).toContain("buildActEvidenceGraphs(caseId,safeAct,eventId,runId)");
+    expect(source).toContain("buildActEvidenceGraphs(caseId,safeAct,eventId,runId,sourceEventIds)");
+    expect(source).toContain('sourcePayload={...sourcePayloadBase,sourceDigest};');
+    expect(source).toContain('existingSource.eventType!=="observation"');
     expect(source).toContain("act:compactAct(safeAct),oversight:safeOversight");
     expect(source).toContain("legacyControlDigest");
   });
