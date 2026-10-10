@@ -57,6 +57,14 @@ describe("Atlas control-plane contract regression", () => {
     expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
   });
 
+  it("requires both opening and ongoing Right-hand reviews to flag unsupported scope", () => {
+    expect(canonicalDiscoverySource).toContain("Boss report (unverified control hypothesis, not source evidence)");
+    expect(canonicalDiscoverySource).toContain("Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
+    expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
+    expect(controlSource).toContain("Compare proposed directions with the human objective and observed sources; flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
+    expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
+  });
+
   it("records an Investigator provider-error turn before fail-closed termination", () => {
     const investigatorSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
