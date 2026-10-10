@@ -78,7 +78,7 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
         mergedFrom: targetId,
         mergedAt: new Date().toISOString(),
       };
-      const mergedConfidence = computeContactConfidence({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
+      const mergedConfidence = computeContactConfidence({ type: primary.type, email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
       const mergedOutcome = computeContactOutcome({ type: primary.type, email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
       const mergedHot = hasMeaningfulDirectContact({ type: primary.type, email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, metadata: mergedEmailMetadata });
 
@@ -106,7 +106,7 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
       await tx.update(entitiesTable).set({
         sourceRegistries: JSON.stringify(mergedSources), metadata: JSON.stringify(mergedMeta), knownResidences: mergedResidences ?? null,
         notes: mergedNotes ?? primary.notes, estimatedNetWorth: primary.estimatedNetWorth ?? target.estimatedNetWorth,
-        email: mergedEmail, emailSource: mergedEmailSource, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn,
+        email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn,
         twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram,
         contactConfidence: mergedConfidence, contactOutcome: mergedOutcome,
         bayesianScore: Math.max(primary.bayesianScore ?? 0, target.bayesianScore ?? 0), isHot: mergedHot, updatedAt: new Date(),
