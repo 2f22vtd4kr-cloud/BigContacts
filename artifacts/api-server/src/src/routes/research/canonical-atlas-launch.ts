@@ -251,7 +251,7 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
   // updateJob's best-effort writer can return without confirming Redis state.
   // The API must not acknowledge cancellation until a strict durable read
   // confirms that the active job is actually terminalized as cancelled.
-  let confirmedJob;
+  let confirmedJob: Awaited<ReturnType<typeof getJobStrict>>;
   try {
     confirmedJob = await getJobStrict(activeJobId);
   } catch {
