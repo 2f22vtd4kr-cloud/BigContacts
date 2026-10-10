@@ -1,3 +1,8 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 function metric(tp: number, predicted: number, expected: number) {
@@ -26,6 +31,111 @@ function groundedClassCovered(observationUrls: string[], requiredUrls: string[],
   const observed = new Set(observationUrls.map(normalizeUrl));
   const required = new Set(requiredUrls.map(normalizeUrl));
   return requiredClasses.length === 0 || requiredClasses.every((requiredClass) => [...observed].some((url) => required.has(url) && sourceClasses[url] === requiredClass));
+}
+
+type Observation = {
+  id: string;
+  url: string;
+  observedUrl?: string;
+  sourceClass: string;
+  execution: string;
+};
+
+type RunArtifact = {
+  caseId: string;
+  system: string;
+  trialId: string;
+  outcome: string;
+  identities: Array<{ groundTruthIdentityId: string; supportingObservationIds: string[] }>;
+  claims: Array<{
+    groundTruthClaimId: string;
+    groundTruthIdentityId: string;
+    predicate: string;
+    object: string;
+    supportingObservationIds: string[];
+  }>;
+  contacts: unknown[];
+  contradictions: unknown[];
+  observations: Observation[];
+  trajectory: unknown[];
+};
+
+type ScoringOutput = {
+  aggregate: Record<string, number | null>;
+  bySystem: Record<string, { trials: number; systemFailures: number; metrics: Record<string, number | null> }>;
+  cases: Array<Record<string, unknown>>;
+};
+
+const officialUrl = "https://official.example/profile";
+const registryUrl = "https://registry.example/person";
+const scorerPath = fileURLToPath(new URL("../../../../../scripts/evaluate-research-gauntlet.mjs", import.meta.url));
+
+function groundTruth() {
+  return {
+    schemaVersion: "research-gauntlet-v1",
+    status: "grounded-reviewed",
+    cases: [{
+      caseId: "RG-test",
+      groundTruthStatus: "ready",
+      reviewStatus: "independently-cross-checked",
+      identities: [{ id: "person-1" }],
+      claims: [{
+        id: "claim-1",
+        subjectIdentityId: "person-1",
+        predicate: "role",
+        object: "CEO",
+        requiredSourceUrls: [officialUrl, registryUrl],
+        requiredSourceClasses: ["official", "registry"],
+      }],
+      contacts: [],
+      contradictions: [],
+      sources: [
+        { url: officialUrl, sourceClass: "official" },
+        { url: registryUrl, sourceClass: "registry" },
+      ],
+    }],
+  };
+}
+
+function validRun(): RunArtifact {
+  return {
+    caseId: "RG-test",
+    system: "test-system",
+    trialId: "trial-1",
+    outcome: "verified",
+    identities: [{ groundTruthIdentityId: "person-1", supportingObservationIds: ["o1", "o2"] }],
+    claims: [{
+      groundTruthClaimId: "claim-1",
+      groundTruthIdentityId: "person-1",
+      predicate: "role",
+      object: "CEO",
+      supportingObservationIds: ["o1", "o2"],
+    }],
+    contacts: [],
+    contradictions: [],
+    trajectory: [{ turn: 1, action: "visit", status: "success" }],
+    observations: [
+      { id: "o1", url: officialUrl, sourceClass: "official", execution: "success" },
+      { id: "o2", url: registryUrl, sourceClass: "registry", execution: "success" },
+    ],
+  };
+}
+
+function evaluateWithProductionScorer(run: RunArtifact): ScoringOutput {
+  const directory = mkdtempSync(join(tmpdir(), "apex-gauntlet-scorer-"));
+  const gtFile = join(directory, "ground-truth.json");
+  const runsFile = join(directory, "runs.json");
+  try {
+    writeFileSync(gtFile, JSON.stringify(groundTruth()));
+    writeFileSync(runsFile, JSON.stringify({ runs: [run] }));
+    const result = spawnSync(process.execPath, [scorerPath, gtFile, runsFile], { encoding: "utf8" });
+    if (result.status !== 0) {
+      throw new Error(`Production scorer exited with ${result.status}: ${result.stderr}`);
+    }
+    return JSON.parse(result.stdout) as ScoringOutput;
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
 }
 
 describe("research gauntlet metric contract", () => {
@@ -80,5 +190,50 @@ describe("research gauntlet metric contract", () => {
       ["https://example.com/a"],
       ["https://example.com/a", "https://example.com/b"],
     )).toBe(false);
+  });
+
+  it("does not count a requested URL or failed retrieval as observed supporting evidence", () => {
+    const run = validRun();
+    run.observations[0] = {
+      ...run.observations[0],
+      observedUrl: "https://redirected.invalid/final",
+      execution: "error",
+    };
+    run.observations[1] = {
+      ...run.observations[1],
+      observedUrl: "https://redirected.invalid/other",
+      execution: "error",
+    };
+
+    const output = evaluateWithProductionScorer(run);
+    expect(output.cases[0].identityRecall).toBe(0);
+    expect(output.cases[0].claimSupportCorrectness).toBe(0);
+    expect(output.cases[0].unsupportedClaimRate).toBe(1);
+    expect(output.cases[0].successfulObservations).toBe(0);
+  });
+
+  it("uses the actual observed destination rather than the requested URL for claim source coverage", () => {
+    const run = validRun();
+    run.observations[0].observedUrl = "https://redirected.invalid/final";
+    run.observations[1].observedUrl = "https://redirected.invalid/other";
+
+    const output = evaluateWithProductionScorer(run);
+    expect(output.cases[0].claimSupportCorrectness).toBe(0);
+    expect(output.cases[0].unsupportedClaimRate).toBe(1);
+  });
+
+  it("does not score a system failure as a research miss", () => {
+    const run = validRun();
+    run.outcome = "system_failure";
+    run.identities = [];
+    run.claims = [];
+    run.observations = [];
+
+    const output = evaluateWithProductionScorer(run);
+    expect(output.cases[0].systemFailure).toBe(true);
+    expect(output.cases[0].identityRecall).toBeNull();
+    expect(output.aggregate.identityRecall).toBeNull();
+    expect(output.bySystem["test-system"].systemFailures).toBe(1);
+    expect(output.bySystem["test-system"].metrics.identityRecall).toBeNull();
   });
 });
