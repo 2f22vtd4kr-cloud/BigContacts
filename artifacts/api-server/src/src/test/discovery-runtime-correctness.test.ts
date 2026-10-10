@@ -223,6 +223,16 @@ describe("discovery runtime architecture", () => {
     expect(redundantResearchActionReason("web_search", { ...same, provider: "tavily" }, [prior])).toBeNull();
     expect(redundantResearchActionReason("web_search", { ...same, purpose: "corroborate the role in a filing" }, [prior])).toBeNull();
     expect(redundantResearchActionReason("web_search", { ...same, hypothesis: "Test a different ownership lead" }, [prior])).toBeNull();
+
+    const newObservation = {
+      ...prior,
+      turn: 2,
+      action: "visit",
+      args: { url: "https://example.com/team", hypothesis: "Inspect the retrieved page", purpose: "verify a role from its source context" },
+      observation: "Retrieved page adds a concrete named-role attribution.",
+      observedUrls: ["https://example.com/team"],
+    };
+    expect(redundantResearchActionReason("web_search", same, [prior, newObservation])).toBeNull();
   });
 
   it("scopes Groq token-window snapshots to the selected model", () => {
