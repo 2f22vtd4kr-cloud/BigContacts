@@ -25,6 +25,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonical).toContain('failureStage = "terminal_persistence"');
     expect(classifyCanonicalAtlasFailure({ stage: "tool_execution", error: new Error("tool failed") })).toEqual({ domain: "tool_execution", kind: "request_failure" });
   });
+});
 
 describe("Atlas control-plane contract regression", () => {
   it("does not seed the discovery Boss with a fabricated sector phrase", () => {
