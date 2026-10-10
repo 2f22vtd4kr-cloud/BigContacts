@@ -62,7 +62,7 @@ function snapshotFor(jobId: string, job: JsonRecord, status: string, active: boo
  * last known snapshot rather than manufacturing an idle run.
  */
 export function parseAtlasRunSnapshot(value: unknown): AtlasRunSnapshot | null {
-  if (!isRecord(value) || typeof value.active !== "boolean") return null;
+  if (!isRecord(value) || value.type !== "atlas-run" || typeof value.active !== "boolean") return null;
 
   const jobId = value.jobId;
   const job = isRecord(value.job) ? value.job : null;
