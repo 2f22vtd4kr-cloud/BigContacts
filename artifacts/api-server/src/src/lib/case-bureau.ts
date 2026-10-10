@@ -600,7 +600,7 @@ export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promi
     const generated = await generateGeminiBossText(selection, prompt, {
       responseFormat: buildBossDiscoveryResponseFormat(availableInvestigators),
       maxOutputTokens: 2048,
-      thinkingLevel: "low",
+      thinkingLevel: "medium",
     });
     if (!generated.raw) {
       return {

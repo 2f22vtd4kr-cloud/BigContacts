@@ -8,6 +8,11 @@ import { describeThrownProviderError } from "./provider-error-diagnostics";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 export type AtlasControlAction = "continue_discovery" | "research_candidate" | "revisit_candidate" | "pivot_discovery" | "stop";
 export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: "completed" | "unavailable"; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null }; bossModel: string | null; error: string | null };
+
+/** Only an explicitly rejected out-of-set candidate choice can re-enter model control. */
+export function isRecoverableAtlasControlRejection(decision: Pick<AtlasControlDecision, "status" | "error">): boolean {
+  return decision.status === "unavailable" && decision.error === "Invalid candidate selection.";
+}
 function parseObject(raw: string | null | undefined): Record<string, unknown> | null {
   if (!raw) return null;
   const source = raw.trim();
@@ -344,7 +349,7 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
   if (rightHand.status !== "completed") return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Right-hand was unavailable; Atlas transition is fail-closed.", confidence: null, rightHand, bossModel: null, error: rightHand.error ?? "Right-hand unavailable." });
   const selection = await resolveGroqBossModel(); if (!selection?.model) return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Boss unavailable; Atlas transition is fail-closed rather than deterministic.", confidence: null, rightHand, bossModel: null, error: "No Groq Boss model available." });
   const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, rightHand });
-  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: 768, thinkingLevel: "low" });
+  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: 1536, thinkingLevel: "medium" });
     if (!generated.raw) {
       const failureCategory = classifyAtlasBossGenerationFailure(generated);
       const failure = formatAtlasBossGenerationFailure(generated);
