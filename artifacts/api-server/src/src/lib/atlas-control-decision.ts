@@ -326,6 +326,7 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
     const parsed = JSON.parse(rawInvestigatorReport) as Record<string, unknown>;
     investigatorReport = JSON.stringify({
       provider: parsed.provider,
+      controlValidationFeedback: typeof parsed.controlValidationFeedback === "string" ? parsed.controlValidationFeedback.slice(0, 800) : null,
       status: parsed.status,
       searches: parsed.searches,
       visits: parsed.visits,
