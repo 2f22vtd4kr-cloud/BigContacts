@@ -28,8 +28,13 @@ const evidenceCoverage=(refs,gold,idx,sourceRegistry)=>{
   const requiredClasses=asSet(gold?.requiredSourceClasses||[]);
   // Fail closed on incomplete ground truth instead of allowing every() over an
   // empty source list to vacuously declare a claim supported.
-  const urlsCovered=requiredUrls.size>=2&&[...requiredUrls].every(url=>observedUrls.has(url));
-  const classByUrl=new Map((sourceRegistry||[]).map(source=>[normUrl(source.url),String(source.sourceClass??"unknown")]));
+  const sourcesByUrl=new Map((sourceRegistry||[]).map(source=>[normUrl(source.url),source]));
+  const classByUrl=new Map([...sourcesByUrl].map(([url,source])=>[url,String(source.sourceClass??"unknown")]));
+  // Fail closed on incomplete gold data and URLs absent from the independently
+  // reviewed source registry. bench:score can invoke this scorer directly,
+  // without the separate registry-validation command.
+  const requiredUrlsRegistered=[...requiredUrls].every(url=>sourcesByUrl.get(url)?.independentReview===true);
+  const urlsCovered=requiredUrls.size>=2&&requiredUrlsRegistered&&[...requiredUrls].every(url=>observedUrls.has(url));
   const classCovered=requiredClasses.length===0||[...requiredClasses].every(requiredClass=>[...observedUrls].some(url=>classByUrl.get(url)===requiredClass));
   return {urlsCovered,classCovered,covered:urlsCovered&&classCovered};
 };
