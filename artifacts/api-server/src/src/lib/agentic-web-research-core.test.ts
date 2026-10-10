@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
+import { classifyCanonicalAtlasFailure } from "./canonical-atlas-failure-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
@@ -20,6 +21,17 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
     providerFallback: [],
   } as Parameters<typeof discoverySearchLivenessAdvisory>[0][number];
 }
+
+describe("provider-aware act timeout budget", () => {  it("classifies canonical errors into finite, safe domain and kind labels", () => {
+    expect(classifyCanonicalAtlasFailure({ stage: "boss_opening_request", error: new Error("upstream request failed") })).toEqual({ domain: "model_provider", kind: "request_failure" });
+    expect(classifyCanonicalAtlasFailure({ stage: "model_action_validation", error: new Error("rejected URL") })).toEqual({ domain: "model_action", kind: "invalid_contract" });
+    expect(classifyCanonicalAtlasFailure({ stage: "external_page_fetch", error: new Error("Outbound response exceeds 2000000 byte limit") })).toEqual({ domain: "external_page_fetch", kind: "response_size_limit" });
+    expect(classifyCanonicalAtlasFailure({ stage: "case_persistence", error: new Error("database write failed") })).toEqual({ domain: "persistence_database", kind: "unexpected_exception" });
+    expect(classifyCanonicalAtlasFailure({ stage: "investigator_episode", error: new Error("unexpected") })).toEqual({ domain: "unexpected_programming_error", kind: "unexpected_exception" });
+    expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("ignored"), leaseLost: true })).toEqual({ domain: "lease_job_state", kind: "lease_lost" });
+    expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("ignored"), cancelled: true })).toEqual({ domain: "lease_job_state", kind: "cancelled" });
+    expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("request timed out") })).toEqual({ domain: "unexpected_programming_error", kind: "timeout" });
+  });
 
 describe("provider-aware act timeout budget", () => {
   it("does not put the provider capacity window under a shorter act timeout", () => {
@@ -42,10 +54,13 @@ describe("page visit response classification", () => {
   it("makes the 2 MB outbound response cap actionable without treating the page as evidence", () => {
     const failure = describeToolVisitFailure(new Error("Outbound response exceeds 2000000 byte limit"));
     expect(failure.status).toBe("error");
+    expect(failure.failureKind).toBe("response_size_limit");
+    expect(failure.observation).toContain("failureDomain=external_page_fetch");
     expect(failure.observation).toContain("response_size_limit_exceeded max_bytes=2000000");
     expect(failure.observation).toContain("page content was not observed and must not be cited");
     expect(failure.observation).toContain("search snippets remain unverified leads");
     const pageReaderLimit = describeToolVisitFailure(new Error("browser response exceeds 1500000 byte limit"));
+    expect(pageReaderLimit.failureKind).toBe("response_size_limit");
     expect(pageReaderLimit.observation).toContain("response_size_limit_exceeded max_bytes=1500000");
     expect(pageReaderLimit.observation).toContain("page content was not observed and must not be cited");
   });
@@ -77,6 +92,8 @@ describe("page visit response classification", () => {
   it("classifies an outbound request deadline as timeout rather than a generic network error", () => {
     const failure = describeToolVisitFailure(new Error("Outbound request deadline exceeded"));
     expect(failure.status).toBe("timeout");
+    expect(failure.failureKind).toBe("timeout");
+    expect(failure.observation).toContain("failureDomain=external_page_fetch");
     expect(failure.observation).toContain("request timed out");
     expect(failure.observation).not.toContain("digest=");
   });
