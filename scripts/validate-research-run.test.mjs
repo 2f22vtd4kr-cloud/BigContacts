@@ -99,10 +99,12 @@ test("still rejects blank and duplicate observation IDs", () => {
   assert.match(duplicateResult.stderr, /Observation IDs must be unique and non-empty/);
 });
 
-test("still rejects evidence references to unknown observations", () => {
-  const run = sampleRun();
-  run.claims = [{ supportingObservationIds: ["missing"] }];
-  const result = runValidator(run);
-  assert.equal(result.status, 1);
-  assert.match(result.stderr, /claims references unknown observation missing/);
+test("rejects evidence references to unknown observations in every evidence-bearing collection", () => {
+  for (const collection of ["identities", "claims", "contacts", "contradictions"]) {
+    const run = sampleRun();
+    run[collection] = [{ supportingObservationIds: ["missing"] }];
+    const result = runValidator(run);
+    assert.equal(result.status, 1, `${collection} unexpectedly accepted an unknown observation reference`);
+    assert.match(result.stderr, new RegExp(`${collection} references unknown observation missing`));
+  }
 });
