@@ -138,6 +138,9 @@ export function isPromotableDirectContactUrl(url: string): boolean {
 export function isEligiblePersonalSocialCandidate(
   candidate: Pick<ReconciledCandidate, "scopes" | "sourceUrls" | "sourceDomains" | "state" | "exactClaimObserved">,
 ): boolean {
+  // Rejected values can retain source and exact-claim metadata for audit, but
+  // that metadata must never make an invalid candidate eligible as a pivot.
+  if (candidate.state === "rejected") return false;
   if (candidate.sourceUrls.length === 0) return false;
   if (!candidate.exactClaimObserved) return false;
   if (candidate.scopes.includes("target_person")) return true;
