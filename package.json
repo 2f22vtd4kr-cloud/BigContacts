@@ -23,7 +23,7 @@
     "check:agentic-timeout": "node --test scripts/check-agentic-timeout.test.mjs && node scripts/check-agentic-timeout.mjs",
     "check:workflow-action-pins": "node scripts/check-workflow-action-pins.mjs",
     "check:provider-role-docs": "node scripts/check-bureau-provider-role-docs.mjs",
-    "check:unified-investigator": "node scripts/check-unified-investigator-architecture.mjs",
+    "check:unified-investigator": "node scripts/check-unified-investigator-architecture.mjs && node scripts/check-unified-investigator-architecture.test.mjs",
     "check:discovery-mode": "node scripts/check-discovery-mode-boundary.mjs",
     "check:single-discovery-control-plane": "node scripts/check-single-canonical-discovery-control-plane.mjs",
     "check:agentic-core-transport": "node scripts/check-agentic-core-transport.mjs",

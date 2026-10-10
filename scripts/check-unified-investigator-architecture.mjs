@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
 const root = process.cwd();
 const files = {
@@ -29,6 +30,32 @@ const readRequired = (file) => { if (!fs.existsSync(file)) throw new Error(`miss
 const readOptional = (file) => fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
 const source = { ...Object.fromEntries(Object.entries(files).map(([name, file]) => [name, (name === "finalReview" || name === "legacyFinalReview") ? readOptional(file) : readRequired(file)])) };
 const legacyExtractionRetired = !fs.existsSync(files.finalReview) && !fs.existsSync(files.legacyFinalReview);
+
+// Assert executable TypeScript structure, not text that could survive in comments.
+function hasCallInFunction(sourceText, functionName, calleeName) {
+  const parsed = ts.createSourceFile("guarded-source.ts", sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  let owner = null;
+  const findOwner = (node) => {
+    if (ts.isFunctionDeclaration(node) && node.name?.text === functionName) { owner = node; return; }
+    if (!owner) ts.forEachChild(node, findOwner);
+  };
+  findOwner(parsed);
+  if (!owner?.body) return false;
+  let found = false;
+  const visit = (node) => {
+    if (found) return;
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === calleeName) found = true;
+    ts.forEachChild(node, (child) => {
+      // A nested function's body is a separate execution path, not proof that the
+      // enclosing canonical control loop makes the call itself.
+      if (ts.isFunctionLike(child) || ts.isClassLike(child)) return;
+      visit(child);
+    });
+  };
+  visit(owner.body);
+  return found;
+}
+
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 assert(!/DEEPSEEK_INVESTIGATOR_MODEL|\["deepseek",\s*callDeepSeekJson\]|\bname === "deepseek"/.test(source.research), "Removed DeepSeek is present in the Investigator adapter pool.");
@@ -48,7 +75,7 @@ assert(/investigatorLlm/.test(source.research), "ReAct research runtime does not
 assert(/runCanonicalAtlasPipeline\(/.test(source.canonicalCase) && /discoveryCaseId\s*:\s*caseId/.test(source.canonicalCase), "Case discovery adapter does not delegate with its durable discovery case binding.");
 assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not bind the selected Investigator.");
 assert(/discoveryCaseId|caseId/.test(source.canonicalAtlas) && /runBureauAgenticWebPass\(/.test(source.canonicalAtlas), "Canonical Atlas discovery does not mount a durable discovery case context into the Investigator.");
-assert(/decideAtlasNextAction\s*\(/.test(source.canonicalAtlas), "Canonical Atlas discovery does not delegate the next research action to the AI control plane.");
+assert(hasCallInFunction(source.canonicalAtlas, "runCanonicalAtlasPipeline", "decideAtlasNextAction"), "Canonical Atlas pipeline does not execute the model-owned next-action decision in its control loop.");
 assert(/Allowed actions:[\s\S]*continue_discovery[\s\S]*research_candidate[\s\S]*revisit_candidate[\s\S]*pivot_discovery[\s\S]*stop/.test(source.atlasControl), "Atlas control decision does not expose the required model-owned transition actions.");
 assert(/resolveGroqBossModel\s*\(/.test(source.atlasControl) && /runGroqRightHandFreeJson\s*\(/.test(source.atlasControl) && /groq-right-hand-reasoning/.test(source.atlasControl) && /groq-boss/.test(source.atlasControl), "Atlas transition control does not use Groq Boss plus Groq Right-hand oversight.");
 assert(/candidateNames\.some\(/.test(source.atlasControl) && /fail-closed/.test(source.atlasControl), "Atlas control decision does not bind target selection to explicit admissions and fail closed.");
