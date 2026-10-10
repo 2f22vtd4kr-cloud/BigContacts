@@ -143,6 +143,57 @@ describe("Groq Investigator provider boundary", () => {
   });
 
 
+
+  it("does not carry a token-window cooldown across credential rotation in the same capability slot", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "rotated-slot-old-credential";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let calls = 0;
+    const authorizationHeaders: string[] = [];
+    mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      authorizationHeaders.push(String(new Headers(init?.headers).get("authorization")));
+      if (calls === 1) {
+        return new Response(JSON.stringify({ error: { type: "tokens", code: "rate_limit_exceeded" } }), {
+          status: 429,
+          headers: {
+            "retry-after": "96",
+            "x-ratelimit-remaining-tokens": "0",
+            "x-ratelimit-reset-tokens": "96s",
+            "x-ratelimit-remaining-requests": "999",
+          },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const first = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+    expect(["unavailable", "error"]).toContain(first.status);
+    expect(first.trajectoryRecords[0]?.observation).toContain("upstream_token_window_wait_exceeded");
+    expect(calls).toBe(1);
+
+    process.env.GROQ_INVESTIGATOR_API_KEY = "rotated-slot-new-credential";
+    const second = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(second.status).toBe("completed");
+    expect(calls).toBe(2);
+    expect(authorizationHeaders).toEqual([
+      "Bearer rotated-slot-old-credential",
+      "Bearer rotated-slot-new-credential",
+    ]);
+  });
+
   it("retries an HTTP 413 once with emergency prompt compaction on the same model and capability", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-413-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
