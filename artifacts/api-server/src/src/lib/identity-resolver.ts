@@ -69,10 +69,21 @@ function textList(value: unknown): string[] {
 }
 
 export function normalizeIdentityName(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
-    .toLowerCase()
+  const decomposed = value.normalize("NFKD").toLowerCase();
+  let output = "";
+  let previousBase = "";
+  for (const character of decomposed) {
+    if (/\p{M}/u.test(character)) {
+      // Strip Latin accents for fuzzy matching, but preserve meaningful marks in other scripts.
+      // For example, the breve in Ukrainian й must not collapse it into и.
+      if (!previousBase || !/\p{Script=Latin}/u.test(previousBase)) output += character;
+      continue;
+    }
+    output += character;
+    previousBase = character;
+  }
+  return output
+    .normalize("NFC")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
