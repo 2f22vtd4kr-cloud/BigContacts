@@ -110,7 +110,7 @@ describe("canonical Atlas stop fence", () => {
     expect(jobQueue).toContain("cancelRequested=='1' and incoming~='cancelled'");
     expect(jobQueue).toContain("if(prev?.cancelRequested && patch.status!==\"cancelled\")return;");
     expect(jobQueue).toContain("current~='queued' and current~='running' and current~='paused'");
-    expect(jobQueue).toContain("hdel(k,'cancelRequested')");
+    expect(jobQueue).toContain("redis.call('hdel',k,'cancelRequested')");
     expect(stopBlock).toContain("await clearJobCancellationRequest(activeJobId)");
     expect(stopBlock.indexOf("await requestJobCancellation(activeJobId)")).toBeLessThan(
       stopBlock.indexOf("await db.update(researchCasesTable)"),
