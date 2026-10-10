@@ -336,9 +336,12 @@ export function compactInvestigationContext(input: {
 /** Bound an auxiliary model-state section without deleting the durable state behind it. */
 export function boundInvestigatorPromptSection(value: string, maxChars = 6_000): string {
   const normalized = typeof value === "string" ? value.trim() : "";
-  const bounded = Math.max(1_000, Math.min(12_000, Math.floor(maxChars)));
-  if (normalized.length <= bounded) return normalized;
   const marker = "[AUXILIARY CONTEXT BOUND: omitted middle detail remains durable outside this prompt]";
+  const requested = Number.isFinite(maxChars) ? Math.floor(maxChars) : 6_000;
+  // Keep enough room for the omission marker, but do not silently inflate small
+  // caller budgets (for example, the latest-act observation's 220-character cap).
+  const bounded = Math.max(marker.length + 2, Math.min(12_000, requested));
+  if (normalized.length <= bounded) return normalized;
   const available = Math.max(0, bounded - marker.length - 2);
   const headChars = Math.floor(available * 0.55);
   const tailChars = available - headChars;
