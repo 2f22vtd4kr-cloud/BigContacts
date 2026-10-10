@@ -2,11 +2,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { classifyApexError, emitApexError } from "@/lib/apex-errors";
 import { readApiJson } from "@/lib/api-json";
+import { parseAtlasRunSnapshot, type AtlasRunSnapshot } from "@/lib/atlas-run-status-contract";
+export type { AtlasRunSnapshot } from "@/lib/atlas-run-status-contract";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const POLL_MS = 12_000;
-
-export type AtlasRunSnapshot = { active: boolean; status?: string; message?: string; jobId?: string; targetName?: string; phase?: number; phaseTotal?: number; };
 
 export function useAtlasRun(pollMs: number = POLL_MS) {
   const [run, setRun] = useState<AtlasRunSnapshot>({ active: false });
@@ -26,20 +26,17 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
     try {
       const res = await fetch(`${BASE}/api/ingest/job/active/atlas-run`, { cache: "no-store", credentials: "same-origin", signal: requestController.signal });
       if (requestId !== requestGeneration.current || requestController.signal.aborted) return;
-      const data = await readApiJson(res) as any;
+      const data = await readApiJson(res);
       if (requestId !== requestGeneration.current || requestController.signal.aborted) return;
-      // A failed poll is not an idle run; the shared reader surfaces HTTP errors.
+      // Failed HTTP polls and malformed successful payloads are not proof of idleness.
       if (!res.ok) return;
-      const job = data?.job ?? null;
-      const status = String(job?.status ?? data?.jobStatus ?? "").toLowerCase();
-      const active = Boolean(data?.active) && (status === "running" || status === "paused" || status === "queued");
-      const jobId = data?.jobId ?? job?.jobId;
-      const message = job?.message;
-      if (!active && jobId && ["failed","canceled","cancelled","completed"].includes(status) && lastTerminalJob.current !== jobId) {
-        lastTerminalJob.current = jobId;
-        if (status === "failed") emitApexError(data?.userError ?? classifyApexError(message));
+      const snapshot = parseAtlasRunSnapshot(data);
+      if (!snapshot) return;
+      if (!snapshot.active && snapshot.jobId && ["done", "failed", "cancelled"].includes(snapshot.status ?? "") && lastTerminalJob.current !== snapshot.jobId) {
+        lastTerminalJob.current = snapshot.jobId;
+        if (snapshot.status === "failed") emitApexError(data?.userError ?? classifyApexError(snapshot.message));
       }
-      setRun({ active, status: job?.status ?? data?.jobStatus, message, jobId, targetName: job?.targetName ?? job?.currentTarget ?? undefined, phase: job?.atlasPhase ?? job?.progress, phaseTotal: job?.atlasPhaseTotal ?? job?.total });
+      setRun(snapshot);
     } catch { /* Keep the last known state on transient failures. */ }
     finally {
       signal?.removeEventListener("abort", abortFromOwner);
