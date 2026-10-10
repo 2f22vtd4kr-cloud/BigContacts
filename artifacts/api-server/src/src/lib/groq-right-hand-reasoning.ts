@@ -219,12 +219,16 @@ type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: s
 function formatAttemptDiagnostic(diagnostic: GroqAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
 
 async function request(system:string,user:string,format?:Record<string,unknown>):Promise<{raw:string;error:string|null;model:string}>{
- const entries=keyEntries(); if(!entries.length)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
+ const entry=keyEntries()[0];
+ if(!entry)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
  const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Groq Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:GROQ_RIGHT_HAND_MODEL};
  const systemPrompt=`${apexOrientationCompact("right_hand")}\n\n${system}`;
+ // Credential slots are independent credentials, not an implicit failover ladder.
+ // This request uses one configured slot and only the documented same-role model fallback.
+ // Recovery through another credential must be explicit rather than a side effect of retries.
  const attempts:Array<{entry:{name:string;key:string};model:string}>=[];
- for(const entry of entries){for(const model of await resolveModelChain(entry.key))attempts.push({entry,model});}
+ for(const model of await resolveModelChain(entry.key))attempts.push({entry,model});
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
   const structuredResponseFormat=responseFormat(format);
  const failures: GroqAttemptDiagnostic[] = [];
