@@ -32,7 +32,33 @@ const failures = forbidden.filter((pattern) => pattern.test(source)).map((patter
 
 // Validate capabilities against the canonical TypeScript AgentAction union rather
 // than the whole file: stale comments or examples must not satisfy this guard.
+function maskComments(sourceText) {
+  const chars = sourceText.split("");
+  let mode = "code";
+  let quote = null;
+  let escaped = false;
+  for (let i = 0; i < sourceText.length; i += 1) {
+    const character = sourceText[i];
+    const next = sourceText[i + 1];
+    if (mode === "code") {
+      if (character === "/" && next === "/") { chars[i] = chars[i + 1] = " "; mode = "line-comment"; i += 1; }
+      else if (character === "/" && next === "*") { chars[i] = chars[i + 1] = " "; mode = "block-comment"; i += 1; }
+      else if (character === "\"" || character === "'") { quote = character; mode = "string"; escaped = false; }
+    } else if (mode === "line-comment") {
+      if (character === "\n") mode = "code"; else chars[i] = " ";
+    } else if (mode === "block-comment") {
+      if (character === "*" && next === "/") { chars[i] = chars[i + 1] = " "; mode = "code"; i += 1; }
+      else if (character !== "\n" && character !== "\r") chars[i] = " ";
+    } else if (mode === "string") {
+      if (escaped) escaped = false;
+      else if (character === "\\") escaped = true;
+      else if (character === quote) { quote = null; mode = "code"; }
+    }
+  }
+  return chars.join("");
+}
 function extractTypeAlias(sourceText, typeName) {
+  sourceText = maskComments(sourceText);
   const declaration = new RegExp(`\\btype\\s+${typeName}\\s*=`).exec(sourceText);
   if (!declaration) return null;
   const start = declaration.index;
