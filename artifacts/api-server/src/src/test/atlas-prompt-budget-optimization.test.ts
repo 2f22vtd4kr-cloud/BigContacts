@@ -77,7 +77,8 @@ describe("Apex Atlas prompt budget optimization", () => {
     const systemInstruction = apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only.";
     expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(7_200);
     expect(prompt.length).toBeLessThanOrEqual(7_200 - systemInstruction.length);
-    expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS: action,|Required fields: action,query,provider/);
+    expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS:");
     expect(prompt).toContain("LATEST TRAJECTORY RECORD");
     expect(prompt).toContain("LATEST_OBSERVATION_SENTINEL");
   });
