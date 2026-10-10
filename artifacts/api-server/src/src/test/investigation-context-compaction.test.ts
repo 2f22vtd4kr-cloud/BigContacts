@@ -133,6 +133,15 @@ describe("investigator context compaction", () => {
     expect(result).toContain("trajectory.example/page");
   });
 
+  it("honors the small explicit latest-observation budget", () => {
+    const value = "LATEST OBSERVATION HEAD " + "X".repeat(5_000) + " LATEST OBSERVATION TAIL";
+    const bounded = boundInvestigatorPromptSection(value, 220);
+    expect(bounded.length).toBeLessThanOrEqual(220);
+    expect(bounded).toContain("LATEST OBSERVATION HEAD");
+    expect(bounded).toContain("LATEST OBSERVATION TAIL");
+    expect(bounded).toContain("AUXILIARY CONTEXT BOUND");
+  });
+
   it("bounds auxiliary intelligence state independently of trajectory compaction", () => {
     const value = "HEAD STATE " + "X".repeat(40_000) + " LATEST STATE";
     const bounded = boundInvestigatorPromptSection(value, 6_000);
