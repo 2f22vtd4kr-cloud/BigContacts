@@ -1318,9 +1318,12 @@ function structuredActionResponseFormat(model: string): Record<string, unknown> 
 
 const AGENTIC_ACTION_SCHEMA = { type: "object", properties: { action: { type: "string", enum: [...MODEL_SELECTABLE_AGENT_ACTIONS] }, query: { type: "string" }, provider: { type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null] }, url: { type: "string" }, email: { type: "string" }, username: { type: "string" }, domain: { type: "string" }, registry: { type: "string" }, target: { type: "string" }, targetType: { type: "string", enum: ["domain","hostname","ip","email","username","person","asn"] }, profile: { type: "string", enum: ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"] }, searches: { type: "array", minItems: 2, maxItems: 4 }, thought: { type: "string" }, hypothesis: { type: "string" }, purpose: { type: "string" }, expectedInformationGain: { type: "number" }, findings: { type: "array" } }, required: ["action"], additionalProperties: false };
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; intelligenceContext?: string; mode?: "target" | "discovery" }): string {
+  // Bound pathological target strings so prompt compaction preserves the
+  // output schema and evidence/admission rules. Ordinary names pass unchanged.
+  const boundedTargetName = boundInvestigatorPromptSection(input.targetName, 600);
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
-    : "ASSIGNMENT TARGET: " + input.targetName;
+    : "ASSIGNMENT TARGET: " + boundedTargetName;
   const workingContext = buildInvestigatorContext({
     targetName: input.targetName,
     companyName: input.companyName,
