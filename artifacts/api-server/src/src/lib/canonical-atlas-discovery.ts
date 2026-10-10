@@ -12,6 +12,7 @@ import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
+import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { formatBossDirectedObjective, validateResearchObjective } from "./research-objective";
 import { candidateIdentityObserved, normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateSourceUrlsForIdentity, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
@@ -196,12 +197,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
   const discoveryObjective = opts.discoveryObjective?.trim() || "Discover real named people for subsequent target-scoped public-contact research. Start from a concrete business or operating context and a plausible geography, sector, company ecosystem, transaction, registry, filing, trade publication, official company surface, or other evidence-bearing anchor selected from the live case objective. Avoid defaulting to celebrities, billionaire/richest-person lists, generic wealth searches, or context-free famous names. Write each search from the current hypothesis and observed evidence, pivot when results are generic or repetitive, and choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.";
   await assertAtlasJobActive(atlasJobId);
   await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Groq Right-hand review → model-owned Investigator discovery…" });
+  let failureStage: AtlasFailureStage = "boss_opening_request";
   try {
     await assertAtlasJobActive(atlasJobId);
     // Canonical opening order is intentional: Groq Boss establishes the case direction
     // and selects the Investigator first. The independent Right-hand reviews that Boss
     // decision second. It must never become a prerequisite that can silently steer the
     // Boss's opening assignment.
+    failureStage = "boss_opening_request";
     const boss = await runGroqBossDiscovery({
       objective: discoveryObjective,
       motivation: opts.discoveryMotivation || "Find real people for deep target-scoped investigation.",
@@ -217,6 +220,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
 
     if (opts.discoveryCaseId) {
+      failureStage = "case_persistence";
       const [existingDiscoveryCase] = await db.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, opts.discoveryCaseId)).limit(1);
       let storedInvestigator: InvestigatorCapability | null = null;
       try {
@@ -258,6 +262,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // The durable discovery case begins as soon as the Boss makes the opening
     // assignment, so a later Right-hand/provider failure cannot erase the fact
     // that the Boss decision actually happened.
+    failureStage = "case_persistence";
     const discoveryCaseId = opts.discoveryCaseId ?? await createAtlasDiscoveryCase({
       atlasJobId,
       objective: discoveryObjective,
@@ -330,6 +335,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // after creation so a stop that won the check-before-create race cannot leave
     // an active orphan discovery case.
     await reconcileDiscoveryCaseCancellation(atlasJobId, discoveryCaseId);
+    failureStage = "case_persistence";
     await db.transaction(async (tx) => {
       // Serialize the opening event against the durable cancellation fence.
       // Whichever transaction acquires the case row first wins the ordering;
@@ -374,6 +380,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
 
     // Boss first, independent Right-hand second. The Right-hand reviews the
     // actual Boss decision; it does not pre-steer the Boss or choose the tools.
+    failureStage = "right_hand_opening_review";
     const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
       runGroqRightHandFreeJson(
         `Review Groq Boss's opening Atlas decision against the exact research objective before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified control hypothesis, not source evidence): ${boss.report ?? ""}. Next directions (unverified control hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead. Return concise oversight/advisory observations only. Do not browse, choose tools, replace the Investigator, or invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
@@ -505,10 +512,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const openingDiscoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (openingDiscoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for discovery Investigator.");
     // Treat the opening discovery episode like every Boss-directed continuation: a bounded act, not the entire job-wide Investigator budget. This leaves the model-owned Boss control loop room to assess evidence and direct a continuation or target investigation instead of consuming the global ceiling before the first control decision.
     const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, depth.agenticMaxIterations);
+    failureStage = "investigator_episode";
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget });
     discovery = await runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations);
     let consecutiveInvestigatorProviderUnavailable = isInvestigatorProviderUnavailable(discovery) ? 1 : 0;
     await assertAtlasJobActive(atlasJobId);
+    failureStage = "candidate_admission_persistence";
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: discovery.findings, atlasJobId, discoveryCaseId });
     let admitted = admission.names; let admittedCandidateSources = admission.candidates; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = quotaExhaustedInvestigators.size > 0 ? 1 + quotaExhaustedInvestigators.size : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDirection: { controlTurn: number; reason: string } | null = null;
     const researchedNames = new Set<string>();
@@ -590,6 +599,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const previousAcceptedCandidate = priorCandidate;
       controlTurns += 1;
       const directionValidationFeedback = rejectedControlDirection;
+      failureStage = "oversight_control_decision";
       const decision = await decideAtlasNextAction({ objective: discoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls }) => { const finding = discovery.findings.find((candidate) => normalizeCandidateIdentityName(candidate.personName ?? "") === normalizeCandidateIdentityName(name) && candidate.promotionDecision === "promote" && candidate.scope === "candidate"); return { name, role: finding?.role ?? null, sourceUrls }; }), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: discovery.findings.map((finding) => ({ personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, investigatorReport: JSON.stringify({
         provider: boss.investigatorLlm,
         controlValidationFeedback: directionValidationFeedback ? `The previous Boss pivot at control turn ${directionValidationFeedback.controlTurn} was rejected by deterministic control validation: ${directionValidationFeedback.reason}. No Investigator tool was executed. Choose a corrected research question or a different valid control action; do not include a concrete URL or prescribe a provider/tool. This feedback is control state, not research evidence.` : null,
@@ -639,6 +649,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await assertAtlasJobActive(atlasJobId);
         const targetBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (targetBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for target investigation.");
         const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed); if (remainingTargetIterations <= 0) { investigatorResourceLimited = true; phaseSummary.controlSafetyCeiling = `Canonical Atlas Investigator iteration ceiling reached at ${investigatorIterationsUsed}/${depth.agenticMaxIterations}; refusing another target episode.`; break; }
+        failureStage = "investigator_episode";
         const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: [...quotaExhaustedInvestigators] });
         for (const exhausted of targetResult.exhaustedInvestigatorLlm) quotaExhaustedInvestigators.add(exhausted);
         if (quotaExhaustedInvestigators.has(selectedInvestigator)) {
@@ -671,6 +682,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         await assertAtlasJobActive(atlasJobId);
         const proposedDirection = decision.direction || "Reassess the open evidence and choose the highest-information next action yourself.";
+        failureStage = "model_action_validation";
         const validatedDirection = validateResearchObjective(proposedDirection);
         if (!validatedDirection.valid) {
           // A malformed Boss pivot is a rejected control decision, not a reason to
@@ -684,6 +696,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           finalControlAction = null;
           phaseSummary[`control_${controlTurns}_rejected`] = `Boss pivot rejected before Investigator execution: ${rejectionReason}; requesting another model-owned control decision.`;
           await assertAtlasJobActive(atlasJobId);
+          failureStage = "control_event_persistence";
           await db.transaction(async (tx) => {
             const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile })
               .from(researchCasesTable)
@@ -732,6 +745,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // Only clear the previous evidence-backed terminal after control validation and
         // all budget/iteration guards pass, at the exact point a new Investigator act starts.
         latestEvidenceBackedTerminal = null;
+        failureStage = "investigator_episode";
         let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [] });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), discovery.trajectoryRecords ?? []);
@@ -807,6 +821,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? `canonical-control-${finalControlAction ?? "incomplete"}`
             : "canonical-evidence-terminal-incomplete"
       : "canonical-atlas-complete";
+    failureStage = "terminal_persistence";
     await db.update(researchCasesTable).set({
       status: finalCaseStatus,
       currentAction: finalCaseAction,
@@ -843,11 +858,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           : leaseLost
             ? "canonical-lease-lost"
             : "canonical-atlas-failed";
+    const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, leaseLost });
+    const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
     const message = cancelled
-      ? "Canonical Atlas discovery cancelled; outcome incomplete."
+      ? `Canonical Atlas discovery cancelled; outcome incomplete. (${diagnosticSuffix})`
       : jobStateUnavailable
-        ? "Canonical Atlas job state unavailable; discovery stopped without claiming cancellation."
-        : safeThrownErrorSummary("Canonical Atlas discovery failed", error);
+        ? `Canonical Atlas job state unavailable; discovery stopped without claiming cancellation. (${diagnosticSuffix})`
+        : `${safeThrownErrorSummary("Canonical Atlas discovery failed", error)} (${diagnosticSuffix})`;
     await db.update(researchCasesTable).set({
       status: "review",
       currentAction,
