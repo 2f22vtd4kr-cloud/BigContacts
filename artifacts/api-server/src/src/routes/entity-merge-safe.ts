@@ -20,7 +20,7 @@ import {
   sanitizePublicSocialHandle,
 } from "../lib/contact-validation";
 import { selectMergedContactEvidence } from "../lib/contact-merge-selection";
-import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact } from "../lib/contact-confidence";
+import { computeContactConfidence, computeContactOutcome, hasMeaningfulDirectContact, isHeuristicEmailEvidence } from "../lib/contact-confidence";
 import { delCachePattern } from "../lib/redis";
 
 const router = Router();
@@ -55,7 +55,6 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
       const parseArray = (value: string | null): string[] => { try { const parsed = value ? JSON.parse(value) : []; return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : []; } catch { return []; } };
       const parseObject = (value: string | null): Record<string, unknown> => { try { const parsed = value ? JSON.parse(value) : {}; return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}; } catch { return {}; } };
       const mergedSources = [...new Set([...parseArray(primary.sourceRegistries), ...parseArray(target.sourceRegistries)])];
-      const mergedMeta = { ...parseObject(target.metadata), ...parseObject(primary.metadata), mergedFrom: targetId, mergedAt: new Date().toISOString() };
       const mergedResidences = primary.knownResidences ?? target.knownResidences;
       const mergedNotes = [primary.notes, target.notes].filter(Boolean).join("\n\n---\n\n") || null;
       const selectedContact = selectMergedContactEvidence(primary, target);
@@ -67,6 +66,17 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
       const mergedInstagram = sanitizePublicSocialHandle(primary.instagramHandle, "instagram") ?? sanitizePublicSocialHandle(target.instagramHandle, "instagram");
       const mergedTelegram = primary.telegramHandle ?? target.telegramHandle;
       const mergedPhoneSource = selectedContact.phoneSource;
+      const selectedEmailIsHeuristic = isHeuristicEmailEvidence({ email: mergedEmail, metadata: mergedEmailMetadata });
+      const mergedMeta = {
+        ...parseObject(target.metadata),
+        ...parseObject(primary.metadata),
+        selectedContactProvenance: {
+          email: mergedEmail ? { value: mergedEmail, heuristic: selectedEmailIsHeuristic } : null,
+          phone: mergedPhone ? { value: mergedPhone, source: mergedPhoneSource } : null,
+        },
+        mergedFrom: targetId,
+        mergedAt: new Date().toISOString(),
+      };
       const mergedConfidence = computeContactConfidence({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
       const mergedOutcome = computeContactOutcome({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, linkedinUrl: mergedLinkedIn, twitterHandle: mergedTwitter, instagramHandle: mergedInstagram, telegramHandle: mergedTelegram, knownResidences: mergedResidences, metadata: mergedEmailMetadata });
       const mergedHot = hasMeaningfulDirectContact({ type: primary.type, email: mergedEmail, phone: mergedPhone, phoneSource: mergedPhoneSource, metadata: mergedEmailMetadata });
