@@ -103,12 +103,33 @@ describe("canonical Atlas stop fence", () => {
     expect(stopBlock).toContain("Persisted Atlas job status is unrecognized; no stop was claimed.");
   });
 
+
+  it("atomically reserves cancellation so completion cannot win between the case fence and terminal status", () => {
+    const route = fs.readFileSync(routePath, "utf8");
+    const stopBlock = route.slice(route.indexOf('router.post("/ingest/atlas-stop"'));
+    const jobQueue = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/job-queue.ts"), "utf8");
+
+    expect(jobQueue).toContain("requestJobCancellation");
+    expect(jobQueue).toContain("cancelRequested=='1' and incoming~='cancelled'");
+    expect(jobQueue).toContain("if(prev?.cancelRequested && patch.status!==\"cancelled\")return;");
+    expect(jobQueue).toContain("hdel(k,'cancelRequested')");
+    expect(stopBlock).toContain("await clearJobCancellationRequest(activeJobId)");
+    expect(stopBlock).toContain("The cancellation reservation could not be cleared");
+    expect(stopBlock.indexOf("await requestJobCancellation(activeJobId)")).toBeLessThan(
+      stopBlock.indexOf("await db.update(researchCasesTable)"),
+    );
+    expect(stopBlock.indexOf("await db.update(researchCasesTable)")).toBeLessThan(
+      stopBlock.indexOf("await updateJob(activeJobId, {"),
+    );
+  });
+
   it("only acknowledges operator cancellation after strict persisted-state confirmation", () => {
     const source = fs.readFileSync(routePath, "utf8");
     const stopBlock = source.slice(source.indexOf('router.post("/ingest/atlas-stop"'));
     const initialStatusCheck = stopBlock.indexOf("classifyActiveJobLaneStatus(activeJob.status)");
     const caseLookup = stopBlock.indexOf("await db.select({ id: researchCasesTable.id })", initialStatusCheck);
-    const durableCaseFence = stopBlock.indexOf("await db.update(researchCasesTable)", caseLookup);
+    const cancellationReservation = stopBlock.indexOf("await requestJobCancellation(activeJobId)", caseLookup);
+    const durableCaseFence = stopBlock.indexOf("await db.update(researchCasesTable)", cancellationReservation);
     const cancelWrite = stopBlock.indexOf("await updateJob(activeJobId, {", durableCaseFence);
     const strictReadBack = stopBlock.indexOf("await getJobStrict(activeJobId)", cancelWrite + 1);
     const losingRaceGuard = stopBlock.indexOf('if (confirmedJob.status !== "cancelled")', strictReadBack);
@@ -118,7 +139,8 @@ describe("canonical Atlas stop fence", () => {
 
     expect(initialStatusCheck).toBeGreaterThan(-1);
     expect(caseLookup).toBeGreaterThan(initialStatusCheck);
-    expect(durableCaseFence).toBeGreaterThan(caseLookup);
+    expect(cancellationReservation).toBeGreaterThan(caseLookup);
+    expect(durableCaseFence).toBeGreaterThan(cancellationReservation);
     expect(cancelWrite).toBeGreaterThan(durableCaseFence);
     expect(strictReadBack).toBeGreaterThan(cancelWrite);
     expect(losingRaceGuard).toBeGreaterThan(strictReadBack);
