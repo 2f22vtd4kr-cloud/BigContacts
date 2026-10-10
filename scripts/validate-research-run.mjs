@@ -62,18 +62,20 @@ for (const item of doc.failureRecords || []) {
   }
 }
 
-if (
-  ![
-    "verified",
-    "insufficient_evidence",
-    "wrong_answer",
-    "system_failure",
-    "cancelled",
-    "exhausted",
-    "contradicted",
-  ].includes(String(doc.outcome))
-) {
+const validOutcomes = [
+  "verified",
+  "insufficient_evidence",
+  "wrong_answer",
+  "system_failure",
+  "cancelled",
+  "exhausted",
+  "contradicted",
+];
+if (!validOutcomes.includes(String(doc.outcome))) {
   throw new Error("Invalid outcome.");
+}
+if (doc.outcome === "verified" && (!doc.observations.length || !doc.trajectory.length)) {
+  throw new Error("Verified runs require non-empty observations and trajectory.");
 }
 
 console.log(
