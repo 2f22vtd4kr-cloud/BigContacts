@@ -234,7 +234,7 @@ describe("Groq Right-hand model policy", () => {
     expect(result.status).toBe("unavailable");
     expect(result.error).toContain('"rateLimitKind":"requests"');
     const chatCalls = fetchMock.mock.calls
-      .filter(([input]) => String(input) === "https://api.groq.ai/openai/v1/chat/completions" || String(input) === "https://api.groq.com/openai/v1/chat/completions");
+      .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
     expect(chatCalls).toHaveLength(1);
     expect(new Headers(chatCalls[0]?.[1]?.headers).get("authorization")).toContain("right-hand-primary-key");
     expect(new Headers(chatCalls[0]?.[1]?.headers).get("authorization")).not.toContain("right-hand-secondary-key");
