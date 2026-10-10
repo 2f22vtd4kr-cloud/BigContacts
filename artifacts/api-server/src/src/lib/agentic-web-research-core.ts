@@ -77,6 +77,13 @@ function normalizedActionRationale(value: unknown): string {
   return normalizeDiscoverySearchQuery(cleanText(value, 500));
 }
 
+function normalizedDomainResource(value: unknown): string {
+  let domain = cleanText(value, 160).toLowerCase();
+  if (domain.startsWith("https://")) domain = domain.slice(8);
+  else if (domain.startsWith("http://")) domain = domain.slice(7);
+  return domain.replace(/\\/+$/, "");
+}
+
 /** Stable identity for a concrete, model-selected research request; it does not encode a research itinerary. */
 function researchActionResource(action: string, args: Record<string, unknown>): string | null {
   const text = (key: string, max = 300) => cleanText(args[key], max);
@@ -106,9 +113,9 @@ function researchActionResource(action: string, args: Record<string, unknown>): 
     case "registry_search":
       return JSON.stringify([action, text("registry", 80).toLowerCase(), query(args.query)]);
     case "domain_lookup":
-      return JSON.stringify([action, text("domain", 160).toLowerCase().replace(/^https?:\\/\\//, "").replace(/\\/$/, ""), text("provider", 30).toLowerCase()]);
+      return JSON.stringify([action, normalizedDomainResource(args.domain), text("provider", 30).toLowerCase()]);
     case "harvest_domain":
-      return JSON.stringify([action, text("domain", 160).toLowerCase().replace(/^https?:\\/\\//, "").replace(/\\/$/, "")]);
+      return JSON.stringify([action, normalizedDomainResource(args.domain)]);
     case "footprint_email":
       return JSON.stringify([action, text("email", 160).toLowerCase()]);
     case "footprint_username_maigret":
@@ -1286,7 +1293,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
 } as const;
 
 function structuredActionResponseFormat(model: string): Record<string, unknown> {
-  const strictSupported = /^(qwen\\/qwen3\\.8-27b|openai\\/gpt-oss-(20b|120b))$/.test(model);
+  const strictSupported = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"].includes(model);
   const browserProviders = getAvailableBrowserFetchProviders();
   const availableActions = browserProviders.length
     ? [...MODEL_SELECTABLE_AGENT_ACTIONS]
