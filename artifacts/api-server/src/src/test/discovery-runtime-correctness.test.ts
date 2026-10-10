@@ -223,6 +223,8 @@ describe("discovery runtime architecture", () => {
     expect(redundantResearchActionReason("web_search", { ...same, provider: "tavily" }, [prior])).toBeNull();
     expect(redundantResearchActionReason("web_search", { ...same, purpose: "corroborate the role in a filing" }, [prior])).toBeNull();
     expect(redundantResearchActionReason("web_search", { ...same, hypothesis: "Test a different ownership lead" }, [prior])).toBeNull();
+    const alternate = { ...prior, turn: 2, args: { ...prior.args, purpose: "verify a filing" } };
+    expect(redundantResearchActionReason("web_search", same, [prior, alternate])).toContain("repeat_action_guard");
 
     const newObservation = {
       ...prior,
