@@ -70,6 +70,7 @@ jobs:
       APEX_AGENTIC_CONCURRENCY: "1"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
       APEX_ALLOW_SCHEMA_PUSH: "true"
+      APEX_ATLAS_RUN_TIMEOUT_MS: "900000"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,7 +143,7 @@ jobs:
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1);console.log("job",x.jobId)'
           JOB_ID="$(node -p 'require("/tmp/launch.json").jobId')"
-          for i in $(seq 1 120); do
+          for i in $(seq 1 240); do
             sleep 5
             curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/job.json
             STATUS="$(node -p 'require("/tmp/job.json").status || ""')"
