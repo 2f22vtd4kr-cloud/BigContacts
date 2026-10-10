@@ -79,9 +79,6 @@ jobs:
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
           done
-      - name: Restore build-time safety-only source sanitization
-        if: always()
-        run: git checkout -- artifacts/apex-finder/src/pages/data-sources.tsx
       - run: git diff --exit-code
 
   audit-2:
