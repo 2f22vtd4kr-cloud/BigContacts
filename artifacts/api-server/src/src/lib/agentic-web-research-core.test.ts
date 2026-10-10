@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -185,6 +185,12 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.");
     expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries.");
     expect(prompt).toContain("Search snippets remain leads, not evidence.");
+    expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
+    expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
+    expect(prompt).toContain("minEvidence=2; minIndependentSourceUnits=2");
+    expect(prompt).toContain("requireFalsification=true");
+    expect(prompt).toContain("at least one successful external action must explicitly attempt to disprove");
+    expect(prompt).toContain("not a prescribed action sequence");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
@@ -489,6 +495,48 @@ describe("Investigator prompt architecture", () => {
     expect(isAcceptedInvestigatorTerminal({ action: "done", execution: "blocked", stopReason: "ITERATION_BUDGET" })).toBe(false);
     expect(isAcceptedInvestigatorTerminal({ action: "done", execution: "success", stopReason: "ITERATION_BUDGET" })).toBe(false);
     expect(isAcceptedInvestigatorTerminal({ action: "done", execution: "blocked", stopReason: "MODEL_DECIDED_DONE" })).toBe(false);
+  });
+
+  it("requires a successfully observed source to support a discovery candidate name and role", () => {
+    const sourceUrl = "https://example.com/about";
+    const page = {
+      turn: 1,
+      model: "test-model",
+      action: "visit",
+      args: { url: sourceUrl },
+      execution: "success" as const,
+      observation: "Alex Example Co-Founder and CEO",
+      observedUrls: [sourceUrl],
+      findings: [],
+      providerFallback: [],
+    };
+    const finding = {
+      vectorType: "other" as const,
+      value: "Alex Example",
+      personName: "Alex Example",
+      role: "Co-Founder and CEO",
+      scope: "candidate" as const,
+      sourceUrls: [sourceUrl],
+      note: "Synthetic test page directly names the person and role.",
+      promotionDecision: "promote" as const,
+      promotionReason: "The fetched official page attributes the named role.",
+    };
+    const terminal = {
+      turn: 2,
+      model: "test-model",
+      action: "done",
+      args: {},
+      execution: "success" as const,
+      observation: "Investigator terminal action",
+      observedUrls: [],
+      findings: [finding],
+      providerFallback: [],
+    };
+
+    expect(discoveryTerminalGate([page, terminal])).toEqual({ allowed: true, reason: null });
+    expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: "Chief Financial Officer" }] }]).allowed).toBe(false);
+    expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: null }] }]).allowed).toBe(false);
+    expect(discoveryTerminalGate([page, { ...terminal, findings: [{ ...finding, role: null, promotionDecision: "reject" }] }]).allowed).toBe(true);
   });
 
   it("accepts done only after the core succeeds and returns an evidence-gated terminal reason", () => {
