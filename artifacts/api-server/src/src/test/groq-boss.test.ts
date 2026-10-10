@@ -14,8 +14,8 @@ describe("Groq Boss discovery prompt grounding", () => {
   });
 
   it("uses medium reasoning for the opening discovery assignment", () => {
-    expect(caseBureauSource).toContain('maxOutputTokens: 2048,\\n      thinkingLevel: "medium"');
-    expect(caseBureauSource).not.toContain('maxOutputTokens: 2048,\\n      thinkingLevel: "low"');
+    expect(caseBureauSource).toContain('maxOutputTokens: 2048,\n      thinkingLevel: "medium"');
+    expect(caseBureauSource).not.toContain('maxOutputTokens: 2048,\n      thinkingLevel: "low"');
   });
 });
 
