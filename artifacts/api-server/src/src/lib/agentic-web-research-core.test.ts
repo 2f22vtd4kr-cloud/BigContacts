@@ -238,7 +238,7 @@ describe("Investigator prompt architecture", () => {
     const repeatedSearchAdvice = discoverySearchLivenessAdvisory(duplicateSearches);
     expect(repeatedSearchAdvice).toContain("Repeated normalized search request(s)");
     expect(repeatedSearchAdvice).toContain('"vention leadership"');
-    expect(repeatedSearchAdvice).toContain("advisory only");
+    expect(repeatedSearchAdvice).toContain("Advisory only");
 
     const repeatedVisits = [
       {
