@@ -23,15 +23,11 @@ import { entityVisibilityGuard } from "../lib/entity-visibility-guard";
 import { legacyAtlasLaunchQuarantine } from "../lib/legacy-atlas-launch-quarantine";
 import { normalizeAtlasLaunchBody } from "../middlewares/normalize-atlas-launch-body";
 import { canonicalCaseContinuationGuard } from "../middlewares/canonical-case-continuation-guard";
-import operatorAuthRouter from "./operator-auth";
-import { requireOperatorAuth } from "../lib/operator-auth";
 
 const router: IRouter = Router();
 
-// Auth bootstrap must be public, but every operational route (including detailed health) is behind the server-side boundary.
-// Operator sign-in routes and public liveness precede the fail-closed guard.
-router.use(operatorAuthRouter);
-router.use(requireOperatorAuth);
+// Operator authentication is intentionally unmounted for the current Replit deployment.
+// Canonical launch, provider-role, provenance, admission, and persistence guards remain active.
 router.use(healthRouter);
 router.use(normalizeAtlasLaunchBody);
 router.use(entityVisibilityGuard);

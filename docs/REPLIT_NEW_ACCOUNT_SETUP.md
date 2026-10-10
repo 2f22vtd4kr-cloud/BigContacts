@@ -20,13 +20,13 @@ Apex has two oversight roles plus one Investigator lane:
 - Groq Right-hand for bounded independent oversight.
 - A selected Groq Investigator capability for actual model-owned research.
 
-The Investigator owns its research trajectory. Tools are capabilities, not fixed phases. Deterministic code enforces safety, authorization, provenance, identity, persistence and resource limits; it must not secretly substitute a scripted research sequence.
+The Investigator owns its research trajectory. Tools are capabilities, not fixed phases. Deterministic code enforces safety, provenance, identity, persistence and resource limits; it must not secretly substitute a scripted research sequence.
 
 Gemini, Mistral, and DeepSeek/NVIDIA are not active canonical control-plane or Investigator adapters and must not be requested as active Apex capabilities.
 
 ## Active provider secret contract
 
-The repository preflight currently checks these 13 provider/integration names:
+The repository preflight checks these active provider/integration names:
 
 ```
 COMPANIES_HOUSE_API_KEY
@@ -38,7 +38,7 @@ HF_TOKEN
 GROQ_INVESTIGATOR_API_KEY_1
 REDIS_URL_1
 SCRAPFLY_API_KEY
-SERPAPI_KEY
+SERPAPI_API_KEY
 SERPER_API_KEY
 TAVILY_API_KEY
 ZENROWS_API_KEY
@@ -54,15 +54,13 @@ Check presence only. Never display, echo, log, commit, or paste secret values in
 
 Do not request GitHub credentials, retired Gemini/Mistral/DeepSeek/NVIDIA control-plane credentials, WHOIS/WHOXY credentials, or other retired secrets.
 
-## Required operator authentication controls
+## Operator authentication — intentionally disabled
 
-Configure these three controls as deployment secrets before using the desk:
+For the current Replit deployment, app-level operator sign-in and bearer-token authentication are intentionally disabled. The desk opens directly and operational API routes do not require an operator session, password, or bearer token. Replit preflight does not require operator-auth secrets.
 
-- `APEX_OPERATOR_PASSWORD` — at least 16 characters.
-- `APEX_API_AUTH_TOKEN` — at least 32 characters.
-- `APEX_SESSION_SECRET` — at least 32 characters and stable across restarts/replicas.
+This is an explicit deployment choice, not a claim that the API is protected: anyone who can reach the deployment URL can call its operational endpoints. Do not expose this deployment to an untrusted public audience.
 
-The API fails closed for protected data and research actions until all three are configured. The browser uses a signed 12-hour HttpOnly session cookie; trusted API clients may use the bearer token. Preflight prints names/status only, never values. Do not paste secret values into chat or commit them.
+Disabling the operator-auth gate does not disable the canonical research workflow, active-job lock, provider-role/quota rules, provenance, identity, evidence/admission, cancellation, or durable persistence guards.
 
 ## Install and run
 
