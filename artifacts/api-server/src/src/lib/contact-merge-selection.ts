@@ -2,6 +2,7 @@ import { sanitizePublicEmail, sanitizePublicPhone } from "./contact-validation";
 
 export type MergeContactCandidate = {
   email?: string | null;
+  emailSource?: string | null;
   metadata?: string | null;
   phone?: string | null;
   phoneSource?: string | null;
@@ -11,6 +12,8 @@ export type SelectedMergeContactEvidence = {
   email: string | null;
   /** Metadata from the same entity row that supplied the selected email. */
   emailMetadata: string | null;
+  /** Source label from the same entity row that supplied the selected email. */
+  emailSource: string | null;
   phone: string | null;
   /** Source label from the same entity row that supplied the selected phone. */
   phoneSource: string | null;
@@ -38,6 +41,7 @@ export function selectMergedContactEvidence(
   return {
     email,
     emailMetadata: emailOwner?.metadata ?? null,
+    emailSource: emailOwner?.emailSource ?? null,
     phone,
     phoneSource: phoneOwner?.phoneSource ?? null,
   };
