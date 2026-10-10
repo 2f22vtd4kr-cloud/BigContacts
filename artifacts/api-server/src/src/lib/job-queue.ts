@@ -48,7 +48,7 @@ export async function updateJob(jobId:string,patch:Partial<JobState>):Promise<vo
   if(prev&&!canApplyJobPatch(prev.status))return;
   if(prev?.cancelRequested && patch.status!=="cancelled")return;
   if(memoryOnlyJobs.has(jobId)){
-    if(prev&&canApplyJobPatchWithoutRedis(prev.status,true))memoryJobs.set(jobId,{...prev,...patch});
+    if(prev&&canApplyJobPatchWithoutRedis(prev.status,true))memoryJobs.set(jobId,{...prev,...patch,cancelRequested:patch.status==="cancelled"?undefined:(patch.cancelRequested??prev.cancelRequested)});
     trimMemoryJobs();
     return;
   }
