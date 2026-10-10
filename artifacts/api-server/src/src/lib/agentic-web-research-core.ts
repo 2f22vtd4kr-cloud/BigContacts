@@ -1670,7 +1670,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
             .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, " ");
           const hasValue = Boolean(bindExactSourceSpan(observation, finding.value)?.exact);
           const hasIdentity = candidate && candidateIdentityObserved(personName, identityText);
-          const hasRole = candidate && Boolean(bindExactSourceSpan(observation, role)?.exact);
+          const hasRole = candidate && Boolean(bindExactSourceSpan(observation, role, personName)?.exact);
           if (hasValue) valueBound = true;
           if (hasIdentity) identityBound = true;
           if (hasIdentity && hasRole) roleBound = true;
