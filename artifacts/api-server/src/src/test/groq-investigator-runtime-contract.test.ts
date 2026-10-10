@@ -83,6 +83,20 @@ describe("Groq Investigator runtime contract", () => {
     expect(body).not.toHaveProperty("reasoning_format");
   });
 
+  it("preserves medium reasoning and a full action budget for contact research", () => {
+    const body = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt: "investigate and attribute a realistic public contact route",
+      cognitiveTask: "contact_extraction",
+    });
+    expect(body).toMatchObject({
+      model: "openai/gpt-oss-120b",
+      reasoning_effort: "medium",
+      max_completion_tokens: 1024,
+      include_reasoning: false,
+    });
+  });
+
   it("does not send an unsupported reasoning field to GPT-OSS fallback models", () => {
     for (const model of ["openai/gpt-oss-20b", "openai/gpt-oss-120b"]) {
       const body = buildGroqInvestigatorRequestBody({ model, prompt: "x", cognitiveTask: "discovery" });
