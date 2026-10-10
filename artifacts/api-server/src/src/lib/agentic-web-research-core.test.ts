@@ -189,6 +189,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
     expect(prompt).toContain("minEvidence=2; minIndependentSourceUnits=2");
     expect(prompt).toContain("requireFalsification=true");
+    expect(prompt).toContain("at least one successful external action must explicitly attempt to disprove");
     expect(prompt).toContain("not a prescribed action sequence");
   });
 
