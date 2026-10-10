@@ -1721,7 +1721,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
           if (hasValue) valueBound = true;
           if (hasIdentity) identityBound = true;
           if (hasIdentity && hasRole) roleBound = true;
-          if (candidate ? (hasValue || hasIdentity) : hasValue) sourceSupportsClaim = true;
+          if (promotedCandidate ? (hasIdentity && hasRole) : candidate ? (hasValue || hasIdentity) : hasValue) sourceSupportsClaim = true;
         }
         if (!sourceSupportsClaim) return true;
       }
