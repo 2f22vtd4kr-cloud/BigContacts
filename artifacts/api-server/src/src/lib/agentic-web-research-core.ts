@@ -413,7 +413,7 @@ export function isPdfPageResponse(url: string, contentType: string | null): bool
 
 export function describeToolVisitFailure(error: unknown): { status: "timeout" | "error"; observation: string } {
   const message = error instanceof Error ? error.message : "";
-  const sizeLimit = message.match(/^Outbound response exceeds (\d+) byte limit$/);
+  const sizeLimit = message.match(/^(?:Outbound response|browser response) exceeds (\d+) byte limit$/i);
   if (sizeLimit) {
     return {
       status: "error",
