@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { normalizeLiveActivityStatus, normalizeReactorStatus, parseCanonicalActiveJobProjection, sceneStatusLabel } from "./reactor-live-model";
+import { latestActiveReactorEvent, normalizeLiveActivityStatus, normalizeReactorStatus, parseCanonicalActiveJobProjection, sceneStatusLabel } from "./reactor-live-model";
 import fs from "node:fs";
 import path from "node:path";
 
 const storePath = path.resolve(process.cwd(), "src/lib/reactor-live-store.ts");
 const opsStagePath = path.resolve(process.cwd(), "src/components/bureau-ops-stage.tsx");
+const surfacePath = path.resolve(process.cwd(), "src/components/reactor-live-surface.tsx");
 
 function readStore(): string {
   return fs.readFileSync(storePath, "utf8");
@@ -42,6 +43,37 @@ describe("Bureau Ops terminal-label truth boundary", () => {
     expect(source).toContain('terminal: capped[i].terminal ?? "unknown"');
     expect(source).toContain('story: capped[i].story.replace(/^Now:\\s*/i, "Unknown: ")');
     expect(source).not.toContain('terminal: capped[i].terminal ?? "done"');
+  });
+});
+
+describe("Reactor topology activity truth boundary", () => {
+  it("does not represent terminal, queued, or unknown events as working", () => {
+    const events = [
+      { id: "done", status: "done" as const },
+      { id: "failed", status: "failed" as const },
+      { id: "cancelled", status: "cancelled" as const },
+      { id: "queued", status: "queued" as const },
+      { id: "unknown", status: "unknown" as const },
+    ];
+
+    expect(latestActiveReactorEvent(events)).toBeUndefined();
+  });
+
+  it("selects the newest explicitly active event even if a newer terminal event follows", () => {
+    const firstActive = { id: "active-1", status: "active" as const };
+    const completed = { id: "done-1", status: "done" as const };
+    const latestActive = { id: "active-2", status: "active" as const };
+    const latestOverall = { id: "done-2", status: "done" as const };
+
+    expect(latestActiveReactorEvent([firstActive, completed, latestActive, latestOverall]))
+      .toBe(latestActive);
+  });
+
+  it("wires the live topology indicator to the status-aware selector", () => {
+    const source = fs.readFileSync(surfacePath, "utf8");
+
+    expect(source).toContain("latestActiveReactorEvent(events)");
+    expect(source).not.toContain("const active=events.length?topologyNodeFor(events[events.length-1]):null;");
   });
 });
 

@@ -202,6 +202,17 @@ export function sceneStatusLabel(live: boolean, terminal: string | null | undefi
   }
 }
 
+/** Return the newest explicitly active event; never infer live work from a terminal event. */
+export function latestActiveReactorEvent<T extends Pick<ReactorLiveEvent, "status">>(
+  events: readonly T[],
+): T | undefined {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (event?.status === "active") return event;
+  }
+  return undefined;
+}
+
 function recordedHttpUrls(value?: string[]): string[] | undefined {
   if (!Array.isArray(value)) return undefined;
   const seen = new Set<string>();
