@@ -402,7 +402,76 @@ async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa
   return result ? { ...result, text: sanitizeUrlOccurrences(result.text, result.urls), urls: result.urls.map((url) => sanitizeUrlForEvidence(url)), provider } : { text: `${provider} returned no usable result.`, urls: [], provider, status: "error" };
 }
 
-async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null }> { const displayUrl = sanitizeUrlForEvidence(url); try { const response = await gatedSafeOutboundFetch(url, { signal: signal ?? AbortSignal.timeout(15_000), headers: { "User-Agent": "Apex-Atlas/1.0", Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8" }, redirect: "manual" }); const location = response.headers.get("location"); if (!response.ok) return { observation: `HTTP ${response.status} from ${displayUrl}${location ? `\nREDIRECT_LOCATION: ${sanitizeUrlForEvidence(location, url)}` : ""}`, status: "http_error", observedUrl: null }; const raw = await readResponseTextCapped(response, signal); const facts = extractContactFactsFromHtml(raw); const body = stripHtml(raw); const boundedBody = sanitizeUrlsInText(body.slice(0, MAX_OBS)); return { observation: sanitizeUrlsInText(`${facts.length ? `CONTACT FACTS (observed, not attributed):\n${facts.join("\n")}\n\n` : ""}PAGE ${displayUrl}\n${boundedBody}${body.length > MAX_OBS ? "\n[PAGE OBSERVATION TRUNCATED; SOURCE URL RETAINED FOR REVISIT]" : ""}`), status: "success", observedUrl: normalizedUrl(url) }; } catch (error) { if (signal?.aborted) return { observation: `visit cancelled for ${displayUrl}`, status: "cancelled", observedUrl: null }; const diagnostic = describeThrownProviderError(error); const timed = classifyThrownProviderError(error) === "timeout"; return { observation: `visit failed for ${displayUrl}: ${timed ? "timeout" : "request error"} (error=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`, status: timed ? "timeout" : "error", observedUrl: null }; } }
+export function isPdfPageResponse(url: string, contentType: string | null): boolean {
+  if (contentType && /^(?:application\/pdf|application\/x-pdf)(?:\s*;|$)/i.test(contentType.trim())) return true;
+  try {
+    return /\.pdf$/i.test(decodeURIComponent(new URL(url).pathname));
+  } catch {
+    return /\.pdf(?:[?#]|$)/i.test(url);
+  }
+}
+
+export function describeToolVisitFailure(error: unknown): { status: "timeout" | "error"; observation: string } {
+  const message = error instanceof Error ? error.message : "";
+  const sizeLimit = message.match(/^Outbound response exceeds (\d+) byte limit$/);
+  if (sizeLimit) {
+    return {
+      status: "error",
+      observation: `response_size_limit_exceeded max_bytes=${sizeLimit[1]}; page content was not observed and must not be cited. The visit capability cannot read the full text from an oversized response. Choose another readable public source if one exists; search snippets remain unverified leads.`,
+    };
+  }
+  const timedOut = classifyThrownProviderError(error) === "timeout" || /deadline exceeded/i.test(message);
+  if (timedOut) {
+    return { status: "timeout", observation: "request timed out before page content could be observed; the source is not claim-grade evidence." };
+  }
+  const diagnostic = describeThrownProviderError(error);
+  return {
+    status: "error",
+    observation: `request error (error=${diagnostic.errorName}; code=${diagnostic.errorCode ?? diagnostic.causeCode ?? "none"}; errno=${diagnostic.errorErrno ?? diagnostic.causeErrno ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`,
+  };
+}
+
+async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null }> {
+  const displayUrl = sanitizeUrlForEvidence(url);
+  try {
+    const response = await gatedSafeOutboundFetch(url, {
+      signal: signal ?? AbortSignal.timeout(15_000),
+      headers: {
+        "User-Agent": "Apex-Atlas/1.0",
+        Accept: "text/html,application/xhtml+xml,text/plain,application/json;q=0.9,*/*;q=0.6",
+      },
+      redirect: "manual",
+    });
+    const location = response.headers.get("location");
+    if (!response.ok) {
+      return {
+        observation: `HTTP ${response.status} from ${displayUrl}${location ? `\nREDIRECT_LOCATION: ${sanitizeUrlForEvidence(location, url)}` : ""}`,
+        status: "http_error",
+        observedUrl: null,
+      };
+    }
+    if (isPdfPageResponse(url, response.headers.get("content-type"))) {
+      return {
+        observation: `PDF detected at ${displayUrl}, but this visit capability does not extract PDF text. The document content was not observed and must not be cited. Choose another readable public source if one exists; search snippets remain unverified leads.`,
+        status: "error",
+        observedUrl: null,
+      };
+    }
+    const raw = await readResponseTextCapped(response, signal);
+    const facts = extractContactFactsFromHtml(raw);
+    const body = stripHtml(raw);
+    const boundedBody = sanitizeUrlsInText(body.slice(0, MAX_OBS));
+    return {
+      observation: sanitizeUrlsInText(`${facts.length ? `CONTACT FACTS (observed, not attributed):\n${facts.join("\n")}\n\n` : ""}PAGE ${displayUrl}\n${boundedBody}${body.length > MAX_OBS ? "\n[PAGE OBSERVATION TRUNCATED; SOURCE URL RETAINED FOR REVISIT]" : ""}`),
+      status: "success",
+      observedUrl: normalizedUrl(url),
+    };
+  } catch (error) {
+    if (signal?.aborted) return { observation: `visit cancelled for ${displayUrl}`, status: "cancelled", observedUrl: null };
+    const failure = describeToolVisitFailure(error);
+    return { observation: `visit failed for ${displayUrl}: ${failure.observation}`, status: failure.status, observedUrl: null };
+  }
+}
 function extractBalancedJsonObject(source: string): string | null {
   const startCandidates = [...source.matchAll(/\{/g)].map((match) => match.index ?? -1).filter((index) => index >= 0);
   for (const start of startCandidates) {
