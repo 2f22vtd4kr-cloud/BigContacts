@@ -9,7 +9,7 @@ import ts from "typescript";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const guardPath = path.join(repoRoot, "scripts/check-unified-investigator-architecture.mjs");
 const guardText = readFileSync(guardPath, "utf8");
-const guardedPaths = [...new Set([...guardText.matchAll(/path\\.join\\(root,\\s*"([^"]+)"\\)/g)].map((match) => match[1]))];
+const guardedPaths = [...new Set([...guardText.matchAll(/path\.join\(root,\s*"([^"]+)"\)/g)].map((match) => match[1]))];
 assert.ok(guardedPaths.length >= 15, "expected to discover the guard's repository fixture inputs");
 
 function findControlCall(sourceText) {
