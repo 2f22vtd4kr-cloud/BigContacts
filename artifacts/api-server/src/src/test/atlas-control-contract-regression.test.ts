@@ -43,7 +43,7 @@ describe("Atlas control-plane contract regression", () => {
 
   it("recovers from a rejected Boss pivot without executing its prescribed URL/tool", () => {
     const rejectedBranchStart = canonicalDiscoverySource.indexOf("if (!validatedDirection.valid) {");
-    const acceptedPivotBoundary = canonicalDiscoverySource.indexOf("// Only a valid pivot that actually starts a new Investigator episode supersedes", rejectedBranchStart);
+    const acceptedPivotBoundary = canonicalDiscoverySource.indexOf("const directedObjective = formatBossDirectedObjective", rejectedBranchStart);
     const rejectedBranch = canonicalDiscoverySource.slice(rejectedBranchStart, acceptedPivotBoundary);
     expect(rejectedBranchStart).toBeGreaterThan(-1);
     expect(acceptedPivotBoundary).toBeGreaterThan(rejectedBranchStart);
@@ -53,9 +53,13 @@ describe("Atlas control-plane contract regression", () => {
     expect(rejectedBranch).toContain("continue;");
     expect(rejectedBranch).not.toContain("Canonical Atlas rejected a Boss direction");
     expect(rejectedBranch).not.toContain("latestEvidenceBackedTerminal = null");
-    const acceptedPivotTerminalReset = canonicalDiscoverySource.indexOf("latestEvidenceBackedTerminal = null;", acceptedPivotBoundary);
+    const budgetGuard = canonicalDiscoverySource.indexOf("if (discoveryBudget < 30_000)", acceptedPivotBoundary);
+    const iterationGuard = canonicalDiscoverySource.indexOf("if (remainingInvestigatorIterations <= 0)", acceptedPivotBoundary);
+    const acceptedPivotTerminalReset = canonicalDiscoverySource.indexOf("latestEvidenceBackedTerminal = null;", iterationGuard);
     const nextInvestigatorPass = canonicalDiscoverySource.indexOf('runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective', acceptedPivotTerminalReset);
-    expect(acceptedPivotTerminalReset).toBeGreaterThan(acceptedPivotBoundary);
+    expect(budgetGuard).toBeGreaterThan(acceptedPivotBoundary);
+    expect(iterationGuard).toBeGreaterThan(budgetGuard);
+    expect(acceptedPivotTerminalReset).toBeGreaterThan(iterationGuard);
     expect(nextInvestigatorPass).toBeGreaterThan(acceptedPivotTerminalReset);
     expect(canonicalDiscoverySource).toContain("controlValidationFeedback: directionValidationFeedback ?");
     expect(controlSource).toContain('controlValidationFeedback: typeof parsed.controlValidationFeedback === "string"');
