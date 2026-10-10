@@ -16,7 +16,7 @@ pass(
 const extractsTrimmedJobId =
   /const jobId\s*=\s*typeof data\?\.jobId === "string"\s*\?\s*data\.jobId\.trim\(\)\s*:\s*""/.test(launcher);
 const rejectsMissingJobId =
-  /if\s*\(!jobId\)\s*return\s*\{\s*ok:\s*false,\s*message:\s*data\?\.error\s*\?\?\s*"Launch response did not include a valid job ID\."\s*\}/.test(launcher);
+  /if\s*\(!jobId\)\s*\{\s*return\s*\{\s*ok:\s*false,\s*message:\s*data\?\.error\s*\?\?\s*"Launch response did not include a valid job ID\."\s*\}\s*\}/.test(launcher);
 const successfulResultUsesValidatedId =
   /return\s*\{\s*ok:\s*true,\s*jobId,\s*message:\s*data\?\.message/.test(launcher);
 pass(
