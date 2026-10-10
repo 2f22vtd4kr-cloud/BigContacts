@@ -22,7 +22,8 @@ describe("Atlas control-plane contract regression", () => {
       geography: "Public web; geography chosen from the evidence.",
     }, ["groq-investigator-1"]);
     expect(prompt).not.toContain("durable tree shaft");
-    expect(prompt).toContain("not a sector or research lead");
+    expect(prompt).toContain("infrastructure concepts only");
+    expect(prompt).toContain("explicitly label it as a hypothesis");
   });
 
   it("preserves Investigator tool choice across Boss-directed discovery continuations", () => {
