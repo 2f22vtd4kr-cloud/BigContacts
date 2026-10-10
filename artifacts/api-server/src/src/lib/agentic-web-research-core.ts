@@ -1477,6 +1477,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
 }
 
 export function discoverySearchLivenessAdvisory(records: readonly AgenticTrajectoryRecord[]): string | null {
+  const recent = records.slice(-12);
   let successfulSearchesSinceObservedSource = 0;
   for (const record of [...records].reverse()) {
     if (record.action === "web_search" || record.action === "parallel_web_search") {
@@ -1491,12 +1492,100 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
       break;
     }
   }
-  if (successfulSearchesSinceObservedSource >= 3) {
-    return "Advisory only: three consecutive successful search actions have occurred without a successful non-search action. Consider inspecting a lead or switching capability if that offers more information; further searches remain available when the current evidence and expected information gain justify them. This advisory does not constrain the next action or dictate its ordering.";
-  }
-  return null;
-}
 
+  const searchRequests = new Map<string, { query: string; provider: string; count: number }>();
+  const repeatedUrls = new Map<string, number>();
+  const hostCounts = new Map<string, number>();
+  let emptyResultCount = 0;
+  let emptyTerminalCount = 0;
+  const emptyResultPattern = /\b(?:no (?:usable )?results?|returned no usable result|no (?:registry|platform|matching) hits|0 results|zero results|empty results?|no matching (?:records|profiles|pages)|access denied|captcha|paywall|challenge page)\b/i;
+
+  const addSearchRequest = (rawQuery: unknown, rawProvider: unknown, rawLocale: unknown, rawMarket: unknown) => {
+    const query = normalizeDiscoverySearchQuery(cleanText(rawQuery, 300));
+    if (!query) return;
+    const provider = cleanText(rawProvider, 30).toLowerCase();
+    const locale = normalizeDiscoverySearchQuery(cleanText(rawLocale, 80));
+    const market = normalizeDiscoverySearchQuery(cleanText(rawMarket, 80));
+    const key = JSON.stringify([query, provider, locale, market]);
+    const current = searchRequests.get(key);
+    if (current) current.count += 1;
+    else searchRequests.set(key, { query, provider: provider || "unspecified", count: 1 });
+  };
+
+  for (const record of recent) {
+    if (record.action === "web_search") {
+      addSearchRequest(record.args.query, record.args.provider, record.args.locale, record.args.market);
+    } else if (record.action === "parallel_web_search" && Array.isArray(record.args.searches)) {
+      for (const item of record.args.searches) {
+        if (!item || typeof item !== "object") continue;
+        const search = item as Record<string, unknown>;
+        addSearchRequest(search.query, search.provider, search.locale, search.market);
+      }
+    }
+
+    if (record.action === "visit" || record.action === "browser_fetch") {
+      const requestedUrl = normalizedActionResourceUrl(record.args.url);
+      if (requestedUrl) repeatedUrls.set(requestedUrl, (repeatedUrls.get(requestedUrl) ?? 0) + 1);
+      const sourceUrls = record.observedUrls.length ? record.observedUrls : requestedUrl ? [requestedUrl] : [];
+      for (const sourceUrl of sourceUrls) {
+        try {
+          const hostname = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "");
+          if (hostname) hostCounts.set(hostname, (hostCounts.get(hostname) ?? 0) + 1);
+        } catch {
+          // Invalid URLs are not a source family.
+        }
+      }
+    }
+
+    if (
+      record.execution === "success"
+      && emptyResultPattern.test(String(record.observation ?? ""))
+      && (record.observedUrls.length === 0 || record.action === "web_search" || record.action === "parallel_web_search" || record.action === "registry_search" || record.action === "domain_lookup")
+    ) emptyResultCount += 1;
+
+    if (record.action === "done" && (record.execution !== "success" || record.findings.length === 0)) emptyTerminalCount += 1;
+  }
+
+  const cues: string[] = [];
+  const duplicateQueries = [...searchRequests.values()].filter((request) => request.count > 1).slice(-3);
+  if (duplicateQueries.length) {
+    cues.push("Repeated normalized search request(s) in the recent trajectory: "
+      + duplicateQueries.map((request) => JSON.stringify(request.query) + " via " + request.provider + " (" + request.count + " attempts)").join("; ")
+      + ". An unchanged exact request is blocked only when its hypothesis and purpose are unchanged and no new evidence intervened; a changed provider/market or genuinely changed rationale remains available.");
+  }
+
+  const duplicateUrlEntries = [...repeatedUrls.entries()].filter(([, count]) => count > 1).slice(-3);
+  if (duplicateUrlEntries.length) {
+    cues.push("Previously requested URL(s) appeared again: "
+      + duplicateUrlEntries.map(([url, count]) => {
+        try { return new URL(url).hostname + new URL(url).pathname + " (" + count + " attempts)"; }
+        catch { return "(normalized URL, " + count + " attempts)"; }
+      }).join("; ")
+      + ". A revisit may be justified by a changed question or new evidence; do not repeat the same unanswered request merely from habit.");
+  }
+
+  const repeatedHosts = [...hostCounts.entries()].filter(([, count]) => count >= 3).sort((a, b) => b[1] - a[1]).slice(0, 2);
+  if (repeatedHosts.length) {
+    cues.push("Source-family concentration: recent direct observations repeatedly used "
+      + repeatedHosts.map(([host, count]) => host + " (" + count + " observations)").join(", ")
+      + ". Judge whether another page from that host adds new information or whether an independent source would improve attribution; neither choice is mandatory.");
+  }
+
+  if (emptyResultCount >= 2) {
+    cues.push("Recent successful research actions returned explicit empty or low-yield results " + emptyResultCount + " times. Treat those results as evidence to reassess expected information gain, not as a reason to fabricate a candidate.");
+  }
+  if (emptyTerminalCount > 0) {
+    cues.push("A recent terminal attempt produced no findings or was rejected. Continue only if a concrete, source-backed research question remains; completion is still an Investigator decision.");
+  }
+  if (successfulSearchesSinceObservedSource >= 3) {
+    cues.push("Three consecutive successful search actions have occurred without a successful non-search action. Consider inspecting a lead or switching capability if that offers more information; further searches remain available when the current evidence and expected information gain justify them. This suggestion does not mandate visiting, browsing, or any particular provider.");
+  }
+
+  if (!cues.length) return null;
+  return "Discovery liveness context — advisory only, not an ordered route: "
+    + cues.join(" ")
+    + " Choose any next action or stopping point from the evidence; these cues do not prescribe a tool, provider, page, source family, or hop order.";
+}
 export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[]): { allowed: boolean; reason: string | null } {
   if (!records.length) return { allowed: false, reason: "Discovery cannot terminate before any Investigator action." };
 
