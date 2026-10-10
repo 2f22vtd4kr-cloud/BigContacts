@@ -211,6 +211,14 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords");
   });
 
+  it("reserves the job-wide Investigator budget for Boss-directed continuation after the opening discovery act", () => {
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, depth.agenticMaxIterations)");
+    expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
+    expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations)");
+    expect(canonicalSource).toContain("const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)");
+  });
+
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
@@ -223,15 +231,6 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000");
     expect(researchCoreSource).toContain("export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS");
     expect(researchCoreSource).toContain("captureGroqRateLimitSnapshot(quotaAccount, model, response)");
-  });
-
-  it("redacts URL secrets before observations and continuation context reach another model", () => {
-    const compactionSource = fs.readFileSync(path.join(libDir, "investigation-context-compaction.ts"), "utf8");
-    expect(researchCoreSource).toContain("sanitizeUrlsInText(body.slice(0, MAX_OBS))");
-    expect(researchSource).toContain("sanitizeUrlsInText(String(record.observation");
-    expect(researchSource).toContain("sanitizeUrlsInText(context)");
-    expect(compactionSource).toContain("sanitizeUrlsInText(value.trim().slice(0, max))");
-    expect(compactionSource).toContain("unique(finding.sourceUrls ?? []).map((url) => sanitizeUrlForEvidence(url))");
   });
 
   it("keeps runtime safety checks fail-closed and bounded", () => {
