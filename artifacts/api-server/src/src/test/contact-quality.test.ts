@@ -9,6 +9,7 @@ import {
 } from "../lib/contact-validation";
 import {
   computeContactConfidence,
+  computeContactOutcome,
   hasMeaningfulDirectContact,
   isPersonalContactOutcome,
   isHeuristicEmailEvidence,
@@ -26,6 +27,16 @@ describe("public contact quality guardrails", () => {
     expect(isGenericEmailPrefix("pressinquiries")).toBe(true);
     expect(isGenericEmailPrefix("mediarelations")).toBe(true);
     expect(sanitizePublicEmail("pressinquiries@medium.com")).toBe("pressinquiries@medium.com");
+  });
+
+  it("classifies compound role inboxes without misclassifying mixed personal aliases", () => {
+    for (const alias of ["info-sales", "press-team", "media_relations", "investor-relations", "customer-service"]) {
+      expect(isGenericEmailPrefix(alias), alias).toBe(true);
+    }
+    expect(isGenericEmailPrefix("jane-sales")).toBe(false);
+    expect(computeContactConfidence({ email: "info-sales@company.example" })).toBe(0);
+    expect(hasMeaningfulDirectContact({ email: "info-sales@company.example" })).toBe(false);
+    expect(computeContactOutcome({ email: "info-sales@company.example" })).toBe("organization_contact");
   });
 
   it("rejects registry identifiers that look like phone numbers", () => {

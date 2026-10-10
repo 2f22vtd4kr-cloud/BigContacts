@@ -46,8 +46,18 @@ const GENERIC_PREFIXES = new Set([
   "membership", "memberships", "frontdesk", "front.desk", "main",
 ]);
 
+const GENERIC_ROLE_TERMS = new Set(
+  [...GENERIC_PREFIXES].flatMap((prefix) => prefix.split(/[._+-]+/)).filter(Boolean),
+);
+
 export function isGenericEmailPrefix(local: string): boolean {
-  return GENERIC_PREFIXES.has(local.toLowerCase().trim());
+  const normalized = local.toLowerCase().trim();
+  if (GENERIC_PREFIXES.has(normalized)) return true;
+  // Shared inboxes are often compound aliases (info-sales, press-team, etc.).
+  // Require every component to be a known role term so a personal alias like
+  // jane.sales is not classified as a generic mailbox.
+  const parts = normalized.split(/[._+-]+/).filter(Boolean);
+  return parts.length > 1 && parts.every((part) => GENERIC_ROLE_TERMS.has(part));
 }
 
 // ── K6: Script-extension and IP-like domain rejection ────────────────────────
