@@ -52,6 +52,12 @@ describe("Atlas control-plane contract regression", () => {
       "Search with SpiderFoot to enumerate contacts.",
       "Switch to TheHarvester.",
       "Route via browser_fetch.",
+      "Use Scrapfly for the next page visit.",
+      "Switch to ZenRows to retrieve the source.",
+      "Use Browserless for page retrieval.",
+      "Call Playwright to inspect the page.",
+      "Use RDAP to inspect the domain registration.",
+      "Switch to WhoisJSON for domain details.",
       "Investigate this URL: https://example.test/person",
     ]) {
       expect(validateResearchObjective(direction).valid, direction).toBe(false);
