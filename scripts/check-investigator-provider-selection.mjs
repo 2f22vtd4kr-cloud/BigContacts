@@ -8,7 +8,7 @@ if (/orderedProviders\s*=\s*\[selectedInvestigatorLlm,\s*\.\.\.otherProviders\]/
 if (/for\s*\(const \[name, fn\] of orderedProviders\)/.test(core)) failures.push("ReAct llmStep still iterates an ordered multi-Investigator provider list");
 if (/otherProviders/.test(core)) failures.push("ReAct core still contains an alternate Investigator provider set");
 if (!/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(core)) failures.push("ReAct llmStep does not visibly bind the provider adapter to the Boss-selected Investigator capability");
-if (!/callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm\)/.test(core)) failures.push("selected Investigator capability is not passed into the Groq execution adapter");
+if (!/callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm(?:,|\))/.test(core)) failures.push("selected Investigator capability is not passed into the Groq execution adapter");
 if (!/investigatorCapabilityKeyName\(investigatorCapability\)/.test(core)) failures.push("Groq execution adapter does not resolve the exact selected capability key");
 if (!/fallback:\s*\[\]/.test(core)) failures.push("ReAct result does not explicitly report an empty provider fallback set");
 if (!/investigator:\$\{selectedInvestigator\}/.test(wrapper)) failures.push("agentic execution scope does not carry the selected Investigator");
