@@ -16,6 +16,9 @@ assert(init.includes("pnpm --filter @workspace/db run harden"), "explicit Apex s
 assert(init.includes("002-contact-outcome.sql"), "explicit Apex schema initialization must install the contact-outcome compatibility migration");
 assert(boot.includes('bash scripts/initialize-apex-schema.sh'), "explicit Replit schema initialization must delegate to the complete Apex initializer");
 assert(!boot.includes("pnpm --filter @workspace/db run push"), "Replit boot must not run a partial Drizzle-only schema push");
+const initializerCall = boot.indexOf("bash scripts/initialize-apex-schema.sh");
+const normalBoot = boot.indexOf("if [[ ! -f artifacts/apex-finder/dist/public/index.html ]]");
+assert(initializerCall >= 0 && normalBoot > initializerCall && boot.slice(initializerCall, normalBoot).includes("unset APEX_ALLOW_SCHEMA_PUSH"), "schema-push opt-in must be cleared after explicit initialization and before normal application boot");
 assert(/BEGIN;/.test(migration) && /COMMIT;/.test(migration), "hardening migration must be transactional");
 assert(/research_case_events/.test(migration) && /apex_research_case_events_replay_integrity/.test(migration), "hardening migration must preserve research ledger invariants");
 assert(/apex_research_case_events_immutable/.test(migration) && /apex_research_case_cancellation_fence/.test(migration), "hardening migration must preserve immutable ledger and cancellation fences");
