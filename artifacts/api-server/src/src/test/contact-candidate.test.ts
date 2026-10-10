@@ -97,6 +97,53 @@ describe("contact candidate reconciliation", () => {
     expect(independent.candidates[0]?.sourceDomains).toHaveLength(2);
   });
 
+  it("does not count sibling subdomains as independent contact corroboration", () => {
+    const funnel = reconcileContactCandidates([
+      {
+        vectorType: "email",
+        value: "jane@example.org",
+        source: "official-site",
+        sourceUrl: "https://example.org/team/jane",
+        details: { scope: "target_person", personName: "Jane Doe", exactClaimObserved: true },
+      },
+      {
+        vectorType: "email",
+        value: "jane@example.org",
+        source: "press-page",
+        sourceUrl: "https://press.example.org/interview",
+        details: { scope: "target_person", personName: "Jane Doe", exactClaimObserved: true },
+      },
+    ]);
+
+    expect(funnel.independentSourceDomains).toBe(1);
+    expect(funnel.candidates[0]?.sourceDomains).toEqual(["example.org"]);
+    expect(funnel.candidates[0]?.state).toBe("attribution_review");
+    expect(funnel.candidates[0]?.state).not.toBe("verified_direct_route");
+  });
+
+  it("does not count aggregator hosts as independent contact corroboration", () => {
+    const funnel = reconcileContactCandidates([
+      {
+        vectorType: "email",
+        value: "jane@example.org",
+        source: "directory-a",
+        sourceUrl: "https://hunter.io/email-finder/jane",
+        details: { scope: "target_person", personName: "Jane Doe", exactClaimObserved: true },
+      },
+      {
+        vectorType: "email",
+        value: "jane@example.org",
+        source: "directory-b",
+        sourceUrl: "https://clearbit.com/company/example",
+        details: { scope: "target_person", personName: "Jane Doe", exactClaimObserved: true },
+      },
+    ]);
+
+    expect(funnel.independentSourceDomains).toBe(0);
+    expect(funnel.candidates[0]?.state).toBe("attribution_review");
+    expect(funnel.candidates[0]?.state).not.toBe("verified_direct_route");
+  });
+
   it("does not call independent publishers a same-publisher conflict", () => {
     const funnel = reconcileContactCandidates([
       {

@@ -1,4 +1,5 @@
 import { canonicalizeUrl } from "./evidence-ledger";
+import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 
 export type CandidateScope =
   | "organization"
@@ -254,9 +255,7 @@ function candidateValueRejectionReason(vectorType: CandidateVector, value: strin
 
 function publisherFamily(source: string, url: string): string {
   try {
-    const hostname = new URL(url).hostname.replace(/^www\./, "").toLowerCase();
-    const parts = hostname.split(".");
-    return parts.length >= 2 ? parts.slice(-2).join(".") : hostname;
+    return publisherDomain(new URL(url).hostname);
   } catch {
     // Provider labels are only a fallback when no URL exists. They are never
     // stronger evidence than a canonical publisher URL.
@@ -284,11 +283,12 @@ export function reconcileContactCandidates(
     const blockedSourceUrls = (item.vectorType === "email" || item.vectorType === "phone")
       ? rawUrls.filter((url) => !isPromotableDirectContactUrl(url))
       : [];
+    // Source independence is based on registrable publisher domains, not raw hosts.
     const domains = urls
       .map((url) => {
-        try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return null; }
+        try { return publisherDomain(new URL(url).hostname); } catch { return null; }
       })
-      .filter((domain): domain is string => Boolean(domain));
+      .filter((domain): domain is string => typeof domain === "string" && domain.length > 0 && !isAggregatorHost(domain));
     const scope = scopeFor(item);
     const personName = typeof item.details?.personName === "string"
       ? item.details.personName.trim()
