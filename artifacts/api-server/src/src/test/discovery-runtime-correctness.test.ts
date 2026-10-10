@@ -83,6 +83,39 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toMatch(/directSourceAction\s*=\s*payload\.action\s*===\s*"visit"\s*\|\|\s*payload\.action\s*===\s*"browser_fetch"/);
   });
 
+  it("records duplicate blocks and removes the blanket visited-URL stop", () => {
+    expect(researchCoreSource).toContain("repeat_action_guard");
+    expect(researchCoreSource).toContain("redundantResearchActionReason");
+    expect(researchCoreSource).toContain("parallelRequestKeys.has(parallelRequestKey)");
+    expect(researchCoreSource).toContain("isBrowserFetchProviderAvailable(action.provider)");
+    expect(researchCoreSource).not.toContain("visited.has(canonical)");
+    expect(researchCoreSource).toContain("there is no required first tool, hop order, or fixed search sequence");
+  });
+
+  it("allows a repeated page visit when the Investigator changes the research rationale", async () => {
+    const { redundantResearchActionReason } = await import("../lib/agentic-web-research-core");
+    const prior = {
+      turn: 1,
+      model: "groq",
+      action: "visit",
+      args: { url: "https://example.com/team#leadership", hypothesis: "Identify current officers", purpose: "verify the officer list" },
+      execution: "success" as const,
+      observation: "The page identifies an officer.",
+      observedUrls: ["https://example.com/team"],
+      findings: [],
+    };
+    expect(redundantResearchActionReason("visit", {
+      url: "https://EXAMPLE.com/team",
+      hypothesis: "Check whether the page reveals a different ownership clue",
+      purpose: "test a distinct source-backed question",
+    }, [prior])).toBeNull();
+    expect(redundantResearchActionReason("visit", {
+      url: "https://example.com/team",
+      hypothesis: "Identify current officers",
+      purpose: "verify the officer list",
+    }, [prior])).toContain("repeat_action_guard");
+  });
+
   it("keeps agentic web research capability-oriented rather than a hard-coded research ladder", () => {
     expect(researchSource).toMatch(/tool|capabilit|action/i);
     expect(researchSource).not.toMatch(/force[_-]?dig|fixed.*provider.*sequence|always.*search.*then.*visit/i);
