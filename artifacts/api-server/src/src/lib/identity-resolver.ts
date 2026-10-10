@@ -23,6 +23,7 @@ export interface IdentityEntityInput {
 }
 
 export interface IdentityBundleData {
+  entityType: string;
   normalizedName: string;
   variants: string[];
   registryIdentifiers: string[];
@@ -41,8 +42,8 @@ export interface IdentityMatch {
 
 const CORPORATE_SUFFIXES = new Set([
   "ag", "asa", "as", "bv", "co", "company", "corp", "corporation", "gmbh",
-  "group", "inc", "limited", "llc", "lp", "ltd", "nv", "oy", "partners",
-  "plc", "sa", "sarl", "sro", "trust",
+  "inc", "limited", "llc", "lp", "ltd", "nv", "oy",
+  "plc", "sa", "sarl", "sro",
 ]);
 
 function parseJson(value: string | null | undefined): Record<string, unknown> {
@@ -68,19 +69,38 @@ function textList(value: unknown): string[] {
 }
 
 export function normalizeIdentityName(value: string): string {
-  return value
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
+  const decomposed = value.normalize("NFKD").toLowerCase();
+  let output = "";
+  let previousBase = "";
+  for (const character of decomposed) {
+    if (/\p{M}/u.test(character)) {
+      // Strip Latin accents for fuzzy matching, but preserve meaningful marks in other scripts.
+      // For example, the breve in Ukrainian й must not collapse it into и.
+      if (!previousBase || !/\p{Script=Latin}/u.test(previousBase)) output += character;
+      continue;
+    }
+    output += character;
+    previousBase = character;
+  }
+  return output
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
 
-function tokens(value: string): string[] {
-  return normalizeIdentityName(value)
-    .split(" ")
-    .filter((token) => token.length >= 2 && !CORPORATE_SUFFIXES.has(token));
+const CORPORATE_ENTITY_TYPES = new Set(["corporation", "trust"]);
+
+function isCorporateEntityType(entityType: string): boolean {
+  return CORPORATE_ENTITY_TYPES.has(entityType.trim().toLowerCase());
+}
+
+function tokens(value: string, stripCorporateSuffixes = false): string[] {
+  const result = normalizeIdentityName(value).split(" ").filter((token) => token.length >= 2);
+  if (stripCorporateSuffixes && result.length && CORPORATE_SUFFIXES.has(result[result.length - 1]!)) {
+    result.pop();
+  }
+  return result;
 }
 
 function unique(values: string[]): string[] {
@@ -147,6 +167,7 @@ export function buildIdentityBundle(entity: IdentityEntityInput): IdentityBundle
   ].filter((value): value is string => Boolean(value?.trim())));
 
   return {
+    entityType: entity.type,
     normalizedName: normalizeIdentityName(entity.name),
     variants: nameVariants(entity.name),
     registryIdentifiers: findIdentifierValues(metadata, entity.notes),
@@ -164,19 +185,19 @@ export function buildIdentityBundle(entity: IdentityEntityInput): IdentityBundle
   };
 }
 
-function tokenOverlap(left: string, right: string): number {
-  const a = new Set(tokens(left));
-  const b = new Set(tokens(right));
+function tokenOverlap(left: string, right: string, leftType: string, rightType: string): number {
+  const a = new Set(tokens(left, isCorporateEntityType(leftType)));
+  const b = new Set(tokens(right, isCorporateEntityType(rightType)));
   if (!a.size || !b.size) return 0;
   const shared = [...a].filter((token) => b.has(token)).length;
   return shared / Math.max(a.size, b.size);
 }
 
-function overlap(left: string[], right: string[]): number {
+function overlap(left: IdentityBundleData, right: IdentityBundleData): number {
   let best = 0;
-  for (const leftVariant of left) {
-    for (const rightVariant of right) {
-      best = Math.max(best, tokenOverlap(leftVariant, rightVariant));
+  for (const leftVariant of left.variants) {
+    for (const rightVariant of right.variants) {
+      best = Math.max(best, tokenOverlap(leftVariant, rightVariant, left.entityType, right.entityType));
     }
   }
   return best;
@@ -203,7 +224,7 @@ export function scoreIdentityMatch(
   right: IdentityBundleData,
 ): IdentityMatch | null {
   const signals: string[] = [];
-  const nameOverlap = overlap(left.variants, right.variants);
+  const nameOverlap = overlap(left, right);
   if (nameOverlap < 0.5) return null;
 
   let score = nameOverlap * 0.55;
