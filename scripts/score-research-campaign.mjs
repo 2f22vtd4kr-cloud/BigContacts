@@ -7,7 +7,7 @@ const gt=JSON.parse(fs.readFileSync(gtFile,"utf8")), runsDoc=JSON.parse(fs.readF
 if(gt.schemaVersion!=="research-gauntlet-v1"||gt.status!=="grounded-reviewed") throw new Error("Ground truth must be grounded-reviewed.");
 execFileSync(process.execPath, ["scripts/validate-research-campaign.mjs", gtFile, runsFile], { stdio: "inherit" });
 if(!Array.isArray(runs)) throw new Error("runs[] required.");
-const supportedOutcomes = new Set(["verified", "insufficient_evidence", "wrong_answer", "system_failure", "cancelled"]);
+const supportedOutcomes = new Set(["verified", "insufficient_evidence", "wrong_answer", "system_failure", "cancelled", "exhausted", "contradicted"]);
 for (const [index, run] of runs.entries()) {
  const outcome = run?.outcome;
  if (typeof outcome !== "string" || !supportedOutcomes.has(outcome)) {
