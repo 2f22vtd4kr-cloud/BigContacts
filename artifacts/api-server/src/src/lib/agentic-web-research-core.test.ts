@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
-import { classifyCanonicalAtlasFailure } from "./canonical-atlas-failure-diagnostics";
+import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError } from "./canonical-atlas-failure-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
@@ -22,6 +22,20 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
   } as Parameters<typeof discoverySearchLivenessAdvisory>[0][number];
 }
 
+describe("Investigator provider failure classifications", () => {
+  it("keeps hard quota, HTTP 429, local gate outcomes, capacity, and generic exceptions distinct", () => {
+    expect(classifyInvestigatorProviderError("upstream_quota_exhausted")).toEqual({ domain: "model_provider", kind: "hard_request_quota" });
+    expect(classifyInvestigatorProviderError("upstream_rate_limited")).toEqual({ domain: "model_provider", kind: "provider_rate_limited" });
+    expect(classifyInvestigatorProviderError("local_provider_cooldown")).toEqual({ domain: "model_provider", kind: "local_provider_cooldown" });
+    expect(classifyInvestigatorProviderError("local_provider_budget_exhausted")).toEqual({ domain: "model_provider", kind: "local_provider_budget_exhausted" });
+    expect(classifyInvestigatorProviderError("HTTP_400:json_validate_failed")).toEqual({ domain: "model_provider", kind: "invalid_provider_request" });
+    expect(classifyInvestigatorProviderError("HTTP_401")).toEqual({ domain: "model_provider", kind: "provider_auth_failure" });
+    expect(classifyInvestigatorProviderError("HTTP_503")).toEqual({ domain: "model_provider", kind: "provider_unavailable" });
+    expect(classifyInvestigatorProviderError("upstream_token_window_wait_exceeded")).toEqual({ domain: "model_provider", kind: "provider_capacity_exhausted" });
+    expect(classifyInvestigatorProviderError("network_error")).toEqual({ domain: "model_provider", kind: "request_failure" });
+    expect(classifyInvestigatorProviderError("mystery-error")).toEqual({ domain: "unexpected_programming_error", kind: "unexpected_exception" });
+  });
+});
 describe("canonical failure diagnostics", () => {
   it("classifies canonical errors into finite, safe domain and kind labels", () => {
     expect(classifyCanonicalAtlasFailure({ stage: "boss_opening_request", error: Object.assign(new Error("provider temporarily unavailable"), { status: 503 }) })).toEqual({ domain: "model_provider", kind: "provider_unavailable" });
