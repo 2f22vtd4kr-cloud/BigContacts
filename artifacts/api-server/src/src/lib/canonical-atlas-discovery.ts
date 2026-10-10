@@ -880,19 +880,34 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       : jobStateUnavailable
         ? `Canonical Atlas job state unavailable; discovery stopped without claiming cancellation. (${diagnosticSuffix})`
         : `${safeThrownErrorSummary("Canonical Atlas discovery failed", error)} (${diagnosticSuffix})`;
-    await db.update(researchCasesTable).set({
-      status: "review",
-      currentAction,
-      updatedAt: new Date(),
-    }).where(and(
-      sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
-      inArray(researchCasesTable.status, ["active", "review"]),
-      sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-complete','canonical-atlas-cancelled','canonical-lease-lost')`,
-    ));
+    let failureStatePersistenceFailed = false;
+    try {
+      await db.update(researchCasesTable).set({
+        status: "review",
+        currentAction,
+        updatedAt: new Date(),
+      }).where(and(
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+        inArray(researchCasesTable.status, ["active", "review"]),
+        sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-complete','canonical-atlas-cancelled','canonical-lease-lost')`,
+      ));
+    } catch {
+      // A failed diagnostic write must not replace the exception that caused
+      // this catch. The job message below records this secondary persistence
+      // failure if the job-state store remains available.
+      failureStatePersistenceFailed = true;
+    }
     // Let the outer launch boundary reconcile job status if Redis reads are
-    // unavailable; do not persist a guessed cancellation.
+    // unavailable; do not persist a guessed cancellation. Preserve the original
+    // thrown exception if this best-effort terminal write also fails.
     if (!jobStateUnavailable) {
-      await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
+      const terminalMessage = failureStatePersistenceFailed ? `${message} (failureStatePersistence=case_update_failed)` : message;
+      try {
+        await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", message: terminalMessage, finishedAt: new Date().toISOString() });
+      } catch {
+        // There is no safe durable sink left at this boundary. Preserve the
+        // original error so the outer launch boundary can reconcile it.
+      }
     }
     try { await clearActiveJobIfOwned(lockKey, atlasJobId); } catch {
       // Outer launch boundary owns the final cleanup attempt.
