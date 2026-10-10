@@ -793,7 +793,7 @@ async function callGroqJson(
   signal: AbortSignal,
   cognitiveTask: ResearchCognitiveTask = "identity_resolution",
   investigatorCapability?: InvestigatorCapability,
-  onLocalProviderGateFailure?: (kind: "local_provider_cooldown" | "local_provider_budget_exhausted") => void,
+  onLocalProviderGateFailure?: (kind: "local_provider_cooldown" | "local_provider_budget_exhausted", model: string) => void,
 ): Promise<{ model: string; raw: string; error?: string } | null> {
   const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
   const key = keyName ? (process.env[keyName] || "").trim() : "";
@@ -1040,7 +1040,7 @@ async function callGroqJson(
         // signal for this role. Do not waste the remaining key/model matrix on
         // calls that the gate will reject before reaching Groq.
         if (isLocalProviderQuotaError(error)) {
-          onLocalProviderGateFailure?.(localProviderGateFailure === "local_provider_cooldown" ? "local_provider_cooldown" : "local_provider_budget_exhausted");
+          onLocalProviderGateFailure?.(localProviderGateFailure === "local_provider_cooldown" ? "local_provider_cooldown" : "local_provider_budget_exhausted", model);
           if (isLocalProviderQuotaError(error)) return null;
         }
         break;
@@ -1048,9 +1048,6 @@ async function callGroqJson(
     }
   }
   return { model: routedModels.at(-1) ?? GROQ_CHAT_MODELS[0] ?? "groq", raw: "", error: lastProviderError ?? "provider_unavailable" };
-}
-function routedModelForCapability(_capability: InvestigatorCapability | undefined): string {
-  return GROQ_CHAT_MODELS[0] ?? "groq";
 }
 function investigatorKeyConfiguredForCapability(capability: InvestigatorCapability): boolean {
   const keyName = investigatorCapabilityKeyName(capability);
@@ -1072,7 +1069,8 @@ async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapa
     const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
     let localProviderGateFailure: "local_provider_cooldown" | "local_provider_budget_exhausted" | null = null;
-    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind) => { localProviderGateFailure = kind; })) : null;
+    let localProviderGateModel: string | null = null;
+    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; })) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
     if (parentSignal.aborted) throw new Error("cancelled");
     const controller = new AbortController();
@@ -1083,7 +1081,7 @@ async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapa
       const result = await fn(boundedPrompt, controller.signal);
       if (!result?.raw) {
         setAgenticLlmHealth(false, result?.model ?? null, result?.error ?? localProviderGateFailure ?? "groq:empty");
-        if (localProviderGateFailure) return { model: result?.model ?? routedModelForCapability(selectedInvestigatorLlm), raw: "", fallback: [], providerError: localProviderGateFailure };
+        if (localProviderGateFailure) return { model: result?.model ?? localProviderGateModel ?? GROQ_CHAT_MODELS[0] ?? "groq", raw: "", fallback: [], providerError: localProviderGateFailure };
         return result ? { ...result, fallback: [], providerError: result.error ?? "provider_unavailable" } : null;
       }
       setAgenticLlmHealth(true, result.model, null);
