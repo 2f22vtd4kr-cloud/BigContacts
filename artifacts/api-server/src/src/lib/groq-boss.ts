@@ -294,11 +294,28 @@ export async function generateGroqBossText(
           }));
           const responseBody = await response.text();
 
-          if (response.status === 503 && transient503Retries < MAX_503_RETRIES_PER_MODEL && Date.now() < deadline) {
-            transient503Retries += 1;
-            const delay = Math.min(retryAfterMs(response, 750), Math.max(0, deadline - Date.now()));
-            if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
-            continue;
+          if (response.status === 503) {
+            const failureClass = classifyProviderHttpStatus(response.status);
+            const code = providerErrorCode(responseBody);
+            attempts.push({ model, keyName: entry.name, httpStatus: 503, providerErrorCode: code, failureClass });
+            const canRetry = transient503Retries < MAX_503_RETRIES_PER_MODEL && Date.now() < deadline;
+            lastError = `Groq Boss ${model} returned HTTP 503${code ? ` (${code})` : ""}: ${JSON.stringify(summarizeProviderBody(responseBody))}`;
+            logger.warn({
+              role: "groq_boss",
+              phase: canRetry ? "retrying_after_503" : "fallback_after_503",
+              model,
+              keyName: entry.name,
+              httpStatus: 503,
+              providerErrorCode: code,
+              failureClass,
+            }, "Groq Boss received HTTP 503");
+            if (canRetry) {
+              transient503Retries += 1;
+              const delay = Math.min(retryAfterMs(response, 750), Math.max(0, deadline - Date.now()));
+              if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+              continue;
+            }
+            break;
           }
 
           if (response.status === 429) {
@@ -351,9 +368,46 @@ export async function generateGroqBossText(
             break;
           }
 
-          const raw = extractText(JSON.parse(responseBody));
+          let responsePayload: unknown;
+          try {
+            responsePayload = JSON.parse(responseBody);
+          } catch {
+            attempts.push({
+              model,
+              keyName: entry.name,
+              httpStatus: response.status,
+              providerErrorCode: null,
+              failureClass: "invalid_response",
+            });
+            lastError = `Groq Boss ${model} returned a non-JSON HTTP ${response.status} response.`;
+            logger.warn({
+              role: "groq_boss",
+              phase: "response_parse_failed",
+              model,
+              keyName: entry.name,
+              httpStatus: response.status,
+              failureClass: "invalid_response",
+            }, "Groq Boss returned a non-JSON HTTP response");
+            break;
+          }
+          const raw = extractText(responsePayload);
           if (raw) return { model, raw, error: null, attempts };
-          lastError = `Groq Boss ${model} returned an empty control response.`;
+          attempts.push({
+            model,
+            keyName: entry.name,
+            httpStatus: response.status,
+            providerErrorCode: null,
+            failureClass: "invalid_response",
+          });
+          lastError = `Groq Boss ${model} returned an empty or invalid control response.`;
+          logger.warn({
+            role: "groq_boss",
+            phase: "empty_control_response",
+            model,
+            keyName: entry.name,
+            httpStatus: response.status,
+            failureClass: "invalid_response",
+          }, "Groq Boss returned an empty control response");
           break;
         } catch (error) {
           const isAbort = error instanceof Error && error.name === "AbortError";
