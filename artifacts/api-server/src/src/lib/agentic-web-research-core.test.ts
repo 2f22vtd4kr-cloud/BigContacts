@@ -187,6 +187,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("Search snippets remain leads, not evidence.");
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
     expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
+    expect(prompt).toContain("minEvidence=2; minIndependentSourceUnits=2");
+    expect(prompt).toContain("requireFalsification=true");
+    expect(prompt).toContain("not a prescribed action sequence");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
