@@ -19,7 +19,6 @@ export function defaultTerminalContract(mode: TerminalContractMode): EvidenceSuf
  * prove that the discriminator was actually tested.
  */
 export function hasExplicitFalsificationAttempt(context: IntelligenceContext): boolean {
-  if (!context.falsification.required) return true;
   const intent = /\b(disprov\w*|falsif\w*|refut\w*|counter[- ]?evidence|rule\s+out|challenge\s+the\s+(leading|current)|alternative\s+hypothesis|attempt\s+to\s+refute|test\s+against)\b/i;
   const externalActions = new Set([
     "web_search", "parallel_web_search", "visit", "browser_fetch",
@@ -51,8 +50,8 @@ export function evaluateResearchTerminal(context: IntelligenceContext, mode: Ter
   const exactSpanBindings = context.atomicEvidence.filter((item) => (item.kind === "finding" || item.kind === "claim") && item.spanBound === true && item.spanBindingKind === "identity_and_value" && Boolean(item.passage && item.passage.trim())).length;
   // IntelligenceContext has already resolved source independence through the source-lineage graph.
   // Preserve that authority rather than collapsing evidence back to raw hostnames.
-  const independentSourceUnits = context.independentSourceUnits;
-  const falsificationSatisfied = !context.falsification.required || hasExplicitFalsificationAttempt(context);
+  const contract = defaultTerminalContract(mode);
+  const falsificationSatisfied = !contract.requireFalsification || hasExplicitFalsificationAttempt(context);
 
-  return evaluateTerminalGate({ evidenceCount: context.evidenceCount, independentSourceUnits: context.independentSourceUnits, exactSpanBindings, openQuestions: context.openQuestions.length, highSeverityContradictions: context.contradictions.length, falsificationSatisfied }, defaultTerminalContract(mode));
+  return evaluateTerminalGate({ evidenceCount: context.evidenceCount, independentSourceUnits: context.independentSourceUnits, exactSpanBindings, openQuestions: context.openQuestions.length, highSeverityContradictions: context.contradictions.length, falsificationSatisfied }, contract);
 }
