@@ -486,7 +486,8 @@ describe("canonical Investigator continuation failure handling", () => {
     expect(canonicalDiscoverySource).toContain('!["done", "parse_failure", "investigator_provider_error"].includes(record.action)');
     expect(canonicalDiscoverySource).toContain('record.execution !== "selected"');
     expect(canonicalDiscoverySource).toContain('record.execution !== "blocked"');
-    expect(canonicalDiscoverySource).toContain("const newTrajectoryRecordCount = nextDiscovery.trajectoryRecords?.length ?? 0;");
+    expect(canonicalDiscoverySource).toContain("const newTrajectoryRecords = nextDiscovery.trajectoryRecords ?? [];");
+    expect(canonicalDiscoverySource).toContain("const newTrajectoryRecordCount = newTrajectoryRecords.length;");
     expect(canonicalDiscoverySource).not.toContain("priorTrajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("failureDomain: diagnostic.domain");
     expect(canonicalDiscoverySource).toContain("await clearActiveJobIfOwned(lockKey, atlasJobId);");
