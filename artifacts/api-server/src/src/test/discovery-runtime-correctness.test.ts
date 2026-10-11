@@ -166,6 +166,14 @@ describe("discovery runtime architecture", () => {
     expect(dynamicWrapperSource).toContain("consecutiveActionParseFailures = actResult.consecutiveActionParseFailures ?? consecutiveActionParseFailures");
     expect((dynamicWrapperSource.match(/initialConsecutiveActionParseFailures: consecutiveActionParseFailures/g) ?? []).length).toBe(2);
     expect((dynamicWrapperSource.match(/consecutiveActionParseFailures = actResult\.consecutiveActionParseFailures/g) ?? []).length).toBe(2);
+    const targetLoopStart = dynamicWrapperSource.indexOf("const MAX_TARGET_ACTION_TURNS");
+    const targetRuntimeGuard = dynamicWrapperSource.indexOf('raw.action === "runtime_error" || actResult.stopReason === "UNEXPECTED_ERROR"', targetLoopStart);
+    const targetRecordPersist = dynamicWrapperSource.indexOf("await input.onTrajectoryRecord?.(normalizedRecord);", targetLoopStart);
+    const targetOversight = dynamicWrapperSource.indexOf("const checkpointResult = await applyOversight(normalizedRecord, actionTurn);", targetRuntimeGuard);
+    expect(targetRuntimeGuard).toBeGreaterThan(targetLoopStart);
+    expect(targetRecordPersist).toBeGreaterThan(targetLoopStart);
+    expect(targetRecordPersist).toBeLessThan(targetRuntimeGuard);
+    expect(targetOversight).toBeGreaterThan(targetRuntimeGuard);
     // A terminal parse failure is surfaced to Groq Boss; a Boss-directed new act starts a fresh bounded parse budget.
     expect(canonicalSource).toContain('initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0');
   });
