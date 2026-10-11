@@ -205,6 +205,7 @@ describe("research terminal gate", () => {
   });
 
 
+  it("does not count a passage as an exact binding when spanBound is false", () => {
     const sample = context(2, true);
     sample.atomicEvidence[0]!.spanBound = false;
     const result = evaluateResearchTerminal(sample, "target");
