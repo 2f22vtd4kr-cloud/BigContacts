@@ -651,6 +651,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? `The previous Boss candidate selection at control turn ${controlValidationFeedback.controlTurn} was rejected because the candidate was absent from the durable admitted-candidate list. No target investigation was executed. Do not treat a name in source text or a Right-hand suggestion as candidate admission. Choose a valid model-owned control action; if more discovery is needed, direct the Investigator to continue gathering source-backed evidence and make an explicit admission decision. This feedback is control state, not research evidence.`
             : null) : null,
         status: discovery.status,
+        stopReason: discovery.stopReason ?? null,
+        errorSummary: discovery.error ? safeThrownErrorSummary("Investigator result", new Error(discovery.error)) : null,
         searches: discovery.searches,
         visits: discovery.visits,
         findings: discovery.findings,
@@ -663,6 +665,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           observation: record.observation,
           observedUrls: record.observedUrls,
           stopReason: record.stopReason,
+          failureDomain: record.failureDomain,
+          failureKind: record.failureKind,
         })) ?? [],
       }, null, 2) });
       if (controlValidationFeedback) rejectedControlDecision = null;
