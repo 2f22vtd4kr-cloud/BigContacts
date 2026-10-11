@@ -105,7 +105,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("previous Boss candidate selection at control turn");
     expect(canonicalDiscoverySource).toContain("Do not treat a name in source text or a Right-hand suggestion as candidate admission.");
     expect(canonicalDiscoverySource).toContain("Choose a valid model-owned control action; if more discovery is needed");
-    expect(controlSource).toContain('controlValidationFeedback: typeof parsed.controlValidationFeedback === "string"');
+    expect(controlSource).toContain("controlValidationFeedback: boundedText(parsed.controlValidationFeedback, 800)");
+    expect(controlSource).toContain("compactAtlasInvestigatorReport(input.investigatorReport)");
 
     const feedback = "Rejected concrete URL/tool destination. No Investigator tool was executed.";
     const investigatorReport = JSON.stringify({ provider: "groq-investigator-1", controlValidationFeedback: feedback, status: "completed", searches: 2, visits: 0, findings: [], modelFindings: [], openQuestions: [] });
