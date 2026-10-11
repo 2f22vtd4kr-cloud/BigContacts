@@ -11,7 +11,7 @@ import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorC
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
-import { safeThrownErrorSummary } from "./provider-error-diagnostics";
+import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { formatBossDirectedObjective, validateResearchObjective } from "./research-objective";
@@ -850,6 +850,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         if (episodeFailure) {
           await assertAtlasJobActive(atlasJobId);
           const underlyingError = new Error(nextDiscovery.error ?? episodeFailure.code);
+          const providerDiagnostic = describeThrownProviderError(underlyingError);
           const diagnostic = classifyCanonicalAtlasFailure({ stage: "investigator_episode", error: underlyingError });
           const errorSummary = safeThrownErrorSummary("Canonical Investigator continuation failed", underlyingError);
           const failureMessage = `Canonical Investigator continuation stopped before a usable new research pass; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
@@ -904,9 +905,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                 trajectoryRecordCount: nextDiscovery.trajectoryRecords?.length ?? 0,
                 failureDomain: diagnostic.domain,
                 failureKind: diagnostic.kind,
-                errorClass: diagnostic.errorName,
-                errorCode: diagnostic.errorCode,
-                messageDigest: diagnostic.messageDigest,
+                errorClass: providerDiagnostic.errorName,
+                errorCode: providerDiagnostic.errorCode,
+                messageDigest: providerDiagnostic.messageDigest,
                 investigatorActionExecuted: (nextDiscovery.trajectoryRecords?.length ?? 0) > 0,
               }),
             }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
