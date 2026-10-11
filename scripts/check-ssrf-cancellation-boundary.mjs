@@ -4,6 +4,7 @@ import fs from "node:fs";
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/ssrf-safe-fetch.ts", "utf8");
 const browserSource = fs.readFileSync("artifacts/api-server/src/src/lib/browser-fetch-core.ts", "utf8");
 const failures = [];
+const proxyUrlValidation = browserSource.match(/await assertSafeOutboundUrl\\(url(?:, options\\.signal)?\\);/);
 const pass = (name, ok) => { if (!ok) failures.push(name); };
 
 pass("SSRF uses a cancellable DNS Resolver", /new Resolver\(\{\s*timeout: DNS_TIMEOUT_MS, tries: 1\s*\}\)/.test(source));
@@ -22,7 +23,9 @@ pass("browser escalation rejects unavailable providers before egress, then valid
   browserSource.includes('return { html: "", provider: "provider_unavailable", observedUrl: null };') &&
   browserSource.indexOf("throwIfAborted(options.signal);") < browserSource.indexOf("if (!availableProviders.includes(options.provider))") &&
   browserSource.indexOf("if (!availableProviders.includes(options.provider))") < browserSource.indexOf("await assertSafeOutboundUrl(url);") &&
-  browserSource.indexOf("await assertSafeOutboundUrl(url);") < browserSource.indexOf("const attempts:"));
+  proxyUrlValidation !== null &&
+  browserSource.indexOf("if (!availableProviders.includes(options.provider))") < proxyUrlValidation.index &&
+  proxyUrlValidation.index < browserSource.indexOf("const attempts:"));
 pass("browser proxy providers use the pinned outbound transport", /runProviderCall\(\{ provider, account: new URL\(url\)\.hostname, signal \}, \(\) => safeOutboundFetch\(url, init\)\)/.test(browserSource));
 
 if (failures.length) {
