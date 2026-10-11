@@ -17,7 +17,15 @@ vi.mock("node:dns/promises", () => ({
   },
 }));
 
-import { assertSafeOutboundUrl, isBlockedOutboundIpForTest, responseBodyForStatus, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
+const transportMocks = vi.hoisted(() => ({
+  httpsRequest: vi.fn(),
+}));
+
+vi.mock("node:https", () => ({
+  default: { request: transportMocks.httpsRequest },
+}));
+
+import { assertSafeOutboundUrl, isBlockedOutboundIpForTest, MAX_SAFE_OUTBOUND_RESPONSE_BYTES, responseBodyForStatus, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 
 describe("SSRF outbound boundary", () => {
   it("cancels URL-safety DNS preflight when the caller signal aborts", async () => {
@@ -85,6 +93,50 @@ describe("SSRF outbound boundary", () => {
 
 });
 
+
+describe("safe outbound HTTP response limits", () => {
+  it("destroys a response that declares a body over the outbound byte cap", async () => {
+    dnsMocks.resolve4.mockReset().mockResolvedValue(["93.184.216.34"]);
+    dnsMocks.resolve6.mockReset().mockResolvedValue([]);
+    dnsMocks.cancel.mockReset();
+
+    const response = Object.assign(new EventEmitter(), {
+      headers: { "content-length": String(MAX_SAFE_OUTBOUND_RESPONSE_BYTES + 1) },
+      statusCode: 200,
+      statusMessage: "OK",
+      destroyed: false,
+      resume: vi.fn(),
+      destroy: vi.fn(),
+    });
+    response.destroy.mockImplementation((error?: Error) => {
+      response.destroyed = true;
+      if (error) response.emit("error", error);
+      return response;
+    });
+
+    const request = Object.assign(new EventEmitter(), {
+      setTimeout: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn(),
+      destroy: vi.fn(),
+    });
+    request.destroy.mockImplementation((error?: Error) => {
+      if (error) request.emit("error", error);
+      return request;
+    });
+    transportMocks.httpsRequest.mockImplementation((_options: unknown, onResponse: (value: typeof response) => void) => {
+      request.end.mockImplementation(() => queueMicrotask(() => onResponse(response)));
+      return request;
+    });
+
+    await expect(safeOutboundFetch("https://research.example/large-response")).rejects.toThrow(
+      `Outbound response exceeds ${MAX_SAFE_OUTBOUND_RESPONSE_BYTES} byte limit`,
+    );
+    expect(response.destroy).toHaveBeenCalled();
+    expect(response.destroyed).toBe(true);
+    expect(response.resume).not.toHaveBeenCalled();
+  });
+});
 
 describe("safe outbound HTTP deadline boundary", () => {
   it("aborts a stalled streamed request body instead of waiting forever", async () => {
