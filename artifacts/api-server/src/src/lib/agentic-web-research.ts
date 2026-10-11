@@ -11,7 +11,7 @@ import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./researc
 import { investigatorRecordsFromEvents, replayInvestigatorIntelligence } from "./research-intelligence-replay";
 import { shouldCheckpointResearchEpisode } from "./research-episode-policy";
 import { inferResearchCognitiveTask } from "./research-cognitive-routing";
-import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS } from "./agentic-web-research-core";
+import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES } from "./agentic-web-research-core";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective } from "./investigation-context-compaction";
@@ -140,7 +140,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
         ? record.args.searches.flatMap((search) => search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string" ? [(search as Record<string, unknown>).query as string] : [])
         : []),
   ].map((query) => String(query).trim()).filter(Boolean))];
-  let consecutiveActionParseFailures = Math.min(1, Math.max(0, Number.isFinite(input.initialConsecutiveActionParseFailures) ? Math.floor(input.initialConsecutiveActionParseFailures!) : 0));
+  let consecutiveActionParseFailures = Math.min(MAX_CONSECUTIVE_ACTION_PARSE_FAILURES - 1, Math.max(0, Number.isFinite(input.initialConsecutiveActionParseFailures) ? Math.floor(input.initialConsecutiveActionParseFailures!) : 0));
   for (let actionTurn = 1; actionTurn <= maxDynamicActs; actionTurn++) {
     if (controller.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "cancelled by operator", executionId, consecutiveActionParseFailures };
     const remaining = deadline - Date.now();
