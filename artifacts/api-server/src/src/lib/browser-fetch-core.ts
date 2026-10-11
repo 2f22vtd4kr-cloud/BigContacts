@@ -47,14 +47,17 @@ function throwIfAborted(signal?: AbortSignal): void { if (signal?.aborted) throw
 function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> { if (!signal) return promise; return new Promise<T>((resolve, reject) => { const abort = () => reject(new Error("browser fetch cancelled")); if (signal.aborted) return abort(); signal.addEventListener("abort", abort, { once: true }); void promise.then((v) => { signal.removeEventListener("abort", abort); resolve(v); }, (e) => { signal.removeEventListener("abort", abort); reject(e); }); }); }
 async function readResponseTextCapped(response: Response, signal?: AbortSignal): Promise<string> { throwIfAborted(signal); const declared = Number(response.headers.get("content-length") ?? NaN); if (Number.isFinite(declared) && declared > MAX_BROWSER_RESPONSE_BYTES) throw new Error(`browser response exceeds ${MAX_BROWSER_RESPONSE_BYTES} byte limit`); const reader = response.body?.getReader(); if (!reader) return (await response.text()).slice(0, MAX_BROWSER_RESPONSE_BYTES); const chunks: Uint8Array[] = []; let bytes = 0; try { for (;;) { throwIfAborted(signal); const part = await reader.read(); if (part.done) break; bytes += part.value.byteLength; if (bytes > MAX_BROWSER_RESPONSE_BYTES) { await reader.cancel().catch(() => undefined); throw new Error(`browser response exceeds ${MAX_BROWSER_RESPONSE_BYTES} byte limit`); } chunks.push(part.value); } } finally { reader.releaseLock(); } return new TextDecoder().decode(Buffer.concat(chunks.map((x) => Buffer.from(x)))); }
 async function readJsonCapped<T>(response: Response, signal?: AbortSignal): Promise<T> { return JSON.parse(await readResponseTextCapped(response, signal)) as T; }
-async function verifiedProviderFinalUrl(rawUrl: unknown): Promise<string | null> {
+async function verifiedProviderFinalUrl(rawUrl: unknown, signal?: AbortSignal): Promise<string | null> {
+  throwIfAborted(signal);
   if (typeof rawUrl !== "string" || !rawUrl.trim()) return null;
   try {
     const parsed = new URL(rawUrl.trim());
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-    await assertSafeOutboundUrl(parsed.href);
+    await assertSafeOutboundUrl(parsed.href, signal);
+    throwIfAborted(signal);
     return sanitizeUrlForEvidence(parsed.href);
   } catch {
+    if (signal?.aborted) throw new Error("browser fetch cancelled");
     return null;
   }
 }
@@ -71,10 +74,13 @@ async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<Brow
     const resp = await providerFetch("scrapfly", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal);
     if (!resp.ok) return { html: null, observedUrl: null };
     const data = await readJsonCapped<{ result?: { content?: string; url?: string } }>(resp, signal);
-    const html = data?.result?.content ?? "";
+    const rawHtml = data?.result?.content;
+    // Provider JSON is untrusted runtime input despite the generic response type.
+    // Only actual text may be exposed as an observed document.
+    const html = typeof rawHtml === "string" ? rawHtml : "";
     const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
     const reportedUrl = data?.result?.url;
-    const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl) : null;
+    const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl, signal) : null;
     // If the provider reports a destination, failure to validate that destination
     // means the returned document must not be exposed to the model at all. Missing
     // navigation metadata remains lead-only, but a known unsafe redirect fails closed.
@@ -103,7 +109,7 @@ async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<Brows
     const html = await readResponseTextCapped(resp, signal);
     const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
     const reportedUrl = resp.headers.get("Zr-Final-Url");
-    const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl) : null;
+    const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl, signal) : null;
     // A known but unsafe redirect invalidates the document itself, not just its
     // provenance label. Missing final-URL metadata remains lead-only.
     if (usable && reportedUrl?.trim() && !observedUrl) {
@@ -212,7 +218,7 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
         const finalUrl = page.url();
         // Attribute source material to the effective document URL, never blindly
         // to a pre-redirect request URL.
-        await assertSafeOutboundUrl(finalUrl);
+        await assertSafeOutboundUrl(finalUrl, signal);
         const html = await page.content();
         const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
         return { html: usable ? html : null, observedUrl: usable ? sanitizeUrlForEvidence(finalUrl) : null };
@@ -235,7 +241,13 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
     logger.info({ provider: options.provider, availableProviders }, "browser_fetch selected provider unavailable; no outbound request attempted");
     return { html: "", provider: "provider_unavailable", observedUrl: null };
   }
-  await assertSafeOutboundUrl(url);
+  try {
+    await assertSafeOutboundUrl(url, options.signal);
+  } catch (error) {
+    if (options.signal?.aborted) throw new Error("browser fetch cancelled");
+    throw error;
+  }
+  throwIfAborted(options.signal);
   const scope = options.scope?.trim() || getAgenticExecutionScope();
   const count = getBrowserFetchCount(scope);
   if (count >= maxBrowserFetches()) {

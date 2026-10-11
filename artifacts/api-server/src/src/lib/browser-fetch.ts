@@ -13,7 +13,12 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
   if (!isBrowserFetchProviderAvailable(options.provider)) {
     return { html: "", provider: "provider_unavailable", observedUrl: null };
   }
-  await assertSafeOutboundUrl(url);
+  try {
+    await assertSafeOutboundUrl(url, options.signal);
+  } catch (error) {
+    if (options.signal?.aborted) throw new Error("browser fetch cancelled");
+    throw error;
+  }
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
   if (options.provider === "playwright") {
     return runProviderCall({ provider: "playwright", account: new URL(url).hostname, scope: options.scope, signal: options.signal }, () => unsafeBrowserFetchHtml(url, options));

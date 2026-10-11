@@ -11,6 +11,7 @@ vi.mock("../lib/provider-gate", () => ({
 
 import { assertSafeOutboundUrl, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured } from "../lib/browser-fetch-core";
+import { browserFetchHtml as browserFetchThroughBoundary } from "../lib/browser-fetch";
 
 const html = `<html><body>${"public research evidence ".repeat(8)}</body></html>`;
 
@@ -71,6 +72,55 @@ describe("hosted browser fetch final-URL provenance", () => {
     expect(result.html).toBe(html);
     expect(result.observedUrl).toBe("https://research.example/article/final");
     expect(assertSafeOutboundUrl).toHaveBeenCalledWith("https://research.example/article/final");
+  });
+
+  it("rejects malformed Scrapfly content instead of treating an object length as HTML", async () => {
+    vi.mocked(safeOutboundFetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      result: { content: { length: html.length + 1 }, url: "https://research.example/article/final" },
+    }), { headers: { "content-type": "application/json" } }));
+
+    await expect(browserFetchHtml("https://research.example/article", {
+      provider: "scrapfly",
+      scope: "scrapfly-malformed-content-test",
+    })).resolves.toEqual({ html: "", provider: "scrapfly", observedUrl: null });
+  });
+
+  it("threads the caller AbortSignal through wrapper, provider fetch, and observed-final-URL validation", async () => {
+    const controller = new AbortController();
+    vi.mocked(safeOutboundFetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      result: { content: html, url: "https://research.example/article/final" },
+    }), { headers: { "content-type": "application/json" } }));
+
+    const result = await browserFetchThroughBoundary("https://research.example/article", {
+      provider: "scrapfly",
+      scope: "signal-propagation-test",
+      signal: controller.signal,
+    });
+
+    expect(result.observedUrl).toBe("https://research.example/article/final");
+    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("https://research.example/article", controller.signal);
+    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("https://research.example/article/final", controller.signal);
+  });
+
+  it("propagates cancellation during final-URL DNS validation instead of disguising it as an unobserved page", async () => {
+    const controller = new AbortController();
+    vi.mocked(safeOutboundFetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      result: { content: html, url: "https://research.example/article/final" },
+    }), { headers: { "content-type": "application/json" } }));
+    vi.mocked(assertSafeOutboundUrl).mockImplementation(async (rawUrl: string | URL, _signal?: AbortSignal) => {
+      const parsed = new URL(String(rawUrl));
+      if (parsed.href === "https://research.example/article/final") {
+        controller.abort();
+        throw new Error("Outbound DNS resolution aborted");
+      }
+      return parsed;
+    });
+
+    await expect(browserFetchThroughBoundary("https://research.example/article", {
+      provider: "scrapfly",
+      scope: "signal-cancellation-test",
+      signal: controller.signal,
+    })).rejects.toThrow("browser fetch cancelled");
   });
 
   it("preserves ZenRows' Zr-Final-Url response header for the observed page", async () => {

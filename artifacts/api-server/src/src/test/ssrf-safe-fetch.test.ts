@@ -1,9 +1,48 @@
+import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
-import { isBlockedOutboundIpForTest, responseBodyForStatus, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
+import { describe, expect, it, vi } from "vitest";
+
+const dnsMocks = vi.hoisted(() => ({
+  resolve4: vi.fn(),
+  resolve6: vi.fn(),
+  cancel: vi.fn(),
+}));
+
+vi.mock("node:dns/promises", () => ({
+  Resolver: class {
+    constructor(_options: { timeout: number; tries: number }) {}
+    resolve4(hostname: string) { return dnsMocks.resolve4(hostname); }
+    resolve6(hostname: string) { return dnsMocks.resolve6(hostname); }
+    cancel() { dnsMocks.cancel(); }
+  },
+}));
+
+const transportMocks = vi.hoisted(() => ({
+  httpsRequest: vi.fn(),
+}));
+
+vi.mock("node:https", () => ({
+  default: { request: transportMocks.httpsRequest },
+}));
+
+import { assertSafeOutboundUrl, isBlockedOutboundIpForTest, MAX_SAFE_OUTBOUND_RESPONSE_BYTES, responseBodyForStatus, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 
 describe("SSRF outbound boundary", () => {
+  it("cancels URL-safety DNS preflight when the caller signal aborts", async () => {
+    dnsMocks.resolve4.mockReset().mockImplementation(() => new Promise(() => undefined));
+    dnsMocks.resolve6.mockReset();
+    dnsMocks.cancel.mockReset();
+
+    const controller = new AbortController();
+    const validation = assertSafeOutboundUrl("https://research.example/article", controller.signal);
+    controller.abort();
+
+    await expect(validation).rejects.toThrow("Outbound DNS resolution aborted");
+    expect(dnsMocks.resolve4).toHaveBeenCalledWith("research.example");
+    expect(dnsMocks.cancel).toHaveBeenCalled();
+  });
+
   it("blocks loopback, RFC1918, link-local, multicast, reserved, metadata, and IPv4-mapped IPv6 addresses", () => {
     for (const ip of [
       "127.0.0.1",
@@ -55,6 +94,50 @@ describe("SSRF outbound boundary", () => {
 
 });
 
+
+describe("safe outbound HTTP response limits", () => {
+  it("destroys a response that declares a body over the outbound byte cap", async () => {
+    dnsMocks.resolve4.mockReset().mockResolvedValue(["93.184.216.34"]);
+    dnsMocks.resolve6.mockReset().mockResolvedValue([]);
+    dnsMocks.cancel.mockReset();
+
+    const response = Object.assign(new EventEmitter(), {
+      headers: { "content-length": String(MAX_SAFE_OUTBOUND_RESPONSE_BYTES + 1) },
+      statusCode: 200,
+      statusMessage: "OK",
+      destroyed: false,
+      resume: vi.fn(),
+      destroy: vi.fn(),
+    });
+    response.destroy.mockImplementation((error?: Error) => {
+      response.destroyed = true;
+      if (error) response.emit("error", error);
+      return response;
+    });
+
+    const request = Object.assign(new EventEmitter(), {
+      setTimeout: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn(),
+      destroy: vi.fn(),
+    });
+    request.destroy.mockImplementation((error?: Error) => {
+      if (error) request.emit("error", error);
+      return request;
+    });
+    transportMocks.httpsRequest.mockImplementation((_options: unknown, onResponse: (value: typeof response) => void) => {
+      request.end.mockImplementation(() => queueMicrotask(() => onResponse(response)));
+      return request;
+    });
+
+    await expect(safeOutboundFetch("https://research.example/large-response")).rejects.toThrow(
+      `Outbound response exceeds ${MAX_SAFE_OUTBOUND_RESPONSE_BYTES} byte limit`,
+    );
+    expect(response.destroy).toHaveBeenCalled();
+    expect(response.destroyed).toBe(true);
+    expect(response.resume).not.toHaveBeenCalled();
+  });
+});
 
 describe("safe outbound HTTP deadline boundary", () => {
   it("aborts a stalled streamed request body instead of waiting forever", async () => {

@@ -50,6 +50,27 @@ describe("durable Investigator intelligence replay", () => {
     expect(state.contacts).toContainEqual(expect.objectContaining({ personName: "Alex Example", value: "alex@example.test", state: "DISCOVERED", sourceUrls: expect.arrayContaining([identityUrl, contactUrl]) }));
   });
 
+  it("refuses partial replay when a selected durable Investigator event has a valid JSON payload without an action", () => {
+    const events = [
+      {
+        id: 1, actorRole: "head_investigator", eventType: "tool_observation", status: "success",
+        payload: JSON.stringify({ action: "visit", execution: "success", observation: "first observed page", observedUrls: ["https://one.example.test/"], findings: [] }),
+      },
+      {
+        id: 2, actorRole: "head_investigator", eventType: "tool_observation", status: "success",
+        payload: JSON.stringify({ execution: "success", observation: "corrupt but valid JSON event" }),
+      },
+      {
+        id: 3, actorRole: "head_investigator", eventType: "tool_observation", status: "success",
+        payload: JSON.stringify({ action: "visit", execution: "success", observation: "later observed page", observedUrls: ["https://three.example.test/"], findings: [] }),
+      },
+    ];
+
+    expect(() => investigatorRecordsFromEvents(events)).toThrow(
+      "Durable Investigator event 2 has an invalid payload/action; refusing partial evidence replay.",
+    );
+  });
+
   it("ignores search snippets and non-Investigator events", () => {
     const records = investigatorRecordsFromEvents([
       { id: 1, actorRole: "head_investigator", eventType: "tool_observation", status: "success", payload: JSON.stringify({ action: "web_search", execution: "success", observation: "Alex Example email alex@example.test", observedUrls: ["https://search.example.test"], findings: [] }) },
