@@ -133,7 +133,7 @@ const checks = [
   ["discovery uses first-class empty target rather than Discovery slot", !controlText.includes('targetName: "Discovery slot"')],
   ["discovery identity admission no longer creates synthetic contact evidence", !controlText.includes('value: `person:${name}`')],
   ["discovery admission requires candidate scope", controlText.includes('finding.promotionDecision === "promote"') && controlText.includes('finding.scope === "candidate"')],
-  ["discovery admission requires successful observed HTTP provenance", controlText.includes("candidateSourceUrls") && controlText.includes('payload.execution === "success"') && controlText.includes("payload.observedUrls") && controlText.includes("candidateSourceUrls.includes(normalized)")],
+  ["discovery admission requires two candidate-specific identity-role-bound HTTP sources", controlText.includes("candidateRoleCorroborationSources") && controlText.includes('payload.runId !== input.discoveryRunId') && controlText.includes("payload.observedUrls") && controlText.includes("sources.length >= 2") && candidateSourceUnion.includes('observation.action !== "visit"') && candidateSourceUnion.includes('observation.execution !== "success"') && candidateSourceUnion.includes("bindExactSourceSpan(observation.observation, role, input.personName, 320)") && candidateSourceUnion.includes("supporting.has(publisher)")],
   ["canonical route is mounted before retired legacy execution routes", researchRouterCode.indexOf(canonicalMount) >= 0 && researchRouterCode.indexOf(legacyMount) >= 0 && researchRouterCode.indexOf(canonicalMount) < researchRouterCode.indexOf(legacyMount)],
   ["research router no longer mounts the retired casesRouter", !/router\.use\(casesRouter\)/.test(researchRouterCode)],
 ];
