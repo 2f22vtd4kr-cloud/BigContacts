@@ -18,7 +18,7 @@ function context(independentSourceUnits: number, falsificationAttempt = false): 
     recentActions: falsificationAttempt ? [{
       turn: 4,
       action: "visit",
-      args: { purpose: "seek counterevidence and try to disprove the leading identity hypothesis" },
+      args: { purpose: "seek counterevidence and try to disprove the current executive role", hypothesis: "current executive role" },
       execution: "success",
       observation: "Observed page material relevant to the competing identity hypothesis.",
       urls: ["https://independent.example/profile"],
@@ -56,7 +56,7 @@ function context(independentSourceUnits: number, falsificationAttempt = false): 
     falsification: {
       required: true,
       priority: 0.2,
-      discriminator: "test discriminator",
+      discriminator: "current executive role",
       reason: "test",
     },
     researchQuestions: [],
@@ -78,7 +78,10 @@ describe("research terminal gate", () => {
       action: "parallel_web_search",
       args: {
         searches: [
-          { query: "find evidence that could disprove the leading identity hypothesis", provider: "serper" },
+          { query: "find evidence that could disprove the current executive role", provider: "serper" },
+        ],
+        searchOutcomes: [
+          { query: "find evidence that could disprove the current executive role", status: "success", urls: ["https://independent.example/results"] },
         ],
       },
       execution: "success",
@@ -163,7 +166,45 @@ describe("research terminal gate", () => {
     expect(result.reasons).toContain("required_falsification_not_satisfied");
   });
 
-  it("does not count a passage as an exact binding when spanBound is false", () => {
+  it("requires falsification intent to match the active discriminator", () => {
+    const sample = context(2);
+    sample.recentActions = [{
+      turn: 5, action: "web_search",
+      args: { query: "find counterevidence to the current executive role", purpose: "seek disproof" },
+      execution: "success", observation: "Search completed", urls: ["https://independent.example/results"],
+      findingCount: 0, useful: false, informationGain: 0.2, findingNames: [], findingRoles: [],
+    }];
+    expect(evaluateResearchTerminal(sample, "target").allowed).toBe(true);
+    sample.recentActions = [{
+      turn: 6, action: "web_search",
+      args: { query: "official company homepage and address", purpose: "disprove the current executive role" },
+      execution: "success", observation: "Search completed", urls: ["https://independent.example/results"],
+      findingCount: 0, useful: false, informationGain: 0.2, findingNames: [], findingRoles: [],
+    }];
+    expect(evaluateResearchTerminal(sample, "target").reasons).toContain("required_falsification_not_satisfied");
+  });
+
+  it("does not count a failed nested falsification query hidden by a successful sibling", () => {
+    const sample = context(2);
+    sample.recentActions = [{
+      turn: 7, action: "parallel_web_search",
+      args: {
+        searches: [
+          { query: "find evidence that could disprove the current executive role", provider: "serper" },
+          { query: "official company homepage", provider: "serper" },
+        ],
+        searchOutcomes: [
+          { query: "find evidence that could disprove the current executive role", status: "error", urls: [] },
+          { query: "official company homepage", status: "success", urls: ["https://independent.example/results"] },
+        ],
+      },
+      execution: "success", observation: "One sibling query returned material", urls: ["https://independent.example/results"],
+      findingCount: 0, useful: false, informationGain: 0.2, findingNames: [], findingRoles: [],
+    }];
+    expect(evaluateResearchTerminal(sample, "target").reasons).toContain("required_falsification_not_satisfied");
+  });
+
+
     const sample = context(2, true);
     sample.atomicEvidence[0]!.spanBound = false;
     const result = evaluateResearchTerminal(sample, "target");
