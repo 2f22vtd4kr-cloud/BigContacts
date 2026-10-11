@@ -334,6 +334,11 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
             await input.onTrajectoryRecord?.(normalizedRecord);
            actionsSinceCheckpoint += 1;
            trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
+           // A synthetic runtime_error record is durable diagnostic evidence, not a completed research act.
+           // Persist it above, then fail closed before the Right-hand/Boss checkpoint can authorize another act.
+           if (raw.action === "runtime_error" || actResult.stopReason === "UNEXPECTED_ERROR") {
+             return { status: "error", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "UNEXPECTED_ERROR", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: actResult.error ?? "Unexpected Investigator runtime exception.", executionId, consecutiveActionParseFailures };
+           }
            if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
            if (raw.findings.length) findings = [...findings, ...(groundedTerminalFindings as CoreResult["findings"])];
            for (const finding of raw.findings) if (finding.personName) knownIdentityNames.add(finding.personName.toLowerCase());
