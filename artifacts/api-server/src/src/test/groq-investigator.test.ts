@@ -12,6 +12,7 @@ vi.mock("../lib/browser-fetch", () => ({
 }));
 
 import { bindModelFindingsToObservedSources, discoveryTerminalGate, parseOptionalRateLimitNumber, resetGroqRateLimitSnapshotsForTests, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { runAgenticWebResearch as runDynamicAgenticWebResearch } from "../lib/agentic-web-research";
 import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capability-registry";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
@@ -668,6 +669,41 @@ describe("Groq Investigator provider boundary", () => {
     expect(calls).toBe(2);
   });
 
+  it("classifies dynamic-wrapper persistence exceptions after a completed core act", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-dynamic-persistence-boundary-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    const privateDiagnostic = "synthetic-dynamic-db-write-failure-sensitive-value";
+    const content = JSON.stringify({
+      action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null,
+      thought: "No evidence was gathered", hypothesis: null, purpose: null, expectedInformationGain: 0,
+      locale: null, market: null, target: null, targetType: null, profile: null, searches: [], findings: [],
+    });
+    mocks.safeOutboundFetch.mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content } }],
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await runDynamicAgenticWebResearch({
+      mode: "discovery",
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+      onTrajectoryRecord: async () => { throw new Error(privateDiagnostic); },
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.stopReason).toBe("UNEXPECTED_ERROR");
+    expect(result.trajectoryRecords.at(-1)).toMatchObject({
+      action: "runtime_error",
+      execution: "error",
+      args: { stage: "trajectory_persistence" },
+      failureDomain: "persistence_database",
+      failureKind: "unexpected_exception",
+      stopReason: "UNEXPECTED_ERROR",
+    });
+    expect(result.error).not.toContain(privateDiagnostic);
+    expect(JSON.stringify(result.trajectoryRecords)).not.toContain(privateDiagnostic);
+  });
   it("classifies trajectory-persistence callback exceptions as UNEXPECTED_ERROR without exposing raw error text", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-persistence-boundary-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
