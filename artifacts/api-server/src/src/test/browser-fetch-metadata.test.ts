@@ -71,7 +71,7 @@ describe("hosted browser fetch final-URL provenance", () => {
 
     expect(result.html).toBe(html);
     expect(result.observedUrl).toBe("https://research.example/article/final");
-    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("https://research.example/article/final");
+    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("https://research.example/article/final", undefined);
   });
 
   it("rejects malformed Scrapfly content instead of treating an object length as HTML", async () => {
@@ -135,7 +135,7 @@ describe("hosted browser fetch final-URL provenance", () => {
 
     expect(result.html).toBe(html);
     expect(result.observedUrl).toBe("https://research.example/article/final");
-    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("https://research.example/article/final");
+    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("https://research.example/article/final", undefined);
   });
 
   it("discards content when a provider reports a non-public final destination", async () => {
@@ -150,7 +150,7 @@ describe("hosted browser fetch final-URL provenance", () => {
 
     expect(result.html).toBe("");
     expect(result.observedUrl).toBeNull();
-    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("http://127.0.0.1/private");
+    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("http://127.0.0.1/private", undefined);
   });
 
   it("discards Scrapfly content when its reported final destination is unsafe", async () => {
@@ -165,7 +165,7 @@ describe("hosted browser fetch final-URL provenance", () => {
 
     expect(result.html).toBe("");
     expect(result.observedUrl).toBeNull();
-    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("http://127.0.0.1/private");
+    expect(assertSafeOutboundUrl).toHaveBeenCalledWith("http://127.0.0.1/private", undefined);
   });
 
   it("keeps ZenRows content lead-only when final-navigation metadata is absent", async () => {
