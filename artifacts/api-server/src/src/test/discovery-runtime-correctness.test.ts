@@ -142,7 +142,8 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain('stopReason: "UNEXPECTED_ERROR"');
     expect(researchCoreSource).toContain('domain: "unexpected_programming_error" as const');
     expect(researchCoreSource).toContain("failureDomain: runtimeFailureClassification.domain");
-    expect(researchCoreSource).toContain('failureKind: "unexpected_exception"');
+    expect(researchCoreSource).toContain('kind: "unexpected_exception" as const');
+    expect(researchCoreSource).toContain("failureKind: runtimeFailureClassification.kind");
     expect(researchCoreSource).toContain("runtimeStage");
     expect(researchCoreSource).toContain('runtimeStage === "trajectory_persistence"');
     expect(researchCoreSource).toContain('runtimeStage === "external_page_fetch"');
@@ -157,6 +158,25 @@ describe("discovery runtime architecture", () => {
     expect((dynamicWrapperSource.match(/for \(const failedRecord of actResult\.trajectoryRecords\)/g) ?? []).length).toBe(2);
   });
 
+  it("classifies unexpected exceptions outside the single-action core at both wrapper boundaries", () => {
+    const dynamicWrapperSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
+    expect((dynamicWrapperSource.match(/catch \(caught: unknown\)/g) ?? []).length).toBe(2);
+    expect(dynamicWrapperSource).toContain('let wrapperFailureStage = "continuation_preparation"');
+    expect(dynamicWrapperSource).toContain('let targetWrapperFailureStage = "continuation_preparation"');
+    expect(dynamicWrapperSource).toContain('const persistenceStage = wrapperFailureStage === "trajectory_persistence"');
+    expect(dynamicWrapperSource).toContain('const persistenceStage = targetWrapperFailureStage === "trajectory_persistence"');
+    expect(dynamicWrapperSource).toContain('action: "runtime_error"');
+    expect(dynamicWrapperSource).toContain('stopReason: "UNEXPECTED_ERROR"');
+    expect(dynamicWrapperSource).toContain('createHash("sha256")');
+    expect(dynamicWrapperSource).toContain('classifyCanonicalAtlasFailure({ stage: "oversight_control_decision", error: caught })');
+    const discoveryLoopStart = dynamicWrapperSource.indexOf("async function runDynamicDiscovery");
+    const discoveryPersist = dynamicWrapperSource.indexOf("await input.onTrajectoryRecord?.(normalizedRecord);", discoveryLoopStart);
+    const discoveryProject = dynamicWrapperSource.indexOf("recordResult(intelligence, normalizedRecord, priorRecords);", discoveryPersist);
+    expect(discoveryPersist).toBeGreaterThan(discoveryLoopStart);
+    expect(discoveryProject).toBeGreaterThan(discoveryPersist);
+    // A wrapper exception must not be relabelled as an invalid model-action contract.
+    expect(dynamicWrapperSource).not.toContain('stopReason: "PARSE_FAILURE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords');
+  });
   it("preserves the bounded parse-failure streak across dynamic Investigator acts", () => {
     const bureauPassSource = fs.readFileSync(path.join(libDir, "bureau-agentic-pass.ts"), "utf8");
     const dynamicWrapperSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
