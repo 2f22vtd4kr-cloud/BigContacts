@@ -238,13 +238,6 @@ export async function mirrorJobLogLine(jobId: string, line: string): Promise<voi
     if (sig === previousBossTitle) return;
     lastBossTitleByJob.set(jobId, sig);
   }
-  const structured = tryParseBureauLogLine(line);
-  if (structured) {
-    if (structured.actor === "boss" && structured.title && structured.title === (lastBossTitleByJob.get(jobId) || "")) return;
-    if (structured.actor === "boss") lastBossTitleByJob.set(jobId, structured.title || "");
-    await publishBureauEvent({ ...structured, jobId: structured.jobId ?? jobId });
-    return;
-  }
   const { publish, actor, title } = classifyJobLogLine(line);
   if (!publish) return;
 
