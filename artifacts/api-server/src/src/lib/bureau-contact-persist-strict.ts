@@ -62,7 +62,13 @@ function hasBoundPhoneAndIdentity(observationText:string,personName:string,clean
  }
  return false;
 }
-function contactEntrySegments(observationText:string):string[]{return observationText.split(/[\r\n;|•]+/).map((segment)=>segment.trim()).filter(Boolean);}
+function contactEntrySegments(observationText:string):string[]{
+ const rows=observationText.split(/[\r\n•]+/).map((row)=>row.trim()).filter(Boolean);
+ // Semicolon/pipe separators often separate fields belonging to the same
+ // person. Split only when the next segment begins with a competing full name.
+ const competingPersonBoundary=/(?:[;,|.!?—–]\s+)(?=(?:and\s+)?[A-Z][\p{L}\p{M}'’.-]+\s+[A-Z][\p{L}\p{M}'’.-]+\b)/u;
+ return rows.flatMap((row)=>row.split(competingPersonBoundary).map((segment)=>segment.trim()).filter(Boolean));
+}
 function hasBoundIdentityAndValue(observationText:string,personName:string,cleanValue:string,vectorType:string):boolean{
  if(!observationText.trim()||!personName.trim()||!cleanValue.trim())return false;
  // A length-bounded span is not enough: it can bridge adjacent people in a
