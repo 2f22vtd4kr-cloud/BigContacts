@@ -12,6 +12,7 @@ import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
+import { classifyInvestigatorEpisodeFailure } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { formatBossDirectedObjective, validateResearchObjective } from "./research-objective";
 import { candidateIdentityObserved, normalizeCandidateIdentityName } from "./identity-text-match";
@@ -837,6 +838,110 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [] });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), discovery.trajectoryRecords ?? []);
+
+        // A failed/empty continuation is an orchestration failure, not permission
+        // to ask Boss for another pivot without executing useful Investigator work.
+        const episodeFailure = classifyInvestigatorEpisodeFailure({
+          status: nextDiscovery.status,
+          iterations: nextDiscovery.iterations,
+          stopReason: nextDiscovery.stopReason,
+          trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
+        });
+        if (episodeFailure) {
+          await assertAtlasJobActive(atlasJobId);
+          const underlyingError = new Error(nextDiscovery.error ?? episodeFailure.code);
+          const diagnostic = classifyCanonicalAtlasFailure({ stage: "investigator_episode", error: underlyingError });
+          const errorSummary = safeThrownErrorSummary("Canonical Investigator continuation failed", underlyingError);
+          const failureMessage = `Canonical Investigator continuation stopped before a usable new research pass; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
+          failureStage = "case_persistence";
+          await db.transaction(async (tx) => {
+            const [lockedCase] = await tx.select({
+              status: researchCasesTable.status,
+              iteration: researchCasesTable.iteration,
+              currentAction: researchCasesTable.currentAction,
+            })
+              .from(researchCasesTable)
+              .where(and(
+                eq(researchCasesTable.id, discoveryCaseId),
+                eq(researchCasesTable.status, "active"),
+                sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+                sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+              ))
+              .for("update")
+              .limit(1);
+            if (!lockedCase) throw new Error("Canonical discovery ownership was lost while recording a failed Investigator continuation.");
+            const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
+              .from(researchCaseEventsTable)
+              .where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
+              .orderBy(desc(researchCaseEventsTable.id))
+              .limit(1);
+            const nextIteration = Math.max(Number(lockedCase.iteration ?? 0), Number(latestEvent?.iteration ?? 0)) + 1;
+            await tx.update(researchCasesTable).set({
+              status: "review",
+              currentAction: "canonical-investigator-episode-failed",
+              lastDecisionAt: new Date(),
+              updatedAt: new Date(),
+            }).where(and(
+              eq(researchCasesTable.id, discoveryCaseId),
+              eq(researchCasesTable.status, "active"),
+              sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+            ));
+            await tx.insert(researchCaseEventsTable).values({
+              caseId: discoveryCaseId,
+              iteration: nextIteration,
+              actorRole: "head_investigator",
+              eventType: "observation",
+              status: "error",
+              summary: "Canonical Investigator continuation failed before producing a usable research pass; case parked for review.",
+              correlationKey: `${atlasJobId}:investigator-episode-failure:control:${controlTurns}`,
+              payload: JSON.stringify({
+                jobId: atlasJobId,
+                controlTurn: controlTurns,
+                failureCode: episodeFailure.code,
+                reportedStatus: nextDiscovery.status,
+                stopReason: nextDiscovery.stopReason ?? null,
+                iterations: nextDiscovery.iterations,
+                trajectoryRecordCount: nextDiscovery.trajectoryRecords?.length ?? 0,
+                failureDomain: diagnostic.domain,
+                failureKind: diagnostic.kind,
+                errorClass: diagnostic.errorName,
+                errorCode: diagnostic.errorCode,
+                messageDigest: diagnostic.messageDigest,
+                investigatorActionExecuted: (nextDiscovery.trajectoryRecords?.length ?? 0) > 0,
+              }),
+            }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
+          }, { isolationLevel: "serializable" });
+          failureStage = "job_state_or_lease";
+          await updateJob(atlasJobId, {
+            status: "failed",
+            progress: 3,
+            total: 4,
+            atlasPhase: 3,
+            atlasPhaseTotal: 4,
+            outcome: "incomplete",
+            message: failureMessage,
+            result: JSON.stringify({
+              rightHand,
+              boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm },
+              discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, runs: discoveryRuns },
+              control: { turns: controlTurns, finalAction: decision.action, finalCandidate: priorCandidate },
+              investigatorEpisodeFailure: {
+                code: episodeFailure.code,
+                status: nextDiscovery.status,
+                stopReason: nextDiscovery.stopReason ?? null,
+                iterations: nextDiscovery.iterations,
+                trajectoryRecordCount: nextDiscovery.trajectoryRecords?.length ?? 0,
+                failureDomain: diagnostic.domain,
+                failureKind: diagnostic.kind,
+                messageDigest: diagnostic.messageDigest,
+              },
+            }),
+            finishedAt: new Date().toISOString(),
+          });
+          await clearActiveJobIfOwned(lockKey, atlasJobId);
+          return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
+        }
+
         // Keep the canonical discovery result cumulative across Boss-directed
         // episodes. Each episode's local result is useful for control decisions,
         // but replacing the durable summary with the latest episode can erase
