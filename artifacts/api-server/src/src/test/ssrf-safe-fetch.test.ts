@@ -1,9 +1,39 @@
 import fs from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
-import { isBlockedOutboundIpForTest, responseBodyForStatus, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
+import { describe, expect, it, vi } from "vitest";
+
+const dnsMocks = vi.hoisted(() => ({
+  resolve4: vi.fn(),
+  resolve6: vi.fn(),
+  cancel: vi.fn(),
+}));
+
+vi.mock("node:dns/promises", () => ({
+  Resolver: class {
+    constructor(_options: { timeout: number; tries: number }) {}
+    resolve4(hostname: string) { return dnsMocks.resolve4(hostname); }
+    resolve6(hostname: string) { return dnsMocks.resolve6(hostname); }
+    cancel() { dnsMocks.cancel(); }
+  },
+}));
+
+import { assertSafeOutboundUrl, isBlockedOutboundIpForTest, responseBodyForStatus, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 
 describe("SSRF outbound boundary", () => {
+  it("cancels URL-safety DNS preflight when the caller signal aborts", async () => {
+    dnsMocks.resolve4.mockReset().mockImplementation(() => new Promise(() => undefined));
+    dnsMocks.resolve6.mockReset();
+    dnsMocks.cancel.mockReset();
+
+    const controller = new AbortController();
+    const validation = assertSafeOutboundUrl("https://research.example/article", controller.signal);
+    controller.abort();
+
+    await expect(validation).rejects.toThrow("Outbound DNS resolution aborted");
+    expect(dnsMocks.resolve4).toHaveBeenCalledWith("research.example");
+    expect(dnsMocks.cancel).toHaveBeenCalled();
+  });
+
   it("blocks loopback, RFC1918, link-local, multicast, reserved, metadata, and IPv4-mapped IPv6 addresses", () => {
     for (const ip of [
       "127.0.0.1",
