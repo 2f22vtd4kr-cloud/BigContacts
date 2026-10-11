@@ -15,7 +15,7 @@ const checks = [
   ["canonical module does not statically import the core run function", !research.includes('import { runAgenticWebResearch } from "./agentic-web-research-core"')],
   ["core still contains the actual ReAct implementation", core.includes("function toolVisit") && core.includes("parseAction") && core.includes("runAgenticWebResearch")],
   ["each ReAct run gets a unique execution scope, including runs sharing a durable case", research.includes("crypto?.randomUUID") && research.includes("agentic:case:${input.caseId}:run:${executionId}:investigator:${selectedInvestigator}") && research.includes("agentic:${executionId}:investigator:${selectedInvestigator}") && context.includes("case:[^:]+(?::run:[^:]+)?")],
-  ["browser escalation validates the model-selected destination", /assertSafeOutboundUrl\\(url(?:,\\s*options\\.signal)?\\)/.test(browser)],
+  ["browser escalation validates the model-selected destination", browser.includes("assertSafeOutboundUrl(url)") || browser.includes("assertSafeOutboundUrl(url, options.signal)")],
   ["canonical visit path imports the guarded browser wrapper", core.includes('import("./browser-fetch")')],
   ["ReAct browser escalation receives the run-scoped abort signal", /browserFetchHtml\(action\.url, \{ provider: action\.provider, signal: runController\.signal \}\)/.test(core)],
   ["browser provider responses are byte-capped", browserCore.includes("MAX_BROWSER_RESPONSE_BYTES") && browserCore.includes("readJsonCapped")],
