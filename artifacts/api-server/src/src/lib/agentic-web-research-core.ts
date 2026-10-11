@@ -1358,6 +1358,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoveryAdmissionContract = input.mode === "discovery"
     ? "DISCOVERY ADMISSION CONTRACT: Admit a person only in your own accepted done finding: vectorType=other; value=exact full name on a successfully fetched page; personName=same; role=page-stated title; scope=candidate; sourceUrls=[exact fetched non-search URL]; note=attribution; promotionDecision=promote; promotionReason=source-based rationale. The cited page must directly support both name and role. Search snippets, URL lists, guesses, and CONTACT FACTS (observed, not attributed) are not identity evidence. If grounded, emit the candidate; otherwise continue autonomous research. Never invent/infer a title."
     : null;
+  const discoveryAdmissionExample = input.mode === "discovery"
+    ? `VALID DISCOVERY FINDING SHAPE (placeholders only; never emit placeholder values): {"vectorType":"other","value":"<exact full name from fetched page>","personName":"<same exact full name>","role":"<page-stated title>","scope":"candidate","sourceUrls":["<exact fetched non-search HTTPS URL>"],"note":"The fetched page directly supports this person's name and role.","promotionDecision":"promote","promotionReason":"The same fetched source supports the identity and role."}.`
+    : null;
 
   const composedPrompt = [
     assignment,
@@ -1375,7 +1378,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     pageFormatGuidance,
     "",
     discoveryQualityGate,
-    ...(discoveryAdmissionContract ? [discoveryAdmissionContract] : []),
+    ...(discoveryAdmissionContract ? [discoveryAdmissionContract, ...(discoveryAdmissionExample ? [discoveryAdmissionExample] : [])] : []),
     ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", discoveryLivenessAdvisory, "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
     "",
     "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
@@ -1486,7 +1489,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         terminalContractGuidance,
         pageFormatGuidance,
         discoveryQualityGate,
-        ...(discoveryAdmissionContract ? [discoveryAdmissionContract] : []),
+        ...(discoveryAdmissionContract ? [discoveryAdmissionContract, ...(discoveryAdmissionExample ? [discoveryAdmissionExample] : [])] : []),
         ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", discoveryLivenessAdvisory, "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
       ].join("\n\n");
       const emergencyFixed = emergencyPrefix.length + stateLabel.length + outputContract.length + latestRecordTail.length + separators;
@@ -1506,7 +1509,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // field contract while dropping the large example and auxiliary state.
       const compactTerminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): done is accepted only when the evidence sufficiency contract passes. Current contract: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; allowOpenQuestions=" + terminalContract.allowOpenQuestions + "; allowHighSeverityContradictions=" + terminalContract.allowHighSeverityContradictions + ". Falsification: at least one successful external action must explicitly attempt to disprove the leading claim in its hypothesis, purpose, or query; confidence and repeated corroboration alone do not satisfy this. This states the stopping condition, not a prescribed action sequence.";
       const compactDiscoveryAdmissionContract = input.mode === "discovery"
-        ? "DISCOVERY ADMISSION CONTRACT: promote only via your accepted done finding with vectorType=other, value=the exact full name on a fetched page, personName=that same name, role=the page-stated title, scope=candidate, sourceUrls=[the exact fetched non-search URL], note, promotionDecision=promote, and promotionReason. The fetched page must directly support both name and role. Search snippets, URL lists, guesses, and CONTACT FACTS (observed, not attributed) are not admission evidence. Never invent or infer a title."
+        ? [
+            "DISCOVERY ADMISSION CONTRACT: promote only via your accepted done finding with vectorType=other, value=the exact full name on a fetched page, personName=that same name, role=the page-stated title, scope=candidate, sourceUrls=[the exact fetched non-search URL], note, promotionDecision=promote, and promotionReason. The fetched page must directly support both name and role. Search snippets, URL lists, guesses, and CONTACT FACTS (observed, not attributed) are not admission evidence. Never invent or infer a title.",
+            discoveryAdmissionExample ?? "",
+          ].join("\\n")
         : null;
       const compactLivenessGuidance = discoveryLivenessAdvisory
         ? [
