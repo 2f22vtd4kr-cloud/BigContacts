@@ -186,6 +186,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries.");
     expect(prompt).toContain("Search snippets remain leads, not evidence.");
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
+    expect(prompt).toContain("VALID DISCOVERY FINDING SHAPE (placeholders only; never emit placeholder values)");
+    expect(prompt).toContain("<exact full name from fetched page>");
     expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
     expect(prompt).toContain("minEvidence=2; minIndependentSourceUnits=2");
     expect(prompt).toContain("requireFalsification=true");
