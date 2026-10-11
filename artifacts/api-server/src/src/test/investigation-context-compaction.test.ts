@@ -70,7 +70,7 @@ describe("investigator context compaction", () => {
     expect(objective).toContain("feasible public-source question");
     expect(objective).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
     expect(objective).toContain("Verify whether the named director");
-    expect(objective).toContain("Choose the next research action yourself");
+    expect(objective).toContain("Choose each next action yourself");
     expect(context).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
     expect(context).toContain("Verify whether the named director");
     expect(context).toContain("LATEST TRAJECTORY RECORD");
