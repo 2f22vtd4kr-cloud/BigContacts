@@ -45,6 +45,30 @@ const SAFE_REASONS = new Set([
   "empty_response", "exception", "timeout", "cancelled", "network_error", "rate_limited",
 ]);
 
+const SAFE_PROVIDER_DIAGNOSTIC_LABELS = new Set([
+  "bad_request", "billing_not_active", "context_length_exceeded", "deadline_exceeded",
+  "failed_precondition", "forbidden", "insufficient_quota", "internal", "invalid_api_key",
+  "invalid_argument", "invalid_json_schema", "invalid_request", "invalid_request_error",
+  "json_validate_failed", "model_decommissioned", "model_not_found", "not_found",
+  "permission_denied", "permission_error", "quota_exceeded", "rate_limit_error",
+  "rate_limit_exceeded", "rate_limited", "resource_exhausted", "requests", "server_error",
+  "too_many_requests", "tokens", "unauthenticated", "unauthorized", "unavailable",
+  "unknown", "unsupported_parameter",
+]);
+
+/**
+ * Provider error fields are untrusted response text. Keep known generic labels
+ * useful for diagnostics; hash everything else so a provider cannot make logs
+ * capture arbitrary prompt/source/contact material through error.code/error.type.
+ * Hash input is bounded to avoid spending unbounded work on a malformed label.
+ */
+function safeProviderDiagnosticLabel(value: string | null | undefined): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const normalized = value.trim().toLowerCase();
+  if (normalized.length <= 64 && SAFE_PROVIDER_DIAGNOSTIC_LABELS.has(normalized)) return normalized;
+  return `opaque:${createHash("sha256").update(normalized.slice(0, 512)).digest("hex").slice(0, 16)}`;
+}
+
 function safeTelemetryReason(reason: string | undefined): string | null {
   if (!reason) return null;
   if (SAFE_REASONS.has(reason)) return reason;
@@ -78,8 +102,8 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
     latencyMs: event.latencyMs ?? null,
     retryIndex: event.retryIndex,
     reason: safeTelemetryReason(event.reason),
-    providerErrorCode: event.providerErrorCode ?? null,
-    providerErrorType: event.providerErrorType ?? null,
+    providerErrorCode: safeProviderDiagnosticLabel(event.providerErrorCode),
+    providerErrorType: safeProviderDiagnosticLabel(event.providerErrorType),
     rateLimitRemainingTokens: event.rateLimitRemainingTokens ?? null,
     rateLimitResetTokensMs: event.rateLimitResetTokensMs ?? null,
     rateLimitRemainingRequests: event.rateLimitRemainingRequests ?? null,
