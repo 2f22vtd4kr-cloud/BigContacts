@@ -145,7 +145,7 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
     contactOutcome: e.contactOutcome,
     contactConfidence: e.contactConfidence,
     signal: entitySignal(e),
-    signalDate: activityMap[e.id] ?? new Date().toISOString().split("T")[0]!,
+    signalDate: activityMap[e.id] ?? null,
     assetCount: assetCountMap[e.id] ?? 0,
     estimatedNetWorth: e.estimatedNetWorth,
     researchStatus: researchMap[e.id] ?? null,
