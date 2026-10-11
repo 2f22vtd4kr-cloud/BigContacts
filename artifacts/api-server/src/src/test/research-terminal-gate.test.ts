@@ -126,6 +126,22 @@ describe("research terminal gate", () => {
     expect(result.reasons).toContain("required_falsification_not_satisfied");
   });
 
+  it("enforces the terminal contract even when the adaptive plan does not require falsification", () => {
+    const sample = context(2);
+    sample.falsification = {
+      ...sample.falsification,
+      required: false,
+      discriminator: null,
+      reason: "No discriminator is currently recorded.",
+    };
+
+    for (const mode of ["target", "discovery"] as const) {
+      const result = evaluateResearchTerminal(sample, mode);
+      expect(result.allowed).toBe(false);
+      expect(result.reasons).toContain("required_falsification_not_satisfied");
+    }
+  });
+
   it("does not mistake a high falsification priority score for proof of an attempt", () => {
     const sample = context(2);
     sample.falsification = { required: true, priority: 0.1, discriminator: "competing identity", reason: "test" };
