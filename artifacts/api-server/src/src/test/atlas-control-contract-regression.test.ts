@@ -464,6 +464,15 @@ describe("Atlas control-plane contract regression", () => {
 
 });
 
+describe("discovery trajectory turn persistence", () => {
+  it("preserves globally numbered Investigator records and only offsets local history text", () => {
+    expect(agenticCoreSource).toContain("turn: priorTurnOffset + i + 1");
+    expect(bureauPassSource).toContain("turn:Math.max(1,Number(record.turn)||1)");
+    expect(bureauPassSource).not.toContain("turn:baseIteration+Math.max(1,Number(record.turn)||1)");
+    expect(bureauPassSource).toContain("step${baseIteration+Number(numberString)}:");
+  });
+});
+
 describe("canonical Investigator continuation failure handling", () => {
   it("does not allow an errored or empty continuation to fall through into another Boss control turn", () => {
     expect(canonicalDiscoverySource).toContain("classifyInvestigatorEpisodeFailure({");
