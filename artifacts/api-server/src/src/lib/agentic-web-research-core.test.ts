@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { bindModelFindingsToObservedSources, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -22,6 +22,33 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
     providerFallback: [],
   } as Parameters<typeof discoverySearchLivenessAdvisory>[0][number];
 }
+
+describe("Investigator action parse-failure provenance", () => {
+  it("persists PARSE_FAILURE on the terminal invalid-contract record, not just the in-memory result", () => {
+    const terminal = buildAgenticActionParseFailureRecord({
+      turn: 24,
+      model: "test-model",
+      observation: "Invalid action contract (missing_action).",
+      terminal: true,
+    });
+    const recoverable = buildAgenticActionParseFailureRecord({
+      turn: 23,
+      model: "test-model",
+      observation: "Invalid action contract (missing_action).",
+      terminal: false,
+    });
+
+    expect(terminal).toMatchObject({
+      turn: 24,
+      action: "parse_failure",
+      execution: "error",
+      failureDomain: "model_action",
+      failureKind: "invalid_contract",
+      stopReason: "PARSE_FAILURE",
+    });
+    expect(recoverable.stopReason).toBeUndefined();
+  });
+});
 
 describe("Investigator provider failure classifications", () => {
   it("keeps hard quota, HTTP 429, local gate outcomes, capacity, and generic exceptions distinct", () => {

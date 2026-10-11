@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
-import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -105,7 +105,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("previous Boss candidate selection at control turn");
     expect(canonicalDiscoverySource).toContain("Do not treat a name in source text or a Right-hand suggestion as candidate admission.");
     expect(canonicalDiscoverySource).toContain("Choose a valid model-owned control action; if more discovery is needed");
-    expect(controlSource).toContain('controlValidationFeedback: typeof parsed.controlValidationFeedback === "string"');
+    expect(controlSource).toContain("controlValidationFeedback: boundedText(parsed.controlValidationFeedback, 800)");
+    expect(controlSource).toContain("compactAtlasInvestigatorReport(input.investigatorReport)");
 
     const feedback = "Rejected concrete URL/tool destination. No Investigator tool was executed.";
     const investigatorReport = JSON.stringify({ provider: "groq-investigator-1", controlValidationFeedback: feedback, status: "completed", searches: 2, visits: 0, findings: [], modelFindings: [], openQuestions: [] });
@@ -122,6 +123,46 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
     expect(controlSource).toContain("Compare proposed directions with the human objective and observed sources; flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
+  });
+
+  it("preserves the Investigator terminal reason and failure class within the bounded control report", () => {
+    const compact = compactAtlasInvestigatorReport(JSON.stringify({
+      status: "error",
+      stopReason: "PARSE_FAILURE",
+      errorSummary: "Investigator returned invalid action contracts; digest=abc123",
+      searches: 4,
+      visits: 2,
+      openQuestions: [{
+        turn: 24,
+        action: "parse_failure",
+        execution: "error",
+        observation: "invalid action contract ".repeat(100),
+        observedUrls: Array.from({ length: 10 }, (_, index) => "https://source-" + index + ".example.test/page"),
+        stopReason: "PARSE_FAILURE",
+        failureDomain: "model_action",
+        failureKind: "invalid_contract",
+      }],
+    }));
+    const parsed = JSON.parse(compact) as Record<string, unknown>;
+    expect(parsed.status).toBe("error");
+    expect(parsed.stopReason).toBe("PARSE_FAILURE");
+    expect(parsed.errorSummary).toContain("invalid action contracts");
+    const questions = parsed.latestQuestions as Array<Record<string, unknown>>;
+    expect(questions).toHaveLength(1);
+    expect(questions[0]).toMatchObject({
+      turn: 24,
+      action: "parse_failure",
+      execution: "error",
+      stopReason: "PARSE_FAILURE",
+      failureDomain: "model_action",
+      failureKind: "invalid_contract",
+    });
+    expect(String(questions[0]?.observation)).toHaveLength(600);
+    expect(questions[0]?.observedUrls).toHaveLength(4);
+    expect(compact.length).toBeLessThan(5_000);
+    expect(canonicalDiscoverySource).toContain("stopReason: discovery.stopReason ?? null");
+    expect(canonicalDiscoverySource).toContain("failureDomain: record.failureDomain");
+    expect(canonicalDiscoverySource).toContain("failureKind: record.failureKind");
   });
 
   it("records an Investigator provider-error turn before fail-closed termination", () => {

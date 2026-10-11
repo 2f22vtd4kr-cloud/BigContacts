@@ -280,6 +280,13 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords");
   });
 
+  it("keeps absolute durable Investigator turns across one-action continuation episodes", () => {
+    expect(researchSource.match(/const normalizedRecord = \{ \.\.\.raw, turn: raw\.turn/g) ?? []).toHaveLength(2);
+    expect(researchSource).not.toContain("historyRecords.length + record.turn");
+    expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords, ...records]");
+    expect(researchSource).toContain("groundingTrajectoryRecords: [...historyRecords, ...records]");
+  });
+
   it("reserves the job-wide Investigator budget for Boss-directed continuation after the opening discovery act", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, depth.agenticMaxIterations)");

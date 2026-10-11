@@ -11,6 +11,35 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_error" });
   });
 
+  it("hands a durably classified terminal PARSE_FAILURE to model-owned Boss control", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "error",
+      iterations: 4,
+      stopReason: "PARSE_FAILURE",
+      trajectoryRecords: [{
+        action: "parse_failure",
+        execution: "error",
+        stopReason: "PARSE_FAILURE",
+        failureDomain: "model_action",
+        failureKind: "invalid_contract",
+      }],
+    })).toBeNull();
+  });
+
+  it("fails closed when a parse failure is missing its durable terminal classification", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "error",
+      iterations: 4,
+      stopReason: "PARSE_FAILURE",
+      trajectoryRecords: [{
+        action: "parse_failure",
+        execution: "error",
+        failureDomain: "model_action",
+        failureKind: "invalid_contract",
+      }],
+    })).toEqual({ code: "investigator_episode_error" });
+  });
+
   it("does not let an empty nominally completed episode start another Boss control turn", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "completed",

@@ -67,6 +67,8 @@ Investigator action responses use provider-native structured output where suppor
 
 Provider failures remain typed and bounded. Token-window pressure is not hard quota. Credential reassignment is explicit, never silent. Tool failure is not positive evidence.
 
+A repeated malformed Investigator action is a model-action failure, not a tool action and not an unclassified programming exception. The terminal parse-failure trajectory record must durably carry `stopReason=PARSE_FAILURE`, `failureDomain=model_action`, and `failureKind=invalid_contract`. Only when that exact typed record is present may the episode return to the existing Boss/Right-hand control loop. Control receives the bounded stop reason and a sanitized diagnostic; it may choose to continue within the existing turn, iteration, time, and provider budgets or stop. Missing/mismatched provenance, persistence errors, provider failures, and other unexpected exceptions still fail closed. This is model-owned recovery, not an automatic same-role retry loop.
+
 ## 6. Resource and network safety
 
 Iteration, observation, trajectory, prompt/context, response-size, concurrency, and elapsed-time limits are safety boundaries, not research strategy. Cancellation must reach the actual work and be rechecked before trusted persistence.

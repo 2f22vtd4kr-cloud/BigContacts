@@ -16,7 +16,7 @@ assert(/for \(let i = 0; i < maxIter; i\+\+\)/.test(source) && /runController\.s
 assert(/browserFetchHtml\(action\.url, \{ provider: action\.provider, signal: runController\.signal \}\)/.test(source), "browser escalation is cancellation-aware");
 assert(/MAX_NETWORK_RESPONSE_BYTES/.test(source) && /readResponseTextCapped/.test(source), "provider responses are bounded");
 assert(/trajectoryRecords: AgenticTrajectoryRecord\[\]/.test(source), "structured trajectory is durable output");
-assert(/const normalizedRecord = \{ \.\.\.raw, turn: actionTurn, findings: groundedFindingsForTrajectory\(raw\.findings/.test(wrapper), "trajectory continuation context uses grounded findings only");
+assert(/const normalizedRecord = \{ \.\.\.raw, turn: raw\.turn, findings: groundedFindingsForTrajectory\(raw\.findings/.test(wrapper) && !wrapper.includes("historyRecords.length + record.turn"), "trajectory continuation context uses grounded findings only while preserving durable absolute turn identity");
 assert(/runHolehe\(action\.email, \{ signal: runController\.signal \}\)/.test(source), "email footprint is cancellation-aware");
 assert(/runMaigret\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Maigret is cancellation-aware");
 assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Sherlock is cancellation-aware");
