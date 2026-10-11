@@ -445,6 +445,44 @@ describe("Investigator prompt architecture", () => {
     expect(describeAgentActionParseFailure('{"action":"parallel_web_search","searches":[{"query":"anchor","provider":"serper"}],"hypothesis":"test batch validation","purpose":"verify minimum parallel search count","expectedInformationGain":0.5}')).toBe("invalid_action_arguments action=parallel_web_search searches_min=2");
   });
 
+  it("requires an explicit done.findings array but accepts an intentional empty finding set", () => {
+    for (const raw of [
+      '{"action":"done"}',
+      '{"action":"done","findings":null}',
+      '{"action":"done","findings":{}}',
+    ]) {
+      expect(describeAgentActionParseFailure(raw)).toBe("invalid_action_arguments action=done missing=findings");
+      expect(parseAgentAction(raw)).toBeNull();
+    }
+
+    const abstention = '{"action":"done","findings":[]}';
+    expect(describeAgentActionParseFailure(abstention)).toBe("");
+    expect(parseAgentAction(abstention)).toMatchObject({ action: "done", findings: [] });
+  });
+
+  it("rejects over-limit execution-critical text instead of silently executing a truncated action", () => {
+    const longQuery = JSON.stringify({
+      action: "web_search",
+      query: "Acme " + "query ".repeat(60),
+      provider: "serper",
+      hypothesis: "identify the current executive",
+      purpose: "search the named company",
+      expectedInformationGain: 0.5,
+    });
+    expect(describeAgentActionParseFailure(longQuery)).toBe("invalid_action_arguments action=web_search oversized=query");
+    expect(parseAgentAction(longQuery)).toBeNull();
+
+    const longUrl = JSON.stringify({
+      action: "visit",
+      url: "https://example.com/" + "segment".repeat(80),
+      hypothesis: "verify the source",
+      purpose: "fetch the exact named source",
+      expectedInformationGain: 0.5,
+    });
+    expect(describeAgentActionParseFailure(longUrl)).toBe("invalid_action_arguments action=visit oversized=url");
+    expect(parseAgentAction(longUrl)).toBeNull();
+  });
+
   it("cancels provider-capacity waits promptly and cleans up the pending timer", async () => {
     const controller = new AbortController();
     const pending = waitForAbortableDelay(60_000, controller.signal);

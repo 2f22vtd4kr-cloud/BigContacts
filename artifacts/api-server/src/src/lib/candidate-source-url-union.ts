@@ -1,4 +1,5 @@
 import { normalizeCandidateIdentityName } from "./identity-text-match";
+import { isAggregatorHost } from "./source-corroboration";
 
 export type CandidateSourceFinding = {
   personName: string | null;
@@ -42,6 +43,9 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
     const url = new URL(value);
     if (url.protocol !== "https:") return false;
     const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
+    // Aggregator/profile directories can inform the Investigator, but are not
+    // claim-grade identity evidence for durable candidate admission.
+    if (isAggregatorHost(host)) return false;
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (/(^|\.)google\.[a-z.]+$/.test(host) && /^\/search$/i.test(path)) return false;
     if ((host === "bing.com" || host.endsWith(".bing.com")) && /^\/search$/i.test(path)) return false;

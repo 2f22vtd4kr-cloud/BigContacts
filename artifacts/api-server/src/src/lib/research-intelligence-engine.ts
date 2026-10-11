@@ -362,7 +362,7 @@ export class ResearchIntelligenceEngine {
           && supportsHypothesisClaim(modelHypothesis, evidence.claim)
           && !evidence.contradicts.some((id) => { const competing = this.evidenceByIdMap.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); }));
       });
-      this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, missingDiscriminators: modelPurpose ? [modelPurpose] : [] });
+      this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds });
     }
     const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
     const actionLearningKey = learningQuestion ? input.action + "|" + learningQuestion.slice(0, 180) : input.action;
@@ -414,11 +414,17 @@ export class ResearchIntelligenceEngine {
         firstSeen: new Date(0).toISOString(), lastSeen: new Date(0).toISOString() });
     }
     const knownEvidenceIds = new Set([...this.evidence.values()].map((evidence) => evidence.id));
+    // Older versions copied each action purpose into missingDiscriminators.
+    // Those entries never resolved and could permanently block terminal acceptance.
+    // Preserve genuine discriminator state while removing legacy action-purpose entries.
+    const legacyActionPurposes = new Set(context.recentActions
+      .map((action) => typeof action.args?.purpose === "string" ? normalize(action.args.purpose) : "")
+      .filter(Boolean));
     for (const hypothesis of context.hypotheses) {
       const supportingEvidenceIds = [...hypothesis.supportingEvidenceIds].filter((id) => knownEvidenceIds.has(id));
       const contradictingEvidenceIds = [...hypothesis.contradictingEvidenceIds].filter((id) => knownEvidenceIds.has(id));
       if ((hypothesis.supportingEvidenceIds.length > 0 || hypothesis.contradictingEvidenceIds.length > 0) && !supportingEvidenceIds.length && !contradictingEvidenceIds.length) continue;
-      this.hypotheses.set(hypothesis.id, { ...hypothesis, priorScore: hypothesis.priorScore ?? hypothesis.score, supportingEvidenceIds, contradictingEvidenceIds, missingDiscriminators: [...hypothesis.missingDiscriminators] });
+      this.hypotheses.set(hypothesis.id, { ...hypothesis, priorScore: hypothesis.priorScore ?? hypothesis.score, supportingEvidenceIds, contradictingEvidenceIds, missingDiscriminators: [...hypothesis.missingDiscriminators].filter((value) => !legacyActionPurposes.has(normalize(value))) });
     }
     for (const contact of context.contacts) {
       const hasLocalAttributionSupport = Boolean(contact.personName) && context.atomicEvidence.some((item) => item.kind === "finding" && item.spanBindingKind === "identity_and_value" && normalize(item.claim) === normalize(contact.personName + " " + contact.vector + " " + contact.value) && item.sourceUrl && contact.sourceUrls.includes(item.sourceUrl));

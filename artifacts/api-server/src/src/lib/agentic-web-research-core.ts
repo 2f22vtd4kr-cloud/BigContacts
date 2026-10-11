@@ -669,6 +669,27 @@ function describeActionRationaleFailure(action: string, value: Record<string, un
 }
 function describeInvalidActionArguments(action: string, value: Record<string, unknown>): string | null {
   const textField = (name: string, max: number) => cleanText(value[name], max);
+  const exceeds = (raw: unknown, max: number) => typeof raw === "string" && raw.trim().length > max;
+  const limits: Record<string, number> = action === "done" ? {} : { hypothesis: 500, purpose: 500 };
+  if (action === "web_search") Object.assign(limits, { query: 300, locale: 16, market: 16 });
+  else if (action === "visit" || action === "browser_fetch") Object.assign(limits, { url: 500 });
+  else if (action === "footprint_email") Object.assign(limits, { email: 120 });
+  else if (action === "footprint_username_maigret" || action === "footprint_username_sherlock") Object.assign(limits, { username: 80 });
+  else if (action === "domain_lookup" || action === "harvest_domain") Object.assign(limits, { domain: 120 });
+  else if (action === "registry_search") Object.assign(limits, { query: 200, registry: 60 });
+  else if (action === "footprint_spiderfoot") Object.assign(limits, { target: 300, targetType: 20, profile: 40 });
+  for (const [field, max] of Object.entries(limits)) {
+    if (exceeds(value[field], max)) return `invalid_action_arguments action=${action} oversized=${field}`;
+  }
+  if (action === "parallel_web_search" && Array.isArray(value.searches)) {
+    for (const rawSearch of value.searches) {
+      if (!rawSearch || typeof rawSearch !== "object" || Array.isArray(rawSearch)) continue;
+      const search = rawSearch as Record<string, unknown>;
+      for (const [field, max] of Object.entries({ query: 300, locale: 16, market: 16, purpose: 500 })) {
+        if (exceeds(search[field], max)) return `invalid_action_arguments action=parallel_web_search oversized=searches.${field}`;
+      }
+    }
+  }
   const provider = textField("provider", 30);
   if (action === "web_search") {
     if (!textField("query", 300)) return "invalid_action_arguments action=web_search missing=query";
@@ -699,6 +720,20 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
     if (!textField("target", 300)) return "invalid_action_arguments action=footprint_spiderfoot missing=target";
     if (!["domain","hostname","ip","email","username","person","asn"].includes(targetType)) return "invalid_action_arguments action=footprint_spiderfoot invalid=targetType";
     if (!["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(profile)) return "invalid_action_arguments action=footprint_spiderfoot invalid=profile";
+  } else if (action === "done") {
+    if (!Array.isArray(value.findings)) return "invalid_action_arguments action=done missing=findings";
+    if (value.findings.some((item) => !item || typeof item !== "object" || Array.isArray(item))) {
+      return "invalid_action_arguments action=done invalid=findings";
+    }
+    for (const rawFinding of value.findings) {
+      const finding = rawFinding as Record<string, unknown>;
+      for (const [field, max] of Object.entries({ vectorType: 30, value: 500, personName: 120, role: 120, note: 400, promotionReason: 500 })) {
+        if (exceeds(finding[field], max)) return `invalid_action_arguments action=done oversized=findings.${field}`;
+      }
+      if (Array.isArray(finding.sourceUrls) && finding.sourceUrls.some((url) => exceeds(url, 500))) {
+        return "invalid_action_arguments action=done oversized=findings.sourceUrls";
+      }
+    }
   }
   return null;
 }
