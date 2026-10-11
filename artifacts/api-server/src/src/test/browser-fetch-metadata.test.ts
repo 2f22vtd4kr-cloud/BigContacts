@@ -10,7 +10,7 @@ vi.mock("../lib/provider-gate", () => ({
 }));
 
 import { assertSafeOutboundUrl, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
-import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured, isUsableBrowserHtml, isSafeBrowserFetchMethod, createPlaywrightEgressBudget, reservePlaywrightRequest, releasePlaywrightRequest, accountPlaywrightResponseBytes, isBrowserRedirectResponse, MAX_PLAYWRIGHT_SUBREQUESTS, MAX_PLAYWRIGHT_TOTAL_BYTES } from "../lib/browser-fetch-core";
+import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured, isUsableBrowserHtml, isSafeBrowserFetchMethod, createPlaywrightEgressBudget, reservePlaywrightRequest, releasePlaywrightRequest, accountPlaywrightResponseBytes, isBrowserRedirectResponse, MAX_PLAYWRIGHT_SUBREQUESTS, MAX_PLAYWRIGHT_TOTAL_BYTES, MAX_PLAYWRIGHT_CONCURRENT_REQUESTS } from "../lib/browser-fetch-core";
 import { browserFetchHtml as browserFetchThroughBoundary } from "../lib/browser-fetch";
 
 const html = `<html><body>${"public research evidence ".repeat(8)}</body></html>`;
