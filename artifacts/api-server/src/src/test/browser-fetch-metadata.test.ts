@@ -10,12 +10,32 @@ vi.mock("../lib/provider-gate", () => ({
 }));
 
 import { assertSafeOutboundUrl, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
-import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured, isUsableBrowserHtml, isSafeBrowserFetchMethod } from "../lib/browser-fetch-core";
+import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured, isUsableBrowserHtml, isSafeBrowserFetchMethod, createPlaywrightEgressBudget, reservePlaywrightRequest, releasePlaywrightRequest, accountPlaywrightResponseBytes, isBrowserRedirectResponse, MAX_PLAYWRIGHT_SUBREQUESTS, MAX_PLAYWRIGHT_TOTAL_BYTES } from "../lib/browser-fetch-core";
 import { browserFetchHtml as browserFetchThroughBoundary } from "../lib/browser-fetch";
 
 const html = `<html><body>${"public research evidence ".repeat(8)}</body></html>`;
 
 describe("hosted browser fetch final-URL provenance", () => {
+  it("blocks redirect responses instead of handing Location to Chromium", () => {
+    expect(isBrowserRedirectResponse(301, "https://public.example/final")).toBe(true);
+    expect(isBrowserRedirectResponse(302, "http://127.0.0.1/private")).toBe(true);
+    expect(isBrowserRedirectResponse(200, "https://public.example/final")).toBe(false);
+    expect(isBrowserRedirectResponse(302, null)).toBe(false);
+  });
+
+  it("bounds per-context browser request count, concurrency and aggregate bytes", () => {
+    const budget = createPlaywrightEgressBudget();
+    for (let i = 0; i < MAX_PLAYWRIGHT_CONCURRENT_REQUESTS; i++) expect(reservePlaywrightRequest(budget)).toBe(true);
+    expect(reservePlaywrightRequest(budget)).toBe(false);
+    releasePlaywrightRequest(budget);
+    expect(reservePlaywrightRequest(budget)).toBe(true);
+    while (budget.inFlight > 0) releasePlaywrightRequest(budget);
+    budget.requestCount = MAX_PLAYWRIGHT_SUBREQUESTS;
+    expect(reservePlaywrightRequest(budget)).toBe(false);
+    expect(accountPlaywrightResponseBytes(budget, MAX_PLAYWRIGHT_TOTAL_BYTES)).toBe(true);
+    expect(accountPlaywrightResponseBytes(budget, 1)).toBe(false);
+  });
+
   it("allows only safe read methods through the Playwright transport", () => {
     expect(isSafeBrowserFetchMethod("GET")).toBe(true);
     expect(isSafeBrowserFetchMethod("HEAD")).toBe(true);

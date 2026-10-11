@@ -34,6 +34,30 @@ export function isBrowserFetchProviderAvailable(provider: BrowserProvider): bool
   return getAvailableBrowserFetchProviders().includes(provider);
 }
 const MAX_BROWSER_RESPONSE_BYTES = 2_000_000;
+export type PlaywrightEgressBudget = { requestCount: number; responseBytes: number; inFlight: number };
+export const MAX_PLAYWRIGHT_SUBREQUESTS = 64;
+export const MAX_PLAYWRIGHT_TOTAL_BYTES = 8_000_000;
+export const MAX_PLAYWRIGHT_CONCURRENT_REQUESTS = 4;
+export function createPlaywrightEgressBudget(): PlaywrightEgressBudget {
+  return { requestCount: 0, responseBytes: 0, inFlight: 0 };
+}
+export function reservePlaywrightRequest(budget: PlaywrightEgressBudget): boolean {
+  if (budget.requestCount >= MAX_PLAYWRIGHT_SUBREQUESTS || budget.inFlight >= MAX_PLAYWRIGHT_CONCURRENT_REQUESTS) return false;
+  budget.requestCount += 1;
+  budget.inFlight += 1;
+  return true;
+}
+export function releasePlaywrightRequest(budget: PlaywrightEgressBudget): void {
+  budget.inFlight = Math.max(0, budget.inFlight - 1);
+}
+export function accountPlaywrightResponseBytes(budget: PlaywrightEgressBudget, bytes: number): boolean {
+  if (!Number.isSafeInteger(bytes) || bytes < 0 || budget.responseBytes + bytes > MAX_PLAYWRIGHT_TOTAL_BYTES) return false;
+  budget.responseBytes += bytes;
+  return true;
+}
+export function isBrowserRedirectResponse(status: number, location: string | null): boolean {
+  return status >= 300 && status < 400 && Boolean(location?.trim());
+}
 export function isSafeBrowserFetchMethod(method: string): boolean {
   return ["GET", "HEAD"].includes(method.trim().toUpperCase());
 }
@@ -131,7 +155,7 @@ async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<Brows
 async function fetchViaBrowserlessContent(url: string, signal?: AbortSignal): Promise<string | null> { const token = process.env.BROWSERLESS_TOKEN ?? ""; if (!token) return null; throwIfAborted(signal); try { const endpoint = process.env.BROWSERLESS_CONTENT_URL ?? `https://production-sfo.browserless.io/content?token=${encodeURIComponent(token)}`; const resp = await providerFetch("browserless", endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url, gotoOptions: { waitUntil: "domcontentloaded", timeout: timeoutMs() } }), signal: signal ?? AbortSignal.timeout(timeoutMs() + 5_000) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "browserless content fetch failed"); return null; } }
 type BrowserFetchAttempt = { html: string | null; observedUrl: string | null };
 
-async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal?: AbortSignal): Promise<void> {
+async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal: AbortSignal | undefined, budget: PlaywrightEgressBudget): Promise<void> {
   const request = route.request();
   const rawUrl = request.url();
   if (!isSafeBrowserFetchMethod(request.method())) {
@@ -141,7 +165,6 @@ async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal
   let protocol = "";
   try { protocol = new URL(rawUrl).protocol; } catch { await route.abort("blockedbyclient"); return; }
 
-  // These schemes are browser-local and do not open a network connection.
   if (protocol === "data:" || protocol === "blob:" || protocol === "about:") {
     await route.continue();
     return;
@@ -150,30 +173,48 @@ async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal
     await route.abort("blockedbyclient");
     return;
   }
+  if (!reservePlaywrightRequest(budget)) {
+    await route.abort("blockedbyclient");
+    return;
+  }
 
   try {
     const headers: Record<string, string> = { ...request.headers() };
-    // Let the pinned transport generate connection-specific headers for the
-    // exact validated destination. Keep ordinary origin/cookie/content headers.
     for (const key of Object.keys(headers)) {
       if (["host", "content-length", "transfer-encoding", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "upgrade"].includes(key.toLowerCase())) {
         delete headers[key];
       }
     }
-    const rawBody = request.postDataBuffer();
+    headers["accept-encoding"] = "identity";
     const response = await safeOutboundFetch(rawUrl, {
       method: request.method(),
       headers,
-      body: rawBody ? new Uint8Array(rawBody) : undefined,
       signal,
     });
+    // Playwright does not re-run its route handler for redirect hops. Never hand a
+    // 3xx Location back to Chromium because the follow-up could bypass DNS pinning.
+    if (isBrowserRedirectResponse(response.status, response.headers.get("location"))) {
+      await response.body?.cancel().catch(() => undefined);
+      await route.abort("blockedbyclient");
+      return;
+    }
+    const encoding = (response.headers.get("content-encoding") ?? "identity").trim().toLowerCase();
+    if (encoding && encoding !== "identity") {
+      await response.body?.cancel().catch(() => undefined);
+      await route.abort("blockedbyclient");
+      return;
+    }
+    const body = Buffer.from(await response.arrayBuffer());
+    if (!accountPlaywrightResponseBytes(budget, body.byteLength)) {
+      await route.abort("blockedbyclient");
+      return;
+    }
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
-      if (!["connection", "content-length", "transfer-encoding", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "upgrade"].includes(key.toLowerCase())) {
+      if (!["connection", "content-length", "content-encoding", "transfer-encoding", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "upgrade", "location"].includes(key.toLowerCase())) {
         responseHeaders[key] = value;
       }
     });
-    const body = Buffer.from(await response.arrayBuffer());
     await route.fulfill({
       status: response.status,
       headers: responseHeaders,
@@ -181,6 +222,8 @@ async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal
     });
   } catch {
     await route.abort("blockedbyclient");
+  } finally {
+    releasePlaywrightRequest(budget);
   }
 }
 
@@ -199,8 +242,9 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
       // a page-level route.
       const context = await browser.newContext({ serviceWorkers: "block" });
       try {
+        const egressBudget = createPlaywrightEgressBudget();
         await context.route("**/*", async (route: any) => {
-          await fulfillPlaywrightRequestThroughPinnedTransport(route, signal);
+          await fulfillPlaywrightRequestThroughPinnedTransport(route, signal, egressBudget);
         });
         // WebSocket routing is context-wide too, so popups cannot bypass HTTP pinning.
         const routeWebSocket = (context as any).routeWebSocket;
