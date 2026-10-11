@@ -36,7 +36,9 @@ export function investigatorRecordsFromEvents(events: readonly DurableInvestigat
     try { parsed = JSON.parse(event.payload || "{}"); }
     catch { throw new Error(`Durable Investigator event ${event.id} has malformed JSON; refusing partial evidence replay.`); }
     const payload = asObject(parsed);
-    if (!payload || typeof payload.action !== "string" || !payload.action.trim()) continue;
+    if (!payload || typeof payload.action !== "string" || !payload.action.trim()) {
+      throw new Error(`Durable Investigator event ${event.id} has an invalid payload/action; refusing partial evidence replay.`);
+    }
     const execution = payload.execution ?? event.status;
     if (typeof execution !== "string" || !EXECUTIONS.has(execution as AgenticTrajectoryRecord["execution"])) {
       throw new Error(`Durable Investigator event ${event.id} has an unknown execution state; refusing partial evidence replay.`);
