@@ -40,6 +40,27 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_unavailable_without_provider_record" });
   });
 
+  it("does not treat parse failures or blocked/selected actions as useful discovery work", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 3,
+      trajectoryRecords: [
+        { action: "parse_failure", execution: "error" },
+        { action: "visit", execution: "selected" },
+        { action: "done", execution: "blocked" },
+      ],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
+  it("fails closed when the controller confirms no investigative action executed", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 4,
+      investigatorActionExecuted: false,
+      trajectoryRecords: [{ action: "web_search", execution: "error" }],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
   it("keeps explicit provider errors on the existing bounded provider-recovery path", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "unavailable",

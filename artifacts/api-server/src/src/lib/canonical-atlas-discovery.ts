@@ -854,6 +854,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           iterations: nextDiscovery.iterations,
           stopReason: nextDiscovery.stopReason,
           trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
+          investigatorActionExecuted,
         });
         if (episodeFailure) {
           await assertAtlasJobActive(atlasJobId);
