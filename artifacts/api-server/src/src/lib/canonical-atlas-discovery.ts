@@ -934,7 +934,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                 trajectoryRecordCount: nextDiscovery.trajectoryRecords?.length ?? 0,
                 failureDomain: diagnostic.domain,
                 failureKind: diagnostic.kind,
-                messageDigest: diagnostic.messageDigest,
+                messageDigest: providerDiagnostic.messageDigest,
               },
             }),
             finishedAt: new Date().toISOString(),
