@@ -7,7 +7,7 @@ export type InvestigatorEpisodeHealthInput = {
   status: string;
   iterations: number;
   stopReason?: string | null;
-  trajectoryRecords?: readonly { action?: string | null; execution?: string | null }[];
+  trajectoryRecords?: readonly { action?: string | null; execution?: string | null; stopReason?: string | null; failureDomain?: string | null; failureKind?: string | null }[];
 };
 
 /**
@@ -28,8 +28,9 @@ export function hasExecutedInvestigatorResearchAction(
 
 /**
  * A failed or empty continuation must not be mistaken for a completed research
- * episode. Explicit provider-error trajectories stay with the existing bounded
- * provider recovery policy; unexpected orchestration errors fail closed.
+ * episode. A structurally recorded terminal action-parse failure is different
+ * from an orchestration exception: send it to the model-owned Boss control turn,
+ * which may continue within the existing budget or stop. Unstructured errors fail closed.
  */
 export function classifyInvestigatorEpisodeFailure(
   input: InvestigatorEpisodeHealthInput,
@@ -38,6 +39,14 @@ export function classifyInvestigatorEpisodeFailure(
   // case's cumulative history. Every supplied record belongs to this episode.
   const episodeRecords = input.trajectoryRecords ?? [];
   if (input.status === "error") {
+    const hasDurableTerminalParseFailure = input.stopReason === "PARSE_FAILURE" && episodeRecords.some((record) =>
+      record.action === "parse_failure" &&
+      record.execution === "error" &&
+      record.stopReason === "PARSE_FAILURE" &&
+      record.failureDomain === "model_action" &&
+      record.failureKind === "invalid_contract",
+    );
+    if (hasDurableTerminalParseFailure) return null;
     return { code: "investigator_episode_error" };
   }
   if (input.status === "unavailable") {
