@@ -81,6 +81,8 @@ A claim-grade finding requires, as applicable:
 - deterministic scope and identity validation;
 - immutable event anchoring before card promotion.
 
+Canonical discovery admission is stricter than retaining a single claim-grade finding: an explicitly promoted candidate needs at least two independently published, directly observed source pages from the same Investigator run, each binding the same full name and the same role within a bounded span. Search results, aggregators, duplicate publisher roots, and copied passages do not count as independent candidate corroboration. The admitted record remains review-only; this rule does not promote personal contact fields or impose a research itinerary.
+
 Split-source attribution may remain useful research context, but it does not by itself authorize a personal contact field. Trusted candidate-contact promotion requires at least one successful claim-grade observation that explicitly co-binds the exact person identity and exact contact value; additional independent sources may corroborate that same person-value claim.
 
 No model assertion, search snippet, copied directory entry, guessed email pattern, or synthetic URL is proof by itself.
