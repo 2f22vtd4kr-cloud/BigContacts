@@ -41,12 +41,12 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
   try {
     const url = new URL(value);
     if (url.protocol !== "https:") return false;
-    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
     const path = url.pathname.replace(/\/+$/, "") || "/";
     if (/(^|\.)google\.[a-z.]+$/.test(host) && /^\/search$/i.test(path)) return false;
     if ((host === "bing.com" || host.endsWith(".bing.com")) && /^\/search$/i.test(path)) return false;
     if (host === "search.yahoo.com" && /^\/search$/i.test(path)) return false;
-    // The Instant Answer API returns an aggregated answer, not a directly observed source page.
+    // The Instant Answer API aggregates information from external sources; findings should cite those source pages.
     if (host === "api.duckduckgo.com") return false;
     if ((host === "duckduckgo.com" || host === "html.duckduckgo.com") && (path === "/" || /^\/html$/i.test(path)) && url.searchParams.has("q")) return false;
     if (host === "efts.sec.gov" && /^\/LATEST\/search-index(?:\/|$)/i.test(url.pathname)) return false;
