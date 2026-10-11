@@ -3,6 +3,7 @@ import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { db, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
 import { asc, eq } from "drizzle-orm";
 import { classifyExternalProvider, runProviderCall } from "./provider-gate";
+import { classifyCanonicalAtlasFailure } from "./canonical-atlas-failure-diagnostics";
 import { getAgenticExecutionScope, withAgenticExecutionScope } from "./agentic-execution-context";
 import { validateResearchObjective } from "./research-objective";
 import { reviewTargetInvestigationAct, loadTargetActOversightContext, type TargetActOversight } from "./target-act-oversight";
@@ -455,12 +456,16 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
          const thrown = caught instanceof Error ? caught : new Error("non_error_throwable");
          const digest = createHash("sha256").update(`${thrown.name}:${thrown.message}`).digest("hex").slice(0, 16);
          const persistenceStage = targetWrapperFailureStage === "trajectory_persistence";
-         const failureDomain = persistenceStage ? "persistence_database" as const : "unexpected_programming_error" as const;
+         const runtimeFailureClassification = persistenceStage
+           ? { domain: "persistence_database" as const, kind: "unexpected_exception" as const }
+           : targetWrapperFailureStage === "oversight_control_decision"
+             ? classifyCanonicalAtlasFailure({ stage: "oversight_control_decision", error: caught })
+             : { domain: "unexpected_programming_error" as const, kind: "unexpected_exception" as const };
          const summary = `unexpected_exception stage=${targetWrapperFailureStage} type=${thrown.name || "Error"} digest=${digest}`;
          const runtimeFailureRecord: CoreResult["trajectoryRecords"][number] = {
            turn: Math.max(0, ...historyRecords.map((record) => record.turn), ...records.map((record) => record.turn)) + 1,
            model, action: "runtime_error", args: { stage: targetWrapperFailureStage }, execution: "error", observation: summary,
-           observedUrls: [], findings: [], providerFallback: [], failureDomain, failureKind: "unexpected_exception", stopReason: "UNEXPECTED_ERROR",
+           observedUrls: [], findings: [], providerFallback: [], failureDomain: runtimeFailureClassification.domain, failureKind: runtimeFailureClassification.kind, stopReason: "UNEXPECTED_ERROR",
          };
          records = [...records, runtimeFailureRecord];
          trajectory = [...trajectory, `step${Math.max(1, targetAttemptedActionTurn)}: runtime_error execution=error stage=${targetWrapperFailureStage}`];
