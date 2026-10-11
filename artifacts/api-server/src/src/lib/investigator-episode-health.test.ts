@@ -19,6 +19,38 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_no_action" });
   });
 
+  it("rejects a completed episode that contains only a model-authored done decision", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      trajectoryRecords: [{ action: "done", execution: "success" }],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
+  it("rejects a proposed tool action that was selected but never executed", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      trajectoryRecords: [{ action: "web_search", execution: "selected" }],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
+  it("rejects a blocked tool action that never ran", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      trajectoryRecords: [{ action: "visit", execution: "blocked" }],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
+  it("recognizes an executed research tool attempt even when the tool returns an error", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      trajectoryRecords: [{ action: "web_search", execution: "http_error" }],
+    })).toBeNull();
+  });
+
   it("accepts a non-empty episode even when the case already has a longer cumulative trajectory", () => {
     // The caller passes only this episode's records. Historical events are not
     // included in this list and cannot suppress or invalidate the new action set.
@@ -63,9 +95,9 @@ describe("canonical Investigator continuation health", () => {
       status: "completed",
       iterations: 3,
       trajectoryRecords: [
-        { action: "web_search" },
-        { action: "visit" },
-        { action: "done" },
+        { action: "web_search", execution: "success" },
+        { action: "visit", execution: "success" },
+        { action: "done", execution: "success" },
       ],
     })).toBeNull();
   });
