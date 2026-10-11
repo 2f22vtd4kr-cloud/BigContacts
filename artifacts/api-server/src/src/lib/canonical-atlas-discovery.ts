@@ -738,7 +738,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const targetBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (targetBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for target investigation.");
         const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed); if (remainingTargetIterations <= 0) { investigatorResourceLimited = true; phaseSummary.controlSafetyCeiling = `Canonical Atlas Investigator iteration ceiling reached at ${investigatorIterationsUsed}/${depth.agenticMaxIterations}; refusing another target episode.`; break; }
         failureStage = "investigator_episode";
-        const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: [...quotaExhaustedInvestigators] });
+        // Boss direction is a research question, not authority to prescribe a tool or URL.
+        // Preserve valid strategic intent while keeping the Investigator's route model-owned.
+        const targetDirectionValidation = decision.direction === null ? null : validateResearchObjective(decision.direction);
+        const targetInitialDirection = targetDirectionValidation?.valid ? targetDirectionValidation.direction : undefined;
+        if (decision.direction !== null && targetDirectionValidation && !targetDirectionValidation.valid) {
+          phaseSummary[`control_${controlTurns}_target_direction_rejected`] = `Boss target research question rejected before Investigator context assembly: ${targetDirectionValidation.reason}. Continuing from the durable target objective; no tool/provider/URL directive is executed.`;
+        }
+        const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: [...quotaExhaustedInvestigators], initialDirection: targetInitialDirection });
         for (const exhausted of targetResult.exhaustedInvestigatorLlm) quotaExhaustedInvestigators.add(exhausted);
         if (quotaExhaustedInvestigators.has(selectedInvestigator)) {
           await reassignInvestigatorAfterHardQuota(selectedInvestigator, "A target-scoped Investigator capability exhausted its upstream request quota during this Atlas job; the discovery capability is therefore also excluded for the remainder of this job.");
