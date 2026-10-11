@@ -145,6 +145,7 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("runtimeStage");
     expect(researchCoreSource).toContain('runtimeStage === "trajectory_persistence"');
     expect(researchCoreSource).toContain('runtimeStage === "model_request"');
+    expect(researchCoreSource).toContain('classifyCanonicalAtlasFailure({ stage: "oversight_control_decision", error })');
     expect(researchCoreSource).not.toContain('return resultBase("error", records.length, "PARSE_FAILURE", safeAgenticError(error, runController.signal.aborted))');
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("runtimeFailureRecord?.failureDomain");
