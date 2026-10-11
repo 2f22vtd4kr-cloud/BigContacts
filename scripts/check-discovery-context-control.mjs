@@ -5,6 +5,7 @@ const bureau = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-
 const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts", "utf8");
 const atlas = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
+const candidateSourcePolicy = fs.readFileSync("artifacts/api-server/src/src/lib/candidate-source-url-union.ts", "utf8");
 const persist = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts", "utf8");
 const intelligence = fs.readFileSync("artifacts/api-server/src/src/lib/research-intelligence-engine.ts", "utf8");
 const checks = [
@@ -36,9 +37,9 @@ const checks = [
 ["target contact agent binds promotion provenance to the Investigator execution", /const runId = input\.caseId \? \(agentic\.executionId \?\? null\) : null/.test(targetAgent)],
 ["target contact persistence receives the exact promotion provenance", /const provenance: InvestigatorPromotionProvenance \| undefined = input\.caseId && runId \? \{ caseId: input\.caseId, runId, jobId: input\.jobId \?\? null \} : undefined/.test(targetAgent) && /observedSourceUrls, provenance, \{ deferCardPromotion: input\.oversightMode === "caller" \}\)/.test(targetAgent) && /promotionProvenance: provenance/.test(targetAgent)],
 ["canonical discovery admission is model-explicit and source-backed", /promotionDecision === "promote"/.test(atlas) && /scope === "candidate"/.test(atlas) && /sourceUrls/.test(atlas)],
-["discovery admission is bound to the current Investigator run", /discoveryRunId: string/.test(atlas) && /payload\.runId === input\.discoveryRunId/.test(atlas)],
-["discovery admission requires the candidate identity in observed material", /candidateIdentityObserved\(name, payload\.observation\)/.test(atlas)],
-["discovery admission canonicalizes source URLs before provenance matching", /function normalizeSourceUrl\(/.test(atlas) && /const normalizedSource = sourceUrl/.test(atlas) && /const normalized = normalizeSourceUrl\(String\(url\)\)/.test(atlas)],
+["discovery admission is bound to the current Investigator run", /discoveryRunId: string/.test(atlas) && /payload\.runId !== input\.discoveryRunId/.test(atlas) && /sources\.length >= 2/.test(atlas)],
+["discovery admission requires the candidate identity and role in observed material", atlas.includes("candidateRoleCorroborationSources") && candidateSourcePolicy.includes("bindExactSourceSpan(observation.observation, role, input.personName, 320)")],
+["discovery admission canonicalizes source URLs and rejects copied evidence as independent", /function normalizeSourceUrl\(/.test(atlas) && /const normalizeSourceUrl =/.test(candidateSourcePolicy) && candidateSourcePolicy.includes("sourceLineageId(sourceUrl, passageFingerprint)") && candidateSourcePolicy.includes("supporting.has(publisher)")],
 ["discovery pivot materializes the latest run findings", /findings: nextDiscovery\.findings/.test(atlas) && /discoveryRunId: nextDiscovery\.runId/.test(atlas)],
 ["discovery pivot retains and merges prior durable admissions", /mergeDurablyAdmittedCandidateSources\(\[admittedCandidateSources, admission\.candidates\]\)/.test(atlas) && /admitted = admittedCandidateSources\.map\(\(\{ name \}\) => name\)/.test(atlas)],
 ["canonical discovery materialization remains evidence-only and review-only", /contactOutcome: "evidence_only"/.test(atlas) && /reviewOnly: true/.test(atlas) && /target-scoped Investigator research required before contact promotion/.test(atlas)],
