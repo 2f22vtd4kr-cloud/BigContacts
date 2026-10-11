@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { logger } from "./logger";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
-import { withProviderRetryOwnership } from "./provider-gate";
+import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 
 export const GROQ_BOSS_MODEL = "openai/gpt-oss-120b";
 export const GROQ_BOSS_FALLBACK_MODELS = ["openai/gpt-oss-20b"] as const;
@@ -99,7 +99,7 @@ function cacheKey(key: string): string {
   return createHash("sha256").update(key, "utf8").digest("hex");
 }
 
-export async function resolveGroqBossModel(preferredKeyName?: string): Promise<GroqBossModelSelection> {
+async function resolveGroqBossModelImpl(preferredKeyName?: string): Promise<GroqBossModelSelection> {
   const configured = keys();
   const ordered = preferredKeyName
     ? [...configured.filter((entry) => entry.name === preferredKeyName), ...configured.filter((entry) => entry.name !== preferredKeyName)]
@@ -223,11 +223,15 @@ function boundedBossPrompt(prompt: string, maximum: number): string | null {
   return normalized.length <= maximum ? normalized : null;
 }
 
+export function resolveGroqBossModel(preferredKeyName?: string): Promise<GroqBossModelSelection> {
+  return withProviderRole("control", () => resolveGroqBossModelImpl(preferredKeyName));
+}
+
 export function formatGroqBossAttemptSummary(attempts: GroqBossAttemptDiagnostic[]): string {
   return attempts.map((attempt) => `${attempt.model}=HTTP ${attempt.httpStatus ?? "none"}${attempt.providerErrorCode ? ` (${attempt.providerErrorCode})` : ""}${attempt.failureClass ? ` [${attempt.failureClass}]` : ""}`).join(", ");
 }
 
-export async function generateGroqBossText(
+async function generateGroqBossTextImpl(
   selection: GroqBossModelSelection,
   prompt: string,
   options?: {
@@ -439,6 +443,18 @@ export async function generateGroqBossText(
     error: `Groq Boss unavailable after bounded model/key attempts. ${lastError}. Attempts: ${formatGroqBossAttemptSummary(attempts)}.`,
     attempts,
   };
+}
+
+export function generateGroqBossText(
+  selection: GroqBossModelSelection,
+  prompt: string,
+  options?: {
+    responseFormat?: Record<string, unknown>;
+    maxOutputTokens?: number;
+    thinkingLevel?: "minimal" | "low" | "medium" | "high";
+  },
+): Promise<GroqBossTextGenerationResult> {
+  return withProviderRole("control", () => generateGroqBossTextImpl(selection, prompt, options));
 }
 
 export function getGroqBossStatus(): GroqBossStatus {
