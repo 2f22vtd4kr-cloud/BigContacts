@@ -62,6 +62,35 @@ describe("Apex research intelligence", () => {
     expect(state.contacts).toContainEqual(expect.objectContaining({ personName: "John Smith", value: "john.smith@example.com", state: "DISCOVERED", sourceUrls: expect.arrayContaining([identityUrl, contactUrl]) }));
   });
 
+  it("corroborates contact attribution only across independent sources that bind the full identity-value pair", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "contact-specific-corroboration", target: "Jane Smith", objective: "verify a personal contact" });
+    const identityUrl = "https://company.example/team";
+    const valueUrl = "https://support.example.net/contact";
+    const boundUrl = "https://industry.example.org/leadership";
+    const contactFinding = { vectorType: "email", value: "jane.smith@company.example", personName: "Jane Smith", role: "CFO", sourceUrls: [identityUrl, valueUrl, boundUrl] };
+    const history = [
+      { turn: 1, action: "visit", execution: "success", observation: "Jane Smith is CFO.", urls: [identityUrl] },
+      { turn: 2, action: "visit", execution: "success", observation: "Email: jane.smith@company.example", urls: [valueUrl] },
+      { turn: 3, action: "visit", execution: "success", observation: "Jane Smith — CFO; email: jane.smith@company.example", urls: [boundUrl] },
+    ];
+    engine.recordAction({ ...history[0]!, args: {}, findings: [contactFinding] });
+    engine.recordAction({ ...history[2]!, args: {}, findings: [contactFinding], sourceObservations: history });
+    let contact = engine.buildContext().contacts.find((item) => item.value === contactFinding.value);
+    expect(contact?.state).toBe("ATTRIBUTED");
+    expect(contact?.attributionSourceUrls).toEqual([boundUrl]);
+
+    const secondBoundUrl = "https://news.example.net/people/jane-smith";
+    engine.recordAction({
+      turn: 4, action: "visit", execution: "success", args: {},
+      observation: "Jane Smith is CFO. Direct email: jane.smith@company.example",
+      urls: [secondBoundUrl],
+      findings: [{ ...contactFinding, sourceUrls: [secondBoundUrl] }],
+    });
+    contact = engine.buildContext().contacts.find((item) => item.value === contactFinding.value);
+    expect(contact?.state).toBe("CORROBORATED");
+    expect(contact?.attributionSourceUrls).toEqual(expect.arrayContaining([boundUrl, secondBoundUrl]));
+  });
+
   it("does not label a long-page co-occurrence as an exact identity/value binding", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "long-page-nonbinding", target: "John Smith", objective: "verify contact" });
     const sourceUrl = "https://company.example/directory";
