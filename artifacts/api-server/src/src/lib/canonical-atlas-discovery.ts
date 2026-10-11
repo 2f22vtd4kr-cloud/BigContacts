@@ -835,20 +835,19 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // all budget/iteration guards pass, at the exact point a new Investigator act starts.
         latestEvidenceBackedTerminal = null;
         failureStage = "investigator_episode";
-        const priorTrajectoryRecordCount = discovery.trajectoryRecords?.length ?? 0;
         let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [] });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), discovery.trajectoryRecords ?? []);
 
         // A failed/empty continuation is an orchestration failure, not permission
         // to ask Boss for another pivot without executing useful Investigator work.
-        const newTrajectoryRecordCount = Math.max(0, (nextDiscovery.trajectoryRecords?.length ?? 0) - priorTrajectoryRecordCount);
+        // nextDiscovery contains this continuation episode's local trajectory, not the cumulative discovery result.
+        const newTrajectoryRecordCount = nextDiscovery.trajectoryRecords?.length ?? 0;
         const episodeFailure = classifyInvestigatorEpisodeFailure({
           status: nextDiscovery.status,
           iterations: nextDiscovery.iterations,
           stopReason: nextDiscovery.stopReason,
           trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
-          priorTrajectoryRecordCount,
         });
         if (episodeFailure) {
           await assertAtlasJobActive(atlasJobId);
