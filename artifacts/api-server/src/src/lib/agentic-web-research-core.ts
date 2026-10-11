@@ -1512,7 +1512,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? [
             "DISCOVERY ADMISSION CONTRACT: promote only via your accepted done finding with vectorType=other, value=the exact full name on a fetched page, personName=that same name, role=the page-stated title, scope=candidate, sourceUrls=[the exact fetched non-search URL], note, promotionDecision=promote, and promotionReason. The fetched page must directly support both name and role. Search snippets, URL lists, guesses, and CONTACT FACTS (observed, not attributed) are not admission evidence. Never invent or infer a title.",
             discoveryAdmissionExample ?? "",
-          ].join("\\n")
+          ].join("\n")
         : null;
       const compactLivenessGuidance = discoveryLivenessAdvisory
         ? [
