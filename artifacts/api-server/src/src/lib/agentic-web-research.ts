@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { db, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
 import { asc, eq } from "drizzle-orm";
@@ -141,13 +142,20 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
         : []),
   ].map((query) => String(query).trim()).filter(Boolean))];
   let consecutiveActionParseFailures = Math.min(MAX_CONSECUTIVE_ACTION_PARSE_FAILURES - 1, Math.max(0, Number.isFinite(input.initialConsecutiveActionParseFailures) ? Math.floor(input.initialConsecutiveActionParseFailures!) : 0));
+  let wrapperFailureStage = "continuation_preparation";
+  let attemptedActionTurn = 0;
+  try {
   for (let actionTurn = 1; actionTurn <= maxDynamicActs; actionTurn++) {
+    wrapperFailureStage = "continuation_preparation";
+    attemptedActionTurn = actionTurn;
     if (controller.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "cancelled by operator", executionId, consecutiveActionParseFailures };
     const remaining = deadline - Date.now();
     if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: `hard timeout ${requestedHardTimeout}ms`, executionId, consecutiveActionParseFailures };
     const perActTimeout = Math.min(remaining, Math.max(30_000, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000));
     const actInput: RunInput = { ...input, initialConsecutiveActionParseFailures: consecutiveActionParseFailures, priorIntelligenceContext: intelligence.buildContext(), priorTrajectoryRecords: [...historyRecords, ...records], cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, null), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (input.shouldCancel && await input.shouldCancel()) return true; if (!input.jobId) return false; const job = await getJobStrict(input.jobId); if (!job) throw new Error("Agentic run job record missing; cancellation and ownership cannot be confirmed."); if (job.status === "cancelled") return true; if (job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; const ownsLease = await isCanonicalJobOwner(lockType, input.jobId); if (!ownsLease) throw new Error("Canonical agentic job lease was lost; refusing further research actions."); return false; }, priorContext: buildContinuationState(input.priorContext || "", [...historyRecords, ...records]), onLiveStep: (step) => input.onLiveStep?.(step), onTrajectoryRecord: undefined };
+    wrapperFailureStage = "core_execution";
     const actResult = await core.runAgenticWebResearch(actInput);
+    wrapperFailureStage = "result_normalization";
     consecutiveActionParseFailures = actResult.consecutiveActionParseFailures ?? consecutiveActionParseFailures;
     model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error;
     if (actResult.stopReason === "UNEXPECTED_ERROR") {
@@ -169,10 +177,14 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
         if (raw.action === "parallel_web_search" && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
       }
       const normalizedRecord = { ...raw, turn: raw.turn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: raw.turn }]) };
+      wrapperFailureStage = "intelligence_projection";
       recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
       records = [...records, normalizedRecord];
+      wrapperFailureStage = "trajectory_projection";
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
+      wrapperFailureStage = "trajectory_persistence";
       await input.onTrajectoryRecord?.(normalizedRecord);
+      wrapperFailureStage = "post_action_control";
       if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
       if (raw.findings.length) {
               const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, normalizedRecord]);
@@ -183,6 +195,29 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") return { status: actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: actResult.stopReason, trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId, consecutiveActionParseFailures };
   }
   return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId, consecutiveActionParseFailures };
+  } catch (caught: unknown) {
+    if (controller.signal.aborted) {
+      return { status: input.signal?.aborted ? "cancelled" : "timeout", model, iterations: attemptedActionTurn, searches, visits, findings, modelFindings, stopReason: input.signal?.aborted ? "CANCELLED" : "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: input.signal?.aborted ? "cancelled by operator" : `hard timeout ${requestedHardTimeout}ms`, executionId, consecutiveActionParseFailures };
+    }
+    const thrown = caught instanceof Error ? caught : new Error("non_error_throwable");
+    const digest = createHash("sha256").update(`${thrown.name}:${thrown.message}`).digest("hex").slice(0, 16);
+    const persistenceStage = wrapperFailureStage === "trajectory_persistence";
+    const failureDomain = persistenceStage ? "persistence_database" as const : "unexpected_programming_error" as const;
+    const failureKind = "unexpected_exception" as const;
+    const summary = `unexpected_exception stage=${wrapperFailureStage} type=${thrown.name || "Error"} digest=${digest}`;
+    const runtimeFailureRecord: CoreResult["trajectoryRecords"][number] = {
+      turn: Math.max(0, ...historyRecords.map((record) => record.turn), ...records.map((record) => record.turn)) + 1,
+      model, action: "runtime_error", args: { stage: wrapperFailureStage }, execution: "error", observation: summary,
+      observedUrls: [], findings: [], providerFallback: [], failureDomain, failureKind, stopReason: "UNEXPECTED_ERROR",
+    };
+    records = [...records, runtimeFailureRecord];
+    trajectory = [...trajectory, `step${Math.max(1, attemptedActionTurn)}: runtime_error execution=error stage=${wrapperFailureStage}`];
+    if (!persistenceStage) {
+      try { await input.onTrajectoryRecord?.(runtimeFailureRecord); }
+      catch { /* Preserve the first failure; canonical terminal persistence reports any secondary write failure. */ }
+    }
+    return { status: "error", model, iterations: attemptedActionTurn, searches, visits, findings, modelFindings, stopReason: "UNEXPECTED_ERROR", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: summary, executionId, consecutiveActionParseFailures };
+  }
 }
 
 /** Canonical target research: the selected Investigator owns the sequential research trajectory; Groq Right-hand reviews each completed act and Groq Boss controls continuation. */
