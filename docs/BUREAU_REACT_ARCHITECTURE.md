@@ -52,7 +52,7 @@ A discovery-only liveness guard prevents unproductive search loops: after three 
 Apex distinguishes **lead → observation → attribution → corroboration → verification**.
 
 - Search results and snippets are leads, not claim-grade proof.
-- Discovery admission requires an explicitly promoted candidate, a successful same-run page retrieval, the exact observed source URL, and full-name support at token boundaries.
+- Discovery admission requires an explicitly promoted candidate and at least two independently published, claim-grade source pages successfully observed in the same Investigator run. Each source must bind the full candidate identity and the same explicitly promoted role in a bounded source span; search results, aggregators, duplicate publisher roots, and copied passages do not count as independent corroboration. Admissions remain review-only, and contact promotion still requires separate target-scoped research and strict source-backed attribution.
 - A nearby substring must not establish identity (for example, `Ann Li` from `Joann Li`).
 - Organization-scoped evidence stays organization-scoped unless a person relationship is independently attributed.
 - URLs, people, relationships, contacts, and wealth must not be invented.

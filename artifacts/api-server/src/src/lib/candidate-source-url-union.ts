@@ -1,8 +1,10 @@
 import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { isAggregatorHost } from "./source-corroboration";
+import { bindExactSourceSpan, sourceLineageId } from "./research-epistemic-vnext";
+import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 
 export type CandidateSourceFinding = {
   personName: string | null;
+  role?: string | null;
   promotionDecision?: "promote" | "reject";
   scope: "organization" | "candidate" | "unknown";
   sourceUrls?: readonly string[] | null;
@@ -16,12 +18,15 @@ export type CandidateSourceFinding = {
 export function candidateSourceUrlsForIdentity(input: {
   findings: readonly CandidateSourceFinding[];
   personName: string;
+  role?: string | null;
   isClaimGradeSourceUrl: (value: unknown) => value is string;
   normalizeSourceUrl: (raw: string) => string | null;
 }): string[] {
   const identity = normalizeCandidateIdentityName(input.personName);
+  const roleIdentity = input.role ? normalizeCandidateIdentityName(input.role) : null;
   const candidates = input.findings.filter((finding) =>
     normalizeCandidateIdentityName(finding.personName ?? "") === identity &&
+    (!roleIdentity || normalizeCandidateIdentityName(finding.role ?? "") === roleIdentity) &&
     finding.promotionDecision === "promote" &&
     finding.scope === "candidate" &&
     Array.isArray(finding.sourceUrls)
@@ -62,6 +67,52 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
 }
 
 export type AdmittedCandidateSourceSet = { name: string; sourceUrls: readonly string[] };
+
+export type CandidateRoleObservation = {
+  action: string; execution: string; sourceUrl: string; observation: string; eventId: number;
+};
+
+/** Only promoted, observed, role-bound pages on independent publishers count. */
+export function candidateRoleCorroborationSources(input: {
+  personName: string;
+  role: string | null | undefined;
+  findings: readonly CandidateSourceFinding[];
+  observations: readonly CandidateRoleObservation[];
+  isClaimGradeSourceUrl: (value: unknown) => value is string;
+  normalizeSourceUrl: (raw: string) => string | null;
+}): Array<{ sourceUrl: string; publisher: string; eventId: number }> {
+  const role = input.role?.trim().replace(/\s+/g, " ") ?? "";
+  if (!role) return [];
+  const claimedUrls = new Set(candidateSourceUrlsForIdentity({
+    findings: input.findings, personName: input.personName, role,
+    isClaimGradeSourceUrl: input.isClaimGradeSourceUrl, normalizeSourceUrl: input.normalizeSourceUrl,
+  }));
+  if (!claimedUrls.size) return [];
+  const supporting = new Map<string, { sourceUrl: string; publisher: string; eventId: number }>();
+  const observedLineages = new Set<string>();
+  for (const observation of input.observations) {
+    if ((observation.action !== "visit" && observation.action !== "browser_fetch") || observation.execution !== "success") continue;
+    const sourceUrl = input.normalizeSourceUrl(observation.sourceUrl);
+    if (!sourceUrl || !claimedUrls.has(sourceUrl) || !input.isClaimGradeSourceUrl(sourceUrl)) continue;
+    const span = bindExactSourceSpan(observation.observation, role, input.personName, 320);
+    if (!span?.exact) continue;
+    // The same co-binding passage copied to a second domain is not independent
+    // corroboration; use the exact bounded passage as a content-lineage key.
+    const passageFingerprint = span.text.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+    const lineageId = sourceLineageId(sourceUrl, passageFingerprint);
+    if (observedLineages.has(lineageId)) continue;
+    let host = "";
+    try { host = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, ""); } catch { continue; }
+    if (isAggregatorHost(host)) continue;
+    const publisher = publisherDomain(host);
+    if (!publisher || isAggregatorHost(publisher)) continue;
+    observedLineages.add(lineageId);
+    if (supporting.has(publisher)) continue;
+    supporting.set(publisher, { sourceUrl, publisher, eventId: observation.eventId });
+  }
+  return [...supporting.values()];
+}
+
 
 function normalizeAdmittedSourceUrl(raw: string): string | null {
   try {

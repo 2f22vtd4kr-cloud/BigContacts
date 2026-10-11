@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { logger } from "./logger";
-import { withProviderRetryOwnership } from "./provider-gate";
+import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
@@ -218,7 +218,7 @@ function tokenRateLimitWaitMs(response:Response):number|null {
 type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryTokenRateLimit: number; retryAfterMs: number | null; retryAfterHeader: string | null; rateLimitKind: RateLimitKind; rateLimitHeaders: Record<string, string>; body: ReturnType<typeof summarizeProviderBody> | null; };
 function formatAttemptDiagnostic(diagnostic: GroqAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
 
-async function request(system:string,user:string,format?:Record<string,unknown>):Promise<{raw:string;error:string|null;model:string}>{
+async function requestImpl(system:string,user:string,format?:Record<string,unknown>):Promise<{raw:string;error:string|null;model:string}>{
  const entry=keyEntries()[0];
  if(!entry)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
@@ -260,6 +260,10 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
   }
  }
  return {raw:"",error:`Groq Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:attempts.at(-1)?.model??GROQ_RIGHT_HAND_MODEL};
+}
+
+async function request(system:string,user:string,format?:Record<string,unknown>):Promise<{raw:string;error:string|null;model:string}> {
+ return withProviderRole("control",()=>requestImpl(system,user,format));
 }
 
 function clip(value: string | null | undefined, maxChars = 360): string | null {

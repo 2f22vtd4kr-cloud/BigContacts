@@ -80,7 +80,12 @@ describe("discovery runtime architecture", () => {
   });
   it("does not promote discovery candidates from search snippets alone", async () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    expect(canonicalSource).toMatch(/directSourceAction\s*=\s*payload\.action\s*===\s*"visit"\s*\|\|\s*payload\.action\s*===\s*"browser_fetch"/);
+    const candidateSourcePolicy = fs.readFileSync(path.join(libDir, "candidate-source-url-union.ts"), "utf8");
+    expect(canonicalSource).toContain("candidateRoleCorroborationSources");
+    expect(canonicalSource).toContain("sources.length >= 2");
+    expect(candidateSourcePolicy).toContain('observation.action !== "visit" && observation.action !== "browser_fetch"');
+    expect(candidateSourcePolicy).toContain('observation.execution !== "success"');
+    expect(candidateSourcePolicy).toContain("bindExactSourceSpan(observation.observation, role, input.personName, 320)");
   });
 
   it("records duplicate blocks and removes the blanket visited-URL stop", () => {
@@ -305,7 +310,8 @@ describe("discovery runtime architecture", () => {
   it("only treats durably source-backed discovery candidates as admissions or terminal proof", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }");
-    expect(canonicalSource).toContain("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrl: normalizedSource })");
+    expect(canonicalSource).toContain("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) })");
+    expect(canonicalSource).toContain("durableSourceCount >= 2");
     expect(canonicalSource).toContain("if (!session?.id) throw new Error(");
     expect(canonicalSource).toContain('latestEvidenceBackedTerminal = deriveLatestEvidenceBackedTerminal("discovery", nextDiscovery.status, nextDiscovery.stopReason, investigatorResourceLimited) !== null && admitted.length > 0 ? "discovery" : null');
     expect(canonicalSource).toContain("const evidenceBackedTerminal = isCanonicalAtlasRunEvidenceComplete(latestEvidenceBackedTerminal, researched)");

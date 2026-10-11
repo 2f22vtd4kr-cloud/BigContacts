@@ -2,8 +2,10 @@ import fs from "node:fs";
 
 const path = "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts";
 const source = fs.readFileSync(path, "utf8");
-const identityMatcherPath = "artifacts/api-server/src/src/lib/identity-text-match.ts";
-const identityMatcher = fs.readFileSync(identityMatcherPath, "utf8");
+const candidateSourcePolicyPath = "artifacts/api-server/src/src/lib/candidate-source-url-union.ts";
+const candidateSourcePolicy = fs.readFileSync(candidateSourcePolicyPath, "utf8");
+const epistemicPath = "artifacts/api-server/src/src/lib/research-epistemic-vnext.ts";
+const epistemic = fs.readFileSync(epistemicPath, "utf8");
 
 const forbidden = [
   /\.slice\(0,\s*input\.maxCandidates\)/,
@@ -17,14 +19,20 @@ if (violations.length) {
   );
 }
 
-// The selected supporting event carries the same token-boundary identity proof
-// that is persisted as source evidence; do not require duplicate matcher calls.
-const matcherCallCount = (source.match(/candidateIdentityObserved\(name,\s*payload\.observation\)/g) ?? []).length;
-const importsSharedMatcher = /import\s*\{[^}]*\bcandidateIdentityObserved\b[^}]*\}\s*from\s*["\']\.\/identity-text-match["\']/.test(source);
-const matcherUsesTokenBoundaries = identityMatcher.includes("` ${normalizedText} `.includes(` ${normalizedName} `)");
+// Admission is grounded in the same Investigator run, and the canonical
+// source policy requires an exact, bounded name+role span on independent
+// publishers. Identical supporting passages are one lineage unit, not two.
+const exactRoleBoundCorroboration =
+  source.includes("candidateRoleCorroborationSources") &&
+  source.includes("payload.runId !== input.discoveryRunId") &&
+  source.includes("sources.length >= 2") &&
+  epistemic.includes("hasExactTokenBoundary") &&
+  candidateSourcePolicy.includes("bindExactSourceSpan(observation.observation, role, input.personName, 320)") &&
+  candidateSourcePolicy.includes("sourceLineageId(sourceUrl, passageFingerprint)") &&
+  candidateSourcePolicy.includes("supporting.has(publisher)");
 
-if (!importsSharedMatcher || matcherCallCount < 1 || !matcherUsesTokenBoundaries || !identityMatcher.includes("normalizedName.length >= 3") || !source.includes("supportingEventId: supportingEvent.id") || !source.includes("sourceUrl: normalizedSource")) {
-  throw new Error("Canonical discovery admission must bind persisted evidence to the same token-boundary identity-supporting event.");
+if (!exactRoleBoundCorroboration || !source.includes("supportingEventId: support.eventId") || !source.includes("sourceUrl: support.sourceUrl")) {
+  throw new Error("Canonical discovery admission must persist candidate-specific, token-bound identity/role evidence from independent observed sources.");
 }
 
 if (!/db\.transaction\(async \(tx\) => \{[\s\S]*tx\.update\(researchCasesTable\)[\s\S]*tx\.insert\(researchCaseEventsTable\)/.test(source)) {
@@ -37,12 +45,12 @@ if (!source.includes("function materializeAtlasAdmissions")) {
 
 
 const durableAdmissionChecks = [
-  ["all equivalent promoted candidate findings contribute their source URLs", source.includes("candidateSourceUrlsForIdentity({") && source.includes("findings: input.findings")],
+  ["all equivalent promoted candidate findings contribute source URLs to role corroboration", source.includes("candidateRoleCorroborationSources") && candidateSourcePolicy.includes("findings: input.findings") && candidateSourcePolicy.includes("candidateSourceUrlsForIdentity({")],
   ["search-result endpoints are excluded from claim-grade discovery evidence", source.includes("isClaimGradeDiscoverySourceUrl") && source.includes("isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl")],
   ["case projection and control receive only durable supporting URLs", source.includes("admittedCandidateSources.map(({ name, sourceUrls })") && source.includes("admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls })")],
 
-  ["only source-backed durable admissions are returned to control", source.includes("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }") && source.includes("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrl: normalizedSource })")],
-  ["admission requires a successful retrieved page in the same Investigator run", /payload\.runId === input\.discoveryRunId[\s\S]*directSourceAction[\s\S]*payload\.execution === "success"[\s\S]*candidateSourceUrls\.includes\(normalized\)/.test(source)],
+  ["only two-source durable admissions are returned to control", source.includes("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }") && source.includes("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) })")],
+  ["admission requires two successful direct source observations in the same Investigator run", source.includes("payload.runId !== input.discoveryRunId") && source.includes("sources.length >= 2") && candidateSourcePolicy.includes('observation.action !== "visit"') && candidateSourcePolicy.includes('observation.execution !== "success"')],
   ["a missing admission evidence session fails the transaction closed", source.includes("if (!session?.id) throw new Error(")],
   ["discovery-only completion requires at least one durable admission", /const durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited && admitted\.length > 0 \? "complete" : "review"/.test(source)],
   ["discovery terminal authority cannot be set by model completion alone", /latestEvidenceBackedTerminal: "discovery" \| "target" \| null = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && admitted\.length > 0 \? "discovery" : null/.test(source)],
