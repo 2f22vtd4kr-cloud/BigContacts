@@ -96,7 +96,7 @@ function entityReachVectors(entity: any) {
       if (!value) continue;
       const mark = String(c?.mark ?? "candidate");
       const vt = String(c?.vectorType ?? "").toLowerCase();
-      const kind = mark === "organization" || vt === "organization" ? "org" : vt === "social" ? "social" : mark === "personal" ? "personal" : "candidate";
+      const kind = mark === "organization" || vt === "organization" ? "org" : mark === "candidate" ? "candidate" : vt === "social" ? "social" : mark === "personal" ? "personal" : "candidate";
       const href =
         vt === "phone" ? `tel:${value.replace(/[^\d+]/g, "") || value}`
         : vt === "email" ? `mailto:${value}`

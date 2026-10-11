@@ -81,7 +81,7 @@ A claim-grade finding requires, as applicable:
 - deterministic scope and identity validation;
 - immutable event anchoring before card promotion.
 
-Multi-source attribution is valid: identity may be established on one retrieved source and a contact value on another, provided both are explicitly cited and grounded.
+Split-source attribution may remain useful research context, but it does not by itself authorize a personal contact field. Trusted candidate-contact promotion requires at least one successful claim-grade observation that explicitly co-binds the exact person identity and exact contact value; additional independent sources may corroborate that same person-value claim.
 
 No model assertion, search snippet, copied directory entry, guessed email pattern, or synthetic URL is proof by itself.
 
