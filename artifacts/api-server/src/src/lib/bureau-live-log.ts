@@ -171,13 +171,32 @@ export async function listBureauEvents(options?: {
 }
 
 export function tryParseBureauLogLine(line: string): BureauLiveEvent | null {
-  const idx = line.indexOf("BUREAU|");
-  if (idx < 0) return null;
+  // Only recognize the exact persisted envelope produced by publishBureauEvent /
+  // appendJobLog. Never parse a marker embedded in tool output or page text.
+  const match = line.trimStart().match(/^([0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z) BUREAU\|(\{[^\r\n]*\})$/);
+  if (!match) return null;
   try {
-    const json = line.slice(idx + "BUREAU|".length);
-    const parsed = JSON.parse(json) as BureauLiveEvent;
-    if (!parsed?.title) return null;
-    return createBureauEvent(parsed);
+    const raw: unknown = JSON.parse(match[2]!);
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+    const parsed = raw as Record<string, unknown>;
+    const actors = new Set<BureauActor>(["boss", "right_hand", "web", "tool", "system", "registry", "discovery"]);
+    if (typeof parsed.actor !== "string" || !actors.has(parsed.actor as BureauActor)) return null;
+    if (typeof parsed.title !== "string" || !parsed.title.trim() || parsed.title.length > 500) return null;
+    if (typeof parsed.timestamp !== "string" || !Number.isFinite(Date.parse(parsed.timestamp))) return null;
+    for (const key of ["kind", "targetName", "provider", "why", "ask", "responseSummary", "narration"] as const) {
+      if (parsed[key] !== undefined && typeof parsed[key] !== "string") return null;
+    }
+    return createBureauEvent({
+      actor: parsed.actor as BureauActor,
+      title: parsed.title,
+      kind: typeof parsed.kind === "string" ? parsed.kind.slice(0, 80) : undefined,
+      targetName: typeof parsed.targetName === "string" ? parsed.targetName.slice(0, 160) : undefined,
+      provider: typeof parsed.provider === "string" ? parsed.provider.slice(0, 100) : undefined,
+      why: typeof parsed.why === "string" ? parsed.why.slice(0, 500) : undefined,
+      ask: typeof parsed.ask === "string" ? parsed.ask.slice(0, 500) : undefined,
+      responseSummary: typeof parsed.responseSummary === "string" ? parsed.responseSummary.slice(0, 500) : undefined,
+      timestamp: parsed.timestamp,
+    });
   } catch {
     return null;
   }
