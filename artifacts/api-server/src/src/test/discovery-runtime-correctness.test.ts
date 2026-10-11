@@ -158,7 +158,20 @@ describe("discovery runtime architecture", () => {
     expect((dynamicWrapperSource.match(/for \(const failedRecord of actResult\.trajectoryRecords\)/g) ?? []).length).toBe(2);
   });
 
-  it("classifies unexpected exceptions outside the single-action core at both wrapper boundaries", () => {\n    const dynamicWrapperSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");\n    expect((dynamicWrapperSource.match(/catch \(caught: unknown\)/g) ?? []).length).toBe(2);\n    expect(dynamicWrapperSource).toContain('let wrapperFailureStage = "continuation_preparation"');\n    expect(dynamicWrapperSource).toContain('let targetWrapperFailureStage = "continuation_preparation"');\n    expect(dynamicWrapperSource).toContain('const persistenceStage = wrapperFailureStage === "trajectory_persistence"');\n    expect(dynamicWrapperSource).toContain('const persistenceStage = targetWrapperFailureStage === "trajectory_persistence"');\n    expect(dynamicWrapperSource).toContain('action: "runtime_error"');\n    expect(dynamicWrapperSource).toContain('stopReason: "UNEXPECTED_ERROR"');\n    expect(dynamicWrapperSource).toContain('createHash("sha256")');\n    // A wrapper exception must not be relabelled as an invalid model-action contract.\n    expect(dynamicWrapperSource).not.toContain('stopReason: "PARSE_FAILURE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords');\n  });\n  it("preserves the bounded parse-failure streak across dynamic Investigator acts", () => {
+  it("classifies unexpected exceptions outside the single-action core at both wrapper boundaries", () => {
+    const dynamicWrapperSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
+    expect((dynamicWrapperSource.match(/catch \(caught: unknown\)/g) ?? []).length).toBe(2);
+    expect(dynamicWrapperSource).toContain('let wrapperFailureStage = "continuation_preparation"');
+    expect(dynamicWrapperSource).toContain('let targetWrapperFailureStage = "continuation_preparation"');
+    expect(dynamicWrapperSource).toContain('const persistenceStage = wrapperFailureStage === "trajectory_persistence"');
+    expect(dynamicWrapperSource).toContain('const persistenceStage = targetWrapperFailureStage === "trajectory_persistence"');
+    expect(dynamicWrapperSource).toContain('action: "runtime_error"');
+    expect(dynamicWrapperSource).toContain('stopReason: "UNEXPECTED_ERROR"');
+    expect(dynamicWrapperSource).toContain('createHash("sha256")');
+    // A wrapper exception must not be relabelled as an invalid model-action contract.
+    expect(dynamicWrapperSource).not.toContain('stopReason: "PARSE_FAILURE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords');
+  });
+  it("preserves the bounded parse-failure streak across dynamic Investigator acts", () => {
     const bureauPassSource = fs.readFileSync(path.join(libDir, "bureau-agentic-pass.ts"), "utf8");
     const dynamicWrapperSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
