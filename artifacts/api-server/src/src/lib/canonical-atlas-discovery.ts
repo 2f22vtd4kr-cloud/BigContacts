@@ -835,6 +835,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // all budget/iteration guards pass, at the exact point a new Investigator act starts.
         latestEvidenceBackedTerminal = null;
         failureStage = "investigator_episode";
+        const priorTrajectoryRecordCount = discovery.trajectoryRecords?.length ?? 0;
         let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [] });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), discovery.trajectoryRecords ?? []);
@@ -846,6 +847,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           iterations: nextDiscovery.iterations,
           stopReason: nextDiscovery.stopReason,
           trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
+          priorTrajectoryRecordCount,
         });
         if (episodeFailure) {
           await assertAtlasJobActive(atlasJobId);
