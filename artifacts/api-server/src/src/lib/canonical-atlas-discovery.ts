@@ -15,7 +15,7 @@ import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { formatBossDirectedObjective, validateResearchObjective } from "./research-objective";
-import { candidateIdentityObserved, normalizeCandidateIdentityName } from "./identity-text-match";
+import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateRoleCorroborationSources, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 
