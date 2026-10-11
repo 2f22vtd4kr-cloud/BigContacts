@@ -188,12 +188,13 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
       recordResult(intelligence, normalizedRecord, priorRecords);
       wrapperFailureStage = "trajectory_projection";
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
-      wrapperFailureStage = "post_action_control";
+      wrapperFailureStage = "result_aggregation";
       if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
       if (raw.findings.length) {
               const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, normalizedRecord]);
               findings = [...findings, ...(grounded as CoreResult["findings"])];
             }
+      wrapperFailureStage = "terminal_validation";
       if (isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId, consecutiveActionParseFailures };
     }
     if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") return { status: actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: actResult.stopReason, trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId, consecutiveActionParseFailures };
@@ -422,10 +423,12 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
            if (raw.action === "runtime_error") {
              return { status: "error", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "UNEXPECTED_ERROR", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: actResult.error ?? "Unexpected Investigator runtime exception.", executionId, consecutiveActionParseFailures };
            }
+           targetWrapperFailureStage = "result_aggregation";
            if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
            if (raw.findings.length) findings = [...findings, ...(groundedTerminalFindings as CoreResult["findings"])];
            for (const finding of raw.findings) if (finding.personName) knownIdentityNames.add(finding.personName.toLowerCase());
 
+           targetWrapperFailureStage = "terminal_validation";
            if (raw.action === "done" && !isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) {
              // The core may reject a model-selected terminal action when the
              // epistemic sufficiency contract is not met. Preserve that rejected
