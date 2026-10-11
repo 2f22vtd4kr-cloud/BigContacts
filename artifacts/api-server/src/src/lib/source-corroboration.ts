@@ -1,6 +1,6 @@
 import { sanitizeUrlForEvidence, sanitizeUrlsInText } from "./url-privacy";
 /** Independent source corroboration and evidence-graph primitives. */
-const AGGREGATOR_HOSTS=new Set(["zoominfo.com","apollo.io","rocketreach.co","signalhire.com","contactout.com","hunter.io","clearbit.com","lusha.com","spokeo.com","whitepages.com","beenverified.com","intelius.com","peoplefinder.com","peoplefinders.com","fastpeoplesearch.com","truepeoplesearch.com","thatsthem.com","radaris.com","crunchbase.com","pitchbook.com","dnb.com","opencorporates.com","theorg.com","veripages.com","idcrawl.com"]);
+const AGGREGATOR_HOSTS=new Set(["zoominfo.com","apollo.io","rocketreach.co","signalhire.com","contactout.com","hunter.io","clearbit.com","lusha.com","spokeo.com","whitepages.com","beenverified.com","intelius.com","peoplefinder.com","peoplefinders.com","fastpeoplesearch.com","truepeoplesearch.com","thatsthem.com","radaris.com","crunchbase.com","pitchbook.com","dnb.com","opencorporates.com","theorg.com","veripages.com","idcrawl.com","jina.ai"]);
 const SECOND_LEVEL_SUFFIXES=new Set(["co.uk","org.uk","gov.uk","ac.uk","com.au","net.au","org.au","com.br","com.cn","com.hk","com.mx","com.sg","co.jp","co.nz","co.za","com.za","com.tr"]);
 // Pragmatic registrable-root handling for common second-level labels under ccTLDs;
 // this is not a full Public Suffix List, so unfamiliar registry patterns remain a limitation.

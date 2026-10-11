@@ -51,6 +51,8 @@ describe("discovery source evidence policy", () => {
       "https://www.rocketreach.co/jane-example_email_123",
       "https://theorg.com/org/example/people/alex-lee",
       "https://apollo.io/people/jane-example",
+      "https://s.jina.ai/search?q=Jane+Example",
+      "https://r.jina.ai/https://publisher.example/team/jane",
     ]) expect(isClaimGradeDiscoverySourceUrl(url)).toBe(false);
     expect(isClaimGradeDiscoverySourceUrl("https://example.test/team/jane")).toBe(true);
     expect(isClaimGradeDiscoverySourceUrl("https://www.sec.gov/Archives/edgar/data/123/filing.htm")).toBe(true);
