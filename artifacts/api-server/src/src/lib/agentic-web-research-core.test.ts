@@ -140,6 +140,15 @@ describe("model-selectable Investigator capabilities", () => {
   });
 });
 
+describe("Investigator outbound request audit boundary", () => {
+  it("records the constructed outbound body only through the opt-in sanitized audit path", () => {
+    expect(agenticCoreSource).toContain("emitInvestigatorProviderRequestAudit({");
+    expect(agenticCoreSource).toContain("requestBody,");
+    expect(agenticCoreSource).toContain("body: JSON.stringify(requestBody)");
+    expect(agenticCoreSource).not.toContain('logger.info({ requestBody');
+  });
+});
+
 describe("Investigator prompt architecture", () => {
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
     const prompt = buildStepPrompt({
