@@ -1,5 +1,5 @@
 import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { bindExactSourceSpan, sourceLineageId } from "./research-epistemic-vnext";
 import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 
 export type CandidateSourceFinding = {
@@ -89,18 +89,25 @@ export function candidateRoleCorroborationSources(input: {
   }));
   if (!claimedUrls.size) return [];
   const supporting = new Map<string, { sourceUrl: string; publisher: string; eventId: number }>();
+  const observedLineages = new Set<string>();
   for (const observation of input.observations) {
     if ((observation.action !== "visit" && observation.action !== "browser_fetch") || observation.execution !== "success") continue;
     const sourceUrl = input.normalizeSourceUrl(observation.sourceUrl);
     if (!sourceUrl || !claimedUrls.has(sourceUrl) || !input.isClaimGradeSourceUrl(sourceUrl)) continue;
     const span = bindExactSourceSpan(observation.observation, role, input.personName, 320);
     if (!span?.exact) continue;
+    // The same co-binding passage copied to a second domain is not independent
+    // corroboration; use the exact bounded passage as a content-lineage key.
+    const passageFingerprint = span.text.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+    const lineageId = sourceLineageId(sourceUrl, passageFingerprint);
+    if (observedLineages.has(lineageId)) continue;
     let host = "";
     try { host = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, ""); } catch { continue; }
     if (isAggregatorHost(host)) continue;
     const publisher = publisherDomain(host);
-    if (!publisher || isAggregatorHost(publisher)) continue;
-    if (!supporting.has(publisher)) supporting.set(publisher, { sourceUrl, publisher, eventId: observation.eventId });
+    if (!publisher || isAggregatorHost(publisher) || supporting.has(publisher)) continue;
+    supporting.set(publisher, { sourceUrl, publisher, eventId: observation.eventId });
+    observedLineages.add(lineageId);
   }
   return [...supporting.values()];
 }
