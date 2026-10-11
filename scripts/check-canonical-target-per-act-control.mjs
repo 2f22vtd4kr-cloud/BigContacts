@@ -76,7 +76,13 @@ const checks=[
 ["Apex contact fields are explicitly enumerated at the card boundary",/DIRECT_CONTACT_FIELDS/.test(mutationGuard)&&/contactOutcome/.test(mutationGuard)&&/metadata/.test(mutationGuard)],
 ["legacy enrichment routes remain retired",/RETIRED_MUTATING_ENRICHMENT_PATHS/.test(mutationGuard)&&/status\(410\)/.test(mutationGuard)],
 ];
-checks.push(["structured intelligence only receives grounded Investigator findings",/groundedFindingsForTrajectory/.test(agentic)&&/recordResult\(intelligence, normalizedRecord, \[\.\.\.historyRecords, \.\.\.records\]\)/.test(agentic)&&/sourceObservations: history\.map/.test(agentic)&&/sourceObservationsByUrl/.test(intelligence)]);
+checks.push(["structured intelligence only receives grounded Investigator findings after durable action persistence",
+  /groundedFindingsForTrajectory\(raw\.findings/.test(agentic)
+  && /const priorRecords = \[\.\.\.historyRecords, \.\.\.records\];/.test(agentic)
+  && /recordResult\(intelligence, normalizedRecord, priorRecords\)/.test(agentic)
+  && /const priorRecords = \[\.\.\.historyRecords, \.\.\.records\];\s*records = \[\.\.\.records, normalizedRecord\];\s*(?:wrapperFailureStage|targetWrapperFailureStage) = "trajectory_persistence";\s*await input\.onTrajectoryRecord\?\.\(normalizedRecord\);\s*(?:wrapperFailureStage|targetWrapperFailureStage) = "intelligence_projection";\s*recordResult\(intelligence, normalizedRecord, priorRecords\)/.test(agentic)
+  && /sourceObservations: history\.map/.test(agentic)
+  && /sourceObservationsByUrl/.test(intelligence)]);
 checks.push(["durable target trajectory replay excludes search findings",/const rawFindings = Array\.isArray\(payload\.findings\) && !\["web_search", "parallel_web_search"\]\.includes\(action\)/.test(runner)],);
 checks.push(["target Investigator act turns resume monotonically from durable trajectory",/const durableActTurn = durableTrajectory\.records\.reduce/.test(runner)&&/const firstActNumber = Math\.max\(1, durableActTurn \+ 1\)/.test(runner)&&/for \(let actNumber = firstActNumber;/.test(runner)]);
 checks.push(["canonical target unexpected failures close the durable case",/catch \(error\)/.test(runner)&&/investigator-execution-failed/.test(runner)&&/status: "review"/.test(runner)]);
