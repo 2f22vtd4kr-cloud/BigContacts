@@ -15,12 +15,15 @@ const assert = (condition, message) => { if (!condition) failures.push(message);
 const contactStart = source.indexOf("function extractContactFactsFromHtml(");
 const loopStart = source.indexOf("export async function runAgenticWebResearch(");
 const parseStart = source.indexOf("function parseAction(");
-const contactEnd = loopStart > contactStart ? loopStart : source.length;
+const contactEnd = source.indexOf("function stripHtml(", contactStart);
 const loop = loopStart >= 0 ? source.slice(loopStart) : "";
 const toolObservationRegion = source.slice(0, Math.max(0, parseStart));
-const contact = contactStart >= 0 ? source.slice(contactStart, contactEnd) : "";
+// Scope the contact-extraction invariant to the extractor itself, not all code
+// up to the ReAct loop (which also contains schemas, prompts, and parser validation).
+const contact = contactStart >= 0 && contactEnd > contactStart ? source.slice(contactStart, contactEnd) : "";
 
 assert(contactStart >= 0, "canonical contact-facts observation extractor is missing or renamed without guard update.");
+assert(contactEnd > contactStart, "canonical contact-facts observation extractor boundary is missing or renamed without guard update.");
 assert(loopStart >= 0, "canonical Investigator ReAct loop is missing or renamed without guard update.");
 assert(parseStart >= 0, "canonical action parser boundary is missing or renamed without guard update.");
 
