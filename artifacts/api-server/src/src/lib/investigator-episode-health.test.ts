@@ -19,6 +19,25 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_no_action" });
   });
 
+  it("detects an empty continuation even when prior episodes contain trajectory records", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 0,
+      priorTrajectoryRecordCount: 6,
+      trajectoryRecords: Array.from({ length: 6 }, () => ({ action: "web_search" })),
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
+  it("does not mistake an old provider-error record for a new recovery attempt", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "unavailable",
+      iterations: 0,
+      stopReason: "LLM_UNAVAILABLE",
+      priorTrajectoryRecordCount: 1,
+      trajectoryRecords: [{ action: "investigator_provider_error" }],
+    })).toEqual({ code: "investigator_episode_unavailable_without_provider_record" });
+  });
+
   it("keeps explicit provider errors on the existing bounded provider-recovery path", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "unavailable",
