@@ -75,6 +75,8 @@ export interface ContactEvidence {
   vector: string;
   state: ContactEvidenceState;
   sourceUrls: string[];
+  /** Sources that explicitly co-bind this person's identity and this value. */
+  attributionSourceUrls?: string[];
   sourceHosts: string[];
   firstSeen: string;
   lastSeen: string;
@@ -324,7 +326,8 @@ export class ResearchIntelligenceEngine {
         .map((source) => source.url);
       if (["email", "phone", "linkedin", "website", "social"].includes(vector) && valueSourceUrls.length) {
         const locallyBound = supportedSources.some((source) => source.binding === "identity_and_value");
-        this.recordContact(vector, value, findingUrls, finding.personName ?? null, locallyBound);
+        const attributionUrls = supportedSources.filter((source) => source.binding === "identity_and_value").map((source) => source.url);
+        this.recordContact(vector, value, findingUrls, finding.personName ?? null, locallyBound, attributionUrls);
       }
     }
     if (!useful && input.execution !== "success") {
@@ -444,13 +447,24 @@ export class ResearchIntelligenceEngine {
       this.hypotheses.set(hypothesis.id, { ...hypothesis, priorScore: hypothesis.priorScore ?? hypothesis.score, supportingEvidenceIds, contradictingEvidenceIds, missingDiscriminators: [...hypothesis.missingDiscriminators].filter((value) => !legacyActionPurposes.has(normalize(value))) });
     }
     for (const contact of context.contacts) {
-      const hasLocalAttributionSupport = Boolean(contact.personName) && context.atomicEvidence.some((item) => item.kind === "finding" && item.spanBindingKind === "identity_and_value" && normalize(item.claim) === normalize(contact.personName + " " + contact.vector + " " + contact.value) && item.sourceUrl && contact.sourceUrls.includes(item.sourceUrl));
-      const restoredContactState = contact.personName && !hasLocalAttributionSupport && ["ATTRIBUTED", "CORROBORATED"].includes(contact.state) ? "DISCOVERED" : contact.state;
       const sourceUrls = [...new Set(contact.sourceUrls)].filter((url) => sourceClassForHost(hostOf(url)) !== "SEARCH_RESULT");
       if (!sourceUrls.length) continue;
+      const supportedAttributionUrls = context.atomicEvidence
+        .filter((item) => item.kind === "finding" && item.spanBindingKind === "identity_and_value"
+          && normalize(item.claim) === normalize(contact.personName + " " + contact.vector + " " + contact.value)
+          && item.sourceUrl && sourceUrls.includes(item.sourceUrl))
+        .map((item) => item.sourceUrl as string);
+      const attributionSourceUrls = [...new Set([...(contact.attributionSourceUrls ?? []), ...supportedAttributionUrls])]
+        .filter((url) => sourceUrls.includes(url));
+      const hasLocalAttributionSupport = Boolean(contact.personName) && attributionSourceUrls.length > 0;
+      let restoredContactState = contact.personName && !hasLocalAttributionSupport && ["ATTRIBUTED", "CORROBORATED"].includes(contact.state) ? "DISCOVERED" : contact.state;
+      if (contact.personName && contact.state === "CORROBORATED" && attributionSourceUrls.length) {
+        const families = new Set(attributionSourceUrls.map((url) => sourceFamily(hostOf(url))).filter((family) => family !== "unknown"));
+        if (families.size < 2) restoredContactState = "ATTRIBUTED";
+      }
       const sourceHosts = [...new Set(sourceUrls.map(hostOf).filter((host): host is string => Boolean(host)))];
       const key = contact.vector + "|" + normalize(contact.personName ?? "") + "|" + normalize(contact.value);
-      this.contacts.set(key, { ...contact, state: restoredContactState, sourceUrls, sourceHosts });
+      this.contacts.set(key, { ...contact, state: restoredContactState, sourceUrls, attributionSourceUrls, sourceHosts });
     }
     for (const negative of context.negativeFindings) this.negativeFindings.add(negative);
     for (const action of context.recentActions) this.actions.push({ ...action, args: { ...action.args }, urls: [...action.urls], findingNames: [...action.findingNames], findingRoles: [...action.findingRoles] });
@@ -556,21 +570,23 @@ export class ResearchIntelligenceEngine {
     return id;
   }
 
-  private recordContact(vector: string, value: string, urls: string[], personName: string | null, locallyBound = false): void {
+  private recordContact(vector: string, value: string, urls: string[], personName: string | null, locallyBound = false, attributionUrls: string[] = []): void {
     const key = vector + "|" + normalize(personName ?? "") + "|" + normalize(value);
     const existing = this.contacts.get(key);
     const now = new Date().toISOString();
     const canonicalUrls = [...new Set(urls.map(canonicalUrl).filter((url): url is string => Boolean(url)))];
     const hosts = [...new Set(canonicalUrls.map(hostOf).filter((host): host is string => Boolean(host)))];
+    const canonicalAttributionUrls = [...new Set(attributionUrls.map(canonicalUrl).filter((url): url is string => Boolean(url)))];
     if (existing) {
       existing.lastSeen = now;
       existing.sourceUrls = [...new Set([...existing.sourceUrls, ...canonicalUrls])];
       existing.sourceHosts = [...new Set([...existing.sourceHosts, ...hosts])];
+      existing.attributionSourceUrls = [...new Set([...(existing.attributionSourceUrls ?? []), ...canonicalAttributionUrls])];
       // Domain count alone must not convert a review-only join into attribution.
       if (locallyBound && personName) {
         existing.attributionStrength = clamp(Math.max(existing.attributionStrength, 0.85));
         if (!["REJECTED", "VERIFIED", "STALE", "CONTRADICTED"].includes(existing.state)) {
-          const families = new Set(existing.sourceUrls.map((url) => sourceFamily(hostOf(url))).filter((family) => family !== "unknown"));
+          const families = new Set((existing.attributionSourceUrls ?? []).map((url) => sourceFamily(hostOf(url))).filter((family) => family !== "unknown"));
           existing.state = families.size >= 2 ? "CORROBORATED" : "ATTRIBUTED";
         }
       } else if (!personName) {
@@ -581,11 +597,11 @@ export class ResearchIntelligenceEngine {
     this.contacts.set(key, {
       personName, value, vector,
       state: personName ? (locallyBound ? "ATTRIBUTED" : "DISCOVERED") : "OBSERVED",
-      sourceUrls: canonicalUrls, sourceHosts: hosts, firstSeen: now, lastSeen: now,
+      sourceUrls: canonicalUrls, attributionSourceUrls: canonicalAttributionUrls, sourceHosts: hosts, firstSeen: now, lastSeen: now,
       attributionStrength: personName ? (locallyBound ? 0.85 : 0.25) : 0.45,
     });
   }
-  private countNewHosts(urls: string[]): number { const known = new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean)); return urls.map(hostOf).filter((host): host is string => Boolean(host) && !known.has(host)).length; }
+  private countNewHosts(urls: string[]): number { const known = new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean)); const newHosts = new Set(urls.map(hostOf).filter((host): host is string => Boolean(host) && !known.has(host))); return newHosts.size; }
 
   private reconcileContradictions(): void {
     const grouped = new Map<string, IntelligenceEvidence[]>();
