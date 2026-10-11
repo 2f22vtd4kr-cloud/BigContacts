@@ -142,7 +142,8 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain('stopReason: "UNEXPECTED_ERROR"');
     expect(researchCoreSource).toContain('domain: "unexpected_programming_error" as const');
     expect(researchCoreSource).toContain("failureDomain: runtimeFailureClassification.domain");
-    expect(researchCoreSource).toContain('failureKind: "unexpected_exception"');
+    expect(researchCoreSource).toContain('kind: "unexpected_exception" as const');
+    expect(researchCoreSource).toContain("failureKind: runtimeFailureClassification.kind");
     expect(researchCoreSource).toContain("runtimeStage");
     expect(researchCoreSource).toContain('runtimeStage === "trajectory_persistence"');
     expect(researchCoreSource).toContain('runtimeStage === "external_page_fetch"');
