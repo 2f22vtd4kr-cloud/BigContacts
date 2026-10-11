@@ -174,6 +174,17 @@ describe("Apex research intelligence", () => {
     expect(state.hypotheses.flatMap((hypothesis) => hypothesis.missingDiscriminators)).not.toContain("Discriminate the Alpha affiliation from competing identities");
   });
 
+  it("restores cumulative action-yield learning across durable contexts", () => {
+    const original = new ResearchIntelligenceEngine({ executionId: "yield-original", target: "Jordan Example", objective: "resolve identity" });
+    original.recordAction({ turn: 1, action: "web_search", execution: "success", args: { purpose: "find official biography", hypothesis: "Jordan is the director" }, urls: ["https://registry.example.gov/jordan"], observation: "Jordan Example is director", findings: [{ vectorType: "other", value: "director", personName: "Jordan Example", role: "director", sourceUrls: ["https://registry.example.gov/jordan"] }] });
+    original.recordAction({ turn: 2, action: "web_search", execution: "error", args: { purpose: "find official biography", hypothesis: "Jordan is the director" }, urls: [], observation: "provider timeout", findings: [] });
+    const before = original.buildContext();
+    expect(before.actionYieldStats?.length).toBeGreaterThan(0);
+    const resumed = new ResearchIntelligenceEngine({ executionId: "yield-resumed", target: "Jordan Example", objective: "resolve identity" });
+    resumed.restoreContext(before);
+    expect(resumed.buildContext().actionYield).toEqual(before.actionYield);
+  });
+
   it("restores durable epistemic state without selecting a new action", () => {
     const original = new ResearchIntelligenceEngine({ executionId: "resume-original", target: "Jordan Example", objective: "resume investigation" });
     original.recordAction({ turn: 1, action: "web_search", execution: "success", args: { hypothesis: "Jordan Example is tied to Alpha", purpose: "verify the affiliation" }, urls: ["https://registry.example.gov/jordan"], observation: "Jordan Example is director of Alpha", findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: ["https://registry.example.gov/jordan"] }] });
