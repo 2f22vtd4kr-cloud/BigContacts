@@ -5,7 +5,7 @@
  */
 import { logger } from "./logger";
 import { publishDigSpan, completeDigSpan, spanFromLiveStep } from "./dig-span";
-import { runAgenticWebResearch, type AgenticTrajectoryRecord } from "./agentic-web-research";
+import { runAgenticWebResearch } from "./agentic-web-research";
 import { recordDiscoveryTrace } from "./investigator-trace";
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 
@@ -62,7 +62,7 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, 
   const sourceUrls = (candidate.sourceUrls ?? []).map(normalizeUrl);
   return sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(url)) && hasIndependentSource(sourceUrls);
 }
-type DiscoverySourceRecord = Pick<AgenticTrajectoryRecord, "action" | "execution" | "observedUrls">;
+type DiscoverySourceRecord = { action: string; execution: string; observedUrls: readonly string[] };
 
 function normalizedObservedPageUrl(value: string): string | null {
   try {
