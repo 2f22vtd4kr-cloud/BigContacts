@@ -186,25 +186,24 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
     const ws = process.env.PLAYWRIGHT_WS_ENDPOINT ?? "";
     const browser: any = ws ? await pw.chromium.connectOverCDP(ws) : await pw.chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
     try {
-      // Block service-worker traffic: Playwright's page routing is not an egress
-      // boundary for requests issued by an uncontrolled service worker.
+      // Install egress controls on the entire context before opening any page.
+      // Page-level routing can miss popups/new pages created by the visited site.
+      // Service workers are blocked because their requests need not pass through
+      // a page-level route.
       const context = await browser.newContext({ serviceWorkers: "block" });
       try {
-        const page = await context.newPage();
-        await page.route("**/*", async (route: any) => {
+        await context.route("**/*", async (route: any) => {
           await fulfillPlaywrightRequestThroughPinnedTransport(route, signal);
         });
-        // WebSockets are not covered by page.route("**/*"). Fail closed if this
-        // Playwright build cannot intercept them, otherwise a visited page could
-        // reach internal services without passing through DNS pinning.
-        const routeWebSocket = (page as any).routeWebSocket;
+        // WebSocket routing is context-wide too, so popups cannot bypass HTTP pinning.
+        const routeWebSocket = (context as any).routeWebSocket;
         if (typeof routeWebSocket !== "function") {
-          throw new Error("Playwright WebSocket interception is required for safe browser fetch.");
+          throw new Error("Playwright context WebSocket interception is required for safe browser fetch.");
         }
-        await routeWebSocket.call(page, "**/*", (socket: any) => {
+        await routeWebSocket.call(context, "**/*", (socket: any) => {
           socket.close({ code: 1008, reason: "WebSocket egress is disabled for research fetches." });
         });
-        await page.addInitScript(() => {
+        await context.addInitScript(() => {
           const disabledTransport = class {
             constructor() { throw new Error("Peer-to-peer transports are disabled for research fetches."); }
           };
