@@ -389,7 +389,7 @@ function rodStatus(id: string, atlasState: AtlasLiveState | null | undefined, li
   // Live bureau activity is telemetry-driven. Missing/empty telemetry means
   // "no tool observed yet", never "infer the old pipeline".
   if (liveNodes) {
-    if (atlasState?.runStatus === "queued") return "queued";
+    if (atlasState?.runStatus === "queued") return id === "target" ? "queued" : "idle";
     if (atlasState?.runStatus === "failed" && liveNodes.has(id)) return "failed";
     if (atlasState?.runStatus === "cancelled") return "idle";
     if (atlasState?.runStatus === "done") return liveNodes.has(id) ? "completed" : "idle";
