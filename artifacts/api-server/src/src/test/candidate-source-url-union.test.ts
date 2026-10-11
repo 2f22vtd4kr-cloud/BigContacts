@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { candidateSourceUrlsForIdentity, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "../lib/candidate-source-url-union";
+import { candidateRoleCorroborationSources, candidateSourceUrlsForIdentity, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "../lib/candidate-source-url-union";
 
 function normalizeSourceUrl(raw: string): string | null {
   try {
@@ -37,7 +37,50 @@ describe("candidate source URL union", () => {
   });
 });
 
-describe("discovery source evidence policy", () => {
+describe("discovery source evidence policy", () => {  it("requires the same candidate role on two independent direct source observations", () => {
+    const findings = [{
+      personName: "Jane Example", role: "Chief Executive Officer",
+      promotionDecision: "promote" as const, scope: "candidate" as const,
+      sourceUrls: ["https://leadership.alpha.test/jane", "https://profiles.alpha.test/jane", "https://company-beta.test/team", "https://directory-gamma.test/jane"],
+    }];
+    const normalize = (raw: string) => {
+      try { const url = new URL(raw); if (url.protocol !== "https:") return null; url.hash = ""; return url.href.endsWith("/") ? url.href.slice(0,-1) : url.href; }
+      catch { return null; }
+    };
+    const observations = [
+      { action: "visit", execution: "success", sourceUrl: "https://leadership.alpha.test/jane", observation: "Jane Example is the Chief Executive Officer of Alpha.", eventId: 10 },
+      { action: "browser_fetch", execution: "success", sourceUrl: "https://profiles.alpha.test/jane", observation: "Jane Example is the Chief Executive Officer of Alpha.", eventId: 11 },
+      { action: "visit", execution: "success", sourceUrl: "https://company-beta.test/team", observation: "Jane Example is the Chief Executive Officer of Beta.", eventId: 12 },
+      { action: "visit", execution: "success", sourceUrl: "https://directory-gamma.test/jane", observation: "Jane Example appears here, but no role is stated.", eventId: 13 },
+      { action: "web_search", execution: "success", sourceUrl: "https://search-delta.test/jane", observation: "Jane Example is the Chief Executive Officer.", eventId: 14 },
+    ];
+    expect(candidateRoleCorroborationSources({
+      personName: "Jane Example", role: "Chief Executive Officer", findings, observations,
+      isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl, normalizeSourceUrl: normalize,
+    })).toEqual([
+      { sourceUrl: "https://leadership.alpha.test/jane", publisher: "alpha.test", eventId: 10 },
+      { sourceUrl: "https://company-beta.test/team", publisher: "company-beta.test", eventId: 12 },
+    ]);
+  });
+
+  it("rejects a name-only second source and does not let search actions corroborate", () => {
+    const findings = [{
+      personName: "Jane Example", role: "Chief Executive Officer",
+      promotionDecision: "promote" as const, scope: "candidate" as const,
+      sourceUrls: ["https://leadership.alpha.test/jane", "https://company-beta.test/team"],
+    }];
+    const normalize = (raw: string) => { try { const url = new URL(raw); url.hash = ""; return url.href.endsWith("/") ? url.href.slice(0,-1) : url.href; } catch { return null; } };
+    expect(candidateRoleCorroborationSources({
+      personName: "Jane Example", role: "Chief Executive Officer", findings,
+      observations: [
+        { action: "visit", execution: "success", sourceUrl: "https://leadership.alpha.test/jane", observation: "Jane Example is Chief Executive Officer.", eventId: 1 },
+        { action: "visit", execution: "success", sourceUrl: "https://company-beta.test/team", observation: "Jane Example is mentioned here.", eventId: 2 },
+      ],
+      isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl, normalizeSourceUrl: normalize,
+    })).toHaveLength(1);
+  });
+
+
   it("requires HTTPS and rejects search-result endpoints as candidate claim evidence", () => {
     expect(isClaimGradeDiscoverySourceUrl("http://example.test/team/jane")).toBe(false);
     expect(isClaimGradeDiscoverySourceUrl("https://example.test/team/jane")).toBe(true);
