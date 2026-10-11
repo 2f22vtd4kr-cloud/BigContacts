@@ -10,7 +10,7 @@ import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences, sanitizeUrlsInText } from "./url-privacy";
 import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError } from "./provider-error-diagnostics";
-import { classifyInvestigatorProviderError, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
+import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
 import { renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
@@ -1906,7 +1906,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       : runtimeStage === "tool_execution"
         ? { domain: "tool_execution" as const, kind: "request_failure" as const }
         : runtimeStage === "model_request"
-          ? classifyInvestigatorProviderError(classifyThrownProviderError(error))
+          ? classifyCanonicalAtlasFailure({ stage: "oversight_control_decision", error })
           : { domain: "unexpected_programming_error" as const, kind: "unexpected_exception" as const };
     const runtimeFailureRecord: AgenticTrajectoryRecord = {
       turn: Math.max(priorTurnOffset, ...records.map((record) => record.turn)) + 1,
