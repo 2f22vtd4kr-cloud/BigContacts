@@ -19,6 +19,15 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_no_action" });
   });
 
+  it("rejects a continuation with a positive iteration count but no newly emitted trajectory", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 3,
+      priorTrajectoryRecordCount: 6,
+      trajectoryRecords: Array.from({ length: 6 }, () => ({ action: "web_search" })),
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
   it("detects an empty continuation even when prior episodes contain trajectory records", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "completed",
