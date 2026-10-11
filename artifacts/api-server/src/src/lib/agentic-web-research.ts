@@ -269,6 +269,8 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
       let consecutiveActionParseFailures = Math.min(MAX_CONSECUTIVE_ACTION_PARSE_FAILURES - 1, Math.max(0, Number.isFinite(input.initialConsecutiveActionParseFailures) ? Math.floor(input.initialConsecutiveActionParseFailures!) : 0));
       let direction: string | null = initialDirection.valid ? initialDirection.direction : null;
       let oversight: TargetActOversight | null = null;
+       let targetWrapperFailureStage = "continuation_preparation";
+       let targetAttemptedActionTurn = 0;
        let actionsSinceCheckpoint = 0;
        const knownIdentityNames = new Set<string>();
        for (const historicalRecord of historyRecords) {
@@ -325,7 +327,10 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
        try {
        const requestedMaxActionTurns = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_TARGET_ACTION_TURNS;
        const maxActionTurns = Math.min(MAX_TARGET_ACTION_TURNS, Math.max(0, requestedMaxActionTurns));
-       for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
+       try {
+for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
+         targetWrapperFailureStage = "continuation_preparation";
+         targetAttemptedActionTurn = actionTurn;
          if (overallController.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "cancelled by operator", executionId, consecutiveActionParseFailures };
          const remaining = deadline - Date.now();
          if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: `hard timeout ${requestedHardTimeout}ms`, executionId, consecutiveActionParseFailures };
@@ -345,7 +350,9 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            onLiveStep: (step) => input.onLiveStep?.(step),
            onTrajectoryRecord: undefined,
          };
+         targetWrapperFailureStage = "core_execution";
          const actResult = await core.runAgenticWebResearch(actInput);
+         targetWrapperFailureStage = "result_normalization";
          consecutiveActionParseFailures = actResult.consecutiveActionParseFailures ?? consecutiveActionParseFailures;
          model = actResult.model;
          searches += actResult.searches;
@@ -357,9 +364,12 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            for (const failedRecord of actResult.trajectoryRecords) {
              const priorRecords = [...historyRecords, ...records];
              const normalizedFailureRecord = { ...failedRecord, findings: groundedFindingsForTrajectory(failedRecord.findings as AgenticFinding[], [...priorRecords, { ...failedRecord, turn: failedRecord.turn }]) };
+             targetWrapperFailureStage = "intelligence_projection";
              recordResult(intelligence, normalizedFailureRecord, priorRecords);
              records = [...records, normalizedFailureRecord];
+             targetWrapperFailureStage = "trajectory_persistence";
              await input.onTrajectoryRecord?.(normalizedFailureRecord);
+             targetWrapperFailureStage = "post_action_control";
            }
            trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
            return { status: "error", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "UNEXPECTED_ERROR", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: actResult.error ?? "Unexpected Investigator runtime exception.", executionId, consecutiveActionParseFailures };
@@ -377,20 +387,28 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              normalizedRecord.execution = "blocked";
              normalizedRecord.findings = [];
              normalizedRecord.observation = "Terminal claim verification blocked the stop: at least one Investigator finding was not supported by successfully observed cited material. Continue research and verify each claim before stopping.";
+             targetWrapperFailureStage = "intelligence_projection";
              recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
              records = [...records, normalizedRecord];
+             targetWrapperFailureStage = "trajectory_persistence";
              await input.onTrajectoryRecord?.(normalizedRecord);
+             targetWrapperFailureStage = "trajectory_projection";
              actionsSinceCheckpoint += 1;
              trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `VERIFICATION_BLOCKED:turn=${actionTurn}:ungrounded_terminal_claim`, `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
-             const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
+             targetWrapperFailureStage = "oversight_control_decision";
+           const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
+           targetWrapperFailureStage = "post_action_control";
              if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq oversight unavailable after terminal verification block.", executionId, consecutiveActionParseFailures };
              if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq Boss stopped the investigation after a blocked terminal claim; no ungrounded findings were accepted.", executionId, consecutiveActionParseFailures };
              continue;
            }
 
-           recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
+           targetWrapperFailureStage = "intelligence_projection";
+             recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
            records = [...records, normalizedRecord];
+            targetWrapperFailureStage = "trajectory_persistence";
             await input.onTrajectoryRecord?.(normalizedRecord);
+            targetWrapperFailureStage = "trajectory_projection";
            actionsSinceCheckpoint += 1;
            trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
            // A synthetic runtime_error record is durable diagnostic evidence, not a completed research act.
@@ -409,7 +427,9 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              // oversight must not turn a blocked terminal claim into completion.
              continue;
            }
+           targetWrapperFailureStage = "oversight_control_decision";
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
+           targetWrapperFailureStage = "post_action_control";
            if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight unavailable", executionId, consecutiveActionParseFailures };
            if (callerOwnsOversight && isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId };
            if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight stopped the investigation before an Investigator-selected terminal action.", executionId, consecutiveActionParseFailures };
@@ -422,7 +442,29 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          }
        }
        return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId, consecutiveActionParseFailures };
-} finally {
+
+       } catch (caught: unknown) {
+         if (overallController.signal.aborted) {
+           return { status: input.signal?.aborted ? "cancelled" : "timeout", model, iterations: targetAttemptedActionTurn, searches, visits, findings, modelFindings, stopReason: input.signal?.aborted ? "CANCELLED" : "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: input.signal?.aborted ? "cancelled by operator" : `hard timeout ${requestedHardTimeout}ms`, executionId, consecutiveActionParseFailures };
+         }
+         const thrown = caught instanceof Error ? caught : new Error("non_error_throwable");
+         const digest = createHash("sha256").update(`${thrown.name}:${thrown.message}`).digest("hex").slice(0, 16);
+         const persistenceStage = targetWrapperFailureStage === "trajectory_persistence";
+         const failureDomain = persistenceStage ? "persistence_database" as const : "unexpected_programming_error" as const;
+         const summary = `unexpected_exception stage=${targetWrapperFailureStage} type=${thrown.name || "Error"} digest=${digest}`;
+         const runtimeFailureRecord: CoreResult["trajectoryRecords"][number] = {
+           turn: Math.max(0, ...historyRecords.map((record) => record.turn), ...records.map((record) => record.turn)) + 1,
+           model, action: "runtime_error", args: { stage: targetWrapperFailureStage }, execution: "error", observation: summary,
+           observedUrls: [], findings: [], providerFallback: [], failureDomain, failureKind: "unexpected_exception", stopReason: "UNEXPECTED_ERROR",
+         };
+         records = [...records, runtimeFailureRecord];
+         trajectory = [...trajectory, `step${Math.max(1, targetAttemptedActionTurn)}: runtime_error execution=error stage=${targetWrapperFailureStage}`];
+         if (!persistenceStage) {
+           try { await input.onTrajectoryRecord?.(runtimeFailureRecord); }
+           catch { /* Preserve the primary failure; terminal persistence reports any secondary write failure. */ }
+         }
+         return { status: "error", model, iterations: targetAttemptedActionTurn, searches, visits, findings, modelFindings, stopReason: "UNEXPECTED_ERROR", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: summary, executionId, consecutiveActionParseFailures };
+       }} finally {
         clearTimeout(deadlineTimer);
         input.signal?.removeEventListener("abort", abortExternal);
       }
