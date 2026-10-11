@@ -463,3 +463,35 @@ describe("Atlas control-plane contract regression", () => {
   });
 
 });
+
+describe("discovery trajectory turn persistence", () => {
+  it("preserves globally numbered Investigator records and only offsets local history text", () => {
+    expect(agenticCoreSource).toContain("turn: priorTurnOffset + i + 1");
+    expect(bureauPassSource).toContain("turn:Math.max(1,Number(record.turn)||1)");
+    expect(bureauPassSource).not.toContain("turn:baseIteration+Math.max(1,Number(record.turn)||1)");
+    expect(bureauPassSource).toContain("step${trajectoryTurnOffset+Number(numberString)}:");
+    expect(bureauPassSource).toContain("trajectoryTurnOffset:0,finalize:false");
+    expect(bureauPassSource).toContain("trajectoryTurnOffset:discoveryTurnOffset,finalize:true");
+    expect(bureauPassSource).toContain("const discoveryTurnOffset=Math.max(0,...(input.priorTrajectoryRecords??[]).map((record)=>record.turn));");
+    expect(bureauPassSource).not.toContain("baseIteration");
+  });
+});
+
+describe("canonical Investigator continuation failure handling", () => {
+  it("does not allow an errored or empty continuation to fall through into another Boss control turn", () => {
+    expect(canonicalDiscoverySource).toContain("classifyInvestigatorEpisodeFailure({");
+    expect(canonicalDiscoverySource).toContain('currentAction: "canonical-investigator-episode-failed"');
+    expect(canonicalDiscoverySource).toContain("investigator-episode-failure:control:");
+    expect(canonicalDiscoverySource).toContain("trajectoryRecordCount");
+    expect(canonicalDiscoverySource).toContain('!["done", "parse_failure", "investigator_provider_error"].includes(record.action)');
+    expect(canonicalDiscoverySource).toContain('record.execution !== "selected"');
+    expect(canonicalDiscoverySource).toContain('record.execution !== "blocked"');
+    expect(canonicalDiscoverySource).toContain("const newTrajectoryRecords = nextDiscovery.trajectoryRecords ?? [];");
+    expect(canonicalDiscoverySource).toContain("const newTrajectoryRecordCount = newTrajectoryRecords.length;");
+    expect(canonicalDiscoverySource).toContain("investigatorActionExecuted,");
+    expect(canonicalDiscoverySource).not.toContain("priorTrajectoryRecordCount");
+    expect(canonicalDiscoverySource).toContain("failureDomain: diagnostic.domain");
+    expect(canonicalDiscoverySource).toContain("await clearActiveJobIfOwned(lockKey, atlasJobId);");
+    expect(canonicalDiscoverySource).toContain("return { phase: 3, ingested: 0, enriched: materialized");
+  });
+});

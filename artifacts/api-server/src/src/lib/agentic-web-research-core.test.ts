@@ -140,6 +140,15 @@ describe("model-selectable Investigator capabilities", () => {
   });
 });
 
+describe("Investigator outbound request audit boundary", () => {
+  it("records the constructed outbound body only through the opt-in sanitized audit path", () => {
+    expect(agenticCoreSource).toContain("emitInvestigatorProviderRequestAudit({");
+    expect(agenticCoreSource).toContain("requestBody,");
+    expect(agenticCoreSource).toContain("body: JSON.stringify(requestBody)");
+    expect(agenticCoreSource).not.toContain('logger.info({ requestBody');
+  });
+});
+
 describe("Investigator prompt architecture", () => {
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
     const prompt = buildStepPrompt({
@@ -186,6 +195,11 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries.");
     expect(prompt).toContain("Search snippets remain leads, not evidence.");
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
+    expect(prompt).toContain("VALID DISCOVERY FINDING SHAPE (placeholders only; never emit placeholder values)");
+    expect(prompt).toContain("<exact full name from fetched page>");
+    expect(prompt).toContain("<exact fetched non-search HTTPS URL from independent source 2>");
+    expect(prompt).toContain("two independent evidence/source units");
+    expect(prompt).toContain("successful falsification-intent action");
     expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
     expect(prompt).toContain("minEvidence=2; minIndependentSourceUnits=2");
     expect(prompt).toContain("requireFalsification=true");
