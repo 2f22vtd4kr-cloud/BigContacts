@@ -179,7 +179,7 @@ function parseAtlasEventLog(raw: unknown) {
       const event = JSON.parse(payload);
       return { ...event, timestamp, raw: text };
     } catch {
-      if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(text)) {
+          if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(t)) {
         return { kind: "log", timestamp, raw: text };
       }
       const cleaned = text
