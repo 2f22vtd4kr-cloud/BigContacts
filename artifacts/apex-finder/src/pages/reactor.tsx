@@ -17,6 +17,7 @@ import { useBureauLiveDesk } from "../lib/use-bureau-live";
 import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-data";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 import { readApiJson } from "@/lib/api-json";
+import { parseReactorAtlasPoll } from "@/lib/reactor-page-atlas-poll";
 import { ReactorLiveSurface } from "../components/reactor-live-surface";
 import { ReactorMark } from "../components/reactor-mark";
 
@@ -55,7 +56,7 @@ interface AutoPipelineScheduler {
 }
 
 interface AtlasLiveState {
-  runStatus: "running" | "paused" | "done" | "failed" | "cancelled";
+  runStatus: "queued" | "running" | "paused" | "done" | "failed" | "cancelled";
   phase: number;
   phaseLabel: string;
   phaseProgress: number;
@@ -178,7 +179,7 @@ function parseAtlasEventLog(raw: unknown) {
       const event = JSON.parse(payload);
       return { ...event, timestamp, raw: text };
     } catch {
-      if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(text)) {
+          if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(text)) {
         return { kind: "log", timestamp, raw: text };
       }
       const cleaned = text
@@ -388,6 +389,7 @@ function rodStatus(id: string, atlasState: AtlasLiveState | null | undefined, li
   // Live bureau activity is telemetry-driven. Missing/empty telemetry means
   // "no tool observed yet", never "infer the old pipeline".
   if (liveNodes) {
+    if (atlasState?.runStatus === "queued") return id === "target" ? "queued" : "idle";
     if (atlasState?.runStatus === "failed" && liveNodes.has(id)) return "failed";
     if (atlasState?.runStatus === "cancelled") return "idle";
     if (atlasState?.runStatus === "done") return liveNodes.has(id) ? "completed" : "idle";
@@ -537,7 +539,8 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
   const failed = atlasState?.runStatus === "failed";
   const cancelled = atlasState?.runStatus === "cancelled";
   const done = atlasState?.runStatus === "done";
-  const color = failed ? "#fb7185" : cancelled ? "#fbbf24" : done ? "#b8ff4d" : "#9CFF1A";
+  const queued = atlasState?.runStatus === "queued";
+  const color = failed ? "#fb7185" : cancelled ? "#fbbf24" : done ? "#b8ff4d" : queued ? "#526b86" : "#9CFF1A";
   return (
     <div style={{
       display:"flex", alignItems:"center", gap:6, minWidth:0,
@@ -547,7 +550,7 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
       <span style={{
         width:5, height:5, borderRadius:"50%", flexShrink:0,
          background:color, boxShadow:`0 0 7px ${color}`,
-         animation:failed || cancelled || done ? "none" : motionOrNone("blink .8s ease-in-out infinite"),
+         animation:failed || cancelled || done || queued ? "none" : motionOrNone("blink .8s ease-in-out infinite"),
       }} />
       <span style={{
          fontSize: compact ? 10 : 12, letterSpacing:"0.08em", color,
@@ -644,6 +647,7 @@ function formatDate(iso: string) {
 
 function AtlasPhaseStrip({ state, liveNodes, compact = false }: { state?: AtlasLiveState | null; liveNodes?: Set<string>; compact?: boolean }) {
   const running = Boolean(state && (state.runStatus === "running" || state.runStatus === "paused"));
+  const queued = state?.runStatus === "queued";
   const activeCount = liveNodes?.size ?? 0;
   const source = state?.sourceStep != null ? `SOURCE ${state.sourceStep}` : activeCount ? `${activeCount} LIVE TOOLS` : "AWAITING TOOL EVENT";
   const telemetryProgress = state && Number.isFinite(state.phaseProgress) && Number.isFinite(state.phaseTotal) && state.phaseTotal > 0
@@ -653,7 +657,7 @@ function AtlasPhaseStrip({ state, liveNodes, compact = false }: { state?: AtlasL
     <div style={{ display:"flex", flexDirection:"column", gap:compact ? 5 : 7, minWidth:0, width:"100%" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
         <span style={{ fontSize: compact ? 11 : 12, letterSpacing:"0.16em", color:"#526b86" }}>
-          {running ? "FREE DIG · ACTIVITY" : state?.runStatus === "done" ? "FREE DIG · RECORDED" : "FREE DIG · STANDBY"}
+          {queued ? "FREE DIG · QUEUED" : running ? "FREE DIG · ACTIVITY" : state?.runStatus === "done" ? "FREE DIG · RECORDED" : "FREE DIG · STANDBY"}
         </span>
         <span style={{ fontSize: compact ? 10 : 12, letterSpacing:"0.12em", color:running ? "#9CFF1A" : "#3a5070" }}>{source}</span>
       </div>
@@ -2518,6 +2522,34 @@ export default function IntelligenceReactorPage() {
           .catch(() => null),
       ]);
 
+      // The active-job response is a validated wrapper; details and spans live
+      // on their own canonical, job-scoped endpoints. Unknown status is not idle.
+      const atlasPoll = parseReactorAtlasPoll(atlasData);
+      let atlasJobDetail: Record<string, unknown> | null = null;
+      let atlasRecentSpans: DigSpanView[] = [];
+      if (atlasPoll?.jobId) {
+        const jobId = atlasPoll.jobId;
+        const [jobDetail, traceSnapshot] = await Promise.all([
+          fetch(`${BASE}/api/ingest/job/${encodeURIComponent(jobId)}`, { cache: "no-store" })
+            .then(async r => {
+              if (!r.ok) return null;
+              const data = await readApiJson(r) as Record<string, unknown>;
+              return data;
+            })
+            .catch(() => null),
+          fetch(`${BASE}/api/ingest/atlas-trace/${encodeURIComponent(jobId)}`, { cache: "no-store" })
+            .then(async r => {
+              if (!r.ok) return null;
+              return await readApiJson(r) as Record<string, unknown>;
+            })
+            .catch(() => null),
+        ]);
+        if (jobDetail && jobDetail.jobId === jobId) atlasJobDetail = jobDetail;
+        if (traceSnapshot && traceSnapshot.jobId === jobId && Array.isArray(traceSnapshot.trace)) {
+          atlasRecentSpans = traceSnapshot.trace as DigSpanView[];
+        }
+      }
+
       // ── Key exhaustion ────────────────────────────────────────────────────────
       if (sysData?.ai) {
         const LABELS: Record<string, string> = { groq: "Groq", perplexity: "Perplexity", gemini: "Gemini", tavily: "Tavily", exa: "Exa", serper: "Serper", mistral: "Mistral" };
@@ -2538,45 +2570,42 @@ export default function IntelligenceReactorPage() {
       const labels: string[] = [];
       let nextAtlasState: AtlasLiveState | null = null;
 
-      // ── Atlas job (step + content-aware for 21-source pipeline) ─────────────
-       if (atlasData?.jobId && ["running", "paused", "done", "failed", "cancelled"].includes(atlasData.status)) {
-        const msg: string = atlasData.message ?? "";
-         const runStatus =
-           atlasData.status === "failed" ? "failed"
-           : atlasData.status === "cancelled" ? "cancelled"
-           : atlasData.status === "done" ? "done"
-           : atlasData.status === "paused" ? "paused"
-           : "running";
+      if (atlasPoll && atlasPoll.runStatus !== "idle" && atlasPoll.jobId) {
+        // Use the detail endpoint when available, but bind it to the same job ID.
+        // The validated active-job payload is a safe fallback for status/message;
+        // logs and DigSpans stay empty unless their real endpoints return them.
+        const jobData = atlasJobDetail ?? atlasPoll.job;
+        const msg = typeof jobData.message === "string" ? jobData.message : "";
+        const runStatus = atlasPoll.runStatus;
         const structured = parseAtlasLiveState(
           msg,
-          Number(atlasData.atlasPhase ?? atlasData.progress ?? 0),
-          Number(atlasData.atlasPhaseTotal ?? 10),
-           runStatus,
+          Number(jobData.atlasPhase ?? jobData.progress ?? 0),
+          Number(jobData.atlasPhaseTotal ?? jobData.total ?? 10),
+          runStatus,
         );
-         const structuredNames = parseEntityNames(atlasData.entityNames);
-         const atlasTelemetry = parseAtlasTelemetry(atlasData.atlasTelemetry);
+        const structuredNames = parseEntityNames(jobData.entityNames);
+        const atlasTelemetry = parseAtlasTelemetry(jobData.atlasTelemetry);
         nextAtlasState = {
           ...structured,
-          entityProgress: atlasData.entityProgress != null ? Number(atlasData.entityProgress) : null,
-          entityTotal: atlasData.entityTotal != null ? Number(atlasData.entityTotal) : null,
-            currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
-            phaseJ: atlasData.phaseJ ?? null,
-            scheduler: atlasData.scheduler ?? undefined,
-            atlasTelemetry,
-            eventLog: parseAtlasEventLog(atlasData.log),
-            recentSpans: Array.isArray(atlasData.recentSpans) ? atlasData.recentSpans : [],
+          entityProgress: jobData.entityProgress != null ? Number(jobData.entityProgress) : null,
+          entityTotal: jobData.entityTotal != null ? Number(jobData.entityTotal) : null,
+          currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,
+          phaseJ: (jobData.phaseJ as AtlasLiveState["phaseJ"]) ?? null,
+          scheduler: (jobData.scheduler as AutoPipelineScheduler | undefined),
+          atlasTelemetry,
+          eventLog: parseAtlasEventLog(atlasJobDetail?.log),
+          recentSpans: atlasRecentSpans,
         };
-         // The parent message is real progress text. It is not a tool/activity
-         // event, so it must not light individual Atlas nodes by keyword.
+
+        // This is the only status text for a queued job; queueing is not research activity.
         const stepMatch = msg.match(/\[(\d+)\/(\d+)\]/);
         const plainMsg = (raw: string) => {
           let t = raw.replace(/\s+/g, " ").trim();
-          if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|\"kind\"\s*:\s*\"telemetry\"/i.test(t)) {
+          if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(t)) {
             return "Live event received";
           }
           t = t.replace(/^Phase\s+\d+\/[^:]+:\s*/i, "");
           t = t.replace(/^[🤖\s]+/, "");
-          // Internal phase codes → spoken English
           t = t
             .replace(/PHASE\s*J\s*[·•-]?\s*J4\s*DOMAIN\s*RESOLUTION/i, "Checking websites for this person")
             .replace(/ADAPTIVE\s+RESEARCH\s+DIRECTOR/i, "Choosing what to research next")
@@ -2587,11 +2616,14 @@ export default function IntelligenceReactorPage() {
             .replace(/AI\s+WEB\s+OSINT/i, "Searching the public web");
           return t.slice(0, 90) || "Research in progress";
         };
-        if (stepMatch) {
-          const stepN  = parseInt(stepMatch[1], 10);
-          const total  = parseInt(stepMatch[2], 10);
+        if (runStatus === "queued") {
+          labels.push("Queued");
+          setLivePhaseDetail("Queued — waiting for the active job to begin");
+        } else if (stepMatch) {
+          const stepN = parseInt(stepMatch[1], 10);
+          const total = parseInt(stepMatch[2], 10);
           const detail = plainMsg(msg.slice(stepMatch[0].length).trim().replace(/…$/, ""));
-          // [n/total] is batch target index from orchestrator — NOT a fixed dig step plan
+          // [n/total] is a target index from the orchestrator, not a tool plan.
           labels.push(`▶ Target ${stepN}/${total}: ${detail.slice(0, 55)}`);
           setLivePhaseDetail(`Target ${stepN} of ${total} in this run — ${detail.slice(0, 70)}`);
         } else {
@@ -2599,17 +2631,14 @@ export default function IntelligenceReactorPage() {
           labels.push(`▶ ${detail.slice(0, 70)}`);
           setLivePhaseDetail(detail);
         }
-        if (atlasData.status === "paused") {
+        if (runStatus === "paused") {
           setLivePhaseDetail((prev) => prev ? `Paused — ${prev}` : "Paused — waiting for resume");
           labels.push("⏸ Paused");
         }
-        // Spans are the activity source of truth. Telemetry/status/log text is
-        // deliberately not translated into tool activity: free-ReAct has no
-        // phase/tool inference layer.
-        const fromSpans = schemeNodesFromSpans(nextAtlasState?.recentSpans);
-        if (runStatus === "running" || runStatus === "paused") {
-          nodes.add("target");
-        }
+        // Only actual active spans light individual tools; job text is not evidence
+        // that a particular capability ran.
+        const fromSpans = schemeNodesFromSpans(nextAtlasState.recentSpans);
+        if (runStatus === "running" || runStatus === "paused") nodes.add("target");
         for (const id of fromSpans) nodes.add(id);
         if (fromSpans.size > 0) labels.push("Free dig tools active");
       }
@@ -2622,51 +2651,49 @@ export default function IntelligenceReactorPage() {
         if (job.label) labels.push(job.label);
       }
 
-      // Integrity: light scheme ONLY while Atlas status is running/paused.
-      // Idle/done/failed/cancelled → hard clear (no LIVE theater after process stops).
-      const runOk =
-        Boolean(nextAtlasState) &&
-        (nextAtlasState!.runStatus === "running" || nextAtlasState!.runStatus === "paused");
-      if (runOk) {
-        const fromSpans = schemeNodesFromSpans(nextAtlasState?.recentSpans);
-        if (fromSpans.size > 0) setLiveNodes(fromSpans);
-        else if (nodes.size > 0) setLiveNodes(nodes);
-        else setLiveNodes(new Set());
-        setLiveLabel(labels.join(" · ") || (fromSpans.size ? "Free dig tools active" : "Live"));
-      } else {
-        setLiveNodes(new Set());
-        setLiveLabel("");
-        setLivePhaseDetail("");
-      }
-      // If API reports idle with no job body, wipe atlas state so LIVE cannot stick
-      if (!atlasData?.jobId || atlasData?.status === "idle") {
+      // Only a validated status snapshot may mutate the Atlas projection.
+      // API/network/parser failures preserve the last known state instead of
+      // manufacturing an idle run. An explicit valid idle snapshot may clear it.
+      if (atlasPoll?.runStatus === "idle") {
         setAtlasState(null);
         setLiveNodes(new Set());
         setLiveLabel("");
         setLivePhaseDetail("");
-      } else {
-        // Live Desk: load presented contacts for current target entityId
+      } else if (atlasPoll && nextAtlasState) {
+        const runOk =
+          nextAtlasState.runStatus === "running" || nextAtlasState.runStatus === "paused";
+        if (runOk) {
+          const fromSpans = schemeNodesFromSpans(nextAtlasState.recentSpans);
+          if (fromSpans.size > 0) setLiveNodes(fromSpans);
+          else if (nodes.size > 0) setLiveNodes(nodes);
+          else setLiveNodes(new Set());
+          setLiveLabel(labels.join(" · ") || (fromSpans.size ? "Free dig tools active" : "Live"));
+        } else {
+          setLiveNodes(new Set());
+          setLiveLabel(nextAtlasState.runStatus === "queued" ? "Queued" : "");
+          setLivePhaseDetail(nextAtlasState.runStatus === "queued" ? nextAtlasState.detail : "");
+        }
+
+        // Enrich the view only from an entity ID carried by validated stored telemetry.
         try {
-          const eid = Number(nextAtlasState?.atlasTelemetry?.entityId);
+          const eid = Number(nextAtlasState.atlasTelemetry?.entityId);
           if (Number.isFinite(eid) && eid > 0) {
-            const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
             const cr = await fetch(`${BASE}/api/entities/${eid}`, { credentials: "include" });
             if (cr.ok) {
-              const ej = await cr.json();
-              if (Array.isArray(ej?.contacts) && ej.contacts.length) {
-                nextAtlasState = { ...nextAtlasState, cardContacts: ej.contacts };
+              const ej = await readApiJson(cr) as Record<string, unknown>;
+              if (Array.isArray(ej.contacts) && ej.contacts.length) {
+                nextAtlasState = { ...nextAtlasState, cardContacts: ej.contacts as Array<Record<string, unknown>> };
               }
-              if (!nextAtlasState.atlasTelemetry) nextAtlasState.atlasTelemetry = {};
               nextAtlasState.atlasTelemetry = {
-                ...nextAtlasState.atlasTelemetry,
-                cardPhone: nextAtlasState.atlasTelemetry.cardPhone ?? ej?.phone,
-                cardEmail: nextAtlasState.atlasTelemetry.cardEmail ?? ej?.email,
-                cardLinkedin: nextAtlasState.atlasTelemetry.cardLinkedin ?? ej?.linkedinUrl,
-                phoneSource: nextAtlasState.atlasTelemetry.phoneSource ?? ej?.phoneSource,
+                ...(nextAtlasState.atlasTelemetry ?? {}),
+                cardPhone: nextAtlasState.atlasTelemetry?.cardPhone ?? ej.phone,
+                cardEmail: nextAtlasState.atlasTelemetry?.cardEmail ?? ej.email,
+                cardLinkedin: nextAtlasState.atlasTelemetry?.cardLinkedin ?? ej.linkedinUrl,
+                phoneSource: nextAtlasState.atlasTelemetry?.phoneSource ?? ej.phoneSource,
               };
             }
           }
-        } catch { /* non-fatal */ }
+        } catch { /* A contact-card enrichment failure does not rewrite run status. */ }
         setAtlasState(nextAtlasState);
       }
   }, []);
