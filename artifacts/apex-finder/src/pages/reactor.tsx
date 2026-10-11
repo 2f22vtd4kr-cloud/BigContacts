@@ -179,7 +179,7 @@ function parseAtlasEventLog(raw: unknown) {
       const event = JSON.parse(payload);
       return { ...event, timestamp, raw: text };
     } catch {
-          if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(t)) {
+          if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(text)) {
         return { kind: "log", timestamp, raw: text };
       }
       const cleaned = text
@@ -2601,7 +2601,7 @@ export default function IntelligenceReactorPage() {
         const stepMatch = msg.match(/\[(\d+)\/(\d+)\]/);
         const plainMsg = (raw: string) => {
           let t = raw.replace(/\s+/g, " ").trim();
-          if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|\\"kind\\"\s*:\s*\\"telemetry\\"/i.test(t)) {
+          if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(t)) {
             return "Live event received";
           }
           t = t.replace(/^Phase\s+\d+\/[^:]+:\s*/i, "");
