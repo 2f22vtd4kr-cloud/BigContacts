@@ -192,6 +192,7 @@ describe("discovery runtime architecture", () => {
     // The dynamic discovery wrapper invokes the core one action at a time, so it must carry the counter across those calls.
     expect(dynamicWrapperSource).toContain("initialConsecutiveActionParseFailures: consecutiveActionParseFailures");
     expect(dynamicWrapperSource).toContain("consecutiveActionParseFailures = actResult.consecutiveActionParseFailures ?? consecutiveActionParseFailures");
+    expect(dynamicWrapperSource).toContain('job.cancelRequested || job.status === "cancelled"');
     expect((dynamicWrapperSource.match(/initialConsecutiveActionParseFailures: consecutiveActionParseFailures/g) ?? []).length).toBe(2);
     expect((dynamicWrapperSource.match(/consecutiveActionParseFailures = actResult\.consecutiveActionParseFailures/g) ?? []).length).toBe(2);
     const targetLoopStart = dynamicWrapperSource.indexOf("const MAX_TARGET_ACTION_TURNS");
