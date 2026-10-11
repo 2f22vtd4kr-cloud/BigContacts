@@ -22,6 +22,33 @@ describe("research intelligence atomic evidence", () => {
     expect(context.contacts).toHaveLength(0);
   });
 
+  it("does not apply ambiguous contact feedback across people sharing the same value", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "shared-contact-feedback", target: "Shared Contact", objective: "preserve person attribution" });
+    engine.recordAction({
+      turn: 1, action: "visit", execution: "success",
+      urls: ["https://alice.example.test/profile"],
+      observation: "Alice Example email shared@example.test",
+      findings: [{ vectorType: "email", value: "shared@example.test", personName: "Alice Example", sourceUrls: ["https://alice.example.test/profile"] }],
+    });
+    engine.recordAction({
+      turn: 2, action: "visit", execution: "success",
+      urls: ["https://bob.example.test/profile"],
+      observation: "Bob Example email shared@example.test",
+      findings: [{ vectorType: "email", value: "shared@example.test", personName: "Bob Example", sourceUrls: ["https://bob.example.test/profile"] }],
+    });
+
+    engine.recordFeedback({ outcome: "successful_outreach", value: "shared@example.test" });
+    let contacts = engine.buildContext().contacts.filter((contact) => contact.value === "shared@example.test");
+    expect(contacts.find((contact) => contact.personName === "Alice Example")?.state).toBe("ATTRIBUTED");
+    expect(contacts.find((contact) => contact.personName === "Bob Example")?.state).toBe("ATTRIBUTED");
+    expect(engine.getFeedbackStats().successful_outreach).toBe(1);
+
+    engine.recordFeedback({ outcome: "successful_outreach", value: "shared@example.test", personName: "Alice Example", vector: "email" });
+    contacts = engine.buildContext().contacts.filter((contact) => contact.value === "shared@example.test");
+    expect(contacts.find((contact) => contact.personName === "Alice Example")?.state).toBe("VERIFIED");
+    expect(contacts.find((contact) => contact.personName === "Bob Example")?.state).toBe("ATTRIBUTED");
+  });
+
   it("rejects model findings attached directly to search actions", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "search-finding", target: "Ada Example", objective: "Resolve identity" });
     engine.recordAction({

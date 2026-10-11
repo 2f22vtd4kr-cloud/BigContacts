@@ -105,6 +105,9 @@ export interface IntelligenceMissionBrief {
 export interface ResearchFeedback {
   outcome: "useful" | "wrong_person" | "duplicate" | "outdated" | "bounced" | "successful_outreach" | "rejected";
   value?: string;
+  /** Optional disambiguators: value-only feedback must not mutate multiple people's records. */
+  personName?: string | null;
+  vector?: string;
   sourceHost?: string;
   note?: string;
 }
@@ -438,12 +441,18 @@ export class ResearchIntelligenceEngine {
   recordFeedback(feedback: ResearchFeedback): void {
     this.feedback.push({ ...feedback });
     if (feedback.value) {
-      const matchingContacts = [...this.contacts.values()].filter((contact) => normalize(contact.value) === normalize(feedback.value!));
-      for (const contact of matchingContacts) {
-        if (feedback.outcome === "wrong_person" || feedback.outcome === "rejected") contact.state = "REJECTED";
-        else if (feedback.outcome === "outdated" || feedback.outcome === "bounced") contact.state = "STALE";
-        else if (feedback.outcome === "successful_outreach") contact.state = "VERIFIED";
-      }
+      const matchingContacts = [...this.contacts.values()].filter((contact) =>
+        normalize(contact.value) === normalize(feedback.value!)
+        && (feedback.personName === undefined || normalize(contact.personName ?? "") === normalize(feedback.personName ?? ""))
+        && (feedback.vector === undefined || normalize(contact.vector) === normalize(feedback.vector)),
+      );
+      // Contact state includes person attribution, so ambiguous value-only
+      // feedback must not mutate every person record sharing the same value.
+      if (matchingContacts.length !== 1) return;
+      const contact = matchingContacts[0]!;
+      if (feedback.outcome === "wrong_person" || feedback.outcome === "rejected") contact.state = "REJECTED";
+      else if (feedback.outcome === "outdated" || feedback.outcome === "bounced") contact.state = "STALE";
+      else if (feedback.outcome === "successful_outreach") contact.state = "VERIFIED";
     }
   }
 
