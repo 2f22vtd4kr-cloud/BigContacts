@@ -8,7 +8,7 @@ import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences, sanitizeUrlsInText } from "./url-privacy";
-import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership } from "./provider-gate";
+import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError } from "./provider-error-diagnostics";
 import { classifyInvestigatorProviderError, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
@@ -1257,7 +1257,7 @@ function investigatorKeyConfiguredForCapability(capability: InvestigatorCapabili
   return Boolean(keyName && process.env[keyName]?.trim());
 }
 
-async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+async function llmStepImpl(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   try {
     await acquireProviderSlot(parentSignal);
   } catch (error) {
@@ -1291,6 +1291,9 @@ async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapa
       return { ...result, fallback: [] };
     } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); }
   } finally { releaseProviderSlot(); }
+}
+async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+  return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId));
 }
 function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.length) return "(none yet)"; return findings.map((f) => `- ${f.vectorType}: ${f.value} (${f.scope})${f.personName ? ` person=${f.personName}` : ""}${f.role ? ` role=${f.role}` : ""}${f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : ""}`).join("\n"); }
 const AGENTIC_STRUCTURED_SCHEMA = {
