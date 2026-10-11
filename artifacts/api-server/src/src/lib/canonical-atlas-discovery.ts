@@ -132,7 +132,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       const supportingSourceUrls = supportingSources.map((support) => support.sourceUrl);
       const existingEvidenceRows = await tx.select({ id: researchEvidenceTable.id, sourceUrl: researchEvidenceTable.sourceUrl, metadata: researchEvidenceTable.metadata })
         .from(researchEvidenceTable)
-        .where(and(eq(researchEvidenceTable.entityId, entityId), inArray(researchEvidenceTable.sourceUrl, supportingSourceUrls)));
+        .where(and(eq(researchEvidenceTable.entityId, entityId), eq(researchEvidenceTable.claimType, "identity_candidate"), inArray(researchEvidenceTable.sourceUrl, supportingSourceUrls)));
       const existingByUrl = new Map(existingEvidenceRows.map((row) => [normalizeSourceUrl(String(row.sourceUrl ?? "")), row]));
       let addedEvidence = 0;
       let durableSourceCount = 0;
