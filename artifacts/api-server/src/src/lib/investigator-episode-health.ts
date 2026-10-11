@@ -31,7 +31,7 @@ export function classifyInvestigatorEpisodeFailure(
   ) {
     return { code: "investigator_episode_unavailable_without_provider_record" };
   }
-  if (input.status !== "cancelled" && input.iterations <= 0 && newRecords.length === 0) {
+  if (input.status !== "cancelled" && newRecords.length === 0) {
     return { code: "investigator_episode_no_action" };
   }
   return null;
