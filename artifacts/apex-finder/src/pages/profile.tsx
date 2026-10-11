@@ -400,7 +400,7 @@ export default function ApexProfile() {
     return () => { cancelled = true; };
   }, [entityId, baseUrl, contactEvidenceKey, entity]);
 
-  const handleRejectContact = async (field: string) => {
+  const handleRejectContact = async (field: string, expectedValue: string) => {
     const step = rejectStep[field] ?? 0;
     if (step < 1) { setRejectStep(prev => ({ ...prev, [field]: 1 })); return; }
     if (step < 2) { setRejectStep(prev => ({ ...prev, [field]: 2 })); return; }
@@ -409,14 +409,14 @@ export default function ApexProfile() {
       const resp = await fetch(`${baseUrl}/api/entities/${entityId}/reject-contact`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ field }),
+        body: JSON.stringify({ field, expectedValue }),
       });
       if (!resp.ok) throw new Error("Request failed");
       setShowContactEvidence(false); setRejectStep({});
       await refetchEntity();
       // Free Atlas dig for a replacement public route (not web-osint force path)
       void handleRunResearch();
-    } catch { setRejectError("Could not remove that contact — try again"); }
+    } catch { setRejectError("Could not remove that exact value. Refresh the profile and review its provenance before retrying."); }
     finally { setRejectLoading(false); }
   };
   // ── Relationship modal ─────────────────────────────────────────────────────
@@ -1366,7 +1366,6 @@ export default function ApexProfile() {
                 { field: "instagramHandle", label: "Instagram",  value: e2.instagramHandle },
                 { field: "telegramHandle",  label: "Telegram",   value: e2.telegramHandle },
                 { field: "personalWebsite", label: "Website",    value: e2.personalWebsite },
-                { field: "foundationName",  label: "Foundation", value: e2.foundationName },
               ].filter(f => !!f.value);
 
               return (
@@ -1377,7 +1376,7 @@ export default function ApexProfile() {
                       How we found these contacts
                     </div>
                     <div className="text-[12px] text-muted-foreground/60 leading-relaxed">
-                      Each contact below includes a plain-English explanation of the research steps. If something looks wrong, flag it to remove it permanently.
+                      Each contact below includes a plain-English explanation of the research steps. A value can be removed only when the exact displayed value still matches its trusted evidence provenance.
                     </div>
                   </div>
                   <div className="px-3 py-2 border-b border-[#9CFF1A]/10">
@@ -1442,7 +1441,7 @@ export default function ApexProfile() {
                           </div>
                           <div className="flex-shrink-0 flex items-center gap-1.5 flex-wrap justify-end pt-0.5">
                             {step === 0 && (
-                              <button onClick={() => handleRejectContact(field)}
+                              <button onClick={() => handleRejectContact(field, value)}
                                 className="text-[11px] font-mono px-2 py-1 rounded border border-red-500/30 text-red-400/60 hover:text-red-400 hover:border-red-500/50 transition-colors whitespace-nowrap">
                                 Flag as incorrect
                               </button>
@@ -1471,7 +1470,7 @@ export default function ApexProfile() {
                   })}
                   {rejectError && <div className="px-3 py-2 text-[12px] font-mono text-red-400">{rejectError}</div>}
                   <div className="px-3 py-2 border-t border-[#9CFF1A]/10">
-                    <span className="text-[11px] text-muted-foreground/40">Flagging a contact as incorrect automatically re-runs the research pipeline to search for a replacement.</span>
+                    <span className="text-[11px] text-muted-foreground/40">Removing a provenance-bound contact marks its matching evidence rejected, then starts a fresh canonical research run for a replacement.</span>
                     {isEnriching && (
                       <div className="mt-1.5 flex items-center gap-1.5">
                         <Loader2 className="w-3 h-3 animate-spin text-primary" />
