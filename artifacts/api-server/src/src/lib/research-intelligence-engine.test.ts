@@ -29,4 +29,47 @@ describe("ResearchIntelligenceEngine", () => {
     expect(rendered).toContain("RESEARCH INTELLIGENCE STATE");
     expect(rendered).toContain("omitted middle detail remains durable");
   });
+  it("does not convert a completed action purpose into a permanent terminal question", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "purpose-is-not-a-gap", target: "Jane Example", objective: "Verify the person's role" });
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      args: { hypothesis: "Jane Example is CFO", purpose: "verify Jane's current CFO role" },
+      execution: "success",
+      urls: ["https://company.example/team"],
+      observation: "Jane Example — Chief Financial Officer",
+      findings: [],
+    });
+
+    const state = engine.buildContext();
+    const hypothesis = state.hypotheses.find((item) => item.label === "Jane Example is CFO");
+    expect(hypothesis?.missingDiscriminators).not.toContain("verify Jane's current CFO role");
+    expect(state.openQuestions).not.toContain("verify Jane's current CFO role");
+    expect(state.recentActions[0]?.args.purpose).toBe("verify Jane's current CFO role");
+  });
+
+  it("cleans the legacy action-purpose blocker when restoring durable context", () => {
+    const original = new ResearchIntelligenceEngine({ executionId: "legacy-purpose", target: "Jane Example", objective: "Verify the person's role" });
+    original.recordAction({
+      turn: 1,
+      action: "visit",
+      args: { hypothesis: "Jane Example is CFO", purpose: "verify Jane's current CFO role" },
+      execution: "success",
+      urls: ["https://company.example/team"],
+      observation: "Jane Example — Chief Financial Officer",
+      findings: [],
+    });
+    const legacy = original.buildContext();
+    const hypothesis = legacy.hypotheses.find((item) => item.label === "Jane Example is CFO");
+    expect(hypothesis).toBeDefined();
+    hypothesis!.missingDiscriminators = ["verify Jane's current CFO role"];
+
+    const resumed = new ResearchIntelligenceEngine({ executionId: "legacy-purpose-resumed", target: "Jane Example", objective: "Verify the person's role" });
+    resumed.restoreContext(legacy);
+    const state = resumed.buildContext();
+    expect(state.openQuestions).not.toContain("verify Jane's current CFO role");
+    expect(state.hypotheses.find((item) => item.label === "Jane Example is CFO")?.missingDiscriminators).not.toContain("verify Jane's current CFO role");
+    expect(state.recentActions[0]?.args.purpose).toBe("verify Jane's current CFO role");
+  });
+
 });

@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import type { NextFunction, Request, Response } from "express";
 
-const rows = vi.hoisted(() => ({ current: [] as Array<{ id: number; type: string }> }));
+type MockEntity = { id: number; type: string; email?: string | null; phone?: string | null; contactOutcome?: string | null; contactConfidence?: number | null; metadata?: string | null };
+const rows = vi.hoisted(() => ({ current: [] as MockEntity[] }));
 
 vi.mock("@workspace/db", () => ({
   db: {
     select: () => ({
       from: () => ({
         where: () => {
-          const result = [...rows.current] as Array<{ id: number; type: string }> & {
+          const result = [...rows.current] as MockEntity[] & {
             limit: () => Promise<Array<{ id: number; type: string }>>;
           };
           result.limit = async () => rows.current.slice(0, 1);
@@ -36,7 +37,7 @@ type TestResponse = {
   json: (body: unknown) => TestResponse;
 };
 
-function invoke(input: { method: string; path: string; params?: Record<string, string>; body?: unknown; rows?: Array<{ id: number; type: string }> }) {
+function invoke(input: { method: string; path: string; params?: Record<string, string>; body?: unknown; rows?: MockEntity[] }) {
   rows.current = input.rows ?? [];
   const response: TestResponse = {
     statusCode: 200,
@@ -95,6 +96,35 @@ describe("legacy Apex mutation boundary", () => {
       path: "/entities/7/merge/8",
       params: { id: "7", targetId: "8" },
       rows: [{ id: 7, type: "HNWI" }, { id: 8, type: "Corporation" }],
+    });
+    expect(result.response.statusCode).toBe(409);
+    expect(result.nextCalled).toBe(false);
+  });
+
+  it("blocks direct contact edits to PersonCandidate entities", async () => {
+    const result = await invoke({
+      method: "PATCH", path: "/entities/7", params: { id: "7" },
+      body: { email: "unverified@example.com" },
+      rows: [{ id: 7, type: "PersonCandidate" }],
+    });
+    expect(result.response.statusCode).toBe(409);
+    expect(result.nextCalled).toBe(false);
+  });
+
+  it("blocks downgrading a contact-bearing HNWI to PersonCandidate", async () => {
+    const result = await invoke({
+      method: "PATCH", path: "/entities/7", params: { id: "7" },
+      body: { type: "PersonCandidate" },
+      rows: [{ id: 7, type: "HNWI", email: "existing@example.com" }],
+    });
+    expect(result.response.statusCode).toBe(409);
+    expect(result.nextCalled).toBe(false);
+  });
+
+  it("blocks a merge involving a PersonCandidate", async () => {
+    const result = await invoke({
+      method: "POST", path: "/entities/7/merge/8", params: { id: "7", targetId: "8" },
+      rows: [{ id: 7, type: "PersonCandidate" }, { id: 8, type: "Corporation" }],
     });
     expect(result.response.statusCode).toBe(409);
     expect(result.nextCalled).toBe(false);

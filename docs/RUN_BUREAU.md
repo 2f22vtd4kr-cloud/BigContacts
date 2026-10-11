@@ -30,7 +30,13 @@
 
 ## 2. Operator authentication
 
-Before using Apex, configure `APEX_OPERATOR_PASSWORD` (16+ characters), `APEX_API_AUTH_TOKEN` (32+), and `APEX_SESSION_SECRET` (32+ and stable across replicas/restarts). Run `node scripts/replit-preflight.mjs` to check provider and auth secret presence/length without printing values. Missing authentication is a fail-closed blocker; do not bypass the middleware.
+**Current Replit deployment contract (effective 2026-10-10): app-level operator authentication is intentionally disabled.** The active route aggregator in `artifacts/api-server/src/src/routes/index.ts` does not mount operator-auth routes or `requireOperatorAuth`; `scripts/replit-preflight.mjs` checks only active provider/integration secret presence. Do not treat `APEX_OPERATOR_PASSWORD`, `APEX_API_AUTH_TOKEN`, or `APEX_SESSION_SECRET` as required secrets for the current deployment.
+
+This is an explicit deployment choice, not a claim that the API is protected: the desk opens directly and anyone who can reach the deployment URL can call operational endpoints. Do not expose the current deployment to an untrusted public audience. The canonical research, provider-role, provenance, admission, cancellation, and durable-persistence guards remain in place.
+
+Operator-auth implementation files remain in the repository but are not mounted by the active route aggregator. Do not infer active authentication from the presence of those legacy files. Run `node scripts/replit-preflight.mjs` to check the active provider/integration secret contract without printing values.
+
+**Release boundary:** this deployment-specific choice does not override §9. A public production release still requires an explicitly verified safe authentication/exposure boundary; the current unauthenticated Replit deployment does not meet that requirement for untrusted public access.
 
 ## 3. First-time schema initialization
 

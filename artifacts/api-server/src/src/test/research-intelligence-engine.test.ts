@@ -62,6 +62,35 @@ describe("Apex research intelligence", () => {
     expect(state.contacts).toContainEqual(expect.objectContaining({ personName: "John Smith", value: "john.smith@example.com", state: "DISCOVERED", sourceUrls: expect.arrayContaining([identityUrl, contactUrl]) }));
   });
 
+  it("corroborates contact attribution only across independent sources that bind the full identity-value pair", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "contact-specific-corroboration", target: "Jane Smith", objective: "verify a personal contact" });
+    const identityUrl = "https://company.example/team";
+    const valueUrl = "https://support.example.net/contact";
+    const boundUrl = "https://industry.example.org/leadership";
+    const contactFinding = { vectorType: "email", value: "jane.smith@company.example", personName: "Jane Smith", role: "CFO", sourceUrls: [identityUrl, valueUrl, boundUrl] };
+    const history = [
+      { turn: 1, action: "visit", execution: "success", observation: "Jane Smith is CFO.", urls: [identityUrl] },
+      { turn: 2, action: "visit", execution: "success", observation: "Email: jane.smith@company.example", urls: [valueUrl] },
+      { turn: 3, action: "visit", execution: "success", observation: "Jane Smith — CFO; email: jane.smith@company.example", urls: [boundUrl] },
+    ];
+    engine.recordAction({ ...history[0]!, args: {}, findings: [contactFinding] });
+    engine.recordAction({ ...history[2]!, args: {}, findings: [contactFinding], sourceObservations: history });
+    let contact = engine.buildContext().contacts.find((item) => item.value === contactFinding.value);
+    expect(contact?.state).toBe("ATTRIBUTED");
+    expect(contact?.attributionSourceUrls).toEqual([boundUrl]);
+
+    const secondBoundUrl = "https://news.example.net/people/jane-smith";
+    engine.recordAction({
+      turn: 4, action: "visit", execution: "success", args: {},
+      observation: "Jane Smith is CFO. Direct email: jane.smith@company.example",
+      urls: [secondBoundUrl],
+      findings: [{ ...contactFinding, sourceUrls: [secondBoundUrl] }],
+    });
+    contact = engine.buildContext().contacts.find((item) => item.value === contactFinding.value);
+    expect(contact?.state).toBe("CORROBORATED");
+    expect(contact?.attributionSourceUrls).toEqual(expect.arrayContaining([boundUrl, secondBoundUrl]));
+  });
+
   it("does not label a long-page co-occurrence as an exact identity/value binding", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "long-page-nonbinding", target: "John Smith", objective: "verify contact" });
     const sourceUrl = "https://company.example/directory";
@@ -170,6 +199,19 @@ describe("Apex research intelligence", () => {
     expect(state.hypotheses.some((hypothesis) => hypothesis.label === "Jordan Example may be the director of Alpha")).toBe(true);
     expect(state.recentActions[0]?.args.hypothesis).toBe("Jordan Example may be the director of Alpha");
     expect(state.researchQuestions.some((question) => question.question.includes("Discriminate the Alpha affiliation"))).toBe(true);
+    expect(state.openQuestions).not.toContain("Discriminate the Alpha affiliation from competing identities");
+    expect(state.hypotheses.flatMap((hypothesis) => hypothesis.missingDiscriminators)).not.toContain("Discriminate the Alpha affiliation from competing identities");
+  });
+
+  it("restores cumulative action-yield learning across durable contexts", () => {
+    const original = new ResearchIntelligenceEngine({ executionId: "yield-original", target: "Jordan Example", objective: "resolve identity" });
+    original.recordAction({ turn: 1, action: "web_search", execution: "success", args: { purpose: "find official biography", hypothesis: "Jordan is the director" }, urls: ["https://registry.example.gov/jordan"], observation: "Jordan Example is director", findings: [{ vectorType: "other", value: "director", personName: "Jordan Example", role: "director", sourceUrls: ["https://registry.example.gov/jordan"] }] });
+    original.recordAction({ turn: 2, action: "web_search", execution: "error", args: { purpose: "find official biography", hypothesis: "Jordan is the director" }, urls: [], observation: "provider timeout", findings: [] });
+    const before = original.buildContext();
+    expect(before.actionYieldStats?.length).toBeGreaterThan(0);
+    const resumed = new ResearchIntelligenceEngine({ executionId: "yield-resumed", target: "Jordan Example", objective: "resolve identity" });
+    resumed.restoreContext(before);
+    expect(resumed.buildContext().actionYield).toEqual(before.actionYield);
   });
 
   it("restores durable epistemic state without selecting a new action", () => {

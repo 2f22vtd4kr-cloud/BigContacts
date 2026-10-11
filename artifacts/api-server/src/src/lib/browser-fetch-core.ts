@@ -34,6 +34,36 @@ export function isBrowserFetchProviderAvailable(provider: BrowserProvider): bool
   return getAvailableBrowserFetchProviders().includes(provider);
 }
 const MAX_BROWSER_RESPONSE_BYTES = 2_000_000;
+export type PlaywrightEgressBudget = { requestCount: number; responseBytes: number; inFlight: number };
+export const MAX_PLAYWRIGHT_SUBREQUESTS = 64;
+export const MAX_PLAYWRIGHT_TOTAL_BYTES = 8_000_000;
+export const MAX_PLAYWRIGHT_CONCURRENT_REQUESTS = 4;
+export function createPlaywrightEgressBudget(): PlaywrightEgressBudget {
+  return { requestCount: 0, responseBytes: 0, inFlight: 0 };
+}
+export function reservePlaywrightRequest(budget: PlaywrightEgressBudget): boolean {
+  if (budget.requestCount >= MAX_PLAYWRIGHT_SUBREQUESTS || budget.inFlight >= MAX_PLAYWRIGHT_CONCURRENT_REQUESTS) return false;
+  budget.requestCount += 1;
+  budget.inFlight += 1;
+  return true;
+}
+export function releasePlaywrightRequest(budget: PlaywrightEgressBudget): void {
+  budget.inFlight = Math.max(0, budget.inFlight - 1);
+}
+export function accountPlaywrightResponseBytes(budget: PlaywrightEgressBudget, bytes: number): boolean {
+  if (!Number.isSafeInteger(bytes) || bytes < 0 || budget.responseBytes + bytes > MAX_PLAYWRIGHT_TOTAL_BYTES) return false;
+  budget.responseBytes += bytes;
+  return true;
+}
+export function isBrowserRedirectResponse(status: number, location: string | null): boolean {
+  return status >= 300 && status < 400 && Boolean(location?.trim());
+}
+export function isSafeBrowserFetchMethod(method: string): boolean {
+  return ["GET", "HEAD"].includes(method.trim().toUpperCase());
+}
+export function isUsableBrowserHtml(html: string): boolean {
+  return html.length > 100 && Buffer.byteLength(html, "utf8") <= MAX_BROWSER_RESPONSE_BYTES;
+}
 const MAX_BROWSER_FETCH_SCOPES = 256;
 export function isChallengeHtml(html: string): boolean { if (!html || html.length < 40) return false; const head = html.slice(0, 8_000).toLowerCase(); return (/just a moment/.test(head) && /cloudflare/.test(head)) || /cf-browser-verification|cf-challenge|attention required!\s*\|\s*cloudflare/.test(head) || (/enable javascript and cookies to continue/.test(head) && html.length < 30_000) || /^HTTP 403/.test(html) || /^HTTP 503/.test(html); }
 function maxBrowserFetches(): number { const n = Number(process.env.BROWSER_FETCH_MAX_PER_CASE ?? "5"); return Number.isFinite(n) && n > 0 ? Math.min(n, 20) : 5; }
@@ -47,14 +77,17 @@ function throwIfAborted(signal?: AbortSignal): void { if (signal?.aborted) throw
 function raceAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> { if (!signal) return promise; return new Promise<T>((resolve, reject) => { const abort = () => reject(new Error("browser fetch cancelled")); if (signal.aborted) return abort(); signal.addEventListener("abort", abort, { once: true }); void promise.then((v) => { signal.removeEventListener("abort", abort); resolve(v); }, (e) => { signal.removeEventListener("abort", abort); reject(e); }); }); }
 async function readResponseTextCapped(response: Response, signal?: AbortSignal): Promise<string> { throwIfAborted(signal); const declared = Number(response.headers.get("content-length") ?? NaN); if (Number.isFinite(declared) && declared > MAX_BROWSER_RESPONSE_BYTES) throw new Error(`browser response exceeds ${MAX_BROWSER_RESPONSE_BYTES} byte limit`); const reader = response.body?.getReader(); if (!reader) return (await response.text()).slice(0, MAX_BROWSER_RESPONSE_BYTES); const chunks: Uint8Array[] = []; let bytes = 0; try { for (;;) { throwIfAborted(signal); const part = await reader.read(); if (part.done) break; bytes += part.value.byteLength; if (bytes > MAX_BROWSER_RESPONSE_BYTES) { await reader.cancel().catch(() => undefined); throw new Error(`browser response exceeds ${MAX_BROWSER_RESPONSE_BYTES} byte limit`); } chunks.push(part.value); } } finally { reader.releaseLock(); } return new TextDecoder().decode(Buffer.concat(chunks.map((x) => Buffer.from(x)))); }
 async function readJsonCapped<T>(response: Response, signal?: AbortSignal): Promise<T> { return JSON.parse(await readResponseTextCapped(response, signal)) as T; }
-async function verifiedProviderFinalUrl(rawUrl: unknown): Promise<string | null> {
+async function verifiedProviderFinalUrl(rawUrl: unknown, signal?: AbortSignal): Promise<string | null> {
+  throwIfAborted(signal);
   if (typeof rawUrl !== "string" || !rawUrl.trim()) return null;
   try {
     const parsed = new URL(rawUrl.trim());
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
-    await assertSafeOutboundUrl(parsed.href);
+    await assertSafeOutboundUrl(parsed.href, signal);
+    throwIfAborted(signal);
     return sanitizeUrlForEvidence(parsed.href);
   } catch {
+    if (signal?.aborted) throw new Error("browser fetch cancelled");
     return null;
   }
 }
@@ -71,10 +104,13 @@ async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<Brow
     const resp = await providerFetch("scrapfly", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal);
     if (!resp.ok) return { html: null, observedUrl: null };
     const data = await readJsonCapped<{ result?: { content?: string; url?: string } }>(resp, signal);
-    const html = data?.result?.content ?? "";
-    const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
+    const rawHtml = data?.result?.content;
+    // Provider JSON is untrusted runtime input despite the generic response type.
+    // Only actual text may be exposed as an observed document.
+    const html = typeof rawHtml === "string" ? rawHtml : "";
+    const usable = isUsableBrowserHtml(html);
     const reportedUrl = data?.result?.url;
-    const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl) : null;
+    const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl, signal) : null;
     // If the provider reports a destination, failure to validate that destination
     // means the returned document must not be exposed to the model at all. Missing
     // navigation metadata remains lead-only, but a known unsafe redirect fails closed.
@@ -101,9 +137,9 @@ async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<Brows
     const resp = await providerFetch("zenrows", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal);
     if (!resp.ok) return { html: null, observedUrl: null };
     const html = await readResponseTextCapped(resp, signal);
-    const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
+    const usable = isUsableBrowserHtml(html);
     const reportedUrl = resp.headers.get("Zr-Final-Url");
-    const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl) : null;
+    const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl, signal) : null;
     // A known but unsafe redirect invalidates the document itself, not just its
     // provenance label. Missing final-URL metadata remains lead-only.
     if (usable && reportedUrl?.trim() && !observedUrl) {
@@ -119,13 +155,16 @@ async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<Brows
 async function fetchViaBrowserlessContent(url: string, signal?: AbortSignal): Promise<string | null> { const token = process.env.BROWSERLESS_TOKEN ?? ""; if (!token) return null; throwIfAborted(signal); try { const endpoint = process.env.BROWSERLESS_CONTENT_URL ?? `https://production-sfo.browserless.io/content?token=${encodeURIComponent(token)}`; const resp = await providerFetch("browserless", endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url, gotoOptions: { waitUntil: "domcontentloaded", timeout: timeoutMs() } }), signal: signal ?? AbortSignal.timeout(timeoutMs() + 5_000) }, signal); if (!resp.ok) return null; const html = await readResponseTextCapped(resp, signal); return html.length > 100 ? html : null; } catch (err: any) { if (signal?.aborted) throw new Error("browser fetch cancelled"); logger.debug({ error: safeThrownErrorSummary("Browser provider request failed", err), url: sanitizeUrlForEvidence(url) }, "browserless content fetch failed"); return null; } }
 type BrowserFetchAttempt = { html: string | null; observedUrl: string | null };
 
-async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal?: AbortSignal): Promise<void> {
+async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal: AbortSignal | undefined, budget: PlaywrightEgressBudget): Promise<void> {
   const request = route.request();
   const rawUrl = request.url();
+  if (!isSafeBrowserFetchMethod(request.method())) {
+    await route.abort("blockedbyclient");
+    return;
+  }
   let protocol = "";
   try { protocol = new URL(rawUrl).protocol; } catch { await route.abort("blockedbyclient"); return; }
 
-  // These schemes are browser-local and do not open a network connection.
   if (protocol === "data:" || protocol === "blob:" || protocol === "about:") {
     await route.continue();
     return;
@@ -134,30 +173,48 @@ async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal
     await route.abort("blockedbyclient");
     return;
   }
+  if (!reservePlaywrightRequest(budget)) {
+    await route.abort("blockedbyclient");
+    return;
+  }
 
   try {
     const headers: Record<string, string> = { ...request.headers() };
-    // Let the pinned transport generate connection-specific headers for the
-    // exact validated destination. Keep ordinary origin/cookie/content headers.
     for (const key of Object.keys(headers)) {
       if (["host", "content-length", "transfer-encoding", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "upgrade"].includes(key.toLowerCase())) {
         delete headers[key];
       }
     }
-    const rawBody = request.postDataBuffer();
+    headers["accept-encoding"] = "identity";
     const response = await safeOutboundFetch(rawUrl, {
       method: request.method(),
       headers,
-      body: rawBody ? new Uint8Array(rawBody) : undefined,
       signal,
     });
+    // Playwright does not re-run its route handler for redirect hops. Never hand a
+    // 3xx Location back to Chromium because the follow-up could bypass DNS pinning.
+    if (isBrowserRedirectResponse(response.status, response.headers.get("location"))) {
+      await response.body?.cancel().catch(() => undefined);
+      await route.abort("blockedbyclient");
+      return;
+    }
+    const encoding = (response.headers.get("content-encoding") ?? "identity").trim().toLowerCase();
+    if (encoding && encoding !== "identity") {
+      await response.body?.cancel().catch(() => undefined);
+      await route.abort("blockedbyclient");
+      return;
+    }
+    const body = Buffer.from(await response.arrayBuffer());
+    if (!accountPlaywrightResponseBytes(budget, body.byteLength)) {
+      await route.abort("blockedbyclient");
+      return;
+    }
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
-      if (!["connection", "content-length", "transfer-encoding", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "upgrade"].includes(key.toLowerCase())) {
+      if (!["connection", "content-length", "content-encoding", "transfer-encoding", "keep-alive", "proxy-authenticate", "proxy-authorization", "te", "trailer", "upgrade", "location"].includes(key.toLowerCase())) {
         responseHeaders[key] = value;
       }
     });
-    const body = Buffer.from(await response.arrayBuffer());
     await route.fulfill({
       status: response.status,
       headers: responseHeaders,
@@ -165,6 +222,8 @@ async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal
     });
   } catch {
     await route.abort("blockedbyclient");
+  } finally {
+    releasePlaywrightRequest(budget);
   }
 }
 
@@ -177,25 +236,25 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
     const ws = process.env.PLAYWRIGHT_WS_ENDPOINT ?? "";
     const browser: any = ws ? await pw.chromium.connectOverCDP(ws) : await pw.chromium.launch({ headless: true, args: ["--no-sandbox", "--disable-dev-shm-usage"] });
     try {
-      // Block service-worker traffic: Playwright's page routing is not an egress
-      // boundary for requests issued by an uncontrolled service worker.
+      // Install egress controls on the entire context before opening any page.
+      // Page-level routing can miss popups/new pages created by the visited site.
+      // Service workers are blocked because their requests need not pass through
+      // a page-level route.
       const context = await browser.newContext({ serviceWorkers: "block" });
       try {
-        const page = await context.newPage();
-        await page.route("**/*", async (route: any) => {
-          await fulfillPlaywrightRequestThroughPinnedTransport(route, signal);
+        const egressBudget = createPlaywrightEgressBudget();
+        await context.route("**/*", async (route: any) => {
+          await fulfillPlaywrightRequestThroughPinnedTransport(route, signal, egressBudget);
         });
-        // WebSockets are not covered by page.route("**/*"). Fail closed if this
-        // Playwright build cannot intercept them, otherwise a visited page could
-        // reach internal services without passing through DNS pinning.
-        const routeWebSocket = (page as any).routeWebSocket;
+        // WebSocket routing is context-wide too, so popups cannot bypass HTTP pinning.
+        const routeWebSocket = (context as any).routeWebSocket;
         if (typeof routeWebSocket !== "function") {
-          throw new Error("Playwright WebSocket interception is required for safe browser fetch.");
+          throw new Error("Playwright context WebSocket interception is required for safe browser fetch.");
         }
-        await routeWebSocket.call(page, "**/*", (socket: any) => {
+        await routeWebSocket.call(context, "**/*", (socket: any) => {
           socket.close({ code: 1008, reason: "WebSocket egress is disabled for research fetches." });
         });
-        await page.addInitScript(() => {
+        await context.addInitScript(() => {
           const disabledTransport = class {
             constructor() { throw new Error("Peer-to-peer transports are disabled for research fetches."); }
           };
@@ -205,6 +264,7 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
             } catch { /* Unsupported browser API; network requests remain routed and pinned. */ }
           }
         });
+        const page = await context.newPage();
         await raceAbort(page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs() }), signal);
         throwIfAborted(signal);
         await raceAbort(page.waitForTimeout(2_500), signal).catch(() => undefined);
@@ -212,9 +272,9 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
         const finalUrl = page.url();
         // Attribute source material to the effective document URL, never blindly
         // to a pre-redirect request URL.
-        await assertSafeOutboundUrl(finalUrl);
+        await assertSafeOutboundUrl(finalUrl, signal);
         const html = await page.content();
-        const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
+        const usable = isUsableBrowserHtml(html);
         return { html: usable ? html : null, observedUrl: usable ? sanitizeUrlForEvidence(finalUrl) : null };
       } finally {
         await context.close().catch(() => undefined);
@@ -235,7 +295,13 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
     logger.info({ provider: options.provider, availableProviders }, "browser_fetch selected provider unavailable; no outbound request attempted");
     return { html: "", provider: "provider_unavailable", observedUrl: null };
   }
-  await assertSafeOutboundUrl(url);
+  try {
+    await assertSafeOutboundUrl(url, options.signal);
+  } catch (error) {
+    if (options.signal?.aborted) throw new Error("browser fetch cancelled");
+    throw error;
+  }
+  throwIfAborted(options.signal);
   const scope = options.scope?.trim() || getAgenticExecutionScope();
   const count = getBrowserFetchCount(scope);
   if (count >= maxBrowserFetches()) {

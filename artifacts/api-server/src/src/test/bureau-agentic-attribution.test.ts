@@ -140,4 +140,73 @@ describe("Bureau multi-source attribution", () => {
     ], records);
     expect(result).toHaveLength(0);
   });
+
+  it("rejects candidate email attribution across separate person entries", () => {
+    const item = {
+      vectorType: "email",
+      value: "john.doe@acme.org",
+      personName: "Jane Smith",
+      scope: "candidate",
+      sourceUrls: ["https://acme.org/team"],
+    };
+    const observations = [{
+      observationText: "Jane Smith — CFO; John Doe — CEO; email: john.doe@acme.org",
+      sourceUrls: ["https://acme.org/team"],
+    }];
+
+    expect(supportsContactClaimAcrossObservations(observations, item, item.value, item.vectorType)).toBe(false);
+  });
+
+  it("rejects candidate phone attribution across separate person entries", () => {
+    const item = {
+      vectorType: "phone",
+      value: "+1 415 555 0162",
+      personName: "Jane Smith",
+      scope: "candidate",
+      sourceUrls: ["https://acme.org/team"],
+    };
+    const observations = [{
+      observationText: "Jane Smith — CFO; John Doe — CEO; phone: +1 415 555 0162",
+      sourceUrls: ["https://acme.org/team"],
+    }];
+
+    expect(supportsContactClaimAcrossObservations(observations, item, item.value, item.vectorType)).toBe(false);
+  });
+
+  it("keeps same-person contact fields together across semicolons and pipes", () => {
+    const item = { vectorType: "email", value: "jane.smith@acme.org", personName: "Jane Smith", scope: "candidate", sourceUrls: ["https://acme.org/team"] };
+    for (const observationText of [
+      "Jane Smith — CFO; email: jane.smith@acme.org",
+      "Jane Smith — CFO | email: jane.smith@acme.org",
+    ]) {
+      expect(supportsContactClaimAcrossObservations([{ observationText, sourceUrls: ["https://acme.org/team"] }], item, item.value, "email")).toBe(true);
+    }
+  });
+
+  it("does not bridge a sentence that introduces a different named person", () => {
+    const cases = [
+      { vectorType: "email", value: "john.doe@acme.org", observationText: "Jane Smith is CFO. John Doe is CEO — email: john.doe@acme.org" },
+      { vectorType: "phone", value: "+1 415 555 0162", observationText: "Jane Smith is CFO. John Doe is CEO — phone: +1 415 555 0162" },
+    ] as const;
+    for (const item of cases) {
+      expect(supportsContactClaimAcrossObservations([{ observationText: item.observationText, sourceUrls: ["https://acme.org/team"] }], { vectorType: item.vectorType, value: item.value, personName: "Jane Smith", scope: "candidate", sourceUrls: ["https://acme.org/team"] }, item.value, item.vectorType)).toBe(false);
+    }
+  });
+
+  it("retains co-binding when identity and contact are in the same entry", () => {
+    const item = {
+      vectorType: "email",
+      value: "jane.smith@acme.org",
+      personName: "Jane Smith",
+      scope: "candidate",
+      sourceUrls: ["https://acme.org/team"],
+    };
+    const observations = [{
+      observationText: "Jane Smith — CFO, email: jane.smith@acme.org",
+      sourceUrls: ["https://acme.org/team"],
+    }];
+
+    expect(supportsContactClaimAcrossObservations(observations, item, item.value, item.vectorType)).toBe(true);
+  });
+
 });

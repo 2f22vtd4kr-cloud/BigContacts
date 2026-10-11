@@ -70,13 +70,13 @@ function isOrgInbox(email?: string | null): boolean {
   if (!email) return false;
   return ORG_INBOX_RE.test(email.trim());
 }
-function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }) {
+function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "social" | "candidate"; label: string; href?: string; title?: string }) {
   const styles = kind === "personal"
     ? "text-[#d4ff8a] border-[#9CFF1A]/35 bg-[#9CFF1A]/10"
     : kind === "org"
       ? "text-[#d4ff8a] border-[#9CFF1A]/35 bg-[#9CFF1A]/10"
       : "text-stone-300 border-stone-500/35 bg-stone-500/10";
-  const tag = kind === "personal" ? "Personal" : kind === "org" ? "Company" : "Social";
+  const tag = kind === "personal" ? "Personal" : kind === "org" ? "Company" : kind === "candidate" ? "Candidate" : "Social";
   const body = (
     <span className={cn("inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-tight", styles)} title={title}>
       <span className="shrink-0 text-[11px] uppercase tracking-wider opacity-70">{tag}</span>
@@ -87,7 +87,7 @@ function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "s
   return body;
 }
 function entityReachVectors(entity: any) {
-  const out: Array<{ kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }> = [];
+  const out: Array<{ kind: "personal" | "org" | "social" | "candidate"; label: string; href?: string; title?: string }> = [];
   const contacts = Array.isArray(entity.contacts) ? entity.contacts : [];
   // Prefer API presented contacts (org routes included) — maximum public surface.
   if (contacts.length > 0) {
@@ -96,13 +96,13 @@ function entityReachVectors(entity: any) {
       if (!value) continue;
       const mark = String(c?.mark ?? "candidate");
       const vt = String(c?.vectorType ?? "").toLowerCase();
-      const kind = mark === "organization" || vt === "organization" ? "org" : vt === "social" ? "social" : mark === "personal" ? "personal" : "personal";
+      const kind = mark === "organization" || vt === "organization" ? "org" : mark === "candidate" ? "candidate" : vt === "social" ? "social" : mark === "personal" ? "personal" : "candidate";
       const href =
         vt === "phone" ? `tel:${value.replace(/[^\d+]/g, "") || value}`
         : vt === "email" ? `mailto:${value}`
         : c?.sourceUrl || (value.startsWith("http") ? value : undefined);
       out.push({
-        kind: kind as "personal" | "org" | "social",
+        kind: kind as "personal" | "org" | "social" | "candidate",
         label: value,
         href,
         title: `${c?.label || mark} · ${c?.source || ""}`.trim(),
@@ -118,7 +118,7 @@ function entityReachVectors(entity: any) {
     const org = isOrgInbox(entity.email) || outcome === "organization_contact";
     const scope = org ? "org" : verified ? "personal" : "candidate";
     out.push({
-      kind: org ? "org" : "personal",
+      kind: org ? "org" : verified ? "personal" : "candidate",
       label: entity.email,
       href: `mailto:${entity.email}`,
       title: org ? `REACH · org — ${entity.email}` : `REACH · ${scope} — ${entity.email}`,
@@ -130,7 +130,7 @@ function entityReachVectors(entity: any) {
     // Org-marked phone sources must not show as personal chips
     const orgPhone = /org|registry|company|ir/i.test(String(entity.phoneSource ?? "")) || outcome === "organization_contact";
     out.push({
-      kind: orgPhone ? "org" : "personal",
+      kind: orgPhone ? "org" : verified ? "personal" : "candidate",
       label: `${entity.phone}${src}`,
       href: `tel:${entity.phone}`,
       title: `REACH · ${orgPhone ? "org" : scope} — ${entity.phone}${src}`,

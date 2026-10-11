@@ -41,6 +41,13 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
       if (!primary) throw Object.assign(new Error("Primary entity not found"), { statusCode: 404 });
       if (!target) throw Object.assign(new Error("Target entity not found"), { statusCode: 404 });
 
+      // Generic deduplication must not become an alternate writer of person
+      // contact fields or alter value-bound contact provenance.
+      const protectedPersonTypes = new Set(["HNWI", "Gatekeeper", "PersonCandidate"]);
+      if (protectedPersonTypes.has(primary.type) || protectedPersonTypes.has(target.type)) {
+        throw Object.assign(new Error("Merge involving a protected person entity is blocked; use the trusted Investigator promotion path."), { statusCode: 409 });
+      }
+
       const [researchSessions, researchEvidence, researchCases, identityBundles, identityCandidates] = await Promise.all([
         tx.select({ id: researchSessionsTable.id }).from(researchSessionsTable).where(eq(researchSessionsTable.targetEntityId, targetId)).limit(1),
         tx.select({ id: researchEvidenceTable.id }).from(researchEvidenceTable).where(eq(researchEvidenceTable.entityId, targetId)).limit(1),

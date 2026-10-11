@@ -19,31 +19,47 @@ export function defaultTerminalContract(mode: TerminalContractMode): EvidenceSuf
  * prove that the discriminator was actually tested.
  */
 export function hasExplicitFalsificationAttempt(context: IntelligenceContext): boolean {
-  if (!context.falsification.required) return true;
-  const intent = /\b(disprov\w*|falsif\w*|refut\w*|counter[- ]?evidence|rule\s+out|challenge\s+the\s+(leading|current)|alternative\s+hypothesis|attempt\s+to\s+refute|test\s+against)\b/i;
-  const externalActions = new Set([
-    "web_search", "parallel_web_search", "visit", "browser_fetch",
-    "registry_search", "domain_lookup", "harvest_domain",
-    "footprint_email", "footprint_username_maigret",
-    "footprint_username_sherlock", "footprint_spiderfoot",
-  ]);
+  // Mentioning an alternative hypothesis is not enough: the completed action
+  // must target the currently active discriminator and have a real outcome.
+  const intent = /\b(disprov\w*|falsif\w*|refut\w*|counter[- ]?evidence|rule\s+out|challenge\s+the\s+(leading|current)|attempt\s+to\s+(refute|disprove)|test\s+against|test\s+(the\s+)?alternative\s+hypothesis)\b/i;
+  const discriminatorText = context.falsification?.discriminator?.trim()
+    || [...context.hypotheses].sort((x, y) => y.score - x.score)[0]?.label
+    || "";
+  const normalizeText = (value: string) => value.toLowerCase()
+    .replace(/\bchief\s+executive\s+officer\b|\bceo\b/g, " executive ")
+    .replace(/\bchief\s+financial\s+officer\b|\bcfo\b/g, " finance ")
+    .replace(/\bchief\s+technology\s+officer\b|\bcto\b/g, " technology ")
+    .replace(/\bchief\s+operating\s+officer\b|\bcoo\b/g, " operations ")
+    .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+  const generic = new Set(["the","and","for","with","from","that","this","current","leading","test","alternative","hypothesis","identity","person","profile","company","role","position","about","verify","disprove","falsify","refute","evidence","counter","against","attempt","challenge","seek","rule","out"]);
+  const activeTerms = normalizeText(discriminatorText).split(" ").filter((token) => token.length > 2 && !generic.has(token));
+  if (!activeTerms.length) return false;
+  const targetsActiveDiscriminator = (value: string) => {
+    const tokens = new Set(normalizeText(value).split(" ").filter(Boolean));
+    return activeTerms.some((token) => tokens.has(token));
+  };
+  const externalActions = new Set(["web_search","parallel_web_search","visit","browser_fetch","registry_search","domain_lookup","harvest_domain","footprint_email","footprint_username_maigret","footprint_username_sherlock","footprint_spiderfoot"]);
   return context.recentActions.some((action) => {
     if (action.execution !== "success" || !externalActions.has(action.action)) return false;
     const args = action.args ?? {};
     const purpose = typeof args.purpose === "string" ? args.purpose : "";
     const hypothesis = typeof args.hypothesis === "string" ? args.hypothesis : "";
-    const query = typeof args.query === "string" ? args.query : "";
-    const nestedQueries = Array.isArray(args.searches)
-      ? args.searches.flatMap((search: unknown) => {
-          if (!search || typeof search !== "object" || !("query" in search)) return [];
-          const nestedQuery = (search as { query?: unknown }).query;
-          return typeof nestedQuery === "string" ? [nestedQuery] : [];
-        })
-      : [];
-    return intent.test(purpose)
-      || intent.test(hypothesis)
-      || intent.test(query)
-      || nestedQueries.some((nestedQuery) => intent.test(nestedQuery));
+    if (action.action === "parallel_web_search") {
+      const outcomes = Array.isArray(args.searchOutcomes) ? args.searchOutcomes : [];
+      return outcomes.some((entry: unknown) => {
+        if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+        const result = entry as { query?: unknown; status?: unknown };
+        return typeof result.query === "string"
+          && ["success","empty"].includes(String(result.status).toLowerCase())
+          && intent.test(result.query)
+          && targetsActiveDiscriminator(result.query);
+      });
+    }
+    if (action.action === "web_search") {
+      const query = typeof args.query === "string" ? args.query : "";
+      return intent.test(query) && targetsActiveDiscriminator(query);
+    }
+    return intent.test(purpose) && targetsActiveDiscriminator(purpose + " " + hypothesis);
   });
 }
 
@@ -51,8 +67,8 @@ export function evaluateResearchTerminal(context: IntelligenceContext, mode: Ter
   const exactSpanBindings = context.atomicEvidence.filter((item) => (item.kind === "finding" || item.kind === "claim") && item.spanBound === true && item.spanBindingKind === "identity_and_value" && Boolean(item.passage && item.passage.trim())).length;
   // IntelligenceContext has already resolved source independence through the source-lineage graph.
   // Preserve that authority rather than collapsing evidence back to raw hostnames.
-  const independentSourceUnits = context.independentSourceUnits;
-  const falsificationSatisfied = !context.falsification.required || hasExplicitFalsificationAttempt(context);
+  const contract = defaultTerminalContract(mode);
+  const falsificationSatisfied = !contract.requireFalsification || hasExplicitFalsificationAttempt(context);
 
-  return evaluateTerminalGate({ evidenceCount: context.evidenceCount, independentSourceUnits: context.independentSourceUnits, exactSpanBindings, openQuestions: context.openQuestions.length, highSeverityContradictions: context.contradictions.length, falsificationSatisfied }, defaultTerminalContract(mode));
+  return evaluateTerminalGate({ evidenceCount: context.evidenceCount, independentSourceUnits: context.independentSourceUnits, exactSpanBindings, openQuestions: context.openQuestions.length, highSeverityContradictions: context.contradictions.length, falsificationSatisfied }, contract);
 }

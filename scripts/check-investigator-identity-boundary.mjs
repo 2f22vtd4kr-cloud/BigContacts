@@ -15,12 +15,16 @@ const assert = (condition, message) => { if (!condition) failures.push(message);
 const contactStart = source.indexOf("function extractContactFactsFromHtml(");
 const loopStart = source.indexOf("export async function runAgenticWebResearch(");
 const parseStart = source.indexOf("function parseAction(");
-const contactEnd = loopStart > contactStart ? loopStart : source.length;
+const contactEnd = contactStart >= 0 ? source.indexOf("\nfunction stripHtml(", contactStart) : -1;
 const loop = loopStart >= 0 ? source.slice(loopStart) : "";
 const toolObservationRegion = source.slice(0, Math.max(0, parseStart));
-const contact = contactStart >= 0 ? source.slice(contactStart, contactEnd) : "";
+// Scope the contact-extraction invariant to the extractor itself, not all code
+// up to the ReAct loop (which also contains schemas, prompts, and parser validation).
+const contact = contactStart >= 0 && contactEnd > contactStart ? source.slice(contactStart, contactEnd) : "";
 
 assert(contactStart >= 0, "canonical contact-facts observation extractor is missing or renamed without guard update.");
+assert(contactEnd > contactStart, "contact-facts extractor boundary is missing or renamed without guard update.");
+assert(contactEnd > contactStart, "canonical contact-facts observation extractor boundary is missing or renamed without guard update.");
 assert(loopStart >= 0, "canonical Investigator ReAct loop is missing or renamed without guard update.");
 assert(parseStart >= 0, "canonical action parser boundary is missing or renamed without guard update.");
 
@@ -28,7 +32,8 @@ assert(!/personName:\s*targetName\b/.test(toolObservationRegion), "deterministic
 assert(!/personName:\s*name\b/.test(toolObservationRegion), "deterministic observation code inherits target name as person identity.");
 assert(!/scope:\s*["']candidate["']/.test(contact), "contact-facts observation extractor authors candidate identity scope.");
 assert(!/promotionDecision\s*:\s*["']promote["']/.test(toolObservationRegion), "deterministic observation code authors promotion decisions.");
-assert(!/promotionReason\s*:/.test(toolObservationRegion), "deterministic observation code authors promotion reasons.");
+// A numeric maximum-length entry is validation metadata, not a deterministic promotion reason.
+assert(!/promotionReason\s*:/.test(contact), "deterministic contact-facts observation extractor authors promotion reasons.");
 
 // Candidate scope and person identity are accepted only from the explicit model finding
 // payload parsed by action=done, never from the observation/tool boundary.

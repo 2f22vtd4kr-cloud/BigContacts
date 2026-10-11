@@ -107,7 +107,12 @@ jobs:
         run: |
           set -euo pipefail
           cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do
+          mapfile -t test_files < <(find src -type f -name '*.test.ts' | sort)
+          if [[ "${#test_files[@]}" -eq 0 ]]; then
+            echo "No API test files discovered under src" >&2
+            exit 1
+          fi
+          for test_file in "${test_files[@]}"; do
             if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
@@ -197,7 +202,12 @@ jobs:
         run: |
           set -euo pipefail
           cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do
+          mapfile -t test_files < <(find src -type f -name '*.test.ts' | sort)
+          if [[ "${#test_files[@]}" -eq 0 ]]; then
+            echo "No API test files discovered under src" >&2
+            exit 1
+          fi
+          for test_file in "${test_files[@]}"; do
             if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
@@ -286,7 +296,12 @@ jobs:
         run: |
           set -euo pipefail
           cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do
+          mapfile -t test_files < <(find src -type f -name '*.test.ts' | sort)
+          if [[ "${#test_files[@]}" -eq 0 ]]; then
+            echo "No API test files discovered under src" >&2
+            exit 1
+          fi
+          for test_file in "${test_files[@]}"; do
             if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
@@ -375,7 +390,12 @@ jobs:
         run: |
           set -euo pipefail
           cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do
+          mapfile -t test_files < <(find src -type f -name '*.test.ts' | sort)
+          if [[ "${#test_files[@]}" -eq 0 ]]; then
+            echo "No API test files discovered under src" >&2
+            exit 1
+          fi
+          for test_file in "${test_files[@]}"; do
             if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
@@ -464,7 +484,12 @@ jobs:
         run: |
           set -euo pipefail
           cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do
+          mapfile -t test_files < <(find src -type f -name '*.test.ts' | sort)
+          if [[ "${#test_files[@]}" -eq 0 ]]; then
+            echo "No API test files discovered under src" >&2
+            exit 1
+          fi
+          for test_file in "${test_files[@]}"; do
             if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"

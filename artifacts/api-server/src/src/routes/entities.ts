@@ -26,6 +26,7 @@ import {
 import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
 import { extractImportDrafts, type ImportDraftEntity } from "../lib/manual-import-extract";
 import { persistBureauContactsForEntity } from "../lib/bureau-contact-persist";
+import { validateValueBoundContactRevocation } from "../lib/contact-revocation";
 
 const router: IRouter = Router();
 
@@ -351,32 +352,17 @@ router.patch("/entities/:id/hide", async (req, res): Promise<void> => {
 
 // PATCH /entities/:id/reject-contact — mark a contact field as bad and null it out
 router.patch("/entities/:id/reject-contact", async (req, res): Promise<void> => {
-  const id = parseInt(req.params.id, 10);
-  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isSafeInteger(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
 
-  const { field } = req.body ?? {};
-  const validFields = ["email", "phone", "linkedinUrl", "twitterHandle", "instagramHandle",
-    "telegramHandle", "personalWebsite", "foundationName", "contactMethod"];
-  if (!field || !validFields.includes(field)) {
-    res.status(400).json({ error: "Invalid or missing field" }); return;
+  const field = typeof req.body?.field === "string" ? req.body.field : "";
+  const expectedValue = req.body?.expectedValue;
+  const validFields = ["email", "phone", "linkedinUrl", "twitterHandle", "instagramHandle", "telegramHandle", "personalWebsite"];
+  if (!validFields.includes(field) || typeof expectedValue !== "string" || !expectedValue.trim()) {
+    res.status(400).json({ error: "A supported contact field and exact expectedValue are required." }); return;
   }
 
-  const [entity] = await db
-    .select()
-    .from(entitiesTable)
-    .where(eq(entitiesTable.id, id));
-  if (!entity) { res.status(404).json({ error: "Not found" }); return; }
-
-  let meta: Record<string, unknown> = {};
-  try { meta = JSON.parse(entity.metadata ?? "{}") as Record<string, unknown>; } catch { /* */ }
-  const rejected: string[] = (meta.rejectedContacts as string[] | undefined) ?? [];
-  if (!rejected.includes(field)) rejected.push(field);
-  meta.rejectedContacts = rejected;
-
-  // Null the specific contact field + save updated metadata
-  const updates: Record<string, null | string | number | boolean> = { metadata: JSON.stringify(meta) };
-  // Map field name to a null update (Drizzle accepts partial column objects)
-  const fieldNulls: Record<string, any> = {
+  const fieldNulls: Record<string, Record<string, null>> = {
     email: { email: null },
     phone: { phone: null, phoneSource: null },
     linkedinUrl: { linkedinUrl: null },
@@ -384,27 +370,83 @@ router.patch("/entities/:id/reject-contact", async (req, res): Promise<void> => 
     instagramHandle: { instagramHandle: null },
     telegramHandle: { telegramHandle: null },
     personalWebsite: { personalWebsite: null },
-    foundationName: { foundationName: null },
-    contactMethod: { contactMethod: null },
   };
-  const setObj = { ...updates, ...(fieldNulls[field] ?? {}) };
-  const nextEntity = {
-    ...entity,
-    [field]: null,
-    ...(field === "phone" ? { phoneSource: null } : {}),
+  const vectorTypeByField: Record<string, string> = {
+    email: "email", phone: "phone", linkedinUrl: "linkedin", twitterHandle: "twitter",
+    instagramHandle: "instagram", telegramHandle: "telegram", personalWebsite: "website",
   };
-  const nextConfidence = computeContactConfidence(nextEntity);
-  const nextOutcome = computeContactOutcome(nextEntity);
-  const nextIsHot = hasMeaningfulDirectContact(nextEntity);
-  setObj.contactConfidence = nextConfidence;
-  setObj.contactOutcome = nextOutcome;
-  setObj.isHot = nextIsHot;
-  await db.update(entitiesTable).set(setObj as any).where(eq(entitiesTable.id, id));
-  await Promise.all([
-    delCachePattern("entities:list:*"),
-    delCachePattern("dashboard:*"),
-  ]);
-  res.json({ ok: true, rejectedField: field, contactConfidence: nextConfidence, contactOutcome: nextOutcome, isHot: nextIsHot });
+  const protectedPersonTypes = new Set(["HNWI", "Gatekeeper", "PersonCandidate"]);
+
+  try {
+    const outcome = await db.transaction(async (tx) => {
+      const [entity] = await tx.select().from(entitiesTable)
+        .where(eq(entitiesTable.id, id)).for("update").limit(1);
+      if (!entity) throw Object.assign(new Error("Not found"), { statusCode: 404 });
+
+      let metadata: Record<string, unknown>;
+      try {
+        const parsed: unknown = JSON.parse(entity.metadata ?? "{}");
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("invalid metadata");
+        metadata = parsed as Record<string, unknown>;
+      } catch {
+        throw Object.assign(new Error("Contact metadata is invalid; refusing an unbound revocation."), { statusCode: 409 });
+      }
+
+      const rootValue = metadata.agenticContactProvenance;
+      const root = rootValue && typeof rootValue === "object" && !Array.isArray(rootValue)
+        ? { ...(rootValue as Record<string, unknown>) }
+        : null;
+      const provenance = root?.[field];
+      const currentValue = (entity as unknown as Record<string, unknown>)[field];
+      const validation = validateValueBoundContactRevocation({
+        field, currentValue, expectedValue, provenance,
+        requireCanonicalProvenance: protectedPersonTypes.has(entity.type),
+      });
+      if (!validation.ok) throw Object.assign(new Error(validation.reason), { statusCode: 409 });
+
+      const revokedAt = new Date().toISOString();
+      if (root && validation.provenance) {
+        delete root[field];
+        metadata.agenticContactProvenance = root;
+      }
+      const priorHistory = Array.isArray(metadata.revokedContactHistory) ? metadata.revokedContactHistory : [];
+      metadata.revokedContactHistory = [...priorHistory.slice(-99), {
+        field, value: currentValue, provenance: validation.provenance,
+        revokedAt, reason: "operator-marked-incorrect",
+      }];
+      const nextMetadata = JSON.stringify(metadata);
+      const nextEntity = {
+        ...entity, ...fieldNulls[field], metadata: nextMetadata,
+      };
+      const contactConfidence = computeContactConfidence(nextEntity);
+      const contactOutcome = computeContactOutcome(nextEntity);
+      const isHot = hasMeaningfulDirectContact(nextEntity);
+      const setObject = {
+        ...fieldNulls[field], metadata: nextMetadata, contactConfidence, contactOutcome, isHot,
+      };
+      const fieldColumn = (entitiesTable as unknown as Record<string, unknown>)[field] as any;
+      const [updated] = await tx.update(entitiesTable)
+        .set(setObject as any)
+        .where(and(eq(entitiesTable.id, id), eq(fieldColumn, currentValue)))
+        .returning({ id: entitiesTable.id });
+      if (!updated) throw Object.assign(new Error("The contact changed during review; refresh and retry."), { statusCode: 409 });
+
+      await tx.update(contactEvidenceTable).set({ validationStatus: "rejected" })
+        .where(and(
+          eq(contactEvidenceTable.entityId, id),
+          eq(contactEvidenceTable.vectorType, vectorTypeByField[field]),
+          eq(contactEvidenceTable.value, String(currentValue)),
+        ));
+      return { contactConfidence, contactOutcome, isHot };
+    });
+
+    await Promise.all([delCachePattern("entities:list:*"), delCachePattern("dashboard:*")]);
+    res.json({ ok: true, rejectedField: field, ...outcome });
+  } catch (err) {
+    const statusCode = Number((err as { statusCode?: unknown })?.statusCode ?? 500);
+    res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 500)
+      .json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });
 
 // GET /entities/:id/occrp  — return Aleph adverse-media metadata for one entity

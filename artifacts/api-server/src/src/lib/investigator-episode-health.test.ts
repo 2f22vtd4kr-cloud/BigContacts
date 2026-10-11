@@ -35,6 +35,14 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_no_action" });
   });
 
+  it("rejects a proposed tool action with no execution outcome", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      trajectoryRecords: [{ action: "web_search" }],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
   it("rejects a blocked tool action that never ran", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "completed",

@@ -67,6 +67,8 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - run: npm install -g pnpm@9.15.9
       - name: Install frontend workspace graph
-        run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter ./artifacts/apex-finder... --registry=https://registry.npmjs.org/
+        run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter ./artifacts/apex-finder... --filter ./artifacts/api-server... --registry=https://registry.npmjs.org/
       - name: Build frontend
         run: pnpm --dir artifacts/apex-finder run build
+      - name: Test Reactor page job-poll projection
+        run: pnpm --dir artifacts/api-server exec vitest run --root ../apex-finder src/lib/reactor-page-atlas-poll.test.ts

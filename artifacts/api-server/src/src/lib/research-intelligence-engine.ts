@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { assessResearchFrontier, scoreSourceIndependence } from "./research-policy";
 import { updateHypothesisPosterior, chooseBestDiscriminator, assessFalsificationPlan } from "./research-hypothesis-policy";
-import { summarizeActionYield, type ActionYieldStat, updateActionYield } from "./research-action-learning";
+import { rankLearnedActionYield, summarizeActionYield, type ActionYieldStat, updateActionYield } from "./research-action-learning";
 import { bindExactSourceSpan, SourceLineageGraph, sourceLineageId } from "./research-epistemic-vnext";
 import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 import { buildDiscoveryIntelligence, type DiscoveryIntelligence, renderDiscoveryIntelligence } from "./discovery-frontier";
@@ -75,6 +75,8 @@ export interface ContactEvidence {
   vector: string;
   state: ContactEvidenceState;
   sourceUrls: string[];
+  /** Sources that explicitly co-bind this person's identity and this value. */
+  attributionSourceUrls?: string[];
   sourceHosts: string[];
   firstSeen: string;
   lastSeen: string;
@@ -105,6 +107,9 @@ export interface IntelligenceMissionBrief {
 export interface ResearchFeedback {
   outcome: "useful" | "wrong_person" | "duplicate" | "outdated" | "bounced" | "successful_outreach" | "rejected";
   value?: string;
+  /** Optional disambiguators: value-only feedback must not mutate multiple people's records. */
+  personName?: string | null;
+  vector?: string;
   sourceHost?: string;
   note?: string;
 }
@@ -134,6 +139,8 @@ export interface IntelligenceContext {
   providerDisagreements: Array<{ query: string; providers: string[]; sourceHosts: string[] }>;
   atomicEvidence: Array<{ evidenceId: string; kind: IntelligenceEvidenceKind; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; spanBound?: boolean; spanBindingKind?: "identity" | "value" | "identity_and_value"; attribution: string | null }>;
   actionYield: ReturnType<typeof summarizeActionYield>[];
+  /** Raw cumulative learning statistics; optional for older durable contexts. */
+  actionYieldStats?: Array<[string, ActionYieldStat]>;
   sourceLineage: Array<{ sourceId: string; canonicalUrl: string; host: string; originSourceId: string | null; citedSourceIds: string[] }>;
   independentSourceUnits: number;
   discovery?: DiscoveryIntelligence;
@@ -319,7 +326,8 @@ export class ResearchIntelligenceEngine {
         .map((source) => source.url);
       if (["email", "phone", "linkedin", "website", "social"].includes(vector) && valueSourceUrls.length) {
         const locallyBound = supportedSources.some((source) => source.binding === "identity_and_value");
-        this.recordContact(vector, value, findingUrls, finding.personName ?? null, locallyBound);
+        const attributionUrls = supportedSources.filter((source) => source.binding === "identity_and_value").map((source) => source.url);
+        this.recordContact(vector, value, findingUrls, finding.personName ?? null, locallyBound, attributionUrls);
       }
     }
     if (!useful && input.execution !== "success") {
@@ -359,7 +367,7 @@ export class ResearchIntelligenceEngine {
           && supportsHypothesisClaim(modelHypothesis, evidence.claim)
           && !evidence.contradicts.some((id) => { const competing = this.evidenceByIdMap.get(id); return competing && overlap(modelHypothesis, competing.claim) >= overlap(modelHypothesis, evidence.claim); }));
       });
-      this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, missingDiscriminators: modelPurpose ? [modelPurpose] : [] });
+      this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds });
     }
     const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
     const actionLearningKey = learningQuestion ? input.action + "|" + learningQuestion.slice(0, 180) : input.action;
@@ -372,6 +380,21 @@ export class ResearchIntelligenceEngine {
     if (context.version !== 1) return;
     this.evidence.clear(); this.evidenceByIdMap.clear(); this.claims.clear(); this.contacts.clear(); this.actions.length = 0;
     this.negativeFindings.clear(); this.hypotheses.clear(); this.feedback.length = 0; this.actionYield.clear();
+    if (Array.isArray(context.actionYieldStats)) {
+      for (const entry of context.actionYieldStats.slice(0, 256)) {
+        if (!Array.isArray(entry) || typeof entry[0] !== "string" || !entry[0].trim() || !entry[1] || typeof entry[1] !== "object") continue;
+        const raw = entry[1] as ActionYieldStat;
+        const values = [raw.attempts, raw.useful, raw.failures, raw.totalInformationGain, raw.lastTurn, raw.predictedInformationGain, raw.realizedInformationGain, raw.absolutePredictionError];
+        if (!values.every(Number.isFinite) || raw.attempts < 0 || raw.useful < 0 || raw.failures < 0 || raw.useful > raw.attempts || raw.failures > raw.attempts) continue;
+        this.actionYield.set(entry[0].slice(0, 240), {
+          attempts: Math.floor(raw.attempts), useful: Math.floor(raw.useful), failures: Math.floor(raw.failures),
+          totalInformationGain: Math.max(0, raw.totalInformationGain), lastTurn: Math.max(0, Math.floor(raw.lastTurn)),
+          predictedInformationGain: Math.max(0, raw.predictedInformationGain),
+          realizedInformationGain: Math.max(0, raw.realizedInformationGain),
+          absolutePredictionError: Math.max(0, raw.absolutePredictionError),
+        });
+      }
+    }
     this.chain = context.provenanceDigest || "GENESIS";
     const lineageByUrl = new Map(context.sourceLineage.map((node) => [canonicalUrl(node.canonicalUrl) ?? node.canonicalUrl, node]));
     for (const item of context.atomicEvidence) {
@@ -411,20 +434,37 @@ export class ResearchIntelligenceEngine {
         firstSeen: new Date(0).toISOString(), lastSeen: new Date(0).toISOString() });
     }
     const knownEvidenceIds = new Set([...this.evidence.values()].map((evidence) => evidence.id));
+    // Older versions copied each action purpose into missingDiscriminators.
+    // Those entries never resolved and could permanently block terminal acceptance.
+    // Preserve genuine discriminator state while removing legacy action-purpose entries.
+    const legacyActionPurposes = new Set(context.recentActions
+      .map((action) => typeof action.args?.purpose === "string" ? normalize(action.args.purpose) : "")
+      .filter(Boolean));
     for (const hypothesis of context.hypotheses) {
       const supportingEvidenceIds = [...hypothesis.supportingEvidenceIds].filter((id) => knownEvidenceIds.has(id));
       const contradictingEvidenceIds = [...hypothesis.contradictingEvidenceIds].filter((id) => knownEvidenceIds.has(id));
       if ((hypothesis.supportingEvidenceIds.length > 0 || hypothesis.contradictingEvidenceIds.length > 0) && !supportingEvidenceIds.length && !contradictingEvidenceIds.length) continue;
-      this.hypotheses.set(hypothesis.id, { ...hypothesis, priorScore: hypothesis.priorScore ?? hypothesis.score, supportingEvidenceIds, contradictingEvidenceIds, missingDiscriminators: [...hypothesis.missingDiscriminators] });
+      this.hypotheses.set(hypothesis.id, { ...hypothesis, priorScore: hypothesis.priorScore ?? hypothesis.score, supportingEvidenceIds, contradictingEvidenceIds, missingDiscriminators: [...hypothesis.missingDiscriminators].filter((value) => !legacyActionPurposes.has(normalize(value))) });
     }
     for (const contact of context.contacts) {
-      const hasLocalAttributionSupport = Boolean(contact.personName) && context.atomicEvidence.some((item) => item.kind === "finding" && item.spanBindingKind === "identity_and_value" && normalize(item.claim) === normalize(contact.personName + " " + contact.vector + " " + contact.value) && item.sourceUrl && contact.sourceUrls.includes(item.sourceUrl));
-      const restoredContactState = contact.personName && !hasLocalAttributionSupport && ["ATTRIBUTED", "CORROBORATED"].includes(contact.state) ? "DISCOVERED" : contact.state;
       const sourceUrls = [...new Set(contact.sourceUrls)].filter((url) => sourceClassForHost(hostOf(url)) !== "SEARCH_RESULT");
       if (!sourceUrls.length) continue;
+      const supportedAttributionUrls = context.atomicEvidence
+        .filter((item) => item.kind === "finding" && item.spanBindingKind === "identity_and_value"
+          && normalize(item.claim) === normalize(contact.personName + " " + contact.vector + " " + contact.value)
+          && item.sourceUrl && sourceUrls.includes(item.sourceUrl))
+        .map((item) => item.sourceUrl as string);
+      const attributionSourceUrls = [...new Set([...(contact.attributionSourceUrls ?? []), ...supportedAttributionUrls])]
+        .filter((url) => sourceUrls.includes(url));
+      const hasLocalAttributionSupport = Boolean(contact.personName) && attributionSourceUrls.length > 0;
+      let restoredContactState = contact.personName && !hasLocalAttributionSupport && ["ATTRIBUTED", "CORROBORATED"].includes(contact.state) ? "DISCOVERED" : contact.state;
+      if (contact.personName && contact.state === "CORROBORATED" && attributionSourceUrls.length) {
+        const families = new Set(attributionSourceUrls.map((url) => sourceFamily(hostOf(url))).filter((family) => family !== "unknown"));
+        if (families.size < 2) restoredContactState = "ATTRIBUTED";
+      }
       const sourceHosts = [...new Set(sourceUrls.map(hostOf).filter((host): host is string => Boolean(host)))];
       const key = contact.vector + "|" + normalize(contact.personName ?? "") + "|" + normalize(contact.value);
-      this.contacts.set(key, { ...contact, state: restoredContactState, sourceUrls, sourceHosts });
+      this.contacts.set(key, { ...contact, state: restoredContactState, sourceUrls, attributionSourceUrls, sourceHosts });
     }
     for (const negative of context.negativeFindings) this.negativeFindings.add(negative);
     for (const action of context.recentActions) this.actions.push({ ...action, args: { ...action.args }, urls: [...action.urls], findingNames: [...action.findingNames], findingRoles: [...action.findingRoles] });
@@ -438,12 +478,18 @@ export class ResearchIntelligenceEngine {
   recordFeedback(feedback: ResearchFeedback): void {
     this.feedback.push({ ...feedback });
     if (feedback.value) {
-      const matchingContacts = [...this.contacts.values()].filter((contact) => normalize(contact.value) === normalize(feedback.value!));
-      for (const contact of matchingContacts) {
-        if (feedback.outcome === "wrong_person" || feedback.outcome === "rejected") contact.state = "REJECTED";
-        else if (feedback.outcome === "outdated" || feedback.outcome === "bounced") contact.state = "STALE";
-        else if (feedback.outcome === "successful_outreach") contact.state = "VERIFIED";
-      }
+      const matchingContacts = [...this.contacts.values()].filter((contact) =>
+        normalize(contact.value) === normalize(feedback.value!)
+        && (feedback.personName === undefined || normalize(contact.personName ?? "") === normalize(feedback.personName ?? ""))
+        && (feedback.vector === undefined || normalize(contact.vector) === normalize(feedback.vector)),
+      );
+      // Contact state includes person attribution, so ambiguous value-only
+      // feedback must not mutate every person record sharing the same value.
+      if (matchingContacts.length !== 1) return;
+      const contact = matchingContacts[0]!;
+      if (feedback.outcome === "wrong_person" || feedback.outcome === "rejected") contact.state = "REJECTED";
+      else if (feedback.outcome === "outdated" || feedback.outcome === "bounced") contact.state = "STALE";
+      else if (feedback.outcome === "successful_outreach") contact.state = "VERIFIED";
     }
   }
 
@@ -524,21 +570,23 @@ export class ResearchIntelligenceEngine {
     return id;
   }
 
-  private recordContact(vector: string, value: string, urls: string[], personName: string | null, locallyBound = false): void {
+  private recordContact(vector: string, value: string, urls: string[], personName: string | null, locallyBound = false, attributionUrls: string[] = []): void {
     const key = vector + "|" + normalize(personName ?? "") + "|" + normalize(value);
     const existing = this.contacts.get(key);
     const now = new Date().toISOString();
     const canonicalUrls = [...new Set(urls.map(canonicalUrl).filter((url): url is string => Boolean(url)))];
     const hosts = [...new Set(canonicalUrls.map(hostOf).filter((host): host is string => Boolean(host)))];
+    const canonicalAttributionUrls = [...new Set(attributionUrls.map(canonicalUrl).filter((url): url is string => Boolean(url)))];
     if (existing) {
       existing.lastSeen = now;
       existing.sourceUrls = [...new Set([...existing.sourceUrls, ...canonicalUrls])];
       existing.sourceHosts = [...new Set([...existing.sourceHosts, ...hosts])];
+      existing.attributionSourceUrls = [...new Set([...(existing.attributionSourceUrls ?? []), ...canonicalAttributionUrls])];
       // Domain count alone must not convert a review-only join into attribution.
       if (locallyBound && personName) {
         existing.attributionStrength = clamp(Math.max(existing.attributionStrength, 0.85));
         if (!["REJECTED", "VERIFIED", "STALE", "CONTRADICTED"].includes(existing.state)) {
-          const families = new Set(existing.sourceUrls.map((url) => sourceFamily(hostOf(url))).filter((family) => family !== "unknown"));
+          const families = new Set((existing.attributionSourceUrls ?? []).map((url) => sourceFamily(hostOf(url))).filter((family) => family !== "unknown"));
           existing.state = families.size >= 2 ? "CORROBORATED" : "ATTRIBUTED";
         }
       } else if (!personName) {
@@ -549,11 +597,11 @@ export class ResearchIntelligenceEngine {
     this.contacts.set(key, {
       personName, value, vector,
       state: personName ? (locallyBound ? "ATTRIBUTED" : "DISCOVERED") : "OBSERVED",
-      sourceUrls: canonicalUrls, sourceHosts: hosts, firstSeen: now, lastSeen: now,
+      sourceUrls: canonicalUrls, attributionSourceUrls: canonicalAttributionUrls, sourceHosts: hosts, firstSeen: now, lastSeen: now,
       attributionStrength: personName ? (locallyBound ? 0.85 : 0.25) : 0.45,
     });
   }
-  private countNewHosts(urls: string[]): number { const known = new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean)); return urls.map(hostOf).filter((host): host is string => Boolean(host) && !known.has(host)).length; }
+  private countNewHosts(urls: string[]): number { const known = new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean)); const newHosts = new Set(urls.map(hostOf).filter((host): host is string => Boolean(host) && !known.has(host))); return newHosts.size; }
 
   private reconcileContradictions(): void {
     const grouped = new Map<string, IntelligenceEvidence[]>();
@@ -704,8 +752,32 @@ export class ResearchIntelligenceEngine {
         spanBindingKind: evidence.spanBindingKind,
         attribution: evidence.attribution ?? null,
       }));
-    const actionYield = [...this.actionYield.entries()].map(([action, stat]) => summarizeActionYield(action, stat));
-    const researchQuestions = openQuestions.map((question, index) => ({ id: "rq_" + hash(question).slice(0, 16), question, importance: Math.max(0.5, 1 - index * 0.05), uncertainty: 1, discriminators: [question], status: "open" as const }));
+    const actionYield = rankLearnedActionYield(this.actionYield);
+    const researchQuestionMap = new Map<string, { id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" }>();
+    for (const [index, question] of openQuestions.entries()) {
+      researchQuestionMap.set(normalize(question), { id: "rq_" + hash(question).slice(0, 16), question, importance: Math.max(0.5, 1 - index * 0.05), uncertainty: 1, discriminators: [question], status: "open" });
+    }
+    // The model-authored action rationale is useful research intent. Keep it in
+    // the question projection without turning it into a deterministic terminal
+    // blocker (openQuestions and missingDiscriminators remain evidence-derived).
+    for (const action of this.actions.slice(-32)) {
+      const purpose = typeof action.args.purpose === "string" ? action.args.purpose.trim() : "";
+      if (!purpose) continue;
+      const key = normalize(purpose);
+      if (researchQuestionMap.has(key)) continue;
+      const hypothesis = typeof action.args.hypothesis === "string" ? action.args.hypothesis.trim() : "";
+      const query = typeof action.args.query === "string" ? action.args.query.trim() : "";
+      const discriminators = [...new Set([hypothesis, query].filter(Boolean))].slice(0, 4);
+      researchQuestionMap.set(key, {
+        id: "rq_" + hash(purpose).slice(0, 16),
+        question: purpose.slice(0, 500),
+        importance: typeof action.args.expectedInformationGain === "number" ? clamp(action.args.expectedInformationGain) : 0.5,
+        uncertainty: 0.8,
+        discriminators: discriminators.length ? discriminators.map((value) => value.slice(0, 300)) : [purpose.slice(0, 300)],
+        status: action.execution === "success" ? "answered" : ["error", "timeout", "blocked", "cancelled"].includes(action.execution) ? "blocked" : "open",
+      });
+    }
+    const researchQuestions = [...researchQuestionMap.values()].slice(-24);
     const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
     const leadingHypothesis = [...this.hypotheses.values()].sort((a, b) => b.score - a.score)[0] ?? null;
     const falsification = assessFalsificationPlan({ leadingHypothesisScore: leadingHypothesis?.score ?? null, contradictionPressure: frontier.contradictionPressure, unresolvedPressure: frontier.unresolvedPressure, missingDiscriminators: leadingHypothesis?.missingDiscriminators ?? openQuestions });
@@ -727,7 +799,7 @@ export class ResearchIntelligenceEngine {
     });
     const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
-    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, discovery, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
+    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, actionYieldStats: [...this.actionYield.entries()].map(([action, stat]) => [action, { ...stat }]), sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, discovery, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
   private buildMissionBriefs(openQuestions: string[], facts: Array<{ claim: string }>, contradictions: Array<{ claim: string }>): IntelligenceMissionBrief[] {
