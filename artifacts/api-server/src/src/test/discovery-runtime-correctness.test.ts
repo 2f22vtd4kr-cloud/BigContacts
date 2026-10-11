@@ -153,11 +153,15 @@ describe("discovery runtime architecture", () => {
 
   it("preserves the bounded parse-failure streak across nonterminal discovery acts", () => {
     const bureauPassSource = fs.readFileSync(path.join(libDir, "bureau-agentic-pass.ts"), "utf8");
+    const dynamicWrapperSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(researchCoreSource).toContain("initialConsecutiveActionParseFailures?: number");
     expect(researchCoreSource).toContain("consecutiveActionParseFailures");
     expect(bureauPassSource).toContain("initialConsecutiveActionParseFailures:input.initialConsecutiveActionParseFailures");
     expect(bureauPassSource).toContain("consecutiveActionParseFailures:agentic.consecutiveActionParseFailures");
+    // The dynamic discovery wrapper invokes the core one action at a time, so it must carry the counter across those calls.
+    expect(dynamicWrapperSource).toContain("initialConsecutiveActionParseFailures: consecutiveActionParseFailures");
+    expect(dynamicWrapperSource).toContain("consecutiveActionParseFailures = actResult.consecutiveActionParseFailures ?? consecutiveActionParseFailures");
     // A terminal parse failure is surfaced to Groq Boss; a Boss-directed new act starts a fresh bounded parse budget.
     expect(canonicalSource).toContain('initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0');
   });
