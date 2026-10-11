@@ -144,6 +144,7 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain('failureKind: "unexpected_exception"');
     expect(researchCoreSource).toContain("runtimeStage");
     expect(researchCoreSource).toContain('runtimeStage === "trajectory_persistence"');
+    expect(researchCoreSource).toContain('runtimeStage === "external_page_fetch"');
     expect(researchCoreSource).toContain('runtimeStage === "model_request"');
     expect(researchCoreSource).toContain('classifyCanonicalAtlasFailure({ stage: "oversight_control_decision", error })');
     expect(researchCoreSource).not.toContain('return resultBase("error", records.length, "PARSE_FAILURE", safeAgenticError(error, runController.signal.aborted))');
