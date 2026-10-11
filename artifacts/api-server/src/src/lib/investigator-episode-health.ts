@@ -8,7 +8,6 @@ export type InvestigatorEpisodeHealthInput = {
   iterations: number;
   stopReason?: string | null;
   trajectoryRecords?: readonly { action?: string | null }[];
-  priorTrajectoryRecordCount?: number;
 };
 
 /**
@@ -19,19 +18,19 @@ export type InvestigatorEpisodeHealthInput = {
 export function classifyInvestigatorEpisodeFailure(
   input: InvestigatorEpisodeHealthInput,
 ): { code: InvestigatorEpisodeFailureCode } | null {
-  const records = input.trajectoryRecords ?? [];
-  const priorCount = Math.max(0, input.priorTrajectoryRecordCount ?? 0);
-  const newRecords = records.slice(priorCount);
+  // Inputs are episode-local results from runBureauAgenticWebPass, not the
+  // case's cumulative history. Every supplied record belongs to this episode.
+  const episodeRecords = input.trajectoryRecords ?? [];
   if (input.status === "error") {
     return { code: "investigator_episode_error" };
   }
   if (
     input.status === "unavailable" &&
-    !(input.stopReason === "LLM_UNAVAILABLE" && newRecords.some((record) => record.action === "investigator_provider_error"))
+    !(input.stopReason === "LLM_UNAVAILABLE" && episodeRecords.some((record) => record.action === "investigator_provider_error"))
   ) {
     return { code: "investigator_episode_unavailable_without_provider_record" };
   }
-  if (input.status !== "cancelled" && newRecords.length === 0) {
+  if (input.status !== "cancelled" && episodeRecords.length === 0) {
     return { code: "investigator_episode_no_action" };
   }
   return null;
