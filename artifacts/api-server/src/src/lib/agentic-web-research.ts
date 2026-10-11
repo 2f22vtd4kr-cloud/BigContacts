@@ -163,9 +163,11 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
       for (const failedRecord of actResult.trajectoryRecords) {
         const priorRecords = [...historyRecords, ...records];
         const normalizedFailureRecord = { ...failedRecord, findings: groundedFindingsForTrajectory(failedRecord.findings as AgenticFinding[], [...priorRecords, { ...failedRecord, turn: failedRecord.turn }]) };
-        recordResult(intelligence, normalizedFailureRecord, priorRecords);
         records = [...records, normalizedFailureRecord];
+        wrapperFailureStage = "trajectory_persistence";
         await input.onTrajectoryRecord?.(normalizedFailureRecord);
+        wrapperFailureStage = "intelligence_projection";
+        recordResult(intelligence, normalizedFailureRecord, priorRecords);
       }
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
       return { status: "error", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "UNEXPECTED_ERROR", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: actResult.error ?? "Unexpected Investigator runtime exception.", executionId, consecutiveActionParseFailures };
@@ -177,13 +179,14 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
         if (raw.action === "parallel_web_search" && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
       }
       const normalizedRecord = { ...raw, turn: raw.turn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: raw.turn }]) };
-      wrapperFailureStage = "intelligence_projection";
-      recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
+      const priorRecords = [...historyRecords, ...records];
       records = [...records, normalizedRecord];
-      wrapperFailureStage = "trajectory_projection";
-      trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
       wrapperFailureStage = "trajectory_persistence";
       await input.onTrajectoryRecord?.(normalizedRecord);
+      wrapperFailureStage = "intelligence_projection";
+      recordResult(intelligence, normalizedRecord, priorRecords);
+      wrapperFailureStage = "trajectory_projection";
+      trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
       wrapperFailureStage = "post_action_control";
       if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
       if (raw.findings.length) {
@@ -364,11 +367,11 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
            for (const failedRecord of actResult.trajectoryRecords) {
              const priorRecords = [...historyRecords, ...records];
              const normalizedFailureRecord = { ...failedRecord, findings: groundedFindingsForTrajectory(failedRecord.findings as AgenticFinding[], [...priorRecords, { ...failedRecord, turn: failedRecord.turn }]) };
-             targetWrapperFailureStage = "intelligence_projection";
-             recordResult(intelligence, normalizedFailureRecord, priorRecords);
              records = [...records, normalizedFailureRecord];
              targetWrapperFailureStage = "trajectory_persistence";
              await input.onTrajectoryRecord?.(normalizedFailureRecord);
+             targetWrapperFailureStage = "intelligence_projection";
+             recordResult(intelligence, normalizedFailureRecord, priorRecords);
              targetWrapperFailureStage = "post_action_control";
            }
            trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
@@ -387,11 +390,12 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
              normalizedRecord.execution = "blocked";
              normalizedRecord.findings = [];
              normalizedRecord.observation = "Terminal claim verification blocked the stop: at least one Investigator finding was not supported by successfully observed cited material. Continue research and verify each claim before stopping.";
-             targetWrapperFailureStage = "intelligence_projection";
-             recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
+             const priorRecords = [...historyRecords, ...records];
              records = [...records, normalizedRecord];
              targetWrapperFailureStage = "trajectory_persistence";
              await input.onTrajectoryRecord?.(normalizedRecord);
+             targetWrapperFailureStage = "intelligence_projection";
+             recordResult(intelligence, normalizedRecord, priorRecords);
              targetWrapperFailureStage = "trajectory_projection";
              actionsSinceCheckpoint += 1;
              trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `VERIFICATION_BLOCKED:turn=${actionTurn}:ungrounded_terminal_claim`, `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
@@ -403,12 +407,13 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
              continue;
            }
 
-           targetWrapperFailureStage = "intelligence_projection";
-             recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
+           const priorRecords = [...historyRecords, ...records];
            records = [...records, normalizedRecord];
-            targetWrapperFailureStage = "trajectory_persistence";
-            await input.onTrajectoryRecord?.(normalizedRecord);
-            targetWrapperFailureStage = "trajectory_projection";
+           targetWrapperFailureStage = "trajectory_persistence";
+           await input.onTrajectoryRecord?.(normalizedRecord);
+           targetWrapperFailureStage = "intelligence_projection";
+           recordResult(intelligence, normalizedRecord, priorRecords);
+           targetWrapperFailureStage = "trajectory_projection";
            actionsSinceCheckpoint += 1;
            trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
            // A synthetic runtime_error record is durable diagnostic evidence, not a completed research act.
