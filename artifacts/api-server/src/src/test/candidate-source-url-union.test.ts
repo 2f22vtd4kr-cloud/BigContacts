@@ -53,6 +53,10 @@ describe("discovery source evidence policy", () => {
     expect(isClaimGradeDiscoverySourceUrl("https://www.sec.gov/Archives/edgar/data/123/filing.htm")).toBe(true);
   });
 
+  it("rejects the DuckDuckGo Instant Answer API as candidate identity evidence", () => {
+    expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com/?q=Jane+Example&format=json")).toBe(false);
+  });
+
   it("merges only durable supporting page URLs across continuations", () => {
     expect(mergeDurablyAdmittedCandidateSources([
       [{ name: "Jane Example", sourceUrls: ["https://example.test/team/jane#bio"] }],

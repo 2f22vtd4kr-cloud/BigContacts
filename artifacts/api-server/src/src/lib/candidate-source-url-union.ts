@@ -46,6 +46,8 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
     if (/(^|\.)google\.[a-z.]+$/.test(host) && /^\/search$/i.test(path)) return false;
     if ((host === "bing.com" || host.endsWith(".bing.com")) && /^\/search$/i.test(path)) return false;
     if (host === "search.yahoo.com" && /^\/search$/i.test(path)) return false;
+    // The Instant Answer API returns an aggregated answer, not a directly observed source page.
+    if (host === "api.duckduckgo.com") return false;
     if ((host === "duckduckgo.com" || host === "html.duckduckgo.com") && (path === "/" || /^\/html$/i.test(path)) && url.searchParams.has("q")) return false;
     if (host === "efts.sec.gov" && /^\/LATEST\/search-index(?:\/|$)/i.test(url.pathname)) return false;
     if (/\/(?:search|search-index|search-results|results)$/i.test(path)) return false;
