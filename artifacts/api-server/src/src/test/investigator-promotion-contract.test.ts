@@ -6,7 +6,7 @@ import { parsePersonFindings } from "../lib/discovery-agent";
 
 describe("investigator decision → durable promotion boundary", () => {
   const source = "https://example.com/team/jane-example";
-  const visited = [`step1: visit ${source}`];
+  const visited = [{ action: "visit", execution: "success", observedUrls: [source] }] as const;
 
   it("rejects a source-backed person when promotionDecision is absent", () => {
     expect(parsePersonFindings([{
@@ -46,12 +46,43 @@ describe("investigator decision → durable promotion boundary", () => {
     ]);
   });
 
+  it("binds promotion to the actual final URL observed after a redirect", () => {
+    const requestedUrl = "https://example.com/about";
+    const redirectedVisit = [{ action: "visit", execution: "success", observedUrls: [source] }] as const;
+    const finding = {
+      personName: "Jane Example",
+      role: "Founder",
+      scope: "candidate" as const,
+      promotionDecision: "promote" as const,
+      promotionReason: "The fetched page directly supports this person's role.",
+      sourceUrls: [source],
+      note: "Named on the observed team page",
+    };
+
+    expect(parsePersonFindings([finding], redirectedVisit)).toEqual([
+      expect.objectContaining({ name: "Jane Example", sourceUrls: [source] }),
+    ]);
+    expect(parsePersonFindings([{ ...finding, sourceUrls: [requestedUrl] }], redirectedVisit)).toEqual([]);
+  });
+
+  it("does not accept a failed page fetch as observed source evidence", () => {
+    const failedVisit = [{ action: "visit", execution: "error", observedUrls: [source] }] as const;
+    expect(parsePersonFindings([{
+      personName: "Jane Example",
+      role: "Founder",
+      scope: "candidate",
+      promotionDecision: "promote",
+      sourceUrls: [source],
+      note: "Named on the page",
+    }], failedVisit)).toEqual([]);
+  });
+
   it("rejects promotion when the cited HTTPS page was not actually observed", () => {
     expect(parsePersonFindings([{
       personName: "Jane Example",
       scope: "candidate",
       promotionDecision: "promote",
       sourceUrls: [source],
-    }], ["step1: web_search Jane Example"])).toEqual([]);
+    }], [{ action: "web_search", execution: "success", observedUrls: [] }] as const)).toEqual([]);
   });
 });
