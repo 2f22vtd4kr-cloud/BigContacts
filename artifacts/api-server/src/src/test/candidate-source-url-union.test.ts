@@ -41,7 +41,7 @@ describe("discovery source evidence policy", () => {  it("requires the same cand
     const findings = [{
       personName: "Jane Example", role: "Chief Executive Officer",
       promotionDecision: "promote" as const, scope: "candidate" as const,
-      sourceUrls: ["https://leadership.alpha.test/jane", "https://profiles.alpha.test/jane", "https://company-beta.test/team", "https://directory-gamma.test/jane"],
+      sourceUrls: ["https://leadership.alpha.test/jane", "https://profiles.alpha.test/jane", "https://mirror-copy.test/jane", "https://company-beta.test/team", "https://directory-gamma.test/jane"],
     }];
     const normalize = (raw: string) => {
       try { const url = new URL(raw); if (url.protocol !== "https:") return null; url.hash = ""; return url.href.endsWith("/") ? url.href.slice(0,-1) : url.href; }
@@ -50,6 +50,7 @@ describe("discovery source evidence policy", () => {  it("requires the same cand
     const observations = [
       { action: "visit", execution: "success", sourceUrl: "https://leadership.alpha.test/jane", observation: "Jane Example is the Chief Executive Officer of Alpha.", eventId: 10 },
       { action: "browser_fetch", execution: "success", sourceUrl: "https://profiles.alpha.test/jane", observation: "Jane Example is the Chief Executive Officer of Alpha.", eventId: 11 },
+      { action: "visit", execution: "success", sourceUrl: "https://mirror-copy.test/jane", observation: "Jane Example is the Chief Executive Officer of Alpha.", eventId: 15 },
       { action: "visit", execution: "success", sourceUrl: "https://company-beta.test/team", observation: "Jane Example is the Chief Executive Officer of Beta.", eventId: 12 },
       { action: "visit", execution: "success", sourceUrl: "https://directory-gamma.test/jane", observation: "Jane Example appears here, but no role is stated.", eventId: 13 },
       { action: "web_search", execution: "success", sourceUrl: "https://search-delta.test/jane", observation: "Jane Example is the Chief Executive Officer.", eventId: 14 },
