@@ -720,7 +720,31 @@ export class ResearchIntelligenceEngine {
         attribution: evidence.attribution ?? null,
       }));
     const actionYield = [...this.actionYield.entries()].map(([action, stat]) => summarizeActionYield(action, stat));
-    const researchQuestions = openQuestions.map((question, index) => ({ id: "rq_" + hash(question).slice(0, 16), question, importance: Math.max(0.5, 1 - index * 0.05), uncertainty: 1, discriminators: [question], status: "open" as const }));
+    const researchQuestionMap = new Map<string, { id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" }>();
+    for (const [index, question] of openQuestions.entries()) {
+      researchQuestionMap.set(normalize(question), { id: "rq_" + hash(question).slice(0, 16), question, importance: Math.max(0.5, 1 - index * 0.05), uncertainty: 1, discriminators: [question], status: "open" });
+    }
+    // The model-authored action rationale is useful research intent. Keep it in
+    // the question projection without turning it into a deterministic terminal
+    // blocker (openQuestions and missingDiscriminators remain evidence-derived).
+    for (const action of this.actions.slice(-32)) {
+      const purpose = typeof action.args.purpose === "string" ? action.args.purpose.trim() : "";
+      if (!purpose) continue;
+      const key = normalize(purpose);
+      if (researchQuestionMap.has(key)) continue;
+      const hypothesis = typeof action.args.hypothesis === "string" ? action.args.hypothesis.trim() : "";
+      const query = typeof action.args.query === "string" ? action.args.query.trim() : "";
+      const discriminators = [...new Set([hypothesis, query].filter(Boolean))].slice(0, 4);
+      researchQuestionMap.set(key, {
+        id: "rq_" + hash(purpose).slice(0, 16),
+        question: purpose.slice(0, 500),
+        importance: typeof action.args.expectedInformationGain === "number" ? clamp(action.args.expectedInformationGain) : 0.5,
+        uncertainty: 0.8,
+        discriminators: discriminators.length ? discriminators.map((value) => value.slice(0, 300)) : [purpose.slice(0, 300)],
+        status: action.execution === "success" ? "answered" : ["error", "timeout", "blocked", "cancelled"].includes(action.execution) ? "blocked" : "open",
+      });
+    }
+    const researchQuestions = [...researchQuestionMap.values()].slice(-24);
     const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
     const leadingHypothesis = [...this.hypotheses.values()].sort((a, b) => b.score - a.score)[0] ?? null;
     const falsification = assessFalsificationPlan({ leadingHypothesisScore: leadingHypothesis?.score ?? null, contradictionPressure: frontier.contradictionPressure, unresolvedPressure: frontier.unresolvedPressure, missingDiscriminators: leadingHypothesis?.missingDiscriminators ?? openQuestions });

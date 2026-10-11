@@ -170,6 +170,8 @@ describe("Apex research intelligence", () => {
     expect(state.hypotheses.some((hypothesis) => hypothesis.label === "Jordan Example may be the director of Alpha")).toBe(true);
     expect(state.recentActions[0]?.args.hypothesis).toBe("Jordan Example may be the director of Alpha");
     expect(state.researchQuestions.some((question) => question.question.includes("Discriminate the Alpha affiliation"))).toBe(true);
+    expect(state.openQuestions).not.toContain("Discriminate the Alpha affiliation from competing identities");
+    expect(state.hypotheses.flatMap((hypothesis) => hypothesis.missingDiscriminators)).not.toContain("Discriminate the Alpha affiliation from competing identities");
   });
 
   it("restores durable epistemic state without selecting a new action", () => {
