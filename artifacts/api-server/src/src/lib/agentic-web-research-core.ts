@@ -1,5 +1,4 @@
 import { logger } from "./logger";
-import { emitInvestigatorProviderRequestAudit } from "./investigator-request-audit";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
@@ -990,14 +989,6 @@ async function callGroqJson(
           ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask }),
           response_format: responseFormat,
         };
-        emitInvestigatorProviderRequestAudit({
-          model,
-          cognitiveTask,
-          attempt,
-          jobId: jobId ?? null,
-          caseId: caseId ?? null,
-          requestBody,
-        });
         const response = await withProviderRetryOwnership("groq", "caller", () =>
           runProviderCall({ provider: "groq", account: quotaAccount, signal }, () =>
             safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
