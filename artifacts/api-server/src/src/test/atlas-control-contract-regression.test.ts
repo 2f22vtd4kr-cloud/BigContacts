@@ -463,3 +463,15 @@ describe("Atlas control-plane contract regression", () => {
   });
 
 });
+
+describe("canonical Investigator continuation failure handling", () => {
+  it("does not allow an errored or empty continuation to fall through into another Boss control turn", () => {
+    expect(canonicalDiscoverySource).toContain("classifyInvestigatorEpisodeFailure({");
+    expect(canonicalDiscoverySource).toContain('currentAction: "canonical-investigator-episode-failed"');
+    expect(canonicalDiscoverySource).toContain("investigator-episode-failure:control:");
+    expect(canonicalDiscoverySource).toContain("trajectoryRecordCount");
+    expect(canonicalDiscoverySource).toContain("failureDomain: diagnostic.domain");
+    expect(canonicalDiscoverySource).toContain("await clearActiveJobIfOwned(lockKey, atlasJobId);");
+    expect(canonicalDiscoverySource).toContain("return { phase: 3, ingested: 0, enriched: materialized");
+  });
+});
