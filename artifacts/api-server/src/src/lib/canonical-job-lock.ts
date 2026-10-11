@@ -36,7 +36,7 @@ async function withStrictPermanentClient<T>(command: StrictRedisCommand<T>): Pro
         markClientExhausted(client);
         continue;
       }
-      throw new Error(`Canonical Atlas Redis lock command failed: ${message}`);
+      throw Object.assign(new Error(`Canonical Atlas Redis lock command failed: ${message}`), { cause: error });
     }
   }
 
@@ -112,8 +112,48 @@ export async function renewCanonicalJob(type: string, jobId: string): Promise<bo
 }
 
 type ReleaseResult = { available: true; released: boolean };
+const CANONICAL_OWNER_READ_RETRY_DELAY_MS = 100;
+
+/**
+ * A canonical owner read is safe to retry once only when the failure is a
+ * recognized transport interruption. Never classify Upstash quota/capacity,
+ * command-policy, or unknown-state failures as transient, and never switch to
+ * a secondary Redis URL: those stores are independent databases, not replicas.
+ */
+function isTransientCanonicalOwnerReadFailure(error: unknown): boolean {
+  const parts: string[] = [];
+  let current: unknown = error;
+  const seen = new Set<object>();
+  for (let depth = 0; depth < 4 && current && typeof current === "object" && !seen.has(current); depth++) {
+    seen.add(current);
+    const shape = current as { name?: unknown; message?: unknown; code?: unknown; cause?: unknown };
+    if (typeof shape.name === "string") parts.push(shape.name);
+    if (typeof shape.message === "string") parts.push(shape.message);
+    if (typeof shape.code === "string") parts.push(shape.code);
+    current = shape.cause;
+  }
+  if (typeof current === "string") parts.push(current);
+  const diagnostic = parts.join(" ");
+  if (/max requests limit exceeded|quota|monthly cap|capacity exhausted|budget exhausted/i.test(diagnostic)) return false;
+  if (/\b(?:ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ECONNABORTED|EHOSTUNREACH|ENETUNREACH|EAI_AGAIN)\b/i.test(diagnostic)) return true;
+  return /socket hang up|socket closed unexpectedly|connection (?:is )?closed unexpectedly|reached the max retries per request limit|(?:command|operation) timed out/i.test(diagnostic);
+}
+
+async function readCanonicalJobOwner(type: string): Promise<string | null> {
+  return withStrictPermanentClient((redis) => redis.get(`apex:activejob:${type}`));
+}
+
 export async function isCanonicalJobOwner(type: string, jobId: string): Promise<boolean> {
-  const owner = await withStrictPermanentClient((redis) => redis.get(`apex:activejob:${type}`));
+  let owner: string | null;
+  try {
+    owner = await readCanonicalJobOwner(type);
+  } catch (error) {
+    if (!isTransientCanonicalOwnerReadFailure(error)) throw error;
+    // One bounded retry of the exact same read against the authoritative store.
+    // A second failure remains an error; unknown ownership is never treated as owned.
+    await new Promise<void>((resolve) => setTimeout(resolve, CANONICAL_OWNER_READ_RETRY_DELAY_MS));
+    owner = await readCanonicalJobOwner(type);
+  }
   return owner === jobId;
 }
 
