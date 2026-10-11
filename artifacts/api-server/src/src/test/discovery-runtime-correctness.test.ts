@@ -170,7 +170,7 @@ describe("discovery runtime architecture", () => {
     expect((dynamicWrapperSource.match(/initialConsecutiveActionParseFailures: consecutiveActionParseFailures/g) ?? []).length).toBe(2);
     expect((dynamicWrapperSource.match(/consecutiveActionParseFailures = actResult\.consecutiveActionParseFailures/g) ?? []).length).toBe(2);
     const targetLoopStart = dynamicWrapperSource.indexOf("const MAX_TARGET_ACTION_TURNS");
-    const targetRuntimeGuard = dynamicWrapperSource.indexOf('raw.action === "runtime_error" || actResult.stopReason === "UNEXPECTED_ERROR"', targetLoopStart);
+    const targetRuntimeGuard = dynamicWrapperSource.indexOf('if (raw.action === "runtime_error") {', targetLoopStart);
     const targetRecordPersist = dynamicWrapperSource.indexOf("await input.onTrajectoryRecord?.(normalizedRecord);", targetLoopStart);
     const targetOversight = dynamicWrapperSource.indexOf("const checkpointResult = await applyOversight(normalizedRecord, actionTurn);", targetRuntimeGuard);
     expect(targetRuntimeGuard).toBeGreaterThan(targetLoopStart);
