@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { describe, expect, it, vi } from "vitest";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -23,6 +23,49 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
   } as Parameters<typeof discoverySearchLivenessAdvisory>[0][number];
 }
 
+describe("Investigator cancellation supervisor", () => {
+  it("coalesces slow polling with per-action checks without caching settled results", async () => {
+    vi.useFakeTimers();
+    try {
+      let finishFirst: ((value: boolean) => void) | undefined;
+      const shouldCancel = vi.fn<() => Promise<boolean>>();
+      shouldCancel.mockImplementationOnce(() => new Promise<boolean>((resolve) => { finishFirst = resolve; }));
+      shouldCancel.mockResolvedValue(false);
+      const supervisor = createCancellationSupervisor(shouldCancel, vi.fn(), () => false);
+      const first = supervisor.checkNow();
+      const concurrent = supervisor.checkNow();
+      expect(concurrent).toBe(first);
+      await vi.advanceTimersByTimeAsync(INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS);
+      expect(shouldCancel).toHaveBeenCalledTimes(1);
+      expect(finishFirst).toBeDefined();
+      finishFirst!(false);
+      await expect(first).resolves.toBe(false);
+      await vi.advanceTimersByTimeAsync(INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS);
+      expect(shouldCancel).toHaveBeenCalledTimes(2);
+      supervisor.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("observes background cancellation once and stops further owner/job polling", async () => {
+    vi.useFakeTimers();
+    try {
+      let stopped = false;
+      const shouldCancel = vi.fn().mockResolvedValue(true);
+      const onCancel = vi.fn(() => { stopped = true; });
+      const supervisor = createCancellationSupervisor(shouldCancel, onCancel, () => stopped);
+      await vi.advanceTimersByTimeAsync(INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS);
+      expect(onCancel).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS * 5);
+      expect(shouldCancel).toHaveBeenCalledTimes(1);
+      expect(onCancel).toHaveBeenCalledTimes(1);
+      supervisor.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
 describe("Investigator action parse-failure provenance", () => {
   it("persists PARSE_FAILURE on the terminal invalid-contract record, not just the in-memory result", () => {
     const terminal = buildAgenticActionParseFailureRecord({

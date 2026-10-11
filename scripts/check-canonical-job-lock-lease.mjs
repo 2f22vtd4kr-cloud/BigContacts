@@ -8,6 +8,9 @@ const recovery = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/l
 const checks = [
   ["lock lease is bounded to a short stale-recovery window", /JOB_LOCK_TTL_SECONDS\s*=\s*15\s*\*\s*60/.test(lock)],
   ["owner-bound heartbeat exists", /renewCanonicalJob/.test(lock) && /ARGV\[1\]/.test(lock)],
+  ["canonical owner reads have exactly one bounded transient transport retry", lock.includes("CANONICAL_OWNER_READ_RETRY_DELAY_MS = 100") && lock.includes("function isTransientCanonicalOwnerReadFailure") && lock.includes("if (!isTransientCanonicalOwnerReadFailure(error)) throw error;") && lock.includes("owner = await readCanonicalJobOwner(type);")],
+  ["canonical owner retry explicitly excludes quota and capacity failures", lock.includes("max requests limit exceeded|quota|monthly cap|capacity exhausted|budget exhausted")],
+  ["canonical owner reads remain pinned to the canonical client helper", lock.includes("getAllPermanentClients()") && lock.includes("readCanonicalJobOwner(type)")],
   ["renewal cannot replace another owner", /== ARGV\[1\].*expire/s.test(lock)],
   ["lease loss durably fences bound cases", /fenceLeaseLostCases[\s\S]*status: "review"[\s\S]*canonical-lease-lost/.test(lock)],
   ["lease-loss fencing preserves terminal job snapshots", lock.includes("if not status or status=='done' or status=='failed' or status=='cancelled' then return 0 end")],

@@ -19,7 +19,7 @@ assert(/Math\.min\(Math\.max\(0, requestedIterations\), MAX_ITER\)/.test(source)
 assert(/Math\.min\(Math\.max\(0, requestedIterations\), MAX_ITER\)/.test(source), "caller iteration input is clamped fail-closed to the bounded runtime action ceiling");
 assert(/new AbortController\(\)/.test(source) && /input\.signal\?\.addEventListener\("abort", abortExternal/.test(source), "run-scoped cancellation is wired");
 assert(/setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/.test(source), "hard timeout aborts the run");
-assert(/runController\.signal\.aborted/.test(source) && /input\.shouldCancel && await input\.shouldCancel\(\)/.test(source), "turn boundaries honor cancellation");
+assert(/runController\.signal\.aborted/.test(source) && /createCancellationSupervisor/.test(source) && /await cancellationSupervisor\?\.checkNow\(\)/.test(source) && /INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS\s*=\s*2_000/.test(source) && /cancellationSupervisor\?\.stop\(\)/.test(source), "turn boundaries honor single-flight authoritative cancellation checks");
 assert(/MAX_NETWORK_RESPONSE_BYTES/.test(source) && /readResponseTextCapped/.test(source), "network observations are bounded");
 assert(/trajectoryRecords: AgenticTrajectoryRecord\[\]/.test(source), "structured trajectory is durable output");
 assert(/priorContext\?: string/.test(source) && /priorContext: input\.priorContext/.test(source), "durable case context has a separate bounded prompt layer");

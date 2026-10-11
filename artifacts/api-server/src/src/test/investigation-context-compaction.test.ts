@@ -68,6 +68,8 @@ describe("investigator context compaction", () => {
     expect(objective).toContain("PRIMARY OPERATOR OBJECTIVE END");
     expect(objective).toContain("Treat the Boss-directed question as a hypothesis");
     expect(objective).toContain("feasible public-source question");
+    expect(objective).toContain("Keep each action directly relevant to the current question");
+    expect(objective).toContain("unrelated homonyms or meanings");
     expect(objective).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
     expect(objective).toContain("Verify whether the named director");
     expect(objective).toContain("Choose each next action yourself");
