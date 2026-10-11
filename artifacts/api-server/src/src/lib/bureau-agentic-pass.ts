@@ -100,7 +100,8 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
   const baseIteration=Math.max(0,Number.isFinite(input.baseIteration) ? Number(input.baseIteration) : priorIteration);
   const rawTrajectory=Array.isArray(result.trajectory)?result.trajectory:[];
   const rawRecords=Array.isArray(result.trajectoryRecords)?result.trajectoryRecords:[];
-  const offsetRecords=rawRecords.map((record)=>({...record,turn:baseIteration+Math.max(1,Number(record.turn)||1)}));const groundingRecords=result.groundingTrajectoryRecords??result.trajectoryRecords;
+  // Agentic record.turn is already absolute (the core includes priorTurnOffset); only history strings below need the baseIteration adjustment.
+  const offsetRecords=rawRecords.map((record)=>({...record,turn:Math.max(1,Number(record.turn)||1)}));const groundingRecords=result.groundingTrajectoryRecords??result.trajectoryRecords;
   const renumberedTrajectory=rawTrajectory.map((line)=>{
     if(typeof line!=="string")return line;
     return line.replace(/^step(\d+):/i,(_match:string,numberString:string)=>`step${baseIteration+Number(numberString)}:`);
