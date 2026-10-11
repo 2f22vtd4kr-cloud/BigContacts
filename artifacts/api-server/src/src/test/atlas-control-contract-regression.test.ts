@@ -483,12 +483,11 @@ describe("canonical Investigator continuation failure handling", () => {
     expect(canonicalDiscoverySource).toContain('currentAction: "canonical-investigator-episode-failed"');
     expect(canonicalDiscoverySource).toContain("investigator-episode-failure:control:");
     expect(canonicalDiscoverySource).toContain("trajectoryRecordCount");
-    expect(canonicalDiscoverySource).toContain('!["done", "parse_failure", "investigator_provider_error"].includes(record.action)');
-    expect(canonicalDiscoverySource).toContain('record.execution !== "selected"');
-    expect(canonicalDiscoverySource).toContain('record.execution !== "blocked"');
+    expect(canonicalDiscoverySource).toContain("hasExecutedInvestigatorResearchAction(newTrajectoryRecords)");
+    expect(canonicalDiscoverySource).toContain("import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction }");
+    expect(canonicalDiscoverySource).not.toContain('!["done", "parse_failure", "investigator_provider_error"].includes(record.action)');
     expect(canonicalDiscoverySource).toContain("const newTrajectoryRecords = nextDiscovery.trajectoryRecords ?? [];");
     expect(canonicalDiscoverySource).toContain("const newTrajectoryRecordCount = newTrajectoryRecords.length;");
-    expect(canonicalDiscoverySource).toContain("investigatorActionExecuted,");
     expect(canonicalDiscoverySource).not.toContain("priorTrajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("failureDomain: diagnostic.domain");
     expect(canonicalDiscoverySource).toContain("await clearActiveJobIfOwned(lockKey, atlasJobId);");

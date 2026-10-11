@@ -19,6 +19,38 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_no_action" });
   });
 
+  it("rejects a completed episode that contains only a model-authored done decision", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      trajectoryRecords: [{ action: "done", execution: "success" }],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
+  it("rejects a proposed tool action that was selected but never executed", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      trajectoryRecords: [{ action: "web_search", execution: "selected" }],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
+  it("rejects a blocked tool action that never ran", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      trajectoryRecords: [{ action: "visit", execution: "blocked" }],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
+  it("recognizes an executed research tool attempt even when the tool returns an error", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      trajectoryRecords: [{ action: "web_search", execution: "http_error" }],
+    })).toBeNull();
+  });
+
   it("accepts a non-empty episode even when the case already has a longer cumulative trajectory", () => {
     // The caller passes only this episode's records. Historical events are not
     // included in this list and cannot suppress or invalidate the new action set.
@@ -38,27 +70,6 @@ describe("canonical Investigator continuation health", () => {
       stopReason: "LLM_UNAVAILABLE",
       trajectoryRecords: [],
     })).toEqual({ code: "investigator_episode_unavailable_without_provider_record" });
-  });
-
-  it("does not treat parse failures or blocked/selected actions as useful discovery work", () => {
-    expect(classifyInvestigatorEpisodeFailure({
-      status: "completed",
-      iterations: 3,
-      trajectoryRecords: [
-        { action: "parse_failure", execution: "error" },
-        { action: "visit", execution: "selected" },
-        { action: "done", execution: "blocked" },
-      ],
-    })).toEqual({ code: "investigator_episode_no_action" });
-  });
-
-  it("fails closed when the controller confirms no investigative action executed", () => {
-    expect(classifyInvestigatorEpisodeFailure({
-      status: "completed",
-      iterations: 4,
-      investigatorActionExecuted: false,
-      trajectoryRecords: [{ action: "web_search", execution: "error" }],
-    })).toEqual({ code: "investigator_episode_no_action" });
   });
 
   it("keeps explicit provider errors on the existing bounded provider-recovery path", () => {
@@ -84,9 +95,9 @@ describe("canonical Investigator continuation health", () => {
       status: "completed",
       iterations: 3,
       trajectoryRecords: [
-        { action: "web_search" },
-        { action: "visit" },
-        { action: "done" },
+        { action: "web_search", execution: "success" },
+        { action: "visit", execution: "success" },
+        { action: "done", execution: "success" },
       ],
     })).toBeNull();
   });
