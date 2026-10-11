@@ -369,6 +369,7 @@ export default function ApexProfile() {
     sourceReliability: number;
     directnessScore: number;
     independentCorroboration: number;
+    metadata?: string | null;
     observedAt: string;
   }>>([]);
   const [contactEvidenceLoading, setContactEvidenceLoading] = useState(false);
@@ -1395,36 +1396,57 @@ export default function ApexProfile() {
                       </div>
                     ) : (
                       <div className="space-y-2.5">
-                        {contactEvidence.map((item) => (
-                          <div key={item.id} className="text-[12px] font-mono border-l border-[#9CFF1A]/20 pl-2 space-y-0.5">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[#d4ff8a]/80 uppercase w-14 flex-shrink-0">{item.vectorType}</span>
-                              <span className={cn(
-                                "uppercase text-[11px] flex-shrink-0",
-                                item.validationStatus === "verified" ? "text-lime-400" :
-                                  item.validationStatus === "rejected" ? "text-red-400" : "text-[#9CFF1A]/80",
-                              )}>{item.validationStatus}</span>
-                              <span className="text-foreground/80 truncate flex-1" title={item.value}>{item.value}</span>
+                        {contactEvidence.map((item) => {
+                          let evidenceMeta: Record<string, unknown> = {};
+                          try {
+                            const parsed: unknown = JSON.parse(item.metadata ?? "{}");
+                            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) evidenceMeta = parsed as Record<string, unknown>;
+                          } catch { /* malformed metadata remains visible as unknown scope */ }
+                          const scope = String(evidenceMeta.scope ?? "unknown").toUpperCase();
+                          const attributedPerson = typeof evidenceMeta.personName === "string" ? evidenceMeta.personName : "";
+                          const attributedRole = typeof evidenceMeta.role === "string" ? evidenceMeta.role : "";
+                          const note = typeof evidenceMeta.note === "string" ? evidenceMeta.note : "";
+                          const collisionRisk = evidenceMeta.identityCollisionRisk === true;
+                          const selectedForCard = evidenceMeta.investigatorSelectedForCard === true;
+                          return (
+                            <div key={item.id} className="text-[12px] font-mono border-l border-[#9CFF1A]/20 pl-2 space-y-0.5">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[#d4ff8a]/80 uppercase w-14 flex-shrink-0">{item.vectorType}</span>
+                                <span className={cn(
+                                  "uppercase text-[11px] flex-shrink-0",
+                                  item.validationStatus === "verified" ? "text-lime-400" :
+                                    item.validationStatus === "rejected" ? "text-red-400" : "text-[#9CFF1A]/80",
+                                )}>{item.validationStatus}</span>
+                                <span className="text-foreground/80 truncate flex-1" title={item.value}>{item.value}</span>
+                              </div>
+                              <div className="flex items-center gap-2 flex-wrap text-[10px] text-muted-foreground/70">
+                                <span>Scope: {scope}</span>
+                                {attributedPerson && <span>Person: {attributedPerson}</span>}
+                                {attributedRole && <span>Role: {attributedRole}</span>}
+                                {selectedForCard && <span className="text-lime-400">Investigator-selected</span>}
+                                {collisionRisk && <span className="text-red-400" title={String(evidenceMeta.identityCollisionReason ?? "Identity collision warning")}>Identity collision risk</span>}
+                              </div>
+                              {note && <div className="text-[11px] text-muted-foreground/70 break-words">{note.slice(0, 240)}</div>}
+                              <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground/60">
+                                {item.sourceUrl ? (
+                                  <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
+                                    className="text-[#9CFF1A]/70 hover:text-[#9CFF1A] underline underline-offset-2 truncate max-w-[220px]"
+                                    title={item.sourceUrl}>
+                                    {item.source}↗
+                                  </a>
+                                ) : (
+                                  <span>{item.source}</span>
+                                )}
+                                {item.extractionMethod && !/guess|pattern|domain.gues/i.test(item.extractionMethod) && (
+                                  <span className="text-muted-foreground/40">· {item.extractionMethod}</span>
+                                )}
+                                <span className="text-muted-foreground/30 ml-auto flex-shrink-0">
+                                  {new Date(item.observedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground/60">
-                              {item.sourceUrl ? (
-                                <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
-                                  className="text-[#9CFF1A]/70 hover:text-[#9CFF1A] underline underline-offset-2 truncate max-w-[220px]"
-                                  title={item.sourceUrl}>
-                                  {item.source}↗
-                                </a>
-                              ) : (
-                                <span>{item.source}</span>
-                              )}
-                              {item.extractionMethod && !/guess|pattern|domain.gues/i.test(item.extractionMethod) && (
-                                <span className="text-muted-foreground/40">· {item.extractionMethod}</span>
-                              )}
-                              <span className="text-muted-foreground/30 ml-auto flex-shrink-0">
-                                {new Date(item.observedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

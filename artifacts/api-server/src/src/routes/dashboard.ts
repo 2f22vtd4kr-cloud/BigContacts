@@ -106,13 +106,14 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
       })
       .from(assetsTable)
       .where(sql`${assetsTable.ownerEntityId} = ANY(${sql.raw(`ARRAY[${ids.join(",")}]::int[]`)})`)
-      .orderBy(desc(assetsTable.lastActivityDate));
+      .orderBy(sql`${assetsTable.lastActivityDate} DESC NULLS LAST`);
 
     // Keep only the most recent asset per entity
     for (const a of latestAssets) {
-      if (!a.ownerId || signalMap[a.ownerId]) continue;
-      const desc = (a.description ?? "").slice(0, 90);
-      const src = a.sourceRegistry ?? a.category;
+      if (!a.ownerId || signalMap[a.ownerId] || !a.lastActivityDate || !a.sourceRegistry?.trim()) continue;
+      const desc = (a.description ?? "").trim().slice(0, 90);
+      if (!desc) continue;
+      const src = a.sourceRegistry.trim();
       signalMap[a.ownerId] = `${a.category}: ${desc} · ${src}`;
     }
   }
