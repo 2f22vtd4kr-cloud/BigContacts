@@ -317,6 +317,18 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          visits += actResult.visits;
          lastStatus = actResult.status;
          error = actResult.error ?? error;
+         if (actResult.stopReason === "UNEXPECTED_ERROR") {
+           // Do not let a failed core act enter ordinary Right-hand/Boss oversight. Preserve all records before returning fail-closed.
+           for (const failedRecord of actResult.trajectoryRecords) {
+             const priorRecords = [...historyRecords, ...records];
+             const normalizedFailureRecord = { ...failedRecord, findings: groundedFindingsForTrajectory(failedRecord.findings as AgenticFinding[], [...priorRecords, { ...failedRecord, turn: failedRecord.turn }]) };
+             recordResult(intelligence, normalizedFailureRecord, priorRecords);
+             records = [...records, normalizedFailureRecord];
+             await input.onTrajectoryRecord?.(normalizedFailureRecord);
+           }
+           trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
+           return { status: "error", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "UNEXPECTED_ERROR", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: actResult.error ?? "Unexpected Investigator runtime exception.", executionId, consecutiveActionParseFailures };
+         }
          const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
 
          if (raw) {
