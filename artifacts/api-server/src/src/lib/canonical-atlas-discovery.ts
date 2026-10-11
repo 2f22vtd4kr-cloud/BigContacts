@@ -16,7 +16,7 @@ import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchActi
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { formatBossDirectedObjective, validateResearchObjective } from "./research-objective";
 import { candidateIdentityObserved, normalizeCandidateIdentityName } from "./identity-text-match";
-import { candidateSourceUrlsForIdentity, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
+import { candidateRoleCorroborationSources, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 
 export type CanonicalAtlasOptions = {
@@ -59,53 +59,46 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length >= 3)
     .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some(isObservedHttpsSource))
     .map((finding) => finding.personName as string));
-  const durableCandidateSources: Array<{ name: string; sourceUrl: string }> = [];
+  const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
   let materialized = 0;
   let evidenceRows = 0;
 
   for (const name of candidates) {
     const identity = normalizeCandidateIdentityName(name);
-    const candidateSourceUrls = candidateSourceUrlsForIdentity({
-      findings: input.findings,
-      personName: name,
-      isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl,
-      normalizeSourceUrl,
-    });
-    if (!candidateSourceUrls.length) continue;
+    const candidateRoles = [...new Set(input.findings
+      .filter((finding) => normalizeCandidateIdentityName(finding.personName ?? "") === identity
+        && finding.promotionDecision === "promote" && finding.scope === "candidate")
+      .map((finding) => typeof finding.role === "string" ? finding.role.trim().replace(/\s+/g, " ") : "")
+      .filter(Boolean))];
+    if (!candidateRoles.length) continue;
 
     const caseEvents = await db.select({ id: researchCaseEventsTable.id, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
       .from(researchCaseEventsTable)
       .where(eq(researchCaseEventsTable.caseId, input.discoveryCaseId));
-    // A model-emitted finding is only a candidate for admission. It becomes a
-    // durable admission after the same Investigator run observed that full name
-    // in a successful retrieved page at one of the candidate's claimed URLs.
-    const supportingEvent = caseEvents.find((event) => {
-      if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false;
+    const observations = caseEvents.flatMap((event) => {
+      if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return [];
       try {
         const payload = JSON.parse(event.payload) as { action?: string; execution?: string; observedUrls?: unknown[]; runId?: string; observation?: string };
-        const directSourceAction = payload.action === "visit" || payload.action === "browser_fetch";
-        return payload.runId === input.discoveryRunId &&
-          candidateIdentityObserved(name, payload.observation) &&
-          directSourceAction &&
-          payload.execution === "success" &&
-          Array.isArray(payload.observedUrls) &&
-          payload.observedUrls.some((url) => {
-            const normalized = normalizeSourceUrl(String(url));
-            return normalized !== null && candidateSourceUrls.includes(normalized);
-          });
-      } catch { return false; }
+        if (payload.runId !== input.discoveryRunId || !Array.isArray(payload.observedUrls)) return [];
+        return payload.observedUrls.filter((url) => typeof url === "string").map((url) => ({
+          action: payload.action ?? "", execution: payload.execution ?? "", sourceUrl: String(url),
+          observation: typeof payload.observation === "string" ? payload.observation : "", eventId: event.id,
+        }));
+      } catch { return []; }
     });
-    if (!supportingEvent || typeof supportingEvent.payload !== "string") continue;
 
-    let sourceUrl: string | null = null;
-    try {
-      const payload = JSON.parse(supportingEvent.payload) as { observedUrls?: unknown[] };
-      sourceUrl = (payload.observedUrls ?? [])
-        .map((url) => normalizeSourceUrl(String(url)))
-        .find((url): url is string => Boolean(url && candidateSourceUrls.includes(url))) ?? null;
-    } catch { sourceUrl = null; }
-    if (!sourceUrl) continue;
-    const normalizedSource = sourceUrl;
+    let selectedRole = "";
+    let supportingSources: Array<{ sourceUrl: string; publisher: string; eventId: number }> = [];
+    for (const role of candidateRoles) {
+      const sources = candidateRoleCorroborationSources({
+        findings: input.findings, personName: name, role, observations,
+        isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl, normalizeSourceUrl,
+      });
+      if (sources.length >= 2) { selectedRole = role; supportingSources = sources; break; }
+    }
+    if (supportingSources.length < 2) continue;
+    const primarySupport = supportingSources[0];
+    if (!primarySupport) continue;
 
     const materializedAdmission = await db.transaction(async (tx) => {
       const [ownedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile })
@@ -131,33 +124,64 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       let entityId = existing?.id ?? null;
       let createdEntity = false;
       if (!entityId) {
-        const [created] = await tx.insert(entitiesTable).values({ name, type: "PersonCandidate", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId: input.discoveryCaseId }) }).returning({ id: entitiesTable.id });
+        const [created] = await tx.insert(entitiesTable).values({ name, type: "PersonCandidate", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl: primarySupport.sourceUrl, sourceUrls: supportingSources.map((support) => support.sourceUrl), role: selectedRole, discoveryCaseId: input.discoveryCaseId }) }).returning({ id: entitiesTable.id });
         entityId = created?.id ?? null;
         createdEntity = Boolean(entityId);
       }
       if (!entityId) return { materialized: 0, evidenceRows: 0, durableEvidence: false };
-      const [existingEvidence] = await tx.select({ id: researchEvidenceTable.id }).from(researchEvidenceTable)
-        .where(and(eq(researchEvidenceTable.entityId, entityId), eq(researchEvidenceTable.sourceUrl, normalizedSource)))
-        .limit(1);
+      const supportingSourceUrls = supportingSources.map((support) => support.sourceUrl);
+      const existingEvidenceRows = await tx.select({ id: researchEvidenceTable.id, sourceUrl: researchEvidenceTable.sourceUrl, metadata: researchEvidenceTable.metadata })
+        .from(researchEvidenceTable)
+        .where(and(eq(researchEvidenceTable.entityId, entityId), inArray(researchEvidenceTable.sourceUrl, supportingSourceUrls)));
+      const existingByUrl = new Map(existingEvidenceRows.map((row) => [normalizeSourceUrl(String(row.sourceUrl ?? "")), row]));
       let addedEvidence = 0;
-      if (!existingEvidence) {
-        const [session] = await tx.insert(researchSessionsTable).values({ targetEntityId: entityId, winningPath: JSON.stringify([{ sourceUrl: normalizedSource, caseId: input.discoveryCaseId, admission: "investigator-explicit-promotion" }]), notes: "Canonical discovery admission evidence; target-scoped investigation required before contact promotion.", safeUseStatus: "manual_review", crmStatus: "Lead Gen" }).returning({ id: researchSessionsTable.id });
+      let durableSourceCount = 0;
+      for (const support of supportingSources) {
+        const existingEvidence = existingByUrl.get(support.sourceUrl);
+        if (existingEvidence) {
+          let priorMetadata: Record<string, unknown> = {};
+          try { const parsed: unknown = JSON.parse(existingEvidence.metadata ?? "{}"); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorMetadata = parsed as Record<string, unknown>; } catch {}
+          await tx.update(researchEvidenceTable).set({ metadata: JSON.stringify({ ...priorMetadata, discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: support.eventId, role: selectedRole, independentPublisher: support.publisher, reviewOnly: true }) }).where(eq(researchEvidenceTable.id, existingEvidence.id));
+          durableSourceCount += 1;
+          continue;
+        }
+        const supportEvent = caseEvents.find((event) => event.id === support.eventId);
+        const [session] = await tx.insert(researchSessionsTable).values({
+          targetEntityId: entityId,
+          winningPath: JSON.stringify([{ sourceUrl: support.sourceUrl, caseId: input.discoveryCaseId, admission: "investigator-explicit-promotion", role: selectedRole, independentPublisher: support.publisher }]),
+          notes: "Canonical discovery admission requires two independent role-bound source units; target-scoped investigation remains required before contact promotion.",
+          safeUseStatus: "manual_review", crmStatus: "Lead Gen",
+        }).returning({ id: researchSessionsTable.id });
         if (!session?.id) throw new Error("Canonical discovery evidence session insert returned no durable session ID.");
-        await tx.insert(researchEvidenceTable).values({ sessionId: session.id, entityId, claimType: "identity_candidate", claim: `Investigator-discovered candidate: ${name}`, value: name, sourceName: "canonical-agentic-discovery", sourceUrl: normalizedSource, sourceDomain: new URL(normalizedSource).hostname, status: "review", confidence: 0.5, observedAt: supportingEvent.createdAt ?? new Date(), freshnessScore: 1, metadata: JSON.stringify({ discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: supportingEvent.id, promotionDecision: "promote", reviewOnly: true }) });
-        addedEvidence = 1;
+        await tx.insert(researchEvidenceTable).values({
+          sessionId: session.id, entityId, claimType: "identity_candidate",
+          claim: "Investigator-discovered candidate: " + name + "; role: " + selectedRole,
+          value: name, sourceName: "canonical-agentic-discovery",
+          sourceUrl: support.sourceUrl, sourceDomain: new URL(support.sourceUrl).hostname,
+          status: "review", confidence: 0.5, observedAt: supportEvent?.createdAt ?? new Date(),
+          freshnessScore: 1,
+          metadata: JSON.stringify({ discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: support.eventId, promotionDecision: "promote", role: selectedRole, independentPublisher: support.publisher, reviewOnly: true }),
+        });
+        addedEvidence += 1;
+        durableSourceCount += 1;
       }
-      return { materialized: createdEntity ? 1 : 0, evidenceRows: addedEvidence, durableEvidence: Boolean(existingEvidence) || addedEvidence > 0 };
+      if (existing && entityId) {
+        let priorEntityMetadata: Record<string, unknown> = {};
+        try { const parsed: unknown = JSON.parse(existing.metadata ?? "{}"); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorEntityMetadata = parsed as Record<string, unknown>; } catch {}
+        await tx.update(entitiesTable).set({ metadata: JSON.stringify({ ...priorEntityMetadata, reviewOnly: true, admission: priorEntityMetadata.admission ?? "investigator-explicit-promotion", sourceUrl: primarySupport.sourceUrl, sourceUrls: supportingSources.map((support) => support.sourceUrl), role: selectedRole, discoveryCaseId: input.discoveryCaseId }) }).where(eq(entitiesTable.id, entityId));
+      }
+      return { materialized: createdEntity ? 1 : 0, evidenceRows: addedEvidence, durableEvidence: durableSourceCount >= 2 };
     }, { isolationLevel: "serializable" });
 
     // Never expose an unsupported model finding to Boss control, case projections,
     // or candidate counters. Names returned from this boundary have a durable
     // entity plus source evidence, whether newly inserted or already present.
-    if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrl: normalizedSource });
+    if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) });
     materialized += materializedAdmission.materialized;
     evidenceRows += materializedAdmission.evidenceRows;
   }
 
-  const durableCandidates = mergeDurablyAdmittedCandidateSources([durableCandidateSources.map(({ name, sourceUrl }) => ({ name, sourceUrls: [sourceUrl] }))]);
+  const durableCandidates = mergeDurablyAdmittedCandidateSources([durableCandidateSources.map(({ name, sourceUrls }) => ({ name, sourceUrls }))]);
   return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows };
 }
 
