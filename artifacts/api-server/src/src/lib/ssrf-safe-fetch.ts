@@ -135,7 +135,13 @@ async function resolveSafeAddress(hostname: string, signal?: AbortSignal): Promi
   } finally { resolver.cancel(); }
 }
 function parseSafeUrl(rawUrl: string): URL { let url: URL; try { url = new URL(rawUrl); } catch { throw new Error("Outbound URL is invalid"); } if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Outbound URL must use HTTP(S)"); if (url.username || url.password) throw new Error("Outbound URL credentials are not permitted"); const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, ""); if (!hostname || BLOCKED_HOSTNAMES.has(hostname)) throw new Error("Outbound URL targets a blocked host"); return url; }
-export async function assertSafeOutboundUrl(rawUrl: string): Promise<URL> { const url = parseSafeUrl(rawUrl); await resolveSafeAddress(url.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "")); return url; }
+export async function assertSafeOutboundUrl(rawUrl: string, signal?: AbortSignal): Promise<URL> {
+  if (signal?.aborted) throw new Error("Outbound URL validation aborted");
+  const url = parseSafeUrl(rawUrl);
+  await resolveSafeAddress(url.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, ""), signal);
+  if (signal?.aborted) throw new Error("Outbound URL validation aborted");
+  return url;
+}
 function requestHeaders(init: RequestInit, hostname: string, port: string): Record<string, string> { const headers: Record<string, string> = { "accept-encoding": "identity" }; if (init.headers instanceof Headers) init.headers.forEach((value, key) => { headers[key] = value; }); else if (Array.isArray(init.headers)) for (const [key, value] of init.headers) headers[key] = value; else if (init.headers) for (const [key, value] of Object.entries(init.headers)) headers[key] = String(value); if (!headers.host) headers.host = port ? `${hostname}:${port}` : hostname; return headers; }
 async function readRequestBodyCapped(body: BodyInit | null | undefined, signal?: AbortSignal): Promise<Buffer | undefined> {
  if (signal?.aborted) throw new Error("Outbound request aborted");
