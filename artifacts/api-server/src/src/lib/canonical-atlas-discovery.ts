@@ -912,7 +912,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                 errorClass: providerDiagnostic.errorName,
                 errorCode: providerDiagnostic.errorCode,
                 messageDigest: providerDiagnostic.messageDigest,
-                newTrajectoryRecordCount,
                 investigatorActionExecuted: newTrajectoryRecordCount > 0,
               }),
             }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
