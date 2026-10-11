@@ -492,7 +492,9 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("priorTrajectoryRecords: discovery.trajectoryRecords ?? []");
     expect(canonicalDiscoverySource).toContain("priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])]");
     expect(bureauPassSource).toContain("priorTrajectoryRecords:input.priorTrajectoryRecords");
-    expect(agenticResearchSource.match(/priorTrajectoryRecords: \[\.\.\.historyRecords, \.\.\.records\.map\(/g) ?? []).toHaveLength(2);
+    expect(agenticResearchSource.match(/priorTrajectoryRecords: \[\.\.\.historyRecords, \.\.\.records\]/g) ?? []).toHaveLength(2);
+    expect(agenticResearchSource.match(/const normalizedRecord = \{ \.\.\.raw, turn: raw\.turn/g) ?? []).toHaveLength(2);
+    expect(agenticResearchSource).not.toContain("historyRecords.length + record.turn");
     expect(agenticResearchSource).toContain("sourceObservations: history.map");
     expect(agenticResearchSource).toContain("loadDurableInvestigatorRecords");
     expect(readFileSync(resolve(process.cwd(), "src/src/lib/research-intelligence-engine.ts"), "utf8")).toContain("sourceObservationsByUrl");
