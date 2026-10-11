@@ -140,7 +140,8 @@ describe("discovery runtime architecture", () => {
   it("keeps unexpected runtime exceptions separate from model-action parse failures", () => {
     expect(researchCoreSource).toContain('action: "runtime_error"');
     expect(researchCoreSource).toContain('stopReason: "UNEXPECTED_ERROR"');
-    expect(researchCoreSource).toContain('failureDomain: "unexpected_programming_error"');
+    expect(researchCoreSource).toContain('domain: "unexpected_programming_error" as const');
+    expect(researchCoreSource).toContain("failureDomain: runtimeFailureClassification.domain");
     expect(researchCoreSource).toContain('failureKind: "unexpected_exception"');
     expect(researchCoreSource).toContain("runtimeStage");
     expect(researchCoreSource).toContain('runtimeStage === "trajectory_persistence"');
