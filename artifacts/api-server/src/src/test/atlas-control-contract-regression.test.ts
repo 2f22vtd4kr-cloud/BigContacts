@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
-import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -331,6 +331,19 @@ describe("Atlas control-plane contract regression", () => {
       reason: "No further justified work.",
       confidence: 0.9,
     })).toBe(true);
+
+    const paddedStop = {
+      action: " stop ",
+      candidateName: null,
+      direction: null,
+      reason: "Whitespace should not change a valid control transition.",
+      confidence: 0.9,
+    };
+    expect(validateAtlasBossControl(paddedStop)).toBe(true);
+    expect(normalizeAtlasControlAction(paddedStop.action)).toBe("stop");
+    expect(normalizeAtlasControlAction(" RESEARCH_CANDIDATE ")).toBe("research_candidate");
+    expect(normalizeAtlasControlAction("invented_action")).toBeNull();
+    expect(controlSource).toContain("const requestedAction = normalizeAtlasControlAction(parsed?.action);");
     expect(validateAtlasBossControl({
       action: "invented_action",
       candidateName: null,
