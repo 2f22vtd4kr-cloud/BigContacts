@@ -168,6 +168,12 @@ describe("discovery runtime architecture", () => {
     expect(dynamicWrapperSource).toContain('action: "runtime_error"');
     expect(dynamicWrapperSource).toContain('stopReason: "UNEXPECTED_ERROR"');
     expect(dynamicWrapperSource).toContain('createHash("sha256")');
+    expect(dynamicWrapperSource).toContain('classifyCanonicalAtlasFailure({ stage: "oversight_control_decision", error: caught })');
+    const discoveryLoopStart = dynamicWrapperSource.indexOf("async function runDynamicDiscovery");
+    const discoveryPersist = dynamicWrapperSource.indexOf("await input.onTrajectoryRecord?.(normalizedRecord);", discoveryLoopStart);
+    const discoveryProject = dynamicWrapperSource.indexOf("recordResult(intelligence, normalizedRecord, priorRecords);", discoveryPersist);
+    expect(discoveryPersist).toBeGreaterThan(discoveryLoopStart);
+    expect(discoveryProject).toBeGreaterThan(discoveryPersist);
     // A wrapper exception must not be relabelled as an invalid model-action contract.
     expect(dynamicWrapperSource).not.toContain('stopReason: "PARSE_FAILURE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords');
   });
