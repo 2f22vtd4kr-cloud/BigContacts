@@ -163,6 +163,10 @@ describe("discovery runtime architecture", () => {
     expect((dynamicWrapperSource.match(/catch \(caught: unknown\)/g) ?? []).length).toBe(2);
     expect(dynamicWrapperSource).toContain('let wrapperFailureStage = "continuation_preparation"');
     expect(dynamicWrapperSource).toContain('let targetWrapperFailureStage = "continuation_preparation"');
+    expect(dynamicWrapperSource).toContain('wrapperFailureStage = "result_aggregation"');
+    expect(dynamicWrapperSource).toContain('wrapperFailureStage = "terminal_validation"');
+    expect(dynamicWrapperSource).toContain('targetWrapperFailureStage = "result_aggregation"');
+    expect(dynamicWrapperSource).toContain('targetWrapperFailureStage = "terminal_validation"');
     expect(dynamicWrapperSource).toContain('const persistenceStage = wrapperFailureStage === "trajectory_persistence"');
     expect(dynamicWrapperSource).toContain('const persistenceStage = targetWrapperFailureStage === "trajectory_persistence"');
     expect(dynamicWrapperSource).toContain('action: "runtime_error"');
