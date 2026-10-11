@@ -2,6 +2,7 @@ import fs from "node:fs";
 const control = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-decision.ts", "utf8");
 const compactor = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const bureau = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts", "utf8");
+const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts", "utf8");
 const atlas = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
 const persist = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts", "utf8");
@@ -49,7 +50,8 @@ const checks = [
 ["later corroboration does not downgrade VERIFIED, STALE, or CONTRADICTED contact state", /!\["REJECTED", "VERIFIED", "STALE", "CONTRADICTED"\]\.includes\(existing\.state\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/research-intelligence-engine.ts", "utf8"))],
 ["generic Investigator claims require their claimed value in observed material", /let valueObserved = false/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8")) && /const hasValue = value\.length > 0 && Boolean\(bindExactSourceSpan\(observation, value\)\?\.exact\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8"))],
 ["discovery trajectory is accumulated rather than overwritten across continuation runs", /const accumulatedTrajectory=\[\.\.\.priorTrajectory,\.\.\.newTrajectoryLines\]/.test(bureau) && /const accumulatedRecords=\[\.\.\.priorRecords,\.\.\.newOffsetRecords\]/.test(bureau) && /investigatorTrajectory:accumulatedTrajectory/.test(bureau)],
-["discovery continuation turns remain monotonic", /const priorIteration=Math\.max\(0,Number\(row\.iteration\?\?0\)\|\|0\)/.test(bureau) && /const baseIteration=Math\.max\(0,Number\.isFinite\(input\.baseIteration\)/.test(bureau) && /turn:baseIteration\+Math\.max\(1,Number\(record\.turn\)\|\|1\)/.test(bureau) && /const nextIteration=Math\.max\(priorIteration,\.\.\.newOffsetRecords\.map/.test(bureau)],
+// Core trajectory records already carry absolute turns; baseIteration offsets only the display/history strings.
+["discovery continuation turns remain monotonic", /turn: priorTurnOffset \+ i \+ 1/.test(core) && /const priorIteration=Math\.max\(0,Number\(row\.iteration\?\?0\)\|\|0\)/.test(bureau) && /const baseIteration=Math\.max\(0,Number\.isFinite\(input\.baseIteration\)/.test(bureau) && /turn:Math\.max\(1,Number\(record\.turn\)\|\|1\)/.test(bureau) && !/turn:baseIteration\+Math\.max\(1,Number\(record\.turn\)\|\|1\)/.test(bureau) && /step\$\{baseIteration\+Number\(numberString\)\}/.test(bureau) && /const nextIteration=Math\.max\(priorIteration,\.\.\.newOffsetRecords\.map/.test(bureau)],
 ["compatibility compaction preserves explicit state/evidence/trajectory sections", /"CURRENT STATE\\n"/.test(compactor) && /"EVIDENCE GRAPH SUMMARY\\n"/.test(compactor) && /"TRAJECTORY RECORDS\\n"/.test(compactor) && /"TRAJECTORY NOTES\\n"/.test(compactor)]
 ];
 let failed=false;for(const[name,ok]of checks){console.log(`${ok?"PASS":"FAIL"} ${name}`);if(!ok)failed=true;}if(failed)process.exit(1);
