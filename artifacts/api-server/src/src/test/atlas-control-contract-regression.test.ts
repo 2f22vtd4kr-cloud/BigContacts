@@ -479,6 +479,8 @@ describe("canonical Investigator continuation failure handling", () => {
     expect(canonicalDiscoverySource).toContain('currentAction: "canonical-investigator-episode-failed"');
     expect(canonicalDiscoverySource).toContain("investigator-episode-failure:control:");
     expect(canonicalDiscoverySource).toContain("trajectoryRecordCount");
+    expect(canonicalDiscoverySource).toContain("const newTrajectoryRecordCount = nextDiscovery.trajectoryRecords?.length ?? 0;");
+    expect(canonicalDiscoverySource).not.toContain("priorTrajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("failureDomain: diagnostic.domain");
     expect(canonicalDiscoverySource).toContain("await clearActiveJobIfOwned(lockKey, atlasJobId);");
     expect(canonicalDiscoverySource).toContain("return { phase: 3, ingested: 0, enriched: materialized");
