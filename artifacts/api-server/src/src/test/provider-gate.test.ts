@@ -6,6 +6,7 @@ import {
   runProviderCall,
   withProviderRetryOwnership,
   withProviderScope,
+  withProviderRole,
 } from "../lib/provider-gate";
 
 describe("provider quota gate", () => {
@@ -33,6 +34,8 @@ describe("provider quota gate", () => {
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
     delete process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE;
     delete process.env.APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE;
+    delete process.env.APEX_ATLAS_INVESTIGATOR_PROVIDER_MAX_REQUESTS_PER_SCOPE;
+    delete process.env.APEX_ATLAS_CONTROL_PROVIDER_MAX_REQUESTS_PER_SCOPE;
     delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GEMINI;
     delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GENERIC;
     delete process.env.APEX_EXTERNAL_GLOBAL_CONCURRENCY;
@@ -88,6 +91,48 @@ describe("provider quota gate", () => {
     );
 
     expect(calls).toBe(2);
+  });
+
+
+  it("reserves a bounded Groq budget for control calls when Investigator retries are exhausted", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ = "20";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "10";
+    process.env.APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE = "4";
+    process.env.APEX_ATLAS_INVESTIGATOR_PROVIDER_MAX_REQUESTS_PER_SCOPE = "2";
+    process.env.APEX_ATLAS_CONTROL_PROVIDER_MAX_REQUESTS_PER_SCOPE = "2";
+    let calls = 0;
+    const call = () => runProviderCall({ provider: "groq", account: "atlas-role-reservation" }, async () => {
+      calls += 1;
+      return calls;
+    });
+    const runScope = (role: "investigator" | "control", fn: () => Promise<unknown>) =>
+      withProviderScope("atlas-run:reserved-control-test", () => withProviderRole(role, fn));
+    await runScope("investigator", async () => {
+      await call();
+      await call();
+      await expect(call()).rejects.toMatchObject({ code: "budget_exhausted", provider: "groq" });
+    });
+    await runScope("control", async () => {
+      await call();
+      await call();
+      await expect(call()).rejects.toMatchObject({ code: "budget_exhausted", provider: "groq" });
+    });
+    expect(calls).toBe(4);
+  });
+
+  it("fails closed on unclassified Groq calls inside an Atlas job scope", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ = "20";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE = "4";
+    let calls = 0;
+    await expect(withProviderScope("atlas-run:unclassified-role-test", () =>
+      runProviderCall({ provider: "groq", account: "unclassified-role" }, async () => {
+        calls += 1;
+        return "must-not-run";
+      }),
+    )).rejects.toMatchObject({ code: "budget_exhausted", provider: "groq" });
+    expect(calls).toBe(0);
   });
 
   it("gives each canonical Atlas job its own bounded provider scope budget", async () => {
