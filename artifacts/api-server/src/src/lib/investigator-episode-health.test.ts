@@ -19,31 +19,24 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_no_action" });
   });
 
-  it("rejects a continuation with a positive iteration count but no newly emitted trajectory", () => {
+  it("accepts a non-empty episode even when the case already has a longer cumulative trajectory", () => {
+    // The caller passes only this episode's records. Historical events are not
+    // included in this list and cannot suppress or invalidate the new action set.
     expect(classifyInvestigatorEpisodeFailure({
       status: "completed",
-      iterations: 3,
-      priorTrajectoryRecordCount: 6,
-      trajectoryRecords: Array.from({ length: 6 }, () => ({ action: "web_search" })),
-    })).toEqual({ code: "investigator_episode_no_action" });
+      iterations: 6,
+      trajectoryRecords: Array.from({ length: 6 }, (_, index) => ({
+        action: index === 5 ? "visit" : "web_search",
+      })),
+    })).toBeNull();
   });
 
-  it("detects an empty continuation even when prior episodes contain trajectory records", () => {
-    expect(classifyInvestigatorEpisodeFailure({
-      status: "completed",
-      iterations: 0,
-      priorTrajectoryRecordCount: 6,
-      trajectoryRecords: Array.from({ length: 6 }, () => ({ action: "web_search" })),
-    })).toEqual({ code: "investigator_episode_no_action" });
-  });
-
-  it("does not mistake an old provider-error record for a new recovery attempt", () => {
+  it("fails closed when an unavailable episode has no local provider-error record", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "unavailable",
-      iterations: 0,
+      iterations: 1,
       stopReason: "LLM_UNAVAILABLE",
-      priorTrajectoryRecordCount: 1,
-      trajectoryRecords: [{ action: "investigator_provider_error" }],
+      trajectoryRecords: [],
     })).toEqual({ code: "investigator_episode_unavailable_without_provider_record" });
   });
 
