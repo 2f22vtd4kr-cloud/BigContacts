@@ -151,6 +151,9 @@ describe("discovery runtime architecture", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("runtimeFailureRecord?.failureDomain");
     expect(canonicalSource).toContain("runtimeFailureRecord?.failureKind");
+    const dynamicWrapperSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
+    expect((dynamicWrapperSource.match(/if \(actResult\.stopReason === "UNEXPECTED_ERROR"\) \{/g) ?? []).length).toBe(2);
+    expect((dynamicWrapperSource.match(/for \(const failedRecord of actResult\.trajectoryRecords\)/g) ?? []).length).toBe(2);
   });
 
   it("preserves the bounded parse-failure streak across dynamic Investigator acts", () => {
