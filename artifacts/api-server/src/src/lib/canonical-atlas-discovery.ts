@@ -12,7 +12,7 @@ import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
-import { classifyInvestigatorEpisodeFailure } from "./investigator-episode-health";
+import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { formatBossDirectedObjective, validateResearchObjective } from "./research-objective";
 import { candidateIdentityObserved, normalizeCandidateIdentityName } from "./identity-text-match";
@@ -844,11 +844,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // nextDiscovery contains this continuation episode's local trajectory, not the cumulative discovery result.
         const newTrajectoryRecords = nextDiscovery.trajectoryRecords ?? [];
         const newTrajectoryRecordCount = newTrajectoryRecords.length;
-        const investigatorActionExecuted = newTrajectoryRecords.some((record) =>
-          !["done", "parse_failure", "investigator_provider_error"].includes(record.action) &&
-          record.execution !== "selected" &&
-          record.execution !== "blocked",
-        );
+        const investigatorActionExecuted = hasExecutedInvestigatorResearchAction(newTrajectoryRecords);
         const episodeFailure = classifyInvestigatorEpisodeFailure({
           status: nextDiscovery.status,
           iterations: nextDiscovery.iterations,
