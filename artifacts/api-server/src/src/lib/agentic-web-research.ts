@@ -141,11 +141,11 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
         : []),
   ].map((query) => String(query).trim()).filter(Boolean))];
   for (let actionTurn = 1; actionTurn <= maxDynamicActs; actionTurn++) {
-    if (controller.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: "cancelled by operator", executionId };
+    if (controller.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "cancelled by operator", executionId };
     const remaining = deadline - Date.now();
-    if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: `hard timeout ${requestedHardTimeout}ms`, executionId };
+    if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: `hard timeout ${requestedHardTimeout}ms`, executionId };
     const perActTimeout = Math.min(remaining, Math.max(30_000, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000));
-    const actInput: RunInput = { ...input, priorIntelligenceContext: intelligence.buildContext(), priorTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, null), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (input.shouldCancel && await input.shouldCancel()) return true; if (!input.jobId) return false; const job = await getJobStrict(input.jobId); if (!job) throw new Error("Agentic run job record missing; cancellation and ownership cannot be confirmed."); if (job.status === "cancelled") return true; if (job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; const ownsLease = await isCanonicalJobOwner(lockType, input.jobId); if (!ownsLease) throw new Error("Canonical agentic job lease was lost; refusing further research actions."); return false; }, priorContext: buildContinuationState(input.priorContext || "", [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))]), onLiveStep: (step) => input.onLiveStep?.(step), onTrajectoryRecord: undefined };
+    const actInput: RunInput = { ...input, priorIntelligenceContext: intelligence.buildContext(), priorTrajectoryRecords: [...historyRecords, ...records], cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, null), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, priorSearchQueries: searchQueriesUsed, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (input.shouldCancel && await input.shouldCancel()) return true; if (!input.jobId) return false; const job = await getJobStrict(input.jobId); if (!job) throw new Error("Agentic run job record missing; cancellation and ownership cannot be confirmed."); if (job.status === "cancelled") return true; if (job.status !== "running") return true; const lockType = job.type === "atlas-run" || job.type === "case-bureau-discovery" ? job.type : null; if (!lockType) return false; const ownsLease = await isCanonicalJobOwner(lockType, input.jobId); if (!ownsLease) throw new Error("Canonical agentic job lease was lost; refusing further research actions."); return false; }, priorContext: buildContinuationState(input.priorContext || "", [...historyRecords, ...records]), onLiveStep: (step) => input.onLiveStep?.(step), onTrajectoryRecord: undefined };
     const actResult = await core.runAgenticWebResearch(actInput);
     model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error;
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
@@ -154,7 +154,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
         if (raw.action === "web_search" && typeof raw.args?.query === "string") searchQueriesUsed.push(raw.args.query);
         if (raw.action === "parallel_web_search" && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
       }
-      const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: actionTurn }]) };
+      const normalizedRecord = { ...raw, turn: raw.turn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: raw.turn }]) };
       recordResult(intelligence, normalizedRecord, [...historyRecords, ...records]);
       records = [...records, normalizedRecord];
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
@@ -164,11 +164,11 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
               const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, normalizedRecord]);
               findings = [...findings, ...(grounded as CoreResult["findings"])];
             }
-      if (isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], ...(error ? { error } : {}), executionId };
+      if (isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId };
     }
-    if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") return { status: actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: actResult.stopReason, trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], ...(error ? { error } : {}), executionId };
+    if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") return { status: actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: actResult.stopReason, trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId };
   }
-  return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], ...(error ? { error } : {}), executionId };
+  return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId };
 }
 
 /** Canonical target research: the selected Investigator owns the sequential research trajectory; Groq Right-hand reviews each completed act and Groq Boss controls continuation. */
@@ -276,18 +276,18 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
        const requestedMaxActionTurns = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_TARGET_ACTION_TURNS;
        const maxActionTurns = Math.min(MAX_TARGET_ACTION_TURNS, Math.max(0, requestedMaxActionTurns));
        for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
-         if (overallController.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: "cancelled by operator", executionId };
+         if (overallController.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "cancelled by operator", executionId };
          const remaining = deadline - Date.now();
-         if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: `hard timeout ${requestedHardTimeout}ms`, executionId };
+         if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: `hard timeout ${requestedHardTimeout}ms`, executionId };
 
          const perActTimeout = Math.min(remaining, Math.max(30_000, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000));
          const actInput: RunInput = {
            ...input,
            priorIntelligenceContext: intelligence.buildContext(),
-           priorTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))],
+           priorTrajectoryRecords: [...historyRecords, ...records],
            cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }),
            objective: intelligenceObjective(objective, direction),
-           priorContext: buildContinuationState([oversightContext.contextDocument, input.priorContext].filter((value) => typeof value === "string" && value.trim()).join("\n\n"), [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))]),
+           priorContext: buildContinuationState([oversightContext.contextDocument, input.priorContext].filter((value) => typeof value === "string" && value.trim()).join("\n\n"), [...historyRecords, ...records]),
            maxIterations: 1,
            hardTimeoutMs: perActTimeout,
            signal: overallController.signal,
@@ -303,7 +303,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
 
          if (raw) {
-           const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: actionTurn }]) };
+           const normalizedRecord = { ...raw, turn: raw.turn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: raw.turn }]) };
            const groundedTerminalFindings = raw.action === "done"
              ? groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, normalizedRecord])
              : [];
@@ -319,8 +319,8 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              actionsSinceCheckpoint += 1;
              trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `VERIFICATION_BLOCKED:turn=${actionTurn}:ungrounded_terminal_claim`, `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
              const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
-             if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: "Groq oversight unavailable after terminal verification block.", executionId };
-             if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: "Groq Boss stopped the investigation after a blocked terminal claim; no ungrounded findings were accepted.", executionId };
+             if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq oversight unavailable after terminal verification block.", executionId };
+             if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq Boss stopped the investigation after a blocked terminal claim; no ungrounded findings were accepted.", executionId };
              continue;
            }
 
@@ -341,18 +341,18 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              continue;
            }
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
-           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: error ?? "Groq oversight unavailable", executionId };
-           if (callerOwnsOversight && isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], ...(error ? { error } : {}), executionId };
-           if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], error: error ?? "Groq oversight stopped the investigation before an Investigator-selected terminal action.", executionId };
+           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight unavailable", executionId };
+           if (callerOwnsOversight && isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId };
+           if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight stopped the investigation before an Investigator-selected terminal action.", executionId };
            continue;
            continue;
          }
 
          if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") {
-           return { ...actResult, searches, visits, findings, modelFindings, trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], executionId };
+           return { ...actResult, searches, visits, findings, modelFindings, trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], executionId };
          }
        }
-       return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records.map((record) => ({ ...record, turn: historyRecords.length + record.turn }))], ...(error ? { error } : {}), executionId };
+       return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId };
 } finally {
         clearTimeout(deadlineTimer);
         input.signal?.removeEventListener("abort", abortExternal);
