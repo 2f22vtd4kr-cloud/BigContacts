@@ -469,7 +469,11 @@ describe("discovery trajectory turn persistence", () => {
     expect(agenticCoreSource).toContain("turn: priorTurnOffset + i + 1");
     expect(bureauPassSource).toContain("turn:Math.max(1,Number(record.turn)||1)");
     expect(bureauPassSource).not.toContain("turn:baseIteration+Math.max(1,Number(record.turn)||1)");
-    expect(bureauPassSource).toContain("step${baseIteration+Number(numberString)}:");
+    expect(bureauPassSource).toContain("step${trajectoryTurnOffset+Number(numberString)}:");
+    expect(bureauPassSource).toContain("trajectoryTurnOffset:0,finalize:false");
+    expect(bureauPassSource).toContain("trajectoryTurnOffset:discoveryTurnOffset,finalize:true");
+    expect(bureauPassSource).toContain("const discoveryTurnOffset=Math.max(0,...(input.priorTrajectoryRecords??[]).map((record)=>record.turn));");
+    expect(bureauPassSource).not.toContain("baseIteration");
   });
 });
 
