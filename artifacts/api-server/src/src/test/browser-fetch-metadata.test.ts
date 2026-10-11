@@ -10,12 +10,20 @@ vi.mock("../lib/provider-gate", () => ({
 }));
 
 import { assertSafeOutboundUrl, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
-import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured, isUsableBrowserHtml } from "../lib/browser-fetch-core";
+import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured, isUsableBrowserHtml, isSafeBrowserFetchMethod } from "../lib/browser-fetch-core";
 import { browserFetchHtml as browserFetchThroughBoundary } from "../lib/browser-fetch";
 
 const html = `<html><body>${"public research evidence ".repeat(8)}</body></html>`;
 
 describe("hosted browser fetch final-URL provenance", () => {
+  it("allows only safe read methods through the Playwright transport", () => {
+    expect(isSafeBrowserFetchMethod("GET")).toBe(true);
+    expect(isSafeBrowserFetchMethod("HEAD")).toBe(true);
+    for (const method of ["POST", "PUT", "PATCH", "DELETE", "CONNECT", "TRACE", "OPTIONS"]) {
+      expect(isSafeBrowserFetchMethod(method)).toBe(false);
+    }
+  });
+
   it("measures returned HTML limits in UTF-8 bytes rather than UTF-16 code units", () => {
     expect(isUsableBrowserHtml("a".repeat(101))).toBe(true);
     const multibyteHtml = "漢".repeat(700_000);

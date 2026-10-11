@@ -34,6 +34,9 @@ export function isBrowserFetchProviderAvailable(provider: BrowserProvider): bool
   return getAvailableBrowserFetchProviders().includes(provider);
 }
 const MAX_BROWSER_RESPONSE_BYTES = 2_000_000;
+export function isSafeBrowserFetchMethod(method: string): boolean {
+  return ["GET", "HEAD"].includes(method.trim().toUpperCase());
+}
 export function isUsableBrowserHtml(html: string): boolean {
   return html.length > 100 && Buffer.byteLength(html, "utf8") <= MAX_BROWSER_RESPONSE_BYTES;
 }
@@ -131,6 +134,10 @@ type BrowserFetchAttempt = { html: string | null; observedUrl: string | null };
 async function fulfillPlaywrightRequestThroughPinnedTransport(route: any, signal?: AbortSignal): Promise<void> {
   const request = route.request();
   const rawUrl = request.url();
+  if (!isSafeBrowserFetchMethod(request.method())) {
+    await route.abort("blockedbyclient");
+    return;
+  }
   let protocol = "";
   try { protocol = new URL(rawUrl).protocol; } catch { await route.abort("blockedbyclient"); return; }
 
