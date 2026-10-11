@@ -188,6 +188,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
     expect(prompt).toContain("VALID DISCOVERY FINDING SHAPE (placeholders only; never emit placeholder values)");
     expect(prompt).toContain("<exact full name from fetched page>");
+    expect(prompt).toContain("<exact fetched non-search HTTPS URL from independent source 2>");
+    expect(prompt).toContain("two independent evidence/source units");
+    expect(prompt).toContain("successful falsification-intent action");
     expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
     expect(prompt).toContain("minEvidence=2; minIndependentSourceUnits=2");
     expect(prompt).toContain("requireFalsification=true");
