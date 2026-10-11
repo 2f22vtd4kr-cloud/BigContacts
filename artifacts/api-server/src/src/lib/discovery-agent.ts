@@ -5,7 +5,7 @@
  */
 import { logger } from "./logger";
 import { publishDigSpan, completeDigSpan, spanFromLiveStep } from "./dig-span";
-import { runAgenticWebResearch } from "./agentic-web-research";
+import { runAgenticWebResearch, type AgenticTrajectoryRecord } from "./agentic-web-research";
 import { recordDiscoveryTrace } from "./investigator-trace";
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 
@@ -62,12 +62,38 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, 
   const sourceUrls = (candidate.sourceUrls ?? []).map(normalizeUrl);
   return sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(url)) && hasIndependentSource(sourceUrls);
 }
-function hasObservedPageSource(sourceUrls: string[], trajectory: string[]): boolean {
-  const observed = new Set<string>();
-  for (const line of trajectory) { const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i); if (match?.[1]) observed.add(normalizeUrl(match[1])); }
-  return sourceUrls.some((url) => observed.has(normalizeUrl(url)));
+type DiscoverySourceRecord = Pick<AgenticTrajectoryRecord, "action" | "execution" | "observedUrls">;
+
+function normalizedObservedPageUrl(value: string): string | null {
+  try {
+    const url = new URL(normalizeUrl(value));
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    url.hash = "";
+    url.hostname = url.hostname.toLowerCase();
+    return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href;
+  } catch {
+    return null;
+  }
 }
-export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: string[] = []): DiscoveryCandidate[] {
+
+function hasObservedPageSource(sourceUrls: string[], records: readonly DiscoverySourceRecord[]): boolean {
+  // Candidate admission must bind to the exact URL the retrieval capability
+  // actually observed, not the requested URL embedded in its display string.
+  // Redirects can make those URLs differ. Failed fetches and search listings
+  // are not observed page sources.
+  const observed = new Set(
+    records
+      .filter((record) => record.execution === "success" && ["visit", "browser_fetch"].includes(record.action))
+      .flatMap((record) => record.observedUrls.map(normalizedObservedPageUrl))
+      .filter((url): url is string => Boolean(url)),
+  );
+  return sourceUrls.some((url) => {
+    const normalized = normalizedObservedPageUrl(url);
+    return normalized !== null && observed.has(normalized);
+  });
+}
+
+export function parsePersonFindings(findings: DiscoveryFinding[], sourceRecords: readonly DiscoverySourceRecord[] = []): DiscoveryCandidate[] {
   const out: DiscoveryCandidate[] = []; const seen = new Set<string>();
   const add = (name: string, extra: Partial<DiscoveryCandidate>) => {
     const n = name.trim().replace(/\s+/g, " "); if (n.length < 3 || n.length > 120) return;
@@ -75,7 +101,7 @@ export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: st
     const sourceUrls = (extra.sourceUrls ?? []).map(normalizeUrl).filter((u) => /^https?:\/\//i.test(u)).slice(0, 6);
     if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
     if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
-    if (!hasObservedPageSource(sourceUrls, trajectory)) return;
+    if (!hasObservedPageSource(sourceUrls, sourceRecords)) return;
     seen.add(key);
     out.push({ name: n, role: extra.role, company: extra.company, basis: extra.basis || "Public web discovery", sourceUrls, lane: extra.lane || "discovery-agent", confidence: sourceUrls.length ? 0.55 : 0.35, promotionDecision: "promote", promotionReason: extra.promotionReason });
   };
@@ -135,7 +161,7 @@ export async function runDiscoveryAgent(input: { jobId?: string; targetCount?: n
           input.onLiveStep?.({ action: step.action, tool: step.provider || step.action, query: step.query, url: step.url, detail: step.summary, status: "ok" });
         } });
         const admissionFindings = result.modelFindings ?? [];
-        const slotCandidates = parsePersonFindings(admissionFindings, result.trajectory ?? []);
+        const slotCandidates = parsePersonFindings(admissionFindings, result.trajectoryRecords ?? []);
         await recordDiscoveryTrace(jobId, {
           slot: slot + 1, recordedAt: new Date().toISOString(), model: result.model, status: result.status, searches: result.searches ?? 0, visits: result.visits ?? 0,
           stopReason: result.stopReason, error: result.error, modelFindings: admissionFindings, parsedCandidates: slotCandidates, trajectory: result.trajectory ?? [],
