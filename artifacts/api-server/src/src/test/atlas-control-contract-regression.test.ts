@@ -477,11 +477,18 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("the candidate was absent from the durable admitted-candidate list");
   });
 
-  it("merges each Boss-directed discovery episode into cumulative state exactly once", () => {
-    // The cumulative merge belongs at the continuation boundary. A second
-    // spread from nextDiscovery inflated all counts and duplicated findings,
-    // trajectory entries, and provenance after each successful pivot.
-    expect(canonicalDiscoverySource.match(/discovery = mergeDiscoveryResults\(discovery, nextDiscovery\);/g)).toHaveLength(1);
+  it("merges each Boss-directed discovery episode once on each mutually exclusive terminal/success branch", () => {
+    // The success branch and the fail-closed episode branch are mutually exclusive;
+    // each must merge the same episode once so the job projection cannot omit failed-episode activity.
+    const mergeCount = canonicalDiscoverySource.match(/discovery = mergeDiscoveryResults\(discovery, nextDiscovery\);/g)?.length ?? 0;
+    expect(mergeCount).toBe(2);
+    const failureStart = canonicalDiscoverySource.indexOf("if (episodeFailure) {");
+    const failureMerge = canonicalDiscoverySource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery);", failureStart);
+    const failureUpdate = canonicalDiscoverySource.indexOf("await updateJob(atlasJobId,", failureStart);
+    const successMerge = canonicalDiscoverySource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery);", failureMerge + 1);
+    expect(failureMerge).toBeGreaterThan(failureStart);
+    expect(failureMerge).toBeLessThan(failureUpdate);
+    expect(successMerge).toBeGreaterThan(failureUpdate);
     expect(canonicalDiscoverySource).not.toContain(
       "searches: discovery.searches + nextDiscovery.searches, visits: discovery.visits + nextDiscovery.visits, iterations: discovery.iterations + nextDiscovery.iterations",
     );

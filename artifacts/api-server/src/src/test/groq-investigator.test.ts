@@ -668,4 +668,33 @@ describe("Groq Investigator provider boundary", () => {
     expect(calls).toBe(2);
   });
 
+  it("classifies trajectory-persistence callback exceptions as UNEXPECTED_ERROR without exposing raw error text", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-persistence-boundary-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    const privateDiagnostic = "synthetic-db-write-failure-sensitive-value";
+    mocks.safeOutboundFetch.mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: "not-json" } }],
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-1",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+      onTrajectoryRecord: async () => { throw new Error(privateDiagnostic); },
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.stopReason).toBe("UNEXPECTED_ERROR");
+    expect(result.trajectoryRecords.at(-1)).toMatchObject({
+      action: "runtime_error",
+      execution: "error",
+      args: { stage: "trajectory_persistence" },
+      failureDomain: "persistence_database",
+      failureKind: "unexpected_exception",
+      stopReason: "UNEXPECTED_ERROR",
+    });
+    expect(result.error).not.toContain(privateDiagnostic);
+    expect(JSON.stringify(result.trajectoryRecords)).not.toContain(privateDiagnostic);
+  });
 });

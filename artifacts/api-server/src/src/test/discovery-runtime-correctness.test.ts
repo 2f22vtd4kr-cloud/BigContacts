@@ -137,6 +137,72 @@ describe("discovery runtime architecture", () => {
     expect(telemetrySource).toContain("opaque:");
   });
 
+  it("keeps unexpected runtime exceptions separate from model-action parse failures", () => {
+    expect(researchCoreSource).toContain('action: "runtime_error"');
+    expect(researchCoreSource).toContain('stopReason: "UNEXPECTED_ERROR"');
+    expect(researchCoreSource).toContain('domain: "unexpected_programming_error" as const');
+    expect(researchCoreSource).toContain("failureDomain: runtimeFailureClassification.domain");
+    expect(researchCoreSource).toContain('failureKind: "unexpected_exception"');
+    expect(researchCoreSource).toContain("runtimeStage");
+    expect(researchCoreSource).toContain('runtimeStage === "trajectory_persistence"');
+    expect(researchCoreSource).toContain('runtimeStage === "external_page_fetch"');
+    expect(researchCoreSource).toContain('runtimeStage === "model_request"');
+    expect(researchCoreSource).toContain('classifyCanonicalAtlasFailure({ stage: "oversight_control_decision", error })');
+    expect(researchCoreSource).not.toContain('return resultBase("error", records.length, "PARSE_FAILURE", safeAgenticError(error, runController.signal.aborted))');
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    expect(canonicalSource).toContain("runtimeFailureRecord?.failureDomain");
+    expect(canonicalSource).toContain("runtimeFailureRecord?.failureKind");
+    const dynamicWrapperSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
+    expect((dynamicWrapperSource.match(/if \(actResult\.stopReason === "UNEXPECTED_ERROR"\) \{/g) ?? []).length).toBe(2);
+    expect((dynamicWrapperSource.match(/for \(const failedRecord of actResult\.trajectoryRecords\)/g) ?? []).length).toBe(2);
+  });
+
+  it("preserves the bounded parse-failure streak across dynamic Investigator acts", () => {
+    const bureauPassSource = fs.readFileSync(path.join(libDir, "bureau-agentic-pass.ts"), "utf8");
+    const dynamicWrapperSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    expect(researchCoreSource).toContain("initialConsecutiveActionParseFailures?: number");
+    expect(researchCoreSource).toContain("consecutiveActionParseFailures");
+    expect(bureauPassSource).toContain("initialConsecutiveActionParseFailures:input.initialConsecutiveActionParseFailures");
+    expect(bureauPassSource).toContain("consecutiveActionParseFailures:agentic.consecutiveActionParseFailures");
+    // The dynamic discovery wrapper invokes the core one action at a time, so it must carry the counter across those calls.
+    expect(dynamicWrapperSource).toContain("initialConsecutiveActionParseFailures: consecutiveActionParseFailures");
+    expect(dynamicWrapperSource).toContain("consecutiveActionParseFailures = actResult.consecutiveActionParseFailures ?? consecutiveActionParseFailures");
+    expect((dynamicWrapperSource.match(/initialConsecutiveActionParseFailures: consecutiveActionParseFailures/g) ?? []).length).toBe(2);
+    expect((dynamicWrapperSource.match(/consecutiveActionParseFailures = actResult\.consecutiveActionParseFailures/g) ?? []).length).toBe(2);
+    const targetLoopStart = dynamicWrapperSource.indexOf("const MAX_TARGET_ACTION_TURNS");
+    const targetRuntimeGuard = dynamicWrapperSource.indexOf('if (raw.action === "runtime_error") {', targetLoopStart);
+    const targetRecordPersist = dynamicWrapperSource.indexOf("await input.onTrajectoryRecord?.(normalizedRecord);", targetLoopStart);
+    const targetOversight = dynamicWrapperSource.indexOf("const checkpointResult = await applyOversight(normalizedRecord, actionTurn);", targetRuntimeGuard);
+    expect(targetRuntimeGuard).toBeGreaterThan(targetLoopStart);
+    expect(targetRecordPersist).toBeGreaterThan(targetLoopStart);
+    expect(targetRecordPersist).toBeLessThan(targetRuntimeGuard);
+    expect(targetOversight).toBeGreaterThan(targetRuntimeGuard);
+    // A terminal parse failure is surfaced to Groq Boss; a Boss-directed new act starts a fresh bounded parse budget.
+    expect(canonicalSource).toContain('initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0');
+  });
+
+  it("keeps failed continuation actions and metrics in the terminal job projection", () => {
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    const failureStart = canonicalSource.indexOf("if (episodeFailure) {");
+    const failureMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery);", failureStart);
+    const failureJobUpdate = canonicalSource.indexOf("await updateJob(atlasJobId,", failureStart);
+    expect(failureStart).toBeGreaterThan(-1);
+    expect(failureMerge).toBeGreaterThan(failureStart);
+    expect(failureMerge).toBeLessThan(failureJobUpdate);
+    expect(canonicalSource).toContain("runtimeFailureStage");
+    expect(canonicalSource).toContain("cumulativeSearches: discovery.searches");
+    expect(canonicalSource).toContain("cumulativeVisits: discovery.visits");
+    expect(canonicalSource).toContain("cumulativeTrajectoryRecordCount: discovery.trajectoryRecords?.length ?? 0");
+  });
+
+  it("directs Boss and Right-hand to reject infeasible nonpublic research premises", () => {
+    const controlSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
+    expect(controlSource).toContain("Assess feasibility against observed public-source access/status");
+    expect(controlSource).toContain("nonpublic filing, private record, searchable registry entry");
+    expect(controlSource).toContain("publicly verifiable alternative");
+  });
+
   it("does not allow a cold discovery run to terminate after a single unusable external search", async () => {
     const { discoveryTerminalGate } = await import("../lib/agentic-web-research-core");
     expect(discoveryTerminalGate([{
