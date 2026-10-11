@@ -59,6 +59,7 @@ describe("canonical Investigator continuation health", () => {
       iterations: 6,
       trajectoryRecords: Array.from({ length: 6 }, (_, index) => ({
         action: index === 5 ? "visit" : "web_search",
+        execution: "success",
       })),
     })).toBeNull();
   });
