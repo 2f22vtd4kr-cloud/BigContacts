@@ -219,6 +219,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
       let visits = 0;
       let lastStatus: CoreResult["status"] = "completed";
       let error: string | undefined;
+      let consecutiveActionParseFailures = Math.min(MAX_CONSECUTIVE_ACTION_PARSE_FAILURES - 1, Math.max(0, Number.isFinite(input.initialConsecutiveActionParseFailures) ? Math.floor(input.initialConsecutiveActionParseFailures!) : 0));
       let direction: string | null = initialDirection.valid ? initialDirection.direction : null;
       let oversight: TargetActOversight | null = null;
        let actionsSinceCheckpoint = 0;
@@ -278,13 +279,14 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
        const requestedMaxActionTurns = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_TARGET_ACTION_TURNS;
        const maxActionTurns = Math.min(MAX_TARGET_ACTION_TURNS, Math.max(0, requestedMaxActionTurns));
        for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
-         if (overallController.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "cancelled by operator", executionId };
+         if (overallController.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "cancelled by operator", executionId, consecutiveActionParseFailures };
          const remaining = deadline - Date.now();
-         if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: `hard timeout ${requestedHardTimeout}ms`, executionId };
+         if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: `hard timeout ${requestedHardTimeout}ms`, executionId, consecutiveActionParseFailures };
 
          const perActTimeout = Math.min(remaining, Math.max(30_000, AGENTIC_PROVIDER_DECISION_TIMEOUT_MS + 5_000));
          const actInput: RunInput = {
            ...input,
+           initialConsecutiveActionParseFailures: consecutiveActionParseFailures,
            priorIntelligenceContext: intelligence.buildContext(),
            priorTrajectoryRecords: [...historyRecords, ...records],
            cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }),
@@ -297,6 +299,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            onTrajectoryRecord: undefined,
          };
          const actResult = await core.runAgenticWebResearch(actInput);
+         consecutiveActionParseFailures = actResult.consecutiveActionParseFailures ?? consecutiveActionParseFailures;
          model = actResult.model;
          searches += actResult.searches;
          visits += actResult.visits;
@@ -321,8 +324,8 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              actionsSinceCheckpoint += 1;
              trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `VERIFICATION_BLOCKED:turn=${actionTurn}:ungrounded_terminal_claim`, `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
              const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
-             if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq oversight unavailable after terminal verification block.", executionId };
-             if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq Boss stopped the investigation after a blocked terminal claim; no ungrounded findings were accepted.", executionId };
+             if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq oversight unavailable after terminal verification block.", executionId, consecutiveActionParseFailures };
+             if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: "Groq Boss stopped the investigation after a blocked terminal claim; no ungrounded findings were accepted.", executionId, consecutiveActionParseFailures };
              continue;
            }
 
@@ -343,9 +346,9 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              continue;
            }
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
-           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight unavailable", executionId };
+           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight unavailable", executionId, consecutiveActionParseFailures };
            if (callerOwnsOversight && isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId };
-           if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight stopped the investigation before an Investigator-selected terminal action.", executionId };
+           if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "OVERSIGHT_STOP", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: error ?? "Groq oversight stopped the investigation before an Investigator-selected terminal action.", executionId, consecutiveActionParseFailures };
            continue;
            continue;
          }
@@ -354,7 +357,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            return { ...actResult, searches, visits, findings, modelFindings, trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], executionId };
          }
        }
-       return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId };
+       return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId, consecutiveActionParseFailures };
 } finally {
         clearTimeout(deadlineTimer);
         input.signal?.removeEventListener("abort", abortExternal);
