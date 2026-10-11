@@ -800,6 +800,28 @@ function parseAction(raw: string): AgentAction | null { if (describeAgentActionP
   } if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: cleanText(value.locale, 16) || undefined, market: cleanText(value.market, 16) || undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".") && ["rdap","whoisjson"].includes(cleanText(value.provider, 30))) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, provider: cleanText(value.provider, 30) as "rdap" | "whoisjson", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) return { action: "registry_search", query: cleanText(value.query, 200), registry: cleanText(value.registry, 60).toLowerCase(), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500)) && ["scrapfly","zenrows","browserless","playwright"].includes(cleanText(value.provider, 30))) return { action: "browser_fetch", url: cleanText(value.url, 500), provider: cleanText(value.provider, 30) as "scrapfly" | "zenrows" | "browserless" | "playwright", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") { const findings: AgenticFinding[] = []; for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) { if (!rawFinding || typeof rawFinding !== "object") continue; const f = rawFinding as Record<string, unknown>; const vector = cleanText(f.vectorType, 30).toLowerCase(); const valueText = cleanText(f.value, 500); const sourceUrls = filterClaimUrls(Array.isArray(f.sourceUrls) ? f.sourceUrls.filter((u): u is string => typeof u === "string") : []).map(normalizedUrl).filter((u): u is string => Boolean(u)); if (!valueText || !["email", "phone", "linkedin", "website", "social", "other"].includes(vector) || (vector !== "other" && sourceUrls.length === 0)) continue; let finalValue = valueText; if (vector === "email") { const e = sanitizePublicEmail(valueText); if (!e || isTrashContactValue("email", e)) continue; finalValue = e; } if (vector === "phone") { const p = sanitizePublicPhone(valueText); if (!p || isTrashContactValue("phone", p)) continue; finalValue = p; } if (vector === "website" && !isSafeHttpUrl(finalValue)) continue; findings.push({ vectorType: vector as AgenticFinding["vectorType"], value: finalValue, personName: typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null, role: typeof f.role === "string" ? f.role.trim().slice(0, 120) : null, scope: f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown", sourceUrls, note: cleanText(f.note, 400) || "Investigator-authored finding", promotionDecision: f.promotionDecision === "promote" || f.promotionDecision === "reject" ? f.promotionDecision : undefined, promotionReason: cleanText(f.promotionReason, 500) || undefined }); } return { action: "done", findings, thought: cleanText(value.thought, 500) || undefined, ...meta }; } } catch { return null; } return null; }
 export function parseAgentAction(raw: string): AgentAction | null { return parseAction(raw); }
 
+export function buildAgenticActionParseFailureRecord(input: {
+  turn: number;
+  model: string;
+  observation: string;
+  terminal: boolean;
+}): AgenticTrajectoryRecord {
+  return {
+    turn: input.turn,
+    model: input.model,
+    action: "parse_failure",
+    args: {},
+    execution: "error",
+    observation: input.observation,
+    observedUrls: [],
+    findings: [],
+    providerFallback: [],
+    failureDomain: "model_action",
+    failureKind: "invalid_contract",
+    ...(input.terminal ? { stopReason: "PARSE_FAILURE" as const } : {}),
+  };
+}
+
 function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveTask): "low" | "medium" | "high" {
   const configured = (process.env.GROQ_AGENTIC_REASONING_EFFORT || "").trim().toLowerCase();
   const requested = configured === "low" || configured === "medium" || configured === "high" ? configured : "";
@@ -1830,10 +1852,17 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       const parseFailure = describeAgentActionParseFailure(llm.raw);
       pushHistory(`step${i + 1}: parse_failure execution=error`);
       lastObservation = `The previous model response was not a usable action object (${parseFailure}). Choose one allowed action and return exactly one JSON object.`;
-      records.push({ turn: priorTurnOffset + i + 1, model: modelUsed, action: "parse_failure", args: {}, execution: "error", observation: lastObservation, observedUrls: [], findings: [], providerFallback: [], failureDomain: "model_action", failureKind: "invalid_contract" });
+      const nextParseFailureCount = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, false);
+      const terminalParseFailure = nextParseFailureCount >= MAX_CONSECUTIVE_ACTION_PARSE_FAILURES;
+      records.push(buildAgenticActionParseFailureRecord({
+        turn: priorTurnOffset + i + 1,
+        model: modelUsed,
+        observation: lastObservation,
+        terminal: terminalParseFailure,
+      }));
       await emitSanitizedTrajectoryRecord(records[records.length - 1]!);
-      consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, false);
-      if (consecutiveActionParseFailures >= MAX_CONSECUTIVE_ACTION_PARSE_FAILURES) {
+      consecutiveActionParseFailures = nextParseFailureCount;
+      if (terminalParseFailure) {
         const terminalError = `Investigator returned invalid action contracts ${consecutiveActionParseFailures} times consecutively; stopReason=PARSE_FAILURE (${parseFailure}).`;
         emit("parse_failure_terminal", { status: "error", summary: "Repeated invalid action contracts; stopping this trajectory without inventing a research action." });
         return resultBase("error", i + 1, "PARSE_FAILURE", terminalError);
