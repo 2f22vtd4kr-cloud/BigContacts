@@ -29,7 +29,7 @@ assert(!/personName:\s*name\b/.test(toolObservationRegion), "deterministic obser
 assert(!/scope:\s*["']candidate["']/.test(contact), "contact-facts observation extractor authors candidate identity scope.");
 assert(!/promotionDecision\s*:\s*["']promote["']/.test(toolObservationRegion), "deterministic observation code authors promotion decisions.");
 // A numeric maximum-length entry is validation metadata, not a deterministic promotion reason.
-assert(!/promotionReason\\s*:/.test(contact), "deterministic contact-facts observation extractor authors promotion reasons.");
+assert(!/promotionReason\s*:/.test(contact), "deterministic contact-facts observation extractor authors promotion reasons.");
 
 // Candidate scope and person identity are accepted only from the explicit model finding
 // payload parsed by action=done, never from the observation/tool boundary.
