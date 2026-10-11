@@ -1,4 +1,5 @@
 import { logger } from "./logger";
+import { emitInvestigatorProviderRequestAudit } from "./investigator-request-audit";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
@@ -983,15 +984,24 @@ async function callGroqJson(
           return { model, raw: "", error: lastProviderError };
         }
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model);
+        const requestBody = {
+          ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask }),
+          response_format: responseFormat,
+        };
+        emitInvestigatorProviderRequestAudit({
+          model,
+          cognitiveTask,
+          attempt,
+          jobId: input.jobId ?? null,
+          caseId: input.caseId ?? null,
+          requestBody,
+        });
         const response = await withProviderRetryOwnership("groq", "caller", () =>
           runProviderCall({ provider: "groq", account: quotaAccount, signal }, () =>
             safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-              body: JSON.stringify({
-                ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask }),
-                response_format: responseFormat,
-              }),
+              body: JSON.stringify(requestBody),
               signal,
             }),
           ),
