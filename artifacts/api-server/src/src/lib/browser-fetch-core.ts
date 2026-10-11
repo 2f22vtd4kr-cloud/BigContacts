@@ -71,7 +71,10 @@ async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<Brow
     const resp = await providerFetch("scrapfly", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal);
     if (!resp.ok) return { html: null, observedUrl: null };
     const data = await readJsonCapped<{ result?: { content?: string; url?: string } }>(resp, signal);
-    const html = data?.result?.content ?? "";
+    const rawHtml = data?.result?.content;
+    // Provider JSON is untrusted runtime input despite the generic response type.
+    // Only actual text may be exposed as an observed document.
+    const html = typeof rawHtml === "string" ? rawHtml : "";
     const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
     const reportedUrl = data?.result?.url;
     const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl) : null;

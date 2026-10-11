@@ -73,6 +73,17 @@ describe("hosted browser fetch final-URL provenance", () => {
     expect(assertSafeOutboundUrl).toHaveBeenCalledWith("https://research.example/article/final");
   });
 
+  it("rejects malformed Scrapfly content instead of treating an object length as HTML", async () => {
+    vi.mocked(safeOutboundFetch).mockResolvedValueOnce(new Response(JSON.stringify({
+      result: { content: { length: html.length + 1 }, url: "https://research.example/article/final" },
+    }), { headers: { "content-type": "application/json" } }));
+
+    await expect(browserFetchHtml("https://research.example/article", {
+      provider: "scrapfly",
+      scope: "scrapfly-malformed-content-test",
+    })).resolves.toEqual({ html: "", provider: "scrapfly", observedUrl: null });
+  });
+
   it("preserves ZenRows' Zr-Final-Url response header for the observed page", async () => {
     vi.mocked(safeOutboundFetch).mockResolvedValueOnce(new Response(html, {
       headers: { "Zr-Final-Url": "https://research.example/article/final" },
