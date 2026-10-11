@@ -2,6 +2,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { createHash } from "node:crypto";
 import { logger } from "./logger";
 export type ExternalProvider = "serper"|"tavily"|"exa"|"groq"|"mistral"|"gemini"|"scrapfly"|"zenrows"|"browserless"|"playwright"|"rdap"|"companies-house"|"whoisjson"|"whoxy"|"registry"|"search"|"osint"|"generic";
+export type AtlasProviderRole = "investigator" | "control";
+const providerRoleStorage = new AsyncLocalStorage<AtlasProviderRole>();
 type BudgetClass="llm"|"search"|"scrape"|"registry"|"osint"|"generic";type ProviderConfig={budgetClass:BudgetClass;maxRequests:number;minIntervalMs:number;cacheTtlMs:number};type ProviderState={active:number;lastStartedAt:number;windowStartedAt:number;windowAttempts:number;cooldownUntil:number;lastUsedAt:number};type CacheEntry={expiresAt:number;status:number;statusText:string;headers:Array<[string,string]>;body:Uint8Array};type Waiter={provider:ExternalProvider;resolve:()=>void;reject:(error:Error)=>void;signal?:AbortSignal;onAbort?:()=>void};
 export class ProviderQuotaError extends Error{readonly code:"budget_exhausted"|"cooldown";readonly provider:ExternalProvider;readonly retryAfterMs:number;constructor(code:"budget_exhausted"|"cooldown",provider:ExternalProvider,retryAfterMs:number){super(`${provider} ${code.replace("_"," ")}`);this.name="ProviderQuotaError";this.code=code;this.provider=provider;this.retryAfterMs=retryAfterMs;}}
 const scopeStorage=new AsyncLocalStorage<string>();export type ProviderRetryOwner="gate"|"caller";const retryOwnerStorage=new AsyncLocalStorage<Partial<Record<ExternalProvider,ProviderRetryOwner>>>();const providerStates=new Map<string,ProviderState>();const scopeStates=new Map<string,ProviderState>();const waiters:Waiter[]=[];const responseCache=new Map<string,CacheEntry>();let responseCacheBytes=0;const inFlight=new Map<string,Promise<Response>>();const boundedEnv=(name:string,fallback:number,min:number,max:number):number=>{const parsed=Number(process.env[name]);if(!Number.isFinite(parsed))return fallback;return Math.min(max,Math.max(min,parsed));};const globalConcurrency=()=>boundedEnv("APEX_EXTERNAL_GLOBAL_CONCURRENCY",4,1,32);const perProviderConcurrency=(provider?:ExternalProvider)=>{const suffix=provider?`_${provider.replace(/[^a-z0-9]/gi,"_").toUpperCase()}`:"";const providerSpecific=provider?process.env[`APEX_EXTERNAL_PROVIDER_CONCURRENCY${suffix}`]:undefined;const fallback=provider==="gemini"?2:1;return boundedEnv(`APEX_EXTERNAL_PROVIDER_CONCURRENCY${suffix}`,providerSpecific?Number(providerSpecific):fallback,1,8);};const windowMs=()=>boundedEnv("APEX_EXTERNAL_WINDOW_MS",10*60_000,10_000,24*60*60_000);const perScopeMaxRequests=()=>{const scope=getScope();if(scope.startsWith("atlas-run:"))return boundedEnv("APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE",80,1,80);return boundedEnv("APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE",40,1,10_000);};const maxWaiters=()=>boundedEnv("APEX_EXTERNAL_MAX_WAITERS",1024,1,10_000);const maxProviderStates=()=>boundedEnv("APEX_EXTERNAL_MAX_PROVIDER_STATES",4096,32,100_000);const maxResponseCacheEntries=()=>boundedEnv("APEX_EXTERNAL_MAX_RESPONSE_CACHE_ENTRIES",512,16,10_000);const maxResponseCacheBytes=()=>boundedEnv("APEX_EXTERNAL_MAX_RESPONSE_CACHE_BYTES",64*1024*1024,4*1024*1024,512*1024*1024);let activeGlobal=0;
@@ -15,6 +17,35 @@ function pruneProviderStates(now=Date.now()):void{const expiry=windowMs();for(co
 function getState(key:string):ProviderState{const existing=providerStates.get(key);if(existing){existing.lastUsedAt=Date.now();return existing;}if(providerStates.size>=maxProviderStates()){pruneProviderStates();if(providerStates.size>=maxProviderStates())throw new ProviderQuotaError("budget_exhausted","generic",Math.max(1_000,windowMs()));}const created=newState();providerStates.set(key,created);return created;}
 function pruneScopeStates(now=Date.now()):void{const expiry=windowMs();for(const [key,state]of scopeStates)if(now-state.lastUsedAt>=expiry)scopeStates.delete(key);}
 function getScopeState(key:string):ProviderState{const existing=scopeStates.get(key);if(existing){existing.lastUsedAt=Date.now();return existing;}pruneScopeStates();if(scopeStates.size>=maxProviderStates())throw new ProviderQuotaError("budget_exhausted","generic",Math.max(1_000,windowMs()));const created=newState();scopeStates.set(key,created);return created;}
+function atlasRoleBudget(provider:ExternalProvider):{role:AtlasProviderRole|null;state:ProviderState;limit:number}|null{
+ if(provider!=="groq"||!getScope().startsWith("atlas-run:"))return null;
+ const role=providerRoleStorage.getStore()??null;
+ const overallBudget=perScopeMaxRequests();
+ const controlMax=Math.max(1,overallBudget-1);
+ const controlDefault=Math.max(1,Math.floor(overallBudget/2));
+ const controlLimit=boundedEnv("APEX_ATLAS_CONTROL_PROVIDER_MAX_REQUESTS_PER_SCOPE",controlDefault,1,controlMax);
+ const investigatorMax=Math.max(1,overallBudget-controlLimit);
+ const investigatorDefault=Math.min(40,investigatorMax);
+ const limit=role==="investigator"
+  ?boundedEnv("APEX_ATLAS_INVESTIGATOR_PROVIDER_MAX_REQUESTS_PER_SCOPE",investigatorDefault,1,investigatorMax)
+  :role==="control"?controlLimit:0;
+ return{role,state:getScopeState(scopeKey(provider)+"|role:"+(role??"unclassified")),limit};
+}
+function assertAtlasRoleBudgetAvailable(provider:ExternalProvider,budget:{role:AtlasProviderRole|null;state:ProviderState;limit:number}|null,now=Date.now()):void{
+ if(!budget)return;
+ const state=budget.state;
+ if(now-state.windowStartedAt>=windowMs()){state.windowStartedAt=now;state.windowAttempts=0;}
+ if(state.windowAttempts>=budget.limit){
+  const retryAfterMs=Math.max(1_000,Math.min(windowMs(),state.windowStartedAt+windowMs()-now));
+  logger.warn({provider,block:"atlas_role_budget_exhausted",role:budget.role??"unclassified",retryAfterMs,scope:getScope(),roleAttempts:state.windowAttempts,roleBudget:budget.limit},"Atlas role provider budget exhausted; preserving the other role's reserved budget");
+  throw new ProviderQuotaError("budget_exhausted",provider,retryAfterMs);
+ }
+}
+function chargeAtlasRoleBudget(budget:{role:AtlasProviderRole|null;state:ProviderState;limit:number}|null):void{
+ if(!budget)return;
+ budget.state.windowAttempts+=1;budget.state.lastUsedAt=Date.now();
+}
+
 function removeWaiter(waiter:Waiter):void{const index=waiters.indexOf(waiter);if(index>=0)waiters.splice(index,1);if(waiter.signal&&waiter.onAbort)waiter.signal.removeEventListener("abort",waiter.onAbort);}
 async function abortableProviderDelay(ms:number,signal?:AbortSignal|null):Promise<void>{if(signal?.aborted)throw new Error("External provider call cancelled.");await new Promise<void>((resolve,reject)=>{let settled=false;let timer:ReturnType<typeof setTimeout>;const cleanup=()=>{clearTimeout(timer);signal?.removeEventListener("abort",abort);};const finish=(error?:Error)=>{if(settled)return;settled=true;cleanup();if(error)reject(error);else resolve();};const abort=()=>finish(new Error("External provider call cancelled."));timer=setTimeout(()=>finish(),Math.max(0,ms));signal?.addEventListener("abort",abort,{once:true});if(signal?.aborted)abort();});}
 function notifyWaiters():void{for(let i=0;i<waiters.length;i+=1){const waiter=waiters[i]!;if(waiter.signal?.aborted){removeWaiter(waiter);i-=1;waiter.reject(new Error("External provider concurrency wait cancelled."));continue;}const state=getState(waiter.provider);if(activeGlobal>=globalConcurrency()||state.active>=perProviderConcurrency(waiter.provider))continue;removeWaiter(waiter);activeGlobal+=1;state.active+=1;waiter.resolve();return;}}
@@ -114,7 +145,9 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
  if(state.cooldownUntil>now){logger.warn({provider,block:"cooldown",retryAfterMs:state.cooldownUntil-now,accountDigest:account,scope:getScope()},"External provider call blocked by quota cooldown");throw new ProviderQuotaError("cooldown",provider,state.cooldownUntil-now);}
  if(now-state.windowStartedAt>=windowMs()){state.windowStartedAt=now;state.windowAttempts=0;}
  const scopeState=getScopeState(scopeKey(provider));
+ const roleBudget=atlasRoleBudget(provider);
  if(now-scopeState.windowStartedAt>=windowMs()){scopeState.windowStartedAt=now;scopeState.windowAttempts=0;}
+ assertAtlasRoleBudgetAvailable(provider,roleBudget,now);
  if(state.windowAttempts>=config.maxRequests||scopeState.windowAttempts>=perScopeMaxRequests()){
   const retryAfterMs=budgetRetryAfterMs(state,scopeState,config,now);
   logger.warn({provider,block:"budget_exhausted",retryAfterMs,accountDigest:account,scope:getScope(),providerAttempts:state.windowAttempts,scopeAttempts:scopeState.windowAttempts},"External provider call blocked by quota budget");
@@ -129,7 +162,8 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
    // Budgets can be consumed while this call waits for a concurrency slot or
    // rate-limit delay. Recheck synchronously immediately before the request.
    assertProviderBudgetAvailable(provider,state,scopeState,config);
-   state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;
+   assertAtlasRoleBudgetAvailable(provider,roleBudget);
+   state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;chargeAtlasRoleBudget(roleBudget);
    const response=await fetcher();
    const retryOwner=retryOwnerStorage.getStore()?.[provider]??"gate";
    if(isQuotaResponse(provider,response)){
@@ -157,10 +191,11 @@ function responseFromCache(entry:CacheEntry):Response{return new Response(entry.
 export async function runProviderCall<T>(options:{provider:ExternalProvider;account?:string;scope?:string;signal?:AbortSignal},fn:()=>Promise<T>):Promise<T>{
  const provider=options.provider,account=options.account??"operation",scope=options.scope??getScope();
  return scopeStorage.run(scope,async()=>{
-  const config=providerConfig(provider),state=getState(providerStateKey(provider,account)),scopeState=getScopeState(scopeKey(provider)),now=Date.now();
+  const config=providerConfig(provider),state=getState(providerStateKey(provider,account)),scopeState=getScopeState(scopeKey(provider)),now=Date.now(),roleBudget=atlasRoleBudget(provider);
   if(state.cooldownUntil>now)throw new ProviderQuotaError("cooldown",provider,state.cooldownUntil-now);
   if(now-state.windowStartedAt>=windowMs()){state.windowStartedAt=now;state.windowAttempts=0;}
   if(now-scopeState.windowStartedAt>=windowMs()){scopeState.windowStartedAt=now;scopeState.windowAttempts=0;}
+  assertAtlasRoleBudgetAvailable(provider,roleBudget,now);
   if(state.windowAttempts>=config.maxRequests||scopeState.windowAttempts>=perScopeMaxRequests())throw new ProviderQuotaError("budget_exhausted",provider,budgetRetryAfterMs(state,scopeState,config,now));
   await acquireConcurrency(provider,options.signal);
   try{
@@ -170,7 +205,8 @@ export async function runProviderCall<T>(options:{provider:ExternalProvider;acco
    // Queue and rate-limit waits yield to other calls; reserve budget only after
    // checking the live counters again, immediately before the actual operation.
    assertProviderBudgetAvailable(provider,state,scopeState,config);
-   state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;
+   assertAtlasRoleBudgetAvailable(provider,roleBudget);
+   state.lastStartedAt=Date.now();state.windowAttempts+=1;scopeState.windowAttempts+=1;chargeAtlasRoleBudget(roleBudget);
    try{
     const result=await fn();
     if(result instanceof Response&&isQuotaResponse(provider,result)&&retryOwnerStorage.getStore()?.[provider]!=="caller"){
@@ -182,6 +218,6 @@ export async function runProviderCall<T>(options:{provider:ExternalProvider;acco
   }finally{releaseConcurrency(provider);}
  });
 }
-export function withProviderScope<T>(scope:string,fn:()=>Promise<T>):Promise<T>{return scopeStorage.run(scope,fn);}export function withProviderRetryOwnership<T>(provider:ExternalProvider,owner:ProviderRetryOwner,fn:()=>Promise<T>):Promise<T>{const inherited=retryOwnerStorage.getStore()??{};return retryOwnerStorage.run({...inherited,[provider]:owner},fn);}export function installExternalQuotaGuard():void{const current=globalThis.fetch;if(current&&(current as typeof fetch&{__apexQuotaGuard?:boolean}).__apexQuotaGuard)return;const original=current.bind(globalThis);const guarded=(async(input:string|URL|Request,init?:RequestInit)=>{const url=requestUrl(input);if(isLocalUrl(url))return original(input,init);const provider=classifyExternalProvider(url);return runProviderFetch(provider,input,init,()=>original(input,init));}) as typeof fetch&{__apexQuotaGuard?:boolean};guarded.__apexQuotaGuard=true;globalThis.fetch=guarded;logger.info({globalConcurrency:globalConcurrency(),providerConcurrency:perProviderConcurrency(),windowMs:windowMs(),perScopeMaxRequests:perScopeMaxRequests(),maxWaiters:maxWaiters(),maxProviderStates:maxProviderStates(),maxResponseCacheEntries:maxResponseCacheEntries(),maxResponseCacheBytes:maxResponseCacheBytes()},"External provider quota gate installed");}
+export function withProviderScope<T>(scope:string,fn:()=>Promise<T>):Promise<T>{return scopeStorage.run(scope,fn);}export function withProviderRole<T>(role:AtlasProviderRole,fn:()=>Promise<T>):Promise<T>{return providerRoleStorage.run(role,fn);}export function withProviderRetryOwnership<T>(provider:ExternalProvider,owner:ProviderRetryOwner,fn:()=>Promise<T>):Promise<T>{const inherited=retryOwnerStorage.getStore()??{};return retryOwnerStorage.run({...inherited,[provider]:owner},fn);}export function installExternalQuotaGuard():void{const current=globalThis.fetch;if(current&&(current as typeof fetch&{__apexQuotaGuard?:boolean}).__apexQuotaGuard)return;const original=current.bind(globalThis);const guarded=(async(input:string|URL|Request,init?:RequestInit)=>{const url=requestUrl(input);if(isLocalUrl(url))return original(input,init);const provider=classifyExternalProvider(url);return runProviderFetch(provider,input,init,()=>original(input,init));}) as typeof fetch&{__apexQuotaGuard?:boolean};guarded.__apexQuotaGuard=true;globalThis.fetch=guarded;logger.info({globalConcurrency:globalConcurrency(),providerConcurrency:perProviderConcurrency(),windowMs:windowMs(),perScopeMaxRequests:perScopeMaxRequests(),maxWaiters:maxWaiters(),maxProviderStates:maxProviderStates(),maxResponseCacheEntries:maxResponseCacheEntries(),maxResponseCacheBytes:maxResponseCacheBytes()},"External provider quota gate installed");}
 export function getProviderGateSnapshot(){const now=Date.now(),byProvider=new Map<ExternalProvider,{active:number;windowAttempts:number;cooldownMs:number}>();for(const[key,state]of providerStates){const provider=key.split("|",1)[0] as ExternalProvider;const current=byProvider.get(provider)??{active:0,windowAttempts:0,cooldownMs:0};current.active+=state.active;current.windowAttempts=Math.max(current.windowAttempts,state.windowAttempts);current.cooldownMs=Math.max(current.cooldownMs,Math.max(0,state.cooldownUntil-now));byProvider.set(provider,current);}return{activeGlobal,providers:[...byProvider.entries()].map(([provider,state])=>({provider,...state}))};}
 export function resetProviderGateForTests(){providerStates.clear();scopeStates.clear();responseCache.clear();responseCacheBytes=0;inFlight.clear();waiters.length=0;activeGlobal=0;}
