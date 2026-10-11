@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { assessResearchFrontier, scoreSourceIndependence } from "./research-policy";
 import { updateHypothesisPosterior, chooseBestDiscriminator, assessFalsificationPlan } from "./research-hypothesis-policy";
-import { summarizeActionYield, type ActionYieldStat, updateActionYield } from "./research-action-learning";
+import { rankLearnedActionYield, summarizeActionYield, type ActionYieldStat, updateActionYield } from "./research-action-learning";
 import { bindExactSourceSpan, SourceLineageGraph, sourceLineageId } from "./research-epistemic-vnext";
 import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 import { buildDiscoveryIntelligence, type DiscoveryIntelligence, renderDiscoveryIntelligence } from "./discovery-frontier";
@@ -137,6 +137,8 @@ export interface IntelligenceContext {
   providerDisagreements: Array<{ query: string; providers: string[]; sourceHosts: string[] }>;
   atomicEvidence: Array<{ evidenceId: string; kind: IntelligenceEvidenceKind; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; spanBound?: boolean; spanBindingKind?: "identity" | "value" | "identity_and_value"; attribution: string | null }>;
   actionYield: ReturnType<typeof summarizeActionYield>[];
+  /** Raw cumulative learning statistics; optional for older durable contexts. */
+  actionYieldStats?: Array<[string, ActionYieldStat]>;
   sourceLineage: Array<{ sourceId: string; canonicalUrl: string; host: string; originSourceId: string | null; citedSourceIds: string[] }>;
   independentSourceUnits: number;
   discovery?: DiscoveryIntelligence;
@@ -375,6 +377,21 @@ export class ResearchIntelligenceEngine {
     if (context.version !== 1) return;
     this.evidence.clear(); this.evidenceByIdMap.clear(); this.claims.clear(); this.contacts.clear(); this.actions.length = 0;
     this.negativeFindings.clear(); this.hypotheses.clear(); this.feedback.length = 0; this.actionYield.clear();
+    if (Array.isArray(context.actionYieldStats)) {
+      for (const entry of context.actionYieldStats.slice(0, 256)) {
+        if (!Array.isArray(entry) || typeof entry[0] !== "string" || !entry[0].trim() || !entry[1] || typeof entry[1] !== "object") continue;
+        const raw = entry[1] as ActionYieldStat;
+        const values = [raw.attempts, raw.useful, raw.failures, raw.totalInformationGain, raw.lastTurn, raw.predictedInformationGain, raw.realizedInformationGain, raw.absolutePredictionError];
+        if (!values.every(Number.isFinite) || raw.attempts < 0 || raw.useful < 0 || raw.failures < 0 || raw.useful > raw.attempts || raw.failures > raw.attempts) continue;
+        this.actionYield.set(entry[0].slice(0, 240), {
+          attempts: Math.floor(raw.attempts), useful: Math.floor(raw.useful), failures: Math.floor(raw.failures),
+          totalInformationGain: Math.max(0, raw.totalInformationGain), lastTurn: Math.max(0, Math.floor(raw.lastTurn)),
+          predictedInformationGain: Math.max(0, raw.predictedInformationGain),
+          realizedInformationGain: Math.max(0, raw.realizedInformationGain),
+          absolutePredictionError: Math.max(0, raw.absolutePredictionError),
+        });
+      }
+    }
     this.chain = context.provenanceDigest || "GENESIS";
     const lineageByUrl = new Map(context.sourceLineage.map((node) => [canonicalUrl(node.canonicalUrl) ?? node.canonicalUrl, node]));
     for (const item of context.atomicEvidence) {
@@ -719,7 +736,7 @@ export class ResearchIntelligenceEngine {
         spanBindingKind: evidence.spanBindingKind,
         attribution: evidence.attribution ?? null,
       }));
-    const actionYield = [...this.actionYield.entries()].map(([action, stat]) => summarizeActionYield(action, stat));
+    const actionYield = rankLearnedActionYield(this.actionYield);
     const researchQuestionMap = new Map<string, { id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" }>();
     for (const [index, question] of openQuestions.entries()) {
       researchQuestionMap.set(normalize(question), { id: "rq_" + hash(question).slice(0, 16), question, importance: Math.max(0.5, 1 - index * 0.05), uncertainty: 1, discriminators: [question], status: "open" });
@@ -766,7 +783,7 @@ export class ResearchIntelligenceEngine {
     });
     const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
-    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, discovery, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
+    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, actionYieldStats: [...this.actionYield.entries()].map(([action, stat]) => [action, { ...stat }]), sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, discovery, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
   private buildMissionBriefs(openQuestions: string[], facts: Array<{ claim: string }>, contradictions: Array<{ claim: string }>): IntelligenceMissionBrief[] {
