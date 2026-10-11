@@ -10,12 +10,20 @@ vi.mock("../lib/provider-gate", () => ({
 }));
 
 import { assertSafeOutboundUrl, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
-import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured } from "../lib/browser-fetch-core";
+import { browserFetchHtml, resetBrowserFetchCount, getAvailableBrowserFetchProviders, browserFetchConfigured, isUsableBrowserHtml } from "../lib/browser-fetch-core";
 import { browserFetchHtml as browserFetchThroughBoundary } from "../lib/browser-fetch";
 
 const html = `<html><body>${"public research evidence ".repeat(8)}</body></html>`;
 
 describe("hosted browser fetch final-URL provenance", () => {
+  it("measures returned HTML limits in UTF-8 bytes rather than UTF-16 code units", () => {
+    expect(isUsableBrowserHtml("a".repeat(101))).toBe(true);
+    const multibyteHtml = "漢".repeat(700_000);
+    expect(multibyteHtml.length).toBeLessThan(2_000_000);
+    expect(Buffer.byteLength(multibyteHtml, "utf8")).toBeGreaterThan(2_000_000);
+    expect(isUsableBrowserHtml(multibyteHtml)).toBe(false);
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubEnv("SCRAPFLY_API_KEY", "test-scrapfly-key");

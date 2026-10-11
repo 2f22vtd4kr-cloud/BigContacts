@@ -34,6 +34,9 @@ export function isBrowserFetchProviderAvailable(provider: BrowserProvider): bool
   return getAvailableBrowserFetchProviders().includes(provider);
 }
 const MAX_BROWSER_RESPONSE_BYTES = 2_000_000;
+export function isUsableBrowserHtml(html: string): boolean {
+  return html.length > 100 && Buffer.byteLength(html, "utf8") <= MAX_BROWSER_RESPONSE_BYTES;
+}
 const MAX_BROWSER_FETCH_SCOPES = 256;
 export function isChallengeHtml(html: string): boolean { if (!html || html.length < 40) return false; const head = html.slice(0, 8_000).toLowerCase(); return (/just a moment/.test(head) && /cloudflare/.test(head)) || /cf-browser-verification|cf-challenge|attention required!\s*\|\s*cloudflare/.test(head) || (/enable javascript and cookies to continue/.test(head) && html.length < 30_000) || /^HTTP 403/.test(html) || /^HTTP 503/.test(html); }
 function maxBrowserFetches(): number { const n = Number(process.env.BROWSER_FETCH_MAX_PER_CASE ?? "5"); return Number.isFinite(n) && n > 0 ? Math.min(n, 20) : 5; }
@@ -78,7 +81,7 @@ async function fetchViaScrapfly(url: string, signal?: AbortSignal): Promise<Brow
     // Provider JSON is untrusted runtime input despite the generic response type.
     // Only actual text may be exposed as an observed document.
     const html = typeof rawHtml === "string" ? rawHtml : "";
-    const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
+    const usable = isUsableBrowserHtml(html);
     const reportedUrl = data?.result?.url;
     const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl, signal) : null;
     // If the provider reports a destination, failure to validate that destination
@@ -107,7 +110,7 @@ async function fetchViaZenRows(url: string, signal?: AbortSignal): Promise<Brows
     const resp = await providerFetch("zenrows", u.toString(), { signal: signal ?? AbortSignal.timeout(timeoutMs()) }, signal);
     if (!resp.ok) return { html: null, observedUrl: null };
     const html = await readResponseTextCapped(resp, signal);
-    const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
+    const usable = isUsableBrowserHtml(html);
     const reportedUrl = resp.headers.get("Zr-Final-Url");
     const observedUrl = usable ? await verifiedProviderFinalUrl(reportedUrl, signal) : null;
     // A known but unsafe redirect invalidates the document itself, not just its
@@ -220,7 +223,7 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
         // to a pre-redirect request URL.
         await assertSafeOutboundUrl(finalUrl, signal);
         const html = await page.content();
-        const usable = html.length > 100 && html.length <= MAX_BROWSER_RESPONSE_BYTES;
+        const usable = isUsableBrowserHtml(html);
         return { html: usable ? html : null, observedUrl: usable ? sanitizeUrlForEvidence(finalUrl) : null };
       } finally {
         await context.close().catch(() => undefined);
