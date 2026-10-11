@@ -1901,6 +1901,13 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     if (runController.signal.aborted) return resultBase(input.signal?.aborted ? "cancelled" : "timeout", iterationsAttempted, input.signal?.aborted ? "CANCELLED" : "HARD_TIMEOUT", safeAgenticError(error, runController.signal.aborted));
     const diagnostic = safeAgenticError(error, false);
     const safeFailureSummary = `unexpected_exception stage=${runtimeStage} ${diagnostic}`;
+    const runtimeFailureClassification = runtimeStage === "trajectory_persistence"
+      ? { domain: "persistence_database" as const, kind: "unexpected_exception" as const }
+      : runtimeStage === "tool_execution"
+        ? { domain: "tool_execution" as const, kind: "request_failure" as const }
+        : runtimeStage === "model_request"
+          ? classifyInvestigatorProviderError(classifyThrownProviderError(error))
+          : { domain: "unexpected_programming_error" as const, kind: "unexpected_exception" as const };
     const runtimeFailureRecord: AgenticTrajectoryRecord = {
       turn: Math.max(priorTurnOffset, ...records.map((record) => record.turn)) + 1,
       model: modelUsed,
@@ -1911,8 +1918,8 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       observedUrls: [],
       findings: [],
       providerFallback: [],
-      failureDomain: "unexpected_programming_error",
-      failureKind: "unexpected_exception",
+      failureDomain: runtimeFailureClassification.domain,
+      failureKind: runtimeFailureClassification.kind,
       stopReason: "UNEXPECTED_ERROR",
     };
     records.push(runtimeFailureRecord);
