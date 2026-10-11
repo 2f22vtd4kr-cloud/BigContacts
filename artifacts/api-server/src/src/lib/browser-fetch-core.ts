@@ -213,6 +213,7 @@ async function fetchViaPlaywright(url: string, signal?: AbortSignal): Promise<Br
             } catch { /* Unsupported browser API; network requests remain routed and pinned. */ }
           }
         });
+        const page = await context.newPage();
         await raceAbort(page.goto(url, { waitUntil: "domcontentloaded", timeout: timeoutMs() }), signal);
         throwIfAborted(signal);
         await raceAbort(page.waitForTimeout(2_500), signal).catch(() => undefined);
