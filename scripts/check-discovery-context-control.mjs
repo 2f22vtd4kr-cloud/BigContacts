@@ -3,6 +3,7 @@ const control = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-
 const compactor = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const bureau = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts", "utf8");
 const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
+const episodeHealth = fs.readFileSync("artifacts/api-server/src/src/lib/investigator-episode-health.ts", "utf8");
 const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts", "utf8");
 const atlas = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
 const candidateSourcePolicy = fs.readFileSync("artifacts/api-server/src/src/lib/candidate-source-url-union.ts", "utf8");
@@ -14,6 +15,10 @@ const checks = [
 ["discovery control imports semantic context compaction", /investigation-context-compaction/.test(control) && /compactInvestigationContext|buildInvestigatorContext/.test(control)],
 ["discovery control compacts the state before model review", /const compactState = compactInvestigationContext\(/.test(control)],
 ["discovery control supplies structured trajectory records to compaction", /trajectoryRecords: structuredTrajectory/.test(control)],
+
+["terminal action-parse failure is recorded with its explicit stop reason", core.includes('...(input.terminal ? { stopReason: "PARSE_FAILURE" as const } : {})') && core.includes('failureDomain: "model_action"') && core.includes('failureKind: "invalid_contract"')],
+["only a structurally persisted PARSE_FAILURE is handed to Boss control", episodeHealth.includes("hasDurableTerminalParseFailure") && episodeHealth.includes("if (hasDurableTerminalParseFailure) return null")],
+["bounded Investigator report preserves stop reason and safe failure summary for control", control.includes("stopReason: boundedText(parsed.stopReason, 80)") && control.includes("errorSummary: boundedText(parsed.errorSummary, 500)") && atlas.includes("stopReason: discovery.stopReason ?? null")],
 ["discovery control supplies evidence attribution state", /evidenceGraphSummaries:/.test(control) || /discoveryFindings/.test(control)],
 ["Right Hand must complete before Gemini controls transition", /if \(rightHand\.status !== "completed"\)/.test(control)],
 ["discovery transition fails closed when Right Hand is unavailable", /Atlas transition is fail-closed/.test(control)],
