@@ -37,7 +37,8 @@ describe("candidate source URL union", () => {
   });
 });
 
-describe("discovery source evidence policy", () => {  it("requires the same candidate role on two independent direct source observations", () => {
+describe("discovery source evidence policy", () => {
+  it("requires the same candidate role on two independent direct source observations", () => {
     const findings = [{
       personName: "Jane Example", role: "Chief Executive Officer",
       promotionDecision: "promote" as const, scope: "candidate" as const,
