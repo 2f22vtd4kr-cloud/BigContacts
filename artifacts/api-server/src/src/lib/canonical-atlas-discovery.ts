@@ -345,7 +345,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       phaseSummary.investigatorReassignment = `${failedCapability} → ${replacement} after explicit upstream_quota_exhausted; remaining alternates=${getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities).join(",") || "none"}`;
       return replacement;
     };
-    const mergeDiscoveryResults = (failed: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, recovered: Awaited<ReturnType<typeof runBureauAgenticWebPass>>): Awaited<ReturnType<typeof runBureauAgenticWebPass>> => ({ ...recovered, searches: failed.searches + recovered.searches, visits: failed.visits + recovered.visits, iterations: failed.iterations + recovered.iterations, findings: [...(failed.findings ?? []), ...(recovered.findings ?? [])], modelFindings: [...(failed.modelFindings ?? []), ...(recovered.modelFindings ?? [])], trajectory: [...(failed.trajectory ?? []), ...(recovered.trajectory ?? [])], trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])] });
+    const mergeDiscoveryResults = (failed: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, recovered: Awaited<ReturnType<typeof runBureauAgenticWebPass>>): Awaited<ReturnType<typeof runBureauAgenticWebPass>> => ({ ...recovered, searches: failed.searches + recovered.searches, visits: failed.visits + recovered.visits, iterations: failed.iterations + recovered.iterations, findings: [...(failed.findings ?? []), ...(recovered.findings ?? [])], modelFindings: [...(failed.modelFindings ?? []), ...(recovered.modelFindings ?? [])], trajectory: [...(failed.trajectory ?? []), ...(recovered.trajectory ?? [])], trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])], consecutiveActionParseFailures: recovered.consecutiveActionParseFailures ?? failed.consecutiveActionParseFailures ?? 0 });
     const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = []): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
       let result = initial;
       let iterationsConsumed = Math.max(0, result.iterations ?? result.trajectoryRecords?.length ?? 0);
@@ -355,7 +355,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const failedCapability = selectedInvestigator;
         const replacement = await reassignInvestigatorAfterHardQuota(failedCapability, result.error ?? "upstream_quota_exhausted");
         failureStage = "investigator_episode";
-        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: remainingIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])] });
+        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: remainingIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0 });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
         if (!isInvestigatorHardQuotaExhausted(recovered)) break;
@@ -863,7 +863,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // all budget/iteration guards pass, at the exact point a new Investigator act starts.
         latestEvidenceBackedTerminal = null;
         failureStage = "investigator_episode";
-        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [] });
+        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0 });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), discovery.trajectoryRecords ?? []);
 
@@ -880,6 +880,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
         });
         if (episodeFailure) {
+          const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error");
+          const runtimeFailureStage = typeof runtimeFailureRecord?.args?.stage === "string" ? runtimeFailureRecord.args.stage : null;
+          // This branch exits before the success-path merge below; keep the failed episode in the cumulative terminal report.
+          discovery = mergeDiscoveryResults(discovery, nextDiscovery);
           await assertAtlasJobActive(atlasJobId);
           const underlyingError = new Error(nextDiscovery.error ?? episodeFailure.code);
           const providerDiagnostic = describeThrownProviderError(underlyingError);
@@ -936,6 +940,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                 iterations: nextDiscovery.iterations,
                 trajectoryRecordCount: nextDiscovery.trajectoryRecords?.length ?? 0,
                 newTrajectoryRecordCount,
+                runtimeFailureStage,
+                cumulativeSearches: discovery.searches,
+                cumulativeVisits: discovery.visits,
+                cumulativeIterations: discovery.iterations,
+                cumulativeTrajectoryRecordCount: discovery.trajectoryRecords?.length ?? 0,
                 failureDomain: diagnostic.domain,
                 failureKind: diagnostic.kind,
                 errorClass: providerDiagnostic.errorName,
@@ -957,7 +966,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             result: JSON.stringify({
               rightHand,
               boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm },
-              discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, runs: discoveryRuns },
+              discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecordCount: discovery.trajectoryRecords?.length ?? 0, runs: discoveryRuns + 1 },
               control: { turns: controlTurns, finalAction: decision.action, finalCandidate: priorCandidate },
               investigatorEpisodeFailure: {
                 code: episodeFailure.code,
@@ -967,6 +976,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                 trajectoryRecordCount: nextDiscovery.trajectoryRecords?.length ?? 0,
                 failureDomain: diagnostic.domain,
                 failureKind: diagnostic.kind,
+                runtimeFailureStage,
+                localEpisodeSearches: nextDiscovery.searches,
+                localEpisodeVisits: nextDiscovery.visits,
+                cumulativeSearches: discovery.searches,
+                cumulativeVisits: discovery.visits,
+                cumulativeTrajectoryRecordCount: discovery.trajectoryRecords?.length ?? 0,
                 messageDigest: providerDiagnostic.messageDigest,
               },
             }),
