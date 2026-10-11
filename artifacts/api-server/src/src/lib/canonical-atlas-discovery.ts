@@ -842,6 +842,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
 
         // A failed/empty continuation is an orchestration failure, not permission
         // to ask Boss for another pivot without executing useful Investigator work.
+        const newTrajectoryRecordCount = Math.max(0, (nextDiscovery.trajectoryRecords?.length ?? 0) - priorTrajectoryRecordCount);
         const episodeFailure = classifyInvestigatorEpisodeFailure({
           status: nextDiscovery.status,
           iterations: nextDiscovery.iterations,
@@ -905,12 +906,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                 stopReason: nextDiscovery.stopReason ?? null,
                 iterations: nextDiscovery.iterations,
                 trajectoryRecordCount: nextDiscovery.trajectoryRecords?.length ?? 0,
+                newTrajectoryRecordCount,
                 failureDomain: diagnostic.domain,
                 failureKind: diagnostic.kind,
                 errorClass: providerDiagnostic.errorName,
                 errorCode: providerDiagnostic.errorCode,
                 messageDigest: providerDiagnostic.messageDigest,
-                investigatorActionExecuted: (nextDiscovery.trajectoryRecords?.length ?? 0) > 0,
+                newTrajectoryRecordCount,
+                investigatorActionExecuted: newTrajectoryRecordCount > 0,
               }),
             }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
           }, { isolationLevel: "serializable" });
