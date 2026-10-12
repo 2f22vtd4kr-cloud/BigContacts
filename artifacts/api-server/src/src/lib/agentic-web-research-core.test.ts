@@ -285,7 +285,7 @@ describe("Investigator prompt architecture", () => {
     expect(isClaimGradeDiscoverySourceUrl("https://www.zoominfo.com/p/example-person/123")).toBe(false);
     // Source eligibility is not candidate admission: the durable admission path
     // still requires two independently published observations of the same name/role.
-    expect(researchCoreSource).toContain("two independent evidence/source units");
+    expect(agenticCoreSource).toContain("two independent evidence/source units");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
