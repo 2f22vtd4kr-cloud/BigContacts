@@ -252,7 +252,9 @@ export class ResearchIntelligenceEngine {
 
   recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
-    const newHostCount = this.countNewHosts(urls);
+    const observationIsFetchedSource = input.execution === "success"
+      && !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "done"].includes(input.action);
+    const newHostCount = observationIsFetchedSource ? this.countNewHosts(urls) : 0;
     // Findings can cite earlier pages. Bind every citation to the successful
     // observation that actually contained its supporting text, rather than
     // copying the current page's passage onto unrelated cited URLs.
@@ -335,8 +337,6 @@ export class ResearchIntelligenceEngine {
       this.negativeFindings.add(negative);
       this.recordEvidence({ kind: "negative", claim: negative, value: negative, sourceUrl: null, sourceTier: "unknown", turn: input.turn, action: input.action, execution: input.execution, passage: null, supports: [], contradicts: [] });
     }
-    const observationIsFetchedSource = input.execution === "success"
-      && !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "done"].includes(input.action);
     if (observationIsFetchedSource) {
       for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
     }
