@@ -410,6 +410,16 @@ describe("Investigator prompt architecture", () => {
     } as Parameters<typeof repeatedDiscoverySearchReason>[1][number];
     expect(repeatedDiscoverySearchReason({ query: "Casino Portoroz ownership", provider: "serper", locale: "sl", market: "si" }, [parallel])).toContain("repeat_action_guard");
   });
+  it("requires ownership/equity/operator hypotheses for title-led discovery searches, including local-language terms", () => {
+    expect(validateDiscoverySearchQuery("Enterprise Mobility leadership team", [])).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("title/leadership-led query"),
+    });
+    expect(validateDiscoverySearchQuery("Casino Portorož management team", [])).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("Enterprise Mobility family ownership principal", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Casino Portorož owner/operator Slovenia", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Casino Portorož lastnik koncesionar Slovenija", [])).toEqual({ allowed: true });
+  });
   it("blocks unrealistic global-brand and ranking searches unless a reachable local ownership route is named", () => {
     expect(validateDiscoverySearchQuery("Coca-Cola Company executive leadership page official site", [])).toMatchObject({
       allowed: false,
