@@ -405,6 +405,13 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
     };
   }
   const localOperatorRoute = DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS.test(normalized);
+  const ownershipHypothesis = DISCOVERY_OWNERSHIP_ROUTE_TERMS.test(normalized);
+  if ((fame || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute && !ownershipHypothesis) {
+    return {
+      allowed: false,
+      reason: "Discovery rejected a fame/ranking-list query that lacks an explicit ownership, investment, operator or intermediary hypothesis. A sector or geography keyword alone does not make a public rich-list target realistic; search the business/control route instead. No provider request was made.",
+    };
+  }
   const globalBrandTarget = DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized);
   if ((globalBrandTarget || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute) {
     return {
