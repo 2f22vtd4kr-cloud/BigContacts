@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runHolehe, runMaigret, runSherlock, runTheHarvester, runOpenDeepResearch, runSpiderFoot } from "../lib/python-tools";
+import { checkPythonToolsAvailability, runHolehe, runMaigret, runSherlock, runTheHarvester, runOpenDeepResearch, runSpiderFoot } from "../lib/python-tools";
 import { ATLAS_CAPABILITIES, renderAtlasCapabilityGuidanceCompact } from "../lib/atlas-capability-registry";
 
 const QUARANTINE_ERROR =
@@ -23,6 +23,19 @@ describe("Investigator-visible capability truth", () => {
     }
     expect(promptCapabilities).toContain("registry.search");
     expect(promptCapabilities).toContain("web.visit");
+  });
+});
+
+describe("Python OSINT availability diagnostics", () => {
+  it("does not advertise wrappers with no installed executor as available", async () => {
+    await expect(checkPythonToolsAvailability()).resolves.toEqual({
+      holehe: false,
+      maigret: false,
+      sherlock: false,
+      theHarvester: false,
+      spiderfoot: false,
+      openDeepResearch: false,
+    });
   });
 });
 
