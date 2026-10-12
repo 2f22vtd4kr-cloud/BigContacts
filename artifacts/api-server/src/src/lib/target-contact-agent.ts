@@ -131,13 +131,14 @@ function compactReachabilityControl(raw: string): string {
   if (!value) return fallback;
   if (value.length <= 220) return value;
 
-  const status = value.match(/\bStatus\s+([A-Z_]+)/i);
-  const targetMode = value.match(/This is a (RESEARCH-ONLY|TARGETED) target\.[^\n]*/i);
+  const status = value.match(/\bStatus:\s*([A-Z_]+)/i);
+  const targetMode = value.match(/This is a (RESEARCH-ONLY|TARGETED) (?:target|reachability pass)\./i);
+  const score = value.match(/practical access score\s+(\d+)\/100/i);
   const blockers = value.match(/Known blockers:\s*([^\n]+)/i);
   const route = value.match(/prioritize [^.\n]+/i);
   const compact = [
     "REALISM / REACHABILITY CONTROL:",
-    status ? `Status ${status[1]!.toUpperCase()}.` : "",
+    status ? `Status ${status[1]!.toUpperCase()}${score ? ` (access score ${score[1]}/100)` : ""}.` : "",
     targetMode?.[0] ?? "",
     route?.[0] ?? "",
     blockers ? `Known blockers: ${blockers[1]!.slice(0, 70)}` : "",
