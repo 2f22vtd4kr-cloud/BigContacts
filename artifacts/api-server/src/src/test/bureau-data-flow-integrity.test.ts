@@ -33,8 +33,10 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
 
 
     const discoveryObjective = source("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts");
-    expect(discoveryObjective).toContain("validateResearchObjective(proposedDirection)");
-    expect(discoveryObjective).toContain("formatBossDirectedObjective(discoveryObjective, validatedDirection.direction)");
+    expect(discoveryObjective).toContain("resolveBossDirectedDiscoveryObjective({");
+    expect(discoveryObjective).toContain("currentObjective: activeDiscoveryObjective");
+    expect(discoveryObjective).toContain("activeDiscoveryObjective = directedObjective");
+    expect(discoveryObjective).toContain("const directedObjective = resolvedObjective.objective;");
     const objectiveHelper = source("artifacts/api-server/src/src/lib/research-objective.ts");
     expect(objectiveHelper).toContain("BOSS-DIRECTED RESEARCH QUESTION / PIVOT:");
     expect(objectiveHelper).toContain("PROVIDER_OR_TOOL_DIRECTIVE.test(value)");
