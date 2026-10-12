@@ -223,9 +223,16 @@ export function hasCredibleDiscoveryWealthPotentialSignal(input: {
     return passages.some((passage) => {
       const nearby = normalizeTargetabilityText(passage);
       if (!nearby.includes(person)) return false;
-      const hasOwnership = ownershipSignals.some((term) => nearby.includes(normalizeTargetabilityText(term)));
-      const hasMateriality = materialitySignals.some((term) => nearby.includes(normalizeTargetabilityText(term)));
-      return hasOwnership && hasMateriality;
+      const hasOwnership = ownershipSignals.some((term) => {
+        const normalizedTerm = normalizeTargetabilityText(term);
+        return normalizedTerm.length > 0 && nearby.includes(normalizedTerm);
+      });
+      const hasTextMateriality = materialitySignals.some((term) => {
+        const normalizedTerm = normalizeTargetabilityText(term);
+        return normalizedTerm.length > 0 && nearby.includes(normalizedTerm);
+      });
+      const hasCurrencyMateriality = /[€$£]/u.test(passage);
+      return hasOwnership && (hasTextMateriality || hasCurrencyMateriality);
     });
   });
 }
