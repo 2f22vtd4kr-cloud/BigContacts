@@ -210,6 +210,35 @@ describe("safe outbound HTTP response construction", () => {
       .rejects.toThrow("Outbound server returned invalid HTTP status 0");
   });
 
+  it("rejects malformed upstream response headers without escaping the transport callback", async () => {
+    dnsMocks.resolve4.mockReset().mockResolvedValue(["93.184.216.34"]);
+    dnsMocks.resolve6.mockReset().mockResolvedValue([]);
+    dnsMocks.cancel.mockReset();
+
+    const response = Object.assign(new EventEmitter(), {
+      headers: { "bad\nheader": "value" },
+      statusCode: 200,
+      statusMessage: "",
+      destroyed: false,
+      destroy: vi.fn(),
+    });
+    const request = Object.assign(new EventEmitter(), {
+      setTimeout: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn(),
+      destroy: vi.fn(),
+    });
+    transportMocks.httpsRequest.mockImplementation((_options: unknown, onResponse: (value: typeof response) => void) => {
+      request.end.mockImplementation(() => queueMicrotask(() => {
+        onResponse(response);
+        queueMicrotask(() => response.emit("end"));
+      }));
+      return request;
+    });
+
+    await expect(safeOutboundFetch("https://research.example/malformed-header"))
+      .rejects.toThrow();
+  });
   it("uses a null body for HTTP statuses that forbid response bodies", () => {
     const payload = Buffer.from("response");
     expect(responseBodyForStatus(204, payload)).toBeNull();
