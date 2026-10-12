@@ -303,6 +303,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY PROGRESS GATE");
     expect(prompt).toContain("DISCOVERY TARGETABILITY GATE");
+    expect(prompt).toContain("People—not companies or executive prestige—are the target");
+    expect(prompt).toContain("credible wealth potential");
+    expect(prompt).toContain("Do not infer wealth from seniority alone");
     expect(prompt).toContain("an organization is a lead, not");
     expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("plausible person-level public/intermediary route");
@@ -362,6 +365,19 @@ describe("Investigator prompt architecture", () => {
       allowed: false,
       reason: expect.stringContaining("concrete anchor"),
     });
+  });
+
+  it("blocks unrealistic global-brand and ranking searches unless a reachable local ownership route is named", () => {
+    expect(validateDiscoverySearchQuery("Coca-Cola Company executive leadership page official site", [])).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("impractical fame/ranking or global-household-brand path"),
+    });
+    expect(validateDiscoverySearchQuery("Fortune 500 company leadership page list", [])).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("impractical fame/ranking or global-household-brand path"),
+    });
+    expect(validateDiscoverySearchQuery("Coca-Cola Slovenia independent bottler owner contact", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Casino Portorož beneficial owner concession holder Slovenia", [])).toEqual({ allowed: true });
   });
 
   it("offers non-binding guidance after three successful search-only actions", () => {
