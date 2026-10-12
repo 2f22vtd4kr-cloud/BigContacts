@@ -133,5 +133,5 @@ export async function checkPythonToolsAvailability(): Promise<Record<string, boo
   const attested = sandbox.state === "attested" && Boolean(sandbox.attestation?.allowedCapabilities.includes("network_osint"));
   const executorImplemented = false;
   const enabled = attested && executorImplemented;
-  return { holehe: enabled, maigret: enabled, sherlock: enabled, theHarvester: enabled, spiderfoot: enabled, openDeepResearch: enabled };
+  return { holehe: enabled, maigret: enabled, sherlock: enabled, theHarvester: enabled, openDeepResearch: enabled };
 }
