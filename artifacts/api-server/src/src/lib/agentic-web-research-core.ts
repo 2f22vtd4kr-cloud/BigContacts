@@ -1433,6 +1433,12 @@ function structuredActionResponseFormat(model: string): Record<string, unknown> 
 }
 
 const AGENTIC_ACTION_SCHEMA = { type: "object", properties: { action: { type: "string", enum: [...MODEL_SELECTABLE_AGENT_ACTIONS] }, query: { type: "string" }, provider: { type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null] }, url: { type: "string" }, email: { type: "string" }, username: { type: "string" }, domain: { type: "string" }, registry: { type: "string" }, target: { type: "string" }, targetType: { type: "string", enum: ["domain","hostname","ip","email","username","person","asn"] }, profile: { type: "string", enum: ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"] }, searches: { type: "array", minItems: 2, maxItems: 4 }, thought: { type: "string" }, hypothesis: { type: "string" }, purpose: { type: "string" }, expectedInformationGain: { type: "number" }, findings: { type: "array" } }, required: ["action"], additionalProperties: false };
+export function extractBossPivotDirectionForCompactPrompt(rawObjective: string): string {
+  const pivotMarker = "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:";
+  const pivotIndex = rawObjective.indexOf(pivotMarker);
+  return pivotIndex >= 0 ? rawObjective.slice(pivotIndex + pivotMarker.length).trim() : "";
+}
+
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; intelligenceContext?: string; mode?: "target" | "discovery" }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
@@ -1679,7 +1685,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           // The Boss direction is appended at the end of the objective. Preserve the
           // complete trimmed direction through emergency compaction, not just its
           // first non-empty line, or multiline pivots silently lose their second half.
-          advisoryDirection = raw.slice(pivotIndex + pivotMarker.length).trim();
+          advisoryDirection = extractBossPivotDirectionForCompactPrompt(raw);
         } else if (openingIndex >= 0) {
           const openingControl = raw.slice(openingIndex);
           const directionsLine = openingControl.split(/\r?\n/).find((line) => /^\s*Next directions:/i.test(line));
