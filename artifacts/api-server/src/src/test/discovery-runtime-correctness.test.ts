@@ -527,6 +527,17 @@ describe("Boss-accepted discovery pivot scope", () => {
       purpose: "Read the ownership page",
     }, [alignedSearch])).toBeNull();
 
+    // The next query may follow a named lead instead of repeating the sector words,
+    // but only when that name was found in a pivot-aligned search observation.
+    const namedLeadSearch = {
+      ...alignedSearch,
+      observation: "Public results identify FitNation as a regional fitness operator.",
+    };
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "FitNation ownership",
+      provider: "serper",
+    }, [namedLeadSearch])).toBeNull();
+
     const staleSearch = {
       ...alignedSearch,
       args: { query: "Just Love Coffee franchise owner", provider: "serper" },
@@ -539,7 +550,11 @@ describe("Boss-accepted discovery pivot scope", () => {
     }, [staleSearch])).toContain("pivot_alignment_guard");
   });
 
-  it("is inactive without an accepted pivot and is wired into the live discovery action boundary", () => {
+  it("is inactive without an accepted pivot and is wired into the live discovery action boundary", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    expect(discoveryPivotAlignmentReason("Research the public web for evidence.", "web_search", {
+      query: "Just Love Coffee franchise owner",
+    }, [])).toBeNull();
     expect(researchCoreSource).toContain("discoveryPivotAlignmentReason(input.objective, action.action, selectedArgs, previousResearchRecords)");
     expect(researchCoreSource).toContain("reason=pivot_alignment_guard");
   });
