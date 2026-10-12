@@ -212,10 +212,12 @@ export function hasCredibleDiscoveryWealthPotentialSignal(input: {
   return input.observations.some((observation) => {
     if (observation.execution !== "success" || !["visit", "browser_fetch"].includes(observation.action)) return false;
     if (!/^https:\/\/\S+$/i.test(observation.sourceUrl)) return false;
-    const text = normalizeTargetabilityText(observation.observation);
-    const nameAt = text.indexOf(person);
-    if (nameAt < 0) return false;
-    const nearby = text.slice(Math.max(0, nameAt - 260), Math.min(text.length, nameAt + person.length + 440));
-    return sourceSignals.some((term) => nearby.includes(normalizeTargetabilityText(term)));
+    // Keep the signal attached to the same sentence/paragraph as the exact person;
+    // an unrelated owner elsewhere on a large page must not qualify this candidate.
+    const passages = observation.observation.split(/(?:\r?\n)+|[.!?;]\s+/u);
+    return passages.some((passage) => {
+      const nearby = normalizeTargetabilityText(passage);
+      return nearby.includes(person) && sourceSignals.some((term) => nearby.includes(normalizeTargetabilityText(term)));
+    });
   });
 }
