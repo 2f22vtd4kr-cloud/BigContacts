@@ -328,6 +328,44 @@ export function redundantResearchActionReason(
     + " prior_turn=" + previous.turn
     + "; exact normalized resource, hypothesis, and purpose are unchanged, and no new evidence was observed since the prior attempt. No network/tool request was made. Revise the hypothesis or purpose, use a different provider/resource, or proceed with a justified revisit when intervening evidence supports it. This guard does not prescribe a next tool or research sequence.";
 }
+function pivotActionRequestIntents(action: string, args: Record<string, unknown>): Array<{ kind: string; key: string }> {
+  const queryKey = (value: unknown) => normalizeDiscoverySearchQuery(typeof value === "string" ? value : "");
+  if (action === "web_search" || action === "registry_search") {
+    const key = queryKey(args.query);
+    return key ? [{ kind: "query", key }] : [];
+  }
+  if (action === "parallel_web_search" || action === "parallel_registry_search") {
+    return Array.isArray(args.searches)
+      ? args.searches.flatMap((item) => {
+          if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+          const key = queryKey((item as Record<string, unknown>).query);
+          return key ? [{ kind: "query", key }] : [];
+        })
+      : [];
+  }
+  if (action === "visit" || action === "browser_fetch") {
+    const key = normalizedActionResourceUrl(args.url);
+    return key ? [{ kind: "url", key }] : [];
+  }
+  if (action === "domain_lookup" || action === "harvest_domain") {
+    const key = normalizedDomainResource(args.domain);
+    return key ? [{ kind: "domain", key }] : [];
+  }
+  if (action === "footprint_email") {
+    const key = cleanText(args.email, 160).toLowerCase();
+    return key ? [{ kind: "email", key }] : [];
+  }
+  if (action === "footprint_username_maigret" || action === "footprint_username_sherlock") {
+    const key = cleanText(args.username, 100).replace(/^@/, "").toLowerCase();
+    return key ? [{ kind: "username", key }] : [];
+  }
+  if (action === "footprint_spiderfoot") {
+    const key = cleanText(args.target, 300).toLowerCase();
+    return key ? [{ kind: "target", key }] : [];
+  }
+  return [];
+}
+
 export function repeatedPivotBlockedActionReason(
   objective: string,
   action: string,
@@ -335,16 +373,20 @@ export function repeatedPivotBlockedActionReason(
   priorRecords: readonly AgenticTrajectoryRecord[],
 ): string | null {
   const scopeKey = discoveryPivotScopeKey(objective);
-  const resource = researchActionResource(action, args);
-  if (!scopeKey || !resource) return null;
+  if (!scopeKey) return null;
+  const anchors = pivotScopeAnchors(objective);
+  if (!anchors.length) return null;
+  const direction = extractBossPivotDirectionForCompactPrompt(objective);
+  const exclusions = pivotScopeExclusions(direction);
+  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, exclusions, scopeKey);
+  const currentIntents = pivotActionRequestIntents(action, args);
+  if (!currentIntents.length) return null;
   for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
     const record = priorRecords[index]!;
     if (
       record.pivotScopeKey !== scopeKey
-      || record.action !== action
       || record.execution !== "blocked"
       || !String(record.observation ?? "").includes("pivot_alignment_guard")
-      || researchActionResource(record.action, record.args) !== resource
     ) continue;
     const newFetchedEvidence = priorRecords.slice(index + 1).some((later) =>
       later.pivotScopeKey === scopeKey
@@ -353,8 +395,27 @@ export function repeatedPivotBlockedActionReason(
       && Boolean(String(later.observation ?? "").trim())
       && (later.observedUrls ?? []).length > 0,
     );
-    if (!newFetchedEvidence) {
-      return "repeat_pivot_alignment_guard blocked an identical action already rejected under the current Boss-approved pivot. No new fetched source evidence has advanced the case since that rejection; change to a substantively different, evidence-grounded action rather than spending another Investigator turn on the same blocked request.";
+    if (newFetchedEvidence) continue;
+    const priorIntents = pivotActionRequestIntents(record.action, record.args).filter((intent) => {
+      if (intent.kind === "query") {
+        return !pivotActionIsAligned("web_search", { query: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+      }
+      if (intent.kind === "url") {
+        return !pivotActionIsAligned("visit", { url: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+      }
+      if (intent.kind === "domain") {
+        return !pivotActionIsAligned("domain_lookup", { domain: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+      }
+      if (intent.kind === "email") {
+        return !pivotActionIsAligned("footprint_email", { email: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+      }
+      if (intent.kind === "username") {
+        return !pivotActionIsAligned("footprint_username_sherlock", { username: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+      }
+      return !pivotActionIsAligned("footprint_spiderfoot", { target: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+    });
+    if (currentIntents.some((current) => priorIntents.some((prior) => prior.kind === current.kind && prior.key === current.key))) {
+      return "repeat_pivot_alignment_guard blocked an identical out-of-scope query/resource already rejected under the current Boss-approved pivot. Changing provider, registry, batch composition, or rationale alone does not justify another attempt; wait for new fetched source evidence or choose a materially different in-scope action.";
     }
   }
   return null;
