@@ -16,7 +16,7 @@ describe("target Investigator objective follows realistic human research", () =>
     expect(objective).toContain("public professional/business profiles");
     expect(objective).toContain("WhatsApp/Telegram");
     expect(objective).toContain("directly documents a material business");
-    expect(objective).toContain("no fixed provider, source or hop order");
+    expect(objective).toContain("no fixed checklist");
     expect(objective).toContain("exact URL where observed");
   });
 });
