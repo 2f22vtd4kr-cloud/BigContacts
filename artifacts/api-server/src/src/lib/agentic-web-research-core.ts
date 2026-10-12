@@ -173,6 +173,21 @@ export function redundantResearchActionReason(
     const previous = priorRecords[index]!;
     if (researchActionResource(previous.action, previous.args) !== resource) continue;
     if (pageRetrieval) {
+      matchedIndex = index;
+      break;
+    }
+    const previousHypothesis = normalizedActionRationale(previous.args.hypothesis);
+    const previousPurpose = normalizedActionRationale(previous.args.purpose);
+    if (previousHypothesis === currentHypothesis && previousPurpose === currentPurpose) {
+      matchedIndex = index;
+      break;
+    }
+  }
+  if (matchedIndex < 0) return null;
+
+  const previous = priorRecords[matchedIndex]!;
+
+  if (pageRetrieval) {
     const previousGuardedRepeat = previous.execution === "blocked"
       && /repeat_action_guard/.test(String(previous.observation ?? ""));
     const sourceUrl = normalizedActionResourceUrl(args.url);
@@ -189,10 +204,9 @@ export function redundantResearchActionReason(
       return independentlyFetched || crossSourceFinding;
     });
 
-    // A different successful source can justify returning to a prior page; a known
-    // permanent HTTP failure cannot. Transient transport failures get one retry,
-    // after which the same URL/capability is blocked. Alternate fetch capabilities
-    // remain available because they are distinct resources.
+    // New independent source evidence can justify returning to a previously seen page.
+    // A known permanent HTTP/PDF failure cannot; transient transport failures get one
+    // retry, and repeated transport failures stop consuming Investigator turns.
     if (independentlyAdvanced) return null;
     if (previous.execution !== "success" && !previousGuardedRepeat) {
       if (previous.failureKind === "http_error" || previous.failureKind === "pdf_unsupported") {
@@ -212,7 +226,7 @@ export function redundantResearchActionReason(
           + " attempts=" + failedAttempts
           + "; change the fetch capability/provider or choose another source instead of spending further turns on the same failed request.";
       }
-      // Preserve the existing single retry after an unspecified/transient failure.
+      // Preserve one retry after an unspecified/transient failure.
       return null;
     }
 
