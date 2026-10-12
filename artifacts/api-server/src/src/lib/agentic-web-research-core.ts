@@ -436,12 +436,12 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
 }
 /** Apply discovery quality/targetability to domain lookups before any provider call. */
 export function validateDiscoveryDomainLookup(domain: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
-  const candidate = typeof domain === "string" ? domain.trim().toLowerCase().replace(/\\.$/, "") : "";
-  if (!/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$/i.test(candidate)) {
+  const candidate = typeof domain === "string" ? domain.trim().toLowerCase().replace(/\.$/, "") : "";
+  if (!/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(candidate)) {
     return { allowed: false, reason: "Discovery domain lookup requires a concrete hostname, not a URL, path, placeholder or free-form query; no provider request was made." };
   }
-  const host = candidate.replace(/^www\\./i, "");
-  const globalBrandDomain = /(?:^|\\.)(?:coca-colacompany|coca-cola|cocacola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonalds|disney|netflix|oracle|berkshirehathaway|jpmorganchase|goldmansachs)(?:\\.[a-z0-9-]+)+$/i.test(host);
+  const host = candidate.replace(/^www\./i, "");
+  const globalBrandDomain = /(?:^|\.)(?:coca-colacompany|coca-cola|cocacola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonalds|disney|netflix|oracle|berkshirehathaway|jpmorganchase|goldmansachs)(?:\.[a-z0-9-]+)+$/i.test(host);
   if (globalBrandDomain) {
     return { allowed: false, reason: "DISCOVERY TARGETABILITY GATE blocked domain lookup for a global household-brand domain. Search a realistic local owner/operator/distributor/franchise/concession or private-business route instead; no provider request was made." };
   }
