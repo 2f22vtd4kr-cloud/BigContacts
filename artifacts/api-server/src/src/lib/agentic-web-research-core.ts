@@ -371,9 +371,9 @@ export function validateDiscoverySourceUrl(rawUrl: string): { allowed: true } | 
     return { allowed: false, reason: "DISCOVERY TARGETABILITY GATE blocked an impractical fame/ranking destination before fetch. Choose a specific private/regional business, ownership/control, investment, asset, or local operator route instead." };
   }
   const globalBrandHost = /(?:^|\.)(?:coca-colacompany|coca-cola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonalds|disney|netflix|oracle|berkshirehathaway|jpmorganchase|goldmansachs)(?:\.|$)/i.test(host);
-  const corporatePrestigePath = /(?:^|[\/_-])(?:leadership|executives?|management|board(?:-of-directors)?|corporate-officers|our-people|people-culture|leadership-team|executive-team)(?:[\/_-]|$)/i.test(url.pathname);
-  if (globalBrandHost && corporatePrestigePath) {
-    return { allowed: false, reason: "DISCOVERY TARGETABILITY GATE blocked a global household-brand leadership page before fetch. A reachable local owner/operator/distributor/franchisee/licensee/concession holder must be the actual path." };
+  const corporatePrestigePath = /(?:^|[\\/_-])(?:leadership|executives?|management|board(?:-of-directors)?|corporate-officers|our-people|people-culture|leadership-team|executive-team|about(?:-us)?|who-we-are|our-company|company-profile)(?:[\\/_-]|$)/i.test(url.pathname);\n  const explicitLocalOperatorRoute = /(?:bottler|distributor|franchisee?|concession|licensee|licensed-operator|regional-partner|local-operator|independent-operator)/i.test(url.pathname);
+  if (globalBrandHost && corporatePrestigePath && !explicitLocalOperatorRoute) {
+    return { allowed: false, reason: "DISCOVERY TARGETABILITY GATE blocked a global household-brand leadership page before fetch. A reachable local owner/operator/distributor/franchisee/licensee/concession holder must be the actual path; generic brand about pages are not a substitute." };
   }
   return { allowed: true };
 }
