@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -450,6 +450,26 @@ describe("Investigator prompt architecture", () => {
     expect(validateDiscoverySourceUrl("https://casino-portoroz.si/about/ownership")).toEqual({ allowed: true });
     expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/investors/financial-reports")).toEqual({ allowed: true });
     expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
+  });
+
+  it("validates model-selected domain and registry lookups before external dispatch", () => {
+    expect(validateDiscoveryDomainLookup("amazon.com")).toMatchObject({ allowed: false });
+    expect(validateDiscoveryDomainLookup("coca-colacompany.com")).toMatchObject({ allowed: false });
+    expect(validateDiscoveryDomainLookup("companyname.com")).toMatchObject({ allowed: false });
+    expect(validateDiscoveryDomainLookup("https://casino-portoroz.si/ownership")).toMatchObject({ allowed: false });
+    expect(validateDiscoveryDomainLookup("casino-portoroz.si")).toEqual({ allowed: true });
+    expect(validateDiscoveryDomainLookup("cocacolaunited.com")).toEqual({ allowed: true });
+
+    const domainStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {');
+    const registryStart = agenticCoreSource.indexOf('if (action.action === "registry_search") {', domainStart);
+    const domainDispatch = agenticCoreSource.slice(domainStart, registryStart);
+    expect(domainDispatch.indexOf("validateDiscoveryDomainLookup(action.domain, searchQueriesUsed)")).toBeGreaterThan(-1);
+    expect(domainDispatch.indexOf("validateDiscoveryDomainLookup(action.domain, searchQueriesUsed)")).toBeLessThan(domainDispatch.indexOf('lookupDomainSurface(action.domain'));
+
+    const footprintStart = agenticCoreSource.indexOf('if (action.action === "footprint_spiderfoot") {', registryStart);
+    const registryDispatch = agenticCoreSource.slice(registryStart, footprintStart);
+    expect(registryDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeGreaterThan(-1);
+    expect(registryDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeLessThan(registryDispatch.indexOf("searchRegistry({ query: action.query"));
   });
 
   it("wires the destination gate before both discovery page-fetch capabilities", () => {
