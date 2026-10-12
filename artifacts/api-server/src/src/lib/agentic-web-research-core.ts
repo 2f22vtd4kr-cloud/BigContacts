@@ -1839,8 +1839,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         finalEmergencyObjective,
         compactResearchContract,
         compactActionLiveness,
-        availableActionsGuidance,
-        providerGuidance,
         compactEvidenceLaw,
         compactTerminalContractGuidance,
         "PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries. Search snippets remain leads, not evidence.",
