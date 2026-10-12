@@ -191,7 +191,7 @@ export function classifyCanonicalAtlasFailure(input: {
     // mistake an uncertain owner read for a model/provider problem. The caller
     // still fails closed; classification never authorizes continuation.
     if (error.code && /^(?:ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|EHOSTUNREACH)/i.test(error.code)
-      || /\\b(?:NETWORK_ERROR|ERR_NETWORK|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|EHOSTUNREACH)\\b|fetch failed|socket hang up|connection (?:reset|refused|closed|timed out)|network (?:error|failure)/i.test(error.message)) {
+      || /\b(?:NETWORK_ERROR|ERR_NETWORK|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|EHOSTUNREACH)\b|fetch failed|socket hang up|connection (?:reset|refused|closed|timed out)|network (?:error|failure)/i.test(error.message)) {
       return { domain: "lease_job_state", kind: "request_failure" };
     }
     if (/job record state is unknown|active job state is unknown|state (?:is|remains) unknown|could not confirm (?:job|lease) state/i.test(error.message)) {
