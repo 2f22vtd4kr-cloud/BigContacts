@@ -66,7 +66,7 @@ describe("target contact evidence graph source-action parity", () => {
       companyName: "Example Holdings",
       reachabilityControl: "Public professional route found; verify attribution.",
     });
-    expect(objective).toContain("Follow publicly documented family or associate relationships only when a credible public source explicitly states the tie and it clarifies ownership/control, investment or a documented intermediary route");
+    expect(objective).toContain("Map family or associate ties only when credible public sources explicitly state them and they clarify ownership/control or a documented intermediary route");
     expect(objective).toContain("documented intermediary route");
     expect(objective).toContain("Never infer relationships from surnames, co-location, follows or social-graph proximity");
     expect(objective).toContain("Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities");
