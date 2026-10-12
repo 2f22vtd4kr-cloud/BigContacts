@@ -3,6 +3,19 @@ import { buildTargetContactInvestigatorObjective, findingsToContacts, sourceBack
 import { supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
 
 describe("target Investigator objective follows realistic human research", () => {
+  it("keeps the target objective bounded and preserves the source-attribution law under a huge reachability directive", () => {
+    const objective = buildTargetContactInvestigatorObjective({
+      targetName: "Jane Example",
+      companyName: "Regional Coastal Casino",
+      reachabilityControl: "REALISM / REACHABILITY CONTROL: " + "do not overrun context ".repeat(100),
+    });
+    expect(objective.length).toBeLessThanOrEqual(1_900);
+    expect(objective).toContain("no fixed checklist");
+    expect(objective).toContain("a public source directly documents a material business");
+    expect(objective).toContain("exact observed URLs");
+    expect(objective).toContain("do not promote");
+  });
+
   it("carries reachability realism and target-specific public-source pivots without scripting a fixed route", () => {
     const objective = buildTargetContactInvestigatorObjective({
       targetName: "Jane Example",
