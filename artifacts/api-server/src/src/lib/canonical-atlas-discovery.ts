@@ -14,7 +14,7 @@ import { isTransientInvestigatorCapacityError, isUntargetableDiscoveryPersonName
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
-import { formatBossDirectedObjective, validateResearchObjective } from "./research-objective";
+import { resolveBossDirectedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateRoleCorroborationSources, hasCredibleDiscoveryWealthPotentialSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
@@ -227,6 +227,7 @@ async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number)
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
   const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const maxConsecutiveInvestigatorProviderUnavailable = 2; const isInvestigatorProviderUnavailable = (result: { status?: string; stopReason?: string; error?: string; trajectoryRecords?: Array<{ action?: string; observation?: string }> }) => result.status === "unavailable" && result.stopReason === "LLM_UNAVAILABLE" && !isTransientInvestigatorCapacityError(result) && (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error"); const isInvestigatorHardQuotaExhausted = (result: { status?: string; stopReason?: string; error?: string; trajectoryRecords?: Array<{ action?: string; observation?: string }> }) => result.status === "unavailable" && result.stopReason === "LLM_UNAVAILABLE" && (result.error === "upstream_quota_exhausted" || (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error" && /upstream_quota_exhausted/i.test(record.observation ?? ""))); const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 3) || 3)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   const discoveryObjective = opts.discoveryObjective?.trim() || "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary contact routes for later target-scoped research. People—not companies or executive prestige—are the target; companies are leads. Prefer private, mid-market, regional and family businesses; their owners/operators/founders/shareholders; investors and private-capital principals; beneficial/controlling owners; and concession, franchise or license holders. Look for public evidence of ownership/equity/investment/control, material business/property assets or a business exit, and a plausible way to approach the person through public professional or business channels. Do not infer wealth from seniority alone. Do not default to celebrities, billionaire/richest lists, Fortune 500, or global household-brand leadership. A global brand is relevant only when evidence points to a realistic local owner/operator/distributor/franchisee/concession-holder or similar intermediary. Start from a concrete business/sector/geography, use local-language terms and English when useful, test hypotheses with independent evidence, and pivot after generic or repetitive results. The Investigator chooses each action; no fixed sequence. Promote only exact named people whose role, wealth-potential basis, and realistic approach route are source-supported. Never invent a person, relationship, wealth fact, contact, or URL.";
+  let activeDiscoveryObjective = discoveryObjective;
   let failureStage: AtlasFailureStage = "job_state_or_lease";
   try {
     await assertAtlasJobActive(atlasJobId);
@@ -806,14 +807,18 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         await assertAtlasJobActive(atlasJobId);
-        const proposedDirection = decision.direction || "Reassess the open evidence and choose the highest-information next action yourself.";
         failureStage = "model_action_validation";
-        const validatedDirection = validateResearchObjective(proposedDirection);
-        if (!validatedDirection.valid) {
+        const resolvedObjective = resolveBossDirectedDiscoveryObjective({
+          action: decision.action,
+          baseObjective: discoveryObjective,
+          currentObjective: activeDiscoveryObjective,
+          direction: decision.direction,
+        });
+        if (!resolvedObjective.valid) {
           // A malformed Boss pivot is a rejected control decision, not a reason to
           // terminate the whole Atlas job. Preserve the rejection and ask the model
           // control plane for another decision; never execute the rejected URL/tool.
-          const rejectionReason = validatedDirection.reason;
+          const rejectionReason = resolvedObjective.reason;
           rejectedControlDecision = { controlTurn: controlTurns, reason: rejectionReason, kind: "pivot_direction" };
           // This pivot was rejected, so the next control turn must see only the last accepted transition.
           priorAction = previousAcceptedAction;
@@ -864,7 +869,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           continue;
         }
         failureStage = "orchestration";
-        const directedObjective = formatBossDirectedObjective(discoveryObjective, validatedDirection.direction);
+        const directedObjective = resolvedObjective.objective;
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
         const remainingInvestigatorIterations = Math.max(0, Math.min(discoveryIterationCeiling - discoveryIterationsUsed, depth.agenticMaxIterations - investigatorIterationsUsed - targetResearchReserveIterations));
         if (remainingInvestigatorIterations <= 0) {
@@ -878,6 +883,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         }
         // Only clear the previous evidence-backed terminal after control validation and
         // all budget/iteration guards pass, at the exact point a new Investigator act starts.
+        activeDiscoveryObjective = directedObjective;
         latestEvidenceBackedTerminal = null;
         failureStage = "investigator_episode";
         let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0 });
