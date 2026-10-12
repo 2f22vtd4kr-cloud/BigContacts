@@ -127,5 +127,17 @@ describe("research case replay", () => {
     expect(replay.violations.some((v) => v.includes("validation status must be"))).toBe(true);
     expect(replay.violations.some((v) => v.includes("projection has no validationEventId or promotionEventId"))).toBe(false);
     expect(replay.projectionCount).toBe(1);
+
+  it("replays durable accepted discovery objectives as a declared control event", () => {
+    const replay = replayResearchCaseEvents([
+      { id: 1, caseId: 52, iteration: 0, actorRole: "system", eventType: "case_opened", status: "recorded", summary: "Case opened", payload: "{}", createdAt: "2026-10-12T10:00:00Z" },
+      { id: 2, caseId: 52, iteration: 1, actorRole: "groq_boss", eventType: "control_objective", status: "recorded", summary: "Accepted Atlas discovery objective", payload: JSON.stringify({ accepted: true, action: "pivot_discovery", baseObjective: "Find source-backed regional business owners", activeObjective: "Find source-backed regional business owners\\n\\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\\nCompare regional ownership via filings" }), createdAt: "2026-10-12T10:00:01Z" },
+    ]);
+
+    expect(replay.valid).toBe(true);
+    expect(replay.eventCount).toBe(2);
+    expect(replay.lastEventType).toBe("control_objective");
+    expect(replay.violations).toEqual([]);
+  });
   });
 });
