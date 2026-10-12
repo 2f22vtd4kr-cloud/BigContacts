@@ -335,7 +335,9 @@ export class ResearchIntelligenceEngine {
       this.negativeFindings.add(negative);
       this.recordEvidence({ kind: "negative", claim: negative, value: negative, sourceUrl: null, sourceTier: "unknown", turn: input.turn, action: input.action, execution: input.execution, passage: null, supports: [], contradicts: [] });
     }
-    if (input.execution === "success") {
+    const observationIsFetchedSource = input.execution === "success"
+      && !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "done"].includes(input.action);
+    if (observationIsFetchedSource) {
       for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
     }
     // Search results are leads, not source-backed evidence. A successful search
