@@ -33,7 +33,6 @@ describe("Python OSINT availability diagnostics", () => {
       maigret: false,
       sherlock: false,
       theHarvester: false,
-      spiderfoot: false,
       openDeepResearch: false,
     });
   });
