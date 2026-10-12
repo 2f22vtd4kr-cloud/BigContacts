@@ -296,6 +296,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
+    expect(prompt).toContain("DISCOVERY TARGETABILITY GATE");
+    expect(prompt).toContain("global household-brand/mega-cap leadership");
+    expect(prompt).toContain("plausible public or corroborated intermediary route");
     expect(prompt).toContain("VALID DISCOVERY FINDING SHAPE (placeholders only; never emit placeholder values)");
     expect(prompt).toContain("<exact full name from fetched page>");
     expect(prompt).toContain("<exact fetched non-search HTTPS URL from independent source 2>");
@@ -327,11 +330,26 @@ describe("Investigator prompt architecture", () => {
     expect(validateDiscoverySearchQuery("famous casino owners interview", [])).toEqual({ allowed: false, reason: expect.any(String) });
     expect(validateDiscoverySearchQuery("Acme Holdings CEO official", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Companies House director Kenya", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("casino owners site:example.com", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("casino owners site:example.com", [])).toEqual({
+      allowed: false,
+      reason: expect.stringContaining("placeholder"),
+    });
     expect(validateDiscoverySearchQuery("2026 acquisition of AI startup by large corporation CEO statement", [])).toEqual({
       allowed: false,
       reason: expect.stringContaining("concrete anchor"),
     });
+  });
+
+  it("rejects literal placeholders and broad Fortune 500 leadership-list searches", () => {
+    expect(validateDiscoverySearchQuery('site:companywebsite.com "public relations" "Chief" "CompanyName"', [])).toEqual({
+      allowed: false,
+      reason: expect.stringContaining("placeholder"),
+    });
+    expect(validateDiscoverySearchQuery("Fortune 500 company leadership page list", [])).toEqual({
+      allowed: false,
+      reason: expect.stringContaining("concrete anchor"),
+    });
+    expect(validateDiscoverySearchQuery("Acme Holdings founder official leadership page", [])).toEqual({ allowed: true });
   });
 
   it("offers non-binding guidance after three successful search-only actions", () => {
