@@ -719,3 +719,15 @@ describe("Apex research runtime readiness hardening", () => {
     expect((await runTheHarvester("example.org")).available).toBe(false);
   });
 });
+
+
+describe("registry catalogue honesty", () => {
+  it("marks catalogue-only registries separately from callable adapters", async () => {
+    const { REGISTRY_COVERAGE_MATRIX } = await import("../lib/registry-matrix");
+    const { REGISTRY_IDS } = await import("../lib/registry-client");
+    const implemented = REGISTRY_COVERAGE_MATRIX.filter((entry) => entry.runtimeAdapterImplemented).map((entry) => entry.id).sort();
+    const callableIds = [...REGISTRY_IDS].sort();
+    expect(implemented).toEqual(callableIds);
+    expect(REGISTRY_COVERAGE_MATRIX.filter((entry) => !entry.runtimeAdapterImplemented).map((entry) => entry.id).sort()).toEqual(["faa", "hmlr-ppd"]);
+  });
+});
