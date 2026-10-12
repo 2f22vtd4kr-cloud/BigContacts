@@ -448,7 +448,7 @@ describe("Investigator prompt architecture", () => {
       reason: expect.stringContaining("fame/ranking destination"),
     });
     expect(validateDiscoverySourceUrl("https://casino-portoroz.si/about/ownership")).toEqual({ allowed: true });
-    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/investors/financial-reports")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/investors/financial-reports")).toMatchObject({ allowed: false, reason: expect.stringContaining("global household-brand destination") });
     expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
   });
 
