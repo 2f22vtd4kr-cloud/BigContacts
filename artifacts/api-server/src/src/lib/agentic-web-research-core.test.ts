@@ -367,6 +367,19 @@ describe("Investigator prompt architecture", () => {
     });
   });
 
+  it("rejects bare TLD site operators and generic PR/media-contact searches", () => {
+    for (const query of [
+      'site:.org "about us" "leadership" "team"',
+      'site:.com "Leadership" "Our Team" "Company"',
+      "Niri Philadelphia public relations contact",
+      "press contact public relations site:.org",
+    ]) {
+      expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: false });
+    }
+    expect(validateDiscoverySearchQuery("casino Slovenia coast ownership concession operator", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Casino Portorož owner contact", [])).toEqual({ allowed: true });
+  });
+
   it("blocks unrealistic global-brand and ranking searches unless a reachable local ownership route is named", () => {
     expect(validateDiscoverySearchQuery("Coca-Cola Company executive leadership page official site", [])).toMatchObject({
       allowed: false,
