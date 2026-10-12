@@ -130,14 +130,21 @@ export function buildTargetContactInvestigatorObjective(input: {
   companyName?: string | null;
   reachabilityControl: string;
 }): string {
-  return [
+  const sections = [
     `Research public identity, business interests and realistic public/professional/intermediary routes for ${input.targetName}${input.companyName ? ` linked to ${input.companyName}` : ""}.`,
-    input.reachabilityControl,
+    input.reachabilityControl.trim().slice(0, 420),
     "Investigate the person, not generic company contacts. Anchor on verified role, employer/business, jurisdiction and aliases/transliterations. Choose evidence-led routes among public director/beneficial-owner registries, filings, investment/deal/property records, trade sources and local-language reporting; use English for corroboration when useful. Pivot from generic pages to exact people and ownership/control links. no fixed checklist.",
-    "After identity/role verification, seek public professional/business social profiles and official bios via available search/fetch tools; corroborate name plus role/company/location. Never guess accounts, handles, private profiles, phone/WhatsApp/Telegram identities, relatives or relationships. Follow associates only when public evidence documents a relevant business, ownership or intermediary link.",
+    "After identity/role verification, seek public professional/business social profiles and official bios via available search/fetch tools; corroborate name plus role/company/location. Never guess accounts, handles, private profiles, phone/WhatsApp/Telegram identities, relatives or relationships. Follow associates only when a public source directly documents a material business, ownership or intermediary link.",
     "Prefer a directly published professional contact or documented assistant/office/family-office/intermediary. A generic inbox, switchboard or social presence alone is not personal access.",
     "Use exact observed URLs; snippets are leads, not evidence. Never invent identities, wealth, relationships, contacts or URLs. If identity/contact attribution is ambiguous or the source does not bind person and value, do not promote. Pivot after failed/repeated fetches and stop when evidence or a useful route is exhausted.",
-  ].join("\n");
+  ];
+  const maxChars = 1_900;
+  const tail = sections[sections.length - 1]!;
+  const prefix = sections.slice(0, -1).join("\\n");
+  const full = [...sections].join("\\n");
+  if (full.length <= maxChars) return full;
+  const budget = Math.max(0, maxChars - tail.length - 1);
+  return prefix.slice(0, budget).trimEnd() + "\\n" + tail;
 }
 
 export async function runTargetContactAgent(input: { entityId: number; caseId?: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: InvestigatorCapability; contextDocument?: string; oversightMode?: "internal" | "caller"; shouldCancel?: () => boolean | Promise<boolean>; onInvestigationAct?: (step: InvestigationAct) => void | Promise<void> }): Promise<TargetContactAgentResult> {
