@@ -61,6 +61,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   "case_opened",
   "decision",
   "control_decision",
+  "control_objective",
   "assignment",
   "observation",
   "tool_observation",

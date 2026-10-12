@@ -7,6 +7,7 @@ const repoRoot = path.resolve(process.cwd(), "../..");
 const discoverySource = fs.readFileSync(path.join(libDir, "discovery-agent.ts"), "utf8");
 const researchSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
 const researchCoreSource = fs.readFileSync(path.join(libDir, "agentic-web-research-core.ts"), "utf8");
+const bossDiscoverySource = fs.readFileSync(path.join(libDir, "case-bureau.ts"), "utf8");
 const telemetrySource = fs.readFileSync(path.join(libDir, "agentic-llm-telemetry.ts"), "utf8");
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
 const orchestratorExists = fs.existsSync(orchestratorPath);
@@ -17,6 +18,16 @@ describe("discovery runtime architecture", () => {
   it("keeps discovery model-owned", () => {
     expect(discoverySource).toMatch(/model|investigator/i);
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
+  });
+
+  it("compares model-selected anchors by evidence yield, targetability, novelty, and cost without fixing a sector", () => {
+    expect(bossDiscoverySource).toContain("compare a small set of plausible hypotheses by commercial relevance");
+    expect(bossDiscoverySource).toContain("expected research cost");
+    expect(bossDiscoverySource).toContain("not the biggest or most famous entity");
+    expect(researchCoreSource).toContain("compare a small set of plausible non-famous business/sector hypotheses");
+    expect(researchCoreSource).toContain("strongest expected evidence/value hypothesis");
+    expect(researchCoreSource).toContain("change the hypothesis or source class rather than paraphrasing the same query");
+    expect(researchCoreSource).toContain("no fixed sequence");
   });
 
   it("does not retain the retired deterministic Atlas orchestrator", () => {
@@ -394,14 +405,21 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("groundingTrajectoryRecords: [...historyRecords, ...records]");
   });
 
-  it("reserves the job-wide Investigator budget for Boss-directed continuation after the opening discovery act", () => {
+  it("reserves target research within the shared bounded Investigator budget", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, depth.agenticMaxIterations)");
+    expect(canonicalSource).toContain("const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.4)))");
+    expect(canonicalSource).toContain("const discoveryIterationCeiling = Math.max(1, depth.agenticMaxIterations - targetResearchReserveIterations)");
+    expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
     expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations)");
-    expect(canonicalSource).toContain("const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)");
+    expect(canonicalSource).toContain("let discoveryIterationsUsed = discovery.iterations");
+    expect(canonicalSource).toContain("const remainingInvestigatorIterations = Math.max(0, Math.min(discoveryIterationCeiling - discoveryIterationsUsed, depth.agenticMaxIterations - investigatorIterationsUsed - targetResearchReserveIterations))");
+    expect(canonicalSource).toContain("const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)");
+    expect(canonicalSource).toContain("maxInvestigatorIterations: remainingTargetIterations");
+    expect(canonicalSource).toContain("investigatorIterationsUsed += Math.max(0, targetResult.investigatorIterationsUsed)");
+    expect(canonicalSource).toContain('kind: "discovery_budget"');
+    expect(canonicalSource).toContain("asking Boss to choose an admitted target or stop");
   });
-
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
@@ -431,5 +449,18 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("const evidenceBackedTerminal = isCanonicalAtlasRunEvidenceComplete(latestEvidenceBackedTerminal, researched)");
     expect(canonicalSource).toContain('const finalCaseStatus = finalIncomplete ? "review" : "complete"');
     expect(canonicalSource).toMatch(/latestEvidenceBackedTerminal: "discovery" \| "target" \| null = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && admitted\.length > 0 \? "discovery" : null/);
+  });
+
+  it("classifies action-boundary cancellation/lease read failures as control-plane errors", () => {
+    expect(researchCoreSource).toContain('runtimePhase === "cancellation_check"');
+    expect(researchCoreSource).toContain('classifyCanonicalAtlasFailure({ stage: "job_state_or_lease", error })');
+    expect(researchCoreSource).toContain('phase=${runtimePhase}');
+  });
+
+  it("blocks untargetable public figures at query and candidate-admission boundaries", () => {
+    expect(researchCoreSource).toContain("export function isUntargetableDiscoveryPersonName");
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    expect(canonicalSource).toContain("isUntargetableDiscoveryPersonName");
+    expect(canonicalSource).toContain('.filter((finding) => typeof finding.personName === "string" && !isUntargetableDiscoveryPersonName(finding.personName))');
   });
 });

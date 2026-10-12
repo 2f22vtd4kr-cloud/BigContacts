@@ -1,6 +1,73 @@
 import { describe, expect, it } from "vitest";
-import { findingsToContacts, sourceBackedFindings } from "../lib/target-contact-agent";
+import { buildTargetContactInvestigatorObjective, findingsToContacts, sourceBackedFindings } from "../lib/target-contact-agent";
 import { supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+
+describe("target Investigator objective follows realistic human research", () => {
+  it("keeps the target objective bounded and preserves the source-attribution law under a huge reachability directive", () => {
+    const objective = buildTargetContactInvestigatorObjective({
+      targetName: "Jane Example",
+      companyName: "Regional Coastal Casino",
+      reachabilityControl: "REALISM / REACHABILITY CONTROL: " + "do not overrun context ".repeat(100),
+    });
+    expect(objective.length).toBeLessThanOrEqual(1_900);
+    expect(objective).toContain("no fixed checklist");
+    expect(objective).toContain("a public source directly documents a material business");
+    expect(objective).toContain("Use the exact URL where observed");
+    expect(objective).toContain("Do not promote when identity or person/value binding is uncertain");
+  });
+
+  it("preserves the actual reachability mode and score when compacting an oversized directive", () => {
+    const objective = buildTargetContactInvestigatorObjective({
+      targetName: "Jane Example",
+      companyName: "Regional Coastal Casino",
+      reachabilityControl: [
+        "REALISM / REACHABILITY CONTROL:",
+        "Status: TARGETED · practical access score 42/100.",
+        "This is a TARGETED reachability pass. Prioritize one or two plausible intermediary routes before broad contact discovery.",
+        "Positive evidence: a source-backed business relation.",
+        "Known blockers: no validated person-level direct phone or email is present; no corroborated assistant or office route is stored.",
+        "Extra diagnostic detail ".repeat(8),
+      ].join("\n"),
+    });
+    expect(objective).toContain("Status TARGETED (access score 42/100).");
+    expect(objective).toContain("This is a TARGETED reachability pass.");
+    expect(objective).toContain("Prioritize one or two plausible intermediary routes");
+    expect(objective.length).toBeLessThanOrEqual(1_900);
+  });
+
+  it("keeps the objective bounded with maximum identity labels and an oversized reachability directive", () => {
+    const objective = buildTargetContactInvestigatorObjective({
+      targetName: "Candidate Name ".repeat(30),
+      companyName: "Regional Operating Business ".repeat(20),
+      reachabilityControl: "REALISM / REACHABILITY CONTROL: " + "unbounded context ".repeat(500),
+    });
+    expect(objective.length).toBeLessThanOrEqual(1_900);
+    expect(objective).toContain("a public source directly documents a material business");
+    expect(objective).toContain("public, attributable profiles");
+    expect(objective).toContain("the exact URL where observed");
+    expect(objective).toContain("Do not promote when identity or person/value binding is uncertain");
+  });
+
+  it("carries reachability realism and target-specific public-source pivots without scripting a fixed route", () => {
+    const objective = buildTargetContactInvestigatorObjective({
+      targetName: "Jane Example",
+      companyName: "Regional Coastal Casino",
+      reachabilityControl: "REALISM / REACHABILITY CONTROL: Status BOUNDED; prioritize a corroborated intermediary route.",
+    });
+    expect(objective).toContain("Status BOUNDED");
+    expect(objective).toContain("Investigate the person, not generic company contacts");
+    expect(objective).toContain("beneficial-owner registries");
+    expect(objective).toContain("local-language reporting");
+    expect(objective).toContain("public, attributable profiles");
+    for (const platform of ["LinkedIn", "Facebook", "Instagram", "X/Twitter", "Telegram"]) {
+      expect(objective).toContain(platform);
+    }
+    expect(objective).toContain("WhatsApp/Telegram");
+    expect(objective).toContain("directly documents a material business");
+    expect(objective).toContain("no fixed checklist");
+    expect(objective).toContain("exact URL where observed");
+  });
+});
 
 describe("target Investigator multi-source attribution", () => {
   it("does not turn an HTTP-only finding into a contact candidate", () => {

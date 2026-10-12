@@ -18,7 +18,7 @@ vi.mock("../lib/dig-span", () => ({
 }));
 vi.mock("../lib/canonical-job-lock", () => ({ isCanonicalJobOwner: vi.fn() }));
 
-import { buildEvidenceGraphs } from "../lib/target-contact-agent";
+import { buildEvidenceGraphs, buildTargetContactInvestigatorObjective } from "../lib/target-contact-agent";
 import { isClaimGradeObservationAction } from "../lib/bureau-contact-persist-strict";
 import type { AgenticFinding, AgenticTrajectoryRecord } from "../lib/agentic-web-research";
 
@@ -60,6 +60,18 @@ function observationRecord(action: string): AgenticTrajectoryRecord {
 }
 
 describe("target contact evidence graph source-action parity", () => {
+  it("follows public, explicitly documented family/business-network links without guessing relationships", () => {
+    const objective = buildTargetContactInvestigatorObjective({
+      targetName: "Alex Example",
+      companyName: "Example Holdings",
+      reachabilityControl: "Public professional route found; verify attribution.",
+    });
+    expect(objective).toContain("Map family or associate ties only when credible public sources explicitly state them and they clarify ownership/control or a documented intermediary route");
+    expect(objective).toContain("documented intermediary route");
+    expect(objective).toContain("Never infer relationships from surnames, co-location, follows or social-graph proximity");
+    expect(objective).toContain("Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities");
+  });
+
   it.each(claimGradeActions)(
     "builds a support graph for a grounded %s observation",
     (action) => {

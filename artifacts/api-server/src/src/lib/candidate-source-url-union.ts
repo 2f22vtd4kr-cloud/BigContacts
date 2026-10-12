@@ -149,3 +149,90 @@ export function mergeDurablyAdmittedCandidateSources(
   }
   return [...merged.values()].map(({ name, sourceUrls }) => ({ name, sourceUrls: [...sourceUrls] }));
 }
+
+
+export type DiscoveryTargetabilityObservation = {
+  action: string;
+  execution: string;
+  sourceUrl: string;
+  observation: string;
+};
+
+function normalizeTargetabilityText(value: string): string {
+  return value.normalize("NFKD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Discovery is about plausible high-value people, not any person with a public title.
+ * Count only source-observed ownership/control/investment signals attached to the
+ * exact person's nearby text, or an explicitly targetable ownership/investment role.
+ * Do not infer wealth from seniority, prominence, or merely appearing in a registry.
+ */
+export function hasCredibleDiscoveryWealthPotentialSignal(input: {
+  personName: string;
+  role: string;
+  observations: readonly DiscoveryTargetabilityObservation[];
+}): boolean {
+  const person = normalizeTargetabilityText(input.personName);
+  const role = normalizeTargetabilityText(input.role);
+  if (person.length < 3 || !role) return false;
+
+  // A role proves professional identity/control, not wealth. Admission also
+  // requires the observed public source to bind this exact person to a
+  // material business, asset, investment, or transaction. This deliberately
+  // avoids requiring a public net-worth number while rejecting ordinary
+  // founders/owners based on title alone.
+  const ownershipSignals = [
+    "owner", "owns", "owned", "ownership", "proprietor", "founder", "founded",
+    "co founder", "shareholder", "shareholding", "equity stake", "controlling stake",
+    "beneficial owner", "majority owner", "majority shareholder", "investor in",
+    "invested in", "investment partner", "investor", "general partner", "managing partner",
+    "private equity partner", "venture capital partner", "family office principal",
+    "concession holder", "concessionaire", "franchise owner", "franchisee",
+    "license holder", "licensed operator", "lastnik", "lastnica", "solastnik",
+    "solastnica", "ustanovitelj", "soustanovitelj", "delnicar", "druzbenik",
+    "investitor", "koncesionar", "imetnik licence", "vlasnik", "suvlasnik",
+    "osnivac", "dionicar", "proprietario", "fondatore", "azionista",
+    "concessionario", "eigentumer", "gesellschafter", "grunder", "betreiber",
+  ];
+  const materialitySignals = [
+    "casino", "gaming resort", "hotel group", "hotel resort", "resort operator",
+    "marina operator", "port concession", "airport concession", "real estate portfolio",
+    "property portfolio", "commercial property", "real estate developer", "property developer",
+    "residential development", "land portfolio", "hotel operator", "hospitality group",
+    "energy infrastructure", "mining operation", "shipping fleet", "industrial group",
+    "holding group", "holdings group", "investment fund", "private equity", "venture capital",
+    "family office", "private capital", "assets under management", "portfolio company",
+    "multiple subsidiaries", "operates multiple", "chain of", "franchise network",
+    "acquisition", "acquired for", "sold for", "exit", "valuation", "valued at",
+    "revenue", "turnover", "ebitda", "net assets", "annual profit", "investment round",
+    "funding round", "million", "billion", "eur", "usd", "gbp", "€", "$", "£",
+    "nepremicnine", "premozenje", "prihodki", "promet", "dobicek", "vrednost",
+    "letovisce", "koncesija", "imovina", "prihodi", "nekretnine", "akvizicija",
+    "fatturato", "patrimonio", "immobili", "acquisizione", "umsatz", "vermogen",
+    "immobilien", "beteiligung", "ubernahme",
+  ];
+  return input.observations.some((observation) => {
+    if (observation.execution !== "success" || !["visit", "browser_fetch"].includes(observation.action)) return false;
+    if (!/^https:\/\/\S+$/i.test(observation.sourceUrl)) return false;
+    const passages = observation.observation.split(/(?:\r?\n)+|[.!?;]\s+/u);
+    return passages.some((passage) => {
+      const nearby = normalizeTargetabilityText(passage);
+      if (!nearby.includes(person)) return false;
+      const hasOwnership = ownershipSignals.some((term) => {
+        const normalizedTerm = normalizeTargetabilityText(term);
+        return normalizedTerm.length > 0 && nearby.includes(normalizedTerm);
+      });
+      const hasTextMateriality = materialitySignals.some((term) => {
+        const normalizedTerm = normalizeTargetabilityText(term);
+        return normalizedTerm.length > 0 && nearby.includes(normalizedTerm);
+      });
+      const hasCurrencyMateriality = /[€$£]/u.test(passage);
+      return hasOwnership && (hasTextMateriality || hasCurrencyMateriality);
+    });
+  });
+}

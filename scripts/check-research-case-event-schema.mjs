@@ -8,7 +8,7 @@ const replay = fs.readFileSync("artifacts/api-server/src/src/lib/research-case-r
 const targetControl = fs.readFileSync("artifacts/api-server/src/src/lib/target-control-decision.ts", "utf8");
 const bureauPass = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts", "utf8");
 
-const allowedEventTypes = new Set(["case_opened", "decision", "control_decision", "assignment", "observation", "tool_observation", "provider_error", "claim", "promotion", "validation", "projection", "directive", "status"]);
+const allowedEventTypes = new Set(["case_opened", "decision", "control_decision", "control_objective", "assignment", "observation", "tool_observation", "provider_error", "claim", "promotion", "validation", "projection", "directive", "status"]);
 const allowedActorRoles = new Set(["head_investigator", "groq_boss", "gemini_boss", "right_hand", "specialist", "human_operator", "system", "bureau"]);
 
 const writerFiles = [];
@@ -36,7 +36,7 @@ const checks = [
   ["canonical event sequence is database id", schema.includes("caseEventSequenceIdx: index(\"research_case_events_case_id_id_idx\").on(table.caseId, table.id)")],
   ["autonomous event correlation has a unique database key", schema.includes("caseEventCorrelationUniqueIdx: uniqueIndex(\"research_case_events_case_id_correlation_key_uidx\").on(table.caseId, table.correlationKey)")],
   ["actor roles are explicitly enumerated", schema.includes("researchCaseEventActorRoleSchema = z.enum") && schema.includes("\"groq_boss\"") && schema.includes("\"gemini_boss\"") && schema.includes("\"right_hand\"") && schema.includes("\"bureau\"")],
-  ["event types include claim, promotion, validation, and projection", schema.includes("researchCaseEventTypeSchema = z.enum") && schema.includes("\"claim\"") && schema.includes("\"promotion\"") && schema.includes("\"validation\"") && schema.includes("\"projection\"")],
+  ["event types include durable control objectives, claim, promotion, validation, and projection", schema.includes("researchCaseEventTypeSchema = z.enum") && schema.includes("\"control_objective\"") && schema.includes("\"claim\"") && schema.includes("\"promotion\"") && schema.includes("\"validation\"") && schema.includes("\"projection\"")],
   ["payload must be a JSON object", schema.includes("research case event payload must be a JSON object") && schema.includes("!Array.isArray(parsed)")],
   ["summary has a bounded size", schema.includes("summary: z.string().trim().min(1).max(2000)")],
   ["status has a bounded size", schema.includes("status: z.string().trim().min(1).max(64)")],

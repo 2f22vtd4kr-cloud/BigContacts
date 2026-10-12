@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hasCredibleDiscoveryWealthPotentialSignal } from "../lib/candidate-source-url-union";
 import { candidateRoleCorroborationSources, candidateSourceUrlsForIdentity, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "../lib/candidate-source-url-union";
 
 function normalizeSourceUrl(raw: string): string | null {
@@ -15,6 +16,79 @@ function normalizeSourceUrl(raw: string): string | null {
 
 const isClaimGradeSourceUrl = (value: unknown): value is string =>
   typeof value === "string" && /^https:\/\/\S+$/i.test(value);
+
+describe("discovery wealth-potential targetability", () => {
+  it("does not treat founder/owner job titles alone as wealth evidence", () => {
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Founder and CEO",
+      observations: [],
+    })).toBe(false);
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "lastnik",
+      observations: [],
+    })).toBe(false);
+  });
+
+  it("does not admit an executive or ordinary small-business owner without observed materiality", () => {
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Chief Executive Officer",
+      observations: [
+        { action: "visit", execution: "success", sourceUrl: "https://example.test/leadership", observation: "Jane Example is the Chief Executive Officer of a global corporation." },
+        { action: "browser_fetch", execution: "success", sourceUrl: "https://independent.test/profile", observation: "Jane Example serves as Chief Executive Officer." },
+      ],
+    })).toBe(false);
+
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Owner",
+      observations: [
+        { action: "visit", execution: "success", sourceUrl: "https://example.test/about", observation: "Jane Example owns a neighbourhood bakery." },
+      ],
+    })).toBe(false);
+  });
+
+  it("requires the ownership/investment fact and material business/asset signal near the exact person", () => {
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Chief Executive Officer",
+      observations: [
+        { action: "visit", execution: "success", sourceUrl: "https://example.test/team", observation: "Jane Example is CEO. Unrelated text says another person is the owner of a casino." },
+      ],
+    })).toBe(false);
+
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Chief Executive Officer",
+      observations: [
+        { action: "visit", execution: "success", sourceUrl: "https://example.test/team", observation: "Jane Example founded and owns the regional casino operator." },
+      ],
+    })).toBe(true);
+
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Founder",
+      observations: [
+        { action: "browser_fetch", execution: "success", sourceUrl: "https://example.test/business", observation: "Jane Example founded the regional construction business with EUR 18 million in annual revenue." },
+      ],
+    })).toBe(true);
+  });
+
+  it("does not use search snippets, failed fetches, or non-HTTPS pages as wealth evidence", () => {
+    const observations = [
+      { action: "web_search", execution: "success", sourceUrl: "https://example.test/search", observation: "Jane Example is the founder and owner of a casino." },
+      { action: "visit", execution: "error", sourceUrl: "https://example.test/team", observation: "Jane Example is the owner of a casino." },
+      { action: "visit", execution: "success", sourceUrl: "http://example.test/team", observation: "Jane Example is the owner of a casino." },
+    ];
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Chief Executive Officer",
+      observations,
+    })).toBe(false);
+  });
+});
 
 describe("candidate source URL union", () => {
   it("retains a later matching finding's observed source instead of using only the first finding", () => {

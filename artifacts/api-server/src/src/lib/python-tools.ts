@@ -126,7 +126,12 @@ export async function runOpenDeepResearch(_prompt: string, options: { timeoutMs?
  * network-capable subprocess execution.
  */
 export async function checkPythonToolsAvailability(): Promise<Record<string, boolean>> {
+  // Availability requires both a trusted sandbox and a real executor. The current
+  // adapters intentionally have no executable backend, so attestation alone is
+  // insufficient to advertise them as available.
   const sandbox = getPythonSandboxState();
-  const enabled = sandbox.state === "attested" && Boolean(sandbox.attestation?.allowedCapabilities.includes("network_osint"));
+  const attested = sandbox.state === "attested" && Boolean(sandbox.attestation?.allowedCapabilities.includes("network_osint"));
+  const executorImplemented = false;
+  const enabled = attested && executorImplemented;
   return { holehe: enabled, maigret: enabled, sherlock: enabled, theHarvester: enabled, openDeepResearch: enabled };
 }
