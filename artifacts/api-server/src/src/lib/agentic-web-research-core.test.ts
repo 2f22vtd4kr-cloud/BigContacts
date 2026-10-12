@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -382,6 +382,34 @@ describe("Investigator prompt architecture", () => {
     expect(validateDiscoverySearchQuery("Casino Portorož owner contact", [])).toEqual({ allowed: true });
   });
 
+  it("blocks repeated discovery searches to the same provider unless a new fetched source advances the case", () => {
+    const first = {
+      turn: 1, model: "test-model", action: "web_search",
+      args: { query: "Casino Portoroz ownership", provider: "serper", locale: "sl", market: "si", hypothesis: "Find ownership", purpose: "Find the owner" },
+      execution: "success", observation: "WEB_SEARCH returned two leads", observedUrls: ["https://search.example/1"], findings: [], providerFallback: [],
+    } as Parameters<typeof repeatedDiscoverySearchReason>[1][number];
+    expect(repeatedDiscoverySearchReason({ query: "  casino   portoroz OWNERSHIP ", provider: "serper", locale: "sl", market: "si" }, [first])).toContain("repeat_action_guard blocked repeated discovery search");
+    expect(repeatedDiscoverySearchReason({ query: "Casino Portoroz ownership", provider: "exa", locale: "sl", market: "si" }, [first])).toBeNull();
+    const failedFetch = {
+      turn: 2, model: "test-model", action: "visit", args: { url: "https://casino.example/ownership" },
+      execution: "error", observation: "failureDomain=external_page_fetch browser_fetch failed", observedUrls: [], findings: [], providerFallback: [],
+    } as Parameters<typeof repeatedDiscoverySearchReason>[1][number];
+    expect(repeatedDiscoverySearchReason({ query: "Casino Portoroz ownership", provider: "serper", locale: "sl", market: "si" }, [first, failedFetch])).toContain("repeat_action_guard");
+    const newSource = {
+      turn: 3, model: "test-model", action: "visit", args: { url: "https://casino.example/ownership" },
+      execution: "success", observation: "Ownership page says the casino is operated by a local concession holder.", observedUrls: ["https://casino.example/ownership"], findings: [], providerFallback: [],
+    } as Parameters<typeof repeatedDiscoverySearchReason>[1][number];
+    expect(repeatedDiscoverySearchReason({ query: "Casino Portoroz ownership", provider: "serper", locale: "sl", market: "si" }, [first, newSource])).toBeNull();
+  });
+
+  it("recognizes an exact request repeated from a batched discovery search", () => {
+    const parallel = {
+      turn: 1, model: "test-model", action: "parallel_web_search",
+      args: { searches: [{ query: "Casino Portoroz ownership", provider: "serper", locale: "sl", market: "si", purpose: "Find the owner" }, { query: "casino Portoroz company registry", provider: "exa", locale: "sl", market: "si", purpose: "Find registry record" }] },
+      execution: "success", observation: "parallel search returned leads", observedUrls: ["https://search.example/1"], findings: [], providerFallback: [],
+    } as Parameters<typeof repeatedDiscoverySearchReason>[1][number];
+    expect(repeatedDiscoverySearchReason({ query: "Casino Portoroz ownership", provider: "serper", locale: "sl", market: "si" }, [parallel])).toContain("repeat_action_guard");
+  });
   it("blocks unrealistic global-brand and ranking searches unless a reachable local ownership route is named", () => {
     expect(validateDiscoverySearchQuery("Coca-Cola Company executive leadership page official site", [])).toMatchObject({
       allowed: false,
@@ -435,8 +463,12 @@ describe("Investigator prompt architecture", () => {
     const singleDispatch = agenticCoreSource.slice(singleStart, visitStart);
     expect(parallelDispatch.indexOf("validateDiscoverySearchQuery(search.query, batchQueries)")).toBeGreaterThan(-1);
     expect(parallelDispatch.indexOf("validateDiscoverySearchQuery(search.query, batchQueries)")).toBeLessThan(parallelDispatch.indexOf("toolWebSearch(search.query"));
+    expect(parallelDispatch.indexOf("repeatedDiscoverySearchReason(search, previousResearchRecords)")).toBeGreaterThan(-1);
+    expect(parallelDispatch.indexOf("repeatedDiscoverySearchReason(search, previousResearchRecords)")).toBeLessThan(parallelDispatch.indexOf("toolWebSearch(search.query"));
     expect(singleDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeGreaterThan(-1);
     expect(singleDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query"));
+    expect(singleDispatch.indexOf("repeatedDiscoverySearchReason(action, previousResearchRecords)")).toBeGreaterThan(-1);
+    expect(singleDispatch.indexOf("repeatedDiscoverySearchReason(action, previousResearchRecords)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query"));
   });
 
   it("offers non-binding guidance after three successful search-only actions", () => {
