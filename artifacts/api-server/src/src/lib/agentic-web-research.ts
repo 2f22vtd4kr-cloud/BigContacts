@@ -192,6 +192,18 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
       wrapperFailureStage = "result_aggregation";
       if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
+      if (raw.execution === "blocked" && String(raw.observation ?? "").includes("repeat_pivot_alignment_guard")) {
+        // Return to Boss after suppressing an identical rejected request. The
+        // current act has no new external evidence; asking the model for more
+        // near-identical retries only burns provider tokens and discovery budget.
+        return {
+          status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings,
+          stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records,
+          groundingTrajectoryRecords: [...historyRecords, ...records],
+          error: "Repeated out-of-scope action suppressed; returning control for a substantive recovery direction.",
+          executionId, consecutiveActionParseFailures,
+        };
+      }
       if (raw.findings.length) {
               const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, normalizedRecord]);
               findings = [...findings, ...(grounded as CoreResult["findings"])];
