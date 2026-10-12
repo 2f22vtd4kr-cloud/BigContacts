@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { hasCredibleDiscoveryWealthPotentialSignal } from "../lib/candidate-source-url-union";
 import { candidateRoleCorroborationSources, candidateSourceUrlsForIdentity, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "../lib/candidate-source-url-union";
 
 function normalizeSourceUrl(raw: string): string | null {
@@ -15,6 +16,62 @@ function normalizeSourceUrl(raw: string): string | null {
 
 const isClaimGradeSourceUrl = (value: unknown): value is string =>
   typeof value === "string" && /^https:\/\/\S+$/i.test(value);
+
+describe("discovery wealth-potential targetability", () => {
+  it("accepts source-backed ownership and founder roles, including normalized Slovenian terms", () => {
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Founder and CEO",
+      observations: [],
+    })).toBe(true);
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "lastnik",
+      observations: [],
+    })).toBe(true);
+  });
+
+  it("does not admit a generic Fortune-scale executive without an ownership/investment signal", () => {
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Chief Executive Officer",
+      observations: [
+        { action: "visit", execution: "success", sourceUrl: "https://example.test/leadership", observation: "Jane Example is the Chief Executive Officer of a global corporation." },
+        { action: "browser_fetch", execution: "success", sourceUrl: "https://independent.test/profile", observation: "Jane Example serves as Chief Executive Officer." },
+      ],
+    })).toBe(false);
+  });
+
+  it("requires the ownership/investment signal to be near the exact person in fetched page content", () => {
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Chief Executive Officer",
+      observations: [
+        { action: "visit", execution: "success", sourceUrl: "https://example.test/team", observation: "Jane Example is CEO. Unrelated text says another person is the owner of a casino." },
+      ],
+    })).toBe(false);
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Chief Executive Officer",
+      observations: [
+        { action: "visit", execution: "success", sourceUrl: "https://example.test/team", observation: "Jane Example founded and owns the regional casino operator." },
+      ],
+    })).toBe(true);
+  });
+
+  it("does not use search snippets, failed fetches, or non-HTTPS pages as wealth evidence", () => {
+    const observations = [
+      { action: "web_search", execution: "success", sourceUrl: "https://example.test/search", observation: "Jane Example is the founder and owner of a casino." },
+      { action: "visit", execution: "error", sourceUrl: "https://example.test/team", observation: "Jane Example is the owner of a casino." },
+      { action: "visit", execution: "success", sourceUrl: "http://example.test/team", observation: "Jane Example is the owner of a casino." },
+    ];
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Chief Executive Officer",
+      observations,
+    })).toBe(false);
+  });
+});
 
 describe("candidate source URL union", () => {
   it("retains a later matching finding's observed source instead of using only the first finding", () => {
