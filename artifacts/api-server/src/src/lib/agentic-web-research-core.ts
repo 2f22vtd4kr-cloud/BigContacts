@@ -58,6 +58,7 @@ const DISCOVERY_FAME_TERMS = /\b(?:billionaire|billionaires|richest|wealthiest|c
 const DISCOVERY_GLOBAL_BRAND_TERMS = /\b(?:coca[ -]?cola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonald'?s|disney|netflix|oracle|berkshire hathaway|jpmorgan|goldman sachs)\b/i;
 const DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS = /\b(?:independent bottler|independent distributor|regional distributor|local distributor|franchisee|franchise owner|licensed operator|license holder|concession holder|independent operator|regional operator|local operator|locally owned (?:operator|company|business|subsidiary)|regional subsidiary|local subsidiary|privately held (?:bottler|distributor|operator|company)|local business owner|regional business owner)\b/i;
 const DISCOVERY_RANKING_TERMS = /\b(?:fortune[ -]?500|fortune500|top[ -]?richest|celebrity list|billionaire list|net[ -]?worth ranking)\b/i;
+const DISCOVERY_UNTARGETABLE_PERSON_NAMES = /\b(?:elon musk|jeff bezos)\b/i;
 const DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS = /\b(?:leadership|executive|executives|ceo|chief executive|senior management|management team|board of directors|corporate officers|leadership team|staff directory)\b/i;
 const DISCOVERY_BARE_TLD_SITE_FILTER = /\bsite:\.(?:com|org|net|edu|gov|io|co|si|eu)\b/i;
 const DISCOVERY_GENERIC_CONTACT_TERMS = /\b(?:public relations|media relations|press contact|media contact|communications contact|pr contact|press office|media office)\b/i;
@@ -330,6 +331,10 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const placeholderQuery = /(?:\bcompanyname\b|\bcompanywebsite(?:\.[a-z]{2,})?\b|\byourcompany(?:\.[a-z]{2,})?\b|\bexample\.(?:com|org|net|co\.[a-z]{2})\b|\[\s*(?:companyname|company(?:\s+name)?|domain|company\s+website)\s*\]|\{\{\s*(?:companyname|company(?:\s+name)?|domain)\s*\}\})/i;
   if (placeholderQuery.test(query)) {
     return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with a real entity/source anchor observed in the case; no provider request was made." };
+  }
+
+  if (DISCOVERY_UNTARGETABLE_PERSON_NAMES.test(normalized)) {
+    return { allowed: false, reason: "Discovery rejected a globally prominent person as an untargetable first-choice target. Start from a realistic private/regional business, owner/operator, investor, beneficial owner, or documented local intermediary instead; no provider request was made." };
   }
 
   // The anchor gate blocks only context-free provider spend. It never prescribes
