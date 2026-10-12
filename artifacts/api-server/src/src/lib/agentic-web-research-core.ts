@@ -58,7 +58,7 @@ const DISCOVERY_FAME_TERMS = /\b(?:billionaire|billionaires|richest|wealthiest|c
 const DISCOVERY_GLOBAL_BRAND_TERMS = /\b(?:coca[ -]?cola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonald'?s|disney|netflix|oracle|berkshire hathaway|jpmorgan|goldman sachs)\b/i;
 const DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS = /\b(?:independent bottler|independent distributor|regional distributor|local distributor|franchisee|franchise owner|licensed operator|license holder|concession holder|independent operator|regional operator|local operator|locally owned (?:operator|company|business|subsidiary)|regional subsidiary|local subsidiary|privately held (?:bottler|distributor|operator|company)|local business owner|regional business owner)\b/i;
 const DISCOVERY_RANKING_TERMS = /\b(?:fortune[ -]?500|fortune500|top[ -]?richest|celebrity list|billionaire list|net[ -]?worth ranking)\b/i;
-const DISCOVERY_UNTARGETABLE_PERSON_NAMES = /\b(?:elon musk|jeff bezos)\b/i;
+const DISCOVERY_UNTARGETABLE_PERSON_NAMES = /\b(?:elon musk|jeff bezos|mark zuckerberg|bill gates|warren buffett|larry ellison|larry page|sergey brin|jensen huang|bernard arnault|richard branson|oprah winfrey|kim kardashian|taylor swift|cristiano ronaldo|lionel messi)\b/i;
 const DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS = /\b(?:leadership|executive|executives|ceo|chief executive|senior management|management team|board of directors|corporate officers|leadership team|staff directory)\b/i;
 const DISCOVERY_BARE_TLD_SITE_FILTER = /\bsite:\.(?:com|org|net|edu|gov|io|co|si|eu)\b/i;
 const DISCOVERY_GENERIC_CONTACT_TERMS = /\b(?:public relations|media relations|press contact|media contact|communications contact|pr contact|press office|media office)\b/i;
@@ -406,7 +406,6 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   }
   const localOperatorRoute = DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS.test(normalized);
   const globalBrandTarget = DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized);
-  const globalBrandLeadership = globalBrandTarget && DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS.test(normalized);
   if ((globalBrandTarget || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute) {
     return {
       allowed: false,
