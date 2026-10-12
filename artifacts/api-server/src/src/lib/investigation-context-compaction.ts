@@ -343,9 +343,12 @@ export function boundInvestigatorPromptSection(value: string, maxChars = 6_000):
   const bounded = Math.max(marker.length + 2, Math.min(12_000, requested));
   if (normalized.length <= bounded) return normalized;
   const available = Math.max(0, bounded - marker.length - 2);
+  if (available === 0) return marker;
   const headChars = Math.floor(available * 0.55);
   const tailChars = available - headChars;
-  return normalized.slice(0, headChars).trimEnd() + "\n" + marker + "\n" + normalized.slice(-tailChars).trimStart();
+  const head = normalized.slice(0, headChars).trimEnd();
+  const tail = tailChars > 0 ? normalized.slice(-tailChars).trimStart() : "";
+  return head + "\n" + marker + (tail ? "\n" + tail : "");
 }
 
 export function tightenInvestigatorPrompt(prompt: string, maxChars = 12_000): string {
