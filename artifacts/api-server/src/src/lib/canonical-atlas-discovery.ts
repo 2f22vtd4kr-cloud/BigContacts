@@ -6,7 +6,7 @@ import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
-import { resolveResearchDepth } from "./research-depth";
+import { resolveDiscoveryIterationsPerAct, resolveResearchDepth } from "./research-depth";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
@@ -684,7 +684,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // Treat the opening discovery episode like every Boss-directed continuation: a bounded act, not the entire job-wide Investigator budget. This leaves the model-owned Boss control loop room to assess evidence and direct a continuation or target investigation instead of consuming the global ceiling before the first control decision.
     const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.4)));
     const discoveryIterationCeiling = Math.max(1, depth.agenticMaxIterations - targetResearchReserveIterations);
-    const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, discoveryIterationCeiling);
+    const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling);
+    const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling);
     failureStage = "investigator_episode";
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget });
     discovery = await runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations);
@@ -1022,9 +1023,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         activeDiscoveryObjective = directedObjective;
         latestEvidenceBackedTerminal = null;
         failureStage = "investigator_episode";
-        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0 });
+        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0 });
         await assertAtlasJobActive(atlasJobId);
-        nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(depth.investigatorIterationsPerAct, remainingInvestigatorIterations), discovery.trajectoryRecords ?? []);
+        nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations), discovery.trajectoryRecords ?? []);
 
         // A failed/empty continuation is an orchestration failure, not permission
         // to ask Boss for another pivot without executing useful Investigator work.
