@@ -432,4 +432,10 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain('const finalCaseStatus = finalIncomplete ? "review" : "complete"');
     expect(canonicalSource).toMatch(/latestEvidenceBackedTerminal: "discovery" \| "target" \| null = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && admitted\.length > 0 \? "discovery" : null/);
   });
+
+  it("classifies action-boundary cancellation/lease read failures as control-plane errors", () => {
+    expect(researchCoreSource).toContain('runtimePhase === "cancellation_check"');
+    expect(researchCoreSource).toContain('classifyCanonicalAtlasFailure({ stage: "job_state_or_lease", error })');
+    expect(researchCoreSource).toContain('phase=${runtimePhase}');
+  });
 });
