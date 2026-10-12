@@ -4,7 +4,7 @@ import { providerSearchExecutionStatus, validateDiscoverySearchQuery } from "../
 
 describe("discovery query quality guidance", () => {
   it("rejects globally prominent people as discovery targets", () => {
-    for (const query of ["Elon Musk", "Elon Musk Tesla", "Jeff Bezos", "Jeff Bezos Amazon"]) {
+    for (const query of ["Elon Musk", "Elon Musk Tesla", "Jeff Bezos", "Jeff Bezos Amazon", "Mark Zuckerberg Meta", "Bill Gates Microsoft", "Taylor Swift", "Cristiano Ronaldo"]) {
       const result = validateDiscoverySearchQuery(query);
       expect(result.allowed).toBe(false);
       expect(result.allowed ? "" : result.reason).toMatch(/globally prominent person|global-household-brand/i);
