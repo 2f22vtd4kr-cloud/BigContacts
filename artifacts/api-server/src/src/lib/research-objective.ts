@@ -49,3 +49,53 @@ export function resolveBossDirectedDiscoveryObjective(input: {
     reusedCurrentObjective: false,
   };
 }
+
+
+export type RestoredDiscoveryObjective = {
+  baseObjective: string;
+  activeObjective: string;
+  restoredPivot: boolean;
+};
+
+/**
+ * Recover the last accepted discovery objective from durable case state.
+ * Only accept the exact base-objective + canonical pivot-marker format written
+ * by formatBossDirectedObjective, and revalidate the persisted direction before
+ * allowing it to steer a resumed investigation.
+ */
+export function restorePersistedDiscoveryObjective(input: {
+  defaultBaseObjective: string;
+  persistedBaseObjective?: unknown;
+  persistedActiveObjective?: unknown;
+}): RestoredDiscoveryObjective {
+  const defaultBase = input.defaultBaseObjective.trim();
+  const storedBase = typeof input.persistedBaseObjective === "string"
+    ? input.persistedBaseObjective.trim()
+    : "";
+  const baseObjective = storedBase && storedBase.length <= 32_000
+    ? storedBase
+    : defaultBase;
+  const storedActive = typeof input.persistedActiveObjective === "string"
+    ? input.persistedActiveObjective.trim()
+    : "";
+  if (!baseObjective || baseObjective.length > 32_000) {
+    return { baseObjective: defaultBase, activeObjective: defaultBase, restoredPivot: false };
+  }
+  if (!storedActive || storedActive === baseObjective) {
+    return { baseObjective, activeObjective: baseObjective, restoredPivot: false };
+  }
+  const pivotPrefix = `${baseObjective}\\n\\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\\n`;
+  if (!storedActive.startsWith(pivotPrefix) || storedActive.length > 34_000) {
+    return { baseObjective, activeObjective: baseObjective, restoredPivot: false };
+  }
+  const persistedDirection = storedActive.slice(pivotPrefix.length).trim();
+  const validated = validateResearchObjective(persistedDirection);
+  if (!validated.valid || validated.direction !== persistedDirection) {
+    return { baseObjective, activeObjective: baseObjective, restoredPivot: false };
+  }
+  return {
+    baseObjective,
+    activeObjective: formatBossDirectedObjective(baseObjective, persistedDirection),
+    restoredPivot: true,
+  };
+}
