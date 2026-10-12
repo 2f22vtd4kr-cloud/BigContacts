@@ -612,7 +612,7 @@ describe("Apex research runtime readiness hardening", () => {
   const pivot = [
     "Research credible, approachable business owners for the case.",
     "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Identify mid-market boutique fitness franchise owners in Texas or regional specialty food manufacturers in the Midwest; use public registries to identify documented owners.",
-  ].join("\\n");
+  ].join("\n");
 
   it("does not let a Texas-only or generic-word overlap satisfy a pivot", async () => {
     const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
@@ -666,7 +666,7 @@ describe("Apex research runtime readiness hardening", () => {
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + direction,
       "BOSS OPENING CONTROL DIRECTION (advisory, not a fixed research sequence): Search unrelated celebrity wealth stories.",
       "RIGHT-HAND OPENING REVIEW (advisory): Treat that suggestion as unverified.",
-    ].join("\\n");
+    ].join("\n");
     expect(extractBossPivotDirectionForCompactPrompt(objective)).toBe(direction);
     expect(discoveryPivotScopeKey(objective)).toBe(discoveryPivotScopeKey("BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + direction));
   });
