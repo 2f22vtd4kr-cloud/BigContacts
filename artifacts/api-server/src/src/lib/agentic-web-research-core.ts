@@ -1612,7 +1612,7 @@ export function extractBossPivotDirectionForCompactPrompt(rawObjective: string):
  */
 const PIVOT_SCOPE_GENERIC_TERMS = new Set([
   "explore", "investigate", "research", "researching", "mid", "market", "regional",
-  "region", "franchise", "franchises", "owner", "owners", "ownership", "operator",
+  "region", "boutique", "specialty", "franchise", "franchises", "owner", "owners", "ownership", "operator",
   "operators", "target", "targets", "targeting", "lead", "leads", "new", "business",
   "businesses", "company", "companies", "person", "people", "contact", "contacts",
   "channel", "channels", "professional", "professionally", "realistic", "public",
@@ -1664,10 +1664,9 @@ function pivotActionScopeText(action: string, args: Record<string, unknown>): st
   }
   return parts.join(" ");
 }
-function pivotAlignedSourceUrls(priorRecords: readonly AgenticTrajectoryRecord[], anchors: readonly string[]): Set<string> {
-  const urls = new Set<string>();
-  for (const record of priorRecords) {
-    if (record.execution !== "success") continue;
+function pivotAlignedSearchRecords(priorRecords: readonly AgenticTrajectoryRecord[], anchors: readonly string[]): AgenticTrajectoryRecord[] {
+  return priorRecords.filter((record) => {
+    if (record.execution !== "success") return false;
     const queryTexts: string[] = [];
     if (record.action === "web_search" && typeof record.args.query === "string") queryTexts.push(record.args.query);
     if (record.action === "parallel_web_search" && Array.isArray(record.args.searches)) {
@@ -1675,21 +1674,36 @@ function pivotAlignedSourceUrls(priorRecords: readonly AgenticTrajectoryRecord[]
         if (item && typeof item === "object" && !Array.isArray(item)) {
           const entry = item as Record<string, unknown>;
           if (typeof entry.query === "string") queryTexts.push(entry.query);
-          if (typeof entry.purpose === "string") queryTexts.push(entry.purpose);
         }
       }
     }
-    queryTexts.push(
-      typeof record.args.hypothesis === "string" ? record.args.hypothesis : "",
-      typeof record.args.purpose === "string" ? record.args.purpose : "",
-    );
-    if (!queryTexts.some((text) => pivotTextMatchesAnchors(text, anchors))) continue;
+    return queryTexts.length > 0 && queryTexts.some((query) => pivotTextMatchesAnchors(query, anchors));
+  });
+}
+function pivotAlignedSourceUrls(priorRecords: readonly AgenticTrajectoryRecord[], anchors: readonly string[]): Set<string> {
+  const urls = new Set<string>();
+  for (const record of pivotAlignedSearchRecords(priorRecords, anchors)) {
     for (const value of record.observedUrls ?? []) {
       const normalized = normalizedActionResourceUrl(value);
       if (normalized) urls.add(normalized);
     }
   }
   return urls;
+}
+function pivotAlignedEvidenceText(priorRecords: readonly AgenticTrajectoryRecord[], anchors: readonly string[]): string {
+  return pivotAlignedSearchRecords(priorRecords, anchors).map((record) => [
+    record.observation ?? "",
+    JSON.stringify(record.args ?? {}),
+    ...(record.observedUrls ?? []),
+  ].join(" ")).join(" ").toLowerCase();
+}
+function pivotResourceIsGroundedInAlignedEvidence(value: unknown, evidenceText: string): boolean {
+  if (typeof value !== "string" || !value.trim() || !evidenceText) return false;
+  const normalized = normalizeDiscoverySearchQuery(value).replace(/[^a-z0-9@._+-]+/g, " ");
+  if (normalized.length >= 4 && evidenceText.includes(normalized)) return true;
+  const resourceTokens = normalized.match(/[a-z0-9]{4,}/g) ?? [];
+  const unique = [...new Set(resourceTokens.filter((token) => !PIVOT_SCOPE_GENERIC_TERMS.has(pivotScopeToken(token)))];
+  return unique.length >= 2 && unique.every((token) => evidenceText.includes(token));
 }
 export function discoveryPivotAlignmentReason(
   objective: string,
@@ -1703,30 +1717,60 @@ export function discoveryPivotAlignmentReason(
   // A pivot that contains no extractable substantive subject stays model-led rather
   // than becoming an accidental stop gate.
   if (anchors.length === 0) return null;
-  if (pivotTextMatchesAnchors(pivotActionScopeText(action, args), anchors)) return null;
 
+  const alignedSearches = pivotAlignedSearchRecords(priorRecords, anchors);
   const sourceUrls = pivotAlignedSourceUrls(priorRecords, anchors);
-  const requestedUrl = action === "visit" || action === "browser_fetch"
-    ? normalizedActionResourceUrl(args.url)
-    : null;
-  if (requestedUrl && sourceUrls.has(requestedUrl)) return null;
+  const alignedEvidenceText = pivotAlignedEvidenceText(priorRecords, anchors);
+  let relevant = false;
 
-  // Also permit downstream domain work when the domain is the host of a URL returned
-  // by a pivot-aligned search. Old-lane evidence is deliberately not sufficient.
-  if (action === "domain_lookup" || action === "harvest_domain") {
-    const domain = normalizedDomainResource(args.domain).replace(/^www\./, "");
-    for (const url of sourceUrls) {
-      try {
-        const host = new URL(url).hostname.replace(/^www\./, "");
-        if (domain && (host === domain || host.endsWith("." + domain) || domain.endsWith("." + host))) return null;
-      } catch { /* the normalized source URL should already be valid */ }
+  // Search requests must themselves test the active scope; a relevant-sounding
+  // purpose cannot legitimize an unrelated query. Parallel batches must be relevant
+  // item by item so one good query cannot smuggle unrelated outbound searches.
+  if (action === "web_search") {
+    relevant = pivotTextMatchesAnchors(String(args.query ?? ""), anchors);
+  } else if (action === "parallel_web_search") {
+    const searches = Array.isArray(args.searches) ? args.searches.filter((item) =>
+      Boolean(item && typeof item === "object" && !Array.isArray(item)),
+    ) as Array<Record<string, unknown>> : [];
+    relevant = searches.length > 0 && searches.every((item) =>
+      pivotTextMatchesAnchors(String(item.query ?? ""), anchors),
+    );
+  } else if (action === "visit" || action === "browser_fetch") {
+    const requestedUrl = normalizedActionResourceUrl(args.url);
+    relevant = Boolean(requestedUrl && sourceUrls.has(requestedUrl))
+      || pivotTextMatchesAnchors(String(args.url ?? ""), anchors);
+  } else if (action === "registry_search") {
+    relevant = pivotTextMatchesAnchors(String(args.query ?? ""), anchors);
+  } else if (action === "domain_lookup" || action === "harvest_domain") {
+    relevant = pivotTextMatchesAnchors(String(args.domain ?? ""), anchors)
+      || pivotResourceIsGroundedInAlignedEvidence(args.domain, alignedEvidenceText);
+    if (!relevant) {
+      const domain = normalizedDomainResource(args.domain).replace(/^www\./, "");
+      for (const url of sourceUrls) {
+        try {
+          const host = new URL(url).hostname.replace(/^www\./, "");
+          if (domain && (host === domain || host.endsWith("." + domain) || domain.endsWith("." + host))) {
+            relevant = true;
+            break;
+          }
+        } catch { /* normalized source URLs should already be valid */ }
+      }
     }
+  } else if (action === "footprint_email") {
+    relevant = pivotTextMatchesAnchors(String(args.email ?? ""), anchors)
+      || pivotResourceIsGroundedInAlignedEvidence(args.email, alignedEvidenceText);
+  } else if (action === "footprint_username_maigret" || action === "footprint_username_sherlock") {
+    relevant = pivotResourceIsGroundedInAlignedEvidence(args.username, alignedEvidenceText);
+  } else if (action === "footprint_spiderfoot") {
+    relevant = pivotTextMatchesAnchors(String(args.target ?? ""), anchors)
+      || pivotResourceIsGroundedInAlignedEvidence(args.target, alignedEvidenceText);
   }
+
+  if (relevant) return null;
   return "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: "
     + direction.slice(0, 420)
-    + ". The action does not name a substantive sector/subject anchor from that pivot and is not tied to a URL returned by a pivot-aligned search. Use the existing evidence to choose any relevant next action, or ask Boss/Right-hand to approve a new objective before pursuing a different lane. This guard does not prescribe a tool, provider, company, or fixed sequence; no outbound request was made.";
+    + ". The action's actual query/resource is outside that scope and is not tied to evidence returned by a pivot-aligned search. Use the existing case evidence to choose any relevant next action, or ask Boss/Right-hand to approve a new objective before pursuing a different lane. A rationale alone cannot authorize an unrelated outbound query. This guard does not prescribe a tool, provider, company, or fixed sequence; no outbound request was made.";
 }
-
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; intelligenceContext?: string; mode?: "target" | "discovery" }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
