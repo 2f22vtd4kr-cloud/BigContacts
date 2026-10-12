@@ -225,7 +225,7 @@ export function classifyThrownProviderError(error: unknown, aborted = false): Pr
   const messages = chain.map((part) => typeof part.message === "string" ? part.message : "").join(" ");
   const message = error instanceof Error ? error.message : messages;
 
-  if (/\\bAbortError\\b/i.test(names)) return "timeout";
+  if ((error instanceof Error && error.name === "AbortError") || /AbortError/i.test(names)) return "timeout";
   if (/timeout|timed out/i.test(message)) return "timeout";
 
   // Do not label local validation/programming failures as NETWORK_ERROR. A
