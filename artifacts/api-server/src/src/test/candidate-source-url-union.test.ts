@@ -18,20 +18,20 @@ const isClaimGradeSourceUrl = (value: unknown): value is string =>
   typeof value === "string" && /^https:\/\/\S+$/i.test(value);
 
 describe("discovery wealth-potential targetability", () => {
-  it("accepts source-backed ownership and founder roles, including normalized Slovenian terms", () => {
+  it("does not treat founder/owner job titles alone as wealth evidence", () => {
     expect(hasCredibleDiscoveryWealthPotentialSignal({
       personName: "Jane Example",
       role: "Founder and CEO",
       observations: [],
-    })).toBe(true);
+    })).toBe(false);
     expect(hasCredibleDiscoveryWealthPotentialSignal({
       personName: "Jane Example",
       role: "lastnik",
       observations: [],
-    })).toBe(true);
+    })).toBe(false);
   });
 
-  it("does not admit a generic Fortune-scale executive without an ownership/investment signal", () => {
+  it("does not admit an executive or ordinary small-business owner without observed materiality", () => {
     expect(hasCredibleDiscoveryWealthPotentialSignal({
       personName: "Jane Example",
       role: "Chief Executive Officer",
@@ -40,9 +40,17 @@ describe("discovery wealth-potential targetability", () => {
         { action: "browser_fetch", execution: "success", sourceUrl: "https://independent.test/profile", observation: "Jane Example serves as Chief Executive Officer." },
       ],
     })).toBe(false);
+
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Owner",
+      observations: [
+        { action: "visit", execution: "success", sourceUrl: "https://example.test/about", observation: "Jane Example owns a neighbourhood bakery." },
+      ],
+    })).toBe(false);
   });
 
-  it("requires the ownership/investment signal to be near the exact person in fetched page content", () => {
+  it("requires the ownership/investment fact and material business/asset signal near the exact person", () => {
     expect(hasCredibleDiscoveryWealthPotentialSignal({
       personName: "Jane Example",
       role: "Chief Executive Officer",
@@ -50,11 +58,20 @@ describe("discovery wealth-potential targetability", () => {
         { action: "visit", execution: "success", sourceUrl: "https://example.test/team", observation: "Jane Example is CEO. Unrelated text says another person is the owner of a casino." },
       ],
     })).toBe(false);
+
     expect(hasCredibleDiscoveryWealthPotentialSignal({
       personName: "Jane Example",
       role: "Chief Executive Officer",
       observations: [
         { action: "visit", execution: "success", sourceUrl: "https://example.test/team", observation: "Jane Example founded and owns the regional casino operator." },
+      ],
+    })).toBe(true);
+
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Jane Example",
+      role: "Founder",
+      observations: [
+        { action: "browser_fetch", execution: "success", sourceUrl: "https://example.test/business", observation: "Jane Example founded the regional construction business with EUR 18 million in annual revenue." },
       ],
     })).toBe(true);
   });
