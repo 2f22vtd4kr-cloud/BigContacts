@@ -63,6 +63,12 @@ The canonical flow charged discovery and target Investigator actions to the same
 
 The repository also contains standalone `enrichment/social-discovery.ts` and `enrichment/messenger-discovery.ts` helpers, but the canonical single-target runner does not call them directly. The live Investigator can still choose public-profile searches through the currently exposed search/visit actions; this is not equivalent to claiming the separate enrichers are automatically run on every admitted person. Their output must not be copied directly into cards unless it is converted into claim-grade observations that bind the exact person, profile/contact value, role/context and source. Name-only profile matches or guessed WhatsApp/Telegram identities would create false attribution. A trusted executor plus identity/source-attribution tests are required before advertising automatic cross-platform coverage.
 
+### L. Non-web discovery capabilities bypassed the targetability guard (source confirmed; fixed in this branch)
+
+The free-ReAct action contract includes `registry_search` and `domain_lookup` as well as web search/page fetching. Before this patch, the web query gate guarded `web_search` and `parallel_web_search`, and the source-destination gate guarded `visit`/`browser_fetch`; registry and RDAP/WHOIS paths dispatched directly without those discovery checks. This meant a template placeholder, broad fame/leadership query, or obvious household-brand domain could still consume tool budget through a different capability even though the equivalent web search/fetch would be blocked.
+
+The canonical discovery dispatcher now applies `validateDiscoverySearchQuery` before `searchRegistry` and a dedicated hostname validator before `lookupDomainSurface`. The hostname validator rejects non-hostname input and obvious global-brand domains, then applies the shared query-quality check. Target-scoped research remains unaffected, and legitimate regional/private business domains (including a concrete coastal casino domain) remain available. Regression tests assert validation precedes both external dispatch points and cover blocked placeholder/brand domains plus allowed regional/private-business anchors.
+
 ## Expected human-investigator comparison
 
 | Stage | Human-quality behavior | Required Atlas invariant |
