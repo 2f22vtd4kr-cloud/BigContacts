@@ -126,7 +126,8 @@ export async function runOpenDeepResearch(_prompt: string, options: { timeoutMs?
  * network-capable subprocess execution.
  */
 export async function checkPythonToolsAvailability(): Promise<Record<string, boolean>> {
-  const sandbox = getPythonSandboxState();
-  const enabled = sandbox.state === "attested" && Boolean(sandbox.attestation?.allowedCapabilities.includes("network_osint"));
-  return { holehe: enabled, maigret: enabled, sherlock: enabled, theHarvester: enabled, openDeepResearch: enabled };
+  // Sandbox authorization alone is not execution capability: these canonical
+  // adapters remain stubs until a trusted executor is actually installed.
+  // Never advertise a tool as ready while its run* adapter returns no results.
+  return { holehe: false, maigret: false, sherlock: false, theHarvester: false, spiderfoot: false, openDeepResearch: false };
 }
