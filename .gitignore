@@ -56,3 +56,6 @@ Thumbs.db
 
 # Local holdout outputs (regenerated)
 # scripts/results/
+
+# Private live-run audits can contain raw research data and provider prompts.
+/private-audits/
