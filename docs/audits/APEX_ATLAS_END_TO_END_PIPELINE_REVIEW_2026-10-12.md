@@ -51,7 +51,7 @@ The opening Boss and Right-hand prompts checked public-source plausibility, but 
 
 The previous redundant-action guard caught repeated page fetches and exact action/rationale repeats, but the same discovery query could be sent to the same provider and market again by changing its hypothesis/purpose. A new dispatch-level guard keys the normalized query, provider, locale and market for both single and batched searches. It blocks repeating the same request unless a newly fetched, previously unobserved public source has advanced the case since; changing rationale alone is not new evidence. Cross-provider and multilingual/market variants remain available. This addresses the repeated-query pattern recorded in the audit without mandating a fixed search itinerary.
 
-### G. OSINT tool availability was misleading/incomplete
+### I. OSINT tool availability was misleading/incomplete
 
 The canonical capability registry exposes a limited set of model-selectable actions. Maigret, Sherlock, SpiderFoot and related Python wrappers do not yet have an implemented trusted, network-restricted execution backend; wrapper functions are fail-closed stubs. They must not be presented to the Investigator as working actions merely because sibling/manual routes or package references exist. Availability now requires both an attested network_osint sandbox and an implemented executor. A real implementation needs isolation, egress policy, cancellation/resource limits, and source/provenance output before it can be added to the selectable action schema.
 
@@ -64,7 +64,7 @@ The canonical capability registry exposes a limited set of model-selectable acti
 | Person discovery | Locate exact names and roles in official filings/registries and independent business reporting | Snippets alone cannot create candidates; require exact identity/role binding |
 | Hypothesis testing | Try to disprove the identity, role or ownership hypothesis and resolve name collisions | Keep the falsification requirement and source independence gate |
 | Reachability | Distinguish direct personal route, documented intermediary, professional-social route and research-only result | Apply reachability realism to the canonical target path; fame/wealth is not access |
-| Enrichment | Check public, professionally attributable profiles and aliases across useful languages; follow documented corporate/transactional ties | No guessed/private account identifiers or speculative family relationships |
+| Enrichment | Check public, professionally attributable profiles and aliases across useful languages; follow documented corporate/transactional ties and explicitly sourced family/associate links where relevant | Never guess private account identifiers or infer family/associate ties from surnames, follows or social-graph proximity |
 | Contact facts | Record who the fact belongs to, where it was observed, and whether it is a personal or organization route | Preserve scope; never label a generic company inbox as a personal contact |
 | Outcome | A successful run yields auditable findings and a real candidate/card, or an honest incomplete/failed state | Job termination or HTTP 202 never means successful research |
 
