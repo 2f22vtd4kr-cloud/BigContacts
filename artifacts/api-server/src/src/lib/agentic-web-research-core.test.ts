@@ -300,8 +300,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries.");
     expect(prompt).toContain("Search snippets remain leads, not evidence.");
     expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
-    expect(prompt).toContain("BOSS ALIGNMENT:");
-    expect(prompt).toContain("deviate only for observed evidence, failed capability, or policy block");
+    expect(prompt).toContain("MISSION PRIORITY:");
+    expect(prompt).toContain("case objective and realistic-targetability gate outrank Boss/Right-hand suggestions");
+    expect(prompt).toContain("Reject fame/ranking/global-brand executive routes unless tied to a reachable local owner/operator/distributor/franchise/concession");
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY PROGRESS GATE");
     expect(prompt).toContain("DISCOVERY TARGETABILITY GATE");
@@ -311,8 +312,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("an organization is a lead, not");
     expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("plausible person-level public/intermediary route");
-    expect(prompt).toContain("Honor the Boss-stated sector/geography");
-    expect(prompt).toContain("explain any material deviation");
+    expect(prompt).toContain("Honor only Boss sector/geography compatible with the mission");
     expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("once a real entity appears, test that exact named anchor");
     expect(prompt).toContain("Never use placeholders such as CompanyName, companywebsite.com, or example.com.");
