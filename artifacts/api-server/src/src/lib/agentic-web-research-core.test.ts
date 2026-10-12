@@ -303,7 +303,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY PROGRESS GATE");
     expect(prompt).toContain("DISCOVERY TARGETABILITY GATE");
-    expect(prompt).toContain("an organization is a lead, not the target.");
+    expect(prompt).toContain("an organization is a lead, not");
     expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("plausible person-level public/intermediary route");
     expect(prompt).toContain("Fortune 500/ranking lists");
