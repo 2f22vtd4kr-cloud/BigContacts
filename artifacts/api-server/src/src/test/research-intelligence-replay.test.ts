@@ -28,6 +28,21 @@ describe("durable Investigator intelligence replay", () => {
     expect(state.atomicEvidence).toHaveLength(24);
   });
 
+  it("replays pivot scope identity and unvisited lead URLs from durable events", () => {
+    const scopeKey = "explore mid-market fitness franchise owners in texas";
+    const leadUrl = "https://registry.example.test/company/fitnation";
+    const records = investigatorRecordsFromEvents([{
+      id: 42, actorRole: "head_investigator", eventType: "tool_observation", status: "success",
+      payload: JSON.stringify({
+        action: "registry_search", execution: "success", observation: "Registry lead: FitNation; record is unvisited.",
+        args: { query: "fitness franchise owners Texas", registry: "companies-house" },
+        pivotScopeKey: scopeKey, leadUrls: [leadUrl, leadUrl], observedUrls: [], findings: [],
+      }),
+    }]);
+    expect(records).toHaveLength(1);
+    expect(records[0]?.pivotScopeKey).toBe(scopeKey);
+    expect(records[0]?.leadUrls).toEqual([leadUrl]);
+  });
   it("retains split identity/contact observations as review-only evidence during replay", () => {
     const identityUrl = "https://example.test/team", contactUrl = "https://example.test/contact";
     const records: AgenticTrajectoryRecord[] = [
