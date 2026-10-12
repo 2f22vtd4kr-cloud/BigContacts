@@ -24,6 +24,13 @@ describe("provider error diagnostics", () => {
     expect(classifyThrownProviderError(timeout, true)).toBe("cancelled");
   });
 
+  it("recognizes NETWORK_ERROR tokens in nested error messages", () => {
+    const error = Object.assign(new Error("provider wrapper failed"), {
+      cause: new Error("NETWORK_ERROR"),
+    });
+    expect(classifyThrownProviderError(error)).toBe("network_error");
+  });
+
   it("describes transport causes without exposing raw error messages", () => {
     const error = Object.assign(new TypeError("fetch failed"), {
       code: "UND_ERR_CONNECT_TIMEOUT",
