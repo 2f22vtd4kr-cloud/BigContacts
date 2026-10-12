@@ -14,7 +14,7 @@ import { isTransientInvestigatorCapacityError, isUntargetableDiscoveryPersonName
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
-import { resolveBossDirectedDiscoveryObjective } from "./research-objective";
+import { resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateRoleCorroborationSources, hasCredibleDiscoveryWealthPotentialSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
@@ -48,9 +48,107 @@ function isObservedHttpsSource(value: unknown): value is string { return typeof 
 function normalizeSourceUrl(raw: string): string | null { try { const safe = sanitizeUrlForEvidence(raw); if (safe.startsWith("[")) return null; const url = new URL(safe); if (url.protocol !== "https:") return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
 
 async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: string; investigatorLlm: InvestigatorCapability; directorModel: string }): Promise<number> {
-  const [created] = await db.insert(researchCasesTable).values({ caseType: "discovery", status: "active", directorMode: "groq_boss", directorProvider: "groq", directorModel: input.directorModel || "unknown", objective: input.objective, motivation: "Durable memory for canonical Atlas Investigator discovery.", openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.", caseFile: JSON.stringify({ caseType: "discovery", contextDocument: ["CANONICAL ATLAS DISCOVERY CASE", `JOB: ${input.atlasJobId}`, `INVESTIGATOR: ${input.investigatorLlm}`, `OBJECTIVE: ${input.objective}`, "STATE: Initial discovery; Investigator owns the next action.", "TRAJECTORY: []"].join("\n"), investigatorLlm: input.investigatorLlm, investigatorTrajectory: [], investigatorTrajectoryRecords: [], investigationTimeline: [], jobId: input.atlasJobId }), currentAction: "canonical-investigator-discovery", iteration: 0 }).returning({ id: researchCasesTable.id });
+  const [created] = await db.insert(researchCasesTable).values({ caseType: "discovery", status: "active", directorMode: "groq_boss", directorProvider: "groq", directorModel: input.directorModel || "unknown", objective: input.objective, motivation: "Durable memory for canonical Atlas Investigator discovery.", openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.", caseFile: JSON.stringify({ caseType: "discovery", contextDocument: ["CANONICAL ATLAS DISCOVERY CASE", `JOB: ${input.atlasJobId}`, `INVESTIGATOR: ${input.investigatorLlm}`, `OBJECTIVE: ${input.objective}`, "STATE: Initial discovery; Investigator owns the next action.", "TRAJECTORY: []"].join("\n"), investigatorLlm: input.investigatorLlm, baseDiscoveryObjective: input.objective, activeDiscoveryObjective: input.objective, investigatorTrajectory: [], investigatorTrajectoryRecords: [], investigationTimeline: [], jobId: input.atlasJobId }), currentAction: "canonical-investigator-discovery", iteration: 0 }).returning({ id: researchCasesTable.id });
   const caseId = created?.id; if (!caseId) throw new Error("Failed to create durable Atlas discovery case.");
   return caseId;
+}
+
+
+async function persistAcceptedAtlasDiscoveryObjective(input: {
+  caseId: number;
+  jobId: string;
+  controlTurn: number;
+  action: "continue_discovery" | "pivot_discovery";
+  direction: string;
+  baseObjective: string;
+  previousObjective: string;
+  activeObjective: string;
+}): Promise<void> {
+  const recordedAt = new Date().toISOString();
+  const correlationKey = `${input.jobId}:accepted-discovery-objective:${input.controlTurn}`;
+  const payload = {
+    jobId: input.jobId,
+    controlTurn: input.controlTurn,
+    action: input.action,
+    direction: input.direction,
+    baseObjective: input.baseObjective,
+    previousObjective: input.previousObjective,
+    activeObjective: input.activeObjective,
+    accepted: true,
+    recordedAt,
+  };
+  const payloadJson = JSON.stringify(payload);
+  await db.transaction(async (tx) => {
+    const [lockedCase] = await tx.select({
+      caseType: researchCasesTable.caseType,
+      status: researchCasesTable.status,
+      currentAction: researchCasesTable.currentAction,
+      caseFile: researchCasesTable.caseFile,
+    }).from(researchCasesTable).where(and(
+      eq(researchCasesTable.id, input.caseId),
+      eq(researchCasesTable.status, "active"),
+      sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${input.jobId}`,
+      sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+    )).for("update").limit(1);
+    if (!lockedCase || lockedCase.caseType !== "discovery") {
+      throw new Error("Canonical Atlas discovery ownership was lost before persisting the accepted research objective.");
+    }
+    let durableFile: Record<string, unknown>;
+    try {
+      durableFile = lockedCase.caseFile ? JSON.parse(lockedCase.caseFile) as Record<string, unknown> : {};
+    } catch {
+      throw new Error("Canonical Atlas discovery caseFile became unreadable before persisting the accepted research objective.");
+    }
+    const previous = restorePersistedDiscoveryObjective({
+      defaultBaseObjective: input.baseObjective,
+      persistedBaseObjective: durableFile.baseDiscoveryObjective,
+      persistedActiveObjective: durableFile.activeDiscoveryObjective,
+    });
+    if (previous.baseObjective !== input.baseObjective || previous.activeObjective !== input.previousObjective) {
+      throw new Error("Canonical Atlas active objective changed before its accepted control transition could be persisted.");
+    }
+    const nextFile: Record<string, unknown> = {
+      ...durableFile,
+      baseDiscoveryObjective: input.baseObjective,
+      activeDiscoveryObjective: input.activeObjective,
+      lastAcceptedDiscoveryTransition: {
+        controlTurn: input.controlTurn,
+        action: input.action,
+        direction: input.direction,
+        recordedAt,
+      },
+    };
+    const [updated] = await tx.update(researchCasesTable).set({
+      caseFile: JSON.stringify(nextFile),
+      updatedAt: new Date(),
+    }).where(and(
+      eq(researchCasesTable.id, input.caseId),
+      eq(researchCasesTable.status, "active"),
+      sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${input.jobId}`,
+      sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+    )).returning({ id: researchCasesTable.id });
+    if (!updated) throw new Error("Canonical Atlas lost case ownership while persisting the accepted research objective.");
+    const [existingEvent] = await tx.select({ payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(
+      eq(researchCaseEventsTable.caseId, input.caseId),
+      eq(researchCaseEventsTable.correlationKey, correlationKey),
+    )).limit(1);
+    if (existingEvent && existingEvent.payload !== payloadJson) {
+      throw new Error("Canonical Atlas accepted-objective event replay collision.");
+    }
+    if (!existingEvent) {
+      const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration }).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, input.caseId)).orderBy(desc(researchCaseEventsTable.id)).limit(1);
+      await tx.insert(researchCaseEventsTable).values({
+        caseId: input.caseId,
+        iteration: Number(latestEvent?.iteration ?? 0) + 1,
+        actorRole: "groq_boss",
+        eventType: "control_objective",
+        status: "recorded",
+        summary: `Accepted Atlas discovery objective at control turn ${input.controlTurn}; the resolved objective is durable before the next Investigator action.`,
+        correlationKey,
+        payload: payloadJson,
+      });
+    }
+  }, { isolationLevel: "serializable" });
 }
 
 async function materializeAtlasAdmissions(input: { discoveryRunId: string; findings: Array<{ promotionDecision?: "promote" | "reject"; scope: "organization" | "candidate" | "unknown"; personName: string | null; role: string | null; sourceUrls: string[] }>; atlasJobId: string; discoveryCaseId: number }): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[] }>; materialized: number; evidenceRows: number }> {
@@ -226,11 +324,38 @@ async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number)
 
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
   const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const maxConsecutiveInvestigatorProviderUnavailable = 2; const isInvestigatorProviderUnavailable = (result: { status?: string; stopReason?: string; error?: string; trajectoryRecords?: Array<{ action?: string; observation?: string }> }) => result.status === "unavailable" && result.stopReason === "LLM_UNAVAILABLE" && !isTransientInvestigatorCapacityError(result) && (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error"); const isInvestigatorHardQuotaExhausted = (result: { status?: string; stopReason?: string; error?: string; trajectoryRecords?: Array<{ action?: string; observation?: string }> }) => result.status === "unavailable" && result.stopReason === "LLM_UNAVAILABLE" && (result.error === "upstream_quota_exhausted" || (result.trajectoryRecords ?? []).some((record) => record.action === "investigator_provider_error" && /upstream_quota_exhausted/i.test(record.observation ?? ""))); const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 3) || 3)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
-  const discoveryObjective = opts.discoveryObjective?.trim() || "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary contact routes for later target-scoped research. People—not companies or executive prestige—are the target; companies are leads. Prefer private, mid-market, regional and family businesses; their owners/operators/founders/shareholders; investors and private-capital principals; beneficial/controlling owners; and concession, franchise or license holders. Look for public evidence of ownership/equity/investment/control, material business/property assets or a business exit, and a plausible way to approach the person through public professional or business channels. Do not infer wealth from seniority alone. Do not default to celebrities, billionaire/richest lists, Fortune 500, or global household-brand leadership. A global brand is relevant only when evidence points to a realistic local owner/operator/distributor/franchisee/concession-holder or similar intermediary. Start from a concrete business/sector/geography, use local-language terms and English when useful, test hypotheses with independent evidence, and pivot after generic or repetitive results. The Investigator chooses each action; no fixed sequence. Promote only exact named people whose role, wealth-potential basis, and realistic approach route are source-supported. Never invent a person, relationship, wealth fact, contact, or URL.";
+  let discoveryObjective = opts.discoveryObjective?.trim() || "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary contact routes for later target-scoped research. People—not companies or executive prestige—are the target; companies are leads. Prefer private, mid-market, regional and family businesses; their owners/operators/founders/shareholders; investors and private-capital principals; beneficial/controlling owners; and concession, franchise or license holders. Look for public evidence of ownership/equity/investment/control, material business/property assets or a business exit, and a plausible way to approach the person through public professional or business channels. Do not infer wealth from seniority alone. Do not default to celebrities, billionaire/richest lists, Fortune 500, or global household-brand leadership. A global brand is relevant only when evidence points to a realistic local owner/operator/distributor/franchisee/concession-holder or similar intermediary. Start from a concrete business/sector/geography, use local-language terms and English when useful, test hypotheses with independent evidence, and pivot after generic or repetitive results. The Investigator chooses each action; no fixed sequence. Promote only exact named people whose role, wealth-potential basis, and realistic approach route are source-supported. Never invent a person, relationship, wealth fact, contact, or URL.";
   let activeDiscoveryObjective = discoveryObjective;
   let failureStage: AtlasFailureStage = "job_state_or_lease";
   try {
     await assertAtlasJobActive(atlasJobId);
+    if (opts.discoveryCaseId) {
+      const [resumeCase] = await db.select({
+        caseType: researchCasesTable.caseType,
+        status: researchCasesTable.status,
+        currentAction: researchCasesTable.currentAction,
+        caseFile: researchCasesTable.caseFile,
+      }).from(researchCasesTable).where(eq(researchCasesTable.id, opts.discoveryCaseId)).limit(1);
+      if (!resumeCase || resumeCase.caseType !== "discovery" || resumeCase.status !== "active") {
+        throw new Error("Canonical Atlas cannot resume an unavailable or inactive discovery case.");
+      }
+      if (["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(resumeCase.currentAction ?? ""))) {
+        throw new Error("Canonical Atlas cannot resume a durably cancelled or lease-lost discovery case.");
+      }
+      let resumeFile: Record<string, unknown>;
+      try { resumeFile = resumeCase.caseFile ? JSON.parse(resumeCase.caseFile) as Record<string, unknown> : {}; }
+      catch { throw new Error("Canonical Atlas resume caseFile is unreadable."); }
+      if (String(resumeFile.jobId ?? resumeFile.atlasJobId ?? "") !== atlasJobId) {
+        throw new Error("Canonical Atlas resume case is not bound to the current job; refusing stale objective restoration.");
+      }
+      const restored = restorePersistedDiscoveryObjective({
+        defaultBaseObjective: discoveryObjective,
+        persistedBaseObjective: resumeFile.baseDiscoveryObjective,
+        persistedActiveObjective: resumeFile.activeDiscoveryObjective,
+      });
+      discoveryObjective = restored.baseObjective;
+      activeDiscoveryObjective = restored.activeObjective;
+    }
     await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Groq Right-hand review → model-owned Investigator discovery…" });
     failureStage = "boss_opening_request";
     await assertAtlasJobActive(atlasJobId);
@@ -240,7 +365,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // Boss's opening assignment.
     failureStage = "boss_opening_request";
     const boss = await runGroqBossDiscovery({
-      objective: discoveryObjective,
+      objective: activeDiscoveryObjective,
       motivation: opts.discoveryMotivation || "Find real people for deep target-scoped investigation.",
       geography: opts.discoveryGeography || "Public web; geography selected by the research objective",
       exclusions: opts.discoveryExclusions ?? [
@@ -514,7 +639,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
 
     const compactControlText = (value: unknown, max: number): string => typeof value === "string" ? value.trim().slice(0, max) : "";
     const openingInvestigatorObjective = [
-      discoveryObjective,
+      activeDiscoveryObjective,
       "BOSS OPENING CONTROL DIRECTION (advisory, not a fixed research sequence):",
       compactControlText(boss.report, 1_200) ? "Report: " + compactControlText(boss.report, 1_200) : "",
       Array.isArray(boss.nextDirections) && boss.nextDirections.length ? "Next directions: " + JSON.stringify(boss.nextDirections).slice(0, 1_200) : "",
@@ -883,6 +1008,17 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         }
         // Only clear the previous evidence-backed terminal after control validation and
         // all budget/iteration guards pass, at the exact point a new Investigator act starts.
+        failureStage = "control_objective_persistence";
+        await persistAcceptedAtlasDiscoveryObjective({
+          caseId: discoveryCaseId,
+          jobId: atlasJobId,
+          controlTurn: controlTurns,
+          action: decision.action,
+          direction: resolvedObjective.direction,
+          baseObjective: discoveryObjective,
+          previousObjective: activeDiscoveryObjective,
+          activeObjective: directedObjective,
+        });
         activeDiscoveryObjective = directedObjective;
         latestEvidenceBackedTerminal = null;
         failureStage = "investigator_episode";
