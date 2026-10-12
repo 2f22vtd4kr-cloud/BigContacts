@@ -127,9 +127,9 @@ async function validateTargetCaseBinding(caseId: number | undefined, entityId: n
 async function resolveSelectedInvestigator(input: { investigatorLlm?: InvestigatorCapability; caseId?: number; entityId: number; jobId?: string }): Promise<{ investigator: InvestigatorCapability; caseId: number } | null> { if (input.caseId == null || !Number.isSafeInteger(input.caseId)) return null; const parsed = await validateTargetCaseBinding(input.caseId, input.entityId, input.jobId); if (!parsed) { logger.warn({ entityId: input.entityId, caseId: input.caseId, jobId: input.jobId }, "refusing target run with an unbound durable case/job; no durable case-selected Investigator or selection mismatch"); return null; } const selected = parsed.investigatorLlm; if (typeof selected !== "string") return null; const investigator = selected as InvestigatorCapability; if (!getAvailableInvestigatorCapabilities().includes(investigator)) return null; if (input.investigatorLlm && input.investigatorLlm !== investigator) return null; return { investigator, caseId: input.caseId! }; }
 function compactReachabilityControl(raw: string): string {
   const value = raw.replace(/\s+/g, " ").trim();
-  const fallback = "REALISM / REACHABILITY CONTROL: prioritize realistically attributable public, professional or intermediary access; prominence and social presence alone are not access.";
+  const fallback = "REALISM / REACHABILITY CONTROL: prefer a realistic, source-backed public/professional/intermediary route; prominence is not access.";
   if (!value) return fallback;
-  if (value.length <= 340) return value;
+  if (value.length <= 220) return value;
 
   const status = value.match(/\bStatus\s+([A-Z_]+)/i);
   const targetMode = value.match(/This is a (RESEARCH-ONLY|TARGETED) target\.[^\n]*/i);
@@ -140,9 +140,9 @@ function compactReachabilityControl(raw: string): string {
     status ? `Status ${status[1]!.toUpperCase()}.` : "",
     targetMode?.[0] ?? "",
     route?.[0] ?? "",
-    blockers ? `Known blockers: ${blockers[1]!.slice(0, 130)}` : "",
+    blockers ? `Known blockers: ${blockers[1]!.slice(0, 70)}` : "",
   ].filter(Boolean).join(" ");
-  return compact.length > 340 ? compact.slice(0, 337).trimEnd() + "..." : compact || fallback;
+  return compact.length > 220 ? compact.slice(0, 217).trimEnd() + "..." : compact || fallback;
 }
 
 export function buildTargetContactInvestigatorObjective(input: {
@@ -150,17 +150,36 @@ export function buildTargetContactInvestigatorObjective(input: {
   companyName?: string | null;
   reachabilityControl: string;
 }): string {
-  const targetName = input.targetName.trim().slice(0, 140);
-  const companyName = input.companyName?.trim().slice(0, 140);
+  // Bound the identity labels and realism annotation before composing the prompt.
+  // The substantive research and provenance clauses below are fixed, not sliced.
+  const targetName = input.targetName.trim().slice(0, 80);
+  const companyName = input.companyName?.trim().slice(0, 80);
   const sections = [
     `Research public identity, business interests and realistic public/professional/intermediary routes for ${targetName}${companyName ? ` linked to ${companyName}` : ""}.`,
     compactReachabilityControl(input.reachabilityControl),
-    "Investigate the person, not generic company contacts. Anchor on verified role, employer/business, jurisdiction and aliases/transliterations. For wealth potential, require that a public source directly documents a material business, ownership stake, investment, asset, exit or control role; seniority alone is not wealth. Follow evidence through public director/beneficial-owner registries, filings, investment/deal/property records, trade sources and local-language reporting; use English for corroboration when useful. Pivot from generic pages to exact people and ownership/control links; no fixed checklist.",
-    "After identity/role verification, seek public professional/business profiles and official bios through available search/fetch and footprint tools; corroborate name plus role/company/location. Map family or associate relationships only when credible public sources explicitly state the tie and it clarifies ownership/control/investment or a documented intermediary route. Never infer relationships from surnames, co-location, follows or graph proximity; never guess social accounts, private handles, or phone/WhatsApp/Telegram identities.",
-    "Prefer a directly published professional contact or documented assistant, office, family-office or intermediary route. A generic inbox, switchboard or social presence alone is not personal access.",
-    "Use exact observed URLs; snippets are leads, not evidence. Never invent identities, wealth, relationships, contacts or URLs. If identity is ambiguous or no source binds a contact to the person, do not promote it. Pivot after failed/repeated fetches and stop when evidence or a useful route is exhausted.",
+    "Investigate the person, not generic company contacts. Verify role, employer, jurisdiction and aliases/transliterations. For wealth potential, require that a public source directly documents a material business, ownership stake, investment, asset, exit or control role; seniority alone is not wealth. Use public beneficial-owner/director registries, filings, investment/deal/property records, trade coverage and local-language reporting, with English corroboration when useful. Follow evidence to exact people and ownership/control links; no fixed checklist.",
+    "After identity/role verification, seek public professional/business profiles and official bios via available search/fetch/footprint tools; corroborate name plus role/company/location. Map family or associate ties only when credible public sources explicitly state them and they clarify ownership/control, investment or a documented intermediary route. Never infer ties from surnames, co-location or follows; never guess private/social accounts or phone/WhatsApp/Telegram identities.",
+    "Prefer a directly published professional contact or documented assistant, office, family-office or intermediary route; a generic inbox, switchboard or social presence alone is not personal access.",
+    "Use the exact URL where observed; snippets are leads, not evidence. Never invent identities, wealth, relationships, contacts or URLs. Do not promote when identity or person/value binding is uncertain. Pivot after failed/repeated fetches and stop when evidence or useful routes are exhausted.",
   ];
-  return sections.join("\n");
+  const objective = sections.join("\n");
+  if (objective.length <= 1_900) return objective;
+
+  // This fallback keeps the evidence/identity laws intact and only shortens
+  // optional route detail; never cut a policy sentence at an arbitrary offset.
+  const compactSections = [
+    sections[0]!,
+    "REALISM / REACHABILITY CONTROL: prefer a realistic, source-backed public/professional/intermediary route.",
+    "Investigate the person, not generic company contacts. Verify role, employer, jurisdiction and aliases/transliterations. For wealth potential, require that a public source directly documents a material business, ownership, investment, asset, exit or control role; seniority alone is not wealth. Use beneficial-owner/director registries, filings, deals/assets, trade sources and local-language reporting; corroborate in English when useful. No fixed checklist.",
+    "After identity/role verification, seek public professional/business profiles and official bios; corroborate name plus role/company/location. Use family/associate ties only when a credible public source documents them and they clarify ownership/control or a legitimate intermediary route. Never guess private/social accounts or phone/WhatsApp/Telegram identities.",
+    "Prefer a directly published professional contact or documented assistant, office, family-office or intermediary route. A generic inbox, switchboard or social presence alone is not personal access.",
+    "Use the exact URL where observed; snippets are leads, not evidence. Never invent identities, wealth, ties, contacts or URLs. Do not promote when identity or person/value binding is uncertain. Pivot after failed fetches; stop when evidence/routes are exhausted.",
+  ];
+  const compactObjective = compactSections.join("\n");
+  if (compactObjective.length > 1_900) {
+    throw new Error("Target Investigator objective exceeds its hard prompt budget after semantic compaction.");
+  }
+  return compactObjective;
 }
 
 export async function runTargetContactAgent(input: { entityId: number; caseId?: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: InvestigatorCapability; contextDocument?: string; oversightMode?: "internal" | "caller"; shouldCancel?: () => boolean | Promise<boolean>; onInvestigationAct?: (step: InvestigationAct) => void | Promise<void> }): Promise<TargetContactAgentResult> {
