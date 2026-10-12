@@ -3,14 +3,24 @@ import { describe, expect, it } from "vitest";
 import { providerSearchExecutionStatus, validateDiscoverySearchQuery } from "../lib/agentic-web-research-core";
 
 describe("discovery query quality guidance", () => {
-  it("allows exact-identity lookups while flagging that the query may be broad", () => {
-    const result = validateDiscoverySearchQuery("Elon Musk");
-    expect(result.allowed).toBe(true);
-    expect(result.allowed ? result.warning : undefined).toMatch(/brief or context-light/i);
+  it("rejects globally prominent people as discovery targets", () => {
+    for (const query of ["Elon Musk", "Elon Musk Tesla", "Jeff Bezos", "Jeff Bezos Amazon"]) {
+      const result = validateDiscoverySearchQuery(query);
+      expect(result.allowed).toBe(false);
+      expect(result.allowed ? "" : result.reason).toMatch(/globally prominent person|global-household-brand/i);
+    }
   });
 
-  it("allows model-selected named identity plus contextual company token", () => {
-    expect(validateDiscoverySearchQuery("Elon Musk Tesla").allowed).toBe(true);
+  it("allows a model-selected named identity with a realistic private-business context", () => {
+    expect(validateDiscoverySearchQuery("Jordan Example Regional Holdings").allowed).toBe(true);
+  });
+
+  it("requires a local operator or intermediary route for global household brands", () => {
+    for (const query of ["Tesla", "Tesla owner", "Amazon executive", "Coca-Cola Company founder"]) {
+      expect(validateDiscoverySearchQuery(query).allowed, query).toBe(false);
+    }
+    expect(validateDiscoverySearchQuery("Coca-Cola Slovenia independent bottler owner contact").allowed).toBe(true);
+    expect(validateDiscoverySearchQuery("casino Slovenia coast ownership concession operator").allowed).toBe(true);
   });
 
   it("blocks generic research hypotheses until the model supplies a concrete anchor", () => {
