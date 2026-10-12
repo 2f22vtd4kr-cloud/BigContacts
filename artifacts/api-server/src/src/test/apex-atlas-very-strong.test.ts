@@ -38,10 +38,10 @@ describe("Apex Atlas very-strong research mechanism", () => {
     engine.addHypothesis({ label: "Alex Example is the company founder", entity: "Alex Example", score: 0.7, missingDiscriminators: ["director appointment record"] });
     engine.recordAction({
       turn: 1,
-      action: "registry_search",
-      args: { registry: "companies-house" },
+      action: "visit",
+      args: { url: "https://find-and-update.company-information.service.gov.uk/company/00000000" },
       execution: "success",
-      observation: "Officer record: Alex Example is director and website https://example.test",
+      observation: "Fetched official officer record: Alex Example is director and website https://example.test",
       urls: ["https://find-and-update.company-information.service.gov.uk/company/00000000"],
       findings: [{ vectorType: "website", value: "https://example.test", personName: "Alex Example", role: "director", sourceUrls: ["https://find-and-update.company-information.service.gov.uk/company/00000000"], note: "public registry record" }],
     });
