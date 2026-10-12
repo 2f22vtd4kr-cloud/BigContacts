@@ -12,8 +12,8 @@ describe("target Investigator objective follows realistic human research", () =>
     expect(objective.length).toBeLessThanOrEqual(1_900);
     expect(objective).toContain("no fixed checklist");
     expect(objective).toContain("a public source directly documents a material business");
-    expect(objective).toContain("exact observed URLs");
-    expect(objective).toContain("do not promote");
+    expect(objective).toContain("Use the exact URL where observed");
+    expect(objective).toContain("Do not promote when identity or person/value binding is uncertain");
   });
 
   it("preserves the actual reachability mode and score when compacting an oversized directive", () => {
@@ -45,7 +45,7 @@ describe("target Investigator objective follows realistic human research", () =>
     expect(objective).toContain("a public source directly documents a material business");
     expect(objective).toContain("public professional/business profiles");
     expect(objective).toContain("the exact URL where observed");
-    expect(objective).toContain("do not promote");
+    expect(objective).toContain("Do not promote when identity or person/value binding is uncertain");
   });
 
   it("carries reachability realism and target-specific public-source pivots without scripting a fixed route", () => {
