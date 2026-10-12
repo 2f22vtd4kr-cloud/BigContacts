@@ -114,6 +114,8 @@ describe("Atlas control-plane contract regression", () => {
     const bossPrompt = buildAtlasBossControlPrompt({ investigatorReport, compactState: "Current discovery case state.", rightHand: { status: "completed", decision: "await_anchor", reason: "Control-only review; no new evidence.", direction: null, confidence: 0.9, model: "openai/gpt-oss-120b", error: null } });
     expect(rightHandPrompt).toContain(feedback);
     expect(bossPrompt).toContain(feedback);
+    expect(rightHandPrompt).toContain("realism/targetability constraints outrank Boss suggestions");
+    expect(bossPrompt).toContain("Mission priority: the human objective's realistic-targetability constraint outranks generic public-company leadership or fame/ranking suggestions.");
     expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
   });
 
@@ -121,6 +123,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("Boss report (unverified control hypothesis, not source evidence)");
     expect(canonicalDiscoverySource).toContain("Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
     expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
+    expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules outrank Boss next-directions");
     expect(controlSource).toContain("Compare proposed directions with the human objective and observed sources; flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
   });
