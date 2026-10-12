@@ -733,7 +733,7 @@ describe("Investigator prompt architecture", () => {
     expect(schema?.properties?.searches?.maxItems).toBeUndefined();
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
     expect(schema?.properties?.provider).toEqual({ type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", ...availableBrowserProviders, null] });
-    expect(schema?.properties?.action?.enum).toEqual(["web_search", "parallel_web_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"]);
+    expect(schema?.properties?.action?.enum).toEqual(["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"]);
     expect(schema?.properties?.targetType).toEqual({ type: ["string", "null"] });
   });
 
