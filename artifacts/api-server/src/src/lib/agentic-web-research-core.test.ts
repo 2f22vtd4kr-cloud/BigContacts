@@ -306,6 +306,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("an organization is a lead, not");
     expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("plausible person-level public/intermediary route");
+    expect(prompt).toContain("Honor the Boss-stated sector/geography");
+    expect(prompt).toContain("explain any material deviation");
     expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("once a real entity appears, test that exact named anchor");
     expect(prompt).toContain("Never use placeholders such as CompanyName, companywebsite.com, or example.com.");
