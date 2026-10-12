@@ -866,7 +866,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         failureStage = "orchestration";
         const directedObjective = formatBossDirectedObjective(discoveryObjective, validatedDirection.direction);
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
-        const remainingInvestigatorIterations = Math.max(0, discoveryIterationCeiling - discoveryIterationsUsed);
+        const remainingInvestigatorIterations = Math.max(0, Math.min(discoveryIterationCeiling - discoveryIterationsUsed, depth.agenticMaxIterations - investigatorIterationsUsed - targetResearchReserveIterations));
         if (remainingInvestigatorIterations <= 0) {
           discoveryResourceLimited = true;
           phaseSummary.discoveryIterationCeiling = `Discovery used ${discoveryIterationsUsed}/${depth.agenticMaxIterations} allowed actions; asking Boss to choose an admitted target or stop.`;
