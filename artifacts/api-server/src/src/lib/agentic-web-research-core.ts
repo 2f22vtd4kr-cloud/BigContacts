@@ -322,6 +322,10 @@ export function isTransientInvestigatorCapacityError(result: { error?: string; t
   if (result.error === "upstream_token_window_wait_exceeded") return true;
   return (result.trajectoryRecords ?? []).some((record) => /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""));
 }
+export function isUntargetableDiscoveryPersonName(value: string): boolean {
+  return DISCOVERY_UNTARGETABLE_PERSON_NAMES.test(normalizeDiscoverySearchQuery(value));
+}
+
 export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
@@ -333,7 +337,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
     return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with a real entity/source anchor observed in the case; no provider request was made." };
   }
 
-  if (DISCOVERY_UNTARGETABLE_PERSON_NAMES.test(normalized)) {
+  if (isUntargetableDiscoveryPersonName(normalized)) {
     return { allowed: false, reason: "Discovery rejected a globally prominent person as an untargetable first-choice target. Start from a realistic private/regional business, owner/operator, investor, beneficial owner, or documented local intermediary instead; no provider request was made." };
   }
 
