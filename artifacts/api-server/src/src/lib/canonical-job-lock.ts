@@ -135,6 +135,7 @@ function isTransientCanonicalOwnerReadFailure(error: unknown): boolean {
   if (typeof current === "string") parts.push(current);
   const diagnostic = parts.join(" ");
   if (/max requests limit exceeded|quota|monthly cap|capacity exhausted|budget exhausted/i.test(diagnostic)) return false;
+  if (/\b(?:NETWORK_ERROR|ERR_NETWORK)\b/i.test(diagnostic)) return true;
   if (/\b(?:ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ECONNABORTED|EHOSTUNREACH|ENETUNREACH|EAI_AGAIN)\b/i.test(diagnostic)) return true;
   return /socket hang up|socket closed unexpectedly|connection (?:is )?closed unexpectedly|reached the max retries per request limit|(?:command|operation) timed out/i.test(diagnostic);
 }
