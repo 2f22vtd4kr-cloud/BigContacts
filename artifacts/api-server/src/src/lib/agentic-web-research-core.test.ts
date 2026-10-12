@@ -315,9 +315,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("once a real entity appears, test that exact named anchor");
     expect(prompt).toContain("Never use placeholders such as CompanyName, companywebsite.com, or example.com.");
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
-    expect(prompt).toContain("VALID DISCOVERY FINDING SHAPE (placeholders only; never emit placeholder values)");
-    expect(prompt).toContain("<exact full name from fetched page>");
-    expect(prompt).toContain("<exact fetched non-search HTTPS URL from independent source 2>");
+    // The emergency prompt may omit the verbose JSON example to stay within the provider ceiling;
+    // the compact field-level finding contract remains mandatory and testable.
+    expect(prompt).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.");
     expect(prompt).toContain("third-party people-search/profile-directory aggregators are leads only");
     expect(prompt).toContain("official company leadership/staff pages and official filing/registry pages are acceptable");
     expect(prompt).toContain("two independent evidence/source units");
@@ -423,6 +423,18 @@ describe("Investigator prompt architecture", () => {
     expect(visitDispatch.indexOf("validateDiscoverySourceUrl(action.url)")).toBeLessThan(visitDispatch.indexOf("toolVisit(canonical"));
     expect(browserDispatch.indexOf("validateDiscoverySourceUrl(action.url)")).toBeGreaterThan(-1);
     expect(browserDispatch.indexOf("validateDiscoverySourceUrl(action.url)")).toBeLessThan(browserDispatch.indexOf('import("./browser-fetch")'));
+  });
+
+  it("enforces realistic-targetability query validation before single and parallel provider calls", () => {
+    const parallelStart = agenticCoreSource.indexOf('if (action.action === "parallel_web_search") {');
+    const singleStart = agenticCoreSource.indexOf('if (action.action === "web_search") {', parallelStart);
+    const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {', singleStart);
+    const parallelDispatch = agenticCoreSource.slice(parallelStart, singleStart);
+    const singleDispatch = agenticCoreSource.slice(singleStart, visitStart);
+    expect(parallelDispatch.indexOf("validateDiscoverySearchQuery(search.query, batchQueries)")).toBeGreaterThan(-1);
+    expect(parallelDispatch.indexOf("validateDiscoverySearchQuery(search.query, batchQueries)")).toBeLessThan(parallelDispatch.indexOf("toolWebSearch(search.query"));
+    expect(singleDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeGreaterThan(-1);
+    expect(singleDispatch.indexOf("validateDiscoverySearchQuery(action.query, searchQueriesUsed)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query"));
   });
 
   it("offers non-binding guidance after three successful search-only actions", () => {
