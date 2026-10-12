@@ -97,7 +97,7 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("There is no required first tool, hop order, or fixed search sequence");
   });
 
-  it("allows a repeated page visit when the Investigator changes the research rationale", async () => {
+  it("blocks repeated successful page retrieval when only the model-authored rationale changes", async () => {
     const { redundantResearchActionReason } = await import("../lib/agentic-web-research-core");
     const prior = {
       turn: 1,
@@ -109,16 +109,32 @@ describe("discovery runtime architecture", () => {
       observedUrls: ["https://example.com/team"],
       findings: [],
     };
-    expect(redundantResearchActionReason("visit", {
+    const changedRationale = redundantResearchActionReason("visit", {
       url: "https://EXAMPLE.com/team",
       hypothesis: "Check whether the page reveals a different ownership clue",
       purpose: "test a distinct source-backed question",
-    }, [prior])).toBeNull();
+    }, [prior]);
+    expect(changedRationale).toContain("repeat_action_guard");
     expect(redundantResearchActionReason("visit", {
       url: "https://example.com/team",
       hypothesis: "Identify current officers",
       purpose: "verify the officer list",
     }, [prior])).toContain("repeat_action_guard");
+    const independentlyAdvanced = {
+      turn: 2,
+      model: "groq",
+      action: "visit",
+      args: { url: "https://different.example/filing" },
+      execution: "success" as const,
+      observation: "An independent filing was successfully observed.",
+      observedUrls: ["https://different.example/filing"],
+      findings: [],
+    };
+    expect(redundantResearchActionReason("visit", {
+      url: "https://example.com/team",
+      hypothesis: "Reconcile officer details against the independent filing",
+      purpose: "verify the prior officer claim with a second source",
+    }, [prior, independentlyAdvanced])).toBeNull();
   });
 
   it("keeps agentic web research capability-oriented rather than a hard-coded research ladder", () => {
