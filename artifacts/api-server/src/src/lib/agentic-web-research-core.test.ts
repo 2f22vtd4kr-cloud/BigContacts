@@ -346,7 +346,7 @@ describe("Investigator prompt architecture", () => {
       reason: expect.stringContaining("concrete anchor"),
     });
     expect(validateDiscoverySearchQuery("famous casino owners interview", [])).toEqual({ allowed: false, reason: expect.any(String) });
-    expect(validateDiscoverySearchQuery("Acme Holdings CEO official", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Acme Holdings beneficial owner official", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Companies House director Kenya", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Fortune 500 company leadership page list", [])).toEqual({
       allowed: false,
