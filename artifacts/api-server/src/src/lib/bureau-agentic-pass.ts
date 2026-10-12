@@ -77,6 +77,7 @@ function compactDurableDiscoveryRecords(records:AgenticTrajectoryRecord[]): Agen
     thought: record.thought?.slice(0, 600),
     observation: record.observation?.slice(0, 2_000),
     observedUrls: [...new Set(record.observedUrls ?? [])].slice(0, 24),
+    leadUrls: [...new Set(record.leadUrls ?? [])].slice(0, 24).map((url) => url.slice(0, 500)),
     findings: (record.findings ?? []).slice(0, 24).map((finding) => ({
       ...finding,
       value: finding.value?.slice(0, 500),
