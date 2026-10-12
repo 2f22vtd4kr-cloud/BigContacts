@@ -85,7 +85,7 @@ describe("investigator context compaction", () => {
         "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
         "Find a named officer in an official SEC filing.",
         "Cross-check the officer role on an official company leadership page.",
-      ].join("\\n"),
+      ].join("\n"),
     });
 
     expect(objective.length).toBeLessThanOrEqual(1_900);
