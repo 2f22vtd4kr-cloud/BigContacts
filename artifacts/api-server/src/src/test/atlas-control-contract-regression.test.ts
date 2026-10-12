@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { validateResearchObjective } from "../lib/research-objective";
+import { resolveBossDirectedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
 import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
@@ -45,6 +45,47 @@ describe("Atlas control-plane contract regression", () => {
     expect(prompt).toContain("explicitly label it as a hypothesis");
   });
 
+  it("preserves the active discovery objective on continuation and hands validated pivots to the next Investigator pass", () => {
+    const baseObjective = "Find source-backed owners of reachable regional businesses.";
+    const pivot = resolveBossDirectedDiscoveryObjective({
+      action: "pivot_discovery",
+      baseObjective,
+      currentObjective: baseObjective,
+      direction: "Compare a regional hospitality operator's ownership using local-language filings and independent transaction reporting.",
+    });
+    expect(pivot.valid).toBe(true);
+    if (!pivot.valid) throw new Error(pivot.reason);
+    expect(pivot.reusedCurrentObjective).toBe(false);
+    expect(pivot.objective).toContain("BOSS-DIRECTED RESEARCH QUESTION / PIVOT:");
+    expect(pivot.objective).toContain("independent transaction reporting");
+
+    const continued = resolveBossDirectedDiscoveryObjective({
+      action: "continue_discovery",
+      baseObjective,
+      currentObjective: pivot.objective,
+      direction: null,
+    });
+    expect(continued).toEqual({
+      valid: true,
+      objective: pivot.objective,
+      direction: pivot.objective,
+      reusedCurrentObjective: true,
+    });
+
+    const invalidPivot = resolveBossDirectedDiscoveryObjective({
+      action: "pivot_discovery",
+      baseObjective,
+      currentObjective: pivot.objective,
+      direction: "Fetch https://example.test/registry and list the owners.",
+    });
+    expect(invalidPivot).toMatchObject({ valid: false });
+
+    expect(canonicalDiscoverySource).toContain("currentObjective: activeDiscoveryObjective");
+    expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = directedObjective");
+    expect(canonicalDiscoverySource).toContain("const directedObjective = resolvedObjective.objective;");
+    expect(canonicalDiscoverySource).not.toContain('const proposedDirection = decision.direction || "Reassess the open evidence and choose the highest-information next action yourself."');
+  });
+
   it("preserves Investigator tool choice across Boss-directed discovery continuations", () => {
     for (const direction of [
       "Use parallel_web_search for the next step.",
@@ -71,8 +112,8 @@ describe("Atlas control-plane contract regression", () => {
       expect(validateResearchObjective(objective), objective).toEqual({ valid: true, direction: objective });
     }
 
-    expect(canonicalDiscoverySource).toMatch(/import \{[^}]*\bvalidateResearchObjective\b[^}]*\} from "\.\/research-objective";/);
-    const validationIndex = canonicalDiscoverySource.indexOf("validateResearchObjective(proposedDirection)");
+    expect(canonicalDiscoverySource).toMatch(/import \{[^}]*\bresolveBossDirectedDiscoveryObjective\b[^}]*\} from "\.\/research-objective";/);
+    const validationIndex = canonicalDiscoverySource.indexOf("resolveBossDirectedDiscoveryObjective({");
     const handoffIndex = canonicalDiscoverySource.indexOf('runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective');
     expect(validationIndex).toBeGreaterThan(-1);
     expect(handoffIndex).toBeGreaterThan(validationIndex);
@@ -80,7 +121,7 @@ describe("Atlas control-plane contract regression", () => {
 
   it("recovers from a rejected Boss pivot without executing its prescribed URL/tool", () => {
     const rejectedBranchStart = canonicalDiscoverySource.indexOf("if (!validatedDirection.valid) {");
-    const acceptedPivotBoundary = canonicalDiscoverySource.indexOf("const directedObjective = formatBossDirectedObjective", rejectedBranchStart);
+    const acceptedPivotBoundary = canonicalDiscoverySource.indexOf("const directedObjective = resolvedObjective.objective;", rejectedBranchStart);
     const rejectedBranch = canonicalDiscoverySource.slice(rejectedBranchStart, acceptedPivotBoundary);
     expect(rejectedBranchStart).toBeGreaterThan(-1);
     expect(acceptedPivotBoundary).toBeGreaterThan(rejectedBranchStart);
