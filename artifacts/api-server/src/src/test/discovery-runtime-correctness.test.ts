@@ -555,7 +555,7 @@ describe("Boss-accepted discovery pivot scope", () => {
     const nonMarriottObjective = [
       "Research credible, approachable business owners for the case.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Shift focus to non‑Marriott hospitality franchises (e.g., independent boutique hotel chains, regional franchisee associations) and query public business registries, local chamber of commerce listings, and state corporate filings for named owners/operators with disclosed equity stakes. Prioritize jurisdictions with searchable ownership databases (e.g., US states, Canada provinces, EU registries).",
-    ].join("\\n");
+    ].join("\n");
 
     expect(discoveryPivotAlignmentReason(nonMarriottObjective, "web_search", {
       query: "Marriott franchise owner list United States",
@@ -570,6 +570,27 @@ describe("Boss-accepted discovery pivot scope", () => {
       query: "independent boutique hotel chain owners disclosed equity public registry Canada",
       provider: "serper",
     }, [])).toBeNull();
+  });
+
+  it("accepts the audited follow-on registry pivot for Drury/White Lodging while rejecting stale Marriott searches", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    const registryObjective = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Explore public registries and local chambers for documented owners/operators at Drury Hotels, White Lodging, and similar regional hospitality businesses, verifying ownership or equity and realistic professional contact routes.",
+    ].join("\\n");
+
+    expect(discoveryPivotAlignmentReason(registryObjective, "web_search", {
+      query: "Drury Hotels ownership state business registry corporate filings",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(registryObjective, "web_search", {
+      query: "White Lodging ownership local chamber public registry",
+      provider: "tavily",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(registryObjective, "web_search", {
+      query: "Marriott franchise owner list United States",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
   });
 
   it("is inactive without an accepted pivot and is wired into the live discovery action boundary", async () => {
