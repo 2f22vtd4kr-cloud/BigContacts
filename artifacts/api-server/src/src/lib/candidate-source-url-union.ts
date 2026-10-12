@@ -181,32 +181,17 @@ export function hasCredibleDiscoveryWealthPotentialSignal(input: {
   const role = normalizeTargetabilityText(input.role);
   if (person.length < 3 || !role) return false;
 
-  const explicitRoleSignals = [
-    "owner", "proprietor", "founder", "co founder", "shareholder", "beneficial owner",
-    "controlling shareholder", "majority owner", "investor", "general partner",
-    "managing partner", "private equity partner", "venture partner", "family office principal",
-    "concession holder", "concessionaire", "franchise owner", "franchisee",
-    "license holder", "licensed operator", "owner operator",
-    "lastnik", "lastnica", "solastnik", "solastnica", "ustanovitelj", "ustanoviteljica",
-    "soustanovitelj", "soustanoviteljica", "delnicar", "druzbenik", "investitor",
-    "koncesionar", "imetnik licence", "vlasnik", "suvlasnik", "osnivac", "dionicar",
-    "proprietario", "proprietaria", "fondatore", "fondatrice", "azionista",
-    "investitore", "concessionario", "inhaber", "eigentumer", "gesellschafter",
-    "grunder", "betreiber",
-  ];
-  const roleHasControlSignal = explicitRoleSignals.some((term) => role.includes(normalizeTargetabilityText(term)));
-  const roleIsInvestorRelationsOnly = role.includes("investor relations")
-    && !explicitRoleSignals.some((term) => term !== "investor" && role.includes(normalizeTargetabilityText(term)));
-  if (!roleHasControlSignal || roleIsInvestorRelationsOnly) return false;
-
-  // Role and seniority establish control/ownership only; they are not, by
-  // themselves, evidence of credible wealth potential. Require a nearby,
-  // source-observed materiality signal attached to the exact person.
+  // A role proves professional identity/control, not wealth. Admission also
+  // requires the observed public source to bind this exact person to a
+  // material business, asset, investment, or transaction. This deliberately
+  // avoids requiring a public net-worth number while rejecting ordinary
+  // founders/owners based on title alone.
   const ownershipSignals = [
     "owner", "owns", "owned", "ownership", "proprietor", "founder", "founded",
     "co founder", "shareholder", "shareholding", "equity stake", "controlling stake",
     "beneficial owner", "majority owner", "majority shareholder", "investor in",
-    "invested in", "investment partner", "general partner", "managing partner",
+    "invested in", "investment partner", "investor", "general partner", "managing partner",
+    "private equity partner", "venture capital partner", "family office principal",
     "concession holder", "concessionaire", "franchise owner", "franchisee",
     "license holder", "licensed operator", "lastnik", "lastnica", "solastnik",
     "solastnica", "ustanovitelj", "soustanovitelj", "delnicar", "druzbenik",
@@ -225,13 +210,12 @@ export function hasCredibleDiscoveryWealthPotentialSignal(input: {
     "multiple subsidiaries", "operates multiple", "chain of", "franchise network",
     "acquisition", "acquired for", "sold for", "exit", "valuation", "valued at",
     "revenue", "turnover", "ebitda", "net assets", "annual profit", "investment round",
-    "funding round", "raised", "million", "billion", "eur", "usd", "gbp", "€", "$", "£",
+    "funding round", "million", "billion", "eur", "usd", "gbp", "€", "$", "£",
     "nepremicnine", "premozenje", "prihodki", "promet", "dobicek", "vrednost",
-    "hotel", "letovisce", "koncesija", "imovina", "prihodi", "nekretnine", "akvizicija",
+    "letovisce", "koncesija", "imovina", "prihodi", "nekretnine", "akvizicija",
     "fatturato", "patrimonio", "immobili", "acquisizione", "umsatz", "vermogen",
     "immobilien", "beteiligung", "ubernahme",
   ];
-
   return input.observations.some((observation) => {
     if (observation.execution !== "success" || !["visit", "browser_fetch"].includes(observation.action)) return false;
     if (!/^https:\/\/\S+$/i.test(observation.sourceUrl)) return false;
