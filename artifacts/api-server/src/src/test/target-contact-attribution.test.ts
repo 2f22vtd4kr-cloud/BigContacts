@@ -16,6 +16,19 @@ describe("target Investigator objective follows realistic human research", () =>
     expect(objective).toContain("do not promote");
   });
 
+  it("keeps the objective bounded with maximum identity labels and an oversized reachability directive", () => {
+    const objective = buildTargetContactInvestigatorObjective({
+      targetName: "Candidate Name ".repeat(30),
+      companyName: "Regional Operating Business ".repeat(20),
+      reachabilityControl: "REALISM / REACHABILITY CONTROL: " + "unbounded context ".repeat(500),
+    });
+    expect(objective.length).toBeLessThanOrEqual(1_900);
+    expect(objective).toContain("a public source directly documents a material business");
+    expect(objective).toContain("public professional/business profiles");
+    expect(objective).toContain("the exact URL where observed");
+    expect(objective).toContain("do not promote");
+  });
+
   it("carries reachability realism and target-specific public-source pivots without scripting a fixed route", () => {
     const objective = buildTargetContactInvestigatorObjective({
       targetName: "Jane Example",
