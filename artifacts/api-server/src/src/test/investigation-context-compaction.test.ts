@@ -146,6 +146,14 @@ describe("investigator context compaction", () => {
     expect(bounded).toContain("AUXILIARY CONTEXT BOUND");
   });
 
+  it("does not return the full context when the requested budget is smaller than the omission marker", () => {
+    const value = "HEAD " + "X".repeat(20_000) + " TAIL";
+    const bounded = boundInvestigatorPromptSection(value, 1);
+    expect(bounded.length).toBeLessThanOrEqual(100);
+    expect(bounded).toContain("AUXILIARY CONTEXT BOUND");
+    expect(bounded).not.toContain("X".repeat(1_000));
+  });
+
   it("bounds auxiliary intelligence state independently of trajectory compaction", () => {
     const value = "HEAD STATE " + "X".repeat(40_000) + " LATEST STATE";
     const bounded = boundInvestigatorPromptSection(value, 6_000);
