@@ -1059,7 +1059,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const nextDiscoveryIterations = Math.max(0, nextDiscovery.iterations ?? 0);
         investigatorIterationsUsed += nextDiscoveryIterations;
         discoveryIterationsUsed += nextDiscoveryIterations;
-        discoveryResourceLimited = discoveryResourceLimited || (discoveryIterationsUsed >= depth.agenticMaxIterations && nextDiscovery.stopReason !== "MODEL_DECIDED_DONE");
+        discoveryResourceLimited = discoveryResourceLimited || (discoveryIterationsUsed >= discoveryIterationCeiling && nextDiscovery.stopReason !== "MODEL_DECIDED_DONE");
         // The cumulative result was already updated by mergeDiscoveryResults above.
         // Do not append this episode a second time: that doubles its metrics and
         // trajectory/finding records on every Boss-directed continuation.
