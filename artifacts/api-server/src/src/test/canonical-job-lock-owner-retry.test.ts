@@ -42,7 +42,7 @@ describe("canonical lease owner read retry", () => {
     expect(canonicalRedis.eval).toHaveBeenCalledTimes(1);
     const [script, keyCount, activeKey, staleJobKey, currentJobId, message, finishedAt] = canonicalRedis.eval.mock.calls[0]!;
     expect(script).toContain("owner~=ARGV[1]");
-    expect(script).toContain("status='failed'");
+    expect(script).toContain("'status','failed'");
     expect(script).toContain("status=='done' or status=='failed' or status=='cancelled'");
     expect(keyCount).toBe(2);
     expect(activeKey).toBe("apex:activejob:atlas-run");
