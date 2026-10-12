@@ -108,9 +108,10 @@ export function registryResultLeadUrls(result: Pick<RegistryResult, "metadata">)
   return [...urls].slice(0, 3);
 }
 
-export function formatRegistryResultLead(result: RegistryResult): string {
+export function formatRegistryResultLead(result: RegistryResult, maxUrls = 3): string {
   const notes = result.notes ? ` — ${String(result.notes).slice(0, 160)}` : "";
-  const urls = registryResultLeadUrls(result);
+  const urlLimit = Number.isFinite(maxUrls) ? Math.max(0, Math.min(3, Math.floor(maxUrls))) : 3;
+  const urls = registryResultLeadUrls(result).slice(0, urlLimit);
   return `${result.name}${notes}${urls.length ? `; UNVISITED_RECORD_URLS (leads only): ${urls.join(" | ")}` : ""}`;
 }
 const REGISTRY_ALIASES: Record<string, RegistryId> = {
