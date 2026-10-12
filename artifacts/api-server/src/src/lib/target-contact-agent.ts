@@ -140,11 +140,11 @@ export function buildTargetContactInvestigatorObjective(input: {
   ];
   const maxChars = 1_900;
   const tail = sections[sections.length - 1]!;
-  const prefix = sections.slice(0, -1).join("\\n");
-  const full = [...sections].join("\\n");
+  const prefix = sections.slice(0, -1).join("\n");
+  const full = [...sections].join("\n");
   if (full.length <= maxChars) return full;
   const budget = Math.max(0, maxChars - tail.length - 1);
-  return prefix.slice(0, budget).trimEnd() + "\\n" + tail;
+  return prefix.slice(0, budget).trimEnd() + "\n" + tail;
 }
 
 export async function runTargetContactAgent(input: { entityId: number; caseId?: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: InvestigatorCapability; contextDocument?: string; oversightMode?: "internal" | "caller"; shouldCancel?: () => boolean | Promise<boolean>; onInvestigationAct?: (step: InvestigationAct) => void | Promise<void> }): Promise<TargetContactAgentResult> {
