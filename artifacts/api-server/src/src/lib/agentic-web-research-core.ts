@@ -469,8 +469,11 @@ export function validateDiscoverySourceUrl(rawUrl: string): { allowed: true } | 
   const globalBrandHost = /(?:^|\.)(?:coca-colacompany|coca-cola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonalds|disney|netflix|oracle|berkshirehathaway|jpmorganchase|goldmansachs)(?:\.|$)/i.test(host);
   const corporatePrestigePath = /(?:^|[\/_-])(?:leadership|executives?|management|board(?:-of-directors)?|corporate-officers|our-people|people-culture|leadership-team|executive-team|about(?:-us)?|who-we-are|our-company|company-profile)(?:[\/_-]|$)/i.test(url.pathname);
   const explicitLocalOperatorRoute = /(?:bottler|distributor|franchisee?|concession|licensee|licensed-operator|regional-partner|local-operator|independent-operator)/i.test(url.pathname);
-  if (globalBrandHost && corporatePrestigePath && !explicitLocalOperatorRoute) {
-    return { allowed: false, reason: "DISCOVERY TARGETABILITY GATE blocked a global household-brand leadership page before fetch. A reachable local owner/operator/distributor/franchisee/licensee/concession holder must be the actual path; generic brand about pages are not a substitute." };
+  if (globalBrandHost && !explicitLocalOperatorRoute) {
+    const reason = corporatePrestigePath
+      ? "DISCOVERY TARGETABILITY GATE blocked a global household-brand leadership/about page before fetch. A reachable local owner/operator/distributor/franchisee/licensee/concession holder must be the actual path; generic brand about pages are not a substitute."
+      : "DISCOVERY TARGETABILITY GATE blocked a global household-brand destination before fetch. Corporate pages alone do not establish a realistic local owner/operator/distributor/franchise/concession route; no outbound request was made.";
+    return { allowed: false, reason };
   }
   return { allowed: true };
 }
