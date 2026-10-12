@@ -1649,21 +1649,6 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
       && (token.startsWith(anchor.slice(0, 7)) || anchor.startsWith(token.slice(0, 7))),
   ));
 }
-function pivotActionScopeText(action: string, args: Record<string, unknown>): string {
-  const parts: string[] = [action];
-  for (const key of ["query", "hypothesis", "purpose", "registry", "domain", "target", "email", "username", "url", "profile"]) {
-    if (typeof args[key] === "string") parts.push(String(args[key]));
-  }
-  if (Array.isArray(args.searches)) {
-    for (const item of args.searches) {
-      if (!item || typeof item !== "object" || Array.isArray(item)) continue;
-      const entry = item as Record<string, unknown>;
-      if (typeof entry.query === "string") parts.push(entry.query);
-      if (typeof entry.purpose === "string") parts.push(entry.purpose);
-    }
-  }
-  return parts.join(" ");
-}
 function pivotAlignedSearchRecords(priorRecords: readonly AgenticTrajectoryRecord[], anchors: readonly string[]): AgenticTrajectoryRecord[] {
   return priorRecords.filter((record) => {
     if (record.execution !== "success") return false;
@@ -1702,7 +1687,7 @@ function pivotResourceIsGroundedInAlignedEvidence(value: unknown, evidenceText: 
   const normalized = normalizeDiscoverySearchQuery(value).replace(/[^a-z0-9@._+-]+/g, " ");
   if (normalized.length >= 4 && evidenceText.includes(normalized)) return true;
   const resourceTokens = normalized.match(/[a-z0-9]{4,}/g) ?? [];
-  const unique = [...new Set(resourceTokens.filter((token) => !PIVOT_SCOPE_GENERIC_TERMS.has(pivotScopeToken(token)))];
+  const unique = [...new Set(resourceTokens.filter((token) => !PIVOT_SCOPE_GENERIC_TERMS.has(pivotScopeToken(token))))];
   return unique.length >= 2 && unique.every((token) => evidenceText.includes(token));
 }
 export function discoveryPivotAlignmentReason(
@@ -1718,7 +1703,6 @@ export function discoveryPivotAlignmentReason(
   // than becoming an accidental stop gate.
   if (anchors.length === 0) return null;
 
-  const alignedSearches = pivotAlignedSearchRecords(priorRecords, anchors);
   const sourceUrls = pivotAlignedSourceUrls(priorRecords, anchors);
   const alignedEvidenceText = pivotAlignedEvidenceText(priorRecords, anchors);
   let relevant = false;
