@@ -114,7 +114,6 @@ function researchActionResource(action: string, args: Record<string, unknown>): 
           cleanText(entry.provider, 30).toLowerCase(),
           query(entry.locale),
           query(entry.market),
-          query(entry.purpose),
         ]);
       }).filter((entry): entry is string => Boolean(entry)).sort();
       return requests.length ? JSON.stringify([action, requests]) : null;
@@ -130,7 +129,7 @@ function researchActionResource(action: string, args: Record<string, unknown>): 
       const requests = args.searches.map((item) => {
         if (!item || typeof item !== "object" || Array.isArray(item)) return null;
         const entry = item as Record<string, unknown>;
-        return JSON.stringify([query(entry.query), textFromValue(entry.registry, 60).toLowerCase(), query(entry.purpose)]);
+        return JSON.stringify([query(entry.query), textFromValue(entry.registry, 60).toLowerCase()]);
       }).filter((entry): entry is string => Boolean(entry)).sort();
       return requests.length ? JSON.stringify([action, requests]) : null;
     }
@@ -329,6 +328,38 @@ export function redundantResearchActionReason(
     + " prior_turn=" + previous.turn
     + "; exact normalized resource, hypothesis, and purpose are unchanged, and no new evidence was observed since the prior attempt. No network/tool request was made. Revise the hypothesis or purpose, use a different provider/resource, or proceed with a justified revisit when intervening evidence supports it. This guard does not prescribe a next tool or research sequence.";
 }
+export function repeatedPivotBlockedActionReason(
+  objective: string,
+  action: string,
+  args: Record<string, unknown>,
+  priorRecords: readonly AgenticTrajectoryRecord[],
+): string | null {
+  const scopeKey = discoveryPivotScopeKey(objective);
+  const resource = researchActionResource(action, args);
+  if (!scopeKey || !resource) return null;
+  for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
+    const record = priorRecords[index]!;
+    if (
+      record.pivotScopeKey !== scopeKey
+      || record.action !== action
+      || record.execution !== "blocked"
+      || !String(record.observation ?? "").includes("pivot_alignment_guard")
+      || researchActionResource(record.action, record.args) !== resource
+    ) continue;
+    const newFetchedEvidence = priorRecords.slice(index + 1).some((later) =>
+      later.pivotScopeKey === scopeKey
+      && later.execution === "success"
+      && (later.action === "visit" || later.action === "browser_fetch")
+      && Boolean(String(later.observation ?? "").trim())
+      && (later.observedUrls ?? []).length > 0,
+    );
+    if (!newFetchedEvidence) {
+      return "repeat_pivot_alignment_guard blocked an identical action already rejected under the current Boss-approved pivot. No new fetched source evidence has advanced the case since that rejection; change to a substantively different, evidence-grounded action rather than spending another Investigator turn on the same blocked request.";
+    }
+  }
+  return null;
+}
+
 export function isTransientInvestigatorCapacityError(result: { error?: string; trajectoryRecords?: Array<{ observation?: string }> }): boolean {
   if (result.error === "upstream_token_window_wait_exceeded") return true;
   return (result.trajectoryRecords ?? []).some((record) => /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""));
@@ -2484,7 +2515,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     }
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
     runtimeStage = "model_action_validation";
-    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
+    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; const repeatedPivotBlockReason = input.mode === "discovery" && action.action !== "done" ? repeatedPivotBlockedActionReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (repeatedPivotBlockReason) { record.execution = "blocked"; record.observation = repeatedPivotBlockReason; lastObservation = repeatedPivotBlockReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_pivot_alignment_guard blocked an identical rejected action without new fetched evidence" }); continue; } const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
       const boundFindings = bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)]);
       for (const binding of boundFindings) {
         intelligence.recordAction({
