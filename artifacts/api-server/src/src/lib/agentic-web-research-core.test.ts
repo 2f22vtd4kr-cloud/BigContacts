@@ -238,7 +238,13 @@ describe("Investigator prompt architecture", () => {
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
     const prompt = buildStepPrompt({
       targetName: "",
-      objective: "Establish a concrete business anchor before identifying a person.",
+      objective: [
+        "Discover real named people for subsequent target-scoped public-contact research. Start from a concrete business or operating context.",
+        "BOSS OPENING CONTROL DIRECTION (advisory, not a fixed research sequence):",
+        "Report: Opening assessment: No concrete target entity has been provided.",
+        "Next directions: " + JSON.stringify(["Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page."]),
+        "Uncertainties: [\"No target entity was supplied.\"]",
+      ].join("\n"),
       history: [],
       trajectoryRecords: Array.from({ length: 24 }, (_, index) => ({
         turn: index + 1,
@@ -287,6 +293,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.");
     expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries.");
     expect(prompt).toContain("Search snippets remain leads, not evidence.");
+    expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
+    expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
     expect(prompt).toContain("VALID DISCOVERY FINDING SHAPE (placeholders only; never emit placeholder values)");
     expect(prompt).toContain("<exact full name from fetched page>");
