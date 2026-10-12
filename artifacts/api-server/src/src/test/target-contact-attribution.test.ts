@@ -58,7 +58,7 @@ describe("target Investigator objective follows realistic human research", () =>
     expect(objective).toContain("Investigate the person, not generic company contacts");
     expect(objective).toContain("beneficial-owner registries");
     expect(objective).toContain("local-language reporting");
-    expect(objective).toContain("public professional/business profiles");
+    expect(objective).toContain("public, attributable profiles");
     expect(objective).toContain("WhatsApp/Telegram");
     expect(objective).toContain("directly documents a material business");
     expect(objective).toContain("no fixed checklist");
