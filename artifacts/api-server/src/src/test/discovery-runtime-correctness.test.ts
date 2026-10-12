@@ -577,7 +577,7 @@ describe("Boss-accepted discovery pivot scope", () => {
     const registryObjective = [
       "Research credible, approachable business owners for the case.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Explore public registries and local chambers for documented owners/operators at Drury Hotels, White Lodging, and similar regional hospitality businesses, verifying ownership or equity and realistic professional contact routes.",
-    ].join("\\n");
+    ].join("\n");
 
     expect(discoveryPivotAlignmentReason(registryObjective, "web_search", {
       query: "Drury Hotels ownership state business registry corporate filings",
