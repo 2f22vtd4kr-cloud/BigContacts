@@ -7,6 +7,7 @@ const repoRoot = path.resolve(process.cwd(), "../..");
 const discoverySource = fs.readFileSync(path.join(libDir, "discovery-agent.ts"), "utf8");
 const researchSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
 const researchCoreSource = fs.readFileSync(path.join(libDir, "agentic-web-research-core.ts"), "utf8");
+const bossDiscoverySource = fs.readFileSync(path.join(libDir, "case-bureau.ts"), "utf8");
 const telemetrySource = fs.readFileSync(path.join(libDir, "agentic-llm-telemetry.ts"), "utf8");
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
 const orchestratorExists = fs.existsSync(orchestratorPath);
@@ -17,6 +18,16 @@ describe("discovery runtime architecture", () => {
   it("keeps discovery model-owned", () => {
     expect(discoverySource).toMatch(/model|investigator/i);
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
+  });
+
+  it("compares model-selected anchors by evidence yield, targetability, novelty, and cost without fixing a sector", () => {
+    expect(bossDiscoverySource).toContain("compare a small set of plausible hypotheses by commercial relevance");
+    expect(bossDiscoverySource).toContain("expected research cost");
+    expect(bossDiscoverySource).toContain("not the biggest or most famous entity");
+    expect(researchCoreSource).toContain("compare a small set of plausible non-famous business/sector hypotheses");
+    expect(researchCoreSource).toContain("strongest expected evidence/value hypothesis");
+    expect(researchCoreSource).toContain("change the hypothesis or source class rather than paraphrasing the same query");
+    expect(researchCoreSource).toContain("no fixed sequence");
   });
 
   it("does not retain the retired deterministic Atlas orchestrator", () => {
