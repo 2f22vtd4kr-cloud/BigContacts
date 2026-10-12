@@ -83,6 +83,28 @@ export function resolveResearchDepth(options?: {
   return CONFIGS[depth];
 }
 
+/**
+ * Bound a discovery episode so the reserved discovery-action budget can normally
+ * accommodate three model-controlled Investigator acts. That gives Boss/Right-hand
+ * opportunities to redirect after an unproductive act and still execute the accepted
+ * redirect, while preserving the target-research reserve and the configured hard cap.
+ * This changes only act size; it does not prescribe any research tools or sequence.
+ */
+export function resolveDiscoveryIterationsPerAct(
+  config: Pick<ResearchDepthConfig, "investigatorIterationsPerAct">,
+  discoveryIterationCeiling: number,
+): number {
+  const available = Number.isFinite(discoveryIterationCeiling)
+    ? Math.max(0, Math.floor(discoveryIterationCeiling))
+    : 0;
+  if (available === 0) return 0;
+  const configuredCap = Number.isFinite(config.investigatorIterationsPerAct)
+    && config.investigatorIterationsPerAct > 0
+    ? Math.floor(config.investigatorIterationsPerAct)
+    : available;
+  return Math.max(1, Math.min(configuredCap, Math.ceil(available / 3)));
+}
+
 export function describeResearchDepth(config: ResearchDepthConfig): string {
   return [
     `depth=${config.depth}`,
