@@ -105,7 +105,8 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("parallelRequestKeys.has(parallelRequestKey)");
     expect(researchCoreSource).toContain("isBrowserFetchProviderAvailable(action.provider)");
     expect(researchCoreSource).not.toContain("visited.has(canonical)");
-    expect(researchCoreSource).toContain("There is no required first tool, hop order, or fixed search sequence");
+    expect(researchCoreSource).toContain("This constrains scope, not tool choice or action order.");
+    expect(researchCoreSource).toContain("no fixed sequence");
   });
 
   it("blocks repeated successful page retrieval when only the model-authored rationale changes", async () => {
@@ -409,7 +410,9 @@ describe("discovery runtime architecture", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.4)))");
     expect(canonicalSource).toContain("const discoveryIterationCeiling = Math.max(1, depth.agenticMaxIterations - targetResearchReserveIterations)");
-    expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, discoveryIterationCeiling)");
+    expect(canonicalSource).toContain("const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling)");
+    expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling)");
+    expect(canonicalSource).toContain("Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations)");
     expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
     expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations)");
     expect(canonicalSource).toContain("let discoveryIterationsUsed = discovery.iterations");
