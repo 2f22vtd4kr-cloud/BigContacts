@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -391,6 +391,33 @@ describe("Investigator prompt architecture", () => {
     });
     expect(validateDiscoverySearchQuery("Coca-Cola Slovenia independent bottler owner contact", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Casino Portorož beneficial owner concession holder Slovenia", [])).toEqual({ allowed: true });
+  });
+
+  it("blocks unrealistic discovery destinations before page fetch, but permits a local operator path", () => {
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about-us/leadership")).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("global household-brand leadership"),
+    });
+    expect(validateDiscoverySourceUrl("https://fortune.com/ranking/fortune500/")).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("fame/ranking destination"),
+    });
+    expect(validateDiscoverySourceUrl("https://casino-portoroz.si/about/ownership")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/investors/financial-reports")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
+  });
+
+  it("wires the destination gate before both discovery page-fetch capabilities", () => {
+    const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {');
+    const domainLookupStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {', visitStart);
+    const visitDispatch = agenticCoreSource.slice(visitStart, domainLookupStart);
+    const browserStart = agenticCoreSource.indexOf('if (action.action === "browser_fetch") {', visitStart);
+    const registryStart = agenticCoreSource.indexOf('if (action.action === "registry_search") {', browserStart);
+    const browserDispatch = agenticCoreSource.slice(browserStart, registryStart);
+    expect(visitDispatch.indexOf("validateDiscoverySourceUrl(action.url)")).toBeGreaterThan(-1);
+    expect(visitDispatch.indexOf("validateDiscoverySourceUrl(action.url)")).toBeLessThan(visitDispatch.indexOf("toolVisit(canonical"));
+    expect(browserDispatch.indexOf("validateDiscoverySourceUrl(action.url)")).toBeGreaterThan(-1);
+    expect(browserDispatch.indexOf("validateDiscoverySourceUrl(action.url)")).toBeLessThan(browserDispatch.indexOf('import("./browser-fetch")'));
   });
 
   it("offers non-binding guidance after three successful search-only actions", () => {
