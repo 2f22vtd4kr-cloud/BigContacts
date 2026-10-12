@@ -457,8 +457,8 @@ describe("Investigator prompt architecture", () => {
     expect(validateDiscoveryDomainLookup("coca-colacompany.com")).toMatchObject({ allowed: false });
     expect(validateDiscoveryDomainLookup("companyname.com")).toMatchObject({ allowed: false });
     expect(validateDiscoveryDomainLookup("https://casino-portoroz.si/ownership")).toMatchObject({ allowed: false });
-    expect(validateDiscoveryDomainLookup("casino-portoroz.si")).toEqual({ allowed: true });
-    expect(validateDiscoveryDomainLookup("cocacolaunited.com")).toEqual({ allowed: true });
+    expect(validateDiscoveryDomainLookup("casino-portoroz.si")).toMatchObject({ allowed: true });
+    expect(validateDiscoveryDomainLookup("cocacolaunited.com")).toMatchObject({ allowed: true });
 
     const domainStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {');
     const registryStart = agenticCoreSource.indexOf('if (action.action === "registry_search") {', domainStart);
