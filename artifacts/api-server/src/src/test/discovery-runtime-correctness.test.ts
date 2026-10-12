@@ -394,12 +394,17 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("groundingTrajectoryRecords: [...historyRecords, ...records]");
   });
 
-  it("reserves the job-wide Investigator budget for Boss-directed continuation after the opening discovery act", () => {
+  it("separates the bounded discovery budget from per-target research budgets", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, depth.agenticMaxIterations)");
     expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
     expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations)");
-    expect(canonicalSource).toContain("const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)");
+    expect(canonicalSource).toContain("let discoveryIterationsUsed = discovery.iterations");
+    expect(canonicalSource).toContain("const remainingInvestigatorIterations = Math.max(0, depth.agenticMaxIterations - discoveryIterationsUsed)");
+    expect(canonicalSource).toContain("const remainingTargetIterations = depth.agenticMaxIterations");
+    expect(canonicalSource).toContain("maxInvestigatorIterations: remainingTargetIterations");
+    expect(canonicalSource).toContain("kind: \"discovery_budget\"");
+    expect(canonicalSource).toContain("asking Boss to choose an admitted target or stop");
   });
 
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
