@@ -149,6 +149,7 @@ describe("claim-grade observation boundary", () => {
     for (const action of [
       "web_search",
       "parallel_web_search",
+      "parallel_registry_search",
       "done",
       "investigator_provider_error",
       "made_up_tool",
