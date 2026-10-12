@@ -78,6 +78,22 @@ describe("investigator context compaction", () => {
     expect(context).toContain("LATEST TRAJECTORY RECORD");
   });
 
+  it("preserves a multiline Boss pivot embedded after the marker without a separate direction", () => {
+    const objective = buildBoundedInvestigatorObjective({
+      base: [
+        "PRIMARY OPERATOR OBJECTIVE: discover source-backed named individuals.",
+        "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+        "Find a named officer in an official SEC filing.",
+        "Cross-check the officer role on an official company leadership page.",
+      ].join("\n"),
+    });
+
+    expect(objective.length).toBeLessThanOrEqual(1_900);
+    expect(objective).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
+    expect(objective).toContain("Find a named officer in an official SEC filing.");
+    expect(objective).toContain("Cross-check the officer role on an official company leadership page.");
+  });
+
   it("keeps the objective and latest observation explicit", () => {
     const context = buildInvestigatorContext({ targetName: "Alice Example", objective: "Resolve whether Alice Example is the same person as the executive in source B.", trajectoryRecords: [{ turn: 1, action: "web_search", execution: "success", observedUrls: ["https://source-a.example/profile"], observation: "Long old observation" }], lastObservation: "Current source says the role changed.", findings: [] });
     expect(context).toContain("OBJECTIVE: Resolve whether Alice Example is the same person as the executive in source B.");

@@ -146,7 +146,7 @@ export function buildBoundedInvestigatorObjective(input: {
   const markerAt = input.base.indexOf(pivotMarker);
   const baseText = (markerAt >= 0 ? input.base.slice(0, markerAt) : input.base).trim();
   const embeddedDirection = markerAt >= 0
-    ? input.base.slice(markerAt + pivotMarker.length).split("\n")[0]?.trim()
+    ? input.base.slice(markerAt + pivotMarker.length).trim()
     : "";
   const requestedDirection = input.direction?.trim() || embeddedDirection;
   const objectiveLabel = "PRIMARY CASE OBJECTIVE:\n";
