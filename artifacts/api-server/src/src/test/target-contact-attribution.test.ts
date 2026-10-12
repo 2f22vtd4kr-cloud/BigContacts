@@ -1,6 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { findingsToContacts, sourceBackedFindings } from "../lib/target-contact-agent";
+import { buildTargetContactInvestigatorObjective, findingsToContacts, sourceBackedFindings } from "../lib/target-contact-agent";
 import { supportsContactClaimAcrossObservations } from "../lib/bureau-contact-persist-strict";
+
+describe("target Investigator objective follows realistic human research", () => {
+  it("carries reachability realism and target-specific public-source pivots without scripting a fixed route", () => {
+    const objective = buildTargetContactInvestigatorObjective({
+      targetName: "Jane Example",
+      companyName: "Regional Coastal Casino",
+      reachabilityControl: "REALISM / REACHABILITY CONTROL: Status BOUNDED; prioritize a corroborated intermediary route.",
+    });
+    expect(objective).toContain("Status BOUNDED");
+    expect(objective).toContain("Investigate the person, not generic company contacts");
+    expect(objective).toContain("beneficial-owner registries");
+    expect(objective).toContain("local-language reporting");
+    expect(objective).toContain("public professional/business profiles");
+    expect(objective).toContain("WhatsApp/Telegram");
+    expect(objective).toContain("directly documents a material business");
+    expect(objective).toContain("no fixed provider, source or hop order");
+    expect(objective).toContain("exact URL where observed");
+  });
+});
 
 describe("target Investigator multi-source attribution", () => {
   it("does not turn an HTTP-only finding into a contact candidate", () => {
