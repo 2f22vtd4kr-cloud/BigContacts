@@ -550,6 +550,28 @@ describe("Boss-accepted discovery pivot scope", () => {
     }, [staleSearch])).toContain("pivot_alignment_guard");
   });
 
+  it("blocks explicitly excluded subjects such as non-Marriott even when generic franchise terms overlap", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    const nonMarriottObjective = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Shift focus to non‑Marriott hospitality franchises (e.g., independent boutique hotel chains, regional franchisee associations) and query public business registries, local chamber of commerce listings, and state corporate filings for named owners/operators with disclosed equity stakes. Prioritize jurisdictions with searchable ownership databases (e.g., US states, Canada provinces, EU registries).",
+    ].join("\\n");
+
+    expect(discoveryPivotAlignmentReason(nonMarriottObjective, "web_search", {
+      query: "Marriott franchise owner list United States",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+    expect(discoveryPivotAlignmentReason(nonMarriottObjective, "web_search", {
+      query: "Marriott hotel franchisee directory",
+      provider: "tavily",
+    }, [])).toContain("pivot_alignment_guard");
+
+    expect(discoveryPivotAlignmentReason(nonMarriottObjective, "web_search", {
+      query: "independent boutique hotel chain owners disclosed equity public registry Canada",
+      provider: "serper",
+    }, [])).toBeNull();
+  });
+
   it("is inactive without an accepted pivot and is wired into the live discovery action boundary", async () => {
     const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
     expect(discoveryPivotAlignmentReason("Research the public web for evidence.", "web_search", {
