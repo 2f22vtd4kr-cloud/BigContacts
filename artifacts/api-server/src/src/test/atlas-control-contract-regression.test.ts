@@ -120,7 +120,7 @@ describe("Atlas control-plane contract regression", () => {
   });
 
   it("recovers from a rejected Boss pivot without executing its prescribed URL/tool", () => {
-    const rejectedBranchStart = canonicalDiscoverySource.indexOf("if (!validatedDirection.valid) {");
+    const rejectedBranchStart = canonicalDiscoverySource.indexOf("if (!resolvedObjective.valid) {");
     const acceptedPivotBoundary = canonicalDiscoverySource.indexOf("const directedObjective = resolvedObjective.objective;", rejectedBranchStart);
     const rejectedBranch = canonicalDiscoverySource.slice(rejectedBranchStart, acceptedPivotBoundary);
     expect(rejectedBranchStart).toBeGreaterThan(-1);
