@@ -79,6 +79,39 @@ async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
   }
 }
 
+/**
+ * Fence an older Atlas job only while the caller owns the current canonical
+ * lease. This closes the process-death gap where the old Redis job hash remains
+ * "running" after its renewal timer dies with the process. It never resumes work
+ * or rewrites research events.
+ */
+export async function fenceStaleCanonicalJob(
+  type: string,
+  staleJobId: string,
+  currentJobId: string,
+): Promise<"fenced" | "terminal" | "missing"> {
+  if (!staleJobId || !currentJobId || staleJobId === currentJobId) {
+    throw new Error("Canonical stale-job reconciliation requires distinct job owners.");
+  }
+  const finishedAt = new Date().toISOString();
+  const result = Number(await withStrictPermanentClient((redis) => redis.eval(
+    "local owner=redis.call('get',KEYS[1]); if owner~=ARGV[1] then return -1 end; local k=KEYS[2]; local status=redis.call('hget',k,'status'); if not status then return 0 end; if status=='done' or status=='failed' or status=='cancelled' then return 2 end; if status~='queued' and status~='running' and status~='paused' then return -1 end; redis.call('hset',k,'status','failed','outcome','incomplete','message',ARGV[2],'finishedAt',ARGV[3]); redis.call('hdel',k,'cancelRequested'); return 1",
+    2,
+    `apex:activejob:${type}`,
+    `apex:job:${staleJobId}`,
+    currentJobId,
+    "Canonical lease expired or was superseded; stale job fenced without resumption.",
+    finishedAt,
+  )));
+  if (result === 1) return "fenced";
+  if (result === 2) return "terminal";
+  if (result === 0) return "missing";
+  if (result === -1) {
+    throw new Error("Canonical Atlas lease changed during stale-job reconciliation; refusing to continue.");
+  }
+  throw new Error("Canonical Atlas stale-job state is unknown; refusing to continue.");
+}
+
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
   const outcome: ClaimResult = {
     available: true,
@@ -134,10 +167,12 @@ function isTransientCanonicalOwnerReadFailure(error: unknown): boolean {
   }
   if (typeof current === "string") parts.push(current);
   const diagnostic = parts.join(" ");
-  if (/max requests limit exceeded|quota|monthly cap|capacity exhausted|budget exhausted/i.test(diagnostic)) return false;
-  if (/\b(?:NETWORK_ERROR|ERR_NETWORK)\b/i.test(diagnostic) || /\b(?:network|fetch failed|socket|connect|dns|econn|enotfound)\b/i.test(diagnostic)) return true;
-  if (/\b(?:ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ECONNABORTED|EHOSTUNREACH|ENETUNREACH|EAI_AGAIN)\b/i.test(diagnostic)) return true;
-  return /socket hang up|socket closed unexpectedly|connection (?:is )?closed unexpectedly|reached the max retries per request limit|(?:command|operation) timed out/i.test(diagnostic);
+  // Capacity, quota, policy, and command errors are never transient-read retries.
+  if (/max requests limit exceeded|quota|monthly cap|capacity exhausted|budget exhausted|permission denied|forbidden|policy|wrongtype|unsupported command|command (?:is )?(?:not allowed|rejected|disabled)/i.test(diagnostic)) return false;
+  // Prefer explicit transport codes or positive transport phrases. A bare word
+  // such as "network", "connect", or "DNS" is too ambiguous to authorize retry.
+  if (/\b(?:NETWORK_ERROR|ERR_NETWORK|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ECONNABORTED|EHOSTUNREACH|ENETUNREACH|EAI_AGAIN|ENOTFOUND|ENODATA)\b/i.test(diagnostic)) return true;
+  return /failed to fetch|fetch failed|network request failed|network connection (?:temporarily )?(?:failed|reset|closed|refused|timed out|unavailable)|temporary network (?:failure|error|unavailable)|socket hang up|socket closed unexpectedly|connection (?:reset|refused|closed unexpectedly|is closed unexpectedly|timed out|aborted)|dns lookup failed|name resolution (?:temporarily )?failed|(?:command|operation) timed out/i.test(diagnostic);
 }
 
 async function readCanonicalJobOwner(type: string): Promise<string | null> {

@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
 import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
-import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
+import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
@@ -28,19 +28,66 @@ function respondToTerminalAtlasStop(res: Response, jobId: string, status: string
 }
 
 async function fenceStaleCanonicalCases(currentJobId: string): Promise<void> {
-  await db.update(researchCasesTable)
-    .set({
-      status: "review",
-      currentAction: "canonical-lease-lost",
-      updatedAt: new Date(),
-    })
-    .where(and(
-      eq(researchCasesTable.status, "active"),
-      or(
-        sql`(${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId') IS NOT NULL AND ${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' <> ${currentJobId}`,
-        sql`(${researchCasesTable.caseFile}::jsonb ->> 'caseType') = 'discovery' AND (${researchCasesTable.caseFile}::jsonb ->> 'jobId') IS NOT NULL AND ${researchCasesTable.caseFile}::jsonb ->> 'jobId' <> ${currentJobId}`,
-      ),
-    ));
+  // Snapshot exact stale case/job bindings first. A broad "not current job"
+  // update after the snapshot could downgrade a newer launch's case.
+  const staleRows = await db.select({
+    id: researchCasesTable.id,
+    caseFile: researchCasesTable.caseFile,
+  }).from(researchCasesTable).where(and(
+    eq(researchCasesTable.status, "active"),
+    or(
+      sql`(${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId') IS NOT NULL AND ${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' <> ${currentJobId}`,
+      sql`(${researchCasesTable.caseFile}::jsonb ->> 'caseType') = 'discovery' AND (${researchCasesTable.caseFile}::jsonb ->> 'jobId') IS NOT NULL AND ${researchCasesTable.caseFile}::jsonb ->> 'jobId' <> ${currentJobId}`,
+    ),
+  ));
+
+  const staleBindings: Array<{ caseId: number; jobIds: string[] }> = [];
+  const staleJobIds = new Set<string>();
+  for (const row of staleRows) {
+    if (typeof row.caseFile !== "string") {
+      throw new Error("Cannot safely reconcile a stale Atlas case with missing durable ownership data.");
+    }
+    let file: Record<string, unknown>;
+    try {
+      file = JSON.parse(row.caseFile) as Record<string, unknown>;
+    } catch {
+      throw new Error("Cannot safely reconcile a stale Atlas case with unreadable durable ownership data.");
+    }
+    if (file.atlasJobId === currentJobId || (file.caseType === "discovery" && file.jobId === currentJobId)) continue;
+    const jobIds = new Set<string>();
+    if (typeof file.atlasJobId === "string" && file.atlasJobId !== currentJobId) jobIds.add(file.atlasJobId);
+    if (file.caseType === "discovery" && typeof file.jobId === "string" && file.jobId !== currentJobId) jobIds.add(file.jobId);
+    if (!jobIds.size) continue;
+    staleBindings.push({ caseId: row.id, jobIds: [...jobIds] });
+    for (const staleJobId of jobIds) staleJobIds.add(staleJobId);
+  }
+
+  // Atomically terminalize prior job hashes while verifying that this caller
+  // still owns REDIS_URL_1's current Atlas lease. Unknown ownership fails closed.
+  for (const staleJobId of staleJobIds) {
+    await fenceStaleCanonicalJob("atlas-run", staleJobId, currentJobId);
+  }
+
+  // Update only the rows and old ownership bindings in the snapshot. These
+  // predicates protect a case created/rebound by a newer launch meanwhile.
+  for (const staleCase of staleBindings) {
+    for (const staleJobId of staleCase.jobIds) {
+      await db.update(researchCasesTable)
+        .set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() })
+        .where(and(
+          eq(researchCasesTable.id, staleCase.caseId),
+          eq(researchCasesTable.status, "active"),
+          or(
+            sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${staleJobId}`,
+            sql`(${researchCasesTable.caseFile}::jsonb ->> 'caseType') = 'discovery' AND ${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${staleJobId}`,
+          ),
+          or(
+            isNull(researchCasesTable.currentAction),
+            sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+          ),
+        ));
+    }
+  }
 }
 
 /** Canonical Atlas launch boundary: every public Atlas launch enters the model-owned control plane. */

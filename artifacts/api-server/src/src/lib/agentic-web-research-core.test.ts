@@ -268,6 +268,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("VALID DISCOVERY FINDING SHAPE (placeholders only; never emit placeholder values)");
     expect(prompt).toContain("<exact full name from fetched page>");
     expect(prompt).toContain("<exact fetched non-search HTTPS URL from independent source 2>");
+    expect(prompt).toContain("third-party people-search/profile-directory aggregators are leads only");
+    expect(prompt).toContain("official company leadership/staff pages and official filing/registry pages are acceptable");
     expect(prompt).toContain("two independent evidence/source units");
     expect(prompt).toContain("successful falsification-intent action");
     expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
@@ -275,6 +277,15 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("requireFalsification=true");
     expect(prompt).toContain("at least one successful external action must explicitly attempt to disprove");
     expect(prompt).toContain("not a prescribed action sequence");
+  });
+
+  it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
+    const { isClaimGradeDiscoverySourceUrl } = await import("./candidate-source-url-union");
+    expect(isClaimGradeDiscoverySourceUrl("https://www.naatp.org/staff")).toBe(true);
+    expect(isClaimGradeDiscoverySourceUrl("https://www.zoominfo.com/p/example-person/123")).toBe(false);
+    // Source eligibility is not candidate admission: the durable admission path
+    // still requires two independently published observations of the same name/role.
+    expect(researchCoreSource).toContain("two independent evidence/source units");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
