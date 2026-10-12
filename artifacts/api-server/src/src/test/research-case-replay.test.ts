@@ -127,6 +127,7 @@ describe("research case replay", () => {
     expect(replay.violations.some((v) => v.includes("validation status must be"))).toBe(true);
     expect(replay.violations.some((v) => v.includes("projection has no validationEventId or promotionEventId"))).toBe(false);
     expect(replay.projectionCount).toBe(1);
+  });
 
   it("replays durable accepted discovery objectives as a declared control event", () => {
     const replay = replayResearchCaseEvents([
@@ -138,6 +139,5 @@ describe("research case replay", () => {
     expect(replay.eventCount).toBe(2);
     expect(replay.lastEventType).toBe("control_objective");
     expect(replay.violations).toEqual([]);
-  });
   });
 });
