@@ -16,6 +16,25 @@ describe("target Investigator objective follows realistic human research", () =>
     expect(objective).toContain("do not promote");
   });
 
+  it("preserves the actual reachability mode and score when compacting an oversized directive", () => {
+    const objective = buildTargetContactInvestigatorObjective({
+      targetName: "Jane Example",
+      companyName: "Regional Coastal Casino",
+      reachabilityControl: [
+        "REALISM / REACHABILITY CONTROL:",
+        "Status: TARGETED · practical access score 42/100.",
+        "This is a TARGETED reachability pass. Prioritize one or two plausible intermediary routes before broad contact discovery.",
+        "Positive evidence: a source-backed business relation.",
+        "Known blockers: no validated person-level direct phone or email is present; no corroborated assistant or office route is stored.",
+        "Extra diagnostic detail ".repeat(8),
+      ].join("\\n"),
+    });
+    expect(objective).toContain("Status TARGETED (access score 42/100).");
+    expect(objective).toContain("This is a TARGETED reachability pass.");
+    expect(objective).toContain("Prioritize one or two plausible intermediary routes");
+    expect(objective.length).toBeLessThanOrEqual(1_900);
+  });
+
   it("keeps the objective bounded with maximum identity labels and an oversized reachability directive", () => {
     const objective = buildTargetContactInvestigatorObjective({
       targetName: "Candidate Name ".repeat(30),
