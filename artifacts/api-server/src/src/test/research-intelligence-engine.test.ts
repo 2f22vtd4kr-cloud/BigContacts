@@ -186,6 +186,8 @@ describe("Apex research intelligence", () => {
     });
     const state = engine.buildContext();
     expect(state.facts.some((fact) => fact.claim.includes("officer of Example Ltd"))).toBe(false);
+    expect(state.evidenceCount).toBe(0);
+    expect(state.sourceFamilyDiversity).toBe(0);
     expect(state.recentActions[0]?.useful).toBe(false);
     expect(state.recentActions[0]?.informationGain).toBeLessThanOrEqual(0.15);
   });
