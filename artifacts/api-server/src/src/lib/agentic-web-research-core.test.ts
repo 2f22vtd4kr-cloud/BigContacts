@@ -216,7 +216,7 @@ describe("page visit response classification", () => {
 
 describe("model-selectable Investigator capabilities", () => {
   it("keeps runtime parsing and prompt/schema exposure limited to executable model capabilities", () => {
-    for (const action of ["web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"]) {
+    for (const action of ["web_search", "parallel_web_search", "parallel_registry_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "done"]) {
       expect(isModelSelectableAgentAction(action)).toBe(true);
     }
     for (const action of ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot", "made_up_tool", "", null]) {
@@ -291,7 +291,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toContain('"action":{"type":"string","enum"');
     expect(prompt).not.toContain("APEX MISSION CONTRACT v");
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
-    const expectedActions = ["web_search", "parallel_web_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
+    const expectedActions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
     expect(prompt).toContain("AVAILABLE ACTIONS: " + expectedActions.join(" | ") + ".");
     expect(prompt).not.toContain("footprint_email");
     expect(prompt).not.toContain("footprint_username_maigret");
