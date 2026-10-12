@@ -55,6 +55,10 @@ The previous redundant-action guard caught repeated page fetches and exact actio
 
 The canonical capability registry exposes a limited set of model-selectable actions. Maigret, Sherlock, SpiderFoot and related Python wrappers do not yet have an implemented trusted, network-restricted execution backend; wrapper functions are fail-closed stubs. They must not be presented to the Investigator as working actions merely because sibling/manual routes or package references exist. Availability now requires both an attested network_osint sandbox and an implemented executor. A real implementation needs isolation, egress policy, cancellation/resource limits, and source/provenance output before it can be added to the selectable action schema.
 
+### J. Separate social/messenger enrichers are not canonical auto-steps
+
+The repository also contains standalone `enrichment/social-discovery.ts` and `enrichment/messenger-discovery.ts` helpers, but the canonical single-target runner does not call them directly. The live Investigator can still choose public-profile searches through the currently exposed search/visit actions; this is not equivalent to claiming the separate enrichers are automatically run on every admitted person. Their output must not be copied directly into cards unless it is converted into claim-grade observations that bind the exact person, profile/contact value, role/context and source. Name-only profile matches or guessed WhatsApp/Telegram identities would create false attribution. A trusted executor plus identity/source-attribution tests are required before advertising automatic cross-platform coverage.
+
 ## Expected human-investigator comparison
 
 | Stage | Human-quality behavior | Required Atlas invariant |
