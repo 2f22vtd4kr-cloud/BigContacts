@@ -177,7 +177,10 @@ export function hasCredibleDiscoveryWealthPotentialSignal(input: {
   role: string;
   observations: readonly DiscoveryTargetabilityObservation[];
 }): boolean {
+  const person = normalizeTargetabilityText(input.personName);
   const role = normalizeTargetabilityText(input.role);
+  if (person.length < 3 || !role) return false;
+
   const explicitRoleSignals = [
     "owner", "proprietor", "founder", "co founder", "shareholder", "beneficial owner",
     "controlling shareholder", "majority owner", "investor", "general partner",
@@ -191,33 +194,54 @@ export function hasCredibleDiscoveryWealthPotentialSignal(input: {
     "investitore", "concessionario", "inhaber", "eigentumer", "gesellschafter",
     "grunder", "betreiber",
   ];
+  const roleHasControlSignal = explicitRoleSignals.some((term) => role.includes(normalizeTargetabilityText(term)));
   const roleIsInvestorRelationsOnly = role.includes("investor relations")
-    && !explicitRoleSignals.some((term) => term !== "investor" && role.includes(term));
-  if (!roleIsInvestorRelationsOnly && explicitRoleSignals.some((term) => role.includes(term))) return true;
+    && !explicitRoleSignals.some((term) => term !== "investor" && role.includes(normalizeTargetabilityText(term)));
+  if (!roleHasControlSignal || roleIsInvestorRelationsOnly) return false;
 
-  const person = normalizeTargetabilityText(input.personName);
-  if (person.length < 3) return false;
-  const sourceSignals = [
-    "beneficial owner", "controlling owner", "majority owner", "majority shareholder",
-    "shareholder", "owns", "owner of", "ownership stake", "equity stake", "controlling stake",
-    "founder", "co founder", "shareholding", "held a stake", "sold a stake",
-    "acquired a stake", "investor in", "invested in", "investment partner",
-    "private equity", "venture capital partner", "family office principal",
-    "concession holder", "concessionaire", "franchise owner", "license holder",
-    "lastnik", "lastnica", "solastnik", "solastnica", "ustanovitelj", "soustanovitelj",
-    "delnicar", "druzbenik", "investitor", "koncesionar", "imetnik licence",
-    "vlasnik", "suvlasnik", "osnivac", "dionicar", "proprietario", "fondatore",
-    "azionista", "concessionario", "eigentumer", "gesellschafter", "grunder",
+  // Role and seniority establish control/ownership only; they are not, by
+  // themselves, evidence of credible wealth potential. Require a nearby,
+  // source-observed materiality signal attached to the exact person.
+  const ownershipSignals = [
+    "owner", "owns", "owned", "ownership", "proprietor", "founder", "founded",
+    "co founder", "shareholder", "shareholding", "equity stake", "controlling stake",
+    "beneficial owner", "majority owner", "majority shareholder", "investor in",
+    "invested in", "investment partner", "general partner", "managing partner",
+    "concession holder", "concessionaire", "franchise owner", "franchisee",
+    "license holder", "licensed operator", "lastnik", "lastnica", "solastnik",
+    "solastnica", "ustanovitelj", "soustanovitelj", "delnicar", "druzbenik",
+    "investitor", "koncesionar", "imetnik licence", "vlasnik", "suvlasnik",
+    "osnivac", "dionicar", "proprietario", "fondatore", "azionista",
+    "concessionario", "eigentumer", "gesellschafter", "grunder", "betreiber",
   ];
+  const materialitySignals = [
+    "casino", "gaming resort", "hotel group", "hotel resort", "resort operator",
+    "marina operator", "port concession", "airport concession", "real estate portfolio",
+    "property portfolio", "commercial property", "real estate developer", "property developer",
+    "residential development", "land portfolio", "hotel operator", "hospitality group",
+    "energy infrastructure", "mining operation", "shipping fleet", "industrial group",
+    "holding group", "holdings group", "investment fund", "private equity", "venture capital",
+    "family office", "private capital", "assets under management", "portfolio company",
+    "multiple subsidiaries", "operates multiple", "chain of", "franchise network",
+    "acquisition", "acquired for", "sold for", "exit", "valuation", "valued at",
+    "revenue", "turnover", "ebitda", "net assets", "annual profit", "investment round",
+    "funding round", "raised", "million", "billion", "eur", "usd", "gbp", "€", "$", "£",
+    "nepremicnine", "premozenje", "prihodki", "promet", "dobicek", "vrednost",
+    "hotel", "letovisce", "koncesija", "imovina", "prihodi", "nekretnine", "akvizicija",
+    "fatturato", "patrimonio", "immobili", "acquisizione", "umsatz", "vermogen",
+    "immobilien", "beteiligung", "ubernahme",
+  ];
+
   return input.observations.some((observation) => {
     if (observation.execution !== "success" || !["visit", "browser_fetch"].includes(observation.action)) return false;
     if (!/^https:\/\/\S+$/i.test(observation.sourceUrl)) return false;
-    // Keep the signal attached to the same sentence/paragraph as the exact person;
-    // an unrelated owner elsewhere on a large page must not qualify this candidate.
     const passages = observation.observation.split(/(?:\r?\n)+|[.!?;]\s+/u);
     return passages.some((passage) => {
       const nearby = normalizeTargetabilityText(passage);
-      return nearby.includes(person) && sourceSignals.some((term) => nearby.includes(normalizeTargetabilityText(term)));
+      if (!nearby.includes(person)) return false;
+      const hasOwnership = ownershipSignals.some((term) => nearby.includes(normalizeTargetabilityText(term)));
+      const hasMateriality = materialitySignals.some((term) => nearby.includes(normalizeTargetabilityText(term)));
+      return hasOwnership && hasMateriality;
     });
   });
 }
