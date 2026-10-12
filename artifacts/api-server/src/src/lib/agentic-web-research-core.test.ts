@@ -385,7 +385,7 @@ describe("Investigator prompt architecture", () => {
       allowed: false,
       reason: expect.stringContaining("impractical fame/ranking or global-household-brand path"),
     });
-    expect(validateDiscoverySearchQuery("Fortune 500 company leadership page list", [])).toMatchObject({
+    expect(validateDiscoverySearchQuery("Fortune 500 Coca-Cola leadership executive page official site", [])).toMatchObject({
       allowed: false,
       reason: expect.stringContaining("impractical fame/ranking or global-household-brand path"),
     });
