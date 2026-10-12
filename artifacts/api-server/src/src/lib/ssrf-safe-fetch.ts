@@ -267,19 +267,25 @@ async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address:
           finishError(new Error(`Outbound server returned invalid HTTP status ${res.statusCode ?? "missing"}`));
           return;
         }
-        settled = true;
-        cleanup();
-        const responseHeaders = new Headers();
-        for (const [key, value] of Object.entries(res.headers)) {
-          if (Array.isArray(value)) responseHeaders.set(key, value.join(", "));
-          else if (value != null) responseHeaders.set(key, value);
+        try {
+          const responseHeaders = new Headers();
+          for (const [key, value] of Object.entries(res.headers)) {
+            if (Array.isArray(value)) responseHeaders.set(key, value.join(", "));
+            else if (value != null) responseHeaders.set(key, value);
+          }
+          const responseBody = responseBodyForStatus(responseStatus, Buffer.concat(chunks));
+          const response = new Response(responseBody === null ? null : new Uint8Array(responseBody), {
+            status: responseStatus,
+            statusText: res.statusMessage ?? "",
+            headers: responseHeaders,
+          });
+          settled = true;
+          cleanup();
+          resolve(response);
+        } catch (error) {
+          // EventEmitter callbacks are outside the surrounding async function; forward construction errors to the fetch promise instead of crashing the API process.
+          finishError(error);
         }
-        const responseBody = responseBodyForStatus(responseStatus, Buffer.concat(chunks));
-        resolve(new Response(responseBody === null ? null : new Uint8Array(responseBody), {
-          status: responseStatus,
-          statusText: res.statusMessage ?? "",
-          headers: responseHeaders,
-        }));
       });
     });
     req.on("error", finishError);

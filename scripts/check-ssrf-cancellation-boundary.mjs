@@ -12,7 +12,7 @@ pass("DNS has an explicit timeout", /const DNS_TIMEOUT_MS = 10_000/.test(source)
 pass("DNS abort cancels outstanding resolver work", /resolver\.cancel\(\);\s*finishError\(new Error\(\"Outbound DNS resolution aborted\"\)\)/.test(source));
 pass("safe outbound fetch threads the scoped caller/deadline signal into DNS resolution", /resolveSafeAddress\(hostname, signal\)/.test(source));
 pass("absolute fetch deadline starts before DNS and is cleared after all outbound work", /const deadlineTimer = setTimeout\(\(\) => controller\.abort\(new Error\("Outbound request deadline exceeded"\)\), REQUEST_DEADLINE_MS\)/.test(source) && /clearTimeout\(deadlineTimer\)/.test(source) && source.indexOf("const deadlineTimer = setTimeout(() => controller.abort") < source.indexOf("const address = await resolveSafeAddress(hostname, signal)"));
-pass("pinned HTTP passes its abort signal into bounded request-body reads", /const signal = init\.signal(?: \?\? undefined)?; const body = await readRequestBodyCapped\(init\.body, signal\)/.test(source));
+pass("pinned HTTP passes its abort signal into bounded request-body reads", /const signal = init\.signal(?:\s*\?\?\s*undefined)?;\s*const body = await readRequestBodyCapped\(init\.body, signal\);/.test(source));
 pass("streamed outbound request bodies abort while waiting for chunks", /readRequestBodyCapped\(init\.body, signal\)/.test(source) && /signal\.addEventListener\("abort", onAbort/.test(source) && /reader\.cancel\(\)/.test(source));
 pass("redirects remain manual", /redirect: \"manual\"/.test(source));
 pass("request and response byte caps remain enforced", /MAX_REQUEST_BYTES = 1_000_000/.test(source) && /MAX_RESPONSE_BYTES = 2_000_000/.test(source));

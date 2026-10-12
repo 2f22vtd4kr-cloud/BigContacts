@@ -115,10 +115,10 @@ type ReleaseResult = { available: true; released: boolean };
 const CANONICAL_OWNER_READ_RETRY_DELAYS_MS = [300, 600] as const;
 
 /**
- * A canonical owner read is safe to retry once only when the failure is a
- * recognized transport interruption. Never classify Upstash quota/capacity,
- * command-policy, or unknown-state failures as transient, and never switch to
- * a secondary Redis URL: those stores are independent databases, not replicas.
+ * A canonical owner read may use a small, bounded retry budget only when the
+ * failure is a recognized transport interruption. Never classify Upstash
+ * quota/capacity, command-policy, or unknown-state failures as transient, and
+ * never switch to a secondary Redis URL: those stores are independent databases, not replicas.
  */
 function isTransientCanonicalOwnerReadFailure(error: unknown): boolean {
   const parts: string[] = [];
@@ -135,6 +135,7 @@ function isTransientCanonicalOwnerReadFailure(error: unknown): boolean {
   if (typeof current === "string") parts.push(current);
   const diagnostic = parts.join(" ");
   if (/max requests limit exceeded|quota|monthly cap|capacity exhausted|budget exhausted/i.test(diagnostic)) return false;
+  if (/\b(?:NETWORK_ERROR|ERR_NETWORK)\b/i.test(diagnostic) || /\b(?:network|fetch failed|socket|connect|dns|econn|enotfound)\b/i.test(diagnostic)) return true;
   if (/\b(?:ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ECONNABORTED|EHOSTUNREACH|ENETUNREACH|EAI_AGAIN)\b/i.test(diagnostic)) return true;
   return /socket hang up|socket closed unexpectedly|connection (?:is )?closed unexpectedly|reached the max retries per request limit|(?:command|operation) timed out/i.test(diagnostic);
 }
