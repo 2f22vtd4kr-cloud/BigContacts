@@ -1819,11 +1819,9 @@ function pivotAlignedEvidenceState(
     if (isFetchedSource) {
       const requestedUrl = normalizedActionResourceUrl(record.args.url);
       if (requestedUrl) sourceUrls.add(requestedUrl);
-      evidenceParts.push(
-        record.observation ?? "",
-        JSON.stringify(record.args ?? {}),
-        ...(record.observedUrls ?? []),
-      );
+      // Ground follow-up queries in retrieved page observations, not in the
+      // requested URL itself. A URL slug is not proof that the page confirms the lead.
+      evidenceParts.push(record.observation ?? "");
     } else {
       // Search and registry results are leads, not claim-grade observations. They
       // may authorize opening a returned URL, but cannot authorize a new named-
