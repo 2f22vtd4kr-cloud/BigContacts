@@ -1649,46 +1649,75 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
       && (token.startsWith(anchor.slice(0, 7)) || anchor.startsWith(token.slice(0, 7)))),
   ));
 }
-function pivotAlignedSearchRecords(priorRecords: readonly AgenticTrajectoryRecord[], anchors: readonly string[]): AgenticTrajectoryRecord[] {
-  return priorRecords.filter((record) => {
-    if (record.execution !== "success") return false;
-    const queryTexts: string[] = [];
-    if (record.action === "web_search" && typeof record.args.query === "string") queryTexts.push(record.args.query);
-    if (record.action === "parallel_web_search" && Array.isArray(record.args.searches)) {
-      for (const item of record.args.searches) {
-        if (item && typeof item === "object" && !Array.isArray(item)) {
-          const entry = item as Record<string, unknown>;
-          if (typeof entry.query === "string") queryTexts.push(entry.query);
-        }
-      }
-    }
-    return queryTexts.length > 0 && queryTexts.some((query) => pivotTextMatchesAnchors(query, anchors));
-  });
+function pivotDomainMatchesSourceUrls(value: unknown, sourceUrls: ReadonlySet<string>): boolean {
+  const domain = normalizedDomainResource(value).replace(/^www\./, "");
+  if (!domain) return false;
+  for (const url of sourceUrls) {
+    try {
+      const host = new URL(url).hostname.replace(/^www\./, "");
+      if (host === domain || host.endsWith("." + domain) || domain.endsWith("." + host)) return true;
+    } catch { /* normalized source URLs should already be valid */ }
+  }
+  return false;
 }
-function pivotAlignedSourceUrls(priorRecords: readonly AgenticTrajectoryRecord[], anchors: readonly string[]): Set<string> {
-  const urls = new Set<string>();
-  for (const record of pivotAlignedSearchRecords(priorRecords, anchors)) {
+function pivotActionIsAligned(
+  action: string,
+  args: Record<string, unknown>,
+  anchors: readonly string[],
+  sourceUrls: ReadonlySet<string>,
+  evidenceText: string,
+): boolean {
+  const matchesScopeOrEvidence = (value: unknown) =>
+    pivotTextMatchesAnchors(typeof value === "string" ? value : "", anchors)
+    || pivotResourceIsGroundedInAlignedEvidence(value, evidenceText);
+  if (action === "web_search") return matchesScopeOrEvidence(args.query);
+  if (action === "parallel_web_search") {
+    const searches = Array.isArray(args.searches) ? args.searches.filter((item) =>
+      Boolean(item && typeof item === "object" && !Array.isArray(item)),
+    ) as Array<Record<string, unknown>> : [];
+    return searches.length > 0 && searches.every((item) => matchesScopeOrEvidence(item.query));
+  }
+  if (action === "visit" || action === "browser_fetch") {
+    const requestedUrl = normalizedActionResourceUrl(args.url);
+    return Boolean(requestedUrl && (sourceUrls.has(requestedUrl)
+      || pivotTextMatchesAnchors(String(args.url ?? ""), anchors)));
+  }
+  if (action === "registry_search") return matchesScopeOrEvidence(args.query);
+  if (action === "domain_lookup" || action === "harvest_domain") {
+    return matchesScopeOrEvidence(args.domain) || pivotDomainMatchesSourceUrls(args.domain, sourceUrls);
+  }
+  if (action === "footprint_email") return matchesScopeOrEvidence(args.email);
+  if (action === "footprint_username_maigret" || action === "footprint_username_sherlock") {
+    return matchesScopeOrEvidence(args.username);
+  }
+  if (action === "footprint_spiderfoot") return matchesScopeOrEvidence(args.target);
+  return false;
+}
+function pivotAlignedEvidenceState(
+  priorRecords: readonly AgenticTrajectoryRecord[],
+  anchors: readonly string[],
+): { sourceUrls: Set<string>; evidenceText: string } {
+  const sourceUrls = new Set<string>();
+  const evidenceParts: string[] = [];
+  for (const record of priorRecords) {
+    if (record.execution !== "success") continue;
+    const evidenceText = evidenceParts.join(" ").toLowerCase();
+    if (!pivotActionIsAligned(record.action, record.args, anchors, sourceUrls, evidenceText)) continue;
+    if (record.action === "visit" || record.action === "browser_fetch") {
+      const requestedUrl = normalizedActionResourceUrl(record.args.url);
+      if (requestedUrl) sourceUrls.add(requestedUrl);
+    }
     for (const value of record.observedUrls ?? []) {
       const normalized = normalizedActionResourceUrl(value);
-      if (normalized) urls.add(normalized);
+      if (normalized) sourceUrls.add(normalized);
     }
+    evidenceParts.push(
+      record.observation ?? "",
+      JSON.stringify(record.args ?? {}),
+      ...(record.observedUrls ?? []),
+    );
   }
-  return urls;
-}
-function pivotAlignedEvidenceText(priorRecords: readonly AgenticTrajectoryRecord[], anchors: readonly string[]): string {
-  return pivotAlignedSearchRecords(priorRecords, anchors).map((record) => [
-    record.observation ?? "",
-    JSON.stringify(record.args ?? {}),
-    ...(record.observedUrls ?? []),
-  ].join(" ")).join(" ").toLowerCase();
-}
-function pivotResourceIsGroundedInAlignedEvidence(value: unknown, evidenceText: string): boolean {
-  if (typeof value !== "string" || !value.trim() || !evidenceText) return false;
-  const normalized = normalizeDiscoverySearchQuery(value).replace(/[^a-z0-9@._+-]+/g, " ");
-  if (normalized.length >= 4 && evidenceText.includes(normalized)) return true;
-  const resourceTokens = normalized.match(/[a-z0-9]{4,}/g) ?? [];
-  const unique = [...new Set(resourceTokens.filter((token) => !PIVOT_SCOPE_GENERIC_TERMS.has(pivotScopeToken(token))))];
-  return unique.length >= 1 && unique.some((token) => evidenceText.includes(token));
+  return { sourceUrls, evidenceText: evidenceParts.join(" ").toLowerCase() };
 }
 export function discoveryPivotAlignmentReason(
   objective: string,
@@ -1703,57 +1732,11 @@ export function discoveryPivotAlignmentReason(
   // than becoming an accidental stop gate.
   if (anchors.length === 0) return null;
 
-  const sourceUrls = pivotAlignedSourceUrls(priorRecords, anchors);
-  const alignedEvidenceText = pivotAlignedEvidenceText(priorRecords, anchors);
-  let relevant = false;
+  // Provenance grows only through successful actions already grounded in the active
+  // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
+  const evidence = pivotAlignedEvidenceState(priorRecords, anchors);
+  if (pivotActionIsAligned(action, args, anchors, evidence.sourceUrls, evidence.evidenceText)) return null;
 
-  // Search requests must themselves test the active scope; a relevant-sounding
-  // purpose cannot legitimize an unrelated query. Parallel batches must be relevant
-  // item by item so one good query cannot smuggle unrelated outbound searches.
-  if (action === "web_search") {
-    relevant = pivotTextMatchesAnchors(String(args.query ?? ""), anchors)
-      || pivotResourceIsGroundedInAlignedEvidence(args.query, alignedEvidenceText);
-  } else if (action === "parallel_web_search") {
-    const searches = Array.isArray(args.searches) ? args.searches.filter((item) =>
-      Boolean(item && typeof item === "object" && !Array.isArray(item)),
-    ) as Array<Record<string, unknown>> : [];
-    relevant = searches.length > 0 && searches.every((item) =>
-      pivotTextMatchesAnchors(String(item.query ?? ""), anchors)
-        || pivotResourceIsGroundedInAlignedEvidence(item.query, alignedEvidenceText),
-    );
-  } else if (action === "visit" || action === "browser_fetch") {
-    const requestedUrl = normalizedActionResourceUrl(args.url);
-    relevant = Boolean(requestedUrl && sourceUrls.has(requestedUrl))
-      || pivotTextMatchesAnchors(String(args.url ?? ""), anchors);
-  } else if (action === "registry_search") {
-    relevant = pivotTextMatchesAnchors(String(args.query ?? ""), anchors)
-      || pivotResourceIsGroundedInAlignedEvidence(args.query, alignedEvidenceText);
-  } else if (action === "domain_lookup" || action === "harvest_domain") {
-    relevant = pivotTextMatchesAnchors(String(args.domain ?? ""), anchors)
-      || pivotResourceIsGroundedInAlignedEvidence(args.domain, alignedEvidenceText);
-    if (!relevant) {
-      const domain = normalizedDomainResource(args.domain).replace(/^www\./, "");
-      for (const url of sourceUrls) {
-        try {
-          const host = new URL(url).hostname.replace(/^www\./, "");
-          if (domain && (host === domain || host.endsWith("." + domain) || domain.endsWith("." + host))) {
-            relevant = true;
-            break;
-          }
-        } catch { /* normalized source URLs should already be valid */ }
-      }
-    }
-  } else if (action === "footprint_email") {
-    relevant = pivotTextMatchesAnchors(String(args.email ?? ""), anchors)
-      || pivotResourceIsGroundedInAlignedEvidence(args.email, alignedEvidenceText);
-  } else if (action === "footprint_username_maigret" || action === "footprint_username_sherlock") {
-    relevant = pivotResourceIsGroundedInAlignedEvidence(args.username, alignedEvidenceText);
-  } else if (action === "footprint_spiderfoot") {
-    relevant = pivotTextMatchesAnchors(String(args.target ?? ""), anchors)
-      || pivotResourceIsGroundedInAlignedEvidence(args.target, alignedEvidenceText);
-  }
-
-  if (relevant) return null;
   return "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: "
     + direction.slice(0, 420)
     + ". The action's actual query/resource is outside that scope and is not tied to evidence returned by a pivot-aligned search. Use the existing case evidence to choose any relevant next action, or ask Boss/Right-hand to approve a new objective before pursuing a different lane. A rationale alone cannot authorize an unrelated outbound query. This guard does not prescribe a tool, provider, company, or fixed sequence; no outbound request was made.";
