@@ -115,10 +115,10 @@ type ReleaseResult = { available: true; released: boolean };
 const CANONICAL_OWNER_READ_RETRY_DELAYS_MS = [300, 600] as const;
 
 /**
- * A canonical owner read is safe to retry once only when the failure is a
- * recognized transport interruption. Never classify Upstash quota/capacity,
- * command-policy, or unknown-state failures as transient, and never switch to
- * a secondary Redis URL: those stores are independent databases, not replicas.
+ * A canonical owner read may use a small, bounded retry budget only when the
+ * failure is a recognized transport interruption. Never classify Upstash
+ * quota/capacity, command-policy, or unknown-state failures as transient, and
+ * never switch to a secondary Redis URL: those stores are independent databases, not replicas.
  */
 function isTransientCanonicalOwnerReadFailure(error: unknown): boolean {
   const parts: string[] = [];
