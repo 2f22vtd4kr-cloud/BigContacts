@@ -7,7 +7,7 @@ export type InvestigatorEpisodeHealthInput = {
   status: string;
   iterations: number;
   stopReason?: string | null;
-  trajectoryRecords?: readonly { action?: string | null; execution?: string | null; stopReason?: string | null; failureDomain?: string | null; failureKind?: string | null }[];
+  trajectoryRecords?: readonly { action?: string | null; execution?: string | null; observation?: string | null; stopReason?: string | null; failureDomain?: string | null; failureKind?: string | null }[];
 };
 
 /**
@@ -55,7 +55,10 @@ export function classifyInvestigatorEpisodeFailure(
     }
     return { code: "investigator_episode_unavailable_without_provider_record" };
   }
-  if (input.status !== "cancelled" && !hasExecutedInvestigatorResearchAction(episodeRecords)) {
+  const deliberatePivotGuardRecovery = input.stopReason === "ITERATION_BUDGET" && episodeRecords.some((record) =>
+    record.execution === "blocked" && String(record.observation ?? "").includes("repeat_pivot_alignment_guard"),
+  );
+  if (input.status !== "cancelled" && !hasExecutedInvestigatorResearchAction(episodeRecords) && !deliberatePivotGuardRecovery) {
     return { code: "investigator_episode_no_action" };
   }
   return null;
