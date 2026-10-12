@@ -531,16 +531,45 @@ describe("Boss-accepted discovery pivot scope", () => {
       purpose: "Read the ownership page",
     }, [alignedSearch])).toBeNull();
 
-    // The next query may follow a named lead instead of repeating the sector words,
-    // but only when that name was found in a pivot-aligned search observation.
+    // Search snippets and registry rows are leads: they can justify opening
+    // a result URL, but do not by themselves authorize further searches about a
+    // company/person whose relevance has not been established in fetched material.
     const namedLeadSearch = {
       ...alignedSearch,
-      observation: "Public results identify FitNation as a regional fitness operator.",
+      observation: "Public search results mention FitNation as a regional fitness operator.",
     };
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "FitNation ownership",
       provider: "serper",
-    }, [namedLeadSearch])).toBeNull();
+    }, [namedLeadSearch])).toContain("pivot_alignment_guard");
+
+    const registryLead = {
+      ...alignedSearch,
+      action: "registry_search",
+      args: { query: "boutique fitness franchise owners Texas corporate registry", registry: "companies-house" },
+      observation: "Registry row lead: FitNation; official record URL is unvisited.",
+      observedUrls: [],
+      leadUrls: ["https://registry.example.test/company/fitnation"],
+    };
+    expect(discoveryPivotAlignmentReason(objective, "visit", {
+      url: "https://registry.example.test/company/fitnation",
+    }, [registryLead])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "FitNation ownership",
+      provider: "serper",
+    }, [registryLead])).toContain("pivot_alignment_guard");
+
+    const namedLeadVisit = {
+      ...alignedSearch,
+      action: "visit",
+      args: { url: "https://example-fitness.test/ownership" },
+      observation: "Official ownership page identifies FitNation as a regional fitness operator.",
+      observedUrls: ["https://example-fitness.test/ownership"],
+    };
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "FitNation ownership",
+      provider: "serper",
+    }, [alignedSearch, namedLeadVisit])).toBeNull();
 
     const staleSearch = {
       ...alignedSearch,
