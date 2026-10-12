@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -235,6 +235,12 @@ describe("Investigator outbound request audit boundary", () => {
 });
 
 describe("Investigator prompt architecture", () => {
+  it("preserves the complete multiline Boss pivot in the emergency compact objective", () => {
+    expect(extractBossPivotDirectionForCompactPrompt(
+      "base objective\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\nVerify the exact entity anchor against public evidence.\nThen test a materially different independent source for the same name and role.",
+    )).toBe("Verify the exact entity anchor against public evidence.\nThen test a materially different independent source for the same name and role.");
+  });
+
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
     const prompt = buildStepPrompt({
       targetName: "",
@@ -295,6 +301,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("Search snippets remain leads, not evidence.");
     expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
+    expect(prompt).toContain("DISCOVERY PROGRESS GATE");
+    expect(prompt).toContain("once a real entity appears, test that exact named anchor");
+    expect(prompt).toContain("Never use placeholders such as CompanyName, companywebsite.com, or example.com.");
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
     expect(prompt).toContain("VALID DISCOVERY FINDING SHAPE (placeholders only; never emit placeholder values)");
     expect(prompt).toContain("<exact full name from fetched page>");
@@ -327,7 +336,21 @@ describe("Investigator prompt architecture", () => {
     expect(validateDiscoverySearchQuery("famous casino owners interview", [])).toEqual({ allowed: false, reason: expect.any(String) });
     expect(validateDiscoverySearchQuery("Acme Holdings CEO official", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Companies House director Kenya", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("casino owners site:example.com", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Fortune 500 company leadership page list", [])).toEqual({
+      allowed: false,
+      reason: expect.stringContaining("concrete anchor"),
+    });
+    for (const placeholder of [
+      "casino owners site:example.com",
+      '"Chief Public Relations Officer" site:example.com',
+      'site:companywebsite.com "public relations" "Chief" "CompanyName"',
+      'public relations director site:companywebsite.com "CompanyName"',
+    ]) {
+      expect(validateDiscoverySearchQuery(placeholder, [])).toMatchObject({
+        allowed: false,
+        reason: expect.stringContaining("placeholder"),
+      });
+    }
     expect(validateDiscoverySearchQuery("2026 acquisition of AI startup by large corporation CEO statement", [])).toEqual({
       allowed: false,
       reason: expect.stringContaining("concrete anchor"),
@@ -442,7 +465,7 @@ describe("Investigator prompt architecture", () => {
       expect(reason).toContain("repeat_action_guard");
     });
 
-    it("allows retry after a failed fetch and allows revisiting after an independent fetched source", () => {
+    it("allows one retry after an unspecified failure and allows revisiting after an independent fetched source", () => {
       const failedVisit = {
         ...livenessRecord("visit", "error"),
         turn: 4,
@@ -461,6 +484,34 @@ describe("Investigator prompt architecture", () => {
       expect(redundantResearchActionReason("visit", {
         url: "https://example.com/team", hypothesis: "follow-up", purpose: "verify",
       }, [successfulVisit, independentVisit])).toBeNull();
+    });
+
+    it("blocks another request after a non-retryable HTTP failure", () => {
+      const failedVisit = {
+        ...livenessRecord("visit", "error"),
+        turn: 4,
+        failureDomain: "external_page_fetch" as const,
+        failureKind: "http_error" as const,
+        args: { url: "https://example.com/media", hypothesis: "h", purpose: "p" },
+      };
+      const reason = redundantResearchActionReason("visit", {
+        url: "https://example.com/media", hypothesis: "h2", purpose: "p2",
+      }, [failedVisit]);
+      expect(reason).toContain("non-retryable source failure");
+    });
+
+    it("allows one transient retry but blocks repeated transport failures for the same URL/capability", () => {
+      const firstFailure = {
+        ...livenessRecord("browser_fetch", "error"),
+        turn: 4,
+        failureDomain: "external_page_fetch" as const,
+        failureKind: "request_failure" as const,
+        args: { url: "https://example.com/media", provider: "scrapfly", hypothesis: "h", purpose: "p" },
+      };
+      const secondFailure = { ...firstFailure, turn: 5 };
+      const args = { url: "https://example.com/media", provider: "scrapfly", hypothesis: "h2", purpose: "p2" };
+      expect(redundantResearchActionReason("browser_fetch", args, [firstFailure])).toBeNull();
+      expect(redundantResearchActionReason("browser_fetch", args, [firstFailure, secondFailure])).toContain("repeated transport failures");
     });
 
     it("keeps provider choice independent for browser fetches", () => {
