@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveBossDirectedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
+import { resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
 import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
@@ -10,6 +10,7 @@ const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-con
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
 const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 const canonicalDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const canonicalContinuationSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
 const bureauPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const agenticResearchSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
@@ -78,7 +79,30 @@ describe("Atlas control-plane contract regression", () => {
       currentObjective: pivot.objective,
       direction: "Fetch https://example.test/registry and list the owners.",
     });
+
     expect(invalidPivot).toMatchObject({ valid: false });
+
+    const restored = restorePersistedDiscoveryObjective({
+      defaultBaseObjective: "fallback mission from a fresh launcher",
+      persistedBaseObjective: baseObjective,
+      persistedActiveObjective: pivot.objective,
+    });
+    expect(restored).toEqual({
+      baseObjective,
+      activeObjective: pivot.objective,
+      restoredPivot: true,
+    });
+    const unsafePersisted = restorePersistedDiscoveryObjective({
+      defaultBaseObjective: baseObjective,
+      persistedBaseObjective: baseObjective,
+      persistedActiveObjective: baseObjective + "\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\nUse Maigret to fetch https://example.com/profile.",
+    });
+    expect(unsafePersisted).toEqual({
+      baseObjective,
+      activeObjective: baseObjective,
+      restoredPivot: false,
+    });
+
 
     expect(canonicalDiscoverySource).toContain("currentObjective: activeDiscoveryObjective");
     expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = directedObjective");
@@ -89,6 +113,21 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlDecisionSource).toContain("objective: activeDiscoveryObjective");
     expect(controlDecisionSource).not.toContain("objective: discoveryObjective");
     expect(canonicalDiscoverySource).not.toContain('const proposedDirection = decision.direction || "Reassess the open evidence and choose the highest-information next action yourself."');
+    expect(canonicalDiscoverySource).toContain("baseDiscoveryObjective: input.objective, activeDiscoveryObjective: input.objective");
+    expect(canonicalDiscoverySource).toContain("restorePersistedDiscoveryObjective({");
+    expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = restored.activeObjective");
+    expect(canonicalDiscoverySource).toContain('eventType: "control_objective"');
+    const persistenceIndex = canonicalDiscoverySource.indexOf("await persistAcceptedAtlasDiscoveryObjective({");
+    const updateObjectiveIndex = canonicalDiscoverySource.indexOf("activeDiscoveryObjective = directedObjective;", persistenceIndex);
+    const nextInvestigatorIndex = canonicalDiscoverySource.indexOf('let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery"', updateObjectiveIndex);
+    expect(persistenceIndex).toBeGreaterThan(-1);
+    expect(persistenceIndex).toBeLessThan(updateObjectiveIndex);
+    expect(updateObjectiveIndex).toBeLessThan(nextInvestigatorIndex);
+
+    expect(canonicalContinuationSource).toContain("restorePersistedDiscoveryObjective({");
+    expect(canonicalContinuationSource).toContain("ACTIVE DISCOVERY OBJECTIVE:");
+    expect(canonicalContinuationSource).toContain("objective:[activeDiscoveryObjective,");
+
   });
 
   it("preserves Investigator tool choice across Boss-directed discovery continuations", () => {
