@@ -21,6 +21,8 @@ This is a source-and-CI audit, not a new live investigation. No new provider/mod
 
 ### A. Discovery spent its budget before choosing a realistic person (confirmed by the 2026-10-12 audit)
 
+The opening Boss prompt already prioritizes relevance, identity attribution and practical reachability; its decision contract did not explicitly require comparing competing anchor hypotheses by evidence availability, novelty and expected research cost. The opening prompt and compact Investigator discovery contract now ask the models to compare a small, unconstrained set of plausible anchors, test the best expected evidence/value hypothesis, and pivot on bounded negative evidence. This remains model-owned and does not encode an industry, geography or query itinerary.
+
 The captured run used broad Fortune 500/Coca-Cola leadership searches, repeated similar queries, generic PR-contact queries, and literal placeholder values (example.com, companywebsite.com, CompanyName). It exhausted the Investigator iteration budget with no model findings, parsed candidates, admissions, or cards. This is a trajectory-quality failure, not proof of provider quota exhaustion.
 
 ### B. Existing realism logic was downstream of discovery (source confirmed)
