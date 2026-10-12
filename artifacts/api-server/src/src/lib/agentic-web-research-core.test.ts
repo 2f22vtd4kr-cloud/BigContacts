@@ -300,6 +300,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries.");
     expect(prompt).toContain("Search snippets remain leads, not evidence.");
     expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
+    expect(prompt).toContain("BOSS ALIGNMENT:");
+    expect(prompt).toContain("deviate only for observed evidence, failed capability, or policy block");
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY PROGRESS GATE");
     expect(prompt).toContain("DISCOVERY TARGETABILITY GATE");
