@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -235,6 +235,12 @@ describe("Investigator outbound request audit boundary", () => {
 });
 
 describe("Investigator prompt architecture", () => {
+  it("preserves the complete multiline Boss pivot in the emergency compact objective", () => {
+    expect(extractBossPivotDirectionForCompactPrompt(
+      "base objective\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\nVerify the exact entity anchor against public evidence.\nThen test a materially different independent source for the same name and role.",
+    )).toBe("Verify the exact entity anchor against public evidence.\nThen test a materially different independent source for the same name and role.");
+  });
+
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
     const prompt = buildStepPrompt({
       targetName: "",
