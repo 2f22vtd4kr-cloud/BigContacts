@@ -1008,7 +1008,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         }
         // Only clear the previous evidence-backed terminal after control validation and
         // all budget/iteration guards pass, at the exact point a new Investigator act starts.
-        failureStage = "control_objective_persistence";
+        failureStage = "control_event_persistence";
         await persistAcceptedAtlasDiscoveryObjective({
           caseId: discoveryCaseId,
           jobId: atlasJobId,
