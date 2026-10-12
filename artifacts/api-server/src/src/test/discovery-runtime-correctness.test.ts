@@ -680,6 +680,10 @@ describe("Apex research runtime readiness hardening", () => {
 
     const currentPivotRecord = {
       ...priorSearch,
+      action: "visit",
+      args: { url: "https://example-fitness.test/ownership" },
+      observation: "Official ownership page verifies FitNation as a regional fitness franchise operator.",
+      observedUrls: ["https://example-fitness.test/ownership"],
       pivotScopeKey: discoveryPivotScopeKey(pivot) ?? undefined,
     };
     expect(discoveryPivotAlignmentReason(pivot, "web_search", {
