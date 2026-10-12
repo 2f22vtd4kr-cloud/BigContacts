@@ -1617,7 +1617,7 @@ const PIVOT_SCOPE_GENERIC_TERMS = new Set([
   "businesses", "company", "companies", "person", "people", "contact", "contacts",
   "channel", "channels", "professional", "professionally", "realistic", "public",
   "publicly", "documented", "document", "equity", "holder", "holders", "source",
-  "sources", "evidence", "potential", "wealth", "wealthy", "rich", "credible",
+  "sources", "evidence", "potential", "media", "partnership", "marketing", "press", "pr", "wealth", "wealthy", "rich", "credible",
   "approach", "route", "routes", "with", "from", "into", "through", "their",
   "those", "that", "this", "these", "where", "which", "while", "about", "among",
   "around", "across", "within", "under", "using", "based", "local", "locales",
@@ -1688,7 +1688,7 @@ function pivotResourceIsGroundedInAlignedEvidence(value: unknown, evidenceText: 
   if (normalized.length >= 4 && evidenceText.includes(normalized)) return true;
   const resourceTokens = normalized.match(/[a-z0-9]{4,}/g) ?? [];
   const unique = [...new Set(resourceTokens.filter((token) => !PIVOT_SCOPE_GENERIC_TERMS.has(pivotScopeToken(token))))];
-  return unique.length >= 2 && unique.every((token) => evidenceText.includes(token));
+  return unique.length >= 1 && unique.some((token) => evidenceText.includes(token));
 }
 export function discoveryPivotAlignmentReason(
   objective: string,
@@ -1711,20 +1711,23 @@ export function discoveryPivotAlignmentReason(
   // purpose cannot legitimize an unrelated query. Parallel batches must be relevant
   // item by item so one good query cannot smuggle unrelated outbound searches.
   if (action === "web_search") {
-    relevant = pivotTextMatchesAnchors(String(args.query ?? ""), anchors);
+    relevant = pivotTextMatchesAnchors(String(args.query ?? ""), anchors)
+      || pivotResourceIsGroundedInAlignedEvidence(args.query, alignedEvidenceText);
   } else if (action === "parallel_web_search") {
     const searches = Array.isArray(args.searches) ? args.searches.filter((item) =>
       Boolean(item && typeof item === "object" && !Array.isArray(item)),
     ) as Array<Record<string, unknown>> : [];
     relevant = searches.length > 0 && searches.every((item) =>
-      pivotTextMatchesAnchors(String(item.query ?? ""), anchors),
+      pivotTextMatchesAnchors(String(item.query ?? ""), anchors)
+        || pivotResourceIsGroundedInAlignedEvidence(item.query, alignedEvidenceText),
     );
   } else if (action === "visit" || action === "browser_fetch") {
     const requestedUrl = normalizedActionResourceUrl(args.url);
     relevant = Boolean(requestedUrl && sourceUrls.has(requestedUrl))
       || pivotTextMatchesAnchors(String(args.url ?? ""), anchors);
   } else if (action === "registry_search") {
-    relevant = pivotTextMatchesAnchors(String(args.query ?? ""), anchors);
+    relevant = pivotTextMatchesAnchors(String(args.query ?? ""), anchors)
+      || pivotResourceIsGroundedInAlignedEvidence(args.query, alignedEvidenceText);
   } else if (action === "domain_lookup" || action === "harvest_domain") {
     relevant = pivotTextMatchesAnchors(String(args.domain ?? ""), anchors)
       || pivotResourceIsGroundedInAlignedEvidence(args.domain, alignedEvidenceText);
