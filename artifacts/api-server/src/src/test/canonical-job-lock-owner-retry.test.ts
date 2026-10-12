@@ -57,6 +57,16 @@ describe("canonical lease owner read retry", () => {
     expect(canonicalRedis.get).toHaveBeenNthCalledWith(2, "apex:activejob:atlas-run");
   });
 
+  it("retries an uncoded fetch/network transport failure at the same owner-read boundary", async () => {
+    canonicalRedis.get
+      .mockRejectedValueOnce(new Error("fetch failed: network connection temporarily unavailable"))
+      .mockResolvedValueOnce("job-17");
+
+    await expect(isCanonicalJobOwner("atlas-run", "job-17")).resolves.toBe(true);
+    expect(canonicalRedis.get).toHaveBeenCalledTimes(2);
+    expect(canonicalRedis.get).toHaveBeenNthCalledWith(1, "apex:activejob:atlas-run");
+    expect(canonicalRedis.get).toHaveBeenNthCalledWith(2, "apex:activejob:atlas-run");
+  });
   it("does not retry NETWORK_ERROR when the diagnostic identifies quota exhaustion", async () => {
     canonicalRedis.get.mockRejectedValueOnce(Object.assign(new Error("network error: monthly quota exceeded"), { code: "NETWORK_ERROR" }));
 
