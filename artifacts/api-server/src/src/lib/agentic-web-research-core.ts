@@ -405,8 +405,9 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
     };
   }
   const localOperatorRoute = DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS.test(normalized);
-  const globalBrandLeadership = DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized) && DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS.test(normalized);
-  if ((globalBrandLeadership || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute) {
+  const globalBrandTarget = DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized);
+  const globalBrandLeadership = globalBrandTarget && DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS.test(normalized);
+  if ((globalBrandTarget || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute) {
     return {
       allowed: false,
       reason: "Discovery rejected an impractical fame/ranking or global-household-brand path. Search a realistically reachable private/regional operating principal or name a concrete local ownership/intermediary route (such as an independent bottler/distributor, franchise owner, license holder or concession holder). No provider request was made.",
