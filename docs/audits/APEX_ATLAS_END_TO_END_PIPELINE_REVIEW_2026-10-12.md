@@ -25,7 +25,7 @@ The captured run used broad Fortune 500/Coca-Cola leadership searches, repeated 
 
 ### B. Existing realism logic was downstream of discovery (source confirmed)
 
-The reachability-realism assessor classifies person-level contact feasibility, but the canonical discovery route did not use it to prevent expensive low-yield destination choices. The realism assessment is now wired into the canonical target Investigator objective using the bound entity's current public contact/profile fields and metadata. Discovery also now has a pre-fetch source-destination gate for well-known ranking destinations and global-household-brand leadership/about pages, with an explicit exception for URLs identifying local operators, bottlers, distributors, franchisees, licensees, concessions, or regional partners. The gate is a narrow quality rail, not a hardcoded research itinerary.
+The reachability-realism assessor classifies person-level contact feasibility, but the canonical discovery route did not use it to prevent expensive low-yield destination choices. The realism assessment is now wired into the canonical target Investigator objective using the bound entity's current public contact/profile fields and metadata. Discovery also now has a pre-fetch source-destination gate for well-known ranking destinations and global-household-brand leadership/about pages, with an explicit exception for URLs identifying local operators, bottlers, distributors, franchisees, licensees, concessions, or regional partners. The gate is a narrow quality rail, not a hardcoded research itinerary. Title/leadership-led searches must now include a wealth-relevant ownership/equity/investor/operator/concession/franchise/proprietor hypothesis; localized Slovenian/Croatian/Italian/German ownership terms are recognized.
 
 ### C. Search-query policy alone did not cover direct URL visits (source confirmed)
 
@@ -33,7 +33,7 @@ The existing discovery query validator only runs before search actions. A model 
 
 ### D. Boss-pivot retention is a critical hand-off contract
 
-The objective formatter appends a marker plus a newline and the selected direction. Compaction must extract the complete trimmed tail after that marker—not only the first line—and reserve room for it in the short objective before historical context. The compact prompt explicitly requires the next action to address the current Boss question or record observed evidence that makes it infeasible; it must not silently drift to unrelated homonyms. The regression suite covers multiline pivots.
+The objective formatter appends a marker plus a newline and the selected direction. Compaction must extract the complete trimmed tail after that marker—not only the first line—and reserve room for it in the short objective before historical context. The Investigator prompt now makes the mission/realism policy higher priority than control suggestions: Boss directions are hypotheses, and a direction that points to prestige-only global leadership must be rejected unless it traces to a realistic local ownership/operator/intermediary route. Compatible Boss directions still have to advance the next action, and any deviation needs an evidence/capability/policy reason. The regression suite covers multiline pivots and preserves this hierarchy in the compact prompt.
 
 ### E. Discovery-only continuation used to overstate success
 
@@ -42,6 +42,14 @@ The alternate case-continuation route reported outcome="complete" after a discov
 ### F. Target research needed person-level feasibility and human-like pivots
 
 The target Investigator now receives the assessment's reachability directive and compact, model-owned research guidance: follow verified roles, aliases/transliterations and jurisdiction into public director/beneficial-owner records, filings, investments/deals/assets, local-language reporting and English corroboration; seek publicly attributed professional/business social profiles; and identify direct or documented intermediary routes. It explicitly rejects guessed usernames, private accounts, inferred phone/WhatsApp/Telegram identity, and speculative family/associate relationships. These restrictions protect identity attribution; they do not prescribe a fixed source order.
+
+### G. Boss opening suggestions could override the actual targetability mission
+
+The opening Boss and Right-hand prompts checked public-source plausibility, but did not put the under-the-radar/realistic-person objective ahead of a prestige-style company suggestion strongly enough. The Investigator was also told to treat Boss direction as the goal without first checking compatibility with the mission. The control prompts now state that the human mission and realistic-targetability policy outrank Boss/Right-hand suggestions, and that Boss directions are hypotheses, not mandates. They explicitly prioritize private/regional/family-business owners, operators, investors, beneficial owners, and concession/franchise/license holders where a plausible public/intermediary route exists. Source text still has to establish identity, role and wealth potential; these prompt changes do not themselves prove a candidate.
+
+### H. Duplicate-search protection did not match how models vary rationale
+
+The previous redundant-action guard caught repeated page fetches and exact action/rationale repeats, but the same discovery query could be sent to the same provider and market again by changing its hypothesis/purpose. A new dispatch-level guard keys the normalized query, provider, locale and market for both single and batched searches. It blocks repeating the same request unless a newly fetched, previously unobserved public source has advanced the case since; changing rationale alone is not new evidence. Cross-provider and multilingual/market variants remain available. This addresses the repeated-query pattern recorded in the audit without mandating a fixed search itinerary.
 
 ### G. OSINT tool availability was misleading/incomplete
 
@@ -62,7 +70,7 @@ The canonical capability registry exposes a limited set of model-selectable acti
 
 ## Verification and remaining boundary
 
-- Added unit/static regression coverage for discovery query/destination gates, local-operator exceptions, the compact objective contract, target-objective research guidance, truthful Python tool availability, and incomplete discovery-only continuation.
-- The repository's CI suite is running against the branch; merge is deliberately withheld until the current head has the required green checks.
+- Added unit/static regression coverage for discovery query/destination gates (including title-led routes and localized terms), local-operator exceptions, same-provider duplicate-search blocking with evidence-based exceptions, mission-first Boss/Right-hand/Investigator prompts, the compact objective contract, target-objective research guidance, truthful Python tool availability, and incomplete discovery-only continuation.
+- The repository CI suite is running against the branch. Merge remains withheld until the current head has the required green checks and the full-code audit completes.
 - No live target research, live social-profile enumeration, or successful end-to-end card creation has been verified by this source audit. That still requires one explicitly authorized run after merge/deploy; do not use this document as proof of runtime success.
 - The current OSINT stubs are a real capability gap, not a prompt gap. A secure executor is a separate engineering task and should not be simulated by exposing legacy child_process paths.
