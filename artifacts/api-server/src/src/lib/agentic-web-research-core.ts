@@ -1621,6 +1621,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactResearchContract = "RESEARCH CONTRACT: You own the trajectory; no required first tool or fixed search sequence. Choose any available action from current evidence and expected information gain.";
       const compactActionLiveness = "ACTION LIVENESS: exact repeats without changed hypothesis/purpose or new evidence are blocked; a changed hypothesis, resource/provider, or new evidence may justify revisiting.";
       const compactDiscoveryQualityGate = "DISCOVERY QUALITY GATE: establish a concrete organization/person/domain/registry/filing/source anchor before generic person-finding searches; choose the route yourself.";
+      const compactLivenessGuidance = discoveryLivenessAdvisory
+        ? "OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available): " + discoveryLivenessAdvisory.slice(0, 140) + " This suggestion does not mandate visiting, browsing, or any particular provider."
+        : null;
       const compactCaseObjective = input.objective?.trim()
         ? "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective, 180)
         : "";
@@ -1636,6 +1639,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         pageFormatGuidance,
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate] : []),
         ...(compactDiscoveryAdmissionContract ? [compactDiscoveryAdmissionContract] : []),
+        ...(compactLivenessGuidance ? [compactLivenessGuidance] : []),
       ].filter(Boolean).join("\n\n");
       const minimalBudget = maxUserPromptChars - minimalEmergencyPrefix.length - stateLabel.length - compactOutputContract.length - latestRecordTail.length - separators;
       if (minimalBudget >= 0) {
