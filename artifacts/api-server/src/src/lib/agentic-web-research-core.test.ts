@@ -6,8 +6,23 @@ import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError } from "./canonical-atlas-failure-diagnostics";
+import { classifyThrownProviderError } from "./provider-error-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
+
+describe("thrown provider error classification", () => {
+  it("does not misclassify local prompt-budget failures as network failures", () => {
+    expect(classifyThrownProviderError(
+      new Error("Investigator mandatory schema and evidence contract exceed the provider prompt budget."),
+    )).toBe("unexpected_error");
+    expect(classifyThrownProviderError(
+      Object.assign(new Error("request failed: fetch failed"), { code: "ECONNRESET" }),
+    )).toBe("network_error");
+    expect(classifyThrownProviderError(
+      Object.assign(new Error("monthly quota exhausted"), { name: "ProviderQuotaError" }),
+    )).toBe("rate_limited");
+  });
+});
 
 function livenessRecord(action: string, execution: "success" | "error" | "blocked") {
   return {
@@ -233,7 +248,15 @@ describe("Investigator prompt architecture", () => {
         args: { query: "generic research " + index },
         observation: "O".repeat(2_000),
         observedUrls: ["https://example" + index + ".com/source"],
-        findings: [],
+        findings: index === 23 ? [{
+          vectorType: "other",
+          value: "latest-finding-" + "V".repeat(280),
+          personName: "Latest Person " + "P".repeat(90),
+          role: "Executive Officer " + "R".repeat(80),
+          scope: "candidate",
+          sourceUrls: ["https://example23.com/source", "https://independent.example/source"],
+          note: "Latest record finding detail ".repeat(30),
+        }] : [],
       })),
       lastObservation: "L".repeat(4_000),
       findings: Array.from({ length: 20 }, (_, index) => ({
