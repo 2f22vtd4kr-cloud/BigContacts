@@ -149,3 +149,73 @@ export function mergeDurablyAdmittedCandidateSources(
   }
   return [...merged.values()].map(({ name, sourceUrls }) => ({ name, sourceUrls: [...sourceUrls] }));
 }
+
+
+export type DiscoveryTargetabilityObservation = {
+  action: string;
+  execution: string;
+  sourceUrl: string;
+  observation: string;
+};
+
+function normalizeTargetabilityText(value: string): string {
+  return value.normalize("NFKD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Discovery is about plausible high-value people, not any person with a public title.
+ * Count only source-observed ownership/control/investment signals attached to the
+ * exact person's nearby text, or an explicitly targetable ownership/investment role.
+ * Do not infer wealth from seniority, prominence, or merely appearing in a registry.
+ */
+export function hasCredibleDiscoveryWealthPotentialSignal(input: {
+  personName: string;
+  role: string;
+  observations: readonly DiscoveryTargetabilityObservation[];
+}): boolean {
+  const role = normalizeTargetabilityText(input.role);
+  const explicitRoleSignals = [
+    "owner", "proprietor", "founder", "co founder", "shareholder", "beneficial owner",
+    "controlling shareholder", "majority owner", "investor", "general partner",
+    "managing partner", "private equity partner", "venture partner", "family office principal",
+    "concession holder", "concessionaire", "franchise owner", "franchisee",
+    "license holder", "licensed operator", "owner operator",
+    "lastnik", "lastnica", "solastnik", "solastnica", "ustanovitelj", "ustanoviteljica",
+    "soustanovitelj", "soustanoviteljica", "delnicar", "druzbenik", "investitor",
+    "koncesionar", "imetnik licence", "vlasnik", "suvlasnik", "osnivac", "dionicar",
+    "proprietario", "proprietaria", "fondatore", "fondatrice", "azionista",
+    "investitore", "concessionario", "inhaber", "eigentumer", "gesellschafter",
+    "grunder", "betreiber",
+  ];
+  const roleIsInvestorRelationsOnly = role.includes("investor relations")
+    && !explicitRoleSignals.some((term) => term !== "investor" && role.includes(term));
+  if (!roleIsInvestorRelationsOnly && explicitRoleSignals.some((term) => role.includes(term))) return true;
+
+  const person = normalizeTargetabilityText(input.personName);
+  if (person.length < 3) return false;
+  const sourceSignals = [
+    "beneficial owner", "controlling owner", "majority owner", "majority shareholder",
+    "shareholder", "owns", "owner of", "ownership stake", "equity stake", "controlling stake",
+    "founder", "co founder", "shareholding", "held a stake", "sold a stake",
+    "acquired a stake", "investor in", "invested in", "investment partner",
+    "private equity", "venture capital partner", "family office principal",
+    "concession holder", "concessionaire", "franchise owner", "license holder",
+    "lastnik", "lastnica", "solastnik", "solastnica", "ustanovitelj", "soustanovitelj",
+    "delnicar", "druzbenik", "investitor", "koncesionar", "imetnik licence",
+    "vlasnik", "suvlasnik", "osnivac", "dionicar", "proprietario", "fondatore",
+    "azionista", "concessionario", "eigentumer", "gesellschafter", "grunder",
+  ];
+  return input.observations.some((observation) => {
+    if (observation.execution !== "success" || !["visit", "browser_fetch"].includes(observation.action)) return false;
+    if (!/^https:\/\/\S+$/i.test(observation.sourceUrl)) return false;
+    const text = normalizeTargetabilityText(observation.observation);
+    const nameAt = text.indexOf(person);
+    if (nameAt < 0) return false;
+    const nearby = text.slice(Math.max(0, nameAt - 260), Math.min(text.length, nameAt + person.length + 440));
+    return sourceSignals.some((term) => nearby.includes(normalizeTargetabilityText(term)));
+  });
+}
