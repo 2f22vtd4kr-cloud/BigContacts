@@ -2208,7 +2208,9 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           ? classifyCanonicalAtlasFailure({ stage: "external_page_fetch", error })
           : runtimeStage === "model_request"
           ? classifyCanonicalAtlasFailure({ stage: "oversight_control_decision", error })
-          : { domain: "unexpected_programming_error" as const, kind: "unexpected_exception" as const };
+          : runtimePhase === "cancellation_check"
+            ? classifyCanonicalAtlasFailure({ stage: "job_state_or_lease", error })
+            : { domain: "unexpected_programming_error" as const, kind: "unexpected_exception" as const };
     const runtimeFailureRecord: AgenticTrajectoryRecord = {
       turn: Math.max(priorTurnOffset, ...records.map((record) => record.turn)) + 1,
       model: modelUsed,
