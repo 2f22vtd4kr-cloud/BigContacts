@@ -23,15 +23,52 @@ vi.mock("@workspace/db", () => ({
   researchCasesTable: { id: {}, status: {}, caseFile: {}, currentAction: {}, updatedAt: {} },
 }));
 
-import { isCanonicalJobOwner } from "../lib/canonical-job-lock";
+import { fenceStaleCanonicalJob, isCanonicalJobOwner } from "../lib/canonical-job-lock";
 
-const canonicalRedis = { get: vi.fn() };
+const canonicalRedis = { get: vi.fn(), eval: vi.fn() };
 
 describe("canonical lease owner read retry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     canonicalRedis.get.mockReset();
+    canonicalRedis.eval.mockReset();
     mocks.getAllPermanentClients.mockReturnValue([canonicalRedis]);
+  });
+
+  it("terminalizes an interrupted prior job only while the caller owns the current lease", async () => {
+    canonicalRedis.eval.mockResolvedValueOnce(1);
+
+    await expect(fenceStaleCanonicalJob("atlas-run", "old-job", "new-job")).resolves.toBe("fenced");
+    expect(canonicalRedis.eval).toHaveBeenCalledTimes(1);
+    const [script, keyCount, activeKey, staleJobKey, currentJobId, message, finishedAt] = canonicalRedis.eval.mock.calls[0]!;
+    expect(script).toContain("owner~=ARGV[1]");
+    expect(script).toContain("'status','failed'");
+    expect(script).toContain("status=='done' or status=='failed' or status=='cancelled'");
+    expect(keyCount).toBe(2);
+    expect(activeKey).toBe("apex:activejob:atlas-run");
+    expect(staleJobKey).toBe("apex:job:old-job");
+    expect(currentJobId).toBe("new-job");
+    expect(message).toContain("stale job fenced");
+    expect(typeof finishedAt).toBe("string");
+  });
+
+  it("keeps a missing or already-terminal stale job distinct from a newly fenced job", async () => {
+    canonicalRedis.eval.mockResolvedValueOnce(0).mockResolvedValueOnce(2);
+    await expect(fenceStaleCanonicalJob("atlas-run", "missing-job", "new-job")).resolves.toBe("missing");
+    await expect(fenceStaleCanonicalJob("atlas-run", "done-job", "new-job")).resolves.toBe("terminal");
+    expect(canonicalRedis.eval).toHaveBeenCalledTimes(2);
+  });
+
+  it("refuses stale-job fencing when canonical lease ownership is uncertain or has changed", async () => {
+    canonicalRedis.eval.mockResolvedValueOnce(-1);
+    await expect(fenceStaleCanonicalJob("atlas-run", "old-job", "not-current-owner"))
+      .rejects.toThrow("lease changed during stale-job reconciliation");
+  });
+
+  it("rejects an attempt to fence the current job as stale", async () => {
+    await expect(fenceStaleCanonicalJob("atlas-run", "same-job", "same-job"))
+      .rejects.toThrow("distinct job owners");
+    expect(canonicalRedis.eval).not.toHaveBeenCalled();
   });
 
   it("retries a transient transport failure against the same canonical client", async () => {
@@ -99,6 +136,13 @@ describe("canonical lease owner read retry", () => {
     await expect(isCanonicalJobOwner("atlas-run", "job-17")).rejects.toThrow("max requests limit exceeded");
     expect(canonicalRedis.get).toHaveBeenCalledTimes(1);
     expect(mocks.markClientExhausted).toHaveBeenCalledWith(canonicalRedis);
+  });
+
+  it("does not retry network-worded command-policy failures", async () => {
+    canonicalRedis.get.mockRejectedValueOnce(new Error("network command is not allowed by policy"));
+
+    await expect(isCanonicalJobOwner("atlas-run", "job-17")).rejects.toThrow("network command is not allowed by policy");
+    expect(canonicalRedis.get).toHaveBeenCalledTimes(1);
   });
 
   it("does not retry non-transport command failures", async () => {
