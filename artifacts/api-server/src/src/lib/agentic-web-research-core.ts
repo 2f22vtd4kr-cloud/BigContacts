@@ -57,7 +57,9 @@ function normalizedUrl(value: string): string | null { try { const u = new URL(v
 const DISCOVERY_FAME_TERMS = /\b(?:billionaire|billionaires|richest|wealthiest|celebrity|celebrities|famous|forbes|bloomberg|net[ -]?worth|top[ -]?richest)\b/i;
 const DISCOVERY_GLOBAL_BRAND_TERMS = /\b(?:coca[ -]?cola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonald'?s|disney|netflix|oracle|berkshire hathaway|jpmorgan|goldman sachs)\b/i;
 const DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS = /\b(?:independent bottler|independent distributor|regional distributor|local distributor|franchisee|franchise owner|licensed operator|license holder|concession holder|independent operator|regional operator|local operator|locally owned (?:operator|company|business|subsidiary)|regional subsidiary|local subsidiary|privately held (?:bottler|distributor|operator|company)|local business owner|regional business owner)\b/i;
-const DISCOVERY_RANKING_TERMS = /\b(?:fortune[ -]?500|fortune500|forbes|richest|wealthiest|top[ -]?richest|celebrity list|billionaire list|net[ -]?worth ranking)\b/i;
+const DISCOVERY_RANKING_TERMS = /\b(?:fortune[ -]?500|fortune500|top[ -]?richest|celebrity list|billionaire list|net[ -]?worth ranking)\b/i;
+const DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS = /\b(?:leadership|executive|executives|ceo|chief executive|senior management|management team|board of directors|corporate officers|leadership team|staff directory)\b/i;
+const DISCOVERY_BARE_TLD_SITE_FILTER = /\bsite:\.(?:com|org|net|edu|gov|io|co|si|eu)\b/i;
 const DISCOVERY_GENERIC_CONTACT_TERMS = /\b(?:public relations|media relations|press contact|media contact|communications contact|pr contact|press office|media office)\b/i;
 const DISCOVERY_TARGETABILITY_TERMS = /\b(?:ownership|owner|owner-operator|founder|co-?founder|shareholder|beneficial owner|controlling owner|investor|investment|private equity|venture capital|family office|principal|partner|concession|franchise|license holder|licensed operator|casino|gaming|hotel|resort|hospitality|real estate|property|asset|holding company|business owner|acquisition|business exit|portfolio)\b/i;
 const DISCOVERY_ROLE_TERMS = /\b(?:founder|co[ -]?founder|owner|operator|ceo|chief executive|director|managing director|chairman|chairwoman|chair|principal|partner|managing partner|general partner|president|shareholder|beneficial owner|officer|board)\b/i;
@@ -264,6 +266,9 @@ export function isTransientInvestigatorCapacityError(result: { error?: string; t
 export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
+  if (DISCOVERY_BARE_TLD_SITE_FILTER.test(normalized)) {
+    return { allowed: false, reason: "Discovery query uses a bare TLD as a site filter, not a concrete source. Name a real domain or business/sector anchor; no provider request was made." };
+  }
   const placeholderQuery = /(?:\bcompanyname\b|\bcompanywebsite(?:\.[a-z]{2,})?\b|\byourcompany(?:\.[a-z]{2,})?\b|\bexample\.(?:com|org|net|co\.[a-z]{2})\b|\[\s*(?:companyname|company(?:\s+name)?|domain|company\s+website)\s*\]|\{\{\s*(?:companyname|company(?:\s+name)?|domain)\s*\}\})/i;
   if (placeholderQuery.test(query)) {
     return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with a real entity/source anchor observed in the case; no provider request was made." };
@@ -272,17 +277,12 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   // The anchor gate blocks only context-free provider spend. It never prescribes
   // the anchor, provider, or next capability; exact named identities and justified
   // repeats remain available to the model.
-  if (DISCOVERY_GENERIC_CONTACT_TERMS.test(normalized) && !DISCOVERY_TARGETABILITY_TERMS.test(normalized)) {
+  if (DISCOVERY_GENERIC_CONTACT_TERMS.test(normalized)
+    && !DISCOVERY_TARGETABILITY_TERMS.test(normalized)
+    && !DISCOVERY_SECTOR_TERMS.test(normalized)) {
     return {
       allowed: false,
       reason: "Discovery rejected a generic public-relations/media-contact query with no wealth-relevant business, ownership, investment or operating anchor. Search snippets for generic staff contacts are not the person-discovery objective; choose a sector/business/ownership hypothesis instead. No provider request was made.",
-    };
-  }
-  const localOperatorRoute = DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS.test(normalized);
-  if ((DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized) || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute) {
-    return {
-      allowed: false,
-      reason: "Discovery rejected an impractical fame/ranking or global-household-brand path. Search a realistically reachable private/regional operating principal or name a concrete local ownership/intermediary route (such as an independent bottler/distributor, franchise owner, license holder or concession holder). No provider request was made.",
     };
   }
   const warnings: string[] = [];
@@ -339,6 +339,14 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
     return {
       allowed: false,
       reason: "Discovery search lacks a concrete anchor. Add a named person, organization, geography, registry, domain or source anchor before spending a search call.",
+    };
+  }
+  const localOperatorRoute = DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS.test(normalized);
+  const globalBrandLeadership = DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized) && DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS.test(normalized);
+  if ((globalBrandLeadership || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute) {
+    return {
+      allowed: false,
+      reason: "Discovery rejected an impractical fame/ranking or global-household-brand path. Search a realistically reachable private/regional operating principal or name a concrete local ownership/intermediary route (such as an independent bottler/distributor, franchise owner, license holder or concession holder). No provider request was made.",
     };
   }
   if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) {
@@ -1672,7 +1680,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactOutputContract = "OUTPUT CONTRACT: Return one root JSON object only, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Use null for unused scalars and [] for unused arrays; use only allowed action/provider enums. Example envelope: {\"url\":null,\"searches\":[],\"findings\":[]}. Non-terminal actions require hypothesis, purpose, and expectedInformationGain in [0,1]. Parallel searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Fields by action: web_search=query+provider; parallel_web_search=searches; visit=url; browser_fetch=url+provider; registry_search=query+registry; domain_lookup=domain+provider; done=findings+thought.";
       const compactResearchContract = "RESEARCH CONTRACT: You own the trajectory; no required first tool or fixed search sequence. Choose any available action from current evidence and expected information gain.";
       const compactActionLiveness = "ACTION LIVENESS: exact repeats without changed hypothesis/purpose or new evidence are blocked; a changed hypothesis, resource/provider, or new evidence may justify revisiting.";
-      const compactDiscoveryQualityGate = "DISCOVERY PROGRESS GATE: People—not companies or executive prestige—are the target. Preserve the policy: an organization is a lead, not the target. Avoid Fortune 500/ranking lists absent a plausible person-level public/intermediary route. Honor the Boss-stated sector/geography and explain any material deviation. Seek ownership/equity/investment/control, beneficial ownership, material business/property assets or business-exit signals AND a realistic public/professional/intermediary route; seniority alone is not wealth evidence. Prefer private/mid-market/regional/family-business owners, operators, founders, investors and controlling owners. Do not spend turns on Fortune/richest lists, celebrities or global household-brand leadership without a concrete reachable local owner/operator/distributor/franchisee/concession-holder route. Generic staff pages are leads only; pivot when no realistic route emerges. Use local language plus English; honor Boss sector/geography; no placeholders; failed fetches are unobserved. No fixed search itinerary.";
+      const compactDiscoveryQualityGate = "DISCOVERY PROGRESS GATE: people, not firms or prestige, are the target. Seek source-backed ownership/equity/investment/control, assets or exit signals AND a plausible public/professional/intermediary route; seniority alone is not wealth evidence. Prefer private/regional/family-business owners/operators. Avoid Fortune/richest/celebrity lists and global-brand leadership without a reachable local owner/distributor/franchise/concession route. Honor Boss sector/geography; use local language plus English; placeholders and failed fetches are not evidence. You choose the route; no fixed steps.";
       const compactLivenessGuidance = discoveryLivenessAdvisory
         ? "OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available): " + discoveryLivenessAdvisory.slice(0, 140) + " this suggestion does not mandate visiting, browsing, or any particular provider."
         : null;
