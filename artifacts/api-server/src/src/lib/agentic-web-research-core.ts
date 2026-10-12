@@ -1603,6 +1603,152 @@ export function extractBossPivotDirectionForCompactPrompt(rawObjective: string):
   return pivotIndex >= 0 ? rawObjective.slice(pivotIndex + pivotMarker.length).trim() : "";
 }
 
+/**
+ * Enforce an accepted Boss pivot at the outbound action boundary. Prompt instructions
+ * alone did not prevent a multi-action Investigator episode from continuing its old
+ * lane after the control objective changed. This guard does not pick tools, providers,
+ * or targets: it requires an action to match the active pivot's substantive scope, or
+ * to operate on a URL already returned by a successful pivot-aligned search.
+ */
+const PIVOT_SCOPE_GENERIC_TERMS = new Set([
+  "explore", "investigate", "research", "researching", "mid", "market", "regional",
+  "region", "boutique", "specialty", "franchise", "franchises", "owner", "owners", "ownership", "operator",
+  "operators", "target", "targets", "targeting", "lead", "leads", "new", "business",
+  "businesses", "company", "companies", "person", "people", "contact", "contacts",
+  "channel", "channels", "professional", "professionally", "realistic", "public",
+  "publicly", "documented", "document", "equity", "holder", "holders", "source",
+  "sources", "evidence", "potential", "media", "partnership", "marketing", "press", "pr", "wealth", "wealthy", "rich", "credible",
+  "approach", "route", "routes", "with", "from", "into", "through", "their",
+  "those", "that", "this", "these", "where", "which", "while", "about", "among",
+  "around", "across", "within", "under", "using", "based", "local", "locales",
+  "state", "states", "country", "countries", "regionally", "midwestern",
+  "midwest", "texas", "austin", "slovenia", "slovenian",
+]);
+function pivotScopeToken(value: string): string {
+  const token = value.toLowerCase();
+  if (token.endsWith("ies") && token.length > 4) return token.slice(0, -3) + "y";
+  if (token.endsWith("s") && token.length > 4 && !token.endsWith("ss")) return token.slice(0, -1);
+  return token;
+}
+function pivotScopeAnchors(objective: string): string[] {
+  const direction = extractBossPivotDirectionForCompactPrompt(objective);
+  if (!direction) return [];
+  // Drop common location clauses so sharing only a city/state with an unrelated
+  // action cannot satisfy an industry/subject pivot.
+  const withoutLocations = direction.replace(/\b(?:in|across|throughout|within|near|around|from)\s+(?:the\s+)?[A-Z][a-z]+(?:[- ][A-Z][a-z]+)?/g, " ");
+  const tokens = withoutLocations.toLowerCase().match(/[a-z]{3,}/g) ?? [];
+  return [...new Set(tokens.map(pivotScopeToken).filter((token) =>
+    token.length >= 4 && !PIVOT_SCOPE_GENERIC_TERMS.has(token),
+  ))];
+}
+function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
+  if (!value.trim() || anchors.length === 0) return false;
+  const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
+  return anchors.some((anchor) => tokens.some((token) =>
+    token === anchor || (Math.min(token.length, anchor.length) >= 6
+      && (token.startsWith(anchor.slice(0, 7)) || anchor.startsWith(token.slice(0, 7)))),
+  ));
+}
+function pivotResourceIsGroundedInAlignedEvidence(value: unknown, evidenceText: string): boolean {
+  if (typeof value !== "string" || !value.trim() || !evidenceText) return false;
+  const normalized = normalizeDiscoverySearchQuery(value).replace(/[^a-z0-9@._+-]+/g, " ");
+  if (normalized.length >= 4 && evidenceText.includes(normalized)) return true;
+  const resourceTokens = normalized.match(/[a-z0-9]{4,}/g) ?? [];
+  const unique = [...new Set(resourceTokens.filter((token) => !PIVOT_SCOPE_GENERIC_TERMS.has(pivotScopeToken(token))))];
+  return unique.length >= 1 && unique.some((token) => evidenceText.includes(token));
+}
+function pivotDomainMatchesSourceUrls(value: unknown, sourceUrls: ReadonlySet<string>): boolean {
+  const domain = normalizedDomainResource(value).replace(/^www\./, "");
+  if (!domain) return false;
+  for (const url of sourceUrls) {
+    try {
+      const host = new URL(url).hostname.replace(/^www\./, "");
+      if (host === domain || host.endsWith("." + domain) || domain.endsWith("." + host)) return true;
+    } catch { /* normalized source URLs should already be valid */ }
+  }
+  return false;
+}
+function pivotActionIsAligned(
+  action: string,
+  args: Record<string, unknown>,
+  anchors: readonly string[],
+  sourceUrls: ReadonlySet<string>,
+  evidenceText: string,
+): boolean {
+  const matchesScopeOrEvidence = (value: unknown) =>
+    pivotTextMatchesAnchors(typeof value === "string" ? value : "", anchors)
+    || pivotResourceIsGroundedInAlignedEvidence(value, evidenceText);
+  if (action === "web_search") return matchesScopeOrEvidence(args.query);
+  if (action === "parallel_web_search") {
+    const searches = Array.isArray(args.searches) ? args.searches.filter((item) =>
+      Boolean(item && typeof item === "object" && !Array.isArray(item)),
+    ) as Array<Record<string, unknown>> : [];
+    return searches.length > 0 && searches.every((item) => matchesScopeOrEvidence(item.query));
+  }
+  if (action === "visit" || action === "browser_fetch") {
+    const requestedUrl = normalizedActionResourceUrl(args.url);
+    return Boolean(requestedUrl && (sourceUrls.has(requestedUrl)
+      || pivotTextMatchesAnchors(String(args.url ?? ""), anchors)));
+  }
+  if (action === "registry_search") return matchesScopeOrEvidence(args.query);
+  if (action === "domain_lookup" || action === "harvest_domain") {
+    return matchesScopeOrEvidence(args.domain) || pivotDomainMatchesSourceUrls(args.domain, sourceUrls);
+  }
+  if (action === "footprint_email") return matchesScopeOrEvidence(args.email);
+  if (action === "footprint_username_maigret" || action === "footprint_username_sherlock") {
+    return matchesScopeOrEvidence(args.username);
+  }
+  if (action === "footprint_spiderfoot") return matchesScopeOrEvidence(args.target);
+  return false;
+}
+function pivotAlignedEvidenceState(
+  priorRecords: readonly AgenticTrajectoryRecord[],
+  anchors: readonly string[],
+): { sourceUrls: Set<string>; evidenceText: string } {
+  const sourceUrls = new Set<string>();
+  const evidenceParts: string[] = [];
+  for (const record of priorRecords) {
+    if (record.execution !== "success") continue;
+    const evidenceText = evidenceParts.join(" ").toLowerCase();
+    if (!pivotActionIsAligned(record.action, record.args, anchors, sourceUrls, evidenceText)) continue;
+    if (record.action === "visit" || record.action === "browser_fetch") {
+      const requestedUrl = normalizedActionResourceUrl(record.args.url);
+      if (requestedUrl) sourceUrls.add(requestedUrl);
+    }
+    for (const value of record.observedUrls ?? []) {
+      const normalized = normalizedActionResourceUrl(value);
+      if (normalized) sourceUrls.add(normalized);
+    }
+    evidenceParts.push(
+      record.observation ?? "",
+      JSON.stringify(record.args ?? {}),
+      ...(record.observedUrls ?? []),
+    );
+  }
+  return { sourceUrls, evidenceText: evidenceParts.join(" ").toLowerCase() };
+}
+export function discoveryPivotAlignmentReason(
+  objective: string,
+  action: string,
+  args: Record<string, unknown>,
+  priorRecords: readonly AgenticTrajectoryRecord[],
+): string | null {
+  const direction = extractBossPivotDirectionForCompactPrompt(objective);
+  if (!direction) return null;
+  const anchors = pivotScopeAnchors(objective);
+  // A pivot that contains no extractable substantive subject stays model-led rather
+  // than becoming an accidental stop gate.
+  if (anchors.length === 0) return null;
+
+  // Provenance grows only through successful actions already grounded in the active
+  // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
+  const evidence = pivotAlignedEvidenceState(priorRecords, anchors);
+  if (pivotActionIsAligned(action, args, anchors, evidence.sourceUrls, evidence.evidenceText)) return null;
+
+  return "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: "
+    + direction.slice(0, 420)
+    + ". The action's actual query/resource is outside that scope and is not tied to evidence returned by a pivot-aligned search. Use the existing case evidence to choose any relevant next action, or ask Boss/Right-hand to approve a new objective before pursuing a different lane. A rationale alone cannot authorize an unrelated outbound query. This guard does not prescribe a tool, provider, company, or fixed sequence; no outbound request was made.";
+}
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; intelligenceContext?: string; mode?: "target" | "discovery" }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
@@ -2208,7 +2354,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     }
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
     runtimeStage = "model_action_validation";
-    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.thought, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
+    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.thought, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
       const boundFindings = bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)]);
       for (const binding of boundFindings) {
         intelligence.recordAction({

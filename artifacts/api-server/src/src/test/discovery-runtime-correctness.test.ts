@@ -464,3 +464,98 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain('.filter((finding) => typeof finding.personName === "string" && !isUntargetableDiscoveryPersonName(finding.personName))');
   });
 });
+
+describe("Boss-accepted discovery pivot scope", () => {
+  const objective = [
+    "Research credible, approachable business owners for the case.",
+    "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Explore mid-market boutique fitness franchise owners in Texas or regional specialty food manufacturers in the Midwest as new leads",
+  ].join("\n");
+
+  it("blocks stale coffee-franchise and unrelated media-contact searches before dispatch", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+
+    const staleCoffee = discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Just Love Coffee franchise owner",
+      provider: "serper",
+      hypothesis: "Find a franchise owner",
+      purpose: "Identify a local coffee operator",
+    }, []);
+    expect(staleCoffee).toContain("pivot_alignment_guard");
+
+    const unrelatedMedia = discoveryPivotAlignmentReason(objective, "web_search", {
+      query: 'local business owner media partnership contact "Austin" "Texas"',
+      provider: "serper",
+      hypothesis: "Find a contact",
+      purpose: "Identify media partnership routes",
+    }, []);
+    expect(unrelatedMedia).toContain("pivot_alignment_guard");
+  });
+
+  it("accepts either substantive pivot lane without prescribing provider or search order", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "boutique fitness franchise owners Texas",
+      provider: "serper",
+      hypothesis: "Find regional fitness operators",
+      purpose: "Identify current ownership",
+    }, [])).toBeNull();
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "regional specialty food manufacturers Midwest private company owners",
+      provider: "tavily",
+      hypothesis: "Find regional food manufacturers",
+      purpose: "Identify documented owners",
+    }, [])).toBeNull();
+  });
+
+  it("allows a follow-on visit from a pivot-aligned search but blocks a stale-lane URL", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    const alignedSearch = {
+      turn: 20,
+      model: "groq",
+      action: "web_search",
+      args: { query: "boutique fitness franchise owners Texas", provider: "serper" },
+      execution: "success" as const,
+      observation: "Public results identify a regional fitness operator and its ownership page.",
+      observedUrls: ["https://example-fitness.test/ownership"],
+      findings: [],
+    };
+    expect(discoveryPivotAlignmentReason(objective, "visit", {
+      url: "https://example-fitness.test/ownership",
+      hypothesis: "Verify an identified operator",
+      purpose: "Read the ownership page",
+    }, [alignedSearch])).toBeNull();
+
+    // The next query may follow a named lead instead of repeating the sector words,
+    // but only when that name was found in a pivot-aligned search observation.
+    const namedLeadSearch = {
+      ...alignedSearch,
+      observation: "Public results identify FitNation as a regional fitness operator.",
+    };
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "FitNation ownership",
+      provider: "serper",
+    }, [namedLeadSearch])).toBeNull();
+
+    const staleSearch = {
+      ...alignedSearch,
+      args: { query: "Just Love Coffee franchise owner", provider: "serper" },
+      observedUrls: ["https://justlovecoffeefranchise.com/coffee-franchise-about-us/"],
+    };
+    expect(discoveryPivotAlignmentReason(objective, "visit", {
+      url: "https://justlovecoffeefranchise.com/coffee-franchise-about-us/",
+      hypothesis: "Find the same franchise owner",
+      purpose: "Continue coffee-franchise research",
+    }, [staleSearch])).toContain("pivot_alignment_guard");
+  });
+
+  it("is inactive without an accepted pivot and is wired into the live discovery action boundary", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    expect(discoveryPivotAlignmentReason("Research the public web for evidence.", "web_search", {
+      query: "Just Love Coffee franchise owner",
+    }, [])).toBeNull();
+    expect(researchCoreSource).toContain('discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords)');
+    expect(researchCoreSource).toContain("reason=pivot_alignment_guard");
+  });
+});
