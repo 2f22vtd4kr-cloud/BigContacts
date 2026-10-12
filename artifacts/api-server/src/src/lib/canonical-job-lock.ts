@@ -112,7 +112,7 @@ export async function renewCanonicalJob(type: string, jobId: string): Promise<bo
 }
 
 type ReleaseResult = { available: true; released: boolean };
-const CANONICAL_OWNER_READ_RETRY_DELAY_MS = 100;
+const CANONICAL_OWNER_READ_RETRY_DELAYS_MS = [300, 600] as const;
 
 /**
  * A canonical owner read is safe to retry once only when the failure is a
@@ -145,14 +145,18 @@ async function readCanonicalJobOwner(type: string): Promise<string | null> {
 
 export async function isCanonicalJobOwner(type: string, jobId: string): Promise<boolean> {
   let owner: string | null;
-  try {
-    owner = await readCanonicalJobOwner(type);
-  } catch (error) {
-    if (!isTransientCanonicalOwnerReadFailure(error)) throw error;
-    // One bounded retry of the exact same read against the authoritative store.
-    // A second failure remains an error; unknown ownership is never treated as owned.
-    await new Promise<void>((resolve) => setTimeout(resolve, CANONICAL_OWNER_READ_RETRY_DELAY_MS));
-    owner = await readCanonicalJobOwner(type);
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      owner = await readCanonicalJobOwner(type);
+      break;
+    } catch (error) {
+      const retryDelayMs = CANONICAL_OWNER_READ_RETRY_DELAYS_MS[attempt];
+      if (retryDelayMs === undefined || !isTransientCanonicalOwnerReadFailure(error)) throw error;
+      // ioredis reconnects with an initial 200 ms backoff. A shorter retry races
+      // that reconnect and can fail the canonical run before the same owner read
+      // has a chance to reach the authoritative store again.
+      await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
+    }
   }
   return owner === jobId;
 }

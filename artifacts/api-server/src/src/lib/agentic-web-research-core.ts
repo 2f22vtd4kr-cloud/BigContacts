@@ -150,10 +150,10 @@ function trajectoryEvidenceSignature(record: AgenticTrajectoryRecord): string | 
 }
 
 /**
- * Block only an exact repeated request whose hypothesis and purpose are unchanged
- * and whose intervening trajectory produced no new observation. Changed reasoning,
- * a different provider/market/resource, or genuinely new intervening evidence can
- * justify revisiting the same public source.
+ * Prevent repeated page retrievals from spending turns on the same successful
+ * URL/capability merely by changing the model-authored rationale. Other actions
+ * retain the narrower exact-request guard: changed reasoning or new evidence can
+ * justify a different research action without imposing an itinerary.
  */
 export function redundantResearchActionReason(
   action: string,
@@ -163,16 +163,19 @@ export function redundantResearchActionReason(
   const resource = researchActionResource(action, args);
   if (!resource) return null;
 
+  const pageRetrieval = action === "visit" || action === "browser_fetch";
   const currentHypothesis = normalizedActionRationale(args.hypothesis);
   const currentPurpose = normalizedActionRationale(args.purpose);
-  if (!currentHypothesis || !currentPurpose) return null;
+  if (!pageRetrieval && (!currentHypothesis || !currentPurpose)) return null;
 
-  // Match the same rationale, not merely the most recent use of this resource.
-  // Otherwise a model could alternate two purposes forever without adding evidence.
   let matchedIndex = -1;
   for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
     const previous = priorRecords[index]!;
     if (researchActionResource(previous.action, previous.args) !== resource) continue;
+    if (pageRetrieval) {
+      matchedIndex = index;
+      break;
+    }
     const previousHypothesis = normalizedActionRationale(previous.args.hypothesis);
     const previousPurpose = normalizedActionRationale(previous.args.purpose);
     if (previousHypothesis === currentHypothesis && previousPurpose === currentPurpose) {
@@ -184,6 +187,33 @@ export function redundantResearchActionReason(
 
   const previous = priorRecords[matchedIndex]!;
 
+  if (pageRetrieval) {
+    const previousGuardedRepeat = previous.execution === "blocked"
+      && /repeat_action_guard/.test(String(previous.observation ?? ""));
+    if (previous.execution !== "success" && !previousGuardedRepeat) return null;
+
+    const sourceUrl = normalizedActionResourceUrl(args.url);
+    const independentlyAdvanced = priorRecords.slice(matchedIndex + 1).some((record) => {
+      if (record.execution !== "success") return false;
+      const independentlyFetched = (record.action === "visit" || record.action === "browser_fetch")
+        && (record.observedUrls ?? []).some((url) => {
+          const observedUrl = normalizedActionResourceUrl(url);
+          return Boolean(observedUrl && observedUrl !== sourceUrl);
+        });
+      const crossSourceFinding = (record.findings ?? []).some((finding) =>
+        (finding.sourceUrls ?? []).some((url) => normalizedActionResourceUrl(url) !== sourceUrl),
+      );
+      return independentlyFetched || crossSourceFinding;
+    });
+    if (!previousGuardedRepeat && independentlyAdvanced) return null;
+
+    return "repeat_action_guard blocked a duplicate page retrieval before execution: action="
+      + action
+      + " prior_turn=" + previous.turn
+      + "; this normalized URL and fetch capability/provider already succeeded, and no independently fetched source or cross-source finding has advanced the case since. Changing purpose or hypothesis alone does not justify another outbound request. Use the existing observation or choose any other evidence-based action; no research sequence is prescribed.";
+  }
+
+  if (!currentHypothesis || !currentPurpose) return null;
   const knownEvidence = new Set(
     priorRecords.slice(0, matchedIndex + 1)
       .map(trajectoryEvidenceSignature)

@@ -26,7 +26,7 @@ vi.mock("node:https", () => ({
   default: { request: transportMocks.httpsRequest },
 }));
 
-import { assertSafeOutboundUrl, isBlockedOutboundIpForTest, MAX_SAFE_OUTBOUND_RESPONSE_BYTES, responseBodyForStatus, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
+import { assertSafeOutboundUrl, isBlockedOutboundIpForTest, MAX_SAFE_OUTBOUND_RESPONSE_BYTES, responseBodyForStatus, responseStatusForFetch, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 
 describe("SSRF outbound boundary", () => {
   it("cancels URL-safety DNS preflight when the caller signal aborts", async () => {
@@ -172,6 +172,44 @@ describe("safe outbound HTTP deadline boundary", () => {
 });
 
 describe("safe outbound HTTP response construction", () => {
+  it("rejects upstream statuses that Fetch Response cannot represent", () => {
+    expect(responseStatusForFetch(200)).toBe(200);
+    expect(responseStatusForFetch(599)).toBe(599);
+    for (const status of [undefined, 0, 100, 199, 600, 700, NaN]) {
+      expect(responseStatusForFetch(status)).toBeNull();
+    }
+  });
+
+  it("turns a missing upstream status into a rejected request instead of an uncaught Response RangeError", async () => {
+    dnsMocks.resolve4.mockReset().mockResolvedValue(["93.184.216.34"]);
+    dnsMocks.resolve6.mockReset().mockResolvedValue([]);
+    dnsMocks.cancel.mockReset();
+
+    const response = Object.assign(new EventEmitter(), {
+      headers: {},
+      statusCode: 0,
+      statusMessage: "",
+      destroyed: false,
+      destroy: vi.fn(),
+    });
+    const request = Object.assign(new EventEmitter(), {
+      setTimeout: vi.fn(),
+      write: vi.fn(),
+      end: vi.fn(),
+      destroy: vi.fn(),
+    });
+    transportMocks.httpsRequest.mockImplementation((_options: unknown, onResponse: (value: typeof response) => void) => {
+      request.end.mockImplementation(() => queueMicrotask(() => {
+        onResponse(response);
+        queueMicrotask(() => response.emit("end"));
+      }));
+      return request;
+    });
+
+    await expect(safeOutboundFetch("https://research.example/missing-status"))
+      .rejects.toThrow("Outbound server returned invalid HTTP status 0");
+  });
+
   it("uses a null body for HTTP statuses that forbid response bodies", () => {
     const payload = Buffer.from("response");
     expect(responseBodyForStatus(204, payload)).toBeNull();

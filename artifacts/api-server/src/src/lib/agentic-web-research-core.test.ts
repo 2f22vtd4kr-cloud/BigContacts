@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, validateDiscoverySearchQuery, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -359,6 +359,81 @@ describe("Investigator prompt architecture", () => {
     const sourceAdvice = discoverySearchLivenessAdvisory(sameSourceFamily);
     expect(sourceAdvice).toContain("Source-family concentration");
     expect(sourceAdvice).toContain("do not prescribe a tool");
+  });
+
+  describe("successful page retrieval repeat guard", () => {
+    const successfulVisit = {
+      ...livenessRecord("visit", "success"),
+      turn: 4,
+      args: {
+        url: "https://example.com/team#leadership",
+        hypothesis: "The page names the leadership team.",
+        purpose: "Identify an executive.",
+      },
+      observedUrls: ["https://example.com/team"],
+    };
+
+    it("blocks the same normalized URL and capability when the model only changes its rationale", () => {
+      const reason = redundantResearchActionReason("visit", {
+        url: "https://EXAMPLE.com/team#contact",
+        hypothesis: "The page lists an individual's role.",
+        purpose: "Extract an exact title for admission.",
+      }, [successfulVisit]);
+
+      expect(reason).toContain("repeat_action_guard");
+      expect(reason).toContain("Changing purpose or hypothesis alone");
+    });
+
+    it("does not treat another fetch capability of the same URL as independent new evidence", () => {
+      const sameUrlBrowserFetch = {
+        ...livenessRecord("browser_fetch", "success"),
+        turn: 5,
+        args: { url: "https://example.com/team", provider: "scrapfly" },
+        observedUrls: ["https://example.com/team"],
+      };
+      const reason = redundantResearchActionReason("visit", {
+        url: "https://example.com/team",
+        hypothesis: "A different person may be listed.",
+        purpose: "Extract another candidate.",
+      }, [successfulVisit, sameUrlBrowserFetch]);
+
+      expect(reason).toContain("repeat_action_guard");
+    });
+
+    it("allows retry after a failed fetch and allows revisiting after an independent fetched source", () => {
+      const failedVisit = {
+        ...livenessRecord("visit", "error"),
+        turn: 4,
+        args: { url: "https://example.com/team", hypothesis: "h", purpose: "p" },
+      };
+      expect(redundantResearchActionReason("visit", {
+        url: "https://example.com/team", hypothesis: "h2", purpose: "p2",
+      }, [failedVisit])).toBeNull();
+
+      const independentVisit = {
+        ...livenessRecord("visit", "success"),
+        turn: 5,
+        args: { url: "https://example.com/board", hypothesis: "h", purpose: "p" },
+        observedUrls: ["https://example.com/board"],
+      };
+      expect(redundantResearchActionReason("visit", {
+        url: "https://example.com/team", hypothesis: "follow-up", purpose: "verify",
+      }, [successfulVisit, independentVisit])).toBeNull();
+    });
+
+    it("keeps provider choice independent for browser fetches", () => {
+      const previous = {
+        ...livenessRecord("browser_fetch", "success"),
+        turn: 4,
+        args: { url: "https://example.com/team", provider: "scrapfly" },
+        observedUrls: ["https://example.com/team"],
+      };
+      expect(redundantResearchActionReason("browser_fetch", {
+        url: "https://example.com/team", provider: "zenrows",
+        hypothesis: "Verify a different rendering.",
+        purpose: "Check source visibility.",
+      }, [previous])).toBeNull();
+    });
   });
 
   it("resets only after a successful non-search capability observation", () => {

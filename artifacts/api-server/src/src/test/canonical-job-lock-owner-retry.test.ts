@@ -34,7 +34,7 @@ describe("canonical lease owner read retry", () => {
     mocks.getAllPermanentClients.mockReturnValue([canonicalRedis]);
   });
 
-  it("retries exactly once for a transient transport failure against the same canonical client", async () => {
+  it("retries a transient transport failure against the same canonical client", async () => {
     canonicalRedis.get
       .mockRejectedValueOnce(Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }))
       .mockResolvedValueOnce("job-17");
@@ -46,11 +46,24 @@ describe("canonical lease owner read retry", () => {
     expect(mocks.getAllPermanentClients).toHaveBeenCalledTimes(2);
   });
 
-  it("keeps ownership unknown when the single transient retry also fails", async () => {
+  it("recovers when the first two bounded reads hit transient transport failures", async () => {
+    canonicalRedis.get
+      .mockRejectedValueOnce(Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }))
+      .mockRejectedValueOnce(Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }))
+      .mockResolvedValueOnce("job-17");
+
+    await expect(isCanonicalJobOwner("atlas-run", "job-17")).resolves.toBe(true);
+    expect(canonicalRedis.get).toHaveBeenCalledTimes(3);
+    expect(canonicalRedis.get).toHaveBeenNthCalledWith(1, "apex:activejob:atlas-run");
+    expect(canonicalRedis.get).toHaveBeenNthCalledWith(2, "apex:activejob:atlas-run");
+    expect(canonicalRedis.get).toHaveBeenNthCalledWith(3, "apex:activejob:atlas-run");
+  });
+
+  it("keeps ownership unknown when the bounded transient retry budget is exhausted", async () => {
     canonicalRedis.get.mockRejectedValue(Object.assign(new Error("read ECONNRESET"), { code: "ECONNRESET" }));
 
     await expect(isCanonicalJobOwner("atlas-run", "job-17")).rejects.toThrow("Canonical Atlas Redis lock command failed");
-    expect(canonicalRedis.get).toHaveBeenCalledTimes(2);
+    expect(canonicalRedis.get).toHaveBeenCalledTimes(3);
   });
 
   it("never retries canonical quota/capacity failures", async () => {
