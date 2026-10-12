@@ -968,7 +968,7 @@ ${geography}
 
 Research broadly and begin with discovery. Do not assume a target company or person in advance. Look for real companies, founders, investors, family offices, investment groups, business owners, operators, advisors, portfolio relationships, and other plausible routes that could lead to a useful investor conversation.
 
-The goal is practical proximity to a real decision-maker, not fame alone. Evaluate plausible routes using the evidence currently available, their relevance to the mission, identity/attribution strength, and practical reachability. Do not impose a category order or predetermined research path. Search public web sources only and preserve exact source URLs and what each source proves.
+The goal is practical proximity to a real decision-maker, not fame alone. Before selecting an anchor, compare a small set of plausible hypotheses by commercial relevance, public ownership/materiality-record availability, likelihood of a defensible named-person route, novelty, and expected research cost. Start with the strongest expected evidence/value per action—not the biggest or most famous entity—then test the hypothesis and pivot after bounded negative or inaccessible-source evidence. Evaluate each route using observed evidence, identity/attribution strength, and practical reachability. Do not impose a category order or predetermined research path. Search public web sources only and preserve exact source URLs and what each source proves.
 
 Opening research must:
 1. Discover promising candidates rather than force a preselected target.
