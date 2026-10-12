@@ -413,7 +413,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   if ((fame || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute && !ownershipHypothesis) {
     return {
       allowed: false,
-      reason: "Discovery rejected a fame/ranking-list query that lacks an explicit ownership, investment, operator or intermediary hypothesis. A sector or geography keyword alone does not make a public rich-list target realistic; search the business/control route instead. No provider request was made.",
+      reason: DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized) ? "Discovery rejected an impractical fame/ranking or global-household-brand path because it lacks an explicit ownership, investment, operator or intermediary hypothesis. A sector or geography keyword alone does not make a public rich-list target realistic; search the business/control route instead. No provider request was made." : "Discovery rejected a fame/ranking-list query that lacks an explicit ownership, investment, operator or intermediary hypothesis. A sector or geography keyword alone does not make a public rich-list target realistic; search the business/control route instead. No provider request was made.",
     };
   }
   const globalBrandTarget = DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized);
