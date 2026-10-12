@@ -80,6 +80,18 @@ describe("canonical Investigator continuation health", () => {
     })).toEqual({ code: "investigator_episode_no_action" });
   });
 
+  it("returns to Boss after the exact repeated pivot guard suppresses an out-of-scope retry", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 1,
+      stopReason: "ITERATION_BUDGET",
+      trajectoryRecords: [{
+        action: "web_search",
+        execution: "blocked",
+        observation: "repeat_pivot_alignment_guard blocked an identical out-of-scope query.",
+      }],
+    })).toBeNull();
+  });
   it("recognizes an executed research tool attempt even when the tool returns an error", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "completed",
