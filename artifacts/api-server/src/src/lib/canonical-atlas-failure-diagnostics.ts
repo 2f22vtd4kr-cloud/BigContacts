@@ -186,6 +186,17 @@ export function classifyCanonicalAtlasFailure(input: {
     return { domain: "model_provider", kind: "request_failure" };
   }
   if (input.stage === "job_state_or_lease") {
+    // Cancellation/lease reads are authoritative control-plane I/O. A transport
+    // failure must stay distinct from a programming defect so operators do not
+    // mistake an uncertain owner read for a model/provider problem. The caller
+    // still fails closed; classification never authorizes continuation.
+    if (error.code && /^(?:ECONN|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|EHOSTUNREACH)/i.test(error.code)
+      || /\\b(?:NETWORK_ERROR|ERR_NETWORK|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EPIPE|EHOSTUNREACH)\\b|fetch failed|socket hang up|connection (?:reset|refused|closed|timed out)|network (?:error|failure)/i.test(error.message)) {
+      return { domain: "lease_job_state", kind: "request_failure" };
+    }
+    if (/job record state is unknown|active job state is unknown|state (?:is|remains) unknown|could not confirm (?:job|lease) state/i.test(error.message)) {
+      return { domain: "lease_job_state", kind: "job_state_unavailable" };
+    }
     return { domain: "lease_job_state", kind: "unexpected_exception" };
   }
   if (input.stage === "case_persistence" || input.stage === "candidate_admission_persistence" || input.stage === "control_event_persistence" || input.stage === "terminal_persistence") {
