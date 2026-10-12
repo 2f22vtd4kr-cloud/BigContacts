@@ -86,7 +86,7 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   let identityObserved = !identity;
   let support = 0;
   for (const record of records) {
-    if (record.execution !== "success" || typeof record.observation !== "string" || ["web_search", "parallel_web_search", "done"].includes(record.action)) continue;
+    if (record.execution !== "success" || typeof record.observation !== "string" || ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "done"].includes(record.action)) continue;
     const urls = record.observedUrls.map(normalizedObservedUrl).filter((url): url is string => Boolean(url)).filter((url) => cited.has(url));
     if (!urls.length) continue;
     const observation = record.observation;
@@ -138,9 +138,11 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     ...(input.priorSearchQueries ?? []),
     ...historyRecords.flatMap((record) => record.action === "web_search" && typeof record.args.query === "string"
       ? [record.args.query]
-      : record.action === "parallel_web_search" && Array.isArray(record.args.searches)
-        ? record.args.searches.flatMap((search) => search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string" ? [(search as Record<string, unknown>).query as string] : [])
-        : []),
+      : record.action === "registry_search" && typeof record.args.query === "string"
+        ? [record.args.query]
+        : (record.action === "parallel_web_search" || record.action === "parallel_registry_search") && Array.isArray(record.args.searches)
+          ? record.args.searches.flatMap((search) => search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string" ? [(search as Record<string, unknown>).query as string] : [])
+          : []),
   ].map((query) => String(query).trim()).filter(Boolean))];
   let consecutiveActionParseFailures = Math.min(MAX_CONSECUTIVE_ACTION_PARSE_FAILURES - 1, Math.max(0, Number.isFinite(input.initialConsecutiveActionParseFailures) ? Math.floor(input.initialConsecutiveActionParseFailures!) : 0));
   let wrapperFailureStage = "continuation_preparation";
@@ -176,8 +178,8 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
     if (raw) {
       if (raw.execution === "success" || raw.execution === "error") {
-        if (raw.action === "web_search" && typeof raw.args?.query === "string") searchQueriesUsed.push(raw.args.query);
-        if (raw.action === "parallel_web_search" && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
+        if ((raw.action === "web_search" || raw.action === "registry_search") && typeof raw.args?.query === "string") searchQueriesUsed.push(raw.args.query);
+        if ((raw.action === "parallel_web_search" || raw.action === "parallel_registry_search") && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
       }
       const normalizedRecord = { ...raw, turn: raw.turn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: raw.turn }]) };
       const priorRecords = [...historyRecords, ...records];
