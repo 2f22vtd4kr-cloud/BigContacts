@@ -2609,7 +2609,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       searches += action.searches.length; searchQueriesUsed.push(...action.searches.map((search) => search.query));
       const outcomes = await Promise.all(action.searches.map(async (search) => {
         try { const { searchRegistry, formatRegistryResultLead, registryResultLeadUrls } = await import("./registry-client"); const registry = normalizeRegistryId(search.registry)!; const rows = await searchRegistry({ query: search.query, registry, limit: 5, signal: runController.signal }); return { query: search.query, registry, rows, leadUrls: rows.flatMap((row: any) => registryResultLeadUrls(row)), error: null as string | null, formatted: rows.slice(0, 5).map((row, n) => `${n + 1}. ${formatRegistryResultLead(row)}`) }; }
-        catch (error) { return { query: search.query, registry: search.registry, rows: [], error: safeAgenticError(error, runController.signal.aborted), formatted: [] }; }
+        catch (error) { return { query: search.query, registry: search.registry, rows: [], leadUrls: [] as string[], error: safeAgenticError(error, runController.signal.aborted), formatted: [] }; }
       }));
       record.args = { ...record.args, registrySearchOutcomes: outcomes.map(({query, registry, rows, error}) => ({ query, registry, resultCount: rows.length, error })) }; record.leadUrls = [...new Set(outcomes.flatMap((outcome) => outcome.error ? [] : outcome.leadUrls))].slice(0, 24);
       record.execution = outcomes.some((outcome) => !outcome.error) ? "success" : "error";
