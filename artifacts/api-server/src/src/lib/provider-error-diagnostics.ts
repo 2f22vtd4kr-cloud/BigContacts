@@ -12,6 +12,7 @@ export type ProviderFailureClass =
   | "invalid_response"
   | "timeout"
   | "network_error"
+  | "unexpected_error"
   | "cancelled";
 
 export function digestDiagnosticText(value: string): string {
@@ -214,7 +215,26 @@ export function classifyThrownProviderError(error: unknown, aborted = false): Pr
   // could accidentally advance to another same-role model.
   if (error instanceof Error && error.name === "ProviderQuotaError") return "rate_limited";
   if (aborted) return "cancelled";
-  if (error instanceof Error && error.name === "AbortError") return "timeout";
-  if (error instanceof Error && /timeout|timed out/i.test(error.message)) return "timeout";
-  return "network_error";
+
+  const top = diagnosticPart(error);
+  const firstCause = diagnosticPart(top?.cause);
+  const secondCause = diagnosticPart(firstCause?.cause);
+  const chain = [top, firstCause, secondCause].filter((part): part is Record<string, unknown> => Boolean(part));
+  const names = chain.map((part) => typeof part.name === "string" ? part.name : "").join(" ");
+  const codes = chain.map((part) => typeof part.code === "string" ? part.code : "").join(" ");
+  const messages = chain.map((part) => typeof part.message === "string" ? part.message : "").join(" ");
+  const message = error instanceof Error ? error.message : messages;
+
+  if (/\\bAbortError\\b/i.test(names)) return "timeout";
+  if (/timeout|timed out/i.test(message)) return "timeout";
+
+  // Do not label local validation/programming failures as NETWORK_ERROR. A
+  // positive transport code or specific transport diagnostic is required.
+  if (/\\b(?:NETWORK_ERROR|ERR_NETWORK|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ECONNABORTED|EHOSTUNREACH|ENETUNREACH|EAI_AGAIN|ENOTFOUND|ENODATA|UND_ERR_CONNECT_TIMEOUT|UND_ERR_SOCKET)\\b/i.test(codes)) {
+    return "network_error";
+  }
+  if (/failed to fetch|fetch failed|network request failed|socket hang up|socket closed unexpectedly|connection (?:reset|refused|closed unexpectedly|timed out|aborted)|dns lookup failed|name resolution (?:temporarily )?failed/i.test(messages || message)) {
+    return "network_error";
+  }
+  return "unexpected_error";
 }
