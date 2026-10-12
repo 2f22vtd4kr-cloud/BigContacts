@@ -555,7 +555,7 @@ describe("Boss-accepted discovery pivot scope", () => {
     expect(discoveryPivotAlignmentReason("Research the public web for evidence.", "web_search", {
       query: "Just Love Coffee franchise owner",
     }, [])).toBeNull();
-    expect(researchCoreSource).toContain("discoveryPivotAlignmentReason(input.objective, action.action, selectedArgs, previousResearchRecords)");
+    expect(researchCoreSource).toContain("discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords)");
     expect(researchCoreSource).toContain("reason=pivot_alignment_guard");
   });
 });
