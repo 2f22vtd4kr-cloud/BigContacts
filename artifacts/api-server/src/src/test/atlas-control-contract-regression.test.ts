@@ -83,6 +83,11 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("currentObjective: activeDiscoveryObjective");
     expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = directedObjective");
     expect(canonicalDiscoverySource).toContain("const directedObjective = resolvedObjective.objective;");
+    const controlDecisionStart = canonicalDiscoverySource.indexOf("const decision = await decideAtlasNextAction(");
+    const controlDecisionEnd = canonicalDiscoverySource.indexOf("if (controlValidationFeedback)", controlDecisionStart);
+    const controlDecisionSource = canonicalDiscoverySource.slice(controlDecisionStart, controlDecisionEnd);
+    expect(controlDecisionSource).toContain("objective: activeDiscoveryObjective");
+    expect(controlDecisionSource).not.toContain("objective: discoveryObjective");
     expect(canonicalDiscoverySource).not.toContain('const proposedDirection = decision.direction || "Reassess the open evidence and choose the highest-information next action yourself."');
   });
 
