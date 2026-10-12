@@ -48,6 +48,8 @@ export function investigatorRecordsFromEvents(events: readonly DurableInvestigat
     records.push({
       turn: records.length + 1, durableEventId: event.id, model, action: payload.action, args: asObject(payload.args) ?? {},
       ...(typeof payload.thought === "string" ? { thought: payload.thought } : {}),
+      ...(typeof payload.pivotScopeKey === "string" && payload.pivotScopeKey.trim() ? { pivotScopeKey: payload.pivotScopeKey.slice(0, 1_800) } : {}),
+      ...(Array.isArray(payload.leadUrls) ? { leadUrls: [...new Set(payload.leadUrls.filter((url): url is string => typeof url === "string"))].slice(0, 24) } : {}),
       execution: execution as AgenticTrajectoryRecord["execution"],
       ...(typeof payload.observation === "string" ? { observation: payload.observation } : {}),
       observedUrls: Array.isArray(payload.observedUrls) ? [...new Set(payload.observedUrls.filter((url): url is string => typeof url === "string"))] : [],
