@@ -125,26 +125,42 @@ export function buildEvidenceGraphs(findings: AgenticFinding[], records: Agentic
 export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] { return findings.filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some((url) => /^https:\/\/\S+$/i.test(String(url)))).map((f) => { const explicitPersonName = typeof f.personName === "string" ? f.personName.trim() : ""; const isExplicitCandidate = String(f.scope).toLowerCase() === "candidate" && explicitPersonName.length > 0; return { vectorType: f.vectorType, value: f.value, scope: isExplicitCandidate ? "candidate" : "organization", personName: isExplicitCandidate ? explicitPersonName : null, role: f.role, sourceUrls: f.sourceUrls.filter((url) => /^https:\/\/\S+$/i.test(String(url))), note: `target-agent:${f.note}`, tier: "candidate", state: "review_only", promote: isExplicitCandidate && f.promotionDecision === "promote" }; }); }
 async function validateTargetCaseBinding(caseId: number | undefined, entityId: number, jobId?: string): Promise<Record<string, unknown> | null> { if (caseId == null || !Number.isSafeInteger(caseId) || caseId <= 0 || !jobId?.trim()) return null; const [row] = await db.select({ targetEntityId: researchCasesTable.targetEntityId, caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row || row.caseType !== "target" || row.targetEntityId !== entityId || !row.caseFile) return null; try { const parsed = JSON.parse(row.caseFile) as Record<string, unknown>; if (parsed.atlasJobId === jobId) return parsed; return null; } catch { return null; } }
 async function resolveSelectedInvestigator(input: { investigatorLlm?: InvestigatorCapability; caseId?: number; entityId: number; jobId?: string }): Promise<{ investigator: InvestigatorCapability; caseId: number } | null> { if (input.caseId == null || !Number.isSafeInteger(input.caseId)) return null; const parsed = await validateTargetCaseBinding(input.caseId, input.entityId, input.jobId); if (!parsed) { logger.warn({ entityId: input.entityId, caseId: input.caseId, jobId: input.jobId }, "refusing target run with an unbound durable case/job; no durable case-selected Investigator or selection mismatch"); return null; } const selected = parsed.investigatorLlm; if (typeof selected !== "string") return null; const investigator = selected as InvestigatorCapability; if (!getAvailableInvestigatorCapabilities().includes(investigator)) return null; if (input.investigatorLlm && input.investigatorLlm !== investigator) return null; return { investigator, caseId: input.caseId! }; }
+function compactReachabilityControl(raw: string): string {
+  const value = raw.replace(/\s+/g, " ").trim();
+  const fallback = "REALISM / REACHABILITY CONTROL: prioritize realistically attributable public, professional or intermediary access; prominence and social presence alone are not access.";
+  if (!value) return fallback;
+  if (value.length <= 340) return value;
+
+  const status = value.match(/\bStatus\s+([A-Z_]+)/i);
+  const targetMode = value.match(/This is a (RESEARCH-ONLY|TARGETED) target\.[^\n]*/i);
+  const blockers = value.match(/Known blockers:\s*([^\n]+)/i);
+  const route = value.match(/prioritize [^.\n]+/i);
+  const compact = [
+    "REALISM / REACHABILITY CONTROL:",
+    status ? `Status ${status[1]!.toUpperCase()}.` : "",
+    targetMode?.[0] ?? "",
+    route?.[0] ?? "",
+    blockers ? `Known blockers: ${blockers[1]!.slice(0, 130)}` : "",
+  ].filter(Boolean).join(" ");
+  return compact.length > 340 ? compact.slice(0, 337).trimEnd() + "..." : compact || fallback;
+}
+
 export function buildTargetContactInvestigatorObjective(input: {
   targetName: string;
   companyName?: string | null;
   reachabilityControl: string;
 }): string {
+  const targetName = input.targetName.trim().slice(0, 140);
+  const companyName = input.companyName?.trim().slice(0, 140);
   const sections = [
-    `Research public identity, business interests and realistic public/professional/intermediary routes for ${input.targetName}${input.companyName ? ` linked to ${input.companyName}` : ""}.`,
-    input.reachabilityControl.trim().slice(0, 420),
-    "Investigate the person, not generic company contacts. Anchor on verified role, employer/business, jurisdiction and aliases/transliterations. Choose evidence-led routes among public director/beneficial-owner registries, filings, investment/deal/property records, trade sources and local-language reporting; use English for corroboration when useful. Pivot from generic pages to exact people and ownership/control links. no fixed checklist.",
-    "After identity/role verification, seek public professional/business social profiles and official bios via available search/fetch tools; corroborate name plus role/company/location. Map publicly documented family or associate relationships only when a credible public source explicitly states the tie and it helps trace ownership/control, investment or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social-graph proximity; never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
-    "Prefer a directly published professional contact or documented assistant/office/family-office/intermediary. A generic inbox, switchboard or social presence alone is not personal access.",
-    "Use exact observed URLs; snippets are leads, not evidence. Never invent identities, wealth, relationships, contacts or URLs. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities; never infer relationships from surnames, co-location, follows or social-graph proximity. Map family/associate ties only when a credible public source explicitly states the tie and it supports ownership/control or a documented intermediary route. If identity/contact attribution is ambiguous or the source does not bind person and value, do not promote. Pivot after failed/repeated fetches and stop when evidence or a useful route is exhausted.",
+    `Research public identity, business interests and realistic public/professional/intermediary routes for ${targetName}${companyName ? ` linked to ${companyName}` : ""}.`,
+    compactReachabilityControl(input.reachabilityControl),
+    "Investigate the person, not generic company contacts. Anchor on verified role, employer/business, jurisdiction and aliases/transliterations. For wealth potential, require that a public source directly documents a material business, ownership stake, investment, asset, exit or control role; seniority alone is not wealth. Follow evidence through public director/beneficial-owner registries, filings, investment/deal/property records, trade sources and local-language reporting; use English for corroboration when useful. Pivot from generic pages to exact people and ownership/control links; no fixed checklist.",
+    "After identity/role verification, seek public professional/business profiles and official bios through available search/fetch and footprint tools; corroborate name plus role/company/location. Map family or associate relationships only when credible public sources explicitly state the tie and it clarifies ownership/control/investment or a documented intermediary route. Never infer relationships from surnames, co-location, follows or graph proximity; never guess social accounts, private handles, or phone/WhatsApp/Telegram identities.",
+    "Prefer a directly published professional contact or documented assistant, office, family-office or intermediary route. A generic inbox, switchboard or social presence alone is not personal access.",
+    "Use exact observed URLs; snippets are leads, not evidence. Never invent identities, wealth, relationships, contacts or URLs. If identity is ambiguous or no source binds a contact to the person, do not promote it. Pivot after failed/repeated fetches and stop when evidence or a useful route is exhausted.",
   ];
-  const maxChars = 1_900;
-  const tail = sections[sections.length - 1]!;
-  const prefix = sections.slice(0, -1).join("\n");
-  const full = [...sections].join("\n");
-  if (full.length <= maxChars) return full;
-  const budget = Math.max(0, maxChars - tail.length - 1);
-  return prefix.slice(0, budget).trimEnd() + "\n" + tail;
+  return sections.join("\n");
 }
 
 export async function runTargetContactAgent(input: { entityId: number; caseId?: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: InvestigatorCapability; contextDocument?: string; oversightMode?: "internal" | "caller"; shouldCancel?: () => boolean | Promise<boolean>; onInvestigationAct?: (step: InvestigationAct) => void | Promise<void> }): Promise<TargetContactAgentResult> {
