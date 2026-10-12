@@ -345,7 +345,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   }
   const warnings: string[] = [];
   if (priorQueries.some((prior) => normalizeDiscoverySearchQuery(prior) === normalized)) {
-    warnings.push("This normalized query has been attempted before. The repeat was allowed: cross-provider/market verification or a changed hypothesis may justify it; compare the returned evidence and avoid blind loops.");
+    warnings.push("This normalized query has been attempted before. Same-provider repeats are blocked unless a newly fetched public source has advanced the case; provider/locale/market changes remain valid alternatives. A changed rationale alone is not new evidence.");
   }
 
   const role = DISCOVERY_ROLE_TERMS.test(normalized);
