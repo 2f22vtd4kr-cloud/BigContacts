@@ -46,13 +46,15 @@ describe("discovery query quality guidance", () => {
     expect(result.allowed ? result.warning : undefined).toMatch(/repeat was allowed/i);
   });
 
-  it("blocks unanchored fame-list searches but allows a contextualized pivot", () => {
+  it("blocks fame-list searches that use only a country or sector as context", () => {
     const broad = validateDiscoverySearchQuery("billionaires richest people Forbes");
     expect(broad.allowed).toBe(false);
     expect(broad.allowed ? "" : broad.reason).toMatch(/fame\/list-oriented|concrete anchor/i);
 
-    const contextual = validateDiscoverySearchQuery("Forbes billionaires Slovenia casino");
-    expect(contextual.allowed).toBe(true);
+    const contextualButUnrealistic = validateDiscoverySearchQuery("Forbes billionaires Slovenia casino");
+    expect(contextualButUnrealistic.allowed).toBe(false);
+    expect(contextualButUnrealistic.allowed ? "" : contextualButUnrealistic.reason).toMatch(/ownership, investment, operator or intermediary hypothesis/i);
+    expect(validateDiscoverySearchQuery("Forbes casino owners Slovenia")).toEqual({ allowed: true });
   });
 
   it("recognizes whitespace-separated tokens and explicit source anchors for accurate advisory scoring", () => {
