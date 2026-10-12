@@ -10,7 +10,7 @@ import { resolveResearchDepth } from "./research-depth";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
-import { isTransientInvestigatorCapacityError } from "./agentic-web-research-core";
+import { isTransientInvestigatorCapacityError, isUntargetableDiscoveryPersonName } from "./agentic-web-research-core";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
@@ -57,6 +57,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   const candidates = uniqueNames(input.findings
     .filter((finding) => finding.promotionDecision === "promote" && finding.scope === "candidate")
     .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length >= 3)
+    .filter((finding) => typeof finding.personName === "string" && !isUntargetableDiscoveryPersonName(finding.personName))
     .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some(isObservedHttpsSource))
     .map((finding) => finding.personName as string));
   const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
