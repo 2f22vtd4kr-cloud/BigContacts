@@ -52,7 +52,10 @@ describe("canonicalCaseContinuationGuard", () => {
   });
   it("rebuilds continuation control context from the row-locked durable case", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
-    expect(source).toContain("initialContext=contextOf(lockedFile)");
+    expect(source).toContain("initialContext=`ACTIVE DISCOVERY OBJECTIVE:");
+    expect(source).toContain("${contextOf(lockedFile)}`");
+    expect(source).toContain("restorePersistedDiscoveryObjective({");
+    expect(source).toContain("objective:[activeDiscoveryObjective,");
     expect(source).toContain("for(\"update\")");
     expect(source).toContain('active=await getActiveJobStrict("atlas-run")');
     expect(source).toContain('legacyActive=await getActiveJobStrict("case-bureau-discovery")');
