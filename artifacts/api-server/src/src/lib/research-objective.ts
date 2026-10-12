@@ -84,7 +84,7 @@ export function restorePersistedDiscoveryObjective(input: {
   if (!storedActive || storedActive === baseObjective) {
     return { baseObjective, activeObjective: baseObjective, restoredPivot: false };
   }
-  const pivotPrefix = `${baseObjective}\\n\\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\\n`;
+  const pivotPrefix = `${baseObjective}\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\n`;
   if (!storedActive.startsWith(pivotPrefix) || storedActive.length > 34_000) {
     return { baseObjective, activeObjective: baseObjective, restoredPivot: false };
   }
