@@ -33,7 +33,7 @@ import {
 } from "./provider-error-diagnostics";
 export { getAgenticLlmHealth };
 export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject"; promotionReason?: string };
-export type AgenticTrajectoryRecord = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: "selected" | "success" | "http_error" | "blocked" | "timeout" | "error" | "cancelled"; observation?: string; observedUrls: string[]; findings: AgenticFinding[]; providerFallback?: string[]; stopReason?: AgenticWebResearchResult["stopReason"]; durableEventId?: number; failureDomain?: AtlasFailureDomain; failureKind?: AtlasFailureKind };
+export type AgenticTrajectoryRecord = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; pivotScopeKey?: string; execution: "selected" | "success" | "http_error" | "blocked" | "timeout" | "error" | "cancelled"; observation?: string; observedUrls: string[]; findings: AgenticFinding[]; providerFallback?: string[]; stopReason?: AgenticWebResearchResult["stopReason"]; durableEventId?: number; failureDomain?: AtlasFailureDomain; failureKind?: AtlasFailureKind };
 export type AgenticWebResearchResult = { status: "completed" | "unavailable" | "error" | "timeout" | "cancelled"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
 type AgentAction = { action: "web_search"; query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
@@ -1600,7 +1600,14 @@ const AGENTIC_ACTION_SCHEMA = { type: "object", properties: { action: { type: "s
 export function extractBossPivotDirectionForCompactPrompt(rawObjective: string): string {
   const pivotMarker = "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:";
   const pivotIndex = rawObjective.indexOf(pivotMarker);
-  if (pivotIndex >= 0) return rawObjective.slice(pivotIndex + pivotMarker.length).trim();
+  if (pivotIndex >= 0) {
+    const directionStart = pivotIndex + pivotMarker.length;
+    const remainder = rawObjective.slice(directionStart);
+    // Opening/continuation context is appended after the accepted objective in
+    // some control paths. It must not become part of the pivot or its anchors.
+    const boundary = remainder.search(/\n(?:BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|RIGHT-HAND OPENING REVIEW(?: \(advisory\))?:|CONTINUATION STATE:|RECENT PRIOR ACTS(?: \(newest last\))?:|CANONICAL EVIDENCE GRAPH STATE:)/i);
+    return remainder.slice(0, boundary >= 0 ? boundary : undefined).trim();
+  }
 
   // The prompt compactor rewrites the persisted marker before passing the
   // objective to the ReAct core. Recognize that representation too, or the
@@ -1639,7 +1646,13 @@ const PIVOT_SCOPE_GENERIC_TERMS = new Set([
 ]);
 function pivotScopeToken(value: string): string {
   const token = value.toLowerCase();
+  // Preserve singular words and place names that happen to end in s. Naive
+  // suffix stripping turned Texas into "texa" and business into "busines",
+  // allowing a location-only or generic-word match to satisfy a research pivot.
+  const singularExceptions = new Set(["texas", "business", "status", "news", "analysis", "basis", "series", "species", "address", "process", "access", "success", "class"]);
+  if (singularExceptions.has(token)) return token;
   if (token.endsWith("ies") && token.length > 4) return token.slice(0, -3) + "y";
+  if (token.endsWith("sses") && token.length > 5) return token.slice(0, -2);
   if (token.endsWith("s") && token.length > 4 && !token.endsWith("ss")) return token.slice(0, -1);
   return token;
 }
@@ -1675,10 +1688,13 @@ function pivotScopeAnchors(objective: string): string[] {
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
   if (!value.trim() || anchors.length === 0) return false;
   const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
-  return anchors.some((anchor) => tokens.some((token) =>
+  const matched = new Set(anchors.filter((anchor) => tokens.some((token) =>
     token === anchor || (Math.min(token.length, anchor.length) >= 6
       && (token.startsWith(anchor.slice(0, 7)) || anchor.startsWith(token.slice(0, 7)))),
-  ));
+  )));
+  // A single distinctive industry/entity anchor (e.g. "fitness") is sufficient;
+  // a short, broad word such as "food" must be accompanied by another pivot anchor.
+  return matched.size >= 2 || [...matched].some((anchor) => anchor.length >= 7);
 }
 function pivotTextContainsExcludedSubject(value: string, excludedSubjects: readonly string[]): boolean {
   if (!value.trim() || excludedSubjects.length === 0) return false;
@@ -1691,7 +1707,9 @@ function pivotResourceIsGroundedInAlignedEvidence(value: unknown, evidenceText: 
   if (normalized.length >= 4 && evidenceText.includes(normalized)) return true;
   const resourceTokens = normalized.match(/[a-z0-9]{4,}/g) ?? [];
   const unique = [...new Set(resourceTokens.filter((token) => !PIVOT_SCOPE_GENERIC_TERMS.has(pivotScopeToken(token))))];
-  return unique.length >= 1 && unique.some((token) => evidenceText.includes(token));
+  // Require a distinctive token, not a common word which merely appeared in
+  // some earlier observation, before allowing a named-resource follow-up.
+  return unique.some((token) => token.length >= 5 && evidenceText.includes(token));
 }
 function pivotDomainMatchesSourceUrls(value: unknown, sourceUrls: ReadonlySet<string>): boolean {
   const domain = normalizedDomainResource(value).replace(/^www\./, "");
@@ -1748,11 +1766,15 @@ function pivotAlignedEvidenceState(
   priorRecords: readonly AgenticTrajectoryRecord[],
   anchors: readonly string[],
   excludedSubjects: readonly string[],
+  activePivotScopeKey: string,
 ): { sourceUrls: Set<string>; evidenceText: string } {
   const sourceUrls = new Set<string>();
   const evidenceParts: string[] = [];
   for (const record of priorRecords) {
-    if (record.execution !== "success") continue;
+    // Evidence from earlier/unversioned objectives is historical context, not
+    // authorization for a newly accepted pivot. Only records tagged under the
+    // exact active pivot may establish follow-up provenance.
+    if (record.execution !== "success" || record.pivotScopeKey !== activePivotScopeKey) continue;
     const evidenceText = evidenceParts.join(" ").toLowerCase();
     if (!pivotActionIsAligned(record.action, record.args, anchors, excludedSubjects, sourceUrls, evidenceText)) continue;
     if (record.action === "visit" || record.action === "browser_fetch") {
@@ -1771,6 +1793,12 @@ function pivotAlignedEvidenceState(
   }
   return { sourceUrls, evidenceText: evidenceParts.join(" ").toLowerCase() };
 }
+export function discoveryPivotScopeKey(objective: string): string | null {
+  const direction = extractBossPivotDirectionForCompactPrompt(objective);
+  const normalized = normalizeDiscoverySearchQuery(direction);
+  return normalized ? normalized.slice(0, 1_800) : null;
+}
+
 export function discoveryPivotAlignmentReason(
   objective: string,
   action: string,
@@ -1778,7 +1806,8 @@ export function discoveryPivotAlignmentReason(
   priorRecords: readonly AgenticTrajectoryRecord[],
 ): string | null {
   const direction = extractBossPivotDirectionForCompactPrompt(objective);
-  if (!direction) return null;
+  const activePivotScopeKey = discoveryPivotScopeKey(objective);
+  if (!direction || !activePivotScopeKey) return null;
   const anchors = pivotScopeAnchors(objective);
   // A pivot that contains no extractable substantive subject stays model-led rather
   // than becoming an accidental stop gate.
@@ -1787,7 +1816,7 @@ export function discoveryPivotAlignmentReason(
 
   // Provenance grows only through successful actions already grounded in the active
   // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
-  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects);
+  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, activePivotScopeKey);
   if (pivotActionIsAligned(action, args, anchors, excludedSubjects, evidence.sourceUrls, evidence.evidenceText)) return null;
 
   return "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: "
@@ -2405,7 +2434,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     }
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
     runtimeStage = "model_action_validation";
-    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.thought, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
+    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
       const boundFindings = bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)]);
       for (const binding of boundFindings) {
         intelligence.recordAction({
