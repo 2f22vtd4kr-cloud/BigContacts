@@ -44,6 +44,12 @@ describe("canonicalCaseContinuationGuard", () => {
     expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining("durably complete") }));
     expect(next).not.toHaveBeenCalled();
   });
+  it("does not label a discovery-only continuation as a complete Atlas outcome", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
+    expect(source).toContain('outcome:"incomplete"');
+    expect(source).toContain("candidate admission and card creation were not completed");
+    expect(source).not.toContain('outcome:"complete",message:`Canonical continuation complete;');
+  });
   it("rebuilds continuation control context from the row-locked durable case", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
     expect(source).toContain("initialContext=contextOf(lockedFile)");
