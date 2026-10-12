@@ -263,7 +263,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
     "funding", "round", "rounds", "investment", "investments", "acquisition", "acquisitions", "startup", "startups",
     "executive", "executives", "business", "businesses", "company", "companies", "industry", "industries", "market", "markets",
     "news", "report", "reports", "article", "articles", "interview", "interviews", "statement", "statements", "profile", "profiles",
-    "large", "small", "major", "leading", "top", "best", "big", "fortune", "fortune500",
+    "large", "small", "major", "leading", "top", "best", "big", "fortune", "fortune500", "leadership", "team", "teams", "page", "pages", "directory", "directories",
     "venture", "ventures", "capital", "private", "equity", "tech", "technology", "biotech", "software", "finance", "financial",
     "founder", "founders", "ceo", "cfo", "coo", "cto", "owner", "owners", "investor", "investors", "what", "who", "whom", "whose", "where", "when", "why", "how", "is", "are", "was", "were", "be", "being", "been", "do", "does", "did", "can", "could", "should", "would", "will", "may", "might", "has", "have", "had", "it", "its", "they", "them", "their", "we", "you", "i", "me", "my", "our", "your", "which", "any", "some", "all", "near", "around", "a", "an", "the", "and", "or", "nor", "but", "if", "then", "than", "of", "in", "on", "to", "as", "at", "by", "for", "from", "with", "without", "into", "over", "under", "after", "before", "about", "against", "among", "between", "through", "during", "using", "via",
   ]);
