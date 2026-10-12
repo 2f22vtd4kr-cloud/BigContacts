@@ -1646,7 +1646,7 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
   return anchors.some((anchor) => tokens.some((token) =>
     token === anchor || (Math.min(token.length, anchor.length) >= 6
-      && (token.startsWith(anchor.slice(0, 7)) || anchor.startsWith(token.slice(0, 7))),
+      && (token.startsWith(anchor.slice(0, 7)) || anchor.startsWith(token.slice(0, 7)))),
   ));
 }
 function pivotAlignedSearchRecords(priorRecords: readonly AgenticTrajectoryRecord[], anchors: readonly string[]): AgenticTrajectoryRecord[] {
