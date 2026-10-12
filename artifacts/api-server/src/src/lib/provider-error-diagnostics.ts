@@ -230,7 +230,7 @@ export function classifyThrownProviderError(error: unknown, aborted = false): Pr
 
   // Do not label local validation/programming failures as NETWORK_ERROR. A
   // positive transport code or specific transport diagnostic is required.
-  if (/\\b(?:NETWORK_ERROR|ERR_NETWORK|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ECONNABORTED|EHOSTUNREACH|ENETUNREACH|EAI_AGAIN|ENOTFOUND|ENODATA|UND_ERR_CONNECT_TIMEOUT|UND_ERR_SOCKET)\\b/i.test(codes)) {
+  if (/\\b(?:NETWORK_ERROR|ERR_NETWORK|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EPIPE|ECONNABORTED|EHOSTUNREACH|ENETUNREACH|EAI_AGAIN|ENOTFOUND|ENODATA|UND_ERR_CONNECT_TIMEOUT|UND_ERR_SOCKET)\\b/i.test(codes + " " + messages)) {
     return "network_error";
   }
   if (/failed to fetch|fetch failed|network request failed|socket hang up|socket closed unexpectedly|connection (?:reset|refused|closed unexpectedly|timed out|aborted)|dns lookup failed|name resolution (?:temporarily )?failed/i.test(messages || message)) {
