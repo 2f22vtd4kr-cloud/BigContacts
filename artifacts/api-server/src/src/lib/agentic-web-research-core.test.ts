@@ -302,6 +302,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY PROGRESS GATE");
+    expect(prompt).toContain("DISCOVERY TARGETABILITY GATE");
+    expect(prompt).toContain("The name of a company, its size, prestigious roster or easy-to-fetch leadership page is not a reason to pursue it.");
+    expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("once a real entity appears, test that exact named anchor");
     expect(prompt).toContain("Never use placeholders such as CompanyName, companywebsite.com, or example.com.");
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
