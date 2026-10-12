@@ -100,7 +100,11 @@ export function registryResultLeadUrls(result: Pick<RegistryResult, "metadata">)
           && (lowerPath === "/" || lowerPath === "/html") && url.searchParams.has("q"));
       if (isSearchEndpoint || isSearchEngine) continue;
       url.hash = "";
-      urls.add(url.toString());
+      // The Investigator visit action accepts URLs up to 500 characters.
+      // Never emit a lead that the execution boundary will reject on length.
+      const normalizedUrl = url.toString();
+      if (normalizedUrl.length > 500) continue;
+      urls.add(normalizedUrl);
     } catch {
       continue;
     }
