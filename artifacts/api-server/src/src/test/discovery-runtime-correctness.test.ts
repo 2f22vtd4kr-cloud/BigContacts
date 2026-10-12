@@ -719,8 +719,8 @@ describe("Apex research runtime readiness hardening", () => {
       purpose: "Compare complementary registry records without repeating equivalent sources",
       expectedInformationGain: 0.8,
       searches: [
-        { query: "Drury Hotels ownership officers public filing", registry: "sec-edgar", purpose: "check public ownership filings" },
-        { query: "Drury Hotels business entity owners", registry: "bodacc-france", purpose: "check a separate public registry" },
+        { query: "Drury Hotels ownership officers public filing", provider: null, registry: "sec-edgar", locale: null, market: null, purpose: "check public ownership filings" },
+        { query: "Drury Hotels business entity owners", provider: null, registry: "bodacc-france", locale: null, market: null, purpose: "check a separate public registry" },
       ],
     };
     expect(isModelSelectableAgentAction("parallel_registry_search")).toBe(true);
@@ -733,6 +733,55 @@ describe("Apex research runtime readiness hardening", () => {
       ...base,
       searches: [base.searches[0]],
     }))).toContain("searches_min=2");
+    expect(researchCoreSource).toContain('required: ["query","provider","registry","locale","market","purpose"]');
+    expect(researchCoreSource).toContain('registry: { type: ["string","null"], enum: ["sec-edgar"');
+  });
+
+
+
+  it("does not let provider/rationale changes retry a pivot-rejected query without fetched evidence", async () => {
+    const { discoveryPivotAlignmentReason, discoveryPivotScopeKey, repeatedPivotBlockedActionReason } = await import("../lib/agentic-web-research-core");
+    const rejected = {
+      turn: 6,
+      model: "groq",
+      action: "web_search",
+      args: { query: "Texas real-estate developer Forbes net worth", provider: "serper" },
+      execution: "blocked" as const,
+      observation: "pivot_alignment_guard blocked this outbound action before execution.",
+      observedUrls: [],
+      findings: [],
+      pivotScopeKey: discoveryPivotScopeKey(pivot) ?? undefined,
+    };
+    expect(discoveryPivotAlignmentReason(pivot, "web_search", {
+      query: "Texas real-estate developer Forbes net worth",
+      provider: "tavily",
+      hypothesis: "Try a different provider",
+      purpose: "Find a wealth signal",
+    }, [rejected])).toContain("pivot_alignment_guard");
+    expect(repeatedPivotBlockedActionReason(pivot, "web_search", {
+      query: "Texas real-estate developer Forbes net worth",
+      provider: "tavily",
+      hypothesis: "Try a different provider",
+      purpose: "Find a wealth signal",
+    }, [rejected])).toContain("repeat_pivot_alignment_guard");
+    expect(repeatedPivotBlockedActionReason(pivot, "web_search", {
+      query: "boutique fitness franchise owners Texas",
+      provider: "serper",
+    }, [rejected])).toBeNull();
+
+    const verifiedProgress = {
+      ...rejected,
+      turn: 7,
+      action: "visit",
+      args: { url: "https://example-fitness.test/ownership" },
+      execution: "success" as const,
+      observation: "Official ownership page verifies a regional fitness operator.",
+      observedUrls: ["https://example-fitness.test/ownership"],
+    };
+    expect(repeatedPivotBlockedActionReason(pivot, "web_search", {
+      query: "Texas real-estate developer Forbes net worth",
+      provider: "serper",
+    }, [rejected, verifiedProgress])).toBeNull();
   });
 
   it("keeps Python OSINT tools explicitly unavailable until an attested executor exists", async () => {
