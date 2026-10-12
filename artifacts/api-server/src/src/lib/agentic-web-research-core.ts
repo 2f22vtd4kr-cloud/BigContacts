@@ -62,6 +62,7 @@ const DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS = /\b(?:leadership|executive|execu
 const DISCOVERY_BARE_TLD_SITE_FILTER = /\bsite:\.(?:com|org|net|edu|gov|io|co|si|eu)\b/i;
 const DISCOVERY_GENERIC_CONTACT_TERMS = /\b(?:public relations|media relations|press contact|media contact|communications contact|pr contact|press office|media office)\b/i;
 const DISCOVERY_TARGETABILITY_TERMS = /\b(?:ownership|owner|owner-operator|founder|co-?founder|shareholder|beneficial owner|controlling owner|investor|investment|private equity|venture capital|family office|principal|partner|concession|franchise|license holder|licensed operator|casino|gaming|hotel|resort|hospitality|real estate|property|asset|holding company|business owner|acquisition|business exit|portfolio)\b/i;
+const DISCOVERY_OWNERSHIP_ROUTE_TERMS = /\b(?:owner|owners|ownership|owner-operator|founder|co-?founder|shareholder|beneficial owner|controlling owner|investor|investment|private equity|venture capital|family office|principal|partner|operator|concession|concessionaire|franchisee?|license holder|licensed operator|business owner|acquisition|business exit|holding company|proprietor|lastnik|lastniki|lastništvo|solastnik|družbenik|ustanovitelj|investitor|koncesionar|upravljavec|franšizojemalec|imetnik licence|vlasnik|vlasništvo|osnivač|koncesionar|operater|proprietario|proprietà|azionista|socio|fondatore|investitore|concessionario|gestore|eigentümer|eigentum|gesellschafter|gründer|investor|konzessionär|betreiber)\b/i;
 const DISCOVERY_ROLE_TERMS = /\b(?:founder|co[ -]?founder|owner|operator|ceo|chief executive|director|managing director|chairman|chairwoman|chair|principal|partner|managing partner|general partner|president|shareholder|beneficial owner|officer|board)\b/i;
 const DISCOVERY_SECTOR_TERMS = /\b(?:casino|gaming|gambling|hotel|resort|hospitality|restaurant|construction|manufacturing|software|technology|saas|ai|artificial intelligence|fintech|healthcare|pharma|biotech|logistics|shipping|aviation|real estate|property|energy|industrial|automotive|retail|food|beverage|media|telecom|mining|metals|resources|legal|law|education|consulting|investment|private equity|venture capital|family office|asset management|insurance|banking|agriculture|tourism|travel)\b/i;
 const DISCOVERY_SOURCE_TERMS = /(?:\b(?:site:|registry|registr(?:y|ies)|filing|filings|annual report|press release|trade publication|business journal|interview|company profile|team page|official)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i;
@@ -404,6 +405,12 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
     return {
       allowed: false,
       reason: "Discovery rejected an impractical fame/ranking or global-household-brand path. Search a realistically reachable private/regional operating principal or name a concrete local ownership/intermediary route (such as an independent bottler/distributor, franchise owner, license holder or concession holder). No provider request was made.",
+    };
+  }
+  if (DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS.test(normalized) && !DISCOVERY_OWNERSHIP_ROUTE_TERMS.test(normalized)) {
+    return {
+      allowed: false,
+      reason: "Discovery rejected a title/leadership-led query without an ownership, equity, investor, operator, concession, franchise or proprietor hypothesis. A company-name anchor alone does not establish a wealthy or realistically targetable person; add a source-grounded owner/control/intermediary route before spending a search call. No provider request was made.",
     };
   }
   if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) {
