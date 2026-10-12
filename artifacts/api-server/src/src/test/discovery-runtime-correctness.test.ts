@@ -105,7 +105,8 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("parallelRequestKeys.has(parallelRequestKey)");
     expect(researchCoreSource).toContain("isBrowserFetchProviderAvailable(action.provider)");
     expect(researchCoreSource).not.toContain("visited.has(canonical)");
-    expect(researchCoreSource).toContain("There is no required first tool, hop order, or fixed search sequence");
+    expect(researchCoreSource).toContain("This constrains scope, not tool choice or action order.");
+    expect(researchCoreSource).toContain("no fixed sequence");
   });
 
   it("blocks repeated successful page retrieval when only the model-authored rationale changes", async () => {
@@ -409,7 +410,9 @@ describe("discovery runtime architecture", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.4)))");
     expect(canonicalSource).toContain("const discoveryIterationCeiling = Math.max(1, depth.agenticMaxIterations - targetResearchReserveIterations)");
-    expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(depth.investigatorIterationsPerAct, discoveryIterationCeiling)");
+    expect(canonicalSource).toContain("const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling)");
+    expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling)");
+    expect(canonicalSource).toContain("Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations)");
     expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
     expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations)");
     expect(canonicalSource).toContain("let discoveryIterationsUsed = discovery.iterations");
@@ -548,6 +551,49 @@ describe("Boss-accepted discovery pivot scope", () => {
       hypothesis: "Find the same franchise owner",
       purpose: "Continue coffee-franchise research",
     }, [staleSearch])).toContain("pivot_alignment_guard");
+  });
+
+  it("blocks explicitly excluded subjects such as non-Marriott even when generic franchise terms overlap", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    const nonMarriottObjective = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Shift focus to non‑Marriott hospitality franchises (e.g., independent boutique hotel chains, regional franchisee associations) and query public business registries, local chamber of commerce listings, and state corporate filings for named owners/operators with disclosed equity stakes. Prioritize jurisdictions with searchable ownership databases (e.g., US states, Canada provinces, EU registries).",
+    ].join("\n");
+
+    expect(discoveryPivotAlignmentReason(nonMarriottObjective, "web_search", {
+      query: "Marriott franchise owner list United States",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+    expect(discoveryPivotAlignmentReason(nonMarriottObjective, "web_search", {
+      query: "Marriott hotel franchisee directory",
+      provider: "tavily",
+    }, [])).toContain("pivot_alignment_guard");
+
+    expect(discoveryPivotAlignmentReason(nonMarriottObjective, "web_search", {
+      query: "independent boutique hotel chain owners disclosed equity public registry Canada",
+      provider: "serper",
+    }, [])).toBeNull();
+  });
+
+  it("accepts the audited follow-on registry pivot for Drury/White Lodging while rejecting stale Marriott searches", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    const registryObjective = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Explore public registries and local chambers for documented owners/operators at Drury Hotels, White Lodging, and similar regional hospitality businesses, verifying ownership or equity and realistic professional contact routes.",
+    ].join("\n");
+
+    expect(discoveryPivotAlignmentReason(registryObjective, "web_search", {
+      query: "Drury Hotels ownership state business registry corporate filings",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(registryObjective, "web_search", {
+      query: "White Lodging ownership local chamber public registry",
+      provider: "tavily",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(registryObjective, "web_search", {
+      query: "Marriott franchise owner list United States",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
   });
 
   it("is inactive without an accepted pivot and is wired into the live discovery action boundary", async () => {
