@@ -394,6 +394,11 @@ describe("Investigator prompt architecture", () => {
   });
 
   it("blocks unrealistic discovery destinations before page fetch, but permits a local operator path", () => {
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about")).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("generic brand about pages"),
+    });
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about-us/independent-bottler/portoroz")).toEqual({ allowed: true });
     expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about-us/leadership")).toMatchObject({
       allowed: false,
       reason: expect.stringContaining("global household-brand leadership"),
