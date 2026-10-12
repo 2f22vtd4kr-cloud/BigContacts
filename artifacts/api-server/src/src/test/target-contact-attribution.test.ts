@@ -27,7 +27,7 @@ describe("target Investigator objective follows realistic human research", () =>
         "Positive evidence: a source-backed business relation.",
         "Known blockers: no validated person-level direct phone or email is present; no corroborated assistant or office route is stored.",
         "Extra diagnostic detail ".repeat(8),
-      ].join("\\n"),
+      ].join("\n"),
     });
     expect(objective).toContain("Status TARGETED (access score 42/100).");
     expect(objective).toContain("This is a TARGETED reachability pass.");
