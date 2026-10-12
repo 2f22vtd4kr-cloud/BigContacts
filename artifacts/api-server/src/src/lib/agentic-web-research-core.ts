@@ -2291,13 +2291,13 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
   const recent = records.slice(-12);
   let successfulSearchesSinceObservedSource = 0;
   for (const record of [...records].reverse()) {
-    if (record.action === "web_search" || record.action === "parallel_web_search") {
+    if (record.action === "web_search" || record.action === "parallel_web_search" || record.action === "parallel_registry_search") {
       if (record.execution === "success") successfulSearchesSinceObservedSource += 1;
       continue;
     }
     if (
       record.execution === "success"
-      && ["visit", "browser_fetch", "registry_search", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"].includes(record.action)
+      && ["visit", "browser_fetch", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"].includes(record.action)
     ) {
       successfulSearchesSinceObservedSource = 0;
       break;
@@ -2332,6 +2332,14 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
         const search = item as Record<string, unknown>;
         addSearchRequest(search.query, search.provider, search.locale, search.market);
       }
+    } else if (record.action === "registry_search") {
+      addSearchRequest(record.args.query, "registry:" + cleanText(record.args.registry, 60), null, null);
+    } else if (record.action === "parallel_registry_search" && Array.isArray(record.args.searches)) {
+      for (const item of record.args.searches) {
+        if (!item || typeof item !== "object") continue;
+        const search = item as Record<string, unknown>;
+        addSearchRequest(search.query, "registry:" + cleanText(search.registry, 60), null, null);
+      }
     }
 
     if (record.action === "visit" || record.action === "browser_fetch") {
@@ -2351,7 +2359,7 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
     if (
       record.execution === "success"
       && emptyResultPattern.test(String(record.observation ?? ""))
-      && (record.observedUrls.length === 0 || record.action === "web_search" || record.action === "parallel_web_search" || record.action === "registry_search" || record.action === "domain_lookup")
+      && (record.observedUrls.length === 0 || record.action === "web_search" || record.action === "parallel_web_search" || record.action === "registry_search" || record.action === "parallel_registry_search" || record.action === "domain_lookup")
     ) emptyResultCount += 1;
 
     if (record.action === "done" && (record.execution !== "success" || record.findings.length === 0)) emptyTerminalCount += 1;
@@ -2402,7 +2410,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
 
   const successfulExternalActions = records.filter((record) =>
     record.execution === "success" &&
-    ["web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"].includes(record.action),
+    ["web_search", "parallel_web_search", "visit", "browser_fetch", "registry_search", "parallel_registry_search", "domain_lookup", "harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"].includes(record.action),
   );
   const successfulObserved = successfulExternalActions.filter((record) => {
     const observation = String(record.observation ?? "").trim().toLowerCase();
