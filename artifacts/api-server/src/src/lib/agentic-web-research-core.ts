@@ -1818,7 +1818,17 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
     if (legacyBoundaries.length) baseObjective = raw.slice(0, Math.min(...legacyBoundaries)).trim();
   }
 
-  let advisoryDirection = extractBossPivotDirectionForCompactPrompt(raw);
+  let advisoryDirection = "";
+  if (structuredPivotIndex >= 0) {
+    const directionStart = structuredPivotIndex + structuredPivotMarker.length;
+    const directionEnd = raw.indexOf(
+      "\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      directionStart,
+    );
+    advisoryDirection = raw.slice(directionStart, directionEnd >= 0 ? directionEnd : undefined).trim();
+  } else {
+    advisoryDirection = extractBossPivotDirectionForCompactPrompt(raw);
+  }
   if (!advisoryDirection && openingIndex >= 0) {
     const openingControl = raw.slice(openingIndex);
     const directionsLine = openingControl.split(/\r?\n/).find((line) => /^\s*Next directions:/i.test(line));
