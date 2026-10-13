@@ -27,6 +27,11 @@ describe("Groq Investigator runtime contract", () => {
     expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: true, warning: expect.stringContaining("attempted before") });
     expect(validateDiscoverySearchQuery("Slovenia casino owners", ["Slovenia casino"])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Example Corp founder", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("family office sustainability startup founder site:cnbc.com", [])).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("broad press-publisher-only search"),
+    });
+    expect(validateDiscoverySearchQuery('site:cnbc.com "SolarEdge" founder acquisition', [])).toEqual({ allowed: true });
   });
 
   it("allows one corrective parse retry, then stops repeated invalid action contracts", () => {
