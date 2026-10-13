@@ -409,7 +409,7 @@ Choose each next action yourself from the available capabilities and observed ev
       "Shift focus to mid-market family-owned manufacturers or service firms in neighboring Central-European countries (e.g., Czech Republic, Slovakia) and seek publicly listed ownership filings or local business registries for named principals.",
       "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
       "Choose each next action yourself from the available capabilities and observed evidence."
-    ].join("\\n");
+    ].join("\n");
     const blockedObservation = "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Shift focus to mid-market family-owned manufacturers or service firms in neighboring Central-European countries (e.g., Czech Republic, Slovakia) and seek publicly listed ownership filings or local business registries for named principals. A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
     const trajectoryRecords: Parameters<typeof buildStepPrompt>[0]["trajectoryRecords"] = [
       {
