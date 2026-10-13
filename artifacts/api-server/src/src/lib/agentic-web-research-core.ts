@@ -1871,7 +1871,7 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
 export function compactEmergencyTrajectoryObservation(observation: string): string {
   const normalized = typeof observation === "string" ? observation.trim() : "";
   if (/pivot_alignment_guard/i.test(normalized)) {
-    return "BLOCKED BY SCOPE GUARD (no provider request): a new search query must name the active Boss-approved subject, geography, and source class; follow-up URL/resources must use a source already observed from an aligned search. Rationale/provider/registry metadata do not count. Revise the query or request new scope; do not repeat.";
+    return "SCOPE GUARD BLOCKED ACTION (no outbound request): query must name active Boss scope subject, geography and source class; follow-up URLs must come from an observed aligned search. Metadata alone is not scope. Revise the action or request new scope; never repeat.";
   }
   return boundInvestigatorPromptSection(normalized, 100);
 }
@@ -2119,7 +2119,9 @@ export function discoveryPivotAlignmentReason(
   const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, requiredSourceAnchors, activePivotScopeKey);
   if (pivotActionIsAligned(action, args, anchors, excludedSubjects, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText)) return null;
 
-  return "SCOPE GUARD BLOCKED ACTION (no outbound request): query must name active Boss scope subject, geography and source class; follow-up URLs must come from an observed aligned search. Metadata alone is not scope. Revise the action or request new scope; never repeat.";
+  return "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: "
+    + direction.slice(0, 420)
+    + ". A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
 }
 export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; intelligenceContext?: string; mode?: "target" | "discovery" }): string {
   const assignment = input.mode === "discovery"
