@@ -103,6 +103,16 @@ describe("media evidence versus realistic person route", () => {
     expect(hasRealisticPersonRouteSource([cnbcStory, companyPage])).toBe(true);
   });
 
+  it("normalizes publisher subdomains, trailing-dot aliases, and encoded editorial paths", () => {
+    expect(isRealisticPersonRouteSourceUrl("https://markets.cnbc.com/team/jane-example")).toBe(false);
+    expect(isRealisticPersonRouteSourceUrl("https://cnbc.com./team/jane-example")).toBe(false);
+    expect(isRealisticPersonRouteSourceUrl("https://cnbc.com../team/jane-example")).toBe(false);
+    expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example/%6eews/team/jane-example")).toBe(false);
+    expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example/%61rticles/profile/jane-example")).toBe(false);
+    expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example/%E0%A4%A/team/jane-example")).toBe(false);
+    expect(isRealisticPersonRouteSourceUrl("https://regional-operator.example./about/leadership/")).toBe(true);
+  });
+
   it("does not confuse a public ownership filing with a practical person-level route", () => {
     expect(isClaimGradeDiscoverySourceUrl("https://www.sec.gov/Archives/edgar/data/123/filing.htm")).toBe(true);
     expect(isRealisticPersonRouteSourceUrl("https://www.sec.gov/Archives/edgar/data/123/filing.htm")).toBe(false);

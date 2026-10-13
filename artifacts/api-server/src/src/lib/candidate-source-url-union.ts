@@ -47,7 +47,7 @@ export function isClaimGradeDiscoverySourceUrl(value: unknown): value is string 
   try {
     const url = new URL(value);
     if (url.protocol !== "https:") return false;
-    const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
+    const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.+$/, "");
     // Aggregator/profile directories can inform the Investigator, but are not
     // claim-grade identity evidence for durable candidate admission.
     if (isAggregatorHost(host)) return false;
@@ -84,10 +84,18 @@ export function isRealisticPersonRouteSourceUrl(value: unknown): value is string
   if (!isClaimGradeDiscoverySourceUrl(value)) return false;
   try {
     const url = new URL(value);
-    const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
+    const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.+$/, "");
     if (DISCOVERY_PRESS_PUBLISHER_DOMAINS.some((domain) => host === domain || host.endsWith("." + domain))) return false;
 
-    const path = url.pathname.toLowerCase().replace(/\/+$/, "") || "/";
+    let path: string;
+    try {
+      // Decode once before interpreting path semantics so percent-encoded
+      // editorial segments cannot masquerade as an ordinary team/profile route.
+      path = decodeURIComponent(url.pathname).toLowerCase().replace(/\/{2,}/g, "/").replace(/\/+$/, "") || "/";
+    } catch {
+      // Malformed percent-encoding is not a trustworthy access route.
+      return false;
+    }
     // A government filing can prove ownership but is not, alone, a contact route.
     if (/(?:^|\.)(?:gov|gov\.[a-z]{2})$/i.test(host) && /\/(?:archives\/edgar|company\/|companies\/|registry|registr)/i.test(path)) return false;
 

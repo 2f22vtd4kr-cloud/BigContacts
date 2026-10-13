@@ -31,6 +31,13 @@ describe("Groq Investigator runtime contract", () => {
       allowed: false,
       reason: expect.stringContaining("broad press-publisher-only search"),
     });
+    expect(validateDiscoverySearchQuery("family office sustainability startup founder site:markets.businessinsider.com", [])).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("broad press-publisher-only search"),
+    });
+    expect(validateDiscoverySearchQuery('site:investing.cnbc.com "SolarEdge" founder acquisition', [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery('site:ft.com "Žiga Debeljak" owner', [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("family offices site:cnbc.com.attacker.example", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery('site:cnbc.com "SolarEdge" founder acquisition', [])).toEqual({ allowed: true });
   });
 
