@@ -1871,7 +1871,7 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
 export function compactEmergencyTrajectoryObservation(observation: string): string {
   const normalized = typeof observation === "string" ? observation.trim() : "";
   if (/pivot_alignment_guard/i.test(normalized)) {
-    return "BLOCKED BY SCOPE GUARD (no provider request): the active Boss-approved question requires the actual query/resource to name its subject, geography, and any named source class; rationale, hypothesis, provider, or registry metadata alone does not satisfy alignment. Revise the query/resource or ask Boss for a new scope; do not repeat this off-scope action.";
+    return "BLOCKED BY SCOPE GUARD (no provider request): the active Boss-approved question requires the actual query/resource to name its subject, geography, and source class; rationale/provider/registry metadata do not count. Revise it or request new scope; do not repeat the blocked action.";
   }
   return boundInvestigatorPromptSection(normalized, 100);
 }
