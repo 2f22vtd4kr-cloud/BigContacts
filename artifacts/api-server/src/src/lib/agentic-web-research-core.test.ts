@@ -302,7 +302,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("Search snippets remain leads, not evidence.");
     expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
     expect(prompt).toContain("MISSION PRIORITY:");
-    expect(prompt).toContain("case objective and realistic-targetability gate outrank Boss/Right-hand suggestions");
+    expect(prompt).toContain("case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice");
     expect(prompt).toContain("avoid Fortune 500/ranking lists, celebrities and global-brand leaders without a reachable local owner/operator/distributor/franchise/concession route");
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY PROGRESS GATE");
