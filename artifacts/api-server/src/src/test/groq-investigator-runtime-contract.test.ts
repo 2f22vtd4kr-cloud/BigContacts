@@ -17,7 +17,7 @@ describe("Groq Investigator runtime contract", () => {
 
     const compacted = compactEmergencyInvestigatorObjective(boundedObjective);
     expect(compacted).toContain("CASE OBJECTIVE: Discover under-the-radar people");
-    expect(compacted).toContain("ACTIVE BOSS-DIRECTED QUESTION (scope constraint, not a tool sequence):");
+    expect(compacted).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence): ACTIVE SCOPE CONSTRAINT:");
     expect(compacted).toContain(direction);
     expect(compacted).not.toContain("PRIMARY CASE OBJECTIVE:");
     expect(compacted).not.toContain("Pursue this question unless observed evidence");
