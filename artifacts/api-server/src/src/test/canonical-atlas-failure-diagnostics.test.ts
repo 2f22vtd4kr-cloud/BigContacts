@@ -16,6 +16,13 @@ describe("canonical Atlas lease-read diagnostics", () => {
     })).toEqual({ domain: "lease_job_state", kind: "job_state_unavailable" });
   });
 
+  it("labels an exhausted no-action Investigator episode as a model-action outcome", () => {
+    expect(classifyCanonicalAtlasFailure({
+      stage: "investigator_episode",
+      error: new Error("investigator_episode_no_action"),
+    })).toEqual({ domain: "model_action", kind: "no_usable_action" });
+  });
+
   it("does not relabel an unrelated exception as a transport failure", () => {
     expect(classifyCanonicalAtlasFailure({
       stage: "job_state_or_lease",
