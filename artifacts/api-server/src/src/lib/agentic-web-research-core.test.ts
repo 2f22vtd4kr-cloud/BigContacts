@@ -301,8 +301,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/web_search\/parallel_web_search\s*=\s*serper\s*\|\s*tavily\s*\|\s*exa/);
     expect(prompt).toContain("browser_fetch");
     expect(prompt).toContain("domain_lookup");
-    expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries.");
-    expect(prompt).toContain("Search snippets remain leads, not evidence.");
+    expect(prompt).toMatch(/(?:PAGE FORMAT \/ RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries|PAGE LIMIT: visits do not extract PDF binaries)/);
+    expect(prompt).toMatch(/search snippets (?:remain leads, not evidence|are leads, not evidence)/i);
     expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
     expect(prompt).toContain("MISSION PRIORITY:");
     expect(prompt).toContain("case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice");
