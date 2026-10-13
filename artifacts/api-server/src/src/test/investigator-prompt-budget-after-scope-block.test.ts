@@ -61,7 +61,8 @@ describe("Investigator prompt-budget recovery after a scope block", () => {
     });
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
-    expect(prompt).toContain("ACTIVE SCOPE CONSTRAINT");
+    expect(prompt).toContain("Czech Republic, Slovakia");
+    expect(prompt).toContain("ownership filings or local business registries");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("VALID PROVIDERS:");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
