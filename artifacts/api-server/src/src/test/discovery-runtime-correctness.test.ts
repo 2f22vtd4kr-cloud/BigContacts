@@ -474,6 +474,39 @@ describe("Boss-accepted discovery pivot scope", () => {
     "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Explore mid-market boutique fitness franchise owners in Texas or regional specialty food manufacturers in the Midwest as new leads",
   ].join("\n");
 
+  it("rejects broad private-equity/founder searches outside the accepted manufacturer registry pivot", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    const manufacturingPivot = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Target private, mid-market, family-owned manufacturers in a defined region (e.g., Texas) and query state filing databases, local business directories, and industry association lists for named owners/founders.",
+    ].join("\n");
+    const outOfScopeQueries = [
+      "GrowthCap Advisory partner",
+      "under-the-radar private equity founder profile",
+      "2026 top private equity firm founder profile",
+      "private family-owned business founder technology United Kingdom",
+      "private family-owned manufacturing company founder Texas",
+      "Texas private company founder Forbes largest private companies",
+      "Texas family-owned business founder site:forbes.com",
+    ];
+
+    for (const query of outOfScopeQueries) {
+      expect(discoveryPivotAlignmentReason(manufacturingPivot, "web_search", {
+        query,
+        provider: "serper",
+        hypothesis: "Find a named owner",
+        purpose: "Identify source-backed ownership and professional reachability",
+      }, [])).toContain("pivot_alignment_guard");
+    }
+
+    expect(discoveryPivotAlignmentReason(manufacturingPivot, "web_search", {
+      query: "Texas family-owned manufacturers state filing database named owner",
+      provider: "tavily",
+      hypothesis: "Find a named regional manufacturer",
+      purpose: "Search jurisdictional filings for a documented owner",
+    }, [])).toBeNull();
+  });
+
   it("blocks stale coffee-franchise and unrelated media-contact searches before dispatch", async () => {
     const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
 
