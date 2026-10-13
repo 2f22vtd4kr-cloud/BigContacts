@@ -347,7 +347,7 @@ describe("Investigator prompt architecture", () => {
       turn: index + 1,
       model: "openai/gpt-oss-120b",
       action: "web_search",
-      execution: "success" as const,
+      execution: "success",
       args: {
         query: (index % 3 === 0 ? "regional manufacturing "
           : index % 3 === 1 ? "family-owned industrial company " : "industrial registry directory ")
