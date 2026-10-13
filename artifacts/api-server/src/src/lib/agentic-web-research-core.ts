@@ -62,7 +62,27 @@ const DISCOVERY_RANKING_TERMS = /\b(?:fortune[ -]?500|fortune500|top[ -]?richest
 const DISCOVERY_UNTARGETABLE_PERSON_NAMES = /\b(?:elon musk|jeff bezos|mark zuckerberg|bill gates|warren buffett|larry ellison|larry page|sergey brin|jensen huang|bernard arnault|richard branson|oprah winfrey|kim kardashian|taylor swift|cristiano ronaldo|lionel messi)\b/i;
 const DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS = /\b(?:leadership|executive|executives|ceo|chief executive|senior management|management team|board of directors|corporate officers|leadership team|staff directory)\b/i;
 const DISCOVERY_BARE_TLD_SITE_FILTER = /\bsite:\.(?:com|org|net|edu|gov|io|co|si|eu)\b/i;
-const DISCOVERY_PRESS_PUBLISHER_SITE_FILTER = /\bsite:(?:www\.)?(?:cnbc\.com|reuters\.com|bloomberg\.com|forbes\.com|ft\.com|wsj\.com|nytimes\.com|theguardian\.com|bbc\.com|bbc\.co\.uk|apnews\.com|fortune\.com|businessinsider\.com|marketwatch\.com|axios\.com|techcrunch\.com|sifted\.eu|theinformation\.com)\b/i;
+const DISCOVERY_PRESS_PUBLISHER_DOMAINS = [
+  "cnbc.com", "reuters.com", "bloomberg.com", "forbes.com", "ft.com", "wsj.com",
+  "nytimes.com", "theguardian.com", "bbc.com", "bbc.co.uk", "apnews.com", "fortune.com",
+  "businessinsider.com", "marketwatch.com", "axios.com", "techcrunch.com", "sifted.eu", "theinformation.com",
+] as const;
+
+function hasPressPublisherSiteFilter(query: string): boolean {
+  for (const match of query.matchAll(/\bsite:\s*([^\s]+)/gi)) {
+    const token = (match[1] ?? "")
+      .replace(/[),;]+$/g, "")
+      .replace(/^https?:\/\//i, "")
+      .replace(/^\*\./, "")
+      .split(/[/?#]/, 1)[0]
+      ?.toLowerCase()
+      .replace(/^www\./, "")
+      .replace(/\.+$/, "");
+    if (!token) continue;
+    if (DISCOVERY_PRESS_PUBLISHER_DOMAINS.some((domain) => token === domain || token.endsWith("." + domain))) return true;
+  }
+  return false;
+}
 const DISCOVERY_GENERIC_CONTACT_TERMS = /\b(?:public relations|media relations|press contact|media contact|communications contact|pr contact|press office|media office)\b/i;
 const DISCOVERY_TARGETABILITY_TERMS = /\b(?:ownership|owner|owner-operator|founder|co-?founder|shareholder|beneficial owner|controlling owner|investor|investment|private equity|venture capital|family office|principal|partner|concession|franchise|license holder|licensed operator|casino|gaming|hotel|resort|hospitality|real estate|property|asset|holding company|business owner|acquisition|business exit|portfolio)\b/i;
 const DISCOVERY_OWNERSHIP_ROUTE_TERMS = /\b(?:owner|owners|ownership|owner-operator|founder|co-?founder|shareholder|beneficial owner|controlling owner|investor|investment|private equity|venture capital|family office|principal|partner|operator|concession|concessionaire|franchisee?|license holder|licensed operator|business owner|acquisition|business exit|holding company|proprietor|lastnik|lastniki|lastništvo|solastnik|družbenik|ustanovitelj|investitor|koncesionar|upravljavec|franšizojemalec|imetnik licence|vlasnik|vlasništvo|osnivač|koncesionar|operater|proprietario|proprietà|azionista|socio|fondatore|investitore|concessionario|gestore|eigentümer|eigentum|gesellschafter|gründer|investor|konzessionär|betreiber)\b/i;
@@ -433,7 +453,7 @@ export function isUntargetableDiscoveryPersonName(value: string): boolean {
 export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
-  if (DISCOVERY_PRESS_PUBLISHER_SITE_FILTER.test(normalized) && !/["“][^"”]*[A-Z][A-Za-z0-9&'.-]{2,}[^"”]*["”]/.test(query)) {
+  if (hasPressPublisherSiteFilter(query) && !/["“][^"”]*\p{Lu}[\p{L}\p{M}\p{N}&'.’\-]{2,}[^"”]*["”]/u.test(query)) {
     return { allowed: false, reason: "Discovery rejected a broad press-publisher-only search without an exact named person/business anchor. News stories can support a source-grounded lead, but the publisher or its broad topic is not the target or a reachability route; remove the outlet filter or quote the exact named entity. No provider request was made." };
   }
   if (DISCOVERY_BARE_TLD_SITE_FILTER.test(normalized)) {
