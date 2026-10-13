@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -21,6 +21,16 @@ describe("Groq Investigator runtime contract", () => {
     expect(compacted).toContain(direction);
     expect(compacted).not.toContain("PRIMARY CASE OBJECTIVE:");
     expect(compacted).not.toContain("Pursue this question unless observed evidence");
+  });
+
+  it("preserves the actionable reason when a pivot guard observation is compacted", () => {
+    const compacted = compactEmergencyTrajectoryObservation(
+      "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Perform registry queries on Zefix/Swiss commercial register. The action's actual query/resource is outside that scope. No outbound request was made.",
+    );
+    expect(compacted).toContain("BLOCKED BY SCOPE GUARD (no provider request)");
+    expect(compacted).toContain("active Boss-approved question");
+    expect(compacted).toContain("do not repeat this off-scope action");
+    expect(compacted).not.toContain("AUXILIARY CONTEXT BOUND");
   });
 
   it("preserves legacy raw pivot and opening-control directions in emergency compaction", () => {
