@@ -2189,8 +2189,7 @@ function pivotAlignedEvidenceState(
     // have been opened from a URL returned by an aligned search.
     const fetchedSourceMatchesSubject = Boolean(requestedUrl
       && !pivotTextContainsExcludedSubject(String(record.args.url ?? ""), excludedSubjects)
-      && pivotTextMatchesAnchors(String(record.args.url ?? ""), anchors)
-      && pivotTextMatchesGeography(String(record.args.url ?? ""), geographyOptions));
+      && pivotTextMatchesAnchors(String(record.args.url ?? ""), anchors));
     const fetchedSourceWasLead = Boolean(requestedUrl && sourceUrls.has(requestedUrl));
     if (!pivotActionIsAligned(record.action, record.args, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, sourceUrls, evidenceText)
       && !(isFetchedSource && (fetchedSourceMatchesSubject || fetchedSourceWasLead))) continue;
