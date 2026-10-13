@@ -1,5 +1,6 @@
 import { logger } from "./logger";
 import { emitInvestigatorProviderRequestAudit } from "./investigator-request-audit";
+import { emitModelPromptAudit } from "./model-prompt-audit";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
@@ -1411,6 +1412,15 @@ async function callGroqJson(
         emitInvestigatorProviderRequestAudit({
           model,
           cognitiveTask,
+          attempt,
+          jobId: jobId ?? null,
+          caseId: caseId ?? null,
+          requestBody,
+        });
+        emitModelPromptAudit({
+          provider: "groq",
+          role: "groq_investigator",
+          model,
           attempt,
           jobId: jobId ?? null,
           caseId: caseId ?? null,

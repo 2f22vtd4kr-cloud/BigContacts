@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { logger } from "./logger";
+import { emitModelPromptAudit } from "./model-prompt-audit";
 import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import {
   classifyProviderHttpStatus,
@@ -239,7 +240,9 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
   let lastRetryAfterMs: number | null = null;
   let lastRetryAfterHeader: string | null = null;
   while(Date.now()<deadline){
-    const body=JSON.stringify({model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat, reasoning_effort:"medium", include_reasoning:false});
+    const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat, reasoning_effort:"medium", include_reasoning:false};
+    emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:failures.length+1,requestBody});
+    const body=JSON.stringify(requestBody);
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
    try{
     await waitForGroqRightHandRequestSlot(controller.signal);

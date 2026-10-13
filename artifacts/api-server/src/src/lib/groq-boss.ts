@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { logger } from "./logger";
+import { emitModelPromptAudit } from "./model-prompt-audit";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
 import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 
@@ -274,7 +275,7 @@ async function generateGroqBossTextImpl(
         const controller = new AbortController();
         const timeout = Math.min(config.requestTimeoutMs, Math.max(1_000, deadline - Date.now()));
         const timer = setTimeout(() => controller.abort(), timeout);
-        const body = JSON.stringify({
+        const requestBody = {
           model,
           messages: [{ role: "user", content: boundedPrompt }],
           max_completion_tokens: Math.min(options?.maxOutputTokens ?? 1536, 2_048),
@@ -283,7 +284,15 @@ async function generateGroqBossTextImpl(
           temperature: 0.1,
           stream: false,
           ...(responseFormat ? { response_format: jsonObjectFallbackUsed ? { type: "json_object" } : responseFormat } : {}),
+        };
+        emitModelPromptAudit({
+          provider: "groq",
+          role: "groq_boss",
+          model,
+          attempt: attempts.length + 1,
+          requestBody,
         });
+        const body = JSON.stringify(requestBody);
 
         try {
           const response = await withProviderRetryOwnership("groq", "caller", () => fetch(GROQ_BOSS_CHAT_API, {
