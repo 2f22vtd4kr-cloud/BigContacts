@@ -137,6 +137,43 @@ describe("Groq Investigator runtime contract", () => {
     expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(7_200);
   });
 
+  it("keeps a discovery turn usable after the active-scope guard blocks its prior action", () => {
+    const objective = [
+      "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary routes.",
+      "BOSS ADVISORY DIRECTION (not a fixed action sequence): ACTIVE SCOPE CONSTRAINT: Shift focus to mid-market family-owned manufacturers or service firms in neighboring Central-European countries (e.g., Czech Republic, Slovakia) and seek publicly listed ownership filings or local business registries for named principals.",
+    ].join("\n\n");
+    const blockedObservation = "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Shift focus to mid-market family-owned manufacturers or service firms in Czechia and Slovakia and seek public ownership filings or local business registries. A new search query must name the pivot subject, geography, and source class; follow-up resources must be grounded in aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or seek new scope. No outbound request was made.";
+    const records = [
+      { turn: 1, action: "web_search", execution: "success", args: { query: "private equity founder mid-market manufacturing Poland", provider: "serper", purpose: "Identify candidate individuals" }, observedUrls: ["https://revenuebase.ai/companies/mid-market-private-equity-investors/poland"], observation: "Search snippets listed firms but no admitted person." },
+      { turn: 2, action: "visit", execution: "success", args: { url: "https://revenuebase.ai/companies/mid-market-private-equity-investors/poland" }, observedUrls: ["https://revenuebase.ai/companies/mid-market-private-equity-investors/poland"], observation: "Third-party directory with company rows; no verified owner evidence." },
+      { turn: 3, action: "web_search", execution: "success", args: { query: "Poland mid-market private equity firms founders list", provider: "serper", purpose: "Identify founder names" }, observedUrls: ["https://growthcapadvisory.com/the-top-private-equity-firms-of-2025/"], observation: "Results were broad lists, not named Polish owners." },
+      { turn: 4, action: "visit", execution: "success", args: { url: "https://growthcapadvisory.com/the-top-private-equity-firms-of-2025/" }, observedUrls: ["https://growthcapadvisory.com/the-top-private-equity-firms-of-2025/"], observation: "Global PE-firm list; no candidate." },
+      { turn: 5, action: "web_search", execution: "blocked", args: { query: "Czech Republic family-owned manufacturing company owner", provider: "serper", hypothesis: "A public filing could name a principal.", purpose: "Find a source-backed owner", expectedInformationGain: 0.6 }, observedUrls: [], observation: blockedObservation },
+    ];
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective,
+      history: [],
+      trajectoryRecords: records,
+      lastObservation: blockedObservation,
+      findings: [],
+      intelligenceContext: "RESEARCH INTELLIGENCE STATE: current scope is Czechia/Slovakia.",
+      mode: "discovery",
+    });
+    const body = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "discovery",
+    });
+    const messages = body.messages as Array<{ content: string }>;
+
+    expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(7_200);
+    expect(prompt).toContain("Czech Republic");
+    expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
+    expect(prompt).toContain("source class");
+    expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
+  });
+
   it("uses the GPT-OSS-compatible reasoning contract", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
