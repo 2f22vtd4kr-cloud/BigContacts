@@ -46,6 +46,24 @@ describe("Atlas control-plane contract regression", () => {
     expect(prompt).toContain("explicitly label it as a hypothesis");
   });
 
+  it("keeps the audit's generic wealth mission in discovery mode and still recognizes explicit targets", () => {
+    const genericObjective = "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary contact routes for later target-scoped research. People—not companies or executive prestige—are the target; companies are leads. Prefer private, mid-market, regional and family businesses; their owners/operators/founders/shareholders; investors and private-capital principals; beneficial/controlling owners; and concession, franchise or license holders. Look for public evidence of ownership/equity/investment/control, material business/property assets or a business exit, and a plausible way to approach the person through public professional or business channels. Do not infer wealth from seniority alone. Do not default to celebrities, billionaire/richest lists, Fortune 500, or global household-brand leadership. A global brand is relevant only when evidence points to a realistic local owner/operator/distributor/franchisee/concession-holder or similar intermediary. Start from a concrete business/sector/geography, use local-language terms and English when useful, test hypotheses with independent evidence, and pivot after generic or repetitive results. The Investigator chooses each action; no fixed sequence. Promote only exact named people whose role, wealth-potential basis, and realistic approach route are source-supported. Never invent a person, relationship, wealth fact, contact, or URL.";
+    const discoveryPrompt = buildGroqBossDiscoveryPrompt({
+      objective: genericObjective,
+      motivation: "Find evidence-backed people with realistic public routes.",
+      geography: "Public web; geography selected by the research objective.",
+    }, []);
+    expect(discoveryPrompt).toContain("new discovery-first public-web research case");
+    expect(discoveryPrompt).not.toContain("TARGET-LOCKED public-web research case");
+
+    const namedTargetPrompt = buildGroqBossDiscoveryPrompt({
+      objective: "Find public contact routes for Alice Smith at Acme Capital.",
+      motivation: "Verify identity and route attribution from public sources.",
+      geography: "Public web.",
+    }, []);
+    expect(namedTargetPrompt).toContain("TARGET-LOCKED public-web research case");
+  });
+
   it("preserves the active discovery objective on continuation and hands validated pivots to the next Investigator pass", () => {
     const baseObjective = "Find source-backed owners of reachable regional businesses.";
     const pivot = resolveBossDirectedDiscoveryObjective({
