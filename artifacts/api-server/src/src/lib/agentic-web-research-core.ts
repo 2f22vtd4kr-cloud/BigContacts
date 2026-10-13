@@ -399,7 +399,8 @@ export function repeatedPivotBlockedActionReason(
   if (!anchors.length) return null;
   const direction = extractBossPivotDirectionForCompactPrompt(objective);
   const exclusions = pivotScopeExclusions(direction);
-  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, exclusions, scopeKey);
+  const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction, anchors);
+  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, exclusions, requiredSourceAnchors, scopeKey);
   const currentIntents = pivotActionRequestIntents(action, args);
   if (!currentIntents.length) return null;
   for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
@@ -419,21 +420,21 @@ export function repeatedPivotBlockedActionReason(
     if (newFetchedEvidence) continue;
     const priorIntents = pivotActionRequestIntents(record.action, record.args).filter((intent) => {
       if (intent.kind === "query") {
-        return !pivotActionIsAligned("web_search", { query: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+        return !pivotActionIsAligned("web_search", { query: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
       }
       if (intent.kind === "url") {
-        return !pivotActionIsAligned("visit", { url: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+        return !pivotActionIsAligned("visit", { url: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
       }
       if (intent.kind === "domain") {
-        return !pivotActionIsAligned("domain_lookup", { domain: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+        return !pivotActionIsAligned("domain_lookup", { domain: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
       }
       if (intent.kind === "email") {
-        return !pivotActionIsAligned("footprint_email", { email: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+        return !pivotActionIsAligned("footprint_email", { email: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
       }
       if (intent.kind === "username") {
-        return !pivotActionIsAligned("footprint_username_sherlock", { username: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+        return !pivotActionIsAligned("footprint_username_sherlock", { username: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
       }
-      return !pivotActionIsAligned("footprint_spiderfoot", { target: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+      return !pivotActionIsAligned("footprint_spiderfoot", { target: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
     });
     if (currentIntents.some((current) => priorIntents.some((prior) => prior.kind === current.kind && prior.key === current.key))) {
       return "repeat_pivot_alignment_guard blocked an identical out-of-scope query/resource already rejected under the current Boss-approved pivot. Changing provider, registry, batch composition, or rationale alone does not justify another attempt; wait for new fetched source evidence or choose a materially different in-scope action.";
