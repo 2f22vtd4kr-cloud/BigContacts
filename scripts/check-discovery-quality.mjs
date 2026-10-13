@@ -15,11 +15,14 @@ const orientation = fs.readFileSync(path.join(root, "artifacts/api-server/src/sr
 const repair = fs.readFileSync(path.join(root, "scripts/apply-apex-identity-integrity-fix.mjs"), "utf8");
 const canonical = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const activeInvestigator = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts"), "utf8");
+const candidateSources = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/candidate-source-url-union.ts"), "utf8");
 const checks = [
   [discovery, ["isWellFormedPersonCandidate","LIST_ONLY_SOURCE_PATTERNS","hasIndependentSource","hasStrongIdentityEvidence","DISCOVERY ASSIGNMENT","information gain","Do not spend discovery iterations on Forbes/Bloomberg/richest/billionaire rankings","BAD DISCOVERY BEHAVIOR","GOOD DISCOVERY BEHAVIOR","Before every action, silently sanity-check the direction","If a company is discovered before its principal, that company is an intermediate lead","Before finishing, ask yourself: do I have a full personal name","state\\s+st","proxy_table","deterministic candidate selection rather than model-owned discovery"], "discovery-agent.ts"],
   [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","A billionaire list is usually a low-yield lead, not a discovery strategy","Do not continue a weak search avenue just because it returns many results"], "apex-bureau-orientation.ts"],
   [canonical, ["runGroqBossDiscovery","runBureauAgenticWebPass","runGroqRightHandFreeJson","Investigator chooses every research action","discoveryCaseId","promotionDecision"], "canonical-atlas-discovery.ts"],
-  [activeInvestigator, ["DISCOVERY TARGETABILITY GATE","an organization is a lead, not the target.","Fortune 500/ranking lists","plausible person-level public/intermediary route","Honor the Boss-stated sector/geography","explain any material deviation"], "agentic-web-research-core.ts"],
+  [activeInvestigator, ["DISCOVERY TARGETABILITY GATE","an organization is a lead, not the target.","Fortune 500/ranking lists","plausible person-level public/intermediary route","Honor the Boss-stated sector/geography","explain any material deviation","Publisher articles are evidence leads, never targets or access routes"], "agentic-web-research-core.ts"],
+  [canonical, ["hasRealisticPersonRouteSource(supportingSources.map((support) => support.sourceUrl))"], "canonical-atlas-discovery.ts"],
+  [candidateSources, ["export function isRealisticPersonRouteSourceUrl","DISCOVERY_PRESS_PUBLISHER_DOMAINS","News/blog/article pages are evidence leads, not an access route"], "candidate-source-url-union.ts"],
 ];
 const failures = [];
 for (const [source, markers, label] of checks) for (const marker of markers) if (!source.includes(marker)) failures.push(`${label} missing: ${marker}`);
