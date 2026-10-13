@@ -78,6 +78,35 @@ describe("investigator context compaction", () => {
     expect(context).toContain("LATEST TRAJECTORY RECORD");
   });
 
+  it("preserves the structured Boss question when the per-act wrapper bounds it again", () => {
+    const originalDirection = "Perform registry queries on Zefix/Swiss commercial register for family-owned mid-market firms in the target sectors.";
+    const first = buildBoundedInvestigatorObjective({
+      base: "Discover under-the-radar people with credible wealth potential and realistic public routes.",
+      direction: originalDirection,
+      maxChars: 1_800,
+    });
+    const repeated = buildBoundedInvestigatorObjective({
+      base: first,
+      maxChars: 1_800,
+    });
+
+    expect(repeated).toContain("Discover under-the-radar people with credible wealth potential");
+    expect(repeated).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
+    expect(repeated).toContain(originalDirection);
+    expect(repeated.match(/PRIMARY CASE OBJECTIVE:/g)).toHaveLength(1);
+    expect(repeated.match(/CURRENT BOSS-DIRECTED RESEARCH QUESTION/g)).toHaveLength(1);
+
+    const nextDirection = "Verify named owners through official cantonal registry filings.";
+    const redirected = buildBoundedInvestigatorObjective({
+      base: first,
+      direction: nextDirection,
+      maxChars: 1_800,
+    });
+    expect(redirected).toContain(nextDirection);
+    expect(redirected).not.toContain(originalDirection);
+    expect(redirected.match(/PRIMARY CASE OBJECTIVE:/g)).toHaveLength(1);
+  });
+
   it("preserves a multiline Boss pivot embedded after the marker without a separate direction", () => {
     const objective = buildBoundedInvestigatorObjective({
       base: [
