@@ -84,19 +84,19 @@ export function isRealisticPersonRouteSourceUrl(value: unknown): value is string
   if (!isClaimGradeDiscoverySourceUrl(value)) return false;
   try {
     const url = new URL(value);
-    const host = url.hostname.toLowerCase().replace(/^www\\./, "").replace(/\\.$/, "");
+    const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
     if (DISCOVERY_PRESS_PUBLISHER_DOMAINS.some((domain) => host === domain || host.endsWith("." + domain))) return false;
 
-    const path = url.pathname.toLowerCase().replace(/\\/+$/, "") || "/";
+    const path = url.pathname.toLowerCase().replace(/\/+$/, "") || "/";
     // A government filing can prove ownership but is not, alone, a contact route.
-    if (/(?:^|\\.)(?:gov|gov\\.[a-z]{2})$/i.test(host) && /\\/(?:archives\\/edgar|company\\/|companies\\/|registry|registr)/i.test(path)) return false;
+    if (/(?:^|\.)(?:gov|gov\.[a-z]{2})$/i.test(host) && /\/(?:archives\/edgar|company\/|companies\/|registry|registr)/i.test(path)) return false;
 
     // News/blog/article pages are evidence leads, not an access route, even when
     // a small publisher is not on the explicit press-domain list above.
-    if (/(?:^|\\/)(?:blog|news|press|story|stories|article|articles|insights|research|reports|report|opinion|analysis|markets|investing)(?:\\/|$)/i.test(path)
-      || /\\/(?:19|20)\\d{2}\\/\\d{1,2}\\/\\d{1,2}(?:\\/|$)/i.test(path)) return false;
+    if (/(?:^|\/)(?:blog|news|press|story|stories|article|articles|insights|research|reports|report|opinion|analysis|markets|investing)(?:\/|$)/i.test(path)
+      || /\/(?:19|20)\d{2}\/\d{1,2}\/\d{1,2}(?:\/|$)/i.test(path)) return false;
 
-    return /(?:^|\\/)(?:team|leadership|management|about|people|profile|person|founder|owner|director|officer|board|partner|portfolio|investor|contact|company|bio|our-team|executives?|ownership|governance|members|staff|professionals|principal|firm)(?:[-_a-z0-9]*)(?:\\/|$)/i.test(path);
+    return /(?:^|\/)(?:team|leadership|management|about|people|profile|person|founder|owner|director|officer|board|partner|portfolio|investor|contact|company|bio|our-team|executives?|ownership|governance|members|staff|professionals|principal|firm)(?:[-_a-z0-9]*)(?:\/|$)/i.test(path);
   } catch {
     return false;
   }
