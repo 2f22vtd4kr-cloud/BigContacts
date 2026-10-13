@@ -1786,6 +1786,27 @@ export function extractBossPivotDirectionForCompactPrompt(rawObjective: string):
   return rawObjective.slice(directionStart, directionEnd >= 0 ? directionEnd : undefined).trim();
 }
 
+/** Extract the model's bounded opening advisory without treating it as source evidence. */
+export function extractBossOpeningDirectionForCompactPrompt(rawObjective: string): string {
+  const openingMarker = "BOSS OPENING CONTROL DIRECTION";
+  const openingIndex = rawObjective.indexOf(openingMarker);
+  if (openingIndex < 0) return "";
+  const openingControl = rawObjective.slice(openingIndex);
+  const directionsLine = openingControl.split(/\r?\n/).find((line) => /^\s*Next directions:/i.test(line));
+  if (directionsLine) {
+    const encodedDirections = directionsLine.replace(/^\s*Next directions:\s*/i, "");
+    try {
+      const parsed: unknown = JSON.parse(encodedDirections);
+      if (Array.isArray(parsed) && typeof parsed[0] === "string") return parsed[0].trim();
+    } catch {
+      return encodedDirections.trim();
+    }
+  }
+  return openingControl.split(/\r?\n/)
+    .find((line) => /^\s*Report:/i.test(line))
+    ?.replace(/^\s*Report:\s*/i, "").trim() ?? "";
+}
+
 /**
  * Reduce a bounded Investigator objective for the final provider-size fallback.
  * The active Boss question is a separate scope contract and must not be folded
@@ -1830,20 +1851,7 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
     advisoryDirection = extractBossPivotDirectionForCompactPrompt(raw);
   }
   if (!advisoryDirection && openingIndex >= 0) {
-    const openingControl = raw.slice(openingIndex);
-    const directionsLine = openingControl.split(/\r?\n/).find((line) => /^\s*Next directions:/i.test(line));
-    if (directionsLine) {
-      const encodedDirections = directionsLine.replace(/^\s*Next directions:\s*/i, "");
-      try {
-        const parsed: unknown = JSON.parse(encodedDirections);
-        if (Array.isArray(parsed) && typeof parsed[0] === "string") advisoryDirection = parsed[0].trim();
-      } catch {
-        advisoryDirection = encodedDirections;
-      }
-    }
-    if (!advisoryDirection) {
-      advisoryDirection = openingControl.split(/\r?\n/).find((line) => /^\s*Report:/i.test(line))?.replace(/^\s*Report:\s*/i, "").trim() ?? "";
-    }
+    advisoryDirection = extractBossOpeningDirectionForCompactPrompt(raw);
   }
 
   const compactBaseText = baseObjective.length > 90 ? baseObjective.slice(0, 87).trimEnd() + "..." : baseObjective;
@@ -2324,7 +2332,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactActionLiveness = "ACTION LIVENESS: Block exact repeats unless hypothesis/purpose, provider/market/resource, or new evidence changes.";
       const compactDiscoveryQualityGate = "DISCOVERY: people are targets; an organization is a lead, not the target. Press and snippets are leads, not access routes. Require observed ownership/equity/control/investment/assets/exit and a realistic person-level public/professional/intermediary route; seniority alone is not wealth. Prefer private/regional/family-business principals; avoid fame/ranking/global-brand paths without a reachable local intermediary. Honor active scope and relevant local language; failed fetches are unobserved.";
       const compactLivenessGuidance = discoveryLivenessAdvisory ? "OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available): this suggestion does not mandate visiting, browsing, or any particular provider." : null;
-      const compactBossQuestion = extractBossPivotDirectionForCompactPrompt(input.objective ?? "");
+      const compactBossQuestion = extractBossPivotDirectionForCompactPrompt(input.objective ?? "")
+        || extractBossOpeningDirectionForCompactPrompt(input.objective ?? "");
       const compactCaseObjective = input.objective?.trim()
         ? [
             "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective, 180),
