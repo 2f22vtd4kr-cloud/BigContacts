@@ -127,7 +127,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(submitted).toContain("DISCOVERY ADMISSION CONTRACT");
     expect(submitted).toContain("Avoid generic wealth/net-worth/private-equity-profile searches alone");
-    expect(submitted).toContain("The model chooses the route; no fixed sequence.");
+    expect(submitted).toContain("Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toContain("Falsification requirement:");
     expect(submitted).toContain('"url":null');
