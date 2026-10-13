@@ -496,7 +496,7 @@ describe("Apex research intelligence", () => {
     const registryUrl = "https://find-and-update.company-information.service.gov.uk/company/12345678";
     const engine = new ResearchIntelligenceEngine({ executionId: "registry-evidence", target: "Alex Example", objective: "verify public role" });
     engine.recordAction({
-      turn: 1, action: "registry_search", execution: "success",
+      turn: 1, action: "visit", execution: "success",
       observation: "Alex Example is listed as a director at Example Labs.",
       urls: [registryUrl], args: { query: "Alex Example Example Labs" },
       findings: [{
