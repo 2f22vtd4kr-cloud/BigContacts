@@ -1784,7 +1784,8 @@ export function extractBossPivotDirectionForCompactPrompt(rawObjective: string):
  */
 const PIVOT_SCOPE_GENERIC_TERMS = new Set([
   "explore", "investigate", "research", "researching", "mid", "market", "regional",
-  "region", "boutique", "specialty", "franchise", "franchises", "owner", "owners", "ownership", "operator",
+  "region", "boutique", "specialty", "franchise", "franchises", "private", "firm", "firms",
+  "partner", "partners", "founder", "founders", "owner", "owners", "ownership", "operator",
   "operators", "target", "targets", "targeting", "lead", "leads", "new", "business",
   "businesses", "company", "companies", "person", "people", "contact", "contacts",
   "channel", "channels", "professional", "professionally", "realistic", "public",
