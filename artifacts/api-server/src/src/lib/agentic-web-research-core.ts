@@ -1849,7 +1849,7 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
   const compactBaseText = baseObjective.length > 90 ? baseObjective.slice(0, 87).trimEnd() + "..." : baseObjective;
   const compactBase = compactBaseText ? "CASE OBJECTIVE: " + compactBaseText : "";
   const compactDirection = advisoryDirection
-    ? "ACTIVE BOSS-DIRECTED QUESTION (scope constraint, not a tool sequence): "
+    ? "BOSS ADVISORY DIRECTION (not a fixed action sequence): ACTIVE SCOPE CONSTRAINT: "
       + boundInvestigatorPromptSection(advisoryDirection, 240)
     : "";
   return [compactBase, compactDirection].filter(Boolean).join("\n");
