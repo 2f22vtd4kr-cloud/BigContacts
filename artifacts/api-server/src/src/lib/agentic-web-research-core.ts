@@ -2035,13 +2035,32 @@ function pivotScopeRequiredSourceAnchors(direction: string): string[] {
   return [...PIVOT_SCOPE_SOURCE_CLASS_TERMS].filter((anchor) => directionTokens.has(anchor));
 }
 
+const PIVOT_SOURCE_CLASS_SYNONYMS: Record<string, readonly string[]> = {
+  registry: ["registry", "register", "database", "filing"],
+  filing: ["filing", "registry", "register", "database"],
+  database: ["database", "registry", "register", "filing"],
+  directory: ["directory", "catalog", "listing", "list"],
+  association: ["association", "chamber"],
+  chamber: ["chamber", "association", "directory"],
+  member: ["member", "membership"],
+  trade: ["trade"],
+  list: ["list", "directory", "catalog"],
+};
+
 function pivotTextMatchesAnyAnchor(value: string, anchors: readonly string[]): boolean {
   if (!value.trim() || anchors.length === 0) return false;
   const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
-  return anchors.some((anchor) => tokens.some((token) =>
-    token === anchor || (Math.min(token.length, anchor.length) >= 6
-      && (token.startsWith(anchor.slice(0, 7)) || anchor.startsWith(token.slice(0, 7)))),
-  ));
+  return anchors.some((anchor) => {
+    // Public source classes have familiar lexical variants: a state corporate
+    // database/register can satisfy a registry pivot, and a chamber can satisfy
+    // an association pivot. This is semantic class normalization, not permission
+    // to use arbitrary provider metadata or a rationale in place of query text.
+    const synonyms = PIVOT_SOURCE_CLASS_SYNONYMS[anchor] ?? [anchor];
+    return synonyms.some((synonym) => tokens.some((token) =>
+      token === synonym || (Math.min(token.length, synonym.length) >= 6
+        && (token.startsWith(synonym.slice(0, 7)) || synonym.startsWith(token.slice(0, 7)))),
+    ));
+  });
 }
 
 function pivotTextMatchesGeography(value: string, options: readonly string[][]): boolean {

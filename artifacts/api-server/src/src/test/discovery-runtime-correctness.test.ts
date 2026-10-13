@@ -548,6 +548,17 @@ describe("Boss-accepted discovery pivot scope", () => {
       query: "LinkedIn manufacturing state registry owners",
       provider: "serper",
     }, [])).toContain("pivot_alignment_guard");
+
+    const auditedPivot = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Michigan/Illinois state or county registries, manufacturing/specialty-food companies with 50-250 employees; cross-reference principals/shareholders through LinkedIn or local chambers.",
+    ].join("\\n");
+    // A named state's corporate database is a semantic registry equivalent; the
+    // query still names the actual source class, target subject, and geography.
+    expect(discoveryPivotAlignmentReason(auditedPivot, "web_search", {
+      query: "Michigan LARA corporation database search for metal fabrication companies in Wayne County",
+      provider: "serper",
+    }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
       query: "Ohio state registry directory private equity partner",
       provider: "serper",
