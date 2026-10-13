@@ -530,7 +530,7 @@ describe("Boss-accepted discovery pivot scope", () => {
       provider: "serper",
     }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
-      query: "Texas metal fabrication manufacturing database companies",
+      query: "Texas metal fabrication manufacturing state registry companies",
       provider: "tavily",
     }, [])).toBeNull();
 
@@ -553,7 +553,7 @@ describe("Boss-accepted discovery pivot scope", () => {
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Michigan/Illinois state or county registries for manufacturing/specialty-food firms and public owner disclosures.",
     ].join("\n");
     expect(discoveryPivotAlignmentReason(slashPivot, "web_search", {
-      query: "Michigan metal fabrication county database company owners",
+      query: "Michigan metal fabrication county registry company owners",
       provider: "serper",
     }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(slashPivot, "web_search", {

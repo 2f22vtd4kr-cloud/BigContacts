@@ -1955,7 +1955,7 @@ const PIVOT_SCOPE_NON_SUBJECT_TERMS = new Set([
   "employees", "staff", "cross", "reference", "identified", "linkedin", "principal",
   "principals", "shareholder", "shareholders", "disclosure", "disclosures", "asset",
   "assets", "prioritize", "prioritise", "individual", "individuals", "verifiable",
-  "via", "priority", "listed", "firm", "firms",
+  "via", "priority", "listed", "firm", "firms", "query", "queries", "search", "searches", "searching",
 ]);
 
 const PIVOT_GEOGRAPHIC_WORD = String.raw`[A-Z][\p{L}\p{M}'’.-]*`;
