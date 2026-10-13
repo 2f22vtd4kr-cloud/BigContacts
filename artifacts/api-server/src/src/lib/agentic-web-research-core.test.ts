@@ -314,7 +314,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("plausible person-level");
     expect(prompt).toContain("Honor only Boss sector/geography compatible with the mission");
-    expect(prompt).toContain("actual query/resource must name subject, geography, and class");
+    expect(prompt).toContain("a new search query must name the pivot subject, geography, and class");
     expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("once a real entity appears, test that exact named anchor");
     expect(prompt).toMatch(/(?:News publishers and articles are evidence leads only|Publisher articles are evidence leads, never targets or access routes|Press articles are leads, not targets or access routes)/);
