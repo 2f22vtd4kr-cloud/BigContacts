@@ -2389,6 +2389,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
               turn: latestRecord.turn,
               action: latestRecord.action,
               execution: latestRecord.execution ?? "unknown",
+              args: compactLatestArgs(latestRecord.args ?? {}),
               observedUrls: (latestRecord.observedUrls ?? []).slice(0, 1).map((url) => url.slice(0, 80)),
               observation: compactEmergencyTrajectoryObservation(latestRecord.observation ?? ""),
               findings: (latestRecord.findings ?? []).slice(0, 1).map((finding) => ({
