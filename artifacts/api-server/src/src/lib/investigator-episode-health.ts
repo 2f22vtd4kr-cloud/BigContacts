@@ -55,9 +55,12 @@ export function classifyInvestigatorEpisodeFailure(
     }
     return { code: "investigator_episode_unavailable_without_provider_record" };
   }
-  const deliberatePivotGuardRecovery = input.stopReason === "ITERATION_BUDGET" && episodeRecords.some((record) =>
-    record.execution === "blocked" && String(record.observation ?? "").includes("repeat_pivot_alignment_guard"),
-  );
+  const deliberatePivotGuardRecovery = input.stopReason === "ITERATION_BUDGET"
+    && episodeRecords.length > 0
+    && episodeRecords.every((record) =>
+      record.execution === "blocked"
+      && String(record.observation ?? "").includes("pivot_alignment_guard"),
+    );
   if (input.status !== "cancelled" && !hasExecutedInvestigatorResearchAction(episodeRecords) && !deliberatePivotGuardRecovery) {
     return { code: "investigator_episode_no_action" };
   }
