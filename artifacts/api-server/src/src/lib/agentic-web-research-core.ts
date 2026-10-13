@@ -1871,7 +1871,7 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
 export function compactEmergencyTrajectoryObservation(observation: string): string {
   const normalized = typeof observation === "string" ? observation.trim() : "";
   if (/pivot_alignment_guard/i.test(normalized)) {
-    return "SCOPE GUARD BLOCKED ACTION (no outbound request): query must name active Boss scope subject, geography and source class; follow-up URLs must come from an observed aligned search. Metadata alone is not scope. Revise the action or request new scope; never repeat.";
+    return "SCOPE GUARD BLOCKED ACTION (no request): query must name active scope subject, geography and source class; fetch only an observed aligned URL. Metadata is not scope. Revise or request new scope; do not repeat.";
   }
   return boundInvestigatorPromptSection(normalized, 100);
 }
