@@ -285,7 +285,7 @@ describe("Investigator prompt architecture", () => {
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThanOrEqual(8_500);
+    expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD");
     expect(prompt).toContain("TURN 24");
     expect(prompt).not.toContain('"action":{"type":"string","enum"');
