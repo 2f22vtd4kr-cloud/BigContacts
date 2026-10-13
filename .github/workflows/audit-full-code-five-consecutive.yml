@@ -15,8 +15,10 @@ permissions:
   contents: read
 
 concurrency:
+  # Only the latest PR revision is eligible for certification. A stale five-pass
+  # run must not hold the PR concurrency lock while a newer tree waits to be tested.
   group: full-code-five-consecutive-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   PNPM_VERSION: 9.15.9

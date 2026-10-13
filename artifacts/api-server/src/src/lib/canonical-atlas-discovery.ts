@@ -16,7 +16,7 @@ import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchActi
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { candidateRoleCorroborationSources, hasCredibleDiscoveryWealthPotentialSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
+import { candidateRoleCorroborationSources, hasCredibleDiscoveryWealthPotentialSignal, hasRealisticPersonRouteSource, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 
 export type CanonicalAtlasOptions = {
@@ -196,6 +196,10 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       if (sources.length >= 2) { selectedRole = role; supportingSources = sources; break; }
     }
     if (supportingSources.length < 2) continue;
+    // Two press articles can corroborate identity/role, but they do not establish
+    // a realistically reachable target. At least one independently role-bound
+    // operating-company, professional, or intermediary page must supply that route.
+    if (!hasRealisticPersonRouteSource(supportingSources.map((support) => support.sourceUrl))) continue;
     const claimGradeObservations = observations.filter((observation) =>
       observation.execution === "success"
       && (observation.action === "visit" || observation.action === "browser_fetch")

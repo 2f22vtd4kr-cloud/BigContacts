@@ -27,6 +27,11 @@ describe("Groq Investigator runtime contract", () => {
     expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: true, warning: expect.stringContaining("attempted before") });
     expect(validateDiscoverySearchQuery("Slovenia casino owners", ["Slovenia casino"])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Example Corp founder", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("family office sustainability startup founder site:cnbc.com", [])).toMatchObject({
+      allowed: false,
+      reason: expect.stringContaining("broad press-publisher-only search"),
+    });
+    expect(validateDiscoverySearchQuery('site:cnbc.com "SolarEdge" founder acquisition', [])).toEqual({ allowed: true });
   });
 
   it("allows one corrective parse retry, then stops repeated invalid action contracts", () => {
@@ -68,7 +73,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toContain("Falsification requirement:");
     expect(submitted).toContain('"url":null');
-    expect(submitted).toContain("Parallel searches need 2–4 objects, each with query/provider/locale/market/purpose");
+    expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
     expect(submitted).toContain('"searches":[],"findings":[]');
     expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(7_200);
@@ -120,7 +125,7 @@ describe("Groq Investigator runtime contract", () => {
     const actionSchema = schema?.properties?.action as { enum?: string[] } | undefined;
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
     const expectedActions = [
-      "web_search", "parallel_web_search", "visit",
+      "web_search", "parallel_web_search", "parallel_registry_search", "visit",
       ...(availableBrowserProviders.length ? ["browser_fetch"] : []),
       "registry_search", "domain_lookup", "done",
     ];

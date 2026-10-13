@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hasCredibleDiscoveryWealthPotentialSignal } from "../lib/candidate-source-url-union";
-import { candidateRoleCorroborationSources, candidateSourceUrlsForIdentity, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "../lib/candidate-source-url-union";
+import { candidateRoleCorroborationSources, candidateSourceUrlsForIdentity, hasRealisticPersonRouteSource, isClaimGradeDiscoverySourceUrl, isRealisticPersonRouteSourceUrl, mergeDurablyAdmittedCandidateSources } from "../lib/candidate-source-url-union";
 
 function normalizeSourceUrl(raw: string): string | null {
   try {
@@ -87,6 +87,26 @@ describe("discovery wealth-potential targetability", () => {
       role: "Chief Executive Officer",
       observations,
     })).toBe(false);
+  });
+});
+
+describe("media evidence versus realistic person route", () => {
+  it("allows CNBC as supporting evidence but never treats a news story alone as a reachability route", () => {
+    const cnbcStory = "https://www.cnbc.com/2026/08/06/family-offices-sustainability-startups-july-deal";
+    const companyPage = "https://regional-operator.example/about/leadership";
+    const secondNewsStory = "https://other-publication.example/articles/family-office-investors";
+
+    expect(isClaimGradeDiscoverySourceUrl(cnbcStory)).toBe(true);
+    expect(isRealisticPersonRouteSourceUrl(cnbcStory)).toBe(false);
+    expect(isRealisticPersonRouteSourceUrl(companyPage)).toBe(true);
+    expect(hasRealisticPersonRouteSource([cnbcStory, secondNewsStory])).toBe(false);
+    expect(hasRealisticPersonRouteSource([cnbcStory, companyPage])).toBe(true);
+  });
+
+  it("does not confuse a public ownership filing with a practical person-level route", () => {
+    expect(isClaimGradeDiscoverySourceUrl("https://www.sec.gov/Archives/edgar/data/123/filing.htm")).toBe(true);
+    expect(isRealisticPersonRouteSourceUrl("https://www.sec.gov/Archives/edgar/data/123/filing.htm")).toBe(false);
+    expect(hasRealisticPersonRouteSource(["https://www.sec.gov/Archives/edgar/data/123/filing.htm"])).toBe(false);
   });
 });
 
