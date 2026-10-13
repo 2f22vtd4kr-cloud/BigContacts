@@ -516,6 +516,68 @@ describe("Boss-accepted discovery pivot scope", () => {
     }, [])).toBeNull();
   });
 
+  it("treats pivot geography and source-class alternatives as alternatives, not conjunctions", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    const alternativePivot = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Query state and county business registries in Texas and Ohio for manufacturing and specialty-food firms employing 50-250 staff; cross-reference identified owners via LinkedIn, local chamber directories, and publicly disclosed equity filings.",
+    ].join("\n");
+
+    // Each query chooses one allowed geography, one sector, and one available
+    // source class. It does not need to repeat every alternative in the Boss pivot.
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Ohio specialty food manufacturers chamber directory owners",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Texas metal fabrication manufacturing state registry companies",
+      provider: "tavily",
+    }, [])).toBeNull();
+
+    // The guard remains strict on all three dimensions.
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Texas manufacturing company owners",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Michigan manufacturing database companies",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+    // A tool/source route such as LinkedIn is not a geographic alternative.
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "LinkedIn manufacturing state registry owners",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+
+    const auditedPivot = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Michigan/Illinois state or county registries, manufacturing/specialty-food companies with 50-250 employees; cross-reference principals/shareholders through LinkedIn or local chambers.",
+    ].join("\n");
+    // A named state's corporate database is a semantic registry equivalent; the
+    // query still names the actual source class, target subject, and geography.
+    expect(discoveryPivotAlignmentReason(auditedPivot, "web_search", {
+      query: "Michigan LARA corporation database search for metal fabrication companies in Wayne County",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Ohio state registry directory private equity partner",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+
+    const slashPivot = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Michigan/Illinois state or county registries for manufacturing/specialty-food firms and public owner disclosures.",
+    ].join("\n");
+    expect(discoveryPivotAlignmentReason(slashPivot, "web_search", {
+      query: "Michigan metal fabrication county registry company owners",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(slashPivot, "web_search", {
+      query: "Illinois specialty food manufacturers state registry local chamber directory",
+      provider: "exa",
+    }, [])).toBeNull();
+  });
+
   it("blocks stale coffee-franchise and unrelated media-contact searches before dispatch", async () => {
     const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
 
