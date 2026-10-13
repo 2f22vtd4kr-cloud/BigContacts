@@ -107,6 +107,7 @@ describe("Phase J2 registry normalization", () => {
         searchUrl: "https://example.com/search?q=example",
         insecureUrl: "http://example.com/record",
         credentialUrl: "https://user:password@example.com/record",
+        tooLongUrl: "https://example.com/record?" + "q".repeat(600),
       }),
     };
     expect(registryResultLeadUrls(result)).toEqual([

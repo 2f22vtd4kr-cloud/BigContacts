@@ -13,6 +13,8 @@ export type ProductionReviewStatus =
 
 export interface RegistryCoverage {
   id: string;
+  /** True only when registry-client.ts dispatches to a concrete adapter. */
+  runtimeAdapterImplemented: boolean;
   label: string;
   jurisdiction: string;
   entityIdentifier: string;
@@ -29,6 +31,7 @@ export interface RegistryCoverage {
 export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   {
     id: "sec-edgar",
+    runtimeAdapterImplemented: true,
     label: "SEC EDGAR",
     jurisdiction: "US",
     entityIdentifier: "CIK, filing accession",
@@ -42,6 +45,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "companies-house",
+    runtimeAdapterImplemented: true,
     label: "Companies House",
     jurisdiction: "GB",
     entityIdentifier: "Company number",
@@ -55,6 +59,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "brreg",
+    runtimeAdapterImplemented: true,
     label: "BRREG Enhetsregisteret",
     jurisdiction: "NO",
     entityIdentifier: "Organisasjonsnummer",
@@ -69,6 +74,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "ares-czechia",
+    runtimeAdapterImplemented: true,
     label: "ARES",
     jurisdiction: "CZ",
     entityIdentifier: "IČO",
@@ -83,6 +89,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "bodacc-france",
+    runtimeAdapterImplemented: true,
     label: "BODACC",
     jurisdiction: "FR",
     entityIdentifier: "RCS number, announcement id",
@@ -97,6 +104,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "gleif",
+    runtimeAdapterImplemented: true,
     label: "GLEIF LEI Register",
     jurisdiction: "Global",
     entityIdentifier: "LEI",
@@ -110,6 +118,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "cvr-denmark",
+    runtimeAdapterImplemented: true,
     label: "CVR Denmark",
     jurisdiction: "DK",
     entityIdentifier: "CVR number (VAT)",
@@ -124,6 +133,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "zefix-switzerland",
+    runtimeAdapterImplemented: true,
     label: "Zefix Switzerland",
     jurisdiction: "CH",
     entityIdentifier: "UID / CHID",
@@ -138,6 +148,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "offeneregister-germany",
+    runtimeAdapterImplemented: true,
     label: "Handelsregister Germany (Open Register)",
     jurisdiction: "DE",
     entityIdentifier: "HRB/HRA number + court jurisdiction",
@@ -152,6 +163,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "bolagsverket-sweden",
+    runtimeAdapterImplemented: true,
     label: "Bolagsverket Sweden",
     jurisdiction: "SE",
     entityIdentifier: "Organisationsnummer",
@@ -166,6 +178,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "ytj-finland",
+    runtimeAdapterImplemented: true,
     label: "YTJ Finland (PRH)",
     jurisdiction: "FI",
     entityIdentifier: "Y-tunnus (Business ID)",
@@ -180,6 +193,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "atoka-italy",
+    runtimeAdapterImplemented: true,
     label: "Registro Imprese Italy",
     jurisdiction: "IT",
     entityIdentifier: "Codice Fiscale / PIVA",
@@ -194,6 +208,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "borme-spain",
+    runtimeAdapterImplemented: true,
     label: "BORME Spain (BOE)",
     jurisdiction: "ES",
     entityIdentifier: "CIF / NIF",
@@ -208,6 +223,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "kvk-netherlands",
+    runtimeAdapterImplemented: true,
     label: "KvK Netherlands (openkvk.nl)",
     jurisdiction: "NL",
     entityIdentifier: "KvK-nummer",
@@ -222,6 +238,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "kbo-belgium",
+    runtimeAdapterImplemented: true,
     label: "KBO Belgium",
     jurisdiction: "BE",
     entityIdentifier: "Ondernemingsnummer (0xxx.xxx.xxx)",
@@ -236,6 +253,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "opencorporates",
+    runtimeAdapterImplemented: true,
     label: "OpenCorporates",
     jurisdiction: "Global",
     entityIdentifier: "Jurisdiction + company number",
@@ -249,6 +267,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "faa",
+    runtimeAdapterImplemented: false,
     label: "FAA Aircraft Registry",
     jurisdiction: "US",
     entityIdentifier: "N-number",
@@ -262,6 +281,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "hmlr-ppd",
+    runtimeAdapterImplemented: false,
     label: "HMLR Price Paid Data",
     jurisdiction: "England & Wales",
     entityIdentifier: "Transaction UUID",

@@ -252,20 +252,22 @@ export class ResearchIntelligenceEngine {
 
   recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string }>, predictedInformationGain?: number; sourceObservations?: Array<{ turn: number; action: string; execution: string; observation?: string; urls?: string[] }> }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
-    const newHostCount = this.countNewHosts(urls);
+    const observationIsFetchedSource = input.execution === "success"
+      && !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "done"].includes(input.action);
+    const newHostCount = observationIsFetchedSource ? this.countNewHosts(urls) : 0;
     // Findings can cite earlier pages. Bind every citation to the successful
     // observation that actually contained its supporting text, rather than
     // copying the current page's passage onto unrelated cited URLs.
-    const candidateFindings = input.execution === "success" && !["web_search", "parallel_web_search"].includes(input.action) ? (input.findings ?? []) : [];
+    const candidateFindings = input.execution === "success" && !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(input.action) ? (input.findings ?? []) : [];
     const sourceObservationInputs = [
       ...(input.sourceObservations ?? []),
-      ...(input.execution === "success" && !["web_search", "parallel_web_search", "done"].includes(input.action)
+      ...(input.execution === "success" && !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "done"].includes(input.action)
         ? [{ turn: input.turn, action: input.action, execution: input.execution, observation: input.observation, urls }]
         : []),
     ];
     const sourceObservationsByUrl = new Map<string, Array<{ turn: number; action: string; observation: string }>>();
     for (const source of sourceObservationInputs) {
-      if (source.execution !== "success" || ["web_search", "parallel_web_search", "done"].includes(source.action) || !source.observation?.trim()) continue;
+      if (source.execution !== "success" || ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "done"].includes(source.action) || !source.observation?.trim()) continue;
       for (const rawUrl of source.urls ?? []) {
         const sourceUrl = canonicalUrl(rawUrl);
         if (!sourceUrl) continue;
@@ -335,7 +337,7 @@ export class ResearchIntelligenceEngine {
       this.negativeFindings.add(negative);
       this.recordEvidence({ kind: "negative", claim: negative, value: negative, sourceUrl: null, sourceTier: "unknown", turn: input.turn, action: input.action, execution: input.execution, passage: null, supports: [], contradicts: [] });
     }
-    if (input.execution === "success") {
+    if (observationIsFetchedSource) {
       for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
     }
     // Search results are leads, not source-backed evidence. A successful search
@@ -343,7 +345,7 @@ export class ResearchIntelligenceEngine {
     // the provider returned a large result set. Visited/validated observations
     // may contribute modest information even without an attributed finding.
     const searchLeadOnly = input.execution === "success"
-      && (input.action === "web_search" || input.action === "parallel_web_search")
+      && (input.action === "web_search" || input.action === "parallel_web_search" || input.action === "registry_search" || input.action === "parallel_registry_search")
       && findings.length === 0;
     const informationGain = searchLeadOnly
       ? clamp(0.05 + Math.min(0.10, newHostCount * 0.02))
@@ -698,7 +700,7 @@ export class ResearchIntelligenceEngine {
     const evidenceBearing = [...this.evidence.values()].filter((item) =>
       item.kind === "finding"
       || item.kind === "claim"
-      || (item.kind === "observation" && !["web_search", "parallel_web_search"].includes(item.action)),
+      || (item.kind === "observation" && !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(item.action)),
     );
     const evidenceCount = [...this.evidence.values()].filter((item) => item.kind === "finding" || item.kind === "claim").length;
     const sourceHosts = [...new Set(evidenceBearing.map((item) => item.sourceHost).filter(Boolean) as string[])];
@@ -737,7 +739,7 @@ export class ResearchIntelligenceEngine {
       }))
       .filter((item) => item.sourceHosts.length >= 2);
     const atomicEvidence = [...this.evidence.values()]
-      .filter((evidence) => evidence.kind !== "negative" && !(evidence.kind === "observation" && ["web_search", "parallel_web_search"].includes(evidence.action)))
+      .filter((evidence) => evidence.kind !== "negative" && !(evidence.kind === "observation" && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(evidence.action)))
       .slice(-24)
       .map((evidence) => ({
         evidenceId: evidence.id,

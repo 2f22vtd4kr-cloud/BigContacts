@@ -513,8 +513,9 @@ describe("Boss-accepted discovery pivot scope", () => {
   });
 
   it("allows a follow-on visit from a pivot-aligned search but blocks a stale-lane URL", async () => {
-    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    const { discoveryPivotAlignmentReason, discoveryPivotScopeKey } = await import("../lib/agentic-web-research-core");
     const alignedSearch = {
+      pivotScopeKey: discoveryPivotScopeKey(objective) ?? undefined,
       turn: 20,
       model: "groq",
       action: "web_search",
@@ -530,16 +531,45 @@ describe("Boss-accepted discovery pivot scope", () => {
       purpose: "Read the ownership page",
     }, [alignedSearch])).toBeNull();
 
-    // The next query may follow a named lead instead of repeating the sector words,
-    // but only when that name was found in a pivot-aligned search observation.
+    // Search snippets and registry rows are leads: they can justify opening
+    // a result URL, but do not by themselves authorize further searches about a
+    // company/person whose relevance has not been established in fetched material.
     const namedLeadSearch = {
       ...alignedSearch,
-      observation: "Public results identify FitNation as a regional fitness operator.",
+      observation: "Public search results mention FitNation as a regional fitness operator.",
     };
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "FitNation ownership",
       provider: "serper",
-    }, [namedLeadSearch])).toBeNull();
+    }, [namedLeadSearch])).toContain("pivot_alignment_guard");
+
+    const registryLead = {
+      ...alignedSearch,
+      action: "registry_search",
+      args: { query: "boutique fitness franchise owners Texas corporate registry", registry: "companies-house" },
+      observation: "Registry row lead: FitNation; official record URL is unvisited.",
+      observedUrls: [],
+      leadUrls: ["https://registry.example.test/company/fitnation"],
+    };
+    expect(discoveryPivotAlignmentReason(objective, "visit", {
+      url: "https://registry.example.test/company/fitnation",
+    }, [registryLead])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "FitNation ownership",
+      provider: "serper",
+    }, [registryLead])).toContain("pivot_alignment_guard");
+
+    const namedLeadVisit = {
+      ...alignedSearch,
+      action: "visit",
+      args: { url: "https://example-fitness.test/ownership" },
+      observation: "Official ownership page identifies FitNation as a regional fitness operator.",
+      observedUrls: ["https://example-fitness.test/ownership"],
+    };
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "FitNation ownership",
+      provider: "serper",
+    }, [alignedSearch, namedLeadVisit])).toBeNull();
 
     const staleSearch = {
       ...alignedSearch,
@@ -603,5 +633,183 @@ describe("Boss-accepted discovery pivot scope", () => {
     }, [])).toBeNull();
     expect(researchCoreSource).toContain('discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords)');
     expect(researchCoreSource).toContain("reason=pivot_alignment_guard");
+  });
+});
+
+
+describe("Apex research runtime readiness hardening", () => {
+  const pivot = [
+    "Research credible, approachable business owners for the case.",
+    "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Identify mid-market boutique fitness franchise owners in Texas or regional specialty food manufacturers in the Midwest; use public registries to identify documented owners.",
+  ].join("\n");
+
+  it("does not let a Texas-only or generic-word overlap satisfy a pivot", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    for (const query of [
+      "Texas real-estate developer Forbes net worth",
+      "Texas business owner media partnership contacts",
+      "local PR contacts in Texas wealth list",
+    ]) {
+      expect(discoveryPivotAlignmentReason(pivot, "web_search", { query }, [])).toContain("pivot_alignment_guard");
+    }
+  });
+
+  it("does not let evidence from a prior or unversioned objective authorize a current-pivot follow-up", async () => {
+    const { discoveryPivotAlignmentReason, discoveryPivotScopeKey } = await import("../lib/agentic-web-research-core");
+    const priorSearch = {
+      turn: 4,
+      model: "groq",
+      action: "web_search",
+      args: { query: "boutique fitness franchise owners Texas", provider: "serper" },
+      execution: "success" as const,
+      observation: "Public results identify FitNation as a fitness franchise owner and provide an ownership page.",
+      observedUrls: ["https://example-fitness.test/ownership"],
+      findings: [],
+    };
+    expect(discoveryPivotAlignmentReason(pivot, "web_search", {
+      query: "FitNation ownership",
+    }, [priorSearch])).toContain("pivot_alignment_guard");
+
+    const priorPivotRecord = {
+      ...priorSearch,
+      pivotScopeKey: "explore a different prior hospitality direction",
+    };
+    expect(discoveryPivotAlignmentReason(pivot, "web_search", {
+      query: "FitNation ownership",
+    }, [priorPivotRecord])).toContain("pivot_alignment_guard");
+
+    const currentPivotRecord = {
+      ...priorSearch,
+      action: "visit",
+      args: { url: "https://example-fitness.test/ownership" },
+      observation: "Official ownership page verifies FitNation as a regional fitness franchise operator.",
+      observedUrls: ["https://example-fitness.test/ownership"],
+      pivotScopeKey: discoveryPivotScopeKey(pivot) ?? undefined,
+    };
+    expect(discoveryPivotAlignmentReason(pivot, "web_search", {
+      query: "FitNation ownership",
+    }, [currentPivotRecord])).toBeNull();
+  });
+
+  it("extracts only the accepted pivot, not appended opening-control prose", async () => {
+    const { extractBossPivotDirectionForCompactPrompt, discoveryPivotScopeKey } = await import("../lib/agentic-web-research-core");
+    const direction = "Investigate regional specialty food manufacturers and their documented owners.";
+    const objective = [
+      "Base mission text.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + direction,
+      "BOSS OPENING CONTROL DIRECTION (advisory, not a fixed research sequence): Search unrelated celebrity wealth stories.",
+      "RIGHT-HAND OPENING REVIEW (advisory): Treat that suggestion as unverified.",
+    ].join("\n");
+    expect(extractBossPivotDirectionForCompactPrompt(objective)).toBe(direction);
+    expect(discoveryPivotScopeKey(objective)).toBe(discoveryPivotScopeKey("BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + direction));
+  });
+
+  it("requires every query in a parallel registry batch to align with the active pivot", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    const reason = discoveryPivotAlignmentReason(pivot, "parallel_registry_search", {
+      searches: [
+        { query: "boutique fitness franchise owners Texas corporate registry", registry: "companies-house" },
+        { query: "Texas real-estate developer Forbes net worth", registry: "sec-edgar" },
+      ],
+    }, []);
+    expect(reason).toContain("pivot_alignment_guard");
+  });
+
+  it("validates the new parallel registry action and rejects unsupported registry names", async () => {
+    const { describeAgentActionParseFailure, isModelSelectableAgentAction } = await import("../lib/agentic-web-research-core");
+    const base = {
+      action: "parallel_registry_search",
+      hypothesis: "Cross-check a company ownership hypothesis across relevant public records",
+      purpose: "Compare complementary registry records without repeating equivalent sources",
+      expectedInformationGain: 0.8,
+      searches: [
+        { query: "Drury Hotels ownership officers public filing", provider: null, registry: "sec-edgar", locale: null, market: null, purpose: "check public ownership filings" },
+        { query: "Drury Hotels business entity owners", provider: null, registry: "bodacc-france", locale: null, market: null, purpose: "check a separate public registry" },
+      ],
+    };
+    expect(isModelSelectableAgentAction("parallel_registry_search")).toBe(true);
+    expect(describeAgentActionParseFailure(JSON.stringify(base))).toBe("");
+    expect(describeAgentActionParseFailure(JSON.stringify({
+      ...base,
+      searches: base.searches.map((entry, index) => index ? entry : { ...entry, registry: "imaginary-registry" }),
+    }))).toContain("invalid=searches");
+    expect(describeAgentActionParseFailure(JSON.stringify({
+      ...base,
+      searches: [base.searches[0]],
+    }))).toContain("searches_min=2");
+    expect(researchCoreSource).toContain('required: ["query","provider","registry","locale","market","purpose"]');
+    expect(researchCoreSource).toContain('registry: { type: ["string","null"], enum: ["sec-edgar"');
+  });
+
+
+
+  it("does not let provider/rationale changes retry a pivot-rejected query without fetched evidence", async () => {
+    const { discoveryPivotAlignmentReason, discoveryPivotScopeKey, repeatedPivotBlockedActionReason } = await import("../lib/agentic-web-research-core");
+    const rejected = {
+      turn: 6,
+      model: "groq",
+      action: "web_search",
+      args: { query: "Texas real-estate developer Forbes net worth", provider: "serper" },
+      execution: "blocked" as const,
+      observation: "pivot_alignment_guard blocked this outbound action before execution.",
+      observedUrls: [],
+      findings: [],
+      pivotScopeKey: discoveryPivotScopeKey(pivot) ?? undefined,
+    };
+    expect(discoveryPivotAlignmentReason(pivot, "web_search", {
+      query: "Texas real-estate developer Forbes net worth",
+      provider: "tavily",
+      hypothesis: "Try a different provider",
+      purpose: "Find a wealth signal",
+    }, [rejected])).toContain("pivot_alignment_guard");
+    expect(repeatedPivotBlockedActionReason(pivot, "web_search", {
+      query: "Texas real-estate developer Forbes net worth",
+      provider: "tavily",
+      hypothesis: "Try a different provider",
+      purpose: "Find a wealth signal",
+    }, [rejected])).toContain("repeat_pivot_alignment_guard");
+    expect(repeatedPivotBlockedActionReason(pivot, "web_search", {
+      query: "boutique fitness franchise owners Texas",
+      provider: "serper",
+    }, [rejected])).toBeNull();
+
+    const verifiedProgress = {
+      ...rejected,
+      turn: 7,
+      action: "visit",
+      args: { url: "https://example-fitness.test/ownership" },
+      execution: "success" as const,
+      observation: "Official ownership page verifies a regional fitness operator.",
+      observedUrls: ["https://example-fitness.test/ownership"],
+    };
+    expect(repeatedPivotBlockedActionReason(pivot, "web_search", {
+      query: "Texas real-estate developer Forbes net worth",
+      provider: "serper",
+    }, [rejected, verifiedProgress])).toBeNull();
+  });
+
+  it("keeps Python OSINT tools explicitly unavailable until an attested executor exists", async () => {
+    const { getPythonSandboxState } = await import("../lib/python-sandbox-contract");
+    const { checkPythonToolsAvailability, runMaigret, runSherlock, runSpiderFoot, runTheHarvester } = await import("../lib/python-tools");
+    expect(getPythonSandboxState().state).toBe("unavailable");
+    expect(await checkPythonToolsAvailability()).toEqual({
+      holehe: false, maigret: false, sherlock: false, theHarvester: false, openDeepResearch: false,
+    });
+    expect((await runMaigret("observed-username")).available).toBe(false);
+    expect((await runSherlock("observed-username")).available).toBe(false);
+    expect((await runSpiderFoot("example.org", "domain")).available).toBe(false);
+    expect((await runTheHarvester("example.org")).available).toBe(false);
+  });
+});
+
+
+describe("registry catalogue honesty", () => {
+  it("marks catalogue-only registries separately from callable adapters", async () => {
+    const { REGISTRY_COVERAGE_MATRIX } = await import("../lib/registry-matrix");
+    const { REGISTRY_IDS } = await import("../lib/registry-client");
+    const implemented = REGISTRY_COVERAGE_MATRIX.filter((entry) => entry.runtimeAdapterImplemented).map((entry) => entry.id).sort();
+    const callableIds = [...REGISTRY_IDS].sort();
+    expect(implemented).toEqual(callableIds);
+    expect(REGISTRY_COVERAGE_MATRIX.filter((entry) => !entry.runtimeAdapterImplemented).map((entry) => entry.id).sort()).toEqual(["faa", "hmlr-ppd"]);
   });
 });
