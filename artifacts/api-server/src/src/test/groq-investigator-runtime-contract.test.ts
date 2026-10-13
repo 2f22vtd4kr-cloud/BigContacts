@@ -31,7 +31,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(legacyPivot).toContain("Verify named Swiss mid-market manufacturer owners through official sources.");
 
     const opening = compactEmergencyInvestigatorObjective(
-      "Find credible private-business owners.\n\nBOSS OPENING CONTROL DIRECTION\nNext directions: [\\"Search Swiss registry entries for named owners\\"]",
+      'Find credible private-business owners.\n\nBOSS OPENING CONTROL DIRECTION\nNext directions: ["Search Swiss registry entries for named owners"]',
     );
     expect(opening).toContain("Search Swiss registry entries for named owners");
   });
