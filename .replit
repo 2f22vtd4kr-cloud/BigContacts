@@ -32,3 +32,7 @@ ENABLE_AUTO_PIPELINE = "false"
 INSTALL_PYTHON_OSINT = "false"
 PORT = "8080"
 
+[userenv.development]
+APEX_CAPTURE_MODEL_PROMPTS = "true"
+APEX_MODEL_AUDIT_FILE = "/home/runner/workspace/audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-13_LIVE_RUN_02.md"
+
