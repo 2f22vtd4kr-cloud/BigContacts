@@ -1957,8 +1957,19 @@ function pivotAlignedEvidenceState(
     // exact active pivot may establish follow-up provenance.
     if (record.execution !== "success" || record.pivotScopeKey !== activePivotScopeKey) continue;
     const evidenceText = evidenceParts.join(" ").toLowerCase();
-    if (!pivotActionIsAligned(record.action, record.args, anchors, excludedSubjects, requiredSourceAnchors, sourceUrls, evidenceText)) continue;
     const isFetchedSource = record.action === "visit" || record.action === "browser_fetch";
+    const requestedUrl = isFetchedSource ? normalizedActionResourceUrl(record.args.url) : null;
+    // The source-class requirement applies to new, ungrounded searches. A fetch
+    // already executed and tagged under this exact pivot may establish topical
+    // context even if its URL path does not expose words like "registry" or
+    // "directory". It still must match the pivot subject and exclusions, or
+    // have been opened from a URL returned by an aligned search.
+    const fetchedSourceMatchesSubject = Boolean(requestedUrl
+      && !pivotTextContainsExcludedSubject(String(record.args.url ?? ""), excludedSubjects)
+      && pivotTextMatchesAnchors(String(record.args.url ?? ""), anchors));
+    const fetchedSourceWasLead = Boolean(requestedUrl && sourceUrls.has(requestedUrl));
+    if (!pivotActionIsAligned(record.action, record.args, anchors, excludedSubjects, requiredSourceAnchors, sourceUrls, evidenceText)
+      && !(isFetchedSource && (fetchedSourceMatchesSubject || fetchedSourceWasLead))) continue;
     if (isFetchedSource) {
       const requestedUrl = normalizedActionResourceUrl(record.args.url);
       if (requestedUrl) sourceUrls.add(requestedUrl);
