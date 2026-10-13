@@ -2468,8 +2468,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // than recoverable verbosity. Include sizes for safe diagnosis without prompt
       // or evidence content in the thrown exception.
       throw new Error(
-        "Configured Investigator prompt ceiling cannot fit mandatory action/evidence contract "
-        + `(minimumChars=${smallestEmergencyPrompt.length}, ceilingChars=${maxUserPromptChars}).`,
+        "Configured Investigator prompt ceiling cannot fit the mandatory action/evidence contract. "
+        + `minimumChars=${smallestEmergencyPrompt.length}, ceilingChars=${maxUserPromptChars}.`,
       );
     }
     const boundedState = boundedAuxiliaryState(dynamicState, compactBudget);
