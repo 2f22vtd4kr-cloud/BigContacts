@@ -557,7 +557,7 @@ describe("Boss-accepted discovery pivot scope", () => {
       provider: "serper",
     }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(slashPivot, "web_search", {
-      query: "Illinois specialty food manufacturers local chamber directory",
+      query: "Illinois specialty food manufacturers state registry local chamber directory",
       provider: "exa",
     }, [])).toBeNull();
   });
