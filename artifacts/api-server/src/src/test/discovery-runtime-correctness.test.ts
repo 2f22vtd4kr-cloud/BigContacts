@@ -516,6 +516,52 @@ describe("Boss-accepted discovery pivot scope", () => {
     }, [])).toBeNull();
   });
 
+  it("treats pivot geography and source-class alternatives as alternatives, not conjunctions", async () => {
+    const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
+    const alternativePivot = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Query state and county business registries in Texas and Ohio for manufacturing and specialty-food firms employing 50-250 staff; cross-reference identified owners via LinkedIn, local chamber directories, and publicly disclosed equity filings.",
+    ].join("\\n");
+
+    // Each query chooses one allowed geography, one sector, and one available
+    // source class. It does not need to repeat every alternative in the Boss pivot.
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Ohio specialty food manufacturers chamber directory owners",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Texas metal fabrication manufacturing database companies",
+      provider: "tavily",
+    }, [])).toBeNull();
+
+    // The guard remains strict on all three dimensions.
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Texas manufacturing company owners",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Michigan manufacturing database companies",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Ohio state registry directory private equity partner",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+
+    const slashPivot = [
+      "Research credible, approachable business owners for the case.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Michigan/Illinois state or county registries for manufacturing/specialty-food firms and public owner disclosures.",
+    ].join("\\n");
+    expect(discoveryPivotAlignmentReason(slashPivot, "web_search", {
+      query: "Michigan metal fabrication county database company owners",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(slashPivot, "web_search", {
+      query: "Illinois specialty food manufacturers local chamber directory",
+      provider: "exa",
+    }, [])).toBeNull();
+  });
+
   it("blocks stale coffee-franchise and unrelated media-contact searches before dispatch", async () => {
     const { discoveryPivotAlignmentReason } = await import("../lib/agentic-web-research-core");
 
