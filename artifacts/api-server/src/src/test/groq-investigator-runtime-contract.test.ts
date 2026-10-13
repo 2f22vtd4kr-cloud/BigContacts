@@ -21,6 +21,12 @@ describe("Groq Investigator runtime contract", () => {
     expect(compacted).toContain(direction);
     expect(compacted).not.toContain("PRIMARY CASE OBJECTIVE:");
     expect(compacted).not.toContain("Pursue this question unless observed evidence");
+
+    const withHistoricalPivot = compactEmergencyInvestigatorObjective(
+      boundedObjective + "\n\nPRIOR HISTORY: BOSS-DIRECTED RESEARCH QUESTION / PIVOT: old Oregon company-search direction.",
+    );
+    expect(withHistoricalPivot).toContain(direction);
+    expect(withHistoricalPivot).not.toContain("old Oregon company-search direction");
   });
 
   it("preserves the actionable reason when a pivot guard observation is compacted", () => {
