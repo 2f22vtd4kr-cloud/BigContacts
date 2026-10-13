@@ -343,14 +343,15 @@ describe("Investigator prompt architecture", () => {
     expect(compacted).toContain("request new scope");
     expect(compacted).not.toContain("pivot_alignment_guard blocked this outbound action");
 
-    const trajectoryRecords = Array.from({ length: 18 }, (_, index) => ({
+    const trajectoryRecords: Parameters<typeof buildStepPrompt>[0]["trajectoryRecords"] = Array.from({ length: 18 }, (_, index) => ({
       turn: index + 1,
       model: "openai/gpt-oss-120b",
       action: "web_search",
       execution: "success" as const,
       args: {
-        query: (index < 6 ? "regional manufacturing " : "family-owned industrial company ")
-          + "X".repeat(220) + " iteration " + index,
+        query: (index % 3 === 0 ? "regional manufacturing "
+          : index % 3 === 1 ? "family-owned industrial company " : "industrial registry directory ")
+          + "X".repeat(220),
         provider: "serper",
         hypothesis: "Find a public ownership or registry source " + index,
         purpose: "Test the active manufacturing discovery hypothesis " + index,
@@ -375,7 +376,11 @@ describe("Investigator prompt architecture", () => {
 
     const prompt = buildStepPrompt({
       targetName: "",
-      objective: "PRIMARY CASE OBJECTIVE:\\nDiscover under-the-radar people with credible wealth potential and realistic public/professional/intermediary routes.\\n\\nCURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\\nMidwest family-owned manufacturing businesses, United States Midwest, official state business registries.\\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue.\\n\\nChoose each next action yourself from the available capabilities and observed evidence.",
+      objective: `PRIMARY CASE OBJECTIVE:
+Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary routes.
+BOSS-DIRECTED RESEARCH QUESTION / PIVOT:
+Midwest family-owned manufacturing businesses, United States Midwest, official state business registries.
+Choose each next action yourself from the available capabilities and observed evidence.`,
       history: [],
       trajectoryRecords,
       lastObservation: blockedObservation,
