@@ -543,6 +543,11 @@ describe("Boss-accepted discovery pivot scope", () => {
       query: "Michigan manufacturing database companies",
       provider: "serper",
     }, [])).toContain("pivot_alignment_guard");
+    // A tool/source route such as LinkedIn is not a geographic alternative.
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "LinkedIn manufacturing state registry owners",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
     expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
       query: "Ohio state registry directory private equity partner",
       provider: "serper",
