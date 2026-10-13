@@ -339,7 +339,7 @@ describe("Investigator prompt architecture", () => {
     const compacted = compactEmergencyTrajectoryObservation(blockedObservation);
     expect(compacted).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(compacted).toContain("subject, geography and source class");
-    expect(compacted).toContain("observed aligned search");
+    expect(compacted).toContain("observed aligned URL");
     expect(compacted).toContain("request new scope");
     expect(compacted).not.toContain("pivot_alignment_guard blocked this outbound action");
 
