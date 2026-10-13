@@ -143,13 +143,45 @@ export function buildBoundedInvestigatorObjective(input: {
 }): string {
   const maxChars = Math.min(1_900, Math.max(1_000, Math.floor(input.maxChars ?? 1_800)));
   const pivotMarker = "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:";
-  const markerAt = input.base.indexOf(pivotMarker);
-  const baseText = (markerAt >= 0 ? input.base.slice(0, markerAt) : input.base).trim();
-  const embeddedDirection = markerAt >= 0
-    ? input.base.slice(markerAt + pivotMarker.length).trim()
-    : "";
-  const requestedDirection = input.direction?.trim() || embeddedDirection;
   const objectiveLabel = "PRIMARY CASE OBJECTIVE:\n";
+  const compactPivotMarker = "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):";
+  const decisionLawMarker = "\n\nChoose each next action yourself from the available capabilities and observed evidence.";
+  const directionSuffixMarker = "\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue.";
+
+  const primaryIndex = input.base.indexOf(objectiveLabel);
+  const structuredPivotIndex = input.base.indexOf(compactPivotMarker);
+  const decisionLawIndex = input.base.indexOf(decisionLawMarker);
+  const legacyPivotIndex = input.base.indexOf(pivotMarker);
+  let baseText = input.base.trim();
+  let embeddedDirection = "";
+
+  // The per-act runtime may pass this builder its own prior output. Parse the
+  // structured representation before bounding again, rather than nesting or
+  // truncating away the current Boss question.
+  if (primaryIndex >= 0 || structuredPivotIndex >= 0) {
+    const baseStart = primaryIndex >= 0 ? primaryIndex + objectiveLabel.length : 0;
+    const baseBoundaries = [structuredPivotIndex, decisionLawIndex, legacyPivotIndex]
+      .filter((index) => index >= baseStart);
+    const baseEnd = baseBoundaries.length ? Math.min(...baseBoundaries) : input.base.length;
+    baseText = input.base.slice(baseStart, baseEnd).trim();
+
+    if (structuredPivotIndex >= baseStart) {
+      const directionStart = structuredPivotIndex + compactPivotMarker.length;
+      const directionEndCandidates = [
+        input.base.indexOf(directionSuffixMarker, directionStart),
+        decisionLawIndex,
+      ].filter((index) => index >= directionStart);
+      const directionEnd = directionEndCandidates.length ? Math.min(...directionEndCandidates) : input.base.length;
+      embeddedDirection = input.base.slice(directionStart, directionEnd).trim();
+    } else if (legacyPivotIndex >= baseStart) {
+      embeddedDirection = input.base.slice(legacyPivotIndex + pivotMarker.length).trim();
+    }
+  } else if (legacyPivotIndex >= 0) {
+    baseText = input.base.slice(0, legacyPivotIndex).trim();
+    embeddedDirection = input.base.slice(legacyPivotIndex + pivotMarker.length).trim();
+  }
+
+  const requestedDirection = input.direction?.trim() || embeddedDirection;
   const directionPrefix = "\n\nCURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n";
   const directionSuffix = "\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue.";
   const decisionLaw = "\n\nChoose each next action yourself from the available capabilities and observed evidence. Treat the Boss-directed question as a hypothesis, not a factual guarantee or tool plan: verify its premises against observed public evidence; if contradicted or reliant on inaccessible/nonpublic data, state that and pivot to a feasible public-source question. Keep each action directly relevant to the current question: pursue its named filing, entity, registry, or evidence anchor, or explicitly report the observed reason it is infeasible before pivoting. Do not silently replace domain-specific terms with unrelated homonyms or meanings. Do not follow a prescribed tool order; prioritize information gain, identity discrimination, source independence, and the primary case objective.";

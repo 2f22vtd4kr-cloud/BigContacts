@@ -288,6 +288,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD");
     expect(prompt).toContain("TURN 24");
+    expect(prompt).toContain('"args":{"query":"generic research 23"}');
     expect(prompt).not.toContain('"action":{"type":"string","enum"');
     expect(prompt).not.toContain("APEX MISSION CONTRACT v");
     const availableBrowserProviders = getAvailableBrowserFetchProviders();

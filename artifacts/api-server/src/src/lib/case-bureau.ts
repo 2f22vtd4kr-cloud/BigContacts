@@ -913,7 +913,7 @@ export function buildBossOpeningPrompt(input: {
   // Match "First Last / Firm", "First Last at Firm", firm suffixes including Capital/Partners/Foundation.
   const namedTarget =
     /\b(for|about|on|regarding)\s+[A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+\b/.test(objective) ||
-    /\b[A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+){1,3}\b.+\b(Company|Co\.?|Corp\.?|Inc\.?|LLC|LLP|Manufacturing|Holdings|Capital|Partners|Foundation|Group|Advisors?|Management|Investments?)\b/i.test(objective) ||
+    /\b[A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+){0,2}\s+(?:Company|Co\.?|Corp\.?|Corporation|Inc\.?|LLC|LLP|Ltd\.?|Limited|PLC|AG|GmbH|Manufacturing|Holdings|Capital|Partners|Foundation|Group|Advisors?|Management|Investments?)\b/.test(objective) ||
     /\b[A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+){1,3}\s*[\/—–-]\s*[A-Z][A-Za-z0-9&.' -]{2,60}/.test(objective) ||
     /\b(Andrew|John|Mark|David|Michael|Robert|James|William|Thomas|Richard|Katherine|Catherine|Elizabeth|Sarah|Jennifer|Mary|Susan|Patricia|Linda|Barbara|Margaret|Jessica)\s+[A-Z]\.?\s*[A-Z][a-z]+\b/.test(objective);
 
