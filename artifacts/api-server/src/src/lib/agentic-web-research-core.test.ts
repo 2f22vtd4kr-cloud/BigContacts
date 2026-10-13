@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyTrajectoryObservation, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -332,6 +332,68 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("requireFalsification=true");
     expect(prompt).toContain("at least one successful external action must explicitly attempt to disprove");
     expect(prompt).toContain("not a prescribed action sequence");
+  });
+
+  it("preserves the scope-guard recovery contract in the next Investigator prompt", () => {
+    const blockedObservation = "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Midwest family-owned manufacturing businesses, United States Midwest, official state business registries. A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
+    const compacted = compactEmergencyTrajectoryObservation(blockedObservation);
+    expect(compacted).toContain("SCOPE GUARD BLOCKED ACTION");
+    expect(compacted).toContain("subject, geography and source class");
+    expect(compacted).toContain("observed aligned search");
+    expect(compacted).toContain("request new scope");
+    expect(compacted).not.toContain("pivot_alignment_guard blocked this outbound action");
+
+    const trajectoryRecords = Array.from({ length: 18 }, (_, index) => ({
+      turn: index + 1,
+      model: "openai/gpt-oss-120b",
+      action: "web_search",
+      execution: "success" as const,
+      args: {
+        query: (index < 6 ? "regional manufacturing " : "family-owned industrial company ")
+          + "X".repeat(220) + " iteration " + index,
+        provider: "serper",
+        hypothesis: "Find a public ownership or registry source " + index,
+        purpose: "Test the active manufacturing discovery hypothesis " + index,
+        expectedInformationGain: 0.6,
+      },
+      observation: "Search returned leads but no directly fetched claim-grade source. " + "O".repeat(900),
+      observedUrls: ["https://example-" + index + ".test/registry/company-directory"],
+      findings: [],
+      providerFallback: [],
+    }));
+    trajectoryRecords.push({
+      turn: 19,
+      model: "openai/gpt-oss-120b",
+      action: "visit",
+      execution: "blocked" as const,
+      args: { url: "https://example.test/private-equity/team" },
+      observation: blockedObservation,
+      observedUrls: [],
+      findings: [],
+      providerFallback: [],
+    });
+
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "PRIMARY CASE OBJECTIVE:\\nDiscover under-the-radar people with credible wealth potential and realistic public/professional/intermediary routes.\\n\\nCURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\\nMidwest family-owned manufacturing businesses, United States Midwest, official state business registries.\\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue.\\n\\nChoose each next action yourself from the available capabilities and observed evidence.",
+      history: [],
+      trajectoryRecords,
+      lastObservation: blockedObservation,
+      findings: [],
+      priorContext: "Durable lead and provenance context. ".repeat(200),
+      intelligenceContext: "Bounded research intelligence state. ".repeat(200),
+      mode: "discovery",
+    });
+
+    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
+    expect(prompt).toContain("subject, geography and source class");
+    expect(prompt).toContain("OUTPUT CONTRACT:");
+    expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider");
+    expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
+    expect(prompt).toContain("two independent evidence/source units");
+    expect(prompt).toContain("successful falsification-intent action");
+    expect(prompt).not.toContain("pivot_alignment_guard blocked this outbound action");
   });
 
   it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
