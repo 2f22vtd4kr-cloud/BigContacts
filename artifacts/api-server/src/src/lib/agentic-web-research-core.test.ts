@@ -315,7 +315,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("Honor only Boss sector/geography compatible with the mission");
     expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("once a real entity appears, test that exact named anchor");
-    expect(prompt).toMatch(/(?:News publishers and articles are evidence leads only|Publisher articles are evidence leads, never targets or access routes)/);
+    expect(prompt).toMatch(/(?:News publishers and articles are evidence leads only|Publisher articles are evidence leads, never targets or access routes|Press articles are leads, not targets or access routes)/);
     expect(prompt).toContain("Never use placeholders such as CompanyName, companywebsite.com, or example.com.");
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
     // The emergency prompt may omit the verbose JSON example to stay within the provider ceiling;
