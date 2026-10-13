@@ -499,6 +499,15 @@ describe("Boss-accepted discovery pivot scope", () => {
       }, [])).toContain("pivot_alignment_guard");
     }
 
+    const missingSourceClass = discoveryPivotAlignmentReason(manufacturingPivot, "web_search", {
+      query: "Texas family-owned manufacturers renewable energy",
+      provider: "serper",
+      hypothesis: "Find a named regional manufacturer",
+      purpose: "Identify ownership through public filings",
+    }, []);
+    expect(missingSourceClass).toContain("pivot_alignment_guard");
+    expect(missingSourceClass).toContain("source class");
+
     expect(discoveryPivotAlignmentReason(manufacturingPivot, "web_search", {
       query: "Texas family-owned manufacturers state filing database named owner",
       provider: "tavily",

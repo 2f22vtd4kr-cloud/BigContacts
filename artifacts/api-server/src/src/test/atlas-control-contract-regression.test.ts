@@ -54,6 +54,9 @@ describe("Atlas control-plane contract regression", () => {
       geography: "Public web; geography selected by the research objective.",
     }, []);
     expect(discoveryPrompt).toContain("new discovery-first public-web research case");
+    expect(discoveryPrompt).toContain("one subject/sector, one geography/jurisdiction, and a relevant public source class");
+    expect(discoveryPrompt).toContain("first search query must name the subject, geography, and source class");
+    expect(discoveryPrompt).toContain("follow-up URL/resource actions must use a source already observed from an aligned search");
     expect(discoveryPrompt).not.toContain("TARGET-LOCKED public-web research case");
 
     const namedTargetPrompt = buildGroqBossDiscoveryPrompt({

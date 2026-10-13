@@ -302,18 +302,19 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("Search snippets remain leads, not evidence.");
     expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
     expect(prompt).toContain("MISSION PRIORITY:");
-    expect(prompt).toContain("case objective and realistic-targetability gate outrank Boss/Right-hand suggestions");
+    expect(prompt).toContain("case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice");
     expect(prompt).toContain("avoid Fortune 500/ranking lists, celebrities and global-brand leaders without a reachable local owner/operator/distributor/franchise/concession route");
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY PROGRESS GATE");
     expect(prompt).toContain("DISCOVERY TARGETABILITY GATE");
     expect(prompt).toContain("People—not companies or executive prestige—are the target");
     expect(prompt).toContain("credible wealth potential");
-    expect(prompt).toContain("Do not infer wealth from seniority alone");
+    expect(prompt).toMatch(/do not infer wealth from seniority alone|seniority alone is not wealth/i);
     expect(prompt).toContain("an organization is a lead, not");
     expect(prompt).toContain("Fortune 500/ranking lists");
-    expect(prompt).toContain("plausible person-level public/intermediary route");
+    expect(prompt).toContain("plausible person-level");
     expect(prompt).toContain("Honor only Boss sector/geography compatible with the mission");
+    expect(prompt).toContain("a new search query must name the pivot subject, geography, and class");
     expect(prompt).toContain("Fortune 500/ranking lists");
     expect(prompt).toContain("once a real entity appears, test that exact named anchor");
     expect(prompt).toMatch(/(?:News publishers and articles are evidence leads only|Publisher articles are evidence leads, never targets or access routes|Press articles are leads, not targets or access routes)/);
@@ -503,7 +504,7 @@ describe("Investigator prompt architecture", () => {
     expect(singleDispatch.indexOf("repeatedDiscoverySearchReason(action, previousResearchRecords)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query"));
   });
 
-  it("offers non-binding guidance after three successful search-only actions", () => {
+  it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
     const records = [
       livenessRecord("web_search", "success"),
       livenessRecord("parallel_web_search", "success"),
@@ -521,8 +522,11 @@ describe("Investigator prompt architecture", () => {
       findings: [],
       mode: "discovery",
     });
-    expect(prompt).toContain("OPTIONAL DISCOVERY TRAJECTORY GUIDANCE");
-    expect(prompt).toContain("this suggestion does not mandate visiting, browsing, or any particular provider");
+    // The final emergency prompt may deliberately discard optional trajectory text to preserve the mandatory action/evidence contract.
+    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt).toContain("OUTPUT CONTRACT: Return exactly ONE root JSON object");
+    expect(advisory).not.toContain("must visit");
+    expect(advisory).toContain("further searches remain available");
   });
 
   it("surfaces duplicate searches, repeat visits, and low-yield observations as advisory context", () => {

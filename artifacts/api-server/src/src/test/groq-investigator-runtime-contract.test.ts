@@ -35,7 +35,10 @@ describe("Groq Investigator runtime contract", () => {
     );
     expect(compacted).toContain("BLOCKED BY SCOPE GUARD (no provider request)");
     expect(compacted).toContain("active Boss-approved question");
-    expect(compacted).toContain("do not repeat this off-scope action");
+    expect(compacted).toContain("a new search query must name the active Boss-approved subject, geography, and source class");
+    expect(compacted).toContain("follow-up URL/resources must use a source already observed from an aligned search");
+    expect(compacted).toContain("Rationale/provider/registry metadata do not count");
+    expect(compacted).toContain("do not repeat the blocked action");
     expect(compacted).not.toContain("AUXILIARY CONTEXT BOUND");
   });
 
