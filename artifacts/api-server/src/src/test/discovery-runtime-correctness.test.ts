@@ -521,7 +521,7 @@ describe("Boss-accepted discovery pivot scope", () => {
     const alternativePivot = [
       "Research credible, approachable business owners for the case.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Query state and county business registries in Texas and Ohio for manufacturing and specialty-food firms employing 50-250 staff; cross-reference identified owners via LinkedIn, local chamber directories, and publicly disclosed equity filings.",
-    ].join("\\n");
+    ].join("\n");
 
     // Each query chooses one allowed geography, one sector, and one available
     // source class. It does not need to repeat every alternative in the Boss pivot.
@@ -551,7 +551,7 @@ describe("Boss-accepted discovery pivot scope", () => {
     const slashPivot = [
       "Research credible, approachable business owners for the case.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Michigan/Illinois state or county registries for manufacturing/specialty-food firms and public owner disclosures.",
-    ].join("\\n");
+    ].join("\n");
     expect(discoveryPivotAlignmentReason(slashPivot, "web_search", {
       query: "Michigan metal fabrication county database company owners",
       provider: "serper",

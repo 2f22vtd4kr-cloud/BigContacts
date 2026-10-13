@@ -1977,7 +1977,7 @@ function pivotGeographicAlternatives(phrase: string): string[][] {
 function pivotScopeGeographyOptions(direction: string): string[][] {
   const options: string[][] = [];
   const locationClause = new RegExp(
-    `\\\\b(?:in|across|throughout|within|near|around|from|through|between)\\\\s+(?:the\\\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\\\s*(?:,|\\\\/|\\\\bor\\\\b|\\\\band\\\\b)\\\\s*)(?:the\\\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
+    `\\b(?:in|across|throughout|within|near|around|from|through|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
     "gu",
   );
   for (const match of direction.matchAll(locationClause)) {
@@ -1986,7 +1986,7 @@ function pivotScopeGeographyOptions(direction: string): string[][] {
   // Some model-written pivots put alternatives immediately before a jurisdiction
   // noun ("Michigan/Illinois state registries") rather than after a preposition.
   const jurisdictionList = new RegExp(
-    `\\\\b(${PIVOT_GEOGRAPHIC_NAME}\\\\s*\\\\/\\\\s*${PIVOT_GEOGRAPHIC_NAME})(?=\\\\s+(?:state|county|province|territory|registry|registries|filing|database|companies|firms))`,
+    `\\b(${PIVOT_GEOGRAPHIC_NAME}\\s*\\/\\s*${PIVOT_GEOGRAPHIC_NAME})(?=\\s+(?:state|county|province|territory|registry|registries|filing|database|companies|firms))`,
     "gu",
   );
   for (const match of direction.matchAll(jurisdictionList)) {
@@ -2003,11 +2003,11 @@ function pivotScopeGeographyOptions(direction: string): string[][] {
 
 function removePivotGeographyPhrases(direction: string): string {
   const locationClause = new RegExp(
-    `\\\\b(?:in|across|throughout|within|near|around|from|through|between)\\\\s+(?:the\\\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\\\s*(?:,|\\\\/|\\\\bor\\\\b|\\\\band\\\\b)\\\\s*)(?:the\\\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
+    `\\b(?:in|across|throughout|within|near|around|from|through|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
     "gu",
   );
   const jurisdictionList = new RegExp(
-    `\\\\b${PIVOT_GEOGRAPHIC_NAME}\\\\s*\\\\/\\\\s*${PIVOT_GEOGRAPHIC_NAME}(?=\\\\s+(?:state|county|province|territory|registry|registries|filing|database|companies|firms))`,
+    `\\b${PIVOT_GEOGRAPHIC_NAME}\\s*\\/\\s*${PIVOT_GEOGRAPHIC_NAME}(?=\\s+(?:state|county|province|territory|registry|registries|filing|database|companies|firms))`,
     "gu",
   );
   return direction.replace(locationClause, " ").replace(jurisdictionList, " ");
@@ -2018,7 +2018,7 @@ function pivotScopeAnchors(objective: string): string[] {
   if (!direction) return [];
   // Keep the leading pivot clause for subject matching; later clauses commonly
   // describe evidence checks or follow-up methods rather than required subject terms.
-  const primaryScopeClause = direction.split(/[;\\n]/u, 1)[0] ?? direction;
+  const primaryScopeClause = direction.split(/[;\n]/u, 1)[0] ?? direction;
   const withoutNegatedSubjects = directionWithoutNegatedPivotSubjects(primaryScopeClause);
   const withoutLocations = removePivotGeographyPhrases(withoutNegatedSubjects);
   const tokens = withoutLocations.toLowerCase().match(/[a-z]{3,}/g) ?? [];
