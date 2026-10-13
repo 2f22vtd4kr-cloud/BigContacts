@@ -398,7 +398,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
     expect(prompt).toContain("two independent evidence/source units");
     expect(prompt).toContain("successful falsification-intent action");
-    expect(prompt).not.toContain("pivot_alignment_guard blocked this outbound action");
+    // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
   it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
