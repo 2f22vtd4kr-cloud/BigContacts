@@ -1,11 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
+import { buildBoundedInvestigatorObjective } from "../lib/investigation-context-compaction";
 
 describe("Groq Investigator runtime contract", () => {
+  it("preserves the active Boss question when emergency compaction receives a bounded objective", () => {
+    const direction = "Perform registry queries on Zefix/Swiss commercial register for family-owned mid-market firms in the target sectors to extract named owners with publicly documented wealth indicators.";
+    const boundedObjective = buildBoundedInvestigatorObjective({
+      base: "Discover under-the-radar people with credible wealth potential and realistic public contact routes. People—not companies or executive prestige—are the target. Prefer private, mid-market, regional and family businesses.",
+      direction,
+      maxChars: 1_800,
+    });
+
+    const compacted = compactEmergencyInvestigatorObjective(boundedObjective);
+    expect(compacted).toContain("CASE OBJECTIVE: Discover under-the-radar people");
+    expect(compacted).toContain("ACTIVE BOSS-DIRECTED QUESTION (scope constraint, not a tool sequence):");
+    expect(compacted).toContain(direction);
+    expect(compacted).not.toContain("PRIMARY CASE OBJECTIVE:");
+    expect(compacted).not.toContain("Pursue this question unless observed evidence");
+  });
+
+  it("preserves legacy raw pivot and opening-control directions in emergency compaction", () => {
+    const legacyPivot = compactEmergencyInvestigatorObjective(
+      "Find realistic public routes for under-the-radar owners.\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT: Verify named Swiss mid-market manufacturer owners through official sources.",
+    );
+    expect(legacyPivot).toContain("CASE OBJECTIVE: Find realistic public routes");
+    expect(legacyPivot).toContain("Verify named Swiss mid-market manufacturer owners through official sources.");
+
+    const opening = compactEmergencyInvestigatorObjective(
+      "Find credible private-business owners.\n\nBOSS OPENING CONTROL DIRECTION\nNext directions: [\\"Search Swiss registry entries for named owners\\"]",
+    );
+    expect(opening).toContain("Search Swiss registry entries for named owners");
+  });
+
   it("shares quota identity across environment slots carrying the same credential", () => {
     const sharedCredential = "test-groq-api-key-that-is-not-real";
     const identity = groqQuotaAccountIdentity(sharedCredential);
