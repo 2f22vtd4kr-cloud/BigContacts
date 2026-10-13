@@ -1846,6 +1846,19 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
 }
 
 /**
+ * Preserve the control meaning of a blocked action in the last-resort prompt.
+ * The full guard observation is verbose; generic head/tail truncation can erase
+ * both the reason and the required recovery behavior.
+ */
+export function compactEmergencyTrajectoryObservation(observation: string): string {
+  const normalized = typeof observation === "string" ? observation.trim() : "";
+  if (/pivot_alignment_guard/i.test(normalized)) {
+    return "BLOCKED BY SCOPE GUARD (no provider request): the proposed action is outside the active Boss-approved question. Choose an in-scope action or explain evidence-based infeasibility; do not repeat this off-scope action.";
+  }
+  return boundInvestigatorPromptSection(normalized, 100);
+}
+
+/**
  * Enforce an accepted Boss pivot at the outbound action boundary. Prompt instructions
  * alone did not prevent a multi-action Investigator episode from continuing its old
  * lane after the control objective changed. This guard does not pick tools, providers,
@@ -2358,7 +2371,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
               action: latestRecord.action,
               execution: latestRecord.execution ?? "unknown",
               observedUrls: (latestRecord.observedUrls ?? []).slice(0, 1).map((url) => url.slice(0, 80)),
-              observation: boundInvestigatorPromptSection(latestRecord.observation ?? "", 100),
+              observation: compactEmergencyTrajectoryObservation(latestRecord.observation ?? ""),
               findings: (latestRecord.findings ?? []).slice(0, 1).map((finding) => ({
                 vectorType: finding.vectorType,
                 value: String(finding.value ?? "").slice(0, 55),
