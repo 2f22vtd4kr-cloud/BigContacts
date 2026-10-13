@@ -399,7 +399,8 @@ export function repeatedPivotBlockedActionReason(
   if (!anchors.length) return null;
   const direction = extractBossPivotDirectionForCompactPrompt(objective);
   const exclusions = pivotScopeExclusions(direction);
-  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, exclusions, scopeKey);
+  const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction, anchors);
+  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, exclusions, requiredSourceAnchors, scopeKey);
   const currentIntents = pivotActionRequestIntents(action, args);
   if (!currentIntents.length) return null;
   for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
@@ -419,21 +420,21 @@ export function repeatedPivotBlockedActionReason(
     if (newFetchedEvidence) continue;
     const priorIntents = pivotActionRequestIntents(record.action, record.args).filter((intent) => {
       if (intent.kind === "query") {
-        return !pivotActionIsAligned("web_search", { query: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+        return !pivotActionIsAligned("web_search", { query: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
       }
       if (intent.kind === "url") {
-        return !pivotActionIsAligned("visit", { url: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+        return !pivotActionIsAligned("visit", { url: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
       }
       if (intent.kind === "domain") {
-        return !pivotActionIsAligned("domain_lookup", { domain: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+        return !pivotActionIsAligned("domain_lookup", { domain: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
       }
       if (intent.kind === "email") {
-        return !pivotActionIsAligned("footprint_email", { email: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+        return !pivotActionIsAligned("footprint_email", { email: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
       }
       if (intent.kind === "username") {
-        return !pivotActionIsAligned("footprint_username_sherlock", { username: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+        return !pivotActionIsAligned("footprint_username_sherlock", { username: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
       }
-      return !pivotActionIsAligned("footprint_spiderfoot", { target: intent.key }, anchors, exclusions, evidence.sourceUrls, evidence.evidenceText);
+      return !pivotActionIsAligned("footprint_spiderfoot", { target: intent.key }, anchors, exclusions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
     });
     if (currentIntents.some((current) => priorIntents.some((prior) => prior.kind === current.kind && prior.key === current.key))) {
       return "repeat_pivot_alignment_guard blocked an identical out-of-scope query/resource already rejected under the current Boss-approved pivot. Changing provider, registry, batch composition, or rationale alone does not justify another attempt; wait for new fetched source evidence or choose a materially different in-scope action.";
@@ -1784,7 +1785,8 @@ export function extractBossPivotDirectionForCompactPrompt(rawObjective: string):
  */
 const PIVOT_SCOPE_GENERIC_TERMS = new Set([
   "explore", "investigate", "research", "researching", "mid", "market", "regional",
-  "region", "boutique", "specialty", "franchise", "franchises", "owner", "owners", "ownership", "operator",
+  "region", "boutique", "specialty", "franchise", "franchises", "private", "firm", "firms",
+  "partner", "partners", "founder", "founders", "owner", "owners", "ownership", "operator",
   "operators", "target", "targets", "targeting", "lead", "leads", "new", "business",
   "businesses", "company", "companies", "person", "people", "contact", "contacts",
   "channel", "channels", "professional", "professionally", "realistic", "public",
@@ -1796,6 +1798,16 @@ const PIVOT_SCOPE_GENERIC_TERMS = new Set([
   "state", "states", "country", "countries", "regionally", "midwestern",
   "midwest", "texas", "austin", "slovenia", "slovenian",
 ]);
+
+// If the accepted pivot explicitly names the kind of public source to use, a
+// sector-only query is not enough. Keep source-class enforcement generic: the
+// objective supplies the classes, and the Investigator still chooses tools,
+// providers, sites, and action order.
+const PIVOT_SCOPE_SOURCE_CLASS_TERMS = new Set([
+  "registry", "filing", "database", "directory", "association", "chamber",
+  "member", "trade", "list",
+]);
+
 function pivotScopeToken(value: string): string {
   const token = value.toLowerCase();
   // Preserve singular words and place names that happen to end in s. Naive
@@ -1837,6 +1849,13 @@ function pivotScopeAnchors(objective: string): string[] {
     token.length >= 4 && !PIVOT_SCOPE_GENERIC_TERMS.has(token),
   ))];
 }
+function pivotScopeRequiredSourceAnchors(direction: string, anchors: readonly string[]): string[] {
+  const directionTokens = new Set((direction.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken));
+  return anchors.filter((anchor) =>
+    PIVOT_SCOPE_SOURCE_CLASS_TERMS.has(anchor) && directionTokens.has(anchor),
+  );
+}
+
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
   if (!value.trim() || anchors.length === 0) return false;
   const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
@@ -1881,13 +1900,17 @@ function pivotActionIsAligned(
   args: Record<string, unknown>,
   anchors: readonly string[],
   excludedSubjects: readonly string[],
+  requiredSourceAnchors: readonly string[],
   sourceUrls: ReadonlySet<string>,
   evidenceText: string,
 ): boolean {
   const matchesScopeOrEvidence = (value: unknown) => {
     const text = typeof value === "string" ? value : "";
+    const matchesSubject = pivotTextMatchesAnchors(text, anchors);
+    const matchesRequiredSource = requiredSourceAnchors.length === 0
+      || pivotTextMatchesAnchors(text, requiredSourceAnchors);
     return !pivotTextContainsExcludedSubject(text, excludedSubjects)
-      && (pivotTextMatchesAnchors(text, anchors)
+      && ((matchesSubject && matchesRequiredSource)
         || pivotResourceIsGroundedInAlignedEvidence(value, evidenceText));
   };
   if (action === "web_search") return matchesScopeOrEvidence(args.query);
@@ -1900,8 +1923,11 @@ function pivotActionIsAligned(
   if (action === "visit" || action === "browser_fetch") {
     const requestedUrl = normalizedActionResourceUrl(args.url);
     const urlText = String(args.url ?? "");
+    const matchesSubject = pivotTextMatchesAnchors(urlText, anchors);
+    const matchesRequiredSource = requiredSourceAnchors.length === 0
+      || pivotTextMatchesAnchors(urlText, requiredSourceAnchors);
     return Boolean(requestedUrl && !pivotTextContainsExcludedSubject(urlText, excludedSubjects)
-      && (sourceUrls.has(requestedUrl) || pivotTextMatchesAnchors(urlText, anchors)));
+      && (sourceUrls.has(requestedUrl) || (matchesSubject && matchesRequiredSource)));
   }
   if (action === "registry_search") return matchesScopeOrEvidence(args.query);
   if (action === "domain_lookup" || action === "harvest_domain") {
@@ -1920,6 +1946,7 @@ function pivotAlignedEvidenceState(
   priorRecords: readonly AgenticTrajectoryRecord[],
   anchors: readonly string[],
   excludedSubjects: readonly string[],
+  requiredSourceAnchors: readonly string[],
   activePivotScopeKey: string,
 ): { sourceUrls: Set<string>; evidenceText: string } {
   const sourceUrls = new Set<string>();
@@ -1930,8 +1957,19 @@ function pivotAlignedEvidenceState(
     // exact active pivot may establish follow-up provenance.
     if (record.execution !== "success" || record.pivotScopeKey !== activePivotScopeKey) continue;
     const evidenceText = evidenceParts.join(" ").toLowerCase();
-    if (!pivotActionIsAligned(record.action, record.args, anchors, excludedSubjects, sourceUrls, evidenceText)) continue;
     const isFetchedSource = record.action === "visit" || record.action === "browser_fetch";
+    const requestedUrl = isFetchedSource ? normalizedActionResourceUrl(record.args.url) : null;
+    // The source-class requirement applies to new, ungrounded searches. A fetch
+    // already executed and tagged under this exact pivot may establish topical
+    // context even if its URL path does not expose words like "registry" or
+    // "directory". It still must match the pivot subject and exclusions, or
+    // have been opened from a URL returned by an aligned search.
+    const fetchedSourceMatchesSubject = Boolean(requestedUrl
+      && !pivotTextContainsExcludedSubject(String(record.args.url ?? ""), excludedSubjects)
+      && pivotTextMatchesAnchors(String(record.args.url ?? ""), anchors));
+    const fetchedSourceWasLead = Boolean(requestedUrl && sourceUrls.has(requestedUrl));
+    if (!pivotActionIsAligned(record.action, record.args, anchors, excludedSubjects, requiredSourceAnchors, sourceUrls, evidenceText)
+      && !(isFetchedSource && (fetchedSourceMatchesSubject || fetchedSourceWasLead))) continue;
     if (isFetchedSource) {
       const requestedUrl = normalizedActionResourceUrl(record.args.url);
       if (requestedUrl) sourceUrls.add(requestedUrl);
@@ -1974,11 +2012,12 @@ export function discoveryPivotAlignmentReason(
   // than becoming an accidental stop gate.
   if (anchors.length === 0) return null;
   const excludedSubjects = pivotScopeExclusions(direction);
+  const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction, anchors);
 
   // Provenance grows only through successful actions already grounded in the active
   // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
-  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, activePivotScopeKey);
-  if (pivotActionIsAligned(action, args, anchors, excludedSubjects, evidence.sourceUrls, evidence.evidenceText)) return null;
+  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, requiredSourceAnchors, activePivotScopeKey);
+  if (pivotActionIsAligned(action, args, anchors, excludedSubjects, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText)) return null;
 
   return "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: "
     + direction.slice(0, 420)

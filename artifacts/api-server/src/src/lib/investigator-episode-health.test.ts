@@ -92,6 +92,37 @@ describe("canonical Investigator continuation health", () => {
       }],
     })).toBeNull();
   });
+  it("returns to Boss when an iteration-budgeted episode contains only distinct pivot-alignment blocks", () => {
+    const blocked = [
+      "GrowthCap Advisory partner",
+      "family-owned business founder technology United Kingdom",
+      "family-owned manufacturing company founder Texas",
+      "Texas private company founder ranking list",
+    ];
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 4,
+      stopReason: "ITERATION_BUDGET",
+      trajectoryRecords: blocked.map((query) => ({
+        action: "web_search",
+        execution: "blocked",
+        observation: "pivot_alignment_guard blocked this outbound action before execution. Query class: " + query,
+      })),
+    })).toBeNull();
+  });
+
+  it("does not recover a mixed episode merely because one action hit the pivot guard", () => {
+    expect(classifyInvestigatorEpisodeFailure({
+      status: "completed",
+      iterations: 4,
+      stopReason: "ITERATION_BUDGET",
+      trajectoryRecords: [
+        { action: "web_search", execution: "blocked", observation: "pivot_alignment_guard blocked an out-of-scope query." },
+        { action: "parse_failure", execution: "error", observation: "Malformed model action contract." },
+      ],
+    })).toEqual({ code: "investigator_episode_no_action" });
+  });
+
   it("recognizes an executed research tool attempt even when the tool returns an error", () => {
     expect(classifyInvestigatorEpisodeFailure({
       status: "completed",
