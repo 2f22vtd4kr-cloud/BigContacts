@@ -35,6 +35,7 @@ export type AtlasFailureKind =
   | "job_state_unavailable"
   | "job_state_mismatch"
   | "lease_lost"
+  | "no_usable_action"
   | "unexpected_exception";
 
 export type AtlasFailureStage =
@@ -119,6 +120,10 @@ export function classifyCanonicalAtlasFailure(input: {
   leaseLost?: boolean;
 }): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
   const error = safeErrorShape(input.error);
+  if ((input.stage === "investigator_episode" || input.stage === "orchestration")
+    && /\binvestigator_episode_no_action\b/.test(error.message)) {
+    return { domain: "model_action", kind: "no_usable_action" };
+  }
   if (input.cancelled) return { domain: "lease_job_state", kind: "cancelled" };
   if (input.jobStateUnavailable) return { domain: "lease_job_state", kind: "job_state_unavailable" };
   if (input.jobMissing) return { domain: "lease_job_state", kind: "job_missing" };
