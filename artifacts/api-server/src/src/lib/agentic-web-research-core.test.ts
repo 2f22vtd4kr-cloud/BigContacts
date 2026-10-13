@@ -391,6 +391,15 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
+    const requestBody = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
+      prompt,
+      cognitiveTask: "identity_resolution",
+    });
+    const requestMessages = requestBody.messages as Array<{ role: string; content: string }>;
+    expect(requestMessages[1]?.content).toBe(prompt);
+    expect(requestMessages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(7_200);
+    expect(requestMessages[1]?.content).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("subject, geography and source class");
     expect(prompt).toContain("OUTPUT CONTRACT:");
