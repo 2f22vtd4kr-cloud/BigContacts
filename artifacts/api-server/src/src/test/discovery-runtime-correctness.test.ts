@@ -400,7 +400,9 @@ describe("discovery runtime architecture", () => {
   });
 
   it("keeps absolute durable Investigator turns across one-action continuation episodes", () => {
-    expect(researchSource.match(/const normalizedRecord = \{ \.\.\.raw, turn: raw\.turn/g) ?? []).toHaveLength(2);
+        expect(researchSource.match(/const normalizedRecord = \{/g) ?? []).toHaveLength(2);
+    expect(researchSource).toContain("failureDomain: raw.failureDomain ?? scopeGuardDiagnostic.domain");
+    expect(researchSource).toContain("failureKind: raw.failureKind ?? scopeGuardDiagnostic.kind");
     expect(researchSource).not.toContain("historyRecords.length + record.turn");
     expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords, ...records]");
     expect(researchSource).toContain("groundingTrajectoryRecords: [...historyRecords, ...records]");
