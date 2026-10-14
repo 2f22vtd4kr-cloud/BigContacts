@@ -2152,6 +2152,16 @@ function pivotTextMatchesAnyAnchor(value: string, anchors: readonly string[]): b
   if (!value.trim() || anchors.length === 0) return false;
   const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
   return anchors.some((anchor) => {
+    // Regulatory filings often have a specific form or filing-system name
+    // instead of the literal word "filing" (for example, SEC Form D / EDGAR).
+    // Recognize those source-class equivalents without treating a generic
+    // "form" token as sufficient, and still require the pivot's subject,
+    // geography, and exclusions to match in pivotActionIsAligned.
+    if (
+      anchor === "filing"
+      && /\b(?:sec\s+)?form\s+d\b|\bedgar\b/i.test(value)
+    ) return true;
+
     // Public source classes have familiar lexical variants: a state corporate
     // database/register can satisfy a registry pivot, and a chamber can satisfy
     // an association pivot. This is semantic class normalization, not permission
