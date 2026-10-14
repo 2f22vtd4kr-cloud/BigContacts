@@ -21,6 +21,13 @@ describe("research objective validation", () => {
     expect(validateResearchObjective("Open www.example.com and inspect it.").valid).toBe(false);
   });
 
+  it("rejects literal search-engine query operators in a research direction", () => {
+    expect(validateResearchObjective('Find UK boutique technology private equity partners. Example query: "site:*.co.uk technology private equity partner UK"')).toEqual({
+      valid: false,
+      reason: "Research redirect attempted to prescribe a search-engine query operator.",
+    });
+  });
+
 
   it("formats Boss directions with real prompt line breaks", () => {
     expect(formatBossDirectedObjective("Base objective", "Resolve the filing discrepancy.")).toBe(

@@ -1055,7 +1055,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const runtimeFailureKind = runtimeFailureRecord?.failureKind;
           const diagnostic = runtimeFailureRecord?.action === "runtime_error" && runtimeFailureDomain && runtimeFailureKind
             ? { domain: runtimeFailureDomain, kind: runtimeFailureKind }
-            : classifyCanonicalAtlasFailure({ stage: "investigator_episode", error: underlyingError });
+            : classifyCanonicalAtlasFailure({ stage: "investigator_episode", error: new Error(episodeFailure.code) });
           const errorSummary = safeThrownErrorSummary("Canonical Investigator continuation failed", underlyingError);
           const failureMessage = `Canonical Investigator continuation stopped before a usable new research pass; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
           failureStage = "case_persistence";

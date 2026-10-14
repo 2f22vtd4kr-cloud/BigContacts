@@ -5,11 +5,13 @@ const PROVIDER_OR_TOOL_DIRECTIVE = new RegExp(
 );
 const EXPLICIT_URL = /https?:\/\/|www\.[^\s]+/i;
 const TOOL_DIRECTIVE = /\b(?:visit|open|fetch)\s+(?:https?:\/\/|www\.)/i;
+const SEARCH_QUERY_OPERATOR = /\b(?:site|inurl|intitle|allinurl|allintitle|filetype|intext):\s*\S+/i;
 
 export function validateResearchObjective(direction: string | null | undefined): { valid: true; direction: string } | { valid: false; reason: string } {
   const value = typeof direction === "string" ? direction.trim().slice(0, 1800) : "";
   if (!value) return { valid: false, reason: "Research redirect contained no research objective." };
   if (PROVIDER_OR_TOOL_DIRECTIVE.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe an Investigator provider or tool." };
+  if (SEARCH_QUERY_OPERATOR.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe a search-engine query operator." };
   if (EXPLICIT_URL.test(value) || TOOL_DIRECTIVE.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe a concrete URL/tool destination." };
   return { valid: true, direction: value };
 }
