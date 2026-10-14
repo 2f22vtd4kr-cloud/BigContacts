@@ -1,37 +1,23 @@
-entrypoint = "README.md"
-modules = ["nodejs-22", "web", "bash", "python-3.12", "postgresql-16"]
-hidden = [".config", ".git", "node_modules", "dist", ".cache", ".local"]
+modules = ["nodejs-24", "postgresql-16"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
-
-[deployment]
-deploymentTarget = "cloudrun"
-router = "application"
-run = ["NODE_ENV=production bash scripts/replit-boot.sh"]
-
-[env]
-PORT = "8080"
-NODE_ENV = "development"
-ENABLE_AUTO_PIPELINE = "false"
-INSTALL_PYTHON_OSINT = "false"
-APEX_SKIP_SEMANTIC = "1"
-CI = "true"
-
-[workflows]
-
-[userenv]
-
-[userenv.shared]
-NODE_OPTIONS = "--max-old-space-size=1536"
-NODE_ENV = "development"
-RESEARCH_DEPTH = "standard"
-APEX_SKIP_SEMANTIC = "1"
-CI = "true"
-ENABLE_AUTO_PIPELINE = "false"
-INSTALL_PYTHON_OSINT = "false"
-PORT = "8080"
-
-[userenv.development]
-APEX_CAPTURE_MODEL_PROMPTS = "true"
-APEX_MODEL_AUDIT_FILE = "/home/runner/workspace/audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_05.md"
