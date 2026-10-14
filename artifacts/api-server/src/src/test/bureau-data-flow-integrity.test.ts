@@ -18,13 +18,15 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
       "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts",
     ].map((file) => source(file));
 
-    const quotaHistorySource = source("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts");
-    expect(quotaHistorySource).toMatch(/investigatorCapabilityHistory:\s*\[\.\.\.history,\s*\{\s*from:\s*(?:previous|previousAssignment),\s*to:\s*replacement,\s*trigger:\s*"upstream_quota_exhausted"\s*\}\s*\]\.slice\(-15\)/);
+    const capabilityHistorySource = source("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts");
+    const boundedCapabilityHistory = /investigatorCapabilityHistory:\s*\[\.\.\.history,\s*\{[\s\S]*?trigger:\s*"upstream_(?:quota_exhausted|token_window_wait_exceeded)"[\s\S]*?\}\s*\]\.slice\(-15\)/g;
+    expect(capabilityHistorySource).toMatch(/investigatorCapabilityHistory:\s*\[\.\.\.history,\s*\{\s*from:\s*(?:previous|previousAssignment),\s*to:\s*replacement,\s*trigger:\s*"upstream_quota_exhausted"\s*\}\s*\]\.slice\(-15\)/);
+    expect(capabilityHistorySource).toMatch(/investigatorCapabilityHistory:\s*\[\.\.\.history,\s*\{[\s\S]*?trigger:\s*"upstream_token_window_wait_exceeded"[\s\S]*?\}\s*\]\.slice\(-15\)/);
 
     for (const content of durableFiles) {
       const boundedOversightTail = content.match(/recentActs:\s*\[\.\.\.historyRecords, \.\.\.records\]\.slice\(-4\)/)?.[0] ?? "";
       const genericScan = content
-        .replace(quotaHistorySource.match(/investigatorCapabilityHistory:\s*\[\.\.\.history[\s\S]*?\.slice\(-15\)/)?.[0] ?? "", "")
+        .replace(boundedCapabilityHistory, "")
         .replace(boundedOversightTail, "recentActs: bounded presentation-only context");
       expect(genericScan).not.toMatch(/\.slice\(\s*-\d+/);
       expect(genericScan).not.toMatch(/Math\.min\(\s*40\s*,/);

@@ -1514,3 +1514,11 @@ Append material events promptly in chronological order. Use UTC timestamps where
 - **Regression coverage:** added pure budget-contract tests for reserve release, admitted-candidate protection, continuation up to the global ceiling, and invalid budget values.
 - **Configuration correction:** removed the request-shape capture flags from `.replit`; Event 008/009 recorded that capture had been disabled, but the later repository commit accidentally re-enabled it.
 - **Status:** changes are being committed directly on `main`. GitHub Actions verification has not yet completed; no new Replit research run has been launched.
+
+### Event 014 — CI contract reconciliation after the budget repair
+
+- **Exact-head CI review:** commit `d778aacf29494ec76325b2eee538933164ef370b` passed the discovery static check and frontend gate; workspace library and API typechecks also passed in Atlas CI.
+- **API Build failure:** the run stopped in `scripts/check-production-boot-safety.mjs` before API build/typecheck because `.replit` declared Node 24 while the committed deployment-safety contract and CI runtime specify Node 22. This was a repository configuration mismatch, not a budget-helper compile failure.
+- **Atlas regression failures:** two source-contract tests still asserted the old behavior. `discovery-runtime-correctness.test.ts` expected the retired expression that always subtracts the target reserve. `bureau-data-flow-integrity.test.ts` exempted the old hard-quota history projection but overlooked the newer token-window reassignment history projection; both projections are bounded case-file views while the assignment events remain in the durable event ledger.
+- **Correction on main:** updated the runtime test to assert conditional reserve protection and global ceiling semantics; updated the history test to allow only the two known bounded reassignment-history projections while continuing to reject other negative-slice truncation in durable-context paths; aligned `.replit`'s Node major with the repository's explicit Node 22 production contract.
+- **Verification at this entry:** changes have been committed directly to `main`; fresh CI is pending. No Replit research job has been launched.
