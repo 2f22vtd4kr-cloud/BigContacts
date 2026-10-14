@@ -2278,26 +2278,6 @@ export function discoveryPivotAlignmentReason(
   const excludedSubjects = pivotScopeExclusions(direction);
   const geographyOptions = pivotScopeGeographyOptions(direction);
   const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
-  if (action === "parallel_web_search" && direction.includes("renewable-energy private-equity transactions in Vietnam")) {
-    const searches = Array.isArray(args.searches) ? args.searches as Array<Record<string, unknown>> : [];
-    console.error("[temporary pivot diagnostic]", JSON.stringify({
-      anchors,
-      excludedSubjects,
-      geographyOptions,
-      requiredSourceAnchors,
-      matches: searches.map((search) => {
-        const query = String(search.query ?? "");
-        return {
-          query,
-          subject: pivotTextMatchesAnchors(query, anchors),
-          geography: pivotTextMatchesGeography(query, geographyOptions),
-          source: requiredSourceAnchors.length === 0 || pivotTextMatchesAnyAnchor(query, requiredSourceAnchors),
-          excluded: pivotTextContainsExcludedSubject(query, excludedSubjects),
-        };
-      }),
-    }));
-  }
-
   // Provenance grows only through successful actions already grounded in the active
   // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
   const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, activePivotScopeKey);
