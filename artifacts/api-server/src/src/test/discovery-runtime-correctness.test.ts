@@ -426,7 +426,7 @@ describe("discovery runtime architecture", () => {
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
-    const providerRecovery = canonicalSource.indexOf("consecutiveInvestigatorProviderUnavailable = isInvestigatorProviderUnavailable(nextDiscovery)");
+    const providerRecovery = canonicalSource.indexOf("consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(consecutiveInvestigatorProviderUnavailable, nextDiscovery)");
     expect(episodeMerge).toBeGreaterThan(-1);
     expect(episodeMerge).toBeLessThan(providerRecovery);
   });
