@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { replayResearchCaseEvents } from "../lib/research-case-replay";
+import { resolveMonotonicResearchCaseIteration } from "../lib/research-case-event-iteration";
 
 describe("research case replay", () => {
+  it("clamps Investigator event iterations to the durable case-event high-water mark", () => {
+    expect(resolveMonotonicResearchCaseIteration(5, 6)).toBe(6);
+    expect(resolveMonotonicResearchCaseIteration(9, 10)).toBe(10);
+    expect(resolveMonotonicResearchCaseIteration(11, 10)).toBe(11);
+    expect(resolveMonotonicResearchCaseIteration(-1, 10)).toBe(10);
+  });
+
   it("rebuilds operator-visible state from immutable event sequence without trusting input order", () => {
     const replay = replayResearchCaseEvents([
       { id: 3, caseId: 9, iteration: 2, actorRole: "head_investigator", eventType: "decision", status: "recorded", summary: "Investigator selected next action", payload: JSON.stringify({ action: "visit" }), createdAt: "2026-09-10T10:02:00Z" },

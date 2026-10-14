@@ -1,6 +1,6 @@
 # Apex Atlas Sequential Audit — 2026-10-13 Live Run 02
 
-**Status:** Awaiting operator scope; no Atlas launch or provider/search request has been made for this run.
+**Status:** Terminal failure; canonical job `a3181f06-0d24-4d6b-abaf-6b5a386342fe` failed at 2026-10-14T01:20:27.794Z with no admitted candidates or entity/card. Discovery case 2 remains in review; no retry or continuation is recorded after P-014.
 **Audit started:** 2026-10-13T17:34:37Z
 **Repository:** `https://github.com/2f22vtd4kr-cloud/BigContacts`
 **Branch / source commit:** `main` / `6ac7b5089572ee93cb07b3e1a6aad46170ecc4c4`

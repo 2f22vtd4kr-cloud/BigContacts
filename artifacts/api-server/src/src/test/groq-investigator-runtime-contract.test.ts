@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -104,6 +104,22 @@ describe("Groq Investigator runtime contract", () => {
 
     // A valid model action naturally restores the retry budget.
     expect(nextConsecutiveActionParseFailureCount(consecutiveFailures, true)).toBe(0);
+
+    expect(shouldTerminateActionParseFailure(1, 3, 12)).toBe(false);
+    expect(shouldTerminateActionParseFailure(2, 4, 12)).toBe(true);
+    expect(shouldTerminateActionParseFailure(1, 12, 12)).toBe(true);
+
+    const repair = buildActionParseFailureObservation(
+      "invalid_action_arguments action=parallel_registry_search missing=searches",
+    );
+    expect(repair).toContain("searches");
+    expect(repair).toContain("2–4 objects");
+    expect(repair).toContain('supported "registry" ID');
+    expect(repair).toContain('"provider":null');
+    expect(repair).toContain('"locale":null');
+    expect(repair).toContain('"market":null');
+    expect(repair).toContain('"purpose"');
+    expect(repair).toContain("unused arrays=[]");
   });
 
   it("aligns the prompt with every required property in the strict structured-action schema", () => {
