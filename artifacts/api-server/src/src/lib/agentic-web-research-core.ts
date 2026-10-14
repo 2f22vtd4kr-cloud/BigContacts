@@ -2030,6 +2030,7 @@ function pivotScopeToken(value: string): string {
     fabrication: "manufacturing",
     fabricator: "manufacturing",
     fabricating: "manufacturing",
+    privately: "private",
   };
   return subjectAliases[singular] ?? singular;
 }
@@ -2053,6 +2054,7 @@ function directionWithoutNegatedPivotSubjects(direction: string): string {
 const PIVOT_SCOPE_NON_SUBJECT_TERMS = new Set([
   "county", "counties", "province", "provinces", "employ", "employing", "employee",
   "employees", "staff", "cross", "reference", "identified", "linkedin", "principal",
+  "corporate", "corporation", "corporations", "secretary", "held",
   "principals", "shareholder", "shareholders", "disclosure", "disclosures", "asset",
   "assets", "prioritize", "prioritise", "individual", "individuals", "verifiable",
   "via", "priority", "listed", "firm", "firms", "query", "queries", "search", "searches", "searching",

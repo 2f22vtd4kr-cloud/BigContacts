@@ -1283,3 +1283,7 @@ Added regression coverage for corporation-search scope alignment and for product
 ### Event 014 — CI-driven type correction
 
 The first test/build workflows were launched for `e52e00ebba37742479df3722ee0616229bead9a2`. During final source review, the provider episode input type was found not to declare the `execution` field now inspected by the productive-episode breaker. The follow-up adds that optional typed field to the narrow trajectory-record contract. No runtime decision semantics change beyond the already documented repair. Verification follows on the resulting main head.
+
+### Event 015 — scope-parser regression corrected
+
+The first focused test for the new `corporation search` source alias failed because `pivotScopeAnchors` also treated `Secretary`, `corporate`, and the phrase `privately held` as substantive industry anchors. The query was rejected even after the `filing` source-class synonym was added. The follow-up normalizes `privately` to `private` (already a non-subject generic modifier) and excludes legal/source modifiers `corporate`, `corporation`, `secretary`, and `held` from the subject-anchor set. The explicit `filing` requirement remains enforced via the source-class alias, while sector and geographic anchors remain required. The negative test still rejects the unrelated Washington County property-assessor query. CI is being retriggered on the current main head.
