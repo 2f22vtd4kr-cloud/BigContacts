@@ -162,6 +162,30 @@ Public contact facts may be included only when directly observed in a cited publ
 - **Result:** job `f6f0e1e8-9c52-4c25-a1cd-7503772073d7`; canonical discovery accepted.
 - **State:** awaiting durable job/case events. No success claim yet.
 
+### Event 019 — Investigator recovery and discovery trace
+
+- **Time range:** 2026-10-14 08:27:06Z–08:31:58Z.
+- **Opening handoff:** Groq Boss / GPT-OSS 120B selected `groq-investigator-1`. Groq Right-hand / GPT-OSS 120B returned a completed structured review: proceed with the suggested German Handelsregister direction, while verifying public contact routes; confidence `0.86`, five focus lanes. The review was accepted and persisted before Investigator execution.
+- **Investigator/tool sequence:** initial searches returned 6 results and then 12 URLs; one visit to `https://www.greenbackercapital.com/` succeeded. A second fetch of that URL through Scrapfly failed (`external_page_fetch`). The returned material did not establish a named, evidence-backed candidate. Some proposed out-of-scope searches were blocked by `pivot_alignment_guard` before outbound execution.
+- **Exact search text observed:**
+  - `under-the-radar private equity investors renewable energy Texas` — Serper, 6 URLs.
+  - `SEC Form D Texas renewable energy private equity firms list` — blocked before outbound execution.
+  - `Texas Secretary of State corporate filing search owners officers Texas` — Serper, 6 URLs.
+  - `Texas SOSDirect ownership information individual owners corporate filing` — Serper, 6 URLs.
+  - `Texas SOSDirect oil and gas partnership individual owner filing` — blocked before outbound execution because it did not align with the accepted renewable-energy scope.
+- **Boss control decisions (structured visible outputs):** turn 1 pivoted from generic results to SEC Form D filings for Texas renewable-energy projects; turn 2 reiterated SEC EDGAR after provider errors/no candidates; turn 3 pivoted to Texas Secretary of State filings and project permits after SEC searches were blocked; turn 4 continued with a more precise entity-name query; turn 5 chose `stop` because the discovery budget was exhausted without admitted candidates. The accepted directions and reasons are persisted in case `3` events `10`, `15`, `19`, `25`, and `26`.
+- **Investigator capacity recovery:** `groq-investigator-1` produced `upstream_token_window_wait_exceeded` provider-error events at 08:29:52.031Z and 08:29:57.408Z. The current run recorded a Boss-directed assignment from `groq-investigator-1` to distinct `groq-investigator-2` on the same durable case. This was token-window capacity, not hard request-quota exhaustion; no key value was read or logged. Investigator 2 continued with two successful Serper searches.
+- **Provider telemetry snapshot:** through 08:31:05Z, the restarted API log showed 13 agentic provider attempts: 9 HTTP 200, one HTTP 400 `json_validate_failed` followed by a successful retry, and 3 HTTP 429 responses classified as token-type rate limits. The provider log contains token/request counters and opaque error digests, not prompts or response bodies.
+
+### Event 020 — third attempt terminal, no evidence-backed card
+
+- **Time:** terminal job timestamp 2026-10-14 08:31:58.013Z; final read at 08:32:04Z.
+- **Job:** `f6f0e1e8-9c52-4c25-a1cd-7503772073d7`; `status=failed`, `outcome=incomplete`, progress `3/4`; message: `Canonical Atlas control stopped without an evidence-backed terminal state; case preserved for review.`
+- **Durable result:** discovery status `completed`, `findings=0`, `searches=5`, `visits=1`, discovery case `3`, four Investigator runs/episodes, five Boss control turns; final action `stop`, no final candidate. Investigator iteration use was `12/20`, so the Investigator iteration ceiling was not the stop cause.
+- **Database delta from the empty baseline:** `entities=0`, `research_evidence=0`, `contact_evidence=0`, `research_sessions=0`; no cards, admissions, or verified contacts were created. Case `3` is preserved with `status=review`, `current_action=canonical-evidence-terminal-incomplete`, selected `groq-investigator-2`, and the capability-change history above.
+- **Conclusion:** the canonical control flow, tool-use boundary, and requested Investigator reassignment executed, but research did not produce admissible evidence. No card will be fabricated, and this attempt is not counted as a successful run.
+- **Next action:** continue only from a concrete, model-generated public-source direction (the last Boss direction is preserved in event `25`), or ask the user for a target scope if that direction cannot be used. Do not weaken the evidence gates.
+
 ## Live trace
 
 Append each material event promptly. Distinguish observed facts from interpretation; preserve failures and incomplete outcomes. Do not declare success unless the terminal run and fresh durable card/admission IDs are verified.
@@ -3754,6 +3778,1288 @@ Append each material event promptly. Distinguish observed facts from interpretat
       "strict": true,
       "schemaPropertyCount": 19,
       "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 26790db6-2006-4ea0-852d-96f30a315736
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:27:18.856Z",
+  "requestId": "26790db6-2006-4ea0-852d-96f30a315736",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5600,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request e4056e5e-d7d1-4c36-a2b2-34261d0abd95
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:28:01.500Z",
+  "requestId": "e4056e5e-d7d1-4c36-a2b2-34261d0abd95",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5527,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request f0f098f1-cc50-4e3b-80a8-f9b55761f14a
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:28:03.797Z",
+  "requestId": "f0f098f1-cc50-4e3b-80a8-f9b55761f14a",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5600,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 0e3c020d-538c-467d-98bb-3ec745097b30
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:28:12.015Z",
+  "requestId": "0e3c020d-538c-467d-98bb-3ec745097b30",
+  "provider": "groq",
+  "role": "groq_right_hand",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 768,
+    "temperature": 0.1,
+    "stream": false,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1775,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 9170,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_right_hand",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 4,
+      "requiredFieldCount": 4,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 7ec8cf94-8982-4df9-a645-88bd5fe6f3ed
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:28:13.224Z",
+  "requestId": "7ec8cf94-8982-4df9-a645-88bd5fe6f3ed",
+  "provider": "groq",
+  "role": "groq_boss",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1536,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "temperature": 0.1,
+    "stream": false,
+    "messageCount": 1,
+    "messages": [
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 11847,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_boss_control",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 5,
+      "requiredFieldCount": 5,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request ef4d53c4-f1e6-419e-8b5a-ed9b92ce13e5
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:28:46.201Z",
+  "requestId": "ef4d53c4-f1e6-419e-8b5a-ed9b92ce13e5",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5585,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 5376b703-1351-4764-9318-96bf791464f4
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:28:49.238Z",
+  "requestId": "5376b703-1351-4764-9318-96bf791464f4",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5436,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request f5d60683-d7c1-4117-a22d-a6c2963c06a3
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:29:34.690Z",
+  "requestId": "f5d60683-d7c1-4117-a22d-a6c2963c06a3",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 2,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5436,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_object",
+      "schemaName": null,
+      "hasSchema": false,
+      "strict": null,
+      "schemaPropertyCount": null,
+      "requiredFieldCount": null,
+      "additionalProperties": null
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 748907a1-354b-4dc0-859c-8257c1a4f91f
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:29:37.120Z",
+  "requestId": "748907a1-354b-4dc0-859c-8257c1a4f91f",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5524,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 0717893c-3607-4698-8334-26747ba21431
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:29:51.902Z",
+  "requestId": "0717893c-3607-4698-8334-26747ba21431",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 2,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5524,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 19ec59fc-a9b9-4483-8046-1856168b5b51
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:29:52.861Z",
+  "requestId": "19ec59fc-a9b9-4483-8046-1856168b5b51",
+  "provider": "groq",
+  "role": "groq_right_hand",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 768,
+    "temperature": 0.1,
+    "stream": false,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1775,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 10151,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_right_hand",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 4,
+      "requiredFieldCount": 4,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request ac5f89d2-9843-4c66-898c-dab392c390ed
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:29:54.433Z",
+  "requestId": "ac5f89d2-9843-4c66-898c-dab392c390ed",
+  "provider": "groq",
+  "role": "groq_boss",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1536,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "temperature": 0.1,
+    "stream": false,
+    "messageCount": 1,
+    "messages": [
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 12742,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_boss_control",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 5,
+      "requiredFieldCount": 5,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request bbd9a974-4f89-457e-9452-df1b81ed0555
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:29:57.271Z",
+  "requestId": "bbd9a974-4f89-457e-9452-df1b81ed0555",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5600,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request e18109e4-bf0e-4e4f-9ddd-41ec5d7f227b
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:29:58.005Z",
+  "requestId": "e18109e4-bf0e-4e4f-9ddd-41ec5d7f227b",
+  "provider": "groq",
+  "role": "groq_boss",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 2048,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "temperature": 0.1,
+    "stream": false,
+    "messageCount": 1,
+    "messages": [
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 10283,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_boss_control",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 5,
+      "requiredFieldCount": 5,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request bdf3c568-0fe2-4aa6-9146-f356cae4e582
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:29:59.643Z",
+  "requestId": "bdf3c568-0fe2-4aa6-9146-f356cae4e582",
+  "provider": "groq",
+  "role": "groq_right_hand",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 768,
+    "temperature": 0.1,
+    "stream": false,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1775,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 10070,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_right_hand",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 4,
+      "requiredFieldCount": 4,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request d7aa4435-122f-4738-94f4-a65f4392de4c
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:30:01.016Z",
+  "requestId": "d7aa4435-122f-4738-94f4-a65f4392de4c",
+  "provider": "groq",
+  "role": "groq_boss",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1536,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "temperature": 0.1,
+    "stream": false,
+    "messageCount": 1,
+    "messages": [
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 12837,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_boss_control",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 5,
+      "requiredFieldCount": 5,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request d38f958d-1b46-4b6a-baf9-24e2a1bad6c5
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:30:40.185Z",
+  "requestId": "d38f958d-1b46-4b6a-baf9-24e2a1bad6c5",
+  "provider": "groq",
+  "role": "groq_boss",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 2,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1536,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "temperature": 0.1,
+    "stream": false,
+    "messageCount": 1,
+    "messages": [
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 12837,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_boss_control",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 5,
+      "requiredFieldCount": 5,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 10428347-c7cd-419e-b64d-09d7438bf186
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:30:42.280Z",
+  "requestId": "10428347-c7cd-419e-b64d-09d7438bf186",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5564,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 944e6c94-b6ff-4875-a272-ee84796251f1
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:30:45.377Z",
+  "requestId": "944e6c94-b6ff-4875-a272-ee84796251f1",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5423,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 40205d04-38cd-4c8d-94f9-592070baeda5
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:30:48.582Z",
+  "requestId": "40205d04-38cd-4c8d-94f9-592070baeda5",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5430,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 395a9631-12d6-4dcd-9407-8060a9593fa1
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:31:48.715Z",
+  "requestId": "395a9631-12d6-4dcd-9407-8060a9593fa1",
+  "provider": "groq",
+  "role": "groq_investigator",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": "f6f0e1e8-9c52-4c25-a1cd-7503772073d7",
+  "caseId": 3,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1024,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1472,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 5546,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_investigator_action",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 19,
+      "requiredFieldCount": 19,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 0b6f422b-4af9-4353-b678-0418136ebe82
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:31:51.535Z",
+  "requestId": "0b6f422b-4af9-4353-b678-0418136ebe82",
+  "provider": "groq",
+  "role": "groq_right_hand",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 768,
+    "temperature": 0.1,
+    "stream": false,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1775,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 10311,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_right_hand",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 4,
+      "requiredFieldCount": 4,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 8a53ce13-2157-40c7-9317-5c55b7a0d398
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:31:53.404Z",
+  "requestId": "8a53ce13-2157-40c7-9317-5c55b7a0d398",
+  "provider": "groq",
+  "role": "groq_boss",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1536,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "temperature": 0.1,
+    "stream": false,
+    "messageCount": 1,
+    "messages": [
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 12976,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_boss_control",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 5,
+      "requiredFieldCount": 5,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request a7f5724c-e598-412b-ad6f-d1cba5e51ae1
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:31:55.333Z",
+  "requestId": "a7f5724c-e598-412b-ad6f-d1cba5e51ae1",
+  "provider": "groq",
+  "role": "groq_right_hand",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 768,
+    "temperature": 0.1,
+    "stream": false,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "messageCount": 2,
+    "messages": [
+      {
+        "role": "system",
+        "contentKind": "text",
+        "contentChars": 1775,
+        "itemCount": null
+      },
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 10313,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_right_hand",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 4,
+      "requiredFieldCount": 4,
+      "additionalProperties": false
+    },
+    "toolCount": null,
+    "tools": [],
+    "toolsTruncated": false,
+    "toolChoiceKind": "undefined"
+  }
+}
+```
+
+
+### Model request 899baadf-cc38-40c1-a1a4-edeec03d1ddf
+
+```json
+{
+  "event": "atlas_model_request",
+  "recordedAt": "2026-10-14T08:31:56.370Z",
+  "requestId": "899baadf-cc38-40c1-a1a4-edeec03d1ddf",
+  "provider": "groq",
+  "role": "groq_boss",
+  "model": "openai/gpt-oss-120b",
+  "attempt": 1,
+  "jobId": null,
+  "caseId": null,
+  "requestSummary": {
+    "model": "openai/gpt-oss-120b",
+    "max_completion_tokens": 1536,
+    "reasoning_effort": "medium",
+    "include_reasoning": false,
+    "temperature": 0.1,
+    "stream": false,
+    "messageCount": 1,
+    "messages": [
+      {
+        "role": "user",
+        "contentKind": "text",
+        "contentChars": 12484,
+        "itemCount": null
+      }
+    ],
+    "messagesTruncated": false,
+    "responseFormat": {
+      "type": "json_schema",
+      "schemaName": "apex_atlas_boss_control",
+      "hasSchema": true,
+      "strict": true,
+      "schemaPropertyCount": 5,
+      "requiredFieldCount": 5,
       "additionalProperties": false
     },
     "toolCount": null,
