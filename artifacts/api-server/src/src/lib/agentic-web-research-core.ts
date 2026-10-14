@@ -405,6 +405,13 @@ export function repeatedPivotBlockedActionReason(
   const evidence = pivotAlignedEvidenceState(priorRecords, anchors, exclusions, geographyOptions, requiredSourceAnchors, scopeKey);
   const currentIntents = pivotActionRequestIntents(action, args);
   if (!currentIntents.length) return null;
+
+  // A valid in-scope action must not be suppressed by earlier scope blocks.
+  // The main guard will only reject the current action when its actual research
+  // intent still falls outside the active Boss-approved pivot.
+  if (!discoveryPivotAlignmentReason(objective, action, args, priorRecords)) return null;
+
+  let priorOutOfScopeActionsWithoutNewEvidence = 0;
   for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
     const record = priorRecords[index]!;
     if (
@@ -419,7 +426,9 @@ export function repeatedPivotBlockedActionReason(
       && Boolean(String(later.observation ?? "").trim())
       && (later.observedUrls ?? []).length > 0,
     );
-    if (newFetchedEvidence) continue;
+    // Once a successful aligned source has been fetched, earlier blocks no
+    // longer count toward a no-evidence retry loop.
+    if (newFetchedEvidence) break;
     const priorIntents = pivotActionRequestIntents(record.action, record.args).filter((intent) => {
       if (intent.kind === "query") {
         return !pivotActionIsAligned("web_search", { query: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
@@ -438,13 +447,21 @@ export function repeatedPivotBlockedActionReason(
       }
       return !pivotActionIsAligned("footprint_spiderfoot", { target: intent.key }, anchors, exclusions, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText);
     });
+    if (!priorIntents.length) continue;
+    priorOutOfScopeActionsWithoutNewEvidence += 1;
     if (currentIntents.some((current) => priorIntents.some((prior) => prior.kind === current.kind && prior.key === current.key))) {
       return "repeat_pivot_alignment_guard blocked an identical out-of-scope query/resource already rejected under the current Boss-approved pivot. Changing provider, registry, batch composition, or rationale alone does not justify another attempt; wait for new fetched source evidence or choose a materially different in-scope action.";
+    }
+    // Query wording can change while the research intent remains stuck outside
+    // scope. Two prior blocked actions without new fetched evidence are enough
+    // to return control on the next attempted variant instead of spending every
+    // remaining Investigator turn on the same dead end.
+    if (priorOutOfScopeActionsWithoutNewEvidence >= 2) {
+      return "repeat_pivot_alignment_guard blocked another out-of-scope query/resource after multiple distinct actions were already rejected under the current Boss-approved pivot, with no new fetched source evidence. Do not keep trying wording variants; return control to Boss/Right-hand for a revised objective or stop decision.";
     }
   }
   return null;
 }
-
 export function isTransientInvestigatorCapacityError(result: { error?: string; trajectoryRecords?: Array<{ observation?: string }> }): boolean {
   if (result.error === "upstream_token_window_wait_exceeded") return true;
   return (result.trajectoryRecords ?? []).some((record) => /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""));
