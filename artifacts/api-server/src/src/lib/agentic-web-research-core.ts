@@ -2017,7 +2017,7 @@ function pivotGeographicAlternatives(phrase: string): string[][] {
 function pivotScopeGeographyOptions(direction: string): string[][] {
   const options: string[][] = [];
   const locationClause = new RegExp(
-    `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
+    `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
     "gu",
   );
   for (const match of direction.matchAll(locationClause)) {
@@ -2043,7 +2043,7 @@ function pivotScopeGeographyOptions(direction: string): string[][] {
 
 function removePivotGeographyPhrases(direction: string): string {
   const locationClause = new RegExp(
-    `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
+    `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
     "gu",
   );
   const jurisdictionList = new RegExp(
