@@ -1862,7 +1862,12 @@ function compactActiveBossScope(direction: string, maxChars: number): string {
   const geography = geographyGroup?.[1]?.trim()
     || pivotScopeGeographyOptions(raw).map((option) => option.join(" ")).join(", ");
   const sourceGroup = raw.match(/\bsource classes?\s*\(([^)]{1,180})\)/i);
-  const sourcePattern = /(?:[\p{L}\p{N}-]+\s+){0,3}(?:filings?|registr(?:y|ies)|registers?|databases?|directories|associations?|chambers?|lists?|announcements?|releases?)(?:\s+(?:or|and|\/|,)\s+(?:[\p{L}\p{N}-]+\s+){0,3}(?:filings?|registr(?:y|ies)|registers?|databases?|directories|associations?|chambers?|lists?|announcements?|releases?))*/iu;
+  const sourceNoun = String.raw`(?:filings?|registr(?:y|ies)|registers?|databases?|directories|associations?|chambers?|lists?|announcements?|releases?)`;
+  const sourceModifier = String.raw`(?:transaction|regulatory|ownership|local|public(?:ly)?(?: listed)?|official|state|corporate|business|company|trade)`;
+  const sourcePattern = new RegExp(
+    String.raw`\b(?:(?:${sourceModifier})\s+){0,3}${sourceNoun}(?:\s*(?:,|or|and|\/)\s*(?:(?:${sourceModifier})\s+){0,3}${sourceNoun})*`,
+    "iu",
+  );
   const source = sourceGroup?.[1]?.trim() || raw.match(sourcePattern)?.[0]?.trim() || "";
 
   // If the pivot includes a worked query example, retain its subject anchor
@@ -1883,6 +1888,7 @@ function compactActiveBossScope(direction: string, maxChars: number): string {
   const geographyIndex = geographyGroup?.index ?? (sourceIndex >= 0 ? sourceIndex : raw.length);
   const lead = querySubject || raw.slice(0, geographyIndex)
     .replace(/^(?:execute a precise web search that|search for recent|search for|search|shift focus to|look for|find)\s*/i, "")
+    .replace(/\s+(?:and|while|then)\s+(?:seek|use|target|look for|find|search for|identify|extract)\b.*$/i, "")
     .replace(/\s+in\s+(?:(?:neighboring|nearby)\s+)?(?:[\p{L}-]+\s+){1,2}$/iu, "")
     .replace(/\s+/g, " ")
     .replace(/[,:;–—-]+$/g, "")
