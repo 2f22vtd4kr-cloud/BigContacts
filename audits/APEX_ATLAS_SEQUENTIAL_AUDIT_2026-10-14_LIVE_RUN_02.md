@@ -1,10 +1,10 @@
 # Apex Atlas Sequential Audit — 2026-10-14 — Live Run 02
 
-**Status:** RECOVERY IN PROGRESS — first live job `8fb5d706-c73f-4010-a1fc-fa8b237136ed` failed before candidate admission; terminal and ledger checks captured, code diagnosis pending.  
+**Status:** First live job `8fb5d706-c73f-4010-a1fc-fa8b237136ed` failed before candidate admission. Root causes were subsequently confirmed and the functional fixes committed as `bd3ef125`; this audit does not record a successful post-fix run or card creation.  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Branch / commit:** `main` / `8746c01` (`Stop repeated pivot-scope retry loops`)  
 **Audit file:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_02.md`  
-**Visibility:** Ordinary `audits/` path; not gitignored. No commit or push has been made.
+**Visibility:** Ordinary tracked `audits/` path. The run was executed on the earlier `8746c01` revision; post-run diagnosis and the functional fixes were later committed to `main` as `bd3ef125`.
 
 ## Purpose and audit boundaries
 
@@ -3093,3 +3093,25 @@ Do not invent research evidence or progress. A model/tool/provider failure remai
   }
 }
 ```
+
+
+## Post-run engineering addendum — 2026-10-14
+
+### Confirmed outcome
+
+- Canonical job `8fb5d706-c73f-4010-a1fc-fa8b237136ed` failed at approximately 2026-10-14T03:56:29Z after the accepted multi-country renewable-energy/private-equity pivot. Durable reconciliation captured zero entities, zero research evidence, zero contact evidence, and no candidate/card admission. The discovery case was preserved in `review` state.
+- This is a failed operational run, not a successful end-to-end pipeline. The current audit does not establish a post-fix full-pipeline run or first card creation.
+
+### Confirmed root causes and code changes
+
+1. **False-positive pivot-scope rejection.** The accepted pivot allowed transaction announcements **or** regulatory filings, but the source-class vocabulary did not include `announcement`. A set of otherwise aligned country queries using this allowed source class was rejected before external execution. Commit `bd3ef12512c929ad5ffb1344b9f22a06e6b94919` added the announcement/release source-class alias and a regression test that accepts approved alternatives but rejects a query omitting the source class.
+2. **Emergency prompt composition overflow.** The final prompt builder reported `minimumChars=5664` against the fixed `ceilingChars=5600`; the provider was never called for that turn. The functional change bounded only the smallest emergency scope excerpt more tightly and added a long multi-country regression test. The configured ceiling was not raised and mandatory action/evidence contracts remain required.
+
+### Follow-up code review
+
+- The same commit added a temporary `console.error` branch hard-coded to this one renewable-energy/Vietnam objective and logging all aligned-query match diagnostics. This was diagnostic instrumentation, not part of the durable guard contract, and has been removed in the follow-up change. The generic alignment logic and regression tests remain.
+- No target, query, source route, finding, or card was injected. No new live research job was launched as part of this code review.
+
+### Validation boundary
+
+The two regression tests added in `bd3ef125` cover the observed source-class alternative and prompt ceiling, but the Replit job itself failed before either fix was active. A later operator-controlled run must establish the deployed SHA, confirm both fixes are present, and verify the durable job/case/event/evidence/card delta before operational success can be claimed. A first card must emerge through normal model-selected discovery and evidence admission; it must not be forced by loosening the gate.
