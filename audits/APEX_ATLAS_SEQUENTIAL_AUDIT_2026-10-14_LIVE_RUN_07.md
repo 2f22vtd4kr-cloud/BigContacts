@@ -271,3 +271,12 @@ Append each material observation promptly and chronologically. Use UTC timestamp
 - **Provider error:** the latest Groq log is HTTP 400 `json_validate_failed` / `invalid_request_error`, 54,781 ms, with 4,854 tokens and 959 requests remaining. This is an output-contract error, not hard quota exhaustion. No alternate capability is selected.
 - **Liveness/result:** phase remains 1/4; zero findings, candidates, evidence, admissions, and cards. Repeated pivot-scope blocks and long invalid-output attempts are now the primary run risks. Continue only through canonical Boss/Investigator control and preserve the terminal outcome.
 
+
+
+## Post-Event-026 source review and repair
+
+The saved Run 07 trace stops with the job still active at phase 1/4. This file therefore does **not** establish the final job outcome after the last recorded event at 2026-10-14T12:53:47Z. Within the recorded window, no candidate was admitted and the evidence/contact/card tables remained empty because the Investigator did not produce admissible findings; the earlier durable case-event ledger still preserved action observations. The captured provider data does not support classifying the run as a hard quota failure: one HTTP 429 was token-window rate limiting, while the later HTTP 400 was a structured-output validation failure.
+
+The control-loop defect is cross-pivot recovery: existing repeat-block detection is scoped to one exact accepted pivot fingerprint, so the wrapper returns to Boss after repeated blocks, but Boss can accept another slightly changed pivot in the same general lane and restart the local block streak without gaining evidence. The existing evidence, identity, attribution, and terminal gates should remain strict.
+
+The follow-on repair adds two safeguards without prescribing research strategy: (1) repeated preflight scope blocks are surfaced to Boss and Right-hand as explicit control-state feedback across pivot variants, and are explicitly distinguished from negative source evidence; (2) the same blocked records receive typed `model_action / out_of_scope_action` diagnostics instead of blank failure fields. The feedback leaves the next research question and any stop decision to the models. Added regression tests cover cross-pivot no-progress detection and reset after a successful external action. CI validation is pending for the new main commit; this repair does not retroactively prove that Run 07 would have yielded a candidate.

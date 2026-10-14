@@ -3,7 +3,7 @@ import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { db, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
 import { asc, eq } from "drizzle-orm";
 import { classifyExternalProvider, runProviderCall } from "./provider-gate";
-import { classifyCanonicalAtlasFailure } from "./canonical-atlas-failure-diagnostics";
+import { classifyAtlasScopeGuardObservation, classifyCanonicalAtlasFailure } from "./canonical-atlas-failure-diagnostics";
 import { getAgenticExecutionScope, withAgenticExecutionScope } from "./agentic-execution-context";
 import { validateResearchObjective } from "./research-objective";
 import { reviewTargetInvestigationAct, loadTargetActOversightContext, type TargetActOversight } from "./target-act-oversight";
@@ -181,7 +181,18 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
         if ((raw.action === "web_search" || raw.action === "registry_search") && typeof raw.args?.query === "string") searchQueriesUsed.push(raw.args.query);
         if ((raw.action === "parallel_web_search" || raw.action === "parallel_registry_search") && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
       }
-      const normalizedRecord = { ...raw, turn: raw.turn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: raw.turn }]) };
+      const scopeGuardDiagnostic = raw.execution === "blocked"
+        ? classifyAtlasScopeGuardObservation(String(raw.observation ?? ""))
+        : null;
+      const normalizedRecord = {
+        ...raw,
+        turn: raw.turn,
+        ...(scopeGuardDiagnostic ? {
+          failureDomain: raw.failureDomain ?? scopeGuardDiagnostic.domain,
+          failureKind: raw.failureKind ?? scopeGuardDiagnostic.kind,
+        } : {}),
+        findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: raw.turn }]),
+      };
       const priorRecords = [...historyRecords, ...records];
       records = [...records, normalizedRecord];
       wrapperFailureStage = "trajectory_persistence";

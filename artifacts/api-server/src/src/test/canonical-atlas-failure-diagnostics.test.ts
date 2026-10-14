@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
+import { classifyAtlasScopeGuardObservation, classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
+
+describe("Atlas scope-guard diagnostics", () => {
+  it("classifies a preflight scope block as a model-action rejection, not a provider failure", () => {
+    expect(classifyAtlasScopeGuardObservation("repeat_pivot_alignment_guard blocked the request; no outbound request was made.")).toEqual({
+      domain: "model_action",
+      kind: "out_of_scope_action",
+    });
+    expect(classifyAtlasScopeGuardObservation("The search provider returned HTTP 403.")).toBeNull();
+  });
+});
 
 describe("canonical Atlas lease-read diagnostics", () => {
   it("classifies an invalid Right-hand opening contract as a model contract failure", () => {

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { buildAtlasScopeRecoveryFeedback } from "../lib/atlas-control-decision";
 import {
   discoveryPivotScopeKey,
   repeatedPivotBlockedActionReason,
@@ -59,5 +60,38 @@ describe("repeated pivot-scope recovery", () => {
       { query: "Indiana Secretary of State corporation database family-owned manufacturing business owners in Indiana Midwest", provider: "serper" },
       priorRecords,
     )).toBeNull();
+  });
+});
+
+
+describe("cross-pivot scope recovery context", () => {
+  it("surfaces repeated preflight blocks across pivot variants to Boss/Right-hand as control feedback", () => {
+    const records: AgenticTrajectoryRecord[] = [
+      blockedRecord(1, "query one", "scope-a"),
+      blockedRecord(2, "query two", "scope-a"),
+      blockedRecord(3, "query three", "scope-a"),
+      blockedRecord(4, "query four", "scope-b"),
+      blockedRecord(5, "query five", "scope-b"),
+      blockedRecord(6, "query six", "scope-b"),
+    ];
+    const feedback = buildAtlasScopeRecoveryFeedback(records);
+    expect(feedback).toContain("6 Investigator action(s)");
+    expect(feedback).toContain("2 accepted pivot-scope variant(s)");
+    expect(feedback).toContain("before any outbound request");
+    expect(feedback).toContain("control state, not research evidence");
+    expect(feedback).toContain("Do not prescribe a fixed target");
+  });
+
+  it("clears stale scope-recovery feedback after successful external research", () => {
+    const records: AgenticTrajectoryRecord[] = [
+      blockedRecord(1, "query one", "scope-a"),
+      blockedRecord(2, "query two", "scope-a"),
+      blockedRecord(3, "query three", "scope-b"),
+      {
+        turn: 4, model: "openai/gpt-oss-120b", action: "visit", args: { url: "https://example.test/company" },
+        execution: "success", observation: "A page was retrieved.", observedUrls: ["https://example.test/company"], findings: [],
+      },
+    ];
+    expect(buildAtlasScopeRecoveryFeedback(records)).toBeNull();
   });
 });

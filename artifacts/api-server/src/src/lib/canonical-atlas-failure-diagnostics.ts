@@ -25,6 +25,7 @@ export type AtlasFailureKind =
   | "provider_endpoint_not_found"
   | "provider_capacity_exhausted"
   | "invalid_contract"
+  | "out_of_scope_action"
   | "pdf_unsupported"
   | "response_size_limit"
   | "http_error"
@@ -92,6 +93,12 @@ function safeErrorShape(error: unknown): { name: string; message: string; code: 
  * Classify the bounded provider error codes returned by the Investigator Groq adapter.
  * The input is a code, never a raw error message or response body.
  */
+/** Classify scope-guard rejections without mistaking them for provider/tool failures. */
+export function classifyAtlasScopeGuardObservation(observation: string): { domain: AtlasFailureDomain; kind: AtlasFailureKind } | null {
+  if (!/\b(?:repeat_)?pivot_alignment_guard\b/i.test(observation)) return null;
+  return { domain: "model_action", kind: "out_of_scope_action" };
+}
+
 export function classifyInvestigatorProviderError(value: string): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
   const code = value.trim().toLowerCase();
   if (code === "upstream_quota_exhausted" || code === "quota_exceeded") return { domain: "model_provider", kind: "hard_request_quota" };
