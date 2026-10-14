@@ -115,6 +115,10 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("searches");
     expect(repair).toContain("2–4 objects");
     expect(repair).toContain('supported "registry" ID');
+    expect(repair).toContain('"provider":null');
+    expect(repair).toContain('"locale":null');
+    expect(repair).toContain('"market":null');
+    expect(repair).toContain('"purpose"');
     expect(repair).toContain("unused arrays=[]");
   });
 
