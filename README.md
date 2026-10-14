@@ -4,6 +4,8 @@
 
 Apex Atlas is an OSINT research desk built to identify decision-makers, owners, founders, operators, and high-net-worth individuals connected to private companies and capital, then surface **real, attributable contact paths** from public sources.
 
+> **★ Active live audit:** [APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_03.md](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_03.md)
+
 It is a model-led research bureau, not a fixed enrichment script:
 
 - **Groq Boss** directs the case and selects the Investigator.
