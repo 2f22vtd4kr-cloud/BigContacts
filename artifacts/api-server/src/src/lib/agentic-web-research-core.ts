@@ -1868,9 +1868,20 @@ function compactActiveBossScope(direction: string, maxChars: number): string {
   // If the pivot includes a worked query example, retain its subject anchor
   // separately from the full allowed geography and source-class alternatives.
   const queryExample = raw.match(/(?:e\.g\.?|for example)[^"“']{0,100}["“']([^"”']{1,160})["”']/i)?.[1]?.trim();
+  const geographyTokens = new Set((geography.match(/[A-Za-z]+/g) ?? []).map((token) => token.toLowerCase()));
+  // Retain the example's subject class only; specific example geographies and
+  // dates remain context, not a prescribed query sequence.
+  const querySubject = queryExample
+    ? queryExample.split(/\s+/).filter((token) => {
+        const normalized = token.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, "");
+        return normalized.length > 0
+          && !geographyTokens.has(normalized)
+          && !/^(?:19|20)\d{2}$/.test(normalized);
+      }).join(" ")
+    : "";
   const sourceIndex = source ? raw.indexOf(source) : -1;
   const geographyIndex = geographyGroup?.index ?? (sourceIndex >= 0 ? sourceIndex : raw.length);
-  const lead = queryExample || raw.slice(0, geographyIndex)
+  const lead = querySubject || raw.slice(0, geographyIndex)
     .replace(/^(?:execute a precise web search that|search for recent|search for|search|shift focus to|look for|find)\s*/i, "")
     .replace(/\s+in\s+(?:(?:neighboring|nearby)\s+)?(?:[\p{L}-]+\s+){1,2}$/iu, "")
     .replace(/\s+/g, " ")
