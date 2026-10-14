@@ -463,13 +463,27 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
-    expect(prompt).toContain("Czech Republic, Slovakia");
+    expect(prompt).toContain("Czech Republic");
+    expect(prompt).toContain("Slovakia");
     expect(prompt).toContain("ownership filings or local business registries");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("VALID PROVIDERS:");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(prompt).toContain("two independent evidence/source units");
     expect(prompt).toContain("successful falsification-intent action");
+  });
+
+  it("excludes the pursue-unless continuation instruction from accepted pivot scope", () => {
+    const direction = "Search for recent renewable-energy private-equity transactions in Vietnam, Thailand, and Indonesia and extract named fund managers or principal investors from transaction announcements or regulatory filings.";
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      direction,
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): none.",
+    ].join("\\n");
+
+    expect(extractBossPivotDirectionForCompactPrompt(objective)).toBe(direction);
   });
 
   it("accepts each country query when it uses either Boss-approved announcement or filing sources", () => {
@@ -531,7 +545,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
-    expect(prompt).toContain("ACTIVE BOSS SCOPE:");
+    expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:)/);
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
