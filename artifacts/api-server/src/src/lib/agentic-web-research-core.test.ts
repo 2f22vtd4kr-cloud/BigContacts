@@ -508,6 +508,26 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).toContain("pivot_alignment_guard");
   });
 
+  it("accepts named regulatory filing systems such as SEC Form D for an aligned filing pivot", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Search SEC Form D filings for Texas renewable-energy projects and identify named fund principals.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): none.",
+    ].join("\\n");
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "SEC Form D Texas renewable energy private equity firms list",
+      provider: "serper",
+    }, [])).toBeNull();
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "SEC Form D Texas oil and gas partnership individual owner",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+  });
+
   it("fits a long active multi-country pivot and latest blocked action into the emergency prompt ceiling", () => {
     const direction = "Execute a precise web search that explicitly names the pivot subject, geographies (Vietnam, Thailand, Indonesia), and source class (transaction announcements, regulatory filings) – e.g., search for \"renewable energy private equity transaction Vietnam 2023\" and similar queries for Thailand and Indonesia, targeting official registries or reputable news outlets.";
     const objective = [
