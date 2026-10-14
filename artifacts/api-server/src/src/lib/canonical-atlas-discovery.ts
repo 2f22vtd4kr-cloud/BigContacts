@@ -18,6 +18,7 @@ import {
   MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
 } from "./canonical-investigator-provider-recovery";
+import { nextResearchCaseEventIteration } from "./research-case-event-iteration";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
@@ -523,7 +524,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           .where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
           .orderBy(desc(researchCaseEventsTable.id))
           .limit(1);
-        const nextIteration = Math.max(Number(lockedCase.iteration ?? 0), Number(latestEvent?.iteration ?? 0)) + 1;
+        const nextIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
         await tx.update(researchCasesTable)
           .set({ currentAction: "canonical-investigator-token-capacity-reassignment-unavailable", updatedAt: new Date() })
           .where(and(
@@ -641,7 +642,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             trigger: "upstream_token_window_wait_exceeded",
           }].slice(-15),
         };
-        const nextIteration = Math.max(Number(lockedCase.iteration ?? 0), 0) + 1;
+        const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
+          .from(researchCaseEventsTable)
+          .where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
+          .orderBy(desc(researchCaseEventsTable.id))
+          .limit(1);
+        const nextIteration = nextResearchCaseEventIteration(lockedCase.iteration, latestEvent?.iteration);
         await tx.update(researchCasesTable)
           .set({
             caseFile: JSON.stringify(nextFile),
