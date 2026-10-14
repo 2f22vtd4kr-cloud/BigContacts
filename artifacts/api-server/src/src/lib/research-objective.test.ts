@@ -17,6 +17,11 @@ describe("research objective validation", () => {
   it("rejects provider/tool directives and concrete URLs", () => {
     expect(validateResearchObjective("Use Groq to search Serper for the person.").valid).toBe(false);
     expect(validateResearchObjective("Search using Serper to find the person's email.").valid).toBe(false);
+    expect(validateResearchObjective("Switch to an alternative OSINT provider (e.g., SerpAPI or a self-hosted scraper) and redesign discovery queries for private mid-market sectors and regions.")).toEqual({
+      valid: false,
+      reason: "Research redirect attempted to prescribe an Investigator provider or tool.",
+    });
+    expect(validateResearchObjective("Investigate public reports comparing alternative OSINT providers.").valid).toBe(true);
     expect(validateResearchObjective("Visit https://example.com/profile and verify the role.").valid).toBe(false);
     expect(validateResearchObjective("Open www.example.com and inspect it.").valid).toBe(false);
   });
