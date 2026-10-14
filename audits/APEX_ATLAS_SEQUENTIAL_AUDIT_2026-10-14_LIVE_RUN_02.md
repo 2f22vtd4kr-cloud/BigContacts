@@ -3115,3 +3115,12 @@ Do not invent research evidence or progress. A model/tool/provider failure remai
 ### Validation boundary
 
 The two regression tests added in `bd3ef125` cover the observed source-class alternative and prompt ceiling, but the Replit job itself failed before either fix was active. A later operator-controlled run must establish the deployed SHA, confirm both fixes are present, and verify the durable job/case/event/evidence/card delta before operational success can be claimed. A first card must emerge through normal model-selected discovery and evidence admission; it must not be forced by loosening the gate.
+
+
+### CI follow-up — scope extraction and prompt regression fixtures
+
+- The first isolated full API test run after the post-run cleanup exposed three failing assertions in `agentic-web-research-core.test.ts`. It did not reveal an application build/typecheck failure; the API build, typecheck, prompt architecture audit, static discovery checks, and research-quality contracts passed.
+- One failure revealed a real contract defect in `extractBossPivotDirectionForCompactPrompt`: the canonical `BOSS-DIRECTED RESEARCH QUESTION / PIVOT` representation used a boundary list that omitted the literal “Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.” sentence. Consequently, this policy instruction could leak into the extracted pivot string. The extractor now treats that sentence as a boundary and a regression test asserts the extracted scope equals the Boss-approved direction exactly.
+- Two other failures were overly literal prompt assertions. The Central-European test now independently checks for both country names rather than punctuation between them. The long-pivot test accepts either supported compact-scope label; both preserve the same active-scope, geography, source-class, prompt-ceiling and mandatory-contract checks. These changes do not loosen outbound scope enforcement or evidence admission.
+- New code/test commits on the follow-up branch: `6744d9252a0ac6bcc905b55b9c8e770ce8ed0682` (scope boundary) and `ee6ff5e9b275a9d6c05b1e5d4516f4c59eff8d29` (regression assertions). CI for this revised head must still pass before merge.
+- The underlying live job remains failed with zero admitted entities/cards and zero research/contact evidence. These code/tests explain and address defects; they do not stand in for a post-fix live result.
