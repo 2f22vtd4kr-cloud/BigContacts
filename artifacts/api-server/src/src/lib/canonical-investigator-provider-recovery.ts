@@ -3,9 +3,10 @@
  *
  * Count an Investigator episode as unavailable only when the episode actually
  * ended with LLM_UNAVAILABLE and contains a durable provider-error record.
- * This deliberately includes token-window 429s after the bounded same-capability
- * wait/retry has failed; such capacity errors are not hard request-quota
- * exhaustion and must not trigger credential reassignment.
+ * Token-window capacity remains distinct from hard request-quota exhaustion.
+ * Canonical discovery may request one Boss-directed reassignment only after
+ * repeated consecutive token-window failures have already passed the bounded
+ * same-capability retry.
  */
 export type InvestigatorProviderEpisode = {
   status?: string;
@@ -18,6 +19,7 @@ export type InvestigatorProviderEpisode = {
 };
 
 export const MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE = 2;
+export const MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES = 2;
 
 export function isInvestigatorProviderUnavailableEpisode(
   result: InvestigatorProviderEpisode,
@@ -42,6 +44,33 @@ export function advanceInvestigatorProviderUnavailableStreak(
     ? Math.max(0, Math.floor(previousCount))
     : 0;
   return isInvestigatorProviderUnavailableEpisode(result)
+    ? safePrevious + 1
+    : 0;
+}
+
+export function isInvestigatorTokenCapacityUnavailableEpisode(
+  result: InvestigatorProviderEpisode,
+): boolean {
+  if (!isInvestigatorProviderUnavailableEpisode(result)) return false;
+  return result.error === "upstream_token_window_wait_exceeded"
+    || (result.trajectoryRecords ?? []).some(
+      (record) => record.action === "investigator_provider_error"
+        && /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""),
+    );
+}
+
+/**
+ * Count only consecutive token-window failures. Any other episode resets this
+ * narrower streak; callers separately track the general provider breaker.
+ */
+export function advanceInvestigatorTokenCapacityFailureStreak(
+  previousCount: number,
+  result: InvestigatorProviderEpisode,
+): number {
+  const safePrevious = Number.isFinite(previousCount)
+    ? Math.max(0, Math.floor(previousCount))
+    : 0;
+  return isInvestigatorTokenCapacityUnavailableEpisode(result)
     ? safePrevious + 1
     : 0;
 }

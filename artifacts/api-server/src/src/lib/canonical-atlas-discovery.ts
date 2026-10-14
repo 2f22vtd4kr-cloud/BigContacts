@@ -11,7 +11,13 @@ import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorC
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { isUntargetableDiscoveryPersonName } from "./agentic-web-research-core";
-import { advanceInvestigatorProviderUnavailableStreak, MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE } from "./canonical-investigator-provider-recovery";
+import {
+  advanceInvestigatorProviderUnavailableStreak,
+  advanceInvestigatorTokenCapacityFailureStreak,
+  isInvestigatorTokenCapacityUnavailableEpisode,
+  MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
+  MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
+} from "./canonical-investigator-provider-recovery";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
@@ -437,10 +443,17 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     });
     let selectedInvestigator = boss.investigatorLlm;
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
+    const tokenCapacityUnavailableInvestigators = new Set<InvestigatorCapability>();
+    let tokenCapacityReassignmentUsed = false;
+    const allUnavailableInvestigatorCapabilities = () => [...new Set([
+      ...quotaExhaustedInvestigators,
+      ...tokenCapacityUnavailableInvestigators,
+    ])];
     const reassignInvestigatorAfterHardQuota = async (failedCapability: InvestigatorCapability, failure: string): Promise<InvestigatorCapability> => {
       quotaExhaustedInvestigators.add(failedCapability);
-      const excludedCapabilityAliases = getInvestigatorCredentialAliases(process.env, [...quotaExhaustedInvestigators]);
-      const bossExcludedCapabilities = [...new Set([...quotaExhaustedInvestigators, ...excludedCapabilityAliases])];
+      const unavailableCapabilities = allUnavailableInvestigatorCapabilities();
+      const excludedCapabilityAliases = getInvestigatorCredentialAliases(process.env, unavailableCapabilities);
+      const bossExcludedCapabilities = [...new Set([...unavailableCapabilities, ...excludedCapabilityAliases])];
       const availableAlternates = getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities);
       if (!availableAlternates.length) throw new Error(`Groq Investigator capability ${failedCapability} exhausted its hard request quota and no alternate configured Investigator capability remains.`);
       await assertAtlasJobActive(atlasJobId);
@@ -459,7 +472,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       });
       await assertAtlasJobActive(atlasJobId);
       const replacement = reassignment.investigatorLlm;
-      if (reassignment.status !== "completed" || !replacement || replacement === failedCapability || quotaExhaustedInvestigators.has(replacement) || !availableAlternates.includes(replacement)) {
+      if (reassignment.status !== "completed" || !replacement || replacement === failedCapability || allUnavailableInvestigatorCapabilities().includes(replacement) || !availableAlternates.includes(replacement)) {
         throw new Error(reassignment.error ?? "Groq Boss did not select a valid alternate Investigator capability after hard quota exhaustion.");
       }
       failureStage = "case_persistence";
@@ -481,6 +494,191 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }, { isolationLevel: "serializable" });
       selectedInvestigator = replacement;
       phaseSummary.investigatorReassignment = `${failedCapability} → ${replacement} after explicit upstream_quota_exhausted; remaining alternates=${getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities).join(",") || "none"}`;
+      return replacement;
+    };
+    const persistTokenCapacityReassignmentFailure = async (
+      failedCapability: InvestigatorCapability,
+      failure: string,
+      detail: Record<string, unknown>,
+    ): Promise<void> => {
+      failureStage = "case_persistence";
+      await db.transaction(async (tx) => {
+        const [lockedCase] = await tx.select({
+          status: researchCasesTable.status,
+          currentAction: researchCasesTable.currentAction,
+          iteration: researchCasesTable.iteration,
+        })
+          .from(researchCasesTable)
+          .where(and(
+            eq(researchCasesTable.id, discoveryCaseId),
+            sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+          ))
+          .for("update")
+          .limit(1);
+        if (!lockedCase || lockedCase.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(lockedCase.currentAction ?? ""))) {
+          throw new Error("Canonical Atlas discovery case is no longer active; refusing to record token-capacity reassignment outcome.");
+        }
+        const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
+          .from(researchCaseEventsTable)
+          .where(eq(researchCaseEventsTable.caseId, discoveryCaseId))
+          .orderBy(desc(researchCaseEventsTable.id))
+          .limit(1);
+        const nextIteration = Math.max(Number(lockedCase.iteration ?? 0), Number(latestEvent?.iteration ?? 0)) + 1;
+        await tx.update(researchCasesTable)
+          .set({ currentAction: "canonical-investigator-token-capacity-reassignment-unavailable", updatedAt: new Date() })
+          .where(and(
+            eq(researchCasesTable.id, discoveryCaseId),
+            eq(researchCasesTable.status, "active"),
+            sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+          ));
+        await tx.insert(researchCaseEventsTable).values({
+          caseId: discoveryCaseId,
+          iteration: nextIteration,
+          actorRole: "groq_boss",
+          eventType: "provider_error",
+          status: "error",
+          summary: "Boss-directed Investigator reassignment was unavailable after repeated token-window capacity failures; discovery will be parked for review.",
+          correlationKey: `${atlasJobId}:investigator-token-capacity-reassignment-unavailable:${nextIteration}`,
+          payload: JSON.stringify({
+            jobId: atlasJobId,
+            from: failedCapability,
+            trigger: "upstream_token_window_wait_exceeded",
+            failure,
+            ...detail,
+          }),
+        }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
+      }, { isolationLevel: "serializable" });
+    };
+    const reassignInvestigatorAfterPersistentTokenCapacity = async (
+      failedCapability: InvestigatorCapability,
+      failure: string,
+    ): Promise<InvestigatorCapability | null> => {
+      if (tokenCapacityReassignmentUsed) return null;
+      tokenCapacityReassignmentUsed = true;
+      tokenCapacityUnavailableInvestigators.add(failedCapability);
+      const unavailableCapabilities = allUnavailableInvestigatorCapabilities();
+      const excludedCapabilityAliases = getInvestigatorCredentialAliases(process.env, unavailableCapabilities);
+      const bossExcludedCapabilities = [...new Set([...unavailableCapabilities, ...excludedCapabilityAliases])];
+      const availableAlternates = getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities);
+      if (!availableAlternates.length) {
+        await persistTokenCapacityReassignmentFailure(failedCapability, failure, {
+          reason: "no_distinct_configured_investigator",
+          availableAlternates,
+        });
+        phaseSummary.investigatorReassignment = `${failedCapability} remained unavailable after bounded token-window retries; no distinct configured Investigator remains, so the case is parked for review.`;
+        return null;
+      }
+      await assertAtlasJobActive(atlasJobId);
+      failureStage = "boss_opening_request";
+      const reassignment = await runGroqBossDiscovery({
+        objective: `${discoveryObjective}\n\nPERSISTENT TOKEN-CAPACITY RECOVERY: Investigator capability ${failedCapability} returned repeated upstream_token_window_wait_exceeded failures after bounded same-capability retries in consecutive discovery episodes. This is token-window capacity exhaustion, NOT hard request-quota exhaustion; do not relabel it as upstream_quota_exhausted. If a distinct configured Investigator remains available, choose one to continue this same durable case. Do not prescribe a search query, tool, provider, or research sequence. If no distinct capability is viable, leave the case for review.\n\nFAILURE: ${failure}`,
+        motivation: "Recover one canonical investigation after repeated token-window capacity failures. Let the Boss choose a distinct available Investigator capability; preserve all existing evidence and research gates.",
+        geography: opts.discoveryGeography || "Public web; geography selected by the research objective",
+        exclusions: opts.discoveryExclusions ?? [
+          "Do not browse as Boss.",
+          "Do not prescribe a fixed tool or search sequence.",
+          "Do not invent people, contacts, relationships, or URLs.",
+          "Do not select any excluded or previously unavailable Investigator capability.",
+        ],
+        startingLane: "Boss-directed Investigator reassignment after repeated token-window capacity failures",
+        excludedInvestigatorLlm: bossExcludedCapabilities,
+      });
+      await assertAtlasJobActive(atlasJobId);
+      const replacement = reassignment.investigatorLlm;
+      if (
+        reassignment.status !== "completed"
+        || !replacement
+        || replacement === failedCapability
+        || allUnavailableInvestigatorCapabilities().includes(replacement)
+        || !availableAlternates.includes(replacement)
+      ) {
+        await persistTokenCapacityReassignmentFailure(failedCapability, failure, {
+          reason: "boss_did_not_select_a_distinct_available_investigator",
+          availableAlternates,
+          bossModel: reassignment.model,
+          bossStatus: reassignment.status,
+          bossSelectedCapability: replacement ?? null,
+          bossError: reassignment.error ?? null,
+        });
+        phaseSummary.investigatorReassignment = `${failedCapability} remained unavailable after bounded token-window retries; Boss did not select a distinct viable Investigator, so the case is parked for review.`;
+        return null;
+      }
+      failureStage = "case_persistence";
+      await db.transaction(async (tx) => {
+        const [lockedCase] = await tx.select({
+          status: researchCasesTable.status,
+          currentAction: researchCasesTable.currentAction,
+          caseFile: researchCasesTable.caseFile,
+          iteration: researchCasesTable.iteration,
+        })
+          .from(researchCasesTable)
+          .where(and(
+            eq(researchCasesTable.id, discoveryCaseId),
+            sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+          ))
+          .for("update")
+          .limit(1);
+        if (!lockedCase || lockedCase.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(lockedCase.currentAction ?? ""))) {
+          throw new Error("Canonical Atlas discovery case is no longer active; refusing token-capacity Investigator reassignment.");
+        }
+        let caseFile: Record<string, unknown> = {};
+        try {
+          caseFile = lockedCase.caseFile ? JSON.parse(lockedCase.caseFile) as Record<string, unknown> : {};
+        } catch {
+          throw new Error("Canonical Atlas discovery case has unreadable durable state during token-capacity reassignment.");
+        }
+        const previousAssignment = typeof caseFile.investigatorLlm === "string" ? caseFile.investigatorLlm : failedCapability;
+        if (previousAssignment !== failedCapability) {
+          throw new Error("Canonical Atlas discovery Investigator changed during token-capacity reassignment; refusing stale assignment.");
+        }
+        const history = Array.isArray(caseFile.investigatorCapabilityHistory) ? caseFile.investigatorCapabilityHistory : [];
+        const nextFile = {
+          ...caseFile,
+          investigatorLlm: replacement,
+          investigatorCapabilityHistory: [...history, {
+            from: previousAssignment,
+            to: replacement,
+            trigger: "upstream_token_window_wait_exceeded",
+          }].slice(-15),
+        };
+        const nextIteration = Math.max(Number(lockedCase.iteration ?? 0), 0) + 1;
+        await tx.update(researchCasesTable)
+          .set({
+            caseFile: JSON.stringify(nextFile),
+            iteration: nextIteration,
+            currentAction: "canonical-investigator-reassigned-after-token-capacity",
+            updatedAt: new Date(),
+          })
+          .where(and(
+            eq(researchCasesTable.id, discoveryCaseId),
+            eq(researchCasesTable.status, "active"),
+            sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+          ));
+        await tx.insert(researchCaseEventsTable).values({
+          caseId: discoveryCaseId,
+          iteration: nextIteration,
+          actorRole: "groq_boss",
+          eventType: "assignment",
+          status: "recorded",
+          summary: "Groq Boss reassigned the canonical Investigator after repeated token-window capacity failures; the unavailable capability remains excluded for this job.",
+          correlationKey: `${atlasJobId}:investigator-token-capacity-reassignment:${failedCapability}:${replacement}:${nextIteration}`,
+          payload: JSON.stringify({
+            jobId: atlasJobId,
+            from: failedCapability,
+            to: replacement,
+            trigger: "upstream_token_window_wait_exceeded",
+            hardRequestQuotaExhausted: false,
+            consecutiveCapacityFailures: consecutiveTokenCapacityFailures,
+            excludedInvestigators: bossExcludedCapabilities,
+            bossModel: reassignment.model,
+            bossStatus: reassignment.status,
+            bossReport: reassignment.report,
+            error: reassignment.error,
+          }),
+        });
+      }, { isolationLevel: "serializable" });
+      selectedInvestigator = replacement;
+      phaseSummary.investigatorReassignment = `${failedCapability} → ${replacement} after repeated upstream_token_window_wait_exceeded; the original capability is excluded for this job.`;
       return replacement;
     };
     const mergeDiscoveryResults = (failed: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, recovered: Awaited<ReturnType<typeof runBureauAgenticWebPass>>): Awaited<ReturnType<typeof runBureauAgenticWebPass>> => ({ ...recovered, searches: failed.searches + recovered.searches, visits: failed.visits + recovered.visits, iterations: failed.iterations + recovered.iterations, findings: [...(failed.findings ?? []), ...(recovered.findings ?? [])], modelFindings: [...(failed.modelFindings ?? []), ...(recovered.modelFindings ?? [])], trajectory: [...(failed.trajectory ?? []), ...(recovered.trajectory ?? [])], trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])], consecutiveActionParseFailures: recovered.consecutiveActionParseFailures ?? failed.consecutiveActionParseFailures ?? 0 });
@@ -695,10 +893,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget });
     discovery = await runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations);
     let consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(0, discovery);
+    let consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(0, discovery);
+    let tokenCapacityFailureInvestigator = selectedInvestigator;
     await assertAtlasJobActive(atlasJobId);
     failureStage = "candidate_admission_persistence";
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: discovery.findings, atlasJobId, discoveryCaseId });
-    let admitted = admission.names; let admittedCandidateSources = admission.candidates; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = quotaExhaustedInvestigators.size > 0 ? 1 + quotaExhaustedInvestigators.size : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let discoveryIterationsUsed = discovery.iterations; let discoveryResourceLimited = discoveryIterationsUsed >= discoveryIterationCeiling && discovery.stopReason !== "MODEL_DECIDED_DONE"; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDecision: { controlTurn: number; reason: string; kind: "candidate_selection" | "pivot_direction" | "discovery_budget" } | null = null;
+    let admitted = admission.names; let admittedCandidateSources = admission.candidates; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = allUnavailableInvestigatorCapabilities().length > 0 ? 1 + allUnavailableInvestigatorCapabilities().length : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let discoveryIterationsUsed = discovery.iterations; let discoveryResourceLimited = discoveryIterationsUsed >= discoveryIterationCeiling && discovery.stopReason !== "MODEL_DECIDED_DONE"; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDecision: { controlTurn: number; reason: string; kind: "candidate_selection" | "pivot_direction" | "discovery_budget" } | null = null;
     const researchedNames = new Set<string>();
     phaseSummary.assignment = `${selectedInvestigator} currently selected by Groq; opening capability=${boss.investigatorLlm}; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     if (discoveryOnly) {
@@ -907,7 +1107,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const targetBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (targetBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for target investigation.");
         const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed); if (remainingTargetIterations <= 0) { investigatorResourceLimited = true; phaseSummary.controlSafetyCeiling = `Canonical Atlas Investigator iteration ceiling reached at ${investigatorIterationsUsed}/${depth.agenticMaxIterations}; refusing another target episode.`; break; }
         failureStage = "investigator_episode";
-        const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: [...quotaExhaustedInvestigators] });
+        const targetResult = await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget, manageJobLifecycle: false, maxInvestigatorIterations: remainingTargetIterations, excludedInvestigatorLlm: allUnavailableInvestigatorCapabilities() });
         for (const exhausted of targetResult.exhaustedInvestigatorLlm) quotaExhaustedInvestigators.add(exhausted);
         if (quotaExhaustedInvestigators.has(selectedInvestigator)) {
           await reassignInvestigatorAfterHardQuota(selectedInvestigator, "A target-scoped Investigator capability exhausted its upstream request quota during this Atlas job; the discovery capability is therefore also excluded for the remainder of this job.");
@@ -1165,43 +1365,76 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // but replacing the durable summary with the latest episode can erase
         // previously observed searches/visits from the job result.
         discovery = mergeDiscoveryResults(discovery, nextDiscovery);
+        if (selectedInvestigator !== tokenCapacityFailureInvestigator) {
+          consecutiveInvestigatorTokenCapacityFailures = 0;
+          tokenCapacityFailureInvestigator = selectedInvestigator;
+        }
         consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(consecutiveInvestigatorProviderUnavailable, nextDiscovery);
+        consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(consecutiveInvestigatorTokenCapacityFailures, nextDiscovery);
         if (consecutiveInvestigatorProviderUnavailable >= maxConsecutiveInvestigatorProviderUnavailable) {
-          const lastProviderError = [...(nextDiscovery.trajectoryRecords ?? [])].reverse().find((record) => record.action === "investigator_provider_error")?.observation ?? nextDiscovery.error ?? "Investigator provider remained unavailable.";
-          const recoveryMessage = `Canonical Atlas Investigator provider remained unavailable for ${consecutiveInvestigatorProviderUnavailable} consecutive discovery episodes (including token-window capacity failures after bounded same-capability retry); refusing further AI control churn and parking for review.`;
-          phaseSummary.investigatorProviderRecovery = recoveryMessage;
-          failureStage = "case_persistence";
-          await db.update(researchCasesTable).set({
-            status: "review",
-            currentAction: "canonical-investigator-provider-unavailable",
-            lastDecisionAt: new Date(),
-            updatedAt: new Date(),
-          }).where(and(
-            eq(researchCasesTable.id, discoveryCaseId),
-            eq(researchCasesTable.status, "active"),
-            sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
-            sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
-          ));
-          failureStage = "job_state_or_lease";
-          await updateJob(atlasJobId, {
-            status: "failed",
-            progress: 3,
-            total: 4,
-            atlasPhase: 3,
-            atlasPhaseTotal: 4,
-            outcome: "incomplete",
-            message: recoveryMessage,
-            result: JSON.stringify({
-              rightHand,
-              boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm },
-              discovery: { status: nextDiscovery.status, searches: nextDiscovery.searches, visits: nextDiscovery.visits, caseId: discoveryCaseId, runs: discoveryRuns + 1 },
-              providerRecovery: { consecutiveUnavailable: consecutiveInvestigatorProviderUnavailable, limit: maxConsecutiveInvestigatorProviderUnavailable, lastProviderError },
-              control: { turns: controlTurns },
-            }),
-            finishedAt: new Date().toISOString(),
-          });
-          await clearActiveJobIfOwned(lockKey, atlasJobId);
-          return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
+          let capacityReassignmentSucceeded = false;
+          if (
+            consecutiveInvestigatorTokenCapacityFailures >= MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES
+            && isInvestigatorTokenCapacityUnavailableEpisode(nextDiscovery)
+            && !tokenCapacityReassignmentUsed
+          ) {
+            const failedCapability = selectedInvestigator;
+            const replacement = await reassignInvestigatorAfterPersistentTokenCapacity(
+              failedCapability,
+              "upstream_token_window_wait_exceeded after bounded same-capability retries in consecutive discovery episodes",
+            );
+            if (replacement) {
+              consecutiveInvestigatorProviderUnavailable = 0;
+              consecutiveInvestigatorTokenCapacityFailures = 0;
+              tokenCapacityFailureInvestigator = replacement;
+              capacityReassignmentSucceeded = true;
+            }
+          }
+          if (!capacityReassignmentSucceeded) {
+            const lastProviderError = [...(nextDiscovery.trajectoryRecords ?? [])].reverse().find((record) => record.action === "investigator_provider_error")?.observation ?? nextDiscovery.error ?? "Investigator provider remained unavailable.";
+            const recoveryMessage = `Canonical Atlas Investigator provider remained unavailable for ${consecutiveInvestigatorProviderUnavailable} consecutive discovery episodes; no further capacity reassignment is available, so the case is parked for review.`;
+            phaseSummary.investigatorProviderRecovery = recoveryMessage;
+            failureStage = "case_persistence";
+            await db.update(researchCasesTable).set({
+              status: "review",
+              currentAction: "canonical-investigator-provider-unavailable",
+              lastDecisionAt: new Date(),
+              updatedAt: new Date(),
+            }).where(and(
+              eq(researchCasesTable.id, discoveryCaseId),
+              eq(researchCasesTable.status, "active"),
+              sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+              sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+            ));
+            failureStage = "job_state_or_lease";
+            await updateJob(atlasJobId, {
+              status: "failed",
+              progress: 3,
+              total: 4,
+              atlasPhase: 3,
+              atlasPhaseTotal: 4,
+              outcome: "incomplete",
+              message: recoveryMessage,
+              result: JSON.stringify({
+                rightHand,
+                boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm },
+                discovery: { status: nextDiscovery.status, searches: nextDiscovery.searches, visits: nextDiscovery.visits, caseId: discoveryCaseId, runs: discoveryRuns + 1 },
+                providerRecovery: {
+                  consecutiveUnavailable: consecutiveInvestigatorProviderUnavailable,
+                  consecutiveTokenCapacityFailures: consecutiveInvestigatorTokenCapacityFailures,
+                  capacityReassignmentUsed: tokenCapacityReassignmentUsed,
+                  unavailableInvestigators: allUnavailableInvestigatorCapabilities(),
+                  limit: maxConsecutiveInvestigatorProviderUnavailable,
+                  tokenCapacityLimit: MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
+                  lastProviderError,
+                },
+                control: { turns: controlTurns },
+              }),
+              finishedAt: new Date().toISOString(),
+            });
+            await clearActiveJobIfOwned(lockKey, atlasJobId);
+            return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
+          }
         }
         discoveryRuns += 1;
         const nextDiscoveryIterations = Math.max(0, nextDiscovery.iterations ?? 0);
