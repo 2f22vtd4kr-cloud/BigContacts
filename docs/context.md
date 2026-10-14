@@ -68,6 +68,8 @@ Only configured capabilities are advertised. Selecting one capability never auth
 
 Current Groq model routes are Qwen 3.8 27B, GPT-OSS 20B, and GPT-OSS 120B. Cognitive-task routing is downstream of capability selection.
 
+Provider recovery remains typed and bounded. A hard-quota reassignment requires the explicit `upstream_quota_exhausted` classification. Repeated `upstream_token_window_wait_exceeded` episodes after the bounded same-capability retries are tracked by a separate consecutive counter; after two consecutive token-window failures for the same selected capability, the runtime may request one durable Groq Boss-directed reassignment to a distinct configured Investigator capability. This is not hard-quota exhaustion and never authorizes manual or silent credential rotation. An episode that completed a successful research action before a later provider error resets the generic provider-unavailable streak, but it must not suppress the independent token-window threshold. If no viable replacement exists or the one permitted capacity reassignment has already been used, the case is parked for review. Invalid structured output, ordinary tool failures, and non-token provider errors do not count as token-window capacity failures.
+
 ## 4. Evidence law
 
 Search results and snippets are **leads, not claim-grade evidence**.
