@@ -2137,7 +2137,7 @@ function pivotScopeRequiredSourceAnchors(direction: string): string[] {
 
 const PIVOT_SOURCE_CLASS_SYNONYMS: Record<string, readonly string[]> = {
   registry: ["registry", "register", "database", "filing"],
-  filing: ["filing", "registry", "register", "database"],
+  filing: ["filing", "registry", "register", "database", "corporate", "corporation", "corporations"],
   database: ["database", "registry", "register", "filing"],
   directory: ["directory", "catalog", "listing", "list"],
   association: ["association", "chamber"],

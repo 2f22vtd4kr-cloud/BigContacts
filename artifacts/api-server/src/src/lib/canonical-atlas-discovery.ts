@@ -1425,7 +1425,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           }
           if (!capacityReassignmentSucceeded) {
             const lastProviderError = [...(nextDiscovery.trajectoryRecords ?? [])].reverse().find((record) => record.action === "investigator_provider_error")?.observation ?? nextDiscovery.error ?? "Investigator provider remained unavailable.";
-            const recoveryMessage = `Canonical Atlas Investigator provider remained unavailable for ${consecutiveInvestigatorProviderUnavailable} consecutive discovery episodes; no further capacity reassignment is available, so the case is parked for review.`;
+            const reassignmentDisposition = tokenCapacityReassignmentUsed
+              ? "The Boss-directed token-capacity reassignment path was attempted but did not yield a viable replacement."
+              : `No capacity reassignment was attempted: only ${consecutiveInvestigatorTokenCapacityFailures}/${MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES} consecutive token-window failures were recorded.`;
+            const recoveryMessage = `Canonical Atlas Investigator provider-unavailable breaker reached ${consecutiveInvestigatorProviderUnavailable} consecutive episode(s). ${reassignmentDisposition} The case is parked for review.`;
             phaseSummary.investigatorProviderRecovery = recoveryMessage;
             failureStage = "case_persistence";
             await db.update(researchCasesTable).set({

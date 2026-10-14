@@ -1257,3 +1257,24 @@ Append each material observation promptly and chronologically. Use UTC timestamp
   }
 }
 ```
+
+
+## Post-run forensic review and repair — Run 08
+
+### Confirmed cause of zero cards
+
+Run 08's canonical Atlas job `9884c4a6-203b-43fa-a6cc-45a87e2f9a7c` ended `failed` at phase 3/4 with `inserted=0`, `skipped=0`, `dedupCount=0`. The durable case had one discovery case and 32 case events, but zero entities, assets, contact-evidence rows, research-evidence rows, research sessions, and research-run-event rows. This is not an observed card persistence failure after admission: no candidate was admitted, and no card-eligible evidence was written.
+
+The recorded Investigator trace is the proximate reason: the early searches were not aligned with the opening Germany/registry direction; later Boss pivots and several scope blocks consumed turns; the final pivot had one successful in-scope Washington State corporate-filings search with six URLs but zero findings and no fetched-page visits before the provider error. Without successful claim-grade page observations, the Investigator cannot legitimately emit an admitted candidate or truthful card. The evidence/terminal admission thresholds are not lowered.
+
+### Two runtime defects that prolonged the no-card failure
+
+1. The scope guard treated `Washington State corporation search aerospace component King County` as out of scope even though the accepted question asked for Washington State corporate filings. The source-class synonym table supported `filing`, `registry`, `register`, and `database`, but not `corporate`/`corporation`. The fix adds those explicit source-class equivalents while retaining the required subject, geography, exclusions, and provenance checks; a regression test verifies this query is accepted and an unrelated county-property query remains blocked.
+
+2. The provider-unavailable circuit breaker counted an episode as unavailable solely because its terminal status was `unavailable/LLM_UNAVAILABLE` and it contained a provider-error record, even if the same episode had already executed a successful research action. Run 08's last productive episode included an in-scope successful search before the `upstream_token_window_wait_exceeded` provider error. The old breaker could treat productive work plus a transient error like a wholly unavailable episode, then park after two such episodes. The fix resets the generic unavailable streak for an episode containing a successful external research action; the token-window failure streak remains separate and consecutive, so existing bounded Boss-authorized capacity recovery rules are unchanged.
+
+The final job message also claimed `no further capacity reassignment is available` even when `capacityReassignmentUsed=false` and the token-window streak was only `1/2`. The message now distinguishes an attempted-but-unsuccessful reassignment from a reassignment that the typed provider state did not yet authorize.
+
+### Validation and limitation
+
+Added regression coverage for corporation-search scope alignment and for productive episodes that end with a provider error. CI validation is pending for this repair commit. This is a runtime liveness improvement, not a guarantee a model will discover a card: Run 08 had no completed page fetch, no `done(findings)`, and no admitted person, so manufacturing a card or weakening identity/provenance rules would be incorrect.

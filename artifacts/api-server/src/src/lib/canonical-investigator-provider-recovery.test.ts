@@ -35,6 +35,24 @@ describe("canonical Investigator provider-unavailable breaker", () => {
     ).toBe(MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE);
   });
 
+  it("does not treat an episode with successful research plus a provider error as a fully unavailable episode", () => {
+    const mixedEpisode = {
+      status: "unavailable",
+      stopReason: "LLM_UNAVAILABLE",
+      trajectoryRecords: [
+        { action: "web_search", execution: "success", observation: "A bounded search completed and returned six URLs." },
+        { action: "investigator_provider_error", execution: "error", observation: "INVESTIGATOR_PROVIDER_ERROR upstream_token_window_wait_exceeded" },
+      ],
+    } as const;
+
+    expect(isInvestigatorProviderUnavailableEpisode(mixedEpisode)).toBe(true);
+    expect(advanceInvestigatorProviderUnavailableStreak(1, mixedEpisode)).toBe(0);
+    // Token-window failures keep their separate consecutive counter for the
+    // existing capacity-specific Boss decision; only a successful search resets
+    // the generic provider-unavailable breaker.
+    expect(advanceInvestigatorTokenCapacityFailureStreak(1, mixedEpisode)).toBe(2);
+  });
+
   it("counts other actual Investigator provider failures without treating them as quota exhaustion", () => {
     const failure = unavailable("INVESTIGATOR_PROVIDER_ERROR upstream_rate_limited");
     expect(isInvestigatorProviderUnavailableEpisode(failure)).toBe(true);

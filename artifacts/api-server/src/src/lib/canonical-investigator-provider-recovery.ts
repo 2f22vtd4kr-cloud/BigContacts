@@ -36,6 +36,19 @@ export function isInvestigatorProviderUnavailableEpisode(
  * resets the streak; two consecutive unavailable episodes park the case for
  * review rather than continuing control-plane churn.
  */
+const SUCCESSFUL_INVESTIGATOR_RESEARCH_ACTIONS = new Set([
+  "web_search", "parallel_web_search", "registry_search", "parallel_registry_search",
+  "visit", "browser_fetch", "domain_lookup", "harvest_domain", "footprint_email",
+  "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot",
+]);
+
+function episodeProducedSuccessfulResearch(result: InvestigatorProviderEpisode): boolean {
+  return (result.trajectoryRecords ?? []).some((record) =>
+    record.execution === "success"
+    && SUCCESSFUL_INVESTIGATOR_RESEARCH_ACTIONS.has(record.action ?? ""),
+  );
+}
+
 export function advanceInvestigatorProviderUnavailableStreak(
   previousCount: number,
   result: InvestigatorProviderEpisode,
@@ -43,6 +56,12 @@ export function advanceInvestigatorProviderUnavailableStreak(
   const safePrevious = Number.isFinite(previousCount)
     ? Math.max(0, Math.floor(previousCount))
     : 0;
+  // An episode ending in a provider error can still have produced useful,
+  // durably recorded research. Give Boss another control decision in that case;
+  // global Investigator/deadline bounds still cap work. Keep the narrower token
+  // capacity streak separate so repeated token-window failures remain eligible
+  // for the existing Boss-authorized recovery path.
+  if (episodeProducedSuccessfulResearch(result)) return 0;
   return isInvestigatorProviderUnavailableEpisode(result)
     ? safePrevious + 1
     : 0;
