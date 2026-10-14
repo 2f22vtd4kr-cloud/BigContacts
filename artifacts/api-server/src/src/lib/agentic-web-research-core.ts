@@ -2066,7 +2066,9 @@ const PIVOT_GEOGRAPHIC_NAME = `${PIVOT_GEOGRAPHIC_WORD}(?:[- ]${PIVOT_GEOGRAPHIC
 function pivotGeographicAlternatives(phrase: string): string[][] {
   return phrase.split(/\s*(?:,|\/|\bor\b|\band\b)\s*/iu)
     .map((part) => (part.match(/[\p{L}\p{M}][\p{L}\p{M}'’.-]*/gu) ?? [])
-      .map(pivotScopeToken))
+      // Regex tokenization can retain the sentence-final period in "King County.";
+      // strip terminal punctuation before comparison with normalized query tokens.
+      .map((value) => pivotScopeToken(value.replace(/[.,;:!?]+$/u, ""))))
     .filter((parts) => parts.length > 0);
 }
 
