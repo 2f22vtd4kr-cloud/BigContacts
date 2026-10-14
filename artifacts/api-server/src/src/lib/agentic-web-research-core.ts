@@ -1851,45 +1851,43 @@ export function extractBossOpeningDirectionForCompactPrompt(rawObjective: string
 /**
  * Compact an active pivot without dropping its most important constraints.
  * Generic head/tail clipping can omit a middle country from an OR-list or cut
- * a source class out of scope. In the last-resort prompt, keep subject, all
- * explicit geography alternatives, and acceptable public-source classes.
+ * a source class out of scope. Keep subject, geography alternatives, and
+ * acceptable public-source classes in the last-resort prompt.
  */
 function compactActiveBossScope(direction: string, maxChars: number): string {
-  const raw = direction.replace(/\\s+/g, " ").trim();
+  const raw = direction.replace(/\s+/g, " ").trim();
   if (raw.length <= maxChars) return raw;
 
-  const geographyGroup = raw.match(/\\b(?:geographies|countries|jurisdictions|regions|states|provinces)\\s*\\((?:e\\.g\\.?,?\\s*)?([^)]{1,180})\\)/i);
+  const geographyGroup = raw.match(/\b(?:geographies|countries|jurisdictions|regions|states|provinces)\s*\((?:e\.g\.?,?\s*)?([^)]{1,180})\)/i);
   const geography = geographyGroup?.[1]?.trim()
     || pivotScopeGeographyOptions(raw).map((option) => option.join(" ")).join(", ");
-  const sourceGroup = raw.match(/\\bsource classes?\\s*\\(([^)]{1,180})\\)/i);
-  const sourcePattern = /(?:[\\p{L}\\p{N}-]+\\s+){0,3}(?:filings?|registr(?:y|ies)|registers?|databases?|directories|associations?|chambers?|lists?|announcements?|releases?)(?:\\s+(?:or|and|\\/|,)\\s+(?:[\\p{L}\\p{N}-]+\\s+){0,3}(?:filings?|registr(?:y|ies)|registers?|databases?|directories|associations?|chambers?|lists?|announcements?|releases?))*/iu;
+  const sourceGroup = raw.match(/\bsource classes?\s*\(([^)]{1,180})\)/i);
+  const sourcePattern = /(?:[\p{L}\p{N}-]+\s+){0,3}(?:filings?|registr(?:y|ies)|registers?|databases?|directories|associations?|chambers?|lists?|announcements?|releases?)(?:\s+(?:or|and|\/|,)\s+(?:[\p{L}\p{N}-]+\s+){0,3}(?:filings?|registr(?:y|ies)|registers?|databases?|directories|associations?|chambers?|lists?|announcements?|releases?))*/iu;
   const source = sourceGroup?.[1]?.trim() || raw.match(sourcePattern)?.[0]?.trim() || "";
 
-  // When a verbose pivot includes an illustrative query, reuse its subject
-  // anchor, but represent geographies and source classes separately. Drop the
-  // worked-example itinerary, not the actual scope constraints.
-  const queryExample = raw.match(/(?:e\\.g\\.?|for example)[^"“']{0,100}["“']([^"”']{1,160})["”']/i)?.[1]?.trim();
-  const geographyIndex = geographyGroup?.index ?? raw.indexOf(source) >= 0 && source ? raw.indexOf(source) : raw.length;
+  // If the pivot includes a worked query example, retain its subject anchor
+  // separately from the full allowed geography and source-class alternatives.
+  const queryExample = raw.match(/(?:e\.g\.?|for example)[^"“']{0,100}["“']([^"”']{1,160})["”']/i)?.[1]?.trim();
+  const sourceIndex = source ? raw.indexOf(source) : -1;
+  const geographyIndex = geographyGroup?.index ?? (sourceIndex >= 0 ? sourceIndex : raw.length);
   const lead = queryExample || raw.slice(0, geographyIndex)
-    .replace(/^(?:execute a precise web search that|search for recent|search for|search|shift focus to|look for|find)\\s*/i, "")
-    .replace(/\\s+in\\s+(?:(?:neighboring|nearby)\\s+)?(?:[\\p{L}-]+\\s+){1,2}$/iu, "")
-    .replace(/\\s+/g, " ")
+    .replace(/^(?:execute a precise web search that|search for recent|search for|search|shift focus to|look for|find)\s*/i, "")
+    .replace(/\s+in\s+(?:(?:neighboring|nearby)\s+)?(?:[\p{L}-]+\s+){1,2}$/iu, "")
+    .replace(/\s+/g, " ")
     .replace(/[,:;–—-]+$/g, "")
     .trim();
-  const fixedParts = [
+  const suffix = [
     geography ? "geographies: " + geography : "",
     source ? "source classes: " + source : "",
-  ].filter(Boolean);
-  const suffix = fixedParts.length ? "; " + fixedParts.join("; ") : "";
-  const prefix = lead ? "ACTIVE SCOPE: " : "ACTIVE SCOPE:";
-  const candidate = prefix + lead + suffix;
+  ].filter(Boolean).join("; ");
+  const candidate = [lead, suffix].filter(Boolean).join("; ");
   if (candidate.length <= maxChars) return candidate;
 
-  // If a long subject still exceeds the ceiling, reserve space for all
-  // parsed geography/source alternatives first. Do not silently truncate those
-  // required constraints to make the prompt fit.
-  const availableLeadChars = maxChars - prefix.length - suffix.length;
-  if (availableLeadChars >= 24) return prefix + lead.slice(0, availableLeadChars).trimEnd() + suffix;
+  // Reserve space for all parsed geography/source alternatives before
+  // shortening the subject description. Never clip alternatives independently.
+  const suffixWithSeparator = suffix ? "; " + suffix : "";
+  const availableLeadChars = maxChars - suffixWithSeparator.length;
+  if (availableLeadChars >= 24) return lead.slice(0, availableLeadChars).trimEnd() + suffixWithSeparator;
   return candidate;
 }
 
