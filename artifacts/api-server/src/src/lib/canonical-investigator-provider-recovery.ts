@@ -14,6 +14,7 @@ export type InvestigatorProviderEpisode = {
   error?: string;
   trajectoryRecords?: ReadonlyArray<{
     action?: string;
+    execution?: string;
     observation?: string | null;
   }>;
 };

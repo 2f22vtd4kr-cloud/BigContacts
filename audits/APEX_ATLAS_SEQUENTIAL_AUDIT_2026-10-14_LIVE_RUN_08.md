@@ -1278,3 +1278,8 @@ The final job message also claimed `no further capacity reassignment is availabl
 ### Validation and limitation
 
 Added regression coverage for corporation-search scope alignment and for productive episodes that end with a provider error. CI validation is pending for this repair commit. This is a runtime liveness improvement, not a guarantee a model will discover a card: Run 08 had no completed page fetch, no `done(findings)`, and no admitted person, so manufacturing a card or weakening identity/provenance rules would be incorrect.
+
+
+### Event 014 — CI-driven type correction
+
+The first test/build workflows were launched for `e52e00ebba37742479df3722ee0616229bead9a2`. During final source review, the provider episode input type was found not to declare the `execution` field now inspected by the productive-episode breaker. The follow-up adds that optional typed field to the narrow trajectory-record contract. No runtime decision semantics change beyond the already documented repair. Verification follows on the resulting main head.
