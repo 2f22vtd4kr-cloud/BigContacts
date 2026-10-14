@@ -1,6 +1,6 @@
 # Apex Atlas Sequential Audit — 2026-10-14 Live Run 01
 
-**Status:** In progress — setup and pre-launch baseline verified; UI-equivalent default launch is next.  
+**Status:** Incomplete — operator reports the Replit Agent ran out of credits before a terminal application-job and end-of-run ledger check were captured. Last recorded model request: 2026-10-14T03:16:01.218Z.  
 **Started:** 2026-10-14, Europe/Kyiv  
 **Repository:** `https://github.com/2f22vtd4kr-cloud/BigContacts`  
 **Branch / commit:** `main` / `955b0cc97c04313cb247ce33e67ea3b4ee4393a3`  
@@ -9025,3 +9025,13 @@ No launch request has been sent in this audit yet. The current baseline is idle 
   }
 }
 ```
+
+
+### P-011 — Operator-reported Replit credit interruption
+
+**Reported:** 2026-10-14T03:18:55Z. **Evidence cutoff:** the latest committed model-request capture in this file is 2026-10-14T03:16:01.218Z.
+
+- The operator reports that the Replit Agent stopped after running out of credits. This is an operator report, not an observed API/provider response, and this audit has no provider-quota response or terminal application-job record proving the cause of the interrupted agent session.
+- The latest captured model request is Boss request `80331501-c546-42ac-9279-604b8193bb2c`. The latest discovery Investigator request block before it is associated with run/job `30eb50de-ceda-45a5-add7-a57e2f4a2ac8`, case `2`. The last captured control context contains repeated `pivot_alignment_guard` blocks and a Right-hand recommendation for a different county-clerk/property-record and chamber-directory direction. The subsequent Boss response and the actual outcome of any next action are not present in the audit.
+- The captured discovery context lists no admitted candidates and no findings. The audit does not contain a post-interruption API job-status read, a final database-ledger delta, or an end-of-run event high-water check. Accordingly, this audit does not assert whether the second application job completed, failed, or was cancelled, and it does not promote the incomplete capture into a successful research run.
+- No further launch, retry, recovery request, or provider probe was made as part of this addendum. Preserve the prior job/case history as-is. Any continuation should begin with read-only inspection of the existing job, case, and append-only event state, rather than submitting another run.
