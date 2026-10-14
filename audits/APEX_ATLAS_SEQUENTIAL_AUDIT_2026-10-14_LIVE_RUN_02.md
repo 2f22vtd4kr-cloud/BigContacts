@@ -1,10 +1,10 @@
 # Apex Atlas Sequential Audit — 2026-10-14 — Live Run 02
 
-**Status:** RECOVERY IN PROGRESS — first live job `8fb5d706-c73f-4010-a1fc-fa8b237136ed` failed before candidate admission; terminal and ledger checks captured, code diagnosis pending.  
+**Status:** First live job `8fb5d706-c73f-4010-a1fc-fa8b237136ed` failed before candidate admission. Root causes were subsequently confirmed and the functional fixes committed as `bd3ef125`; this audit does not record a successful post-fix run or card creation.  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Branch / commit:** `main` / `8746c01` (`Stop repeated pivot-scope retry loops`)  
 **Audit file:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_02.md`  
-**Visibility:** Ordinary `audits/` path; not gitignored. No commit or push has been made.
+**Visibility:** Ordinary tracked `audits/` path. The run was executed on the earlier `8746c01` revision; post-run diagnosis and the functional fixes were later committed to `main` as `bd3ef125`.
 
 ## Purpose and audit boundaries
 
@@ -3093,3 +3093,41 @@ Do not invent research evidence or progress. A model/tool/provider failure remai
   }
 }
 ```
+
+
+## Post-run engineering addendum — 2026-10-14
+
+### Confirmed outcome
+
+- Canonical job `8fb5d706-c73f-4010-a1fc-fa8b237136ed` failed at approximately 2026-10-14T03:56:29Z after the accepted multi-country renewable-energy/private-equity pivot. Durable reconciliation captured zero entities, zero research evidence, zero contact evidence, and no candidate/card admission. The discovery case was preserved in `review` state.
+- This is a failed operational run, not a successful end-to-end pipeline. The current audit does not establish a post-fix full-pipeline run or first card creation.
+
+### Confirmed root causes and code changes
+
+1. **False-positive pivot-scope rejection.** The accepted pivot allowed transaction announcements **or** regulatory filings, but the source-class vocabulary did not include `announcement`. A set of otherwise aligned country queries using this allowed source class was rejected before external execution. Commit `bd3ef12512c929ad5ffb1344b9f22a06e6b94919` added the announcement/release source-class alias and a regression test that accepts approved alternatives but rejects a query omitting the source class.
+2. **Emergency prompt composition overflow.** The final prompt builder reported `minimumChars=5664` against the fixed `ceilingChars=5600`; the provider was never called for that turn. The functional change bounded only the smallest emergency scope excerpt more tightly and added a long multi-country regression test. The configured ceiling was not raised and mandatory action/evidence contracts remain required.
+
+### Follow-up code review
+
+- The same commit added a temporary `console.error` branch hard-coded to this one renewable-energy/Vietnam objective and logging all aligned-query match diagnostics. This was diagnostic instrumentation, not part of the durable guard contract, and has been removed in the follow-up change. The generic alignment logic and regression tests remain.
+- No target, query, source route, finding, or card was injected. No new live research job was launched as part of this code review.
+
+### Validation boundary
+
+The two regression tests added in `bd3ef125` cover the observed source-class alternative and prompt ceiling, but the Replit job itself failed before either fix was active. A later operator-controlled run must establish the deployed SHA, confirm both fixes are present, and verify the durable job/case/event/evidence/card delta before operational success can be claimed. A first card must emerge through normal model-selected discovery and evidence admission; it must not be forced by loosening the gate.
+
+
+### CI follow-up — scope extraction and prompt regression fixtures
+
+- The first isolated full API test run after the post-run cleanup exposed three failing assertions in `agentic-web-research-core.test.ts`. It did not reveal an application build/typecheck failure; the API build, typecheck, prompt architecture audit, static discovery checks, and research-quality contracts passed.
+- One failure revealed a real contract defect in `extractBossPivotDirectionForCompactPrompt`: the canonical `BOSS-DIRECTED RESEARCH QUESTION / PIVOT` representation used a boundary list that omitted the literal “Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.” sentence. Consequently, this policy instruction could leak into the extracted pivot string. The extractor now treats that sentence as a boundary and a regression test asserts the extracted scope equals the Boss-approved direction exactly.
+- The other two failures were **not merely wording issues**: they exposed lossy head/tail compaction that omitted required place names from the active scope (for example, Slovakia or the middle country in a three-country list). The scope excerpt has since been changed to a compact, structured summary that preserves subject terms, all parsed geography alternatives, and allowed source-class alternatives. A long illustrative query example contributes subject terms only; the example's country/date and fixed query wording are not copied into the active scope, preserving model autonomy.
+- The multi-country regression also exposed that the geography-list parser did not consume an Oxford comma plus conjunction. It could recognise Vietnam and Thailand but fail to include Indonesia as an alternative. The shared parser now accepts comma-plus-`and/or` separators, and the regression asks each listed country query to pass while a query missing the permitted source class remains blocked.
+- One new extraction-test failure was due to a malformed fixture joining lines with a literal `\\n` instead of actual line breaks; the fixture was corrected so it exercises the real persisted objective format.
+- The current follow-up branch also removes the temporary objective-specific `console.error` diagnostic. Its latest commits include pivot-boundary handling, Oxford-comma parsing, scope-aware prompt compaction, and direct tests that ensure the compactor preserves the whole country/source-class list without prescribing the example query. CI must pass on the latest PR head before merge.
+- The underlying live job remains failed with zero admitted entities/cards and zero research/contact evidence. These code/tests explain and address defects; they do not stand in for a post-fix live result.
+
+
+### End-to-end readiness boundary
+
+The software changes above address the demonstrated stop conditions in Live Run 02, but the failed run cannot verify code committed after it. The deployed revision during that run was `8746c01`; the source-class and prompt-budget changes were committed later as `bd3ef125`, with additional regression fixes on this follow-up PR. There is still no post-fix live run demonstrating a completed job, persisted evidence, an admitted person, and a created card. Do not change evidence standards or preset the discovery path to manufacture that outcome.

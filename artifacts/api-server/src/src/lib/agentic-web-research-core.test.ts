@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -463,13 +463,27 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
-    expect(prompt).toContain("Czech Republic, Slovakia");
+    expect(prompt).toContain("Czech Republic");
+    expect(prompt).toContain("Slovakia");
     expect(prompt).toContain("ownership filings or local business registries");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("VALID PROVIDERS:");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(prompt).toContain("two independent evidence/source units");
     expect(prompt).toContain("successful falsification-intent action");
+  });
+
+  it("excludes the pursue-unless continuation instruction from accepted pivot scope", () => {
+    const direction = "Search for recent renewable-energy private-equity transactions in Vietnam, Thailand, and Indonesia and extract named fund managers or principal investors from transaction announcements or regulatory filings.";
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      direction,
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): none.",
+    ].join("\n");
+
+    expect(extractBossPivotDirectionForCompactPrompt(objective)).toBe(direction);
   });
 
   it("accepts each country query when it uses either Boss-approved announcement or filing sources", () => {
@@ -503,6 +517,12 @@ Choose each next action yourself from the available capabilities and observed ev
       "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
       "RECENT PRIOR ACTS (newest last): the approved scope was searched without source-backed findings.",
     ].join("\n");
+    const compactScope = compactEmergencyInvestigatorObjective(objective);
+    expect(compactScope).toContain("renewable energy private equity transaction");
+    expect(compactScope).toContain("geographies: Vietnam, Thailand, Indonesia");
+    expect(compactScope).toContain("source classes: transaction announcements, regulatory filings");
+    expect(compactScope).not.toContain("Vietnam 2023");
+
     const blockedObservation = "repeat_pivot_alignment_guard blocked another out-of-scope query/resource after multiple distinct actions were rejected under the current Boss-approved pivot, with no new fetched source evidence.";
     const trajectoryRecords: Parameters<typeof buildStepPrompt>[0]["trajectoryRecords"] = Array.from({ length: 17 }, (_, index) => ({
       turn: index + 1,
@@ -531,7 +551,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
-    expect(prompt).toContain("ACTIVE BOSS SCOPE:");
+    expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:)/);
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");

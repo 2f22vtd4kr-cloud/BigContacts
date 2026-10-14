@@ -1809,7 +1809,7 @@ export function extractBossPivotDirectionForCompactPrompt(rawObjective: string):
     const remainder = rawObjective.slice(directionStart);
     // Opening/continuation context is appended after the accepted objective in
     // some control paths. It must not become part of the pivot or its anchors.
-    const boundary = remainder.search(/\n(?:BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|RIGHT-HAND OPENING REVIEW(?: \(advisory\))?:|CONTINUATION STATE:|RECENT PRIOR ACTS(?: \(newest last\))?:|CANONICAL EVIDENCE GRAPH STATE:)/i);
+    const boundary = remainder.search(/\n(?:Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue\.|BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|RIGHT-HAND OPENING REVIEW(?: \(advisory\))?:|CONTINUATION STATE:|RECENT PRIOR ACTS(?: \(newest last\))?:|CANONICAL EVIDENCE GRAPH STATE:)/i);
     return remainder.slice(0, boundary >= 0 ? boundary : undefined).trim();
   }
 
@@ -1846,6 +1846,66 @@ export function extractBossOpeningDirectionForCompactPrompt(rawObjective: string
   return openingControl.split(/\r?\n/)
     .find((line) => /^\s*Report:/i.test(line))
     ?.replace(/^\s*Report:\s*/i, "").trim() ?? "";
+}
+
+/**
+ * Compact an active pivot without dropping its most important constraints.
+ * Generic head/tail clipping can omit a middle country from an OR-list or cut
+ * a source class out of scope. Keep subject, geography alternatives, and
+ * acceptable public-source classes in the last-resort prompt.
+ */
+function compactActiveBossScope(direction: string, maxChars: number): string {
+  const raw = direction.replace(/\s+/g, " ").trim();
+  if (raw.length <= maxChars) return raw;
+
+  const geographyGroup = raw.match(/\b(?:geographies|countries|jurisdictions|regions|states|provinces)\s*\((?:e\.g\.?,?\s*)?([^)]{1,180})\)/i);
+  const geography = geographyGroup?.[1]?.trim()
+    || pivotScopeGeographyOptions(raw).map((option) => option.join(" ")).join(", ");
+  const sourceGroup = raw.match(/\bsource classes?\s*\(([^)]{1,180})\)/i);
+  const sourceNoun = String.raw`(?:filings?|registr(?:y|ies)|registers?|databases?|directories|associations?|chambers?|lists?|announcements?|releases?)`;
+  const sourceModifier = String.raw`(?:transaction|regulatory|ownership|local|public(?:ly)?(?: listed)?|official|state|corporate|business|company|trade)`;
+  const sourcePattern = new RegExp(
+    String.raw`\b(?:(?:${sourceModifier})\s+){0,3}${sourceNoun}(?:\s*(?:,|or|and|\/)\s*(?:(?:${sourceModifier})\s+){0,3}${sourceNoun})*`,
+    "iu",
+  );
+  const source = sourceGroup?.[1]?.trim() || raw.match(sourcePattern)?.[0]?.trim() || "";
+
+  // If the pivot includes a worked query example, retain its subject anchor
+  // separately from the full allowed geography and source-class alternatives.
+  const queryExample = raw.match(/(?:e\.g\.?|for example)[^"“']{0,100}["“']([^"”']{1,160})["”']/i)?.[1]?.trim();
+  const geographyTokens = new Set((geography.match(/[A-Za-z]+/g) ?? []).map((token) => token.toLowerCase()));
+  // Retain the example's subject class only; specific example geographies and
+  // dates remain context, not a prescribed query sequence.
+  const querySubject = queryExample
+    ? queryExample.split(/\s+/).filter((token) => {
+        const normalized = token.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, "");
+        return normalized.length > 0
+          && !geographyTokens.has(normalized)
+          && !/^(?:19|20)\d{2}$/.test(normalized);
+      }).join(" ")
+    : "";
+  const sourceIndex = source ? raw.indexOf(source) : -1;
+  const geographyIndex = geographyGroup?.index ?? (sourceIndex >= 0 ? sourceIndex : raw.length);
+  const lead = querySubject || raw.slice(0, geographyIndex)
+    .replace(/^(?:execute a precise web search that|search for recent|search for|search|shift focus to|look for|find)\s*/i, "")
+    .replace(/\s+(?:and|while|then)\s+(?:seek|use|target|look for|find|search for|identify|extract)\b.*$/i, "")
+    .replace(/\s+in\s+(?:(?:neighboring|nearby)\s+)?(?:[\p{L}-]+\s+){1,2}$/iu, "")
+    .replace(/\s+/g, " ")
+    .replace(/[,:;–—-]+$/g, "")
+    .trim();
+  const suffix = [
+    geography ? "geographies: " + geography : "",
+    source ? "source classes: " + source : "",
+  ].filter(Boolean).join("; ");
+  const candidate = [lead, suffix].filter(Boolean).join("; ");
+  if (candidate.length <= maxChars) return candidate;
+
+  // Reserve space for all parsed geography/source alternatives before
+  // shortening the subject description. Never clip alternatives independently.
+  const suffixWithSeparator = suffix ? "; " + suffix : "";
+  const availableLeadChars = maxChars - suffixWithSeparator.length;
+  if (availableLeadChars >= 24) return lead.slice(0, availableLeadChars).trimEnd() + suffixWithSeparator;
+  return candidate;
 }
 
 /**
@@ -1899,7 +1959,7 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
   const compactBase = compactBaseText ? "CASE OBJECTIVE: " + compactBaseText : "";
   const compactDirection = advisoryDirection
     ? "BOSS ADVISORY DIRECTION (not a fixed action sequence): ACTIVE SCOPE CONSTRAINT: "
-      + boundInvestigatorPromptSection(advisoryDirection, 240)
+      + compactActiveBossScope(advisoryDirection, 240)
     : "";
   return [compactBase, compactDirection].filter(Boolean).join("\n");
 }
@@ -2017,7 +2077,7 @@ function pivotGeographicAlternatives(phrase: string): string[][] {
 function pivotScopeGeographyOptions(direction: string): string[][] {
   const options: string[][] = [];
   const locationClause = new RegExp(
-    `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
+    `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
     "gu",
   );
   for (const match of direction.matchAll(locationClause)) {
@@ -2043,7 +2103,7 @@ function pivotScopeGeographyOptions(direction: string): string[][] {
 
 function removePivotGeographyPhrases(direction: string): string {
   const locationClause = new RegExp(
-    `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
+    `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
     "gu",
   );
   const jurisdictionList = new RegExp(
@@ -2278,26 +2338,6 @@ export function discoveryPivotAlignmentReason(
   const excludedSubjects = pivotScopeExclusions(direction);
   const geographyOptions = pivotScopeGeographyOptions(direction);
   const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
-  if (action === "parallel_web_search" && direction.includes("renewable-energy private-equity transactions in Vietnam")) {
-    const searches = Array.isArray(args.searches) ? args.searches as Array<Record<string, unknown>> : [];
-    console.error("[temporary pivot diagnostic]", JSON.stringify({
-      anchors,
-      excludedSubjects,
-      geographyOptions,
-      requiredSourceAnchors,
-      matches: searches.map((search) => {
-        const query = String(search.query ?? "");
-        return {
-          query,
-          subject: pivotTextMatchesAnchors(query, anchors),
-          geography: pivotTextMatchesGeography(query, geographyOptions),
-          source: requiredSourceAnchors.length === 0 || pivotTextMatchesAnyAnchor(query, requiredSourceAnchors),
-          excluded: pivotTextContainsExcludedSubject(query, excludedSubjects),
-        };
-      }),
-    }));
-  }
-
   // Provenance grows only through successful actions already grounded in the active
   // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
   const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, activePivotScopeKey);
@@ -2522,7 +2562,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? [
             "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective, 180),
             ...(compactBossQuestion
-              ? ["ACTIVE BOSS-DIRECTED QUESTION: " + boundInvestigatorPromptSection(compactBossQuestion, 360)]
+              ? ["ACTIVE BOSS-DIRECTED QUESTION: " + compactActiveBossScope(compactBossQuestion, 360)]
               : []),
           ].join("\n")
         : "";
@@ -2630,7 +2670,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const activeScope = extractBossPivotDirectionForCompactPrompt(input.objective ?? "")
         || extractBossOpeningDirectionForCompactPrompt(input.objective ?? "");
       const boundedMinimumObjective = activeScope
-        ? "ACTIVE BOSS SCOPE: " + boundInvestigatorPromptSection(activeScope, 220)
+        ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 220)
         : "CASE OBJECTIVE: discover real people with credible wealth potential and a realistic person-level public/professional/intermediary route; never infer wealth or fabricate evidence.";
       const smallestEmergencyPrefix = [
         finalEmergencyAssignment,
