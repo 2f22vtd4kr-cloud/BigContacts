@@ -674,7 +674,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             to: replacement,
             trigger: "upstream_token_window_wait_exceeded",
             hardRequestQuotaExhausted: false,
-            consecutiveCapacityFailures: consecutiveTokenCapacityFailures,
+            consecutiveCapacityFailures: consecutiveInvestigatorTokenCapacityFailures,
             excludedInvestigators: bossExcludedCapabilities,
             bossModel: reassignment.model,
             bossStatus: reassignment.status,
