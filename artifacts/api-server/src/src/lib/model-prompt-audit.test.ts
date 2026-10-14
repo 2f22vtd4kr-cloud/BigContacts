@@ -11,12 +11,28 @@ const input = {
   requestBody: {
     model: "openai/gpt-oss-120b",
     messages: [
-      { role: "system", content: "Exact system prompt." },
-      { role: "user", content: "Exact user prompt with `code`." },
+      { role: "system", content: "PRIVATE_SYSTEM_PROMPT_SENTINEL and schema instructions." },
+      { role: "user", content: "PRIVATE_TARGET_SENTINEL source passage and contact person@example.org +1 (415) 555-0100." },
     ],
     include_reasoning: false,
     max_completion_tokens: 1024,
-    authorization: "must not be captured",
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "apex_action",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: { action: { type: "string" }, query: { type: ["string", "null"] } },
+          required: ["action", "query"],
+          additionalProperties: false,
+        },
+      },
+    },
+    tools: [
+      { type: "function", function: { name: "safe_search", description: "PRIVATE_TOOL_DESCRIPTION_SENTINEL", parameters: { type: "object", properties: { query: { type: "string" } } } },
+    ],
+    authorization: "PRIVATE_CREDENTIAL_SENTINEL",
   },
 };
 
@@ -34,10 +50,15 @@ describe("model prompt audit", () => {
       APEX_CAPTURE_MODEL_PROMPTS: "true",
       APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
     }, write)).toBeNull();
+    expect(emitModelPromptAudit(input, {
+      NODE_ENV: "preview",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    }, write)).toBeNull();
     expect(writes).toHaveLength(0);
   });
 
-  it("captures prompt text while excluding non-allowlisted request fields", () => {
+  it("records bounded request shape and sizing without serializing prompt or tool content", () => {
     const writes: Array<{ path: string; contents: string }> = [];
     const requestId = emitModelPromptAudit(input, {
       NODE_ENV: "development",
@@ -48,37 +69,49 @@ describe("model prompt audit", () => {
     expect(requestId).toBeTruthy();
     expect(writes).toHaveLength(1);
     expect(writes[0]?.path).toBe("/tmp/audit.md");
-    expect(writes[0]?.contents).toContain("Exact system prompt.");
-    expect(writes[0]?.contents).toContain("Exact user prompt with `code`.");
-    expect(writes[0]?.contents).toContain('"include_reasoning": false');
-    expect(writes[0]?.contents).not.toContain("must not be captured");
-    expect(writes[0]?.contents.match(/`{3}json/)).toBeTruthy();
+    const captured = writes[0]?.contents ?? "";
+    for (const privateMarker of [
+      "PRIVATE_SYSTEM_PROMPT_SENTINEL",
+      "PRIVATE_TARGET_SENTINEL",
+      "PRIVATE_TOOL_DESCRIPTION_SENTINEL",
+      "person@example.org",
+      "415) 555-0100",
+      "PRIVATE_CREDENTIAL_SENTINEL",
+      "source passage",
+    ]) expect(captured).not.toContain(privateMarker);
+
+    expect(captured).toContain('"messageCount": 2');
+    expect(captured).toContain('"contentKind": "text"');
+    expect(captured).toContain('"schemaName": "apex_action"');
+    expect(captured).toContain('"schemaPropertyCount": 2');
+    expect(captured).toContain('"requiredFieldCount": 2');
+    expect(captured).toContain('"functionName": "safe_search"');
+    expect(captured).toContain('"parameterCount": 1');
+    expect(captured).toContain('"include_reasoning": false');
+    expect(captured).toContain('"max_completion_tokens": 1024');
+    expect(captured).not.toContain('"authorization"');
   });
 
-  it("redacts email addresses and labeled or international phone numbers", () => {
-    const writes: Array<{ path: string; contents: string }> = [];
-    const contactInput = {
-      ...input,
-      requestBody: {
-        ...input.requestBody,
-        messages: [
-          { role: "user", content: "Lead email: person@example.org; phone: +1 (415) 555-0100; direct: +442079460958." },
-        ],
-      },
+  it("caps message and tool details rather than serializing unbounded collections", () => {
+    const requestBody = {
+      ...input.requestBody,
+      messages: Array.from({ length: 18 }, () => ({ role: "user", content: "PRIVATE_LONG_MESSAGE_SENTINEL" })),
+      tools: Array.from({ length: 18 }, (_, index) => ({ type: "function", function: { name: "tool_" + index, description: "PRIVATE_TOOL_SENTINEL" } })),
     };
-
-    emitModelPromptAudit(contactInput, {
-      NODE_ENV: "development",
+    const writes: string[] = [];
+    emitModelPromptAudit({ ...input, requestBody }, {
+      NODE_ENV: "test",
       APEX_CAPTURE_MODEL_PROMPTS: "true",
       APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
-    }, (path, contents) => writes.push({ path, contents }));
+    }, (_path, contents) => writes.push(contents));
 
     expect(writes).toHaveLength(1);
-    expect(writes[0]?.contents).toContain("[REDACTED_EMAIL]");
-    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
-    expect(writes[0]?.contents).not.toContain("person@example.org");
-    expect(writes[0]?.contents).not.toContain("415) 555-0100");
-    expect(writes[0]?.contents).not.toContain("+442079460958");
+    expect(writes[0]).toContain('"messagesTruncated": true');
+    expect(writes[0]).toContain('"toolsTruncated": true');
+    expect(writes[0]).toContain('"messageCount": 18');
+    expect(writes[0]).toContain('"toolCount": 18');
+    expect(writes[0]).not.toContain("PRIVATE_LONG_MESSAGE_SENTINEL");
+    expect(writes[0]).not.toContain("PRIVATE_TOOL_SENTINEL");
   });
 
   it("requires an audit destination even when prompt capture is enabled", () => {
