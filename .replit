@@ -1,4 +1,4 @@
-modules = ["nodejs-22", "postgresql-16"]
+modules = ["nodejs-22", "python-base-3.13", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -26,3 +26,5 @@ channel = "stable-25_05"
 
 [userenv.development]
 NODE_ENV = "development"
+APEX_CAPTURE_MODEL_PROMPTS = "true"
+APEX_MODEL_AUDIT_FILE = "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_07.md"
