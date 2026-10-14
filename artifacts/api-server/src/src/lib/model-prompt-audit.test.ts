@@ -30,7 +30,7 @@ const input = {
       },
     },
     tools: [
-      { type: "function", function: { name: "safe_search", description: "PRIVATE_TOOL_DESCRIPTION_SENTINEL", parameters: { type: "object", properties: { query: { type: "string" } } } },
+      { type: "function", function: { name: "safe_search", description: "PRIVATE_TOOL_DESCRIPTION_SENTINEL", parameters: { type: "object", properties: { query: { type: "string" } } } } },
     ],
     authorization: "PRIVATE_CREDENTIAL_SENTINEL",
   },
