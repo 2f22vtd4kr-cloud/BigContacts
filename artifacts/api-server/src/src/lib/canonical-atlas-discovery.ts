@@ -6,7 +6,7 @@ import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
-import { resolveDiscoveryIterationsPerAct, resolveResearchDepth } from "./research-depth";
+import { resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
@@ -915,7 +915,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     failureStage = "candidate_admission_persistence";
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: discovery.findings, atlasJobId, discoveryCaseId });
-    let admitted = admission.names; let admittedCandidateSources = admission.candidates; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = allUnavailableInvestigatorCapabilities().length > 0 ? 1 + allUnavailableInvestigatorCapabilities().length : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let discoveryIterationsUsed = discovery.iterations; let discoveryResourceLimited = discoveryIterationsUsed >= discoveryIterationCeiling && discovery.stopReason !== "MODEL_DECIDED_DONE"; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDecision: { controlTurn: number; reason: string; kind: "candidate_selection" | "pivot_direction" | "discovery_budget" } | null = null;
+    let admitted = admission.names; let admittedCandidateSources = admission.candidates; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = allUnavailableInvestigatorCapabilities().length > 0 ? 1 + allUnavailableInvestigatorCapabilities().length : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let discoveryIterationsUsed = discovery.iterations; let discoveryResourceLimited = discoveryIterationsUsed >= (admittedCandidateSources.length > 0 ? discoveryIterationCeiling : depth.agenticMaxIterations) && discovery.stopReason !== "MODEL_DECIDED_DONE"; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDecision: { controlTurn: number; reason: string; kind: "candidate_selection" | "pivot_direction" | "discovery_budget" } | null = null;
     const researchedNames = new Set<string>();
     phaseSummary.assignment = `${selectedInvestigator} currently selected by Groq; opening capability=${boss.investigatorLlm}; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     if (discoveryOnly) {
@@ -1007,7 +1007,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           ? `The previous Boss pivot at control turn ${controlValidationFeedback.controlTurn} was rejected by deterministic control validation: ${controlValidationFeedback.reason}. No Investigator tool was executed. Choose a corrected research question or a different valid control action; do not include a concrete URL or prescribe a provider/tool. This feedback is control state, not research evidence.`
           : controlValidationFeedback.kind === "candidate_selection"
             ? `The previous Boss candidate selection at control turn ${controlValidationFeedback.controlTurn} was rejected because the candidate was absent from the durable admitted-candidate list. No target investigation was executed. Do not treat a name in source text or a Right-hand suggestion as candidate admission. Choose a valid model-owned control action; if more discovery is needed, direct the Investigator to continue gathering source-backed evidence and make an explicit admission decision. This feedback is control state, not research evidence.`
-            : `The discovery Investigator iteration budget is exhausted (${depth.agenticMaxIterations} actions). No further discovery episode can execute. Choose research_candidate only from the durable admitted-candidate list if an admitted person should be researched; otherwise stop. Do not choose continue_discovery or pivot_discovery without remaining discovery budget. This is control state, not research evidence.`) : null,
+            : (admittedCandidateSources.length > 0
+            ? `The bounded discovery allocation is exhausted at ${discoveryIterationsUsed}/${depth.agenticMaxIterations} total Investigator actions. ${Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)} global action(s) remain reserved for target-scoped research. Choose research_candidate or revisit_candidate only from the durable admitted-candidate list, or stop. Do not choose another discovery continuation without remaining allocated budget. This is control state, not research evidence.`
+            : `The global Investigator action ceiling is exhausted (${investigatorIterationsUsed}/${depth.agenticMaxIterations} actions). No candidate has been admitted and no further discovery episode can execute. Stop. This is control state, not research evidence.`)) : null,
         status: discovery.status,
         stopReason: discovery.stopReason ?? null,
         errorSummary: discovery.error ? safeThrownErrorSummary("Investigator result", new Error(discovery.error)) : null,
@@ -1219,10 +1221,23 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         failureStage = "orchestration";
         const directedObjective = resolvedObjective.objective;
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
-        const remainingInvestigatorIterations = Math.max(0, Math.min(discoveryIterationCeiling - discoveryIterationsUsed, depth.agenticMaxIterations - investigatorIterationsUsed - targetResearchReserveIterations));
+        const protectedDiscoveryIterationsRemaining = Math.max(0, discoveryIterationCeiling - discoveryIterationsUsed);
+        const remainingInvestigatorIterations = resolveRemainingDiscoveryIterations({
+          totalIterationCeiling: depth.agenticMaxIterations,
+          discoveryIterationCeiling,
+          discoveryIterationsUsed,
+          investigatorIterationsUsed,
+          targetResearchReserveIterations,
+          hasAdmittedCandidates: admittedCandidateSources.length > 0,
+        });
+        if (admittedCandidateSources.length === 0 && remainingInvestigatorIterations > protectedDiscoveryIterationsRemaining) {
+          phaseSummary.discoveryBudgetPolicy = `Released the unused target-research reserve because no candidate is admitted; ${remainingInvestigatorIterations} global Investigator action(s) remain available across bounded model-directed discovery acts.`;
+        }
         if (remainingInvestigatorIterations <= 0) {
           discoveryResourceLimited = true;
-          phaseSummary.discoveryIterationCeiling = `Discovery used ${discoveryIterationsUsed}/${depth.agenticMaxIterations} allowed actions; asking Boss to choose an admitted target or stop.`;
+          phaseSummary.discoveryIterationCeiling = admittedCandidateSources.length > 0
+            ? `Discovery allocation exhausted at ${discoveryIterationsUsed}/${depth.agenticMaxIterations} total Investigator actions; remaining actions are reserved for target-scoped research.`
+            : `Global Investigator ceiling exhausted at ${investigatorIterationsUsed}/${depth.agenticMaxIterations} actions without an admitted candidate.`;
           rejectedControlDecision = { controlTurn: controlTurns, reason: "The bounded discovery-action budget is exhausted; no further discovery episode can execute.", kind: "discovery_budget" };
           priorAction = previousAcceptedAction;
           priorCandidate = previousAcceptedCandidate;
@@ -1457,7 +1472,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const nextDiscoveryIterations = Math.max(0, nextDiscovery.iterations ?? 0);
         investigatorIterationsUsed += nextDiscoveryIterations;
         discoveryIterationsUsed += nextDiscoveryIterations;
-        discoveryResourceLimited = discoveryResourceLimited || (discoveryIterationsUsed >= discoveryIterationCeiling && nextDiscovery.stopReason !== "MODEL_DECIDED_DONE");
+        discoveryResourceLimited = nextDiscovery.stopReason !== "MODEL_DECIDED_DONE"
+          && discoveryIterationsUsed >= (admittedCandidateSources.length > 0 ? discoveryIterationCeiling : depth.agenticMaxIterations);
+        investigatorResourceLimited = investigatorResourceLimited || investigatorIterationsUsed >= depth.agenticMaxIterations;
         // The cumulative result was already updated by mergeDiscoveryResults above.
         // Do not append this episode a second time: that doubles its metrics and
         // trajectory/finding records on every Boss-directed continuation.

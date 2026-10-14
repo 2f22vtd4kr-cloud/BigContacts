@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveDiscoveryIterationsPerAct } from "../lib/research-depth";
+import { resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations } from "../lib/research-depth";
 
 describe("pivot-aware discovery episode budgeting", () => {
   it("splits the standard discovery allowance so two accepted pivots can still receive Investigator turns", () => {
@@ -18,5 +18,71 @@ describe("pivot-aware discovery episode budgeting", () => {
   it("returns no action allocation when the discovery budget is exhausted", () => {
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, 0)).toBe(0);
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, -1)).toBe(0);
+  });
+});
+
+
+describe("model-directed discovery continuation budget", () => {
+  const standard = {
+    totalIterationCeiling: 20,
+    discoveryIterationCeiling: 12,
+    discoveryIterationsUsed: 12,
+    investigatorIterationsUsed: 12,
+    targetResearchReserveIterations: 8,
+  };
+
+  it("releases unused target reserve when no candidate has been admitted", () => {
+    expect(resolveRemainingDiscoveryIterations({
+      ...standard,
+      hasAdmittedCandidates: false,
+    })).toBe(8);
+  });
+
+  it("preserves the target reserve when there is an admitted candidate to research", () => {
+    expect(resolveRemainingDiscoveryIterations({
+      ...standard,
+      hasAdmittedCandidates: true,
+    })).toBe(0);
+  });
+
+  it("keeps giving model-approved discovery turns up to the global hard ceiling", () => {
+    expect(resolveRemainingDiscoveryIterations({
+      ...standard,
+      discoveryIterationsUsed: 16,
+      investigatorIterationsUsed: 16,
+      hasAdmittedCandidates: false,
+    })).toBe(4);
+    expect(resolveRemainingDiscoveryIterations({
+      ...standard,
+      discoveryIterationsUsed: 20,
+      investigatorIterationsUsed: 20,
+      hasAdmittedCandidates: false,
+    })).toBe(0);
+  });
+
+  it("still protects target capacity while discovery has admitted candidates", () => {
+    expect(resolveRemainingDiscoveryIterations({
+      ...standard,
+      discoveryIterationsUsed: 10,
+      investigatorIterationsUsed: 10,
+      hasAdmittedCandidates: true,
+    })).toBe(2);
+  });
+
+  it("fails closed for invalid budget values", () => {
+    expect(resolveRemainingDiscoveryIterations({
+      totalIterationCeiling: Number.NaN,
+      discoveryIterationCeiling: 12,
+      discoveryIterationsUsed: 0,
+      investigatorIterationsUsed: 0,
+      targetResearchReserveIterations: 8,
+      hasAdmittedCandidates: false,
+    })).toBe(0);
+    expect(resolveRemainingDiscoveryIterations({
+      ...standard,
+      discoveryIterationsUsed: -1,
+      investigatorIterationsUsed: 12,
+      hasAdmittedCandidates: false,
+    })).toBe(8);
   });
 });

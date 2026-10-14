@@ -105,6 +105,34 @@ export function resolveDiscoveryIterationsPerAct(
   return Math.max(1, Math.min(configuredCap, Math.ceil(available / 3)));
 }
 
+/**
+ * Resolve the remaining actions for a model-approved discovery continuation.
+ * A target reserve protects admitted candidates; it must not silently terminate
+ * discovery when there is no admitted candidate to research. In that case, free
+ * the unused reserve while preserving the hard job-wide Investigator ceiling.
+ */
+export function resolveRemainingDiscoveryIterations(input: {
+  totalIterationCeiling: number;
+  discoveryIterationCeiling: number;
+  discoveryIterationsUsed: number;
+  investigatorIterationsUsed: number;
+  targetResearchReserveIterations: number;
+  hasAdmittedCandidates: boolean;
+}): number {
+  const nonNegativeInteger = (value: number): number =>
+    Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  const total = nonNegativeInteger(input.totalIterationCeiling);
+  const discoveryUsed = nonNegativeInteger(input.discoveryIterationsUsed);
+  const investigatorUsed = nonNegativeInteger(input.investigatorIterationsUsed);
+  const configuredDiscoveryCeiling = Math.min(total, nonNegativeInteger(input.discoveryIterationCeiling));
+  const targetReserve = Math.min(total, nonNegativeInteger(input.targetResearchReserveIterations));
+  const effectiveDiscoveryCeiling = input.hasAdmittedCandidates ? configuredDiscoveryCeiling : total;
+  const effectiveTargetReserve = input.hasAdmittedCandidates ? targetReserve : 0;
+  const discoveryRemaining = Math.max(0, effectiveDiscoveryCeiling - discoveryUsed);
+  const globalRemaining = Math.max(0, total - investigatorUsed - effectiveTargetReserve);
+  return Math.min(discoveryRemaining, globalRemaining);
+}
+
 export function describeResearchDepth(config: ResearchDepthConfig): string {
   return [
     `depth=${config.depth}`,

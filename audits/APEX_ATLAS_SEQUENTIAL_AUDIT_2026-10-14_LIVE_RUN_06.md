@@ -1,6 +1,6 @@
 # ⭐ Apex Atlas Sequential Audit — LIVE RUN 06
 
-- **Status:** Preparation in progress; no run-06 launch has been submitted.
+- **Status:** Completed — canonical job ended `failed/incomplete` at 2026-10-14 10:12:06 UTC; zero candidate findings/admissions were produced.
 - **Started:** 2026-10-14, approximately 10:01 UTC.
 - **Audit file:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_06.md`
 - **Repository:** `2f22vtd4kr-cloud/BigContacts`, branch `main`.
@@ -1504,3 +1504,13 @@ Append material events promptly in chronological order. Use UTC timestamps where
 - **Regression check:** 34 targeted tests passed across source provenance, discovery admission gates, and canonical terminal authority. No evidence threshold or persistence code defect was exposed by these tests.
 - **Decision:** no source code or evidence gate will be weakened. To continue the user-authorized end-to-end attempt, the next launch will use the app's existing `deep` research-depth setting and a one-target limit, while leaving the default model-owned discovery objective intact. This gives the Investigator a larger bounded action budget but does not guarantee findings or override a model stop.
 - **Audit mode:** enable the existing development request-shape capture only for the retry and append into this same visible audit. That logger records model/role, timestamps, request dimensions, response-format shape, and reasoning-disabled status; it does not serialize prompt bodies, private reasoning, raw search/page text, or contact values. Disable it again when the job is terminal.
+
+
+### Event 013 — code-path diagnosis and main-branch repair
+
+- **Finding:** the zero-result run had 12 Investigator actions recorded across three four-action episodes, no `done` action, and no finding objects. The append-oriented case-event ledger recorded the actions; no candidate reached admission, so there was no post-admission database insert to lose.
+- **Confirmed control-loop defect:** standard depth allowed 20 global Investigator actions but permanently reserved 8 for target research before any candidate existed. After action 12, Boss explicitly chose to continue discovery. The harness refused that continuation at the 12-action discovery ceiling and reported discovery-budget exhaustion even though eight global actions remained unused and no target existed to research.
+- **Repair:** target reserve now remains protected when an admitted candidate exists. If no candidate has been admitted and Boss chooses a valid discovery continuation/pivot, the unused reserve becomes available, bounded by the same global Investigator action ceiling and per-act limits. Discovery-resource-limit state and feedback now distinguish exhaustion of the global ceiling from the reserve-protected discovery allocation. No fixed search sequence, forced completion, or weaker source/admission/contact rule was added.
+- **Regression coverage:** added pure budget-contract tests for reserve release, admitted-candidate protection, continuation up to the global ceiling, and invalid budget values.
+- **Configuration correction:** removed the request-shape capture flags from `.replit`; Event 008/009 recorded that capture had been disabled, but the later repository commit accidentally re-enabled it.
+- **Status:** changes are being committed directly on `main`. GitHub Actions verification has not yet completed; no new Replit research run has been launched.
