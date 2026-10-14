@@ -1,6 +1,6 @@
 /** Bureau-facing wrapper around the canonical model-owned ReAct Investigator. */
 import { randomUUID } from "node:crypto";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { resolveMonotonicResearchCaseIteration } from "./research-case-event-iteration";
@@ -98,7 +98,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
   try{current=JSON.parse(row.caseFile) as Record<string,any>;}catch{throw new Error(`Discovery case ${caseId} has unreadable durable state.`);}
   const existingRunIds=Array.isArray(current.runIds)?current.runIds.filter((value):value is string=>typeof value==="string"):[];
   if(existingRunIds.includes(input.runId) && !input.finalize)return;
-  const [latestPersistedEvent]=await db.select({iteration:researchCaseEventsTable.iteration}).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId,caseId)).orderBy(desc(researchCaseEventsTable.id)).limit(1);
+  const [latestPersistedEvent]=await db.select({iteration:sql<number>`COALESCE(MAX(${researchCaseEventsTable.iteration}), 0)`.as("iteration")}).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId,caseId));
   const priorIteration=Math.max(0,Number(row.iteration??0)||0,Number(latestPersistedEvent?.iteration??0)||0);
   const trajectoryTurnOffset=Math.max(0,Number.isFinite(input.trajectoryTurnOffset) ? Number(input.trajectoryTurnOffset) : 0);
   const rawTrajectory=Array.isArray(result.trajectory)?result.trajectory:[];
@@ -138,7 +138,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
       throw new Error(`Discovery trajectory persistence detected a stale case snapshot for run ${input.runId}; retry from the latest durable case state.`);
     }
     let eventIterationFloor=Math.max(priorIteration,Number(locked.iteration??0)||0,Number(latestPersistedEvent?.iteration??0)||0);
-     const [latestEventInTransaction]=await tx.select({iteration:researchCaseEventsTable.iteration}).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId,caseId)).orderBy(desc(researchCaseEventsTable.id)).limit(1);
+     const [latestEventInTransaction]=await tx.select({iteration:sql<number>`COALESCE(MAX(${researchCaseEventsTable.iteration}), 0)`.as("iteration")}).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId,caseId));
      eventIterationFloor=Math.max(eventIterationFloor,Number(latestEventInTransaction?.iteration??0)||0);
      const transactionNextIteration=Math.max(nextIteration,eventIterationFloor);
      const transactionMemoryProjection={...memoryProjection,iterations:transactionNextIteration};
