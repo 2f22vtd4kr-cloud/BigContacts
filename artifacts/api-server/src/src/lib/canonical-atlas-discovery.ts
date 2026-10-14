@@ -14,7 +14,7 @@ import { isUntargetableDiscoveryPersonName } from "./agentic-web-research-core";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
-  isInvestigatorTokenCapacityUnavailableEpisode,
+  hasReachedInvestigatorTokenCapacityFailureLimit,
   MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
 } from "./canonical-investigator-provider-recovery";
@@ -1404,13 +1404,18 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         }
         consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(consecutiveInvestigatorProviderUnavailable, nextDiscovery);
         consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(consecutiveInvestigatorTokenCapacityFailures, nextDiscovery);
-        if (consecutiveInvestigatorProviderUnavailable >= maxConsecutiveInvestigatorProviderUnavailable) {
+        const tokenCapacityFailureLimitReached = hasReachedInvestigatorTokenCapacityFailureLimit(
+          consecutiveInvestigatorTokenCapacityFailures,
+          nextDiscovery,
+        );
+        if (
+          consecutiveInvestigatorProviderUnavailable >= maxConsecutiveInvestigatorProviderUnavailable
+          || tokenCapacityFailureLimitReached
+        ) {
           let capacityReassignmentSucceeded = false;
-          if (
-            consecutiveInvestigatorTokenCapacityFailures >= MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES
-            && isInvestigatorTokenCapacityUnavailableEpisode(nextDiscovery)
-            && !tokenCapacityReassignmentUsed
-          ) {
+          let capacityReassignmentAttemptedThisEpisode = false;
+          if (tokenCapacityFailureLimitReached && !tokenCapacityReassignmentUsed) {
+            capacityReassignmentAttemptedThisEpisode = true;
             const failedCapability = selectedInvestigator;
             const replacement = await reassignInvestigatorAfterPersistentTokenCapacity(
               failedCapability,
@@ -1425,10 +1430,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           }
           if (!capacityReassignmentSucceeded) {
             const lastProviderError = [...(nextDiscovery.trajectoryRecords ?? [])].reverse().find((record) => record.action === "investigator_provider_error")?.observation ?? nextDiscovery.error ?? "Investigator provider remained unavailable.";
-            const reassignmentDisposition = tokenCapacityReassignmentUsed
+            const recoveryReasons = [
+              consecutiveInvestigatorProviderUnavailable >= maxConsecutiveInvestigatorProviderUnavailable
+                ? `${consecutiveInvestigatorProviderUnavailable} consecutive provider-unavailable episode(s)`
+                : null,
+              tokenCapacityFailureLimitReached
+                ? `${consecutiveInvestigatorTokenCapacityFailures}/${MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES} consecutive token-window failures`
+                : null,
+            ].filter((reason): reason is string => Boolean(reason));
+            const reassignmentDisposition = capacityReassignmentAttemptedThisEpisode
               ? "The Boss-directed token-capacity reassignment path was attempted but did not yield a viable replacement."
-              : `No capacity reassignment was attempted: only ${consecutiveInvestigatorTokenCapacityFailures}/${MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES} consecutive token-window failures were recorded.`;
-            const recoveryMessage = `Canonical Atlas Investigator provider-unavailable breaker reached ${consecutiveInvestigatorProviderUnavailable} consecutive episode(s). ${reassignmentDisposition} The case is parked for review.`;
+              : tokenCapacityReassignmentUsed
+                ? "This job's single Boss-directed token-capacity reassignment was already used; no further reassignment is permitted."
+                : `No capacity reassignment was attempted: only ${consecutiveInvestigatorTokenCapacityFailures}/${MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES} consecutive token-window failures were recorded.`;
+            const recoveryMessage = `Canonical Atlas Investigator recovery threshold reached (${recoveryReasons.join(" and ")}). ${reassignmentDisposition} The case is parked for review.`;
             phaseSummary.investigatorProviderRecovery = recoveryMessage;
             failureStage = "case_persistence";
             await db.update(researchCasesTable).set({

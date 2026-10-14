@@ -94,3 +94,19 @@ export function advanceInvestigatorTokenCapacityFailureStreak(
     ? safePrevious + 1
     : 0;
 }
+
+/**
+ * The typed token-window circuit is independent of the generic provider breaker.
+ * Productive-but-provider-failed episodes reset the generic streak, but must not
+ * suppress bounded Boss-directed recovery after repeated token-window failures.
+ */
+export function hasReachedInvestigatorTokenCapacityFailureLimit(
+  consecutiveCount: number,
+  result: InvestigatorProviderEpisode,
+): boolean {
+  const safeCount = Number.isFinite(consecutiveCount)
+    ? Math.max(0, Math.floor(consecutiveCount))
+    : 0;
+  return safeCount >= MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES
+    && isInvestigatorTokenCapacityUnavailableEpisode(result);
+}

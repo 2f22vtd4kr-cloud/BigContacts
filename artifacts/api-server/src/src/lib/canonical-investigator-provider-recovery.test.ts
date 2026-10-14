@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
+  hasReachedInvestigatorTokenCapacityFailureLimit,
   isInvestigatorTokenCapacityUnavailableEpisode,
   isInvestigatorProviderUnavailableEpisode,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
@@ -50,7 +51,14 @@ describe("canonical Investigator provider-unavailable breaker", () => {
     // Token-window failures keep their separate consecutive counter for the
     // existing capacity-specific Boss decision; only a successful search resets
     // the generic provider-unavailable breaker.
-    expect(advanceInvestigatorTokenCapacityFailureStreak(1, mixedEpisode)).toBe(2);
+    const consecutiveCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(1, mixedEpisode);
+    expect(consecutiveCapacityFailures).toBe(MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES);
+    expect(hasReachedInvestigatorTokenCapacityFailureLimit(consecutiveCapacityFailures, mixedEpisode)).toBe(true);
+    expect(hasReachedInvestigatorTokenCapacityFailureLimit(1, mixedEpisode)).toBe(false);
+    expect(hasReachedInvestigatorTokenCapacityFailureLimit(
+      MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
+      unavailable("INVESTIGATOR_PROVIDER_ERROR upstream_rate_limited"),
+    )).toBe(false);
   });
 
   it("counts other actual Investigator provider failures without treating them as quota exhaustion", () => {
@@ -74,6 +82,10 @@ describe("canonical Investigator provider-unavailable breaker", () => {
 
     expect(isInvestigatorTokenCapacityUnavailableEpisode(hardQuota)).toBe(false);
     expect(advanceInvestigatorTokenCapacityFailureStreak(1, hardQuota)).toBe(0);
+    expect(hasReachedInvestigatorTokenCapacityFailureLimit(
+      MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
+      hardQuota,
+    )).toBe(false);
     expect(hardQuota.trajectoryRecords[0]?.observation).toContain("upstream_quota_exhausted");
   });
 
