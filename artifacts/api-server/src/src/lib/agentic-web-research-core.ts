@@ -1809,7 +1809,7 @@ export function extractBossPivotDirectionForCompactPrompt(rawObjective: string):
     const remainder = rawObjective.slice(directionStart);
     // Opening/continuation context is appended after the accepted objective in
     // some control paths. It must not become part of the pivot or its anchors.
-    const boundary = remainder.search(/\n(?:BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|RIGHT-HAND OPENING REVIEW(?: \(advisory\))?:|CONTINUATION STATE:|RECENT PRIOR ACTS(?: \(newest last\))?:|CANONICAL EVIDENCE GRAPH STATE:)/i);
+    const boundary = remainder.search(/\n(?:Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue\.|BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|RIGHT-HAND OPENING REVIEW(?: \(advisory\))?:|CONTINUATION STATE:|RECENT PRIOR ACTS(?: \(newest last\))?:|CANONICAL EVIDENCE GRAPH STATE:)/i);
     return remainder.slice(0, boundary >= 0 ? boundary : undefined).trim();
   }
 
