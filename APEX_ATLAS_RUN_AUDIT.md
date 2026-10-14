@@ -1,5 +1,7 @@
 # Apex Atlas End-to-End Run Audit
 
+⭐ **Current sequential audit:** [LIVE RUN 05 — 2026-10-14](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_05.md)
+
 ## Audit contract
 
 - **Purpose:** trace one canonical run from discovery through Investigator research and durable card/admission projection, including setup faults and recovery decisions.

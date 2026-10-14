@@ -13,6 +13,10 @@ import {
   waitForGroqRightHandRequestSlot,
   resetGroqRightHandModelCatalogCacheForTests,
 } from "../lib/groq-right-hand-reasoning";
+import {
+  ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
+  validateAtlasOpeningRightHandReview,
+} from "../lib/atlas-control-decision";
 import { summarizeProviderBody } from "../lib/provider-error-diagnostics";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
@@ -397,6 +401,56 @@ describe("Groq Right-hand model policy", () => {
       .map(([, init]) => JSON.parse(String(init?.body)).model);
     expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("tries the next catalog-listed Right-hand model when the first response fails its caller's contract", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-contract-fallback-test-key");
+    const chatModels: string[] = [];
+    const responseSchemas: Record<string, any>[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }],
+        }), { status: 200 });
+      }
+      const authorization = new Headers(init?.headers).get("authorization") ?? "";
+      expect(authorization).toBe("Bearer right-hand-contract-fallback-test-key");
+      const body = JSON.parse(String(init?.body));
+      chatModels.push(body.model);
+      responseSchemas.push(body.response_format?.json_schema?.schema ?? {});
+      const content = body.model === "openai/gpt-oss-120b"
+        ? '{"unexpected":"not a valid review"}'
+        : '{"decision":"proceed","reason":"supported","focusLanes":[],"confidence":0.9}';
+      return new Response(JSON.stringify({
+        choices: [{ message: { content } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson(
+      "Review a control decision.",
+      "Return exactly the bounded opening-review contract.",
+      ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
+      (raw) => {
+        try {
+          const parsed = JSON.parse(raw);
+          return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+            && validateAtlasOpeningRightHandReview(parsed as Record<string, unknown>);
+        } catch {
+          return false;
+        }
+      },
+    );
+
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-20b");
+    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const responseSchema = responseSchemas.at(-1);
+    expect(responseSchema?.properties.decision).toMatchObject({ minLength: 1, maxLength: 300 });
+    expect(responseSchema?.properties.reason).toMatchObject({ minLength: 1, maxLength: 1_200 });
+    expect(responseSchema?.properties.focusLanes).toMatchObject({ maxItems: 8, items: { minLength: 1, maxLength: 160 } });
+    expect(responseSchema?.properties.confidence).toMatchObject({ minimum: 0, maximum: 1 });
   });
 
   it("retries a transient 429 before falling back to another model", { timeout: 15_000 }, async () => {

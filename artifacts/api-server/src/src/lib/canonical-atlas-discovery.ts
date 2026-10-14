@@ -756,9 +756,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     failureStage = "right_hand_opening_review";
     const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
       runGroqRightHandFreeJson(
-        `Review Groq Boss's opening Atlas decision against the exact research objective before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified control hypothesis, not source evidence): ${boss.report ?? ""}. Next directions (unverified control hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. The human mission and realistic-targetability rules outrank Boss next-directions; reject prestige-only global-company leadership suggestions unless tied to a plausible local owner/operator/investor or documented intermediary route. Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead. Return concise oversight/advisory observations only. Do not browse, choose tools, replace the Investigator, or invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
+        `Review Groq Boss's opening Atlas decision against the exact research objective before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified control hypothesis, not source evidence): ${boss.report ?? ""}. Next directions (unverified control hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. The human mission and realistic-targetability rules outrank Boss next-directions; reject prestige-only global-company leadership suggestions unless tied to a plausible local owner/operator/investor or documented intermediary route. Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead. Return concise oversight/advisory observations only. Do not browse, choose tools, replace the Investigator, or invent people or evidence. Return exactly decision (1–300 characters), reason (1–1,200 characters), focusLanes (0–8 non-empty strings, each at most 160 characters), and confidence (a number from 0 to 1).`,
         "You are the Groq Right-hand. Independently check the Boss opening claims against the human mission; treat Boss-generated reports and directions as unverified hypotheses, not evidence. The human mission and realistic-targetability rules outrank Boss suggestions; flag prestige-only global-company leadership paths unless they identify a reachable local ownership/intermediary route. Explicitly flag unsupported scope and never treat internal memory/storage/workflow terminology as a sector or lead. Advise the Boss only; do not act as Investigator, browse, choose tools, or replace the selected Investigator. Reply with ONE JSON object.",
         ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
+        (raw) => {
+          try {
+            const value: unknown = JSON.parse(raw);
+            const parsed = value && typeof value === "object" && !Array.isArray(value)
+              ? value as Record<string, unknown>
+              : null;
+            return validateAtlasOpeningRightHandReview(parsed);
+          } catch {
+            return false;
+          }
+        },
       ),
     ).catch((error) => ({
       status: "unavailable" as const,

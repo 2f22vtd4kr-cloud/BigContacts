@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
 
 describe("canonical Atlas lease-read diagnostics", () => {
+  it("classifies an invalid Right-hand opening contract as a model contract failure", () => {
+    expect(classifyCanonicalAtlasFailure({
+      stage: "right_hand_opening_review",
+      error: new Error("Groq Right-hand returned invalid oversight: Right-hand returned an invalid opening review contract."),
+    })).toEqual({ domain: "model_provider", kind: "invalid_contract" });
+  });
+
   it("labels a transport failure during the authoritative job/lease read as a lease request failure", () => {
     expect(classifyCanonicalAtlasFailure({
       stage: "job_state_or_lease",

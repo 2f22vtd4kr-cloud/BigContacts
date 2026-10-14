@@ -150,10 +150,14 @@ export const ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT = {
   schema: {
     type: "object",
     properties: {
-      decision: { type: "string" },
-      reason: { type: "string" },
-      focusLanes: { type: "array", items: { type: "string" } },
-      confidence: { type: "number" },
+      decision: { type: "string", minLength: 1, maxLength: 300 },
+      reason: { type: "string", minLength: 1, maxLength: 1_200 },
+      focusLanes: {
+        type: "array",
+        maxItems: 8,
+        items: { type: "string", minLength: 1, maxLength: 160 },
+      },
+      confidence: { type: "number", minimum: 0, maximum: 1 },
     },
     required: ["decision", "reason", "focusLanes", "confidence"],
     additionalProperties: false,

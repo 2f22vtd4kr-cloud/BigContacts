@@ -138,6 +138,9 @@ export function classifyCanonicalAtlasFailure(input: {
     || input.stage === "right_hand_opening_review"
     || input.stage === "oversight_control_decision";
   if (isModelProviderStage) {
+    if (/invalid(?:[\s_-]+(?:opening[\s_-]+review[\s_-]+)?)contract/i.test(error.message)) {
+      return { domain: "model_provider", kind: "invalid_contract" };
+    }
     // A locally classified hard quota exhaustion is distinct from ordinary HTTP 429.
     if (error.name === "ProviderQuotaError" && error.code === "cooldown") {
       return { domain: "model_provider", kind: "local_provider_cooldown" };
