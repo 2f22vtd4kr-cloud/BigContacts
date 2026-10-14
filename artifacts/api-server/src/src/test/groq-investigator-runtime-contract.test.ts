@@ -34,11 +34,11 @@ describe("Groq Investigator runtime contract", () => {
       "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Perform registry queries on Zefix/Swiss commercial register. The action's actual query/resource is outside that scope. No outbound request was made.",
     );
     expect(compacted).toContain("SCOPE GUARD BLOCKED ACTION (no request)");
-    expect(compacted).toContain("active Boss-approved question");
-    expect(compacted).toContain("a new search query must name the active Boss-approved subject, geography, and source class");
-    expect(compacted).toContain("follow-up URL/resources must use a source already observed from an aligned search");
-    expect(compacted).toContain("Rationale/provider/registry metadata do not count");
-    expect(compacted).toContain("do not repeat the blocked action");
+    expect(compacted).toContain("query must name active scope subject, geography and source class");
+    expect(compacted).toContain("fetch only an observed aligned URL");
+    expect(compacted).toContain("Metadata is not scope");
+    expect(compacted).toContain("Revise or request new scope");
+    expect(compacted).toContain("do not repeat");
     expect(compacted).not.toContain("AUXILIARY CONTEXT BOUND");
   });
 
@@ -127,7 +127,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
     expect(submitted).toContain("DISCOVERY ADMISSION CONTRACT");
     expect(submitted).toContain("Avoid generic wealth/net-worth/private-equity-profile searches alone");
-    expect(submitted).toContain("The model chooses the route; no fixed sequence.");
+    expect(submitted).toContain("Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toContain("Falsification requirement:");
     expect(submitted).toContain('"url":null');
