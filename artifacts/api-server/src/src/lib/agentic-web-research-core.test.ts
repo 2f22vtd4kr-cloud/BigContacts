@@ -481,7 +481,7 @@ Choose each next action yourself from the available capabilities and observed ev
       direction,
       "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
       "RECENT PRIOR ACTS (newest last): none.",
-    ].join("\\n");
+    ].join("\n");
 
     expect(extractBossPivotDirectionForCompactPrompt(objective)).toBe(direction);
   });
