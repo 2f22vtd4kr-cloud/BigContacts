@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyTrajectoryObservation, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -469,6 +469,73 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("VALID PROVIDERS:");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(prompt).toContain("two independent evidence/source units");
+    expect(prompt).toContain("successful falsification-intent action");
+  });
+
+  it("accepts each country query when it uses either Boss-approved announcement or filing sources", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Search for recent renewable-energy private-equity transactions in Vietnam, Thailand, and Indonesia and extract named fund managers or principal investors from transaction announcements or regulatory filings.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): none.",
+    ].join("\n");
+    const searches = [
+      { query: "Vietnam renewable energy private equity transaction 2023 regulatory filing fund manager", provider: "serper" },
+      { query: "Thailand renewable energy private equity deal 2023 transaction announcement principal investor", provider: "serper" },
+      { query: "Indonesia renewable energy private equity transaction 2023 filing principal investor", provider: "serper" },
+    ];
+
+    expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", { searches }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", {
+      searches: searches.map((search, index) => index === 1
+        ? { ...search, query: "Thailand renewable energy private equity deal 2023 fund manager" }
+        : search),
+    }, [])).toContain("pivot_alignment_guard");
+  });
+
+  it("fits a long active multi-country pivot and latest blocked action into the emergency prompt ceiling", () => {
+    const direction = "Execute a precise web search that explicitly names the pivot subject, geographies (Vietnam, Thailand, Indonesia), and source class (transaction announcements, regulatory filings) – e.g., search for \"renewable energy private equity transaction Vietnam 2023\" and similar queries for Thailand and Indonesia, targeting official registries or reputable news outlets.";
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary routes.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      direction,
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): the approved scope was searched without source-backed findings.",
+    ].join("\n");
+    const blockedObservation = "repeat_pivot_alignment_guard blocked another out-of-scope query/resource after multiple distinct actions were rejected under the current Boss-approved pivot, with no new fetched source evidence.";
+    const trajectoryRecords: Parameters<typeof buildStepPrompt>[0]["trajectoryRecords"] = Array.from({ length: 17 }, (_, index) => ({
+      turn: index + 1,
+      model: "openai/gpt-oss-120b",
+      action: "web_search",
+      execution: index === 16 ? "blocked" as const : "success" as const,
+      args: {
+        query: `renewable energy private equity transaction Vietnam filing ${index} ${"q".repeat(180)}`,
+        provider: "serper",
+      },
+      observation: `${index === 16 ? blockedObservation : "Search returned leads but no verified candidate."}${"o".repeat(700)}`,
+      observedUrls: [],
+      findings: [],
+      providerFallback: [],
+    }));
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective,
+      history: Array.from({ length: 24 }, (_, index) => `Prior model-led action ${index}. ${"h".repeat(180)}`),
+      trajectoryRecords,
+      lastObservation: blockedObservation,
+      findings: [],
+      priorContext: "Durable discovery evidence context. ".repeat(400),
+      intelligenceContext: "Research frontier and unresolved evidence requirements. ".repeat(400),
+      mode: "discovery",
+    });
+
+    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt).toContain("ACTIVE BOSS SCOPE:");
+    expect(prompt).toContain("Vietnam, Thailand, Indonesia");
+    expect(prompt).toContain("transaction announcements, regulatory filings");
+    expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
+    expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
     expect(prompt).toContain("successful falsification-intent action");
   });
 

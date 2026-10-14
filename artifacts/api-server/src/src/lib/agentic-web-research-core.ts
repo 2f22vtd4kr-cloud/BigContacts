@@ -1946,7 +1946,7 @@ const PIVOT_SCOPE_GENERIC_TERMS = new Set([
 // providers, sites, and action order.
 const PIVOT_SCOPE_SOURCE_CLASS_TERMS = new Set([
   "registry", "filing", "database", "directory", "association", "chamber",
-  "member", "trade", "list",
+  "member", "trade", "list", "announcement",
 ]);
 
 function pivotScopeToken(value: string): string {
@@ -2085,6 +2085,7 @@ const PIVOT_SOURCE_CLASS_SYNONYMS: Record<string, readonly string[]> = {
   member: ["member", "membership"],
   trade: ["trade"],
   list: ["list", "directory", "catalog"],
+  announcement: ["announcement", "release"],
 };
 
 function pivotTextMatchesAnyAnchor(value: string, anchors: readonly string[]): boolean {
@@ -2277,6 +2278,25 @@ export function discoveryPivotAlignmentReason(
   const excludedSubjects = pivotScopeExclusions(direction);
   const geographyOptions = pivotScopeGeographyOptions(direction);
   const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
+  if (action === "parallel_web_search" && direction.includes("renewable-energy private-equity transactions in Vietnam")) {
+    const searches = Array.isArray(args.searches) ? args.searches as Array<Record<string, unknown>> : [];
+    console.error("[temporary pivot diagnostic]", JSON.stringify({
+      anchors,
+      excludedSubjects,
+      geographyOptions,
+      requiredSourceAnchors,
+      matches: searches.map((search) => {
+        const query = String(search.query ?? "");
+        return {
+          query,
+          subject: pivotTextMatchesAnchors(query, anchors),
+          geography: pivotTextMatchesGeography(query, geographyOptions),
+          source: requiredSourceAnchors.length === 0 || pivotTextMatchesAnyAnchor(query, requiredSourceAnchors),
+          excluded: pivotTextContainsExcludedSubject(query, excludedSubjects),
+        };
+      }),
+    }));
+  }
 
   // Provenance grows only through successful actions already grounded in the active
   // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
@@ -2610,7 +2630,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const activeScope = extractBossPivotDirectionForCompactPrompt(input.objective ?? "")
         || extractBossOpeningDirectionForCompactPrompt(input.objective ?? "");
       const boundedMinimumObjective = activeScope
-        ? "ACTIVE BOSS SCOPE: " + boundInvestigatorPromptSection(activeScope, 300)
+        ? "ACTIVE BOSS SCOPE: " + boundInvestigatorPromptSection(activeScope, 220)
         : "CASE OBJECTIVE: discover real people with credible wealth potential and a realistic person-level public/professional/intermediary route; never infer wealth or fabricate evidence.";
       const smallestEmergencyPrefix = [
         finalEmergencyAssignment,

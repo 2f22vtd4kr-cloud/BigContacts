@@ -19,6 +19,10 @@ const SAFE_REQUEST_KEYS = new Set([
   "top_p",
 ]);
 const SAFE_MESSAGE_ROLES = new Set(["system", "user", "assistant", "tool"]);
+const EMAIL_ADDRESS = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
+const LABELED_PHONE = /(\b(?:phone|telephone|mobile|cell|fax|tel)(?:\s*(?:number|no\.?|#))?\b["']?\s*(?::|=|is)\s*["']?)(\+?[\d(][\d\s().-]{5,}\d)/gi;
+const INTERNATIONAL_PHONE = /(?:\+|00)\d[\d().\s-]{5,}\d/g;
+const NORTH_AMERICAN_PHONE = /\b(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}\b/g;
 
 type AuditEnvironment = {
   NODE_ENV?: string;
@@ -38,6 +42,14 @@ type AuditInput = {
 
 type AuditWriter = (path: string, contents: string) => unknown;
 
+function redactContactDetails(content: string): string {
+  return content
+    .replace(EMAIL_ADDRESS, "[REDACTED_EMAIL]")
+    .replace(LABELED_PHONE, "$1[REDACTED_PHONE]")
+    .replace(INTERNATIONAL_PHONE, "[REDACTED_PHONE]")
+    .replace(NORTH_AMERICAN_PHONE, "[REDACTED_PHONE]");
+}
+
 function safeRequestBody(body: Record<string, unknown>): Record<string, unknown> {
   const safe = Object.fromEntries(
     Object.entries(body).filter(([key]) => SAFE_REQUEST_KEYS.has(key)),
@@ -54,7 +66,7 @@ function safeRequestBody(body: Record<string, unknown>): Record<string, unknown>
       return {
         role,
         content: typeof record.content === "string"
-          ? record.content
+          ? redactContactDetails(record.content)
           : `[omitted non-text content: ${record.content === null ? "null" : typeof record.content}]`,
       };
     });
@@ -67,9 +79,9 @@ function longestBacktickRun(value: string): number {
 }
 
 /**
- * Opt-in development trace of the exact model request body, excluding HTTP
- * headers and all fields outside the explicit request-body allowlist.
- * Reasoning output remains disabled in the provider request and is not logged.
+ * Opt-in development trace of the model request body, excluding HTTP headers,
+ * non-allowlisted fields, and direct email/phone contact values. Reasoning
+ * output remains disabled in the provider request and is not logged.
  */
 export function emitModelPromptAudit(
   input: AuditInput,

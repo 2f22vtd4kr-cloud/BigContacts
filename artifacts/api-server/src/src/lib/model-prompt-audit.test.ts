@@ -37,7 +37,7 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(0);
   });
 
-  it("captures exact text messages while excluding non-allowlisted request fields", () => {
+  it("captures prompt text while excluding non-allowlisted request fields", () => {
     const writes: Array<{ path: string; contents: string }> = [];
     const requestId = emitModelPromptAudit(input, {
       NODE_ENV: "development",
@@ -53,6 +53,32 @@ describe("model prompt audit", () => {
     expect(writes[0]?.contents).toContain('"include_reasoning": false');
     expect(writes[0]?.contents).not.toContain("must not be captured");
     expect(writes[0]?.contents.match(/`{3}json/)).toBeTruthy();
+  });
+
+  it("redacts email addresses and labeled or international phone numbers", () => {
+    const writes: Array<{ path: string; contents: string }> = [];
+    const contactInput = {
+      ...input,
+      requestBody: {
+        ...input.requestBody,
+        messages: [
+          { role: "user", content: "Lead email: person@example.org; phone: +1 (415) 555-0100; direct: +442079460958." },
+        ],
+      },
+    };
+
+    emitModelPromptAudit(contactInput, {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    }, (path, contents) => writes.push({ path, contents }));
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.contents).toContain("[REDACTED_EMAIL]");
+    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
+    expect(writes[0]?.contents).not.toContain("person@example.org");
+    expect(writes[0]?.contents).not.toContain("415) 555-0100");
+    expect(writes[0]?.contents).not.toContain("+442079460958");
   });
 
   it("requires an audit destination even when prompt capture is enabled", () => {
