@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { emitModelPromptAudit } from "./model-prompt-audit";
 
 const input = {
@@ -112,6 +114,23 @@ describe("model prompt audit", () => {
     expect(writes[0]).toContain('"toolCount": 18');
     expect(writes[0]).not.toContain("PRIVATE_LONG_MESSAGE_SENTINEL");
     expect(writes[0]).not.toContain("PRIVATE_TOOL_SENTINEL");
+  });
+
+  it("resolves workspace-relative audit paths from the repository root when the API cwd is nested", () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
+    const writes: Array<{ path: string; contents: string }> = [];
+
+    const requestId = emitModelPromptAudit(input, {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md",
+    }, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
+
+    expect(requestId).toBeTruthy();
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md"));
+    expect(writes[0]?.path).not.toBe(resolve(apiPackageCwd, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md"));
   });
 
   it("requires an audit destination even when prompt capture is enabled", () => {

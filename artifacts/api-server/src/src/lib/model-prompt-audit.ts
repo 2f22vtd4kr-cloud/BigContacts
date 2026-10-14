@@ -1,5 +1,6 @@
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 import { randomUUID } from "node:crypto";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 
 const SAFE_REQUEST_KEYS = new Set([
   "include_reasoning",
@@ -37,6 +38,37 @@ type AuditInput = {
 };
 
 type AuditWriter = (path: string, contents: string) => unknown;
+
+/**
+ * Resolve relative audit destinations from the workspace root, not the API
+ * package's process.cwd(). Replit sets APEX_MODEL_AUDIT_FILE to "audits/…",
+ * while its API process may run with artifacts/api-server as its working
+ * directory. Anchoring to the workspace root avoids relying on a temporary
+ * symlink inside that package.
+ */
+function workspaceRootFrom(startDirectory: string): string {
+  const start = resolve(startDirectory);
+  let current = start;
+  while (true) {
+    if (
+      existsSync(join(current, "pnpm-workspace.yaml"))
+      && existsSync(join(current, "pnpm-lock.yaml"))
+    ) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) return start;
+    current = parent;
+  }
+}
+
+export function resolveModelAuditFilePath(
+  configuredPath: string,
+  cwd: string = process.cwd(),
+): string {
+  if (isAbsolute(configuredPath)) return configuredPath;
+  return resolve(workspaceRootFrom(cwd), configuredPath);
+}
 
 function redactContactDetails(content: string): string {
   return content
@@ -138,6 +170,7 @@ export function emitModelPromptAudit(
   input: AuditInput,
   env: AuditEnvironment = process.env,
   write: AuditWriter = appendFileSync,
+  cwd: string = process.cwd(),
 ): string | null {
   if (
     (env.NODE_ENV !== "development" && env.NODE_ENV !== "test")
@@ -162,7 +195,7 @@ export function emitModelPromptAudit(
   const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
   try {
     write(
-      env.APEX_MODEL_AUDIT_FILE,
+      resolveModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE, cwd),
       `\n\n### Model request ${requestId}\n\n${fence}json\n${serialized}\n${fence}\n`,
     );
     return requestId;
