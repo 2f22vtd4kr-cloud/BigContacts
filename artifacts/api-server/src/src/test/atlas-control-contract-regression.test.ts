@@ -609,7 +609,9 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])]");
     expect(bureauPassSource).toContain("priorTrajectoryRecords:input.priorTrajectoryRecords");
     expect(agenticResearchSource.match(/priorTrajectoryRecords: \[\.\.\.historyRecords, \.\.\.records\]/g) ?? []).toHaveLength(2);
-    expect(agenticResearchSource.match(/const normalizedRecord = \{ \.\.\.raw, turn: raw\.turn/g) ?? []).toHaveLength(2);
+        expect(agenticResearchSource.match(/const normalizedRecord = \{/g) ?? []).toHaveLength(2);
+    expect(agenticResearchSource).toContain("failureDomain: raw.failureDomain ?? scopeGuardDiagnostic.domain");
+    expect(agenticResearchSource).toContain("failureKind: raw.failureKind ?? scopeGuardDiagnostic.kind");
     expect(agenticResearchSource).not.toContain("historyRecords.length + record.turn");
     expect(agenticResearchSource).toContain("sourceObservations: history.map");
     expect(agenticResearchSource).toContain("loadDurableInvestigatorRecords");
