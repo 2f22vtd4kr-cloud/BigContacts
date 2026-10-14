@@ -36,7 +36,7 @@ describe("repeated pivot-scope recovery", () => {
     const reason = repeatedPivotBlockedActionReason(
       objective,
       "web_search",
-      { query: "Indiana Chamber of Commerce member directory for Midwest manufacturing owners", provider: "serper" },
+      { query: "Indiana Chamber of Commerce member directory for general business contacts", provider: "serper" },
       priorRecords,
     );
 
