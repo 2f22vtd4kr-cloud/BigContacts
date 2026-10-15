@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildAtlasScopeRecoveryFeedback } from "../lib/atlas-control-decision";
 import {
+  discoveryPivotAlignmentReason,
   discoveryPivotScopeKey,
   repeatedPivotBlockedActionReason,
   type AgenticTrajectoryRecord,
@@ -10,6 +11,13 @@ const objective = [
   "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary contact routes.",
   "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Query state corporation databases (e.g., Indiana Secretary of State, Ohio Business Search, Illinois Secretary of State) for family-owned manufacturing and real-estate companies in the Midwest and extract listed owners/operators; supplement with Midwest manufacturing trade association member directories to locate named individuals with public ownership evidence.",
 ].join("\n\n");
+
+const approvedOpeningObjective = [
+  "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary contact routes.",
+  "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Query the German Handelsregister for privately held Mittelstand manufacturing firms in Bavaria and identify their listed owners/operators.",
+  "BOSS OPENING CONTROL DIRECTION:",
+  "The Right-hand-approved first direction defines scope, not source evidence.",
+].join("\n");
 
 function blockedRecord(turn: number, query: string, pivotScopeKey: string): AgenticTrajectoryRecord {
   return {
@@ -24,6 +32,20 @@ function blockedRecord(turn: number, query: string, pivotScopeKey: string): Agen
     findings: [],
   };
 }
+
+describe("Right-hand-approved opening scope", () => {
+  it("blocks an unrelated opening search and allows a model-selected in-scope research route", () => {
+    expect(discoveryPivotAlignmentReason(approvedOpeningObjective, "web_search", {
+      query: "under the radar boutique private equity investors United Kingdom",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+
+    expect(discoveryPivotAlignmentReason(approvedOpeningObjective, "web_search", {
+      query: "Bavaria German Mittelstand manufacturing Handelsregister company owners",
+      provider: "serper",
+    }, [])).toBeNull();
+  });
+});
 
 describe("repeated pivot-scope recovery", () => {
   it("returns control after distinct out-of-scope query variants are repeatedly blocked", () => {

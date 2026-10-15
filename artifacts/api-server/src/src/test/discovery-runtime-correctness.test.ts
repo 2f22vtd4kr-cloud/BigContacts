@@ -62,6 +62,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("rightHand.reason");
     expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
     expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective");
+    expect(canonicalSource).toMatch(/approvedOpeningDirection[\s\S]{0,300}rightHand\.decision/);
+    expect(canonicalSource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
   });
 
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
@@ -105,7 +107,8 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("parallelRequestKeys.has(parallelRequestKey)");
     expect(researchCoreSource).toContain("isBrowserFetchProviderAvailable(action.provider)");
     expect(researchCoreSource).not.toContain("visited.has(canonical)");
-    expect(researchCoreSource).toContain("This constrains scope, not tool choice or action order.");
+    expect(researchCoreSource).toContain("This constrains scope, not tool or provider choice.");
+    expect(researchCoreSource).toContain("If the Boss wording explicitly orders dependent source stages");
     expect(researchCoreSource).toContain("no fixed sequence");
   });
 

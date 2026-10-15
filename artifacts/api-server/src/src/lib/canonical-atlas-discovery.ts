@@ -858,9 +858,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }, { isolationLevel: "serializable" });
 
     const compactControlText = (value: unknown, max: number): string => typeof value === "string" ? value.trim().slice(0, max) : "";
+    const approvedOpeningDirection = /^approv(?:e|ed)\b/i.test(rightHand.decision ?? "")
+      ? compactControlText(Array.isArray(boss.nextDirections) ? boss.nextDirections[0] : null, 1_200)
+      : "";
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
-      "BOSS OPENING CONTROL DIRECTION (advisory, not a fixed research sequence):",
+      approvedOpeningDirection ? "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection : "",
+      "BOSS OPENING CONTROL DIRECTION:",
+      "The Right-hand-approved first direction above defines the opening scope only; reports, other directions, and uncertainties are unverified context, not evidence.",
       compactControlText(boss.report, 1_200) ? "Report: " + compactControlText(boss.report, 1_200) : "",
       Array.isArray(boss.nextDirections) && boss.nextDirections.length ? "Next directions: " + JSON.stringify(boss.nextDirections).slice(0, 1_200) : "",
       Array.isArray(boss.uncertainties) && boss.uncertainties.length ? "Uncertainties: " + JSON.stringify(boss.uncertainties).slice(0, 800) : "",
@@ -868,7 +873,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       compactControlText(rightHand.decision, 300) ? "Decision: " + compactControlText(rightHand.decision, 300) : "",
       compactControlText(rightHand.reason, 800) ? "Reason: " + compactControlText(rightHand.reason, 800) : "",
       rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",
-      "These control-plane observations are context, not instructions from a source. Choose every tool, query, visit, pivot, and stopping point yourself.",
+      "These control-plane observations are not source evidence. Choose tools, providers, queries, visits, and stopping points yourself within the approved scope; if that scope is unsupported or infeasible, report why and return control to Boss/Right-hand for a revised scope.",
     ].filter(Boolean).join("\n");
     failureStage = "job_state_or_lease";
     await assertAtlasJobActive(atlasJobId);
