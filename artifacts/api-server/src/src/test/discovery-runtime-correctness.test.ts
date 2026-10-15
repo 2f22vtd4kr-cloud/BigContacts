@@ -857,7 +857,7 @@ describe("Apex research runtime readiness hardening", () => {
     expect(describeAgentActionParseFailure(JSON.stringify({
       ...base,
       searches: base.searches.map((entry, index) => index ? entry : { ...entry, registry: "imaginary-registry" }),
-    }))).toContain("invalid=searches");
+    }))).toContain("searches[0].registry unsupported");
     expect(describeAgentActionParseFailure(JSON.stringify({
       ...base,
       searches: [base.searches[0]],
