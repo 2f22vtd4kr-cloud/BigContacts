@@ -44,6 +44,12 @@ describe("canonicalCaseContinuationGuard", () => {
     expect(json).toHaveBeenCalledWith(expect.objectContaining({ error: expect.stringContaining("durably complete") }));
     expect(next).not.toHaveBeenCalled();
   });
+  it("compacts durable context before model review and preserves the specific Boss rejection", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
+    expect(source).toContain("compactCanonicalDiscoveryContinuationContext(context,7000)");
+    expect(source).not.toContain("context.length<=16000");
+    expect(source).toContain('new Error(boss.error??"Groq Boss did not select a Groq Investigator.")');
+  });
   it("does not label a discovery-only continuation as a complete Atlas outcome", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
     expect(source).toContain('outcome:"incomplete"');

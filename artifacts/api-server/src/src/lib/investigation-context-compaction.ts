@@ -131,6 +131,41 @@ function fitSection(section: string, remaining: number): string {
   return section.slice(0, head).trimEnd() + marker + (tail > 0 ? section.slice(-tail).trimStart() : "");
 }
 
+const DEFAULT_CANONICAL_CONTINUATION_CONTEXT_CHARS = 7_000;
+const MIN_CANONICAL_CONTINUATION_CONTEXT_CHARS = 1_000;
+const MAX_CANONICAL_CONTINUATION_CONTEXT_CHARS = 8_000;
+const CANONICAL_CONTINUATION_CONTEXT_MARKER =
+  "\n\n[DISCOVERY CONTINUATION CONTEXT COMPACTED: middle detail omitted; the full durable case and event ledger remain authoritative]\n\n";
+
+/**
+ * Compact only the model-facing view of a durable discovery case before it is
+ * replayed through Right-hand and Boss. Preserve the opening case framing and
+ * latest durable context; active objective and immutable evidence stay outside
+ * this reducer, and the persisted case document is never modified.
+ */
+export function compactCanonicalDiscoveryContinuationContext(
+  raw: string,
+  requestedMaxChars = DEFAULT_CANONICAL_CONTINUATION_CONTEXT_CHARS,
+): string {
+  const requested = Number.isFinite(requestedMaxChars)
+    ? Math.floor(requestedMaxChars)
+    : DEFAULT_CANONICAL_CONTINUATION_CONTEXT_CHARS;
+  const maxChars = Math.min(
+    MAX_CANONICAL_CONTINUATION_CONTEXT_CHARS,
+    Math.max(MIN_CANONICAL_CONTINUATION_CONTEXT_CHARS, requested),
+  );
+  const normalized = typeof raw === "string" ? sanitizeUrlsInText(raw.trim()) : "";
+  if (normalized.length <= maxChars) return normalized;
+
+  const available = maxChars - CANONICAL_CONTINUATION_CONTEXT_MARKER.length;
+  if (available <= 0) return normalized.slice(0, maxChars);
+  const headChars = Math.ceil(available * 0.55);
+  const tailChars = available - headChars;
+  return normalized.slice(0, headChars).trimEnd()
+    + CANONICAL_CONTINUATION_CONTEXT_MARKER
+    + (tailChars > 0 ? normalized.slice(-tailChars).trimStart() : "");
+}
+
 /**
  * Compose the short objective field independently from durable history/context.
  * The prompt builder keeps only the first 2,000 objective characters, so a

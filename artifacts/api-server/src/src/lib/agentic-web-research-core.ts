@@ -2062,6 +2062,19 @@ const PIVOT_SCOPE_NON_SUBJECT_TERMS = new Set([
 
 const PIVOT_GEOGRAPHIC_WORD = String.raw`[A-Z][\p{L}\p{M}'’.-]*`;
 const PIVOT_GEOGRAPHIC_NAME = `${PIVOT_GEOGRAPHIC_WORD}(?:[- ]${PIVOT_GEOGRAPHIC_WORD})*`;
+const PIVOT_GEOGRAPHIC_REGION_ALIASES: Array<{
+  pattern: RegExp;
+  alternatives: readonly (readonly string[])[];
+}> = [
+  {
+    pattern: /\b(?:pacific\s+northwest|pnw)\b/i,
+    alternatives: [
+      ["washington"], ["oregon"], ["idaho"],
+      ["seattle"], ["tacoma"], ["spokane"], ["bellevue"], ["olympia"],
+      ["portland"], ["eugene"], ["boise"],
+    ],
+  },
+];
 
 function pivotGeographicAlternatives(phrase: string): string[][] {
   return phrase.split(/\s*(?:,|\/|\bor\b|\band\b)\s*/iu)
@@ -2096,6 +2109,11 @@ function pivotScopeGeographyOptions(direction: string): string[][] {
   for (const match of direction.matchAll(jurisdictionList)) {
     options.push(...pivotGeographicAlternatives(match[1]!));
   }
+  for (const region of PIVOT_GEOGRAPHIC_REGION_ALIASES) {
+    if (region.pattern.test(direction)) {
+      options.push(...region.alternatives.map((alternative) => [...alternative]));
+    }
+  }
   const seen = new Set<string>();
   return options.filter((option) => {
     const key = option.join(" ");
@@ -2114,7 +2132,7 @@ function removePivotGeographyPhrases(direction: string): string {
     `\\b${PIVOT_GEOGRAPHIC_NAME}\\s*\\/\\s*${PIVOT_GEOGRAPHIC_NAME}(?=\\s+(?:state|county|province|territory|registry|registries|filing|database|companies|firms))`,
     "gu",
   );
-  return direction.replace(locationClause, " ").replace(jurisdictionList, " ");
+  return direction.replace(locationClause, " ").replace(jurisdictionList, " ").replace(/\b(?:Pacific\s+Northwest|PNW)\b/giu, " ");
 }
 
 function pivotScopeAnchors(objective: string): string[] {
@@ -2126,12 +2144,18 @@ function pivotScopeAnchors(objective: string): string[] {
   const withoutNegatedSubjects = directionWithoutNegatedPivotSubjects(primaryScopeClause);
   const withoutLocations = removePivotGeographyPhrases(withoutNegatedSubjects);
   const tokens = withoutLocations.toLowerCase().match(/[a-z]{3,}/g) ?? [];
-  return [...new Set(tokens.map(pivotScopeToken).filter((token) =>
+  const anchors = tokens.map(pivotScopeToken).filter((token) =>
     token.length >= 4
     && !PIVOT_SCOPE_GENERIC_TERMS.has(token)
     && !PIVOT_SCOPE_NON_SUBJECT_TERMS.has(token)
     && !PIVOT_SCOPE_SOURCE_CLASS_TERMS.has(token),
-  ))];
+  );
+  // The lexical components of "private equity" are individually generic, but
+  // together they identify a substantive sector. Preserve that compound anchor
+  // so regional queries can match both sector and geography without relaxing
+  // the minimum substantive-scope check.
+  if (/\bprivate[-\s]+equity\b/iu.test(withoutLocations)) anchors.push("private_equity");
+  return [...new Set(anchors)];
 }
 
 function pivotScopeRequiredSourceAnchors(direction: string): string[] {
@@ -2179,10 +2203,12 @@ function pivotTextMatchesGeography(value: string, options: readonly string[][]):
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
   if (!value.trim() || anchors.length === 0) return false;
   const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
-  const matched = new Set(anchors.filter((anchor) => tokens.some((token) =>
-    token === anchor || (Math.min(token.length, anchor.length) >= 6
-      && (token.startsWith(anchor.slice(0, 7)) || anchor.startsWith(token.slice(0, 7)))),
-  )));
+  const matched = new Set(anchors.filter((anchor) => anchor === "private_equity"
+    ? /\bprivate[-\s]+equity\b/iu.test(value)
+    : tokens.some((token) =>
+      token === anchor || (Math.min(token.length, anchor.length) >= 6
+        && (token.startsWith(anchor.slice(0, 7)) || anchor.startsWith(token.slice(0, 7)))),
+    )));
   // A single distinctive industry/entity anchor (e.g. "fitness") is sufficient;
   // a short, broad word such as "food" must be accompanied by another pivot anchor.
   return matched.size >= 2 || [...matched].some((anchor) => anchor.length >= 7);

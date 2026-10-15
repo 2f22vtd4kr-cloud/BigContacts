@@ -1,7 +1,7 @@
 # ⭐ Apex Atlas Sequential Audit — LIVE RUN 01
 
 **Audit file:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_01.md`  
-**Status:** PRE-FLIGHT OPEN — no new Atlas run has been launched yet.  
+**Status:** FAILED / INCOMPLETE — the opening launch and canonical recovery both failed; no candidate was admitted and no card was created. Source postmortem recorded in Event 011.  
 **Audit opened:** 2026-10-15 (UTC; see timestamped events below).  
 **Repository:** `https://github.com/2f22vtd4kr-cloud/BigContacts`  
 **Branch / starting revision:** `main` / `7e15f8e188ccbc93ac9833268fc63ee985a159c8`
@@ -1192,3 +1192,12 @@ Continue timestamped operator events in this chronology. Shape-only model reques
   }
 }
 ```
+
+
+### Event 011 — post-run source postmortem
+
+- **Confirmed continuation failure:** The recovery route allowed a 16,000-character durable context and then added the active objective plus Right-hand/Boss control wrappers. That was not a bound on the compiled Boss prompt. The Boss adapter correctly rejected the prompt above its unchanged 20,000-character ceiling before any outbound Boss request. The continuation route then obscured the diagnostic by replacing the specific Boss error with the generic “did not select an Investigator” message.
+- **Confirmed regional-scope defect:** The pivot guard tokenized “Pacific Northwest” as substantive subject words instead of recognizing the named region. Washington/Seattle queries matching the accepted sector could therefore be rejected by the subject/geography check. A narrow regional alias and compound “private equity” subject anchor are added; subject, geography, source-class, and exclusion checks remain active.
+- **Control response limitation:** The audit records that the opening Right-hand contract failed, but it does not contain the model response body. It therefore does not establish a more specific cause for that invalid contract; this repair does not weaken the validator or turn that failure into success.
+- **Evidence outcome:** The opening run and its one authorized continuation ended failed/incomplete. The case has no source-backed admissions, entities, contact evidence, research evidence, sessions, or run events; no card was created. This is not evidence of a card-projection defect.
+- **Regression coverage:** Added tests for bounded continuation context, compiled Boss prompt size, faithful Boss error propagation, aligned Pacific Northwest member geographies, and negative controls for unrelated geography/property records. Durable case documents and append-only evidence are not truncated or rewritten by model-facing compaction.

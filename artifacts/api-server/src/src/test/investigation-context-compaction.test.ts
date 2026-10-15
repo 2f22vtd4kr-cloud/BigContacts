@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactInvestigationContext, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("investigator context compaction", () => {
   it("bounds working context while retaining old source URLs in the archive index", () => {
@@ -146,6 +146,21 @@ describe("investigator context compaction", () => {
     expect(context).toContain("LATEST TRAJECTORY RECORD");
     expect(context).toContain("https://latest.example/page");
     expect(context).toContain("LATEST UNIQUE OBSERVATION MUST SURVIVE COMPACTION");
+  });
+
+  it("bounds continuation context while preserving case framing and latest durable material", () => {
+    const durableContext = [
+      "PRIMARY CASE OBJECTIVE: discover source-backed people connected to the original mission.",
+      "EARLY CASE HISTORY: " + "historical source and action detail ".repeat(4_000),
+      "LATEST DURABLE EVIDENCE: Washington corporate filing search returned leads; no fetched-page finding is established yet.",
+    ].join("\n");
+    const compacted = compactCanonicalDiscoveryContinuationContext(durableContext, 7_000);
+
+    expect(compacted.length).toBeLessThanOrEqual(7_000);
+    expect(compacted).toContain("PRIMARY CASE OBJECTIVE");
+    expect(compacted).toContain("DISCOVERY CONTINUATION CONTEXT COMPACTED");
+    expect(compacted).toContain("LATEST DURABLE EVIDENCE");
+    expect(compacted).toContain("no fetched-page finding is established yet");
   });
 
   it("keeps exact observed URLs in archived history", () => {

@@ -527,6 +527,45 @@ Choose each next action yourself from the available capabilities and observed ev
       provider: "serper",
     }, [])).toContain("pivot_alignment_guard");
   });
+  it("accepts member-state and city queries for a Pacific Northwest pivot without weakening sector or geography", () => {
+    const equityObjective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Investigate ownership/equity information for Pacific Northwest private-equity funds and identify public fund ownership records.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): none.",
+    ].join("\n");
+
+    expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
+      query: "Washington private equity fund managing partner official fund filings",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
+      query: "Portland Oregon private equity fund managing partner public filings",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
+      query: "New York private equity fund managing partner public filings",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+    expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
+      query: "Washington County property assessor records land ownership individual owners",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+
+    const manufacturingObjective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Shift focus to privately held Pacific Northwest mid-market firms in specialty manufacturing, renewable energy, or health-tech and public ownership/contact sources.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): none.",
+    ].join("\n");
+    expect(discoveryPivotAlignmentReason(manufacturingObjective, "web_search", {
+      query: 'Seattle privately held mid-market manufacturing company owner site:wa.gov "Business License"',
+      provider: "serper",
+    }, [])).toBeNull();
+  });
+
   it("fits a long active multi-country pivot and latest blocked action into the emergency prompt ceiling", () => {
     const direction = "Execute a precise web search that explicitly names the pivot subject, geographies (Vietnam, Thailand, Indonesia), and source class (transaction announcements, regulatory filings) – e.g., search for \"renewable energy private equity transaction Vietnam 2023\" and similar queries for Thailand and Indonesia, targeting official registries or reputable news outlets.";
     const objective = [

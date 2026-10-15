@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const caseBureauSource = readFileSync(resolve(process.cwd(), "src/src/lib/case-bureau.ts"), "utf8");
+import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
+import { compactCanonicalDiscoveryContinuationContext } from "../lib/investigation-context-compaction";
 import { generateGroqBossText } from "../lib/groq-boss";
 
 describe("Groq Boss discovery prompt grounding", () => {
@@ -16,6 +18,41 @@ describe("Groq Boss discovery prompt grounding", () => {
   it("uses medium reasoning for the opening discovery assignment", () => {
     expect(caseBureauSource).toContain('maxOutputTokens: 2048,\n      thinkingLevel: "medium"');
     expect(caseBureauSource).not.toContain('maxOutputTokens: 2048,\n      thinkingLevel: "low"');
+  });
+});
+
+describe("Groq Boss continuation prompt budget", () => {
+  it("keeps long durable history below the Boss ceiling while preserving active objective and latest state", () => {
+    const durableContext = [
+      "CASE CONTEXT BEGIN: original public-web discovery mission and accumulated findings.",
+      "HISTORICAL CASE DETAIL: " + "historical source and action detail ".repeat(2_500),
+      "LATEST DURABLE EVENT: Washington corporate filing search returned leads; no fetched-page finding is established yet.",
+    ].join("\n");
+    const compacted = compactCanonicalDiscoveryContinuationContext(durableContext, 7_000);
+    const activeObjective = "Find source-backed people connected to the original mission.";
+    const initialContext = `ACTIVE DISCOVERY OBJECTIVE:\n${activeObjective}\n\n${compacted}`;
+
+    const compiledBossPrompt = buildGroqBossDiscoveryPrompt({
+      objective: `Review this existing discovery case and decide whether a selected Investigator should continue it. Do not start a fixed research sequence.\n\nSHARED INVESTIGATION CONTEXT:\n${initialContext}`,
+      motivation: "Continue the existing investigation from its durable evidence.",
+      geography: "Public web; geography selected by the research objective",
+      exclusions: ["Do not browse as Boss.", "Do not prescribe a fixed tool or search sequence."],
+      rightHandAdvice: {
+        status: "completed",
+        model: "openai/gpt-oss-120b",
+        decision: "stop",
+        reason: "No evidence-backed candidate was admitted before the recovery boundary.",
+        focusLanes: ["Review evidence gaps and viable continuation"],
+        confidence: 0.84,
+        error: null,
+      },
+      startingLane: "model-selected continuation from shared case context",
+    }, ["groq-investigator-1"]);
+
+    expect(compacted.length).toBeLessThanOrEqual(7_000);
+    expect(compiledBossPrompt.length).toBeLessThanOrEqual(20_000);
+    expect(compiledBossPrompt).toContain("ACTIVE DISCOVERY OBJECTIVE");
+    expect(compiledBossPrompt).toContain("LATEST DURABLE EVENT");
   });
 });
 
