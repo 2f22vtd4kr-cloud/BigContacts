@@ -12,6 +12,10 @@ paths = ["/"]
 [services.development]
 run = "cd ../.. && bash scripts/replit-boot.sh"
 
+[services.development.env]
+APEX_CAPTURE_MODEL_PROMPTS = "true"
+APEX_MODEL_AUDIT_FILE = "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_01.md"
+
 [services.production]
 
 [services.production.build]
