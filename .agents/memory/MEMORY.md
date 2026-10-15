@@ -11,3 +11,4 @@
 - [Preserving Replit Git metadata](replit-git-import.md) — import source into the existing checkout; fetch/switch branches rather than replacing `.git`.
 - [Gemini boundary diagnostics](gemini-boundary-diagnostics.md) — per-model telemetry is required to separate intermittent provider latency from Apex request defects.
 - [Launch CTA underflow layering](launch-cta-underflow.md) — promote the CTA during its flash so the following shortcut row does not cover the animated reveal.
+- [Run environment rebuild timeouts](replit-run-environment-rebuild.md) — a workflow can time out before its command starts; check fresh state instead of treating old logs as current.
