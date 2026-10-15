@@ -733,3 +733,15 @@ describe("Right-hand-approved opening direction", () => {
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
   });
 });
+
+describe("scope-recovery control feedback delivery", () => {
+  it("survives report compaction and is passed to both advisory Right-hand and Boss control prompts", () => {
+    const feedback = "No-progress scope-recovery feedback (control state, not research evidence): 3 Investigator actions were blocked before outbound execution. Do not prescribe a fixed target, sector, query, provider, source, tool, or action sequence.";
+    const compacted = JSON.parse(compactAtlasInvestigatorReport(JSON.stringify({ scopeRecoveryFeedback: feedback }))) as Record<string, unknown>;
+    expect(compacted.scopeRecoveryFeedback).toBe(feedback);
+    expect(controlSource).toContain("scopeRecoveryFeedback: boundedText(parsed.scopeRecoveryFeedback, 1_200)");
+    expect(controlSource).toContain("When supplied scope-recovery feedback reports repeated preflight blocks");
+    expect(controlSource).toContain("const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState });");
+    expect(controlSource).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, rightHand });");
+  });
+});

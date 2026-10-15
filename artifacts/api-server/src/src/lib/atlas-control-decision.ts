@@ -289,25 +289,62 @@ const ATLAS_EXTERNAL_RESEARCH_ACTIONS = new Set([
  * This reports a control-plane mismatch to Boss/Right-hand; it never picks a
  * sector, query, provider, source, tool, or action sequence for the Investigator.
  */
+function hasUsableExternalResearchProgress(record: {
+  action: string;
+  execution: string;
+  observation?: string;
+  observedUrls?: readonly string[];
+  leadUrls?: readonly string[];
+  findings?: readonly unknown[];
+}): boolean {
+  if (record.execution !== "success" || !ATLAS_EXTERNAL_RESEARCH_ACTIONS.has(record.action)) return false;
+
+  const observation = String(record.observation ?? "").trim();
+  const hasObservedUrls = (record.observedUrls ?? []).some((url) => typeof url === "string" && url.trim().length > 0);
+  const hasLeadUrls = (record.leadUrls ?? []).some((url) => typeof url === "string" && url.trim().length > 0);
+  const hasFindings = (record.findings ?? []).length > 0;
+  const emptyOrFailedOutput = /\b(?:no (?:usable )?results?|returned no usable result|no (?:registry|platform|matching) hits|0 results|zero results|empty results?|no matching (?:records|profiles|pages|contacts|accounts)|no (?:public )?(?:profiles|accounts|matching records)|access denied|captcha|paywall|challenge page|failed to (?:fetch|retrieve|load)|request failure|failureDomain=|timed out|timeout)\b/i.test(observation);
+
+  if (["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)) {
+    // Search/registry output is a lead only: a non-empty result list is progress
+    // toward inspecting a source, but never claim-grade fetched source evidence.
+    return hasObservedUrls || hasLeadUrls;
+  }
+  if (record.action === "visit" || record.action === "browser_fetch") {
+    // A fetch must have returned an observed page, not merely a requested URL.
+    return hasObservedUrls && observation.length > 0 && !emptyOrFailedOutput;
+  }
+  if (hasFindings) return true;
+  return observation.length > 0 && !emptyOrFailedOutput;
+}
+
+/**
+ * Summarize repeated preflight scope rejections across accepted pivot variants.
+ * This reports a control-plane mismatch to Boss/Right-hand; it never picks a
+ * sector, query, provider, source, tool, or action sequence for the Investigator.
+ */
 export function buildAtlasScopeRecoveryFeedback(records: readonly {
   action: string;
   execution: string;
   observation?: string;
   pivotScopeKey?: string;
+  observedUrls?: readonly string[];
+  leadUrls?: readonly string[];
+  findings?: readonly unknown[];
 }[]): string | null {
   const recent = records.slice(-48);
   let blockedCount = 0;
   const scopeKeys = new Set<string>();
   for (let index = recent.length - 1; index >= 0; index -= 1) {
     const record = recent[index]!;
-    if (record.execution === "success" && ATLAS_EXTERNAL_RESEARCH_ACTIONS.has(record.action)) break;
+    if (hasUsableExternalResearchProgress(record)) break;
     if (record.execution !== "blocked" || !/\b(?:repeat_)?pivot_alignment_guard\b/i.test(String(record.observation ?? ""))) continue;
     blockedCount += 1;
     if (typeof record.pivotScopeKey === "string" && record.pivotScopeKey.trim()) scopeKeys.add(record.pivotScopeKey.trim());
   }
   if (blockedCount < 3) return null;
   const scopeVariantCount = Math.max(1, scopeKeys.size);
-  return `No-progress scope-recovery feedback (control state, not research evidence): ${blockedCount} Investigator action(s) since the latest successful external research action were blocked before any outbound request, across ${scopeVariantCount} accepted pivot-scope variant(s). These blocks say nothing negative about the public world and must not be treated as failed searches or evidence. Challenge why the accepted direction is not yielding an executable, scope-aligned action. The models may choose a substantively different research question that satisfies the active scope constraints, continue only when justified by the evidence, or stop/park for review. Do not prescribe a fixed target, sector, query, provider, source, tool, or action sequence.`;
+  return `No-progress scope-recovery feedback (control state, not research evidence): ${blockedCount} Investigator action(s) since the latest successful external action with usable output were blocked before any outbound request, across ${scopeVariantCount} accepted pivot-scope variant(s). These blocks say nothing negative about the public world and must not be treated as failed searches or evidence. Challenge why the accepted direction is not yielding an executable, scope-aligned action. The models may choose a substantively different research question that satisfies the active scope constraints, continue only when justified by the evidence, or stop/park for review. Do not prescribe a fixed target, sector, query, provider, source, tool, or action sequence.`;
 }
 
 type TrajectoryRecordInput = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: string; observation?: string; observedUrls: string[]; findings: CompactionFinding[]; providerFallback?: string[]; stopReason?: string };

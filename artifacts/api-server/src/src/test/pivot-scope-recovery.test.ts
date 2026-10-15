@@ -116,4 +116,38 @@ describe("cross-pivot scope recovery context", () => {
     ];
     expect(buildAtlasScopeRecoveryFeedback(records)).toBeNull();
   });
+
+  it("does not clear recovery feedback after an empty successful search or a failed fetch", () => {
+    const records: AgenticTrajectoryRecord[] = [
+      blockedRecord(1, "query one", "scope-a"),
+      blockedRecord(2, "query two", "scope-a"),
+      blockedRecord(3, "query three", "scope-b"),
+      {
+        turn: 4, model: "openai/gpt-oss-120b", action: "web_search", args: { query: "Midlands private limited agribusiness company house list", provider: "serper" },
+        execution: "success", observation: "WEB_SEARCH provider=serper\\n\\nNo results found.", observedUrls: [], findings: [],
+      },
+      {
+        turn: 5, model: "openai/gpt-oss-120b", action: "browser_fetch", args: { url: "https://find.example.test/company" },
+        execution: "error", observation: "failureDomain=external_page_fetch browser_fetch failed for requested URL: request_failure",
+        observedUrls: [], findings: [],
+      },
+    ];
+    const feedback = buildAtlasScopeRecoveryFeedback(records);
+    expect(feedback).toContain("3 Investigator action(s)");
+    expect(feedback).toContain("usable output");
+  });
+
+  it("clears recovery feedback after a search returns new URL leads without treating them as source evidence", () => {
+    const records: AgenticTrajectoryRecord[] = [
+      blockedRecord(1, "query one", "scope-a"),
+      blockedRecord(2, "query two", "scope-a"),
+      blockedRecord(3, "query three", "scope-b"),
+      {
+        turn: 4, model: "openai/gpt-oss-120b", action: "web_search", args: { query: "Midlands construction member directory", provider: "serper" },
+        execution: "success", observation: "WEB_SEARCH provider=serper\\nhttps://example.test/member-directory", observedUrls: ["https://example.test/member-directory"], findings: [],
+      },
+    ];
+    expect(buildAtlasScopeRecoveryFeedback(records)).toBeNull();
+  });
+
 });
