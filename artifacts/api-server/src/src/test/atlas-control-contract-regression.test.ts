@@ -745,3 +745,41 @@ describe("scope-recovery control feedback delivery", () => {
     expect(controlSource).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, rightHand });");
   });
 });
+
+
+describe("unresolved template placeholder rejection at the opening boundary", () => {
+  it("refuses to activate directions containing unresolved country, location, or templating placeholders", () => {
+    for (const firstDirection of [
+      "Search the trade register for manufacturers in [Country].",
+      "Find private manufacturers and owners in {{country}}.",
+      "Find owners of industrial firms in <Country>.",
+      "Search the [Location] company directory for manufacturing owners.",
+      "Find companies in TBD and identify their owners.",
+    ]) {
+      const result = resolveApprovedOpeningDirection({ rightHandDecision: "Approve", firstDirection });
+      expect(result.status).toBe("invalid");
+      expect(result.direction).toBeNull();
+      expect(result.reason).toContain("template placeholder");
+    }
+  });
+
+  it("does not leak rejected opening directions or their control commentary into the Investigator objective", () => {
+    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" && Array.isArray(boss.nextDirections)');
+    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" && compactControlText(boss.report');
+    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" && Array.isArray(boss.uncertainties)');
+    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" ? "RIGHT-HAND OPENING REVIEW (advisory):"');
+  });
+});
+
+describe("model-request audit correlation", () => {
+  it("passes durable job/case IDs to control-plane audits whenever the case is known", () => {
+    expect(bossSource).toContain("jobId: options?.jobId ?? null");
+    expect(bossSource).toContain("caseId: options?.caseId ?? null");
+    expect(rightHandSource).toContain("jobId:auditContext?.jobId??null");
+    expect(rightHandSource).toContain("caseId:auditContext?.caseId??null");
+    expect(controlSource).toContain("{ jobId: input.jobId ?? null, caseId: input.caseId }");
+    expect(canonicalDiscoverySource).toContain("{ jobId: atlasJobId, caseId: discoveryCaseId }");
+    expect(canonicalDiscoverySource).toContain("jobId: atlasJobId");
+    expect(canonicalDiscoverySource).toContain("caseId: opts.discoveryCaseId ?? null");
+  });
+});

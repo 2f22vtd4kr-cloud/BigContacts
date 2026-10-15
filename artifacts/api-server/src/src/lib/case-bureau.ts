@@ -329,6 +329,8 @@ export async function generateGeminiBossText(
     responseFormat?: Record<string, unknown>;
     maxOutputTokens?: number;
     thinkingLevel?: "minimal" | "low" | "medium" | "high";
+    jobId?: string | null;
+    caseId?: number | null;
   },
 ): Promise<import("./groq-boss").GroqBossTextGenerationResult> {
   return generateGroqBossText(selection, prompt, options);
@@ -504,6 +506,8 @@ function parseDiscoveryContactEvidenceStrict(value: unknown): DiscoveryContactEv
  * search-capable investigators supply web context and all returned people remain review-only.
  */
 export type GroqBossDiscoveryInput = {
+  jobId?: string | null;
+  caseId?: number | null;
   file?: DiscoveryCaseFile;
   objective: string;
   motivation: string;
@@ -601,6 +605,8 @@ export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promi
       responseFormat: buildBossDiscoveryResponseFormat(availableInvestigators),
       maxOutputTokens: 2048,
       thinkingLevel: "medium",
+      jobId: input.jobId ?? null,
+      caseId: input.caseId ?? null,
     });
     if (!generated.raw) {
       return {

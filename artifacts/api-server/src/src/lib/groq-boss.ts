@@ -239,6 +239,8 @@ async function generateGroqBossTextImpl(
     responseFormat?: Record<string, unknown>;
     maxOutputTokens?: number;
     thinkingLevel?: "minimal" | "low" | "medium" | "high";
+    jobId?: string | null;
+    caseId?: number | null;
   },
 ): Promise<GroqBossTextGenerationResult> {
   const configured = keys();
@@ -290,6 +292,8 @@ async function generateGroqBossTextImpl(
           role: "groq_boss",
           model,
           attempt: attempts.length + 1,
+          jobId: options?.jobId ?? null,
+          caseId: options?.caseId ?? null,
           requestBody,
         });
         const body = JSON.stringify(requestBody);
@@ -461,6 +465,8 @@ export function generateGroqBossText(
     responseFormat?: Record<string, unknown>;
     maxOutputTokens?: number;
     thinkingLevel?: "minimal" | "low" | "medium" | "high";
+    jobId?: string | null;
+    caseId?: number | null;
   },
 ): Promise<GroqBossTextGenerationResult> {
   return withProviderRole("control", () => generateGroqBossTextImpl(selection, prompt, options));

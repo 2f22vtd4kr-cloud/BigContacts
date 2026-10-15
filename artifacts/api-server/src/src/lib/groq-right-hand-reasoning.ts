@@ -106,6 +106,7 @@ export function getGroqRightHandLatencyConfig():GroqRightHandLatencyConfig {
 export type GroqRightHandStatus={configured:boolean;model:string;fallbackModels:string[];endpoint:string;role:"right_hand_advisor";capability:"case_file_reasoning_only";provider:"groq"};
 export type GroqRightHandCaseReasoningResult={status:"completed"|"unavailable";model:string;actionId:string|null;decision:string|null;reason:string|null;confidence:number|null;error:string|null};
 export type GroqRightHandDiscoveryAdviceResult={status:"completed"|"unavailable";model:string;decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;error:string|null};
+export type GroqRightHandAuditContext = { jobId?: string | null; caseId?: number | null };
 export function normalizeGroqRightHandCaseReasoning(parsed: Record<string, unknown> | null, queuedActionIds: readonly string[], model: string): GroqRightHandCaseReasoningResult {
   const expected = ["actionId", "decision", "reason", "confidence"];
   const exact = parsed !== null && Object.keys(parsed).length === expected.length && expected.every((key) => Object.prototype.hasOwnProperty.call(parsed, key));
@@ -219,7 +220,7 @@ function tokenRateLimitWaitMs(response:Response):number|null {
 type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryTokenRateLimit: number; retryAfterMs: number | null; retryAfterHeader: string | null; rateLimitKind: RateLimitKind; rateLimitHeaders: Record<string, string>; body: ReturnType<typeof summarizeProviderBody> | null; };
 function formatAttemptDiagnostic(diagnostic: GroqAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
 
-async function requestImpl(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean):Promise<{raw:string;error:string|null;model:string}>{
+async function requestImpl(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean,auditContext?:GroqRightHandAuditContext):Promise<{raw:string;error:string|null;model:string}>{
  const entry=keyEntries()[0];
  if(!entry)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
@@ -241,7 +242,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
   let lastRetryAfterHeader: string | null = null;
   while(Date.now()<deadline){
     const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat, reasoning_effort:"medium", include_reasoning:false};
-    emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:failures.length+1,requestBody});
+    emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:failures.length+1,jobId:auditContext?.jobId??null,caseId:auditContext?.caseId??null,requestBody});
     const body=JSON.stringify(requestBody);
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
    try{
@@ -272,8 +273,8 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  return {raw:"",error:`Groq Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:attempts.at(-1)?.model??GROQ_RIGHT_HAND_MODEL};
 }
 
-async function request(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean):Promise<{raw:string;error:string|null;model:string}> {
-  return withProviderRole("control",()=>requestImpl(system,user,format,validateRaw));
+async function request(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean,auditContext?:GroqRightHandAuditContext):Promise<{raw:string;error:string|null;model:string}> {
+  return withProviderRole("control",()=>requestImpl(system,user,format,validateRaw,auditContext));
 }
 
 function clip(value: string | null | undefined, maxChars = 360): string | null {
@@ -619,8 +620,8 @@ export async function runGroqRightHandDiscoveryAdvice(input: { file: DiscoveryCa
   if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error };
   return normalizeGroqRightHandDiscoveryAdvice(extractJson(result.raw), result.model);
 }
-export async function runGroqRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.", responseFormat?: Record<string, unknown>, validateRaw?: (raw: string) => boolean): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> {
- const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt, responseFormat ?? { type: "text", mime_type: "application/json", schema: { type: "object" } }, validateRaw);
+export async function runGroqRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.", responseFormat?: Record<string, unknown>, validateRaw?: (raw: string) => boolean, auditContext?: GroqRightHandAuditContext): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> {
+ const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt, responseFormat ?? { type: "text", mime_type: "application/json", schema: { type: "object" } }, validateRaw, auditContext);
  return result.raw ? { status: "completed", model: result.model, raw: result.raw, error: null } : { status: "unavailable", model: result.model, raw: null, error: result.error };
 }
 export async function runGroqRightHandFinalReview(prompt: string): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { return runGroqRightHandFreeJson(prompt, "You are the Apex Atlas Right Hand reviewing final public-contact evidence. Return ONE JSON object only. Never invent contacts, people, or URLs."); }

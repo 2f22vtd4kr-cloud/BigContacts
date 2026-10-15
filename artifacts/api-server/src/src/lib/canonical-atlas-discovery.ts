@@ -377,6 +377,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // Boss's opening assignment.
     failureStage = "boss_opening_request";
     const boss = await runGroqBossDiscovery({
+      jobId: atlasJobId,
+      caseId: opts.discoveryCaseId ?? null,
       objective: activeDiscoveryObjective,
       motivation: opts.discoveryMotivation || "Find real people for deep target-scoped investigation.",
       geography: opts.discoveryGeography || "Public web; geography selected by the research objective",
@@ -460,6 +462,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       await assertAtlasJobActive(atlasJobId);
       failureStage = "boss_opening_request";
       const reassignment = await runGroqBossDiscovery({
+        jobId: atlasJobId,
+        caseId: discoveryCaseId,
         objective: `${discoveryObjective}\n\nHARD PROVIDER QUOTA RECOVERY: The previously selected Investigator capability ${failedCapability} returned an explicit upstream request-quota exhaustion. This is a control-plane resource failure, not research evidence. Select a different currently configured Investigator capability from the runtime registry so the same investigation can continue. Do not repeat or substitute the exhausted capability.\n\nFAILURE: ${failure}`,
         motivation: "Recover one canonical investigation from an explicitly exhausted Investigator request quota. Preserve the existing evidence and let the Boss select the replacement capability; do not prescribe research steps.",
         geography: opts.discoveryGeography || "Public web; geography selected by the research objective",
@@ -572,6 +576,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       await assertAtlasJobActive(atlasJobId);
       failureStage = "boss_opening_request";
       const reassignment = await runGroqBossDiscovery({
+        jobId: atlasJobId,
+        caseId: discoveryCaseId,
         objective: `${discoveryObjective}\n\nPERSISTENT TOKEN-CAPACITY RECOVERY: Investigator capability ${failedCapability} returned repeated upstream_token_window_wait_exceeded failures after bounded same-capability retries in consecutive discovery episodes. This is token-window capacity exhaustion, NOT hard request-quota exhaustion; do not relabel it as upstream_quota_exhausted. If a distinct configured Investigator remains available, choose one to continue this same durable case. Do not prescribe a search query, tool, provider, or research sequence. If no distinct capability is viable, leave the case for review.\n\nFAILURE: ${failure}`,
         motivation: "Recover one canonical investigation after repeated token-window capacity failures. Let the Boss choose a distinct available Investigator capability; preserve all existing evidence and research gates.",
         geography: opts.discoveryGeography || "Public web; geography selected by the research objective",
@@ -770,6 +776,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             return false;
           }
         },
+        { jobId: atlasJobId, caseId: discoveryCaseId },
       ),
     ).catch((error) => ({
       status: "unavailable" as const,
@@ -872,13 +879,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       openingDirectionResolution.status === "approved"
         ? "The Right-hand-approved first direction above defines the opening scope only; it remains a research hypothesis, not source evidence. Reports, other directions, and uncertainties are unverified context, not evidence."
         : "No active opening direction was authorized (" + openingDirectionResolution.reason + "). Research the base objective without treating unapproved Boss directions as active scope; if the scope needs revision, return control to Boss/Right-hand. Boss reports, directions, and uncertainties are not source evidence.",
-      compactControlText(boss.report, 1_200) ? "Report: " + compactControlText(boss.report, 1_200) : "",
-      Array.isArray(boss.nextDirections) && boss.nextDirections.length ? "Next directions: " + JSON.stringify(boss.nextDirections).slice(0, 1_200) : "",
-      Array.isArray(boss.uncertainties) && boss.uncertainties.length ? "Uncertainties: " + JSON.stringify(boss.uncertainties).slice(0, 800) : "",
-      "RIGHT-HAND OPENING REVIEW (advisory):",
-      compactControlText(rightHand.decision, 300) ? "Decision: " + compactControlText(rightHand.decision, 300) : "",
-      compactControlText(rightHand.reason, 800) ? "Reason: " + compactControlText(rightHand.reason, 800) : "",
-      rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",
+      openingDirectionResolution.status === "approved" && compactControlText(boss.report, 1_200) ? "Report: " + compactControlText(boss.report, 1_200) : "",
+      openingDirectionResolution.status === "approved" && Array.isArray(boss.nextDirections) && boss.nextDirections.length ? "Next directions: " + JSON.stringify(boss.nextDirections).slice(0, 1_200) : "",
+      openingDirectionResolution.status === "approved" && Array.isArray(boss.uncertainties) && boss.uncertainties.length ? "Uncertainties: " + JSON.stringify(boss.uncertainties).slice(0, 800) : "",
+      openingDirectionResolution.status === "approved" ? "RIGHT-HAND OPENING REVIEW (advisory):" : "",
+      openingDirectionResolution.status === "approved" && compactControlText(rightHand.decision, 300) ? "Decision: " + compactControlText(rightHand.decision, 300) : "",
+      openingDirectionResolution.status === "approved" && compactControlText(rightHand.reason, 800) ? "Reason: " + compactControlText(rightHand.reason, 800) : "",
+      openingDirectionResolution.status === "approved" && rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",
       "These control-plane observations are not source evidence. Choose tools, providers, queries, visits, and stopping points yourself within the approved scope; if that scope is unsupported or infeasible, report why and return control to Boss/Right-hand for a revised scope.",
     ].filter(Boolean).join("\n");
     failureStage = "job_state_or_lease";

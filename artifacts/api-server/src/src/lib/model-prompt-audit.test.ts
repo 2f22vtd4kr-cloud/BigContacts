@@ -82,6 +82,8 @@ describe("model prompt audit", () => {
       "source passage",
     ]) expect(captured).not.toContain(privateMarker);
 
+    expect(captured).toContain('"jobId": "job-1"');
+    expect(captured).toContain('"caseId": 4');
     expect(captured).toContain('"messageCount": 2');
     expect(captured).toContain('"contentKind": "text"');
     expect(captured).toContain('"schemaName": "apex_action"');
