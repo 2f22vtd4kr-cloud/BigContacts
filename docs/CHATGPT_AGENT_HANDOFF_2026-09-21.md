@@ -1,3 +1,16 @@
+# CURRENT OVERRIDE — VERIFIED 2026-10-15
+
+> This 2026-09-21 handoff is historical background, not today's source/runtime status. Before acting, read `README.md`, `docs/CURRENT_STATUS_2026-10-15.md`, and the newest live audit; then verify actual `main` HEAD and Actions.
+
+The latest recorded live run is [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md): job `8eb7c47b-dc94-46d6-a851-133104a6a806` failed/incomplete at the 20-iteration ceiling; one page visit; zero findings/admissions/cards. Its search-count discrepancy remains explicitly unreconciled. There is no evidence that a candidate reached admission, so do not assert a downstream card-persistence defect from this run alone.
+
+Current role law: Groq Boss → selected Groq Investigator, with Groq Right-hand as independent bounded oversight. The Investigator owns research strategy; deterministic software owns guardrails and durable truth. Older Gemini/Mistral role descriptions in this file are historical and do not override current source.
+
+Latest relevant source changes: `adc43994` (phrase-aware source-class normalization), `83dd3634` (dynamic registry availability and safe auth failures), `411d9f95` (canonical action schema contract restored), `40a243d0` (official OpenCorporates `api_token` query parameter). Re-read actual diffs through `git log`; this note is only a pointer.
+
+`docs/CURRENT_STATUS_2026-10-15.md` and the repository's newest dated audit are the current run-status authority; recheck current GitHub Actions and never trust the CI snapshot below without revalidation.
+
+---
 # Apex Atlas — Master ChatGPT / Agent Handoff
 ## Canonical continuation point: `main`
 **Date:** 2026-09-21  
