@@ -7,6 +7,7 @@ const repoRoot = path.resolve(process.cwd(), "../..");
 const discoverySource = fs.readFileSync(path.join(libDir, "discovery-agent.ts"), "utf8");
 const researchSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
 const researchCoreSource = fs.readFileSync(path.join(libDir, "agentic-web-research-core.ts"), "utf8");
+const canonicalDiscoverySource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
 const bossDiscoverySource = fs.readFileSync(path.join(libDir, "case-bureau.ts"), "utf8");
 const telemetrySource = fs.readFileSync(path.join(libDir, "agentic-llm-telemetry.ts"), "utf8");
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
@@ -18,6 +19,14 @@ describe("discovery runtime architecture", () => {
   it("keeps discovery model-owned", () => {
     expect(discoverySource).toMatch(/model|investigator/i);
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
+  });
+
+  it("binds an approved Boss opening direction into the real first Investigator scope", () => {
+    expect(canonicalDiscoverySource).toContain("const approvedOpeningDirection = /^approv(?:e|ed)");
+    expect(canonicalDiscoverySource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
+    expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
+    expect(researchCoreSource).toContain("If the Boss wording explicitly orders dependent source stages");
+    expect(researchCoreSource).toContain("explain any material deviation");
   });
 
   it("compares model-selected anchors by evidence yield, targetability, novelty, and cost without fixing a sector", () => {

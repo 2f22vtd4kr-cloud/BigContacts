@@ -1,7 +1,7 @@
 # ⭐ Apex Atlas Sequential Audit — LIVE RUN 02
 
 **Audit file:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_02.md`  
-**Status:** IN PROGRESS — audit opened before this run; no launch submitted yet.  
+**Status:** FAILED / INCOMPLETE — Run 02 reached the canonical Investigator iteration ceiling with no admitted candidate or card. Source diagnosis and repair follow-up are recorded in Events 012–013.  
 **Audit opened:** 2026-10-15T05:08:18Z  
 **Repository:** `https://github.com/2f22vtd4kr-cloud/BigContacts`  
 **Branch / starting revision:** `main` / `10e44d74046f1b53ffd83b748ead48f65bf5e46a`
@@ -2170,3 +2170,12 @@ The source now contains later fixes than the failed Run 01 revision, including R
   }
 }
 ```
+
+
+### Event 013 — review of Replit's post-run commit and repair of the failed release gate
+
+- **Run result remains failed:** the one UI-equivalent canonical run terminated after 20 Investigator iterations. Final durable counts were zero for entities, assets, contact evidence, research evidence, research sessions, and relationships. There is no card. Do not describe the Replit patch as having fixed Run 02; that run used starting revision `10e44d74046f1b53ffd83b748ead48f65bf5e46a`, before the post-run commit.
+- **Replit commit reviewed:** `f77f7d71baab167cff4e5d3763e123ddf5f7a211`. It adds the Right-hand-approved first Boss direction as an explicit opening pivot in `openingInvestigatorObjective` and tells the Investigator to honor explicitly dependent source stages. These are model-owned scope constraints, not a hard-coded query or tool sequence.
+- **Release-gate defect:** API Build and the five-audit workflow failed at `scripts/check-discovery-quality.mjs`: `agentic-web-research-core.ts missing: explain any material deviation`. The prompt had been rewritten to `explain material deviations`, which was semantically similar to a person but broke the repository's exact architecture/quality contract. The phrase is restored while retaining the dependent-source-stage guidance.
+- **Regression strengthened:** add a test against the actual canonical opening code path, requiring the approved first direction to be inserted as a `BOSS-DIRECTED RESEARCH QUESTION / PIVOT` and the first ReAct pass to receive `openingInvestigatorObjective`. The existing scope regression still rejects the observed unrelated UK private-equity query under the approved German/Bavarian scope and accepts an aligned query.
+- **Behavior still requiring live proof:** Run 02 also showed repeated skipped-directory and failed-page-fetch actions consuming the Investigator budget after later pivots. The revised prompt now states the source-stage dependency explicitly, but this has not been exercised by a new live run. No new run is launched by this repair; the next operator run must verify that the Investigator follows the approved scope, uses an actually observed directory source when required, adapts after fetch failures, and produces an evidence-backed admission before card creation.
