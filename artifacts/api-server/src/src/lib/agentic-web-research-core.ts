@@ -1780,6 +1780,24 @@ const AGENTIC_STRUCTURED_SCHEMA = {
   additionalProperties: false
 } as const;
 
+const AGENTIC_ACTION_SCHEMA = {
+  ...AGENTIC_STRUCTURED_SCHEMA,
+  properties: {
+    ...AGENTIC_STRUCTURED_SCHEMA.properties,
+    registry: { type: ["string", "null"], enum: [...getAvailableRegistryIds(), null] },
+    searches: {
+      ...AGENTIC_STRUCTURED_SCHEMA.properties.searches,
+      items: {
+        ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items,
+        properties: {
+          ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items.properties,
+          registry: { type: ["string", "null"], enum: [...getAvailableRegistryIds(), null] },
+        },
+      },
+    },
+  },
+} as const;
+
 export function structuredActionResponseFormat(model: string): Record<string, unknown> {
   const strictSupported = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"].includes(model);
   const browserProviders = getAvailableBrowserFetchProviders();
