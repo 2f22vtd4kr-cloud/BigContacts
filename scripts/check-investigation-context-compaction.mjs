@@ -20,8 +20,9 @@ const checks = [
   ["archived trajectory retains both early and recent entries", /headTail\(input\.trajectoryRecords \?\? \[\], 10\)/.test(source)],
   ["emergency reducer enforces its maximum", /\.slice\(0, maxChars\)/.test(source)],
   ["unbounded whole-trajectory prompt assembly is absent", !/trajectoryRecords\.map\(.*observation.*join\(/s.test(source)],
-  ["discovery continuation preserves both head and tail when bounding durable context", discoveryContinuation.includes("const head=Math.floor(available/2)") && discoveryContinuation.includes("context.slice(0,head)+CONTINUATION_CONTEXT_BOUND_MARKER+context.slice(-tail)")],
-  ["discovery continuation uses a real newline bound marker", discoveryContinuation.includes('const CONTINUATION_CONTEXT_BOUND_MARKER="\\n\\n[DISCOVERY CONTINUATION CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\\n\\n";')],
+  ["canonical continuation uses the bounded model-facing context compactor", /export function compactCanonicalDiscoveryContinuationContext/.test(source) && /MAX_CANONICAL_CONTINUATION_CONTEXT_CHARS = 8_000/.test(source) && discoveryContinuation.includes("compactCanonicalDiscoveryContinuationContext(context,7000)") && !discoveryContinuation.includes("context.length<=16000")],
+  ["continuation compactor preserves both head and tail around its omission marker", source.includes("normalized.slice(0, headChars).trimEnd()") && source.includes("+ CANONICAL_CONTINUATION_CONTEXT_MARKER") && source.includes("normalized.slice(-tailChars).trimStart()")],
+  ["continuation compactor uses a real newline bound marker", /const CANONICAL_CONTINUATION_CONTEXT_MARKER\s*=\s*"\\n\\n\[DISCOVERY CONTINUATION CONTEXT COMPACTED:/.test(source)],
 ];
 let failed = false;
 for (const [name, ok] of checks) {
