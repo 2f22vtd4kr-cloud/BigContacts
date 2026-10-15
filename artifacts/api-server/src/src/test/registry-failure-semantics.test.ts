@@ -76,8 +76,10 @@ describe("registry failure semantics", () => {
     expect(caught).toMatchObject({ message: "OpenCorporates HTTP 401", code: "HTTP_401", status: 401 });
     expect((caught as Error).message).not.toContain(privateBody);
     expect(safeOutboundFetchMock).toHaveBeenCalledTimes(1);
+    const requestUrl = new URL(String(safeOutboundFetchMock.mock.calls[0]?.[0]));
+    expect(requestUrl.searchParams.get("api_token")).toBe("test-token");
     const requestInit = safeOutboundFetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
-    expect(new Headers(requestInit?.headers).get("X-API-TOKEN")).toBe("test-token");
+    expect(new Headers(requestInit?.headers).has("X-API-TOKEN")).toBe(false);
   });
 
   it("does not treat Companies House endpoint failures as an empty result", async () => {

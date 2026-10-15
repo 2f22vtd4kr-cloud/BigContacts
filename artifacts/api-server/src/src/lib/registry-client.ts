@@ -220,12 +220,17 @@ export function normalizeOpenCorporatesCompany(item: any): RegistryResult | null
 }
 
 async function searchOpenCorporates(query: string, limit: number, apiToken: string, signal?: AbortSignal): Promise<RegistryResult[]> {
-  const url = `https://api.opencorporates.com/v0.4/companies/search?q=${encodeURIComponent(query)}&per_page=${Math.min(limit, 20)}&order=score`;
-  const resp = await registryFetch("registry", url, {
+  const url = new URL("https://api.opencorporates.com/v0.4/companies/search");
+  url.searchParams.set("q", query);
+  url.searchParams.set("per_page", String(Math.min(limit, 20)));
+  url.searchParams.set("order", "score");
+  // OpenCorporates' documented authentication contract requires api_token in query parameters.
+  // Keep credentials out of exceptions, observations, and explicit application logs.
+  url.searchParams.set("api_token", apiToken);
+  const resp = await registryFetch("registry", url.toString(), {
     headers: {
       Accept: "application/json",
       "User-Agent": "ApexFinder/1.0 OSINT-Intelligence-Platform",
-      "X-API-TOKEN": apiToken,
     },
     signal: createRegistryRequestSignal(signal, 10_000),
   });
