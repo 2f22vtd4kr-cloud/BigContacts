@@ -2,6 +2,8 @@
 
 ## Repository
 
+Before modifying code or starting a live run, read `docs/CURRENT_STATUS_2026-10-15.md`, verify current `main` HEAD and GitHub Actions, and inspect the newest file under `audits/`. The latest recorded live run is [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md), which failed/incomplete with zero admissions/cards. This dated snapshot must be refreshed against the actual repository before acting.
+
 Import the existing repository through the connected Replit ↔ GitHub integration:
 
 `https://github.com/2f22vtd4kr-cloud/BigContacts`
@@ -47,6 +49,8 @@ ZENROWS_API_KEY
 Additional numbered Groq Boss, Right-hand, and Investigator credential slots are optional runtime capabilities. Investigator slots are independently selectable; for example `groq-investigator-1` maps to `GROQ_INVESTIGATOR_API_KEY`, `groq-investigator-2` maps to `GROQ_INVESTIGATOR_API_KEY_1`, through `groq-investigator-6` mapping to `GROQ_INVESTIGATOR_API_KEY_5`.
 
 Never silently rotate an explicitly selected Investigator capability to another credential.
+
+OpenCorporates is optional and must be exposed only when `OPENCORPORATES_API_TOKEN` or `OPENCORPORATES_API_KEY` is configured. Its authentication uses the documented `api_token` query parameter. These optional names are not on the mandatory preflight list; do not request a key as a substitute for using other available capabilities.
 
 Check presence only. Never display, echo, log, commit, or paste secret values into chat.
 
