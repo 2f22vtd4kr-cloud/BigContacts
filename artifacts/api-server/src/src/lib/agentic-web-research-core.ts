@@ -1070,9 +1070,26 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
     if (!Array.isArray(value.searches)) return "invalid_action_arguments action=parallel_registry_search missing=searches";
     if (value.searches.length < MIN_PARALLEL_SEARCHES_PER_BATCH) return "invalid_action_arguments action=parallel_registry_search searches_min=2";
     if (value.searches.length > MAX_PARALLEL_SEARCHES_PER_BATCH) return `invalid_action_arguments action=parallel_registry_search searches_max=${MAX_PARALLEL_SEARCHES_PER_BATCH}`;
-    if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item))) return "invalid_action_arguments action=parallel_registry_search invalid=searches";
+    if (value.searches.some((item) => !item || typeof item !== "object" || Array.isArray(item))) return "invalid_action_arguments action=parallel_registry_search invalid=searches_item";
     const valid = value.searches as Array<Record<string, unknown>>;
-    if (valid.some((item) => cleanText(item.query, 200).length < 2 || !normalizeRegistryId(cleanText(item.registry, 60)))) return "invalid_action_arguments action=parallel_registry_search invalid=searches";
+    const availableRegistries = new Set(getAvailableRegistryIds());
+    for (let index = 0; index < valid.length; index++) {
+      const item = valid[index]!;
+      if (cleanText(item.query, 200).length < 2) {
+        return "invalid_action_arguments action=parallel_registry_search searches[" + index + "].query missing_or_too_short";
+      }
+      const registryText = cleanText(item.registry, 60);
+      if (!registryText) {
+        return "invalid_action_arguments action=parallel_registry_search searches[" + index + "].registry missing";
+      }
+      const normalizedRegistry = normalizeRegistryId(registryText);
+      if (!normalizedRegistry) {
+        return "invalid_action_arguments action=parallel_registry_search searches[" + index + "].registry unsupported";
+      }
+      if (!availableRegistries.has(normalizedRegistry)) {
+        return "invalid_action_arguments action=parallel_registry_search searches[" + index + "].registry unavailable";
+      }
+    }
   } else if (action === "visit" && !isSafeHttpUrl(textField("url", 500))) return "invalid_action_arguments action=visit invalid=url";
   else if (action === "browser_fetch") {
     if (!isSafeHttpUrl(textField("url", 500))) return "invalid_action_arguments action=browser_fetch invalid=url";
@@ -1126,7 +1143,8 @@ export function shouldTerminateActionParseFailure(nextFailureCount: number, atte
 export function buildActionParseFailureObservation(parseFailure: string): string {
   const failure = (parseFailure || "invalid_action_object").slice(0, 240);
   if (/action=parallel_registry_search/.test(failure)) {
-    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 2–4 objects. Every search object must include a non-empty "query", a supported "registry" ID, "provider":null, "locale":null, "market":null, and "purpose" (a string or null). Otherwise choose another permitted action. Return every required top-level field; set unused scalars=null and unused arrays=[]. Return exactly one JSON object and no prose.`;
+    const configuredRegistryIds = getAvailableRegistryIds().join(", ") || "none";
+    return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_registry_search, include "searches" as an array of 2–4 objects. Each item must include a non-empty "query", an explicit configured "registry" ID chosen from [${configuredRegistryIds}], "provider":null, "locale":null, "market":null, and "purpose" (a string or null). A missing, null, unsupported, or unconfigured registry is invalid; do not invent IDs or assume a default. If no listed registry fits the hypothesis, choose another permitted action. Return every required top-level field; unused scalars=null and unused arrays=[]. Return exactly one JSON object and no prose.`;
   }
   if (/action=parallel_web_search/.test(failure)) {
     return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_web_search, include "searches" as an array of 2–4 objects. Every search object must include a non-empty "query", "provider" (serper, tavily, or exa), "registry":null, "locale" (string or null), "market" (string or null), and "purpose" (string or null). Otherwise choose another permitted action. Return every required top-level field; set unused scalars=null and unused arrays=[]. Return exactly one JSON object and no prose.`;

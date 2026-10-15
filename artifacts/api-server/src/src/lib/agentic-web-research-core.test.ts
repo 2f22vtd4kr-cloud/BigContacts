@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -1190,6 +1190,43 @@ Choose each next action yourself from the available capabilities and observed ev
       searches: [
         { query: "model-query-1", provider: "serper" },
         { query: "model-query-2", provider: "serper" },
+      ],
+    });
+  });
+
+  it("reports the exact missing/unconfigured registry field for parallel registry actions", () => {
+    const registryAction = (registries: unknown[]) => JSON.stringify({
+      action: "parallel_registry_search",
+      searches: registries.map((registry, index) => ({
+        query: `model-registry-query-${index + 1}`,
+        provider: null,
+        registry,
+        locale: null,
+        market: null,
+        purpose: `compare registry ${index + 1}`,
+      })),
+      hypothesis: "compare configured public registries for a specific ownership hypothesis",
+      purpose: "test the registry action contract",
+      expectedInformationGain: 0.5,
+    });
+
+    const missing = registryAction([null, "sec-edgar"]);
+    const missingFailure = describeAgentActionParseFailure(missing);
+    expect(missingFailure).toBe("invalid_action_arguments action=parallel_registry_search searches[0].registry missing");
+    expect(parseAgentAction(missing)).toBeNull();
+    expect(buildActionParseFailureObservation(missingFailure)).toContain("explicit configured \"registry\" ID");
+
+    const unsupported = registryAction(["sec-edgar", "not-a-real-registry"]);
+    expect(describeAgentActionParseFailure(unsupported)).toBe("invalid_action_arguments action=parallel_registry_search searches[1].registry unsupported");
+    expect(parseAgentAction(unsupported)).toBeNull();
+
+    const valid = registryAction(["sec-edgar", "brreg"]);
+    expect(describeAgentActionParseFailure(valid)).toBe("");
+    expect(parseAgentAction(valid)).toMatchObject({
+      action: "parallel_registry_search",
+      searches: [
+        { query: "model-registry-query-1", registry: "sec-edgar" },
+        { query: "model-registry-query-2", registry: "brreg" },
       ],
     });
   });
