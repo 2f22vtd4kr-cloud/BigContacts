@@ -1,8 +1,11 @@
 # Apex Atlas / BigContacts — Living Context
 
-> **Updated:** 2026-10-09  
+> **Updated:** 2026-10-15  
 > **Canonical branch:** `main`  
 > **Status:** active architecture handoff; static correctness is not production/live-research certification.
+
+> **Latest live run:** [October 15 Run 03 audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md) — failed/incomplete at 20 Investigator iterations, one successful visit, zero findings/admissions/cards.
+> **Current status and verification snapshot:** [CURRENT_STATUS_2026-10-15.md](CURRENT_STATUS_2026-10-15.md). Re-check actual `main` HEAD and Actions before relying on dated CI states.
 
 ## 1. Current architecture
 
@@ -150,6 +153,8 @@ APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
 Schema mutation must not remain enabled during ordinary boot.
 
+The most recent user-operated run is documented in [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md). It ended failed/incomplete after 20 Investigator iterations with one successful visit and no findings/admissions/cards. This is an admission-stage failure, not proof of a downstream card-creation defect. The exact diagnostic and code/CI timeline are maintained in [CURRENT_STATUS_2026-10-15.md](CURRENT_STATUS_2026-10-15.md).
+
 The repository must not claim live provider success, production readiness, or research quality from static tests alone. A controlled live run requires the canonical environment, initialized durable schema, healthy runtime, actual provider execution, and persisted evidence.
 
 ## 10. Active provider secret contract
@@ -173,6 +178,8 @@ ZENROWS_API_KEY
 ```
 
 Additional role-scoped Groq Boss, Right-hand, and Investigator suffix slots may be configured and are handled by their runtime registries. They are separate capabilities/credentials, not aliases for the base key.
+
+OpenCorporates is optional and credential-gated. If neither `OPENCORPORATES_API_TOKEN` nor `OPENCORPORATES_API_KEY` is configured, it must not be advertised as an available Investigator registry. Its documented authentication uses the `api_token` query parameter; this optional secret is not part of mandatory Replit preflight.
 
 Never request or print GitHub credentials, `DATABASE_URL`, retired Gemini/Mistral/DeepSeek control-plane credentials, WHOIS/WHOXY credentials, or secret values in chat.
 
