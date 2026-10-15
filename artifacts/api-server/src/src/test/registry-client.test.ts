@@ -5,6 +5,8 @@ import {
   normalizeBodaccRecord,
   normalizeBrregEntity,
   REGISTRY_IDS,
+  getAvailableRegistryIds,
+  isRegistryProviderAvailable,
   getRandomDiscoveryRegistries,
   normalizeRegistryId,
   formatRegistryResultLead,
@@ -14,7 +16,7 @@ import {
   normalizeCompaniesHouseOfficer,
   normalizeSecEdgarHit,
 } from "../lib/registry-client";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("registry candidate classification safety", () => {
   it("never labels a Companies House officer as an HNWI from office alone", () => {
@@ -225,5 +227,34 @@ describe("Phase J2 registry normalization", () => {
     expect(normalizeRegistryId("companies house")).toBe("companies-house");
     expect(normalizeRegistryId("sec-edgar")).toBe("sec-edgar");
     expect(normalizeRegistryId("unknown-registry")).toBeNull();
+  });
+});
+
+
+describe("registry capability availability", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("does not advertise key-gated registries when credentials are absent", () => {
+    vi.stubEnv("OPENCORPORATES_API_TOKEN", "");
+    vi.stubEnv("OPENCORPORATES_API_KEY", "");
+    vi.stubEnv("COMPANIES_HOUSE_API_KEY", "");
+
+    const available = getAvailableRegistryIds();
+    expect(available).toContain("sec-edgar");
+    expect(available).not.toContain("opencorporates");
+    expect(available).not.toContain("companies-house");
+    expect(isRegistryProviderAvailable("opencorporates")).toBe(false);
+    expect(isRegistryProviderAvailable("companies-house")).toBe(false);
+  });
+
+  it("advertises OpenCorporates only when a token is configured", () => {
+    vi.stubEnv("OPENCORPORATES_API_TOKEN", "test-token");
+    vi.stubEnv("OPENCORPORATES_API_KEY", "");
+    vi.stubEnv("COMPANIES_HOUSE_API_KEY", "");
+
+    expect(getAvailableRegistryIds()).toContain("opencorporates");
+    expect(isRegistryProviderAvailable("opencorporates")).toBe(true);
   });
 });

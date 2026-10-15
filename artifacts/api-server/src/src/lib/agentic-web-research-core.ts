@@ -19,7 +19,7 @@ import { ResearchIntelligenceEngine, renderIntelligenceContext, type Intelligenc
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { candidateIdentityObserved } from "./identity-text-match";
 import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
-import { normalizeRegistryId } from "./registry-client";
+import { getAvailableRegistryIds, normalizeRegistryId } from "./registry-client";
 import { inferResearchCognitiveTask, rankGroqModelsForTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, type InvestigatorCapability } from "./investigator-capability-registry";
 import { defaultTerminalContract, evaluateResearchTerminal } from "./research-terminal-gate";
@@ -1780,19 +1780,31 @@ const AGENTIC_STRUCTURED_SCHEMA = {
   additionalProperties: false
 } as const;
 
-function structuredActionResponseFormat(model: string): Record<string, unknown> {
+export function structuredActionResponseFormat(model: string): Record<string, unknown> {
   const strictSupported = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"].includes(model);
   const browserProviders = getAvailableBrowserFetchProviders();
   const availableActions = browserProviders.length
     ? [...MODEL_SELECTABLE_AGENT_ACTIONS]
     : MODEL_SELECTABLE_AGENT_ACTIONS.filter((action) => action !== "browser_fetch");
   const providerEnum = [...new Set(["serper", "tavily", "exa", "rdap", "whoisjson", ...browserProviders]), null];
+  const availableRegistryEnum: (string | null)[] = [...getAvailableRegistryIds(), null];
   const schema = {
     ...AGENTIC_STRUCTURED_SCHEMA,
     properties: {
       ...AGENTIC_STRUCTURED_SCHEMA.properties,
       action: { type: "string", enum: availableActions },
       provider: { type: ["string", "null"], enum: providerEnum },
+      registry: { type: ["string", "null"], enum: availableRegistryEnum },
+      searches: {
+        ...AGENTIC_STRUCTURED_SCHEMA.properties.searches,
+        items: {
+          ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items,
+          properties: {
+            ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items.properties,
+            registry: { type: ["string", "null"], enum: availableRegistryEnum },
+          },
+        },
+      },
     },
   };
   return strictSupported
@@ -1800,7 +1812,6 @@ function structuredActionResponseFormat(model: string): Record<string, unknown> 
     : { type: "json_object" };
 }
 
-const AGENTIC_ACTION_SCHEMA = { type: "object", properties: { action: { type: "string", enum: [...MODEL_SELECTABLE_AGENT_ACTIONS] }, query: { type: "string" }, provider: { type: ["string", "null"], enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright", null] }, url: { type: "string" }, email: { type: "string" }, username: { type: "string" }, domain: { type: "string" }, registry: { type: "string" }, target: { type: "string" }, targetType: { type: "string", enum: ["domain","hostname","ip","email","username","person","asn"] }, profile: { type: "string", enum: ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"] }, searches: { type: "array", minItems: 2, maxItems: 4, items: { type: "object", properties: { query: { type: "string" }, provider: { type: ["string", "null"], enum: ["serper", "tavily", "exa", null] }, registry: { type: ["string", "null"], enum: ["sec-edgar", "companies-house", "brreg", "ares-czechia", "bodacc-france", "gleif", "cvr-denmark", "zefix-switzerland", "offeneregister-germany", "bolagsverket-sweden", "ytj-finland", "atoka-italy", "borme-spain", "kvk-netherlands", "kbo-belgium", "opencorporates", null] }, locale: { type: ["string", "null"] }, market: { type: ["string", "null"] }, purpose: { type: ["string", "null"] } }, additionalProperties: false } }, thought: { type: "string" }, hypothesis: { type: "string" }, purpose: { type: "string" }, expectedInformationGain: { type: "number" }, findings: { type: "array" } }, required: ["action"], additionalProperties: false }
 export function extractBossPivotDirectionForCompactPrompt(rawObjective: string): string {
   const pivotMarker = "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:";
   const pivotIndex = rawObjective.indexOf(pivotMarker);

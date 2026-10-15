@@ -39,6 +39,47 @@ describe("registry failure semantics", () => {
     await expect(searchRegistry({ query: "Apex example", registry })).rejects.toThrow(error);
   });
 
+
+  it("does not attempt a keyless OpenCorporates request and returns a safe registry-auth code", async () => {
+    vi.stubEnv("OPENCORPORATES_API_TOKEN", "");
+    vi.stubEnv("OPENCORPORATES_API_KEY", "");
+
+    let caught: unknown;
+    try {
+      await searchRegistry({ query: "Iowa privately held agribusiness owners", registry: "opencorporates" });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught).toMatchObject({
+      message: "OpenCorporates unavailable: API token is not configured.",
+      code: "REGISTRY_AUTH_REQUIRED",
+    });
+    expect(safeOutboundFetchMock).not.toHaveBeenCalled();
+  });
+
+  it("preserves OpenCorporates HTTP status without embedding raw response body", async () => {
+    vi.stubEnv("OPENCORPORATES_API_TOKEN", "test-token");
+    vi.stubEnv("OPENCORPORATES_API_KEY", "");
+    const privateBody = "PRIVATE_OPENCORPORATES_RESPONSE_BODY_SENTINEL";
+    safeOutboundFetchMock.mockResolvedValueOnce(new Response(privateBody, { status: 401, statusText: "Unauthorized" }));
+
+    let caught: unknown;
+    try {
+      await searchRegistry({ query: "Iowa privately held agribusiness owners", registry: "opencorporates" });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect(caught).toMatchObject({ message: "OpenCorporates HTTP 401", code: "HTTP_401", status: 401 });
+    expect((caught as Error).message).not.toContain(privateBody);
+    expect(safeOutboundFetchMock).toHaveBeenCalledTimes(1);
+    const requestInit = safeOutboundFetchMock.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(new Headers(requestInit?.headers).get("X-API-TOKEN")).toBe("test-token");
+  });
+
   it("does not treat Companies House endpoint failures as an empty result", async () => {
     safeOutboundFetchMock.mockResolvedValue(
       new Response("upstream unavailable", { status: 503, statusText: "Service Unavailable" }),

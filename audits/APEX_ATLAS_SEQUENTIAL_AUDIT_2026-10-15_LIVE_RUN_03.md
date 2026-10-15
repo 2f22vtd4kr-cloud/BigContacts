@@ -1,6 +1,6 @@
 # ⭐ Apex Atlas Sequential Audit — LIVE RUN 03
 
-**Status:** Prepared; no Atlas launch request has been sent yet.  
+**Status:** FAILED / INCOMPLETE — Attempt 1 exhausted the 20-Investigator-iteration ceiling; zero findings, admissions, and cards. The original pre-launch status is preserved in the append-only correction below.  
 **Started:** 2026-10-15 (timestamps below are UTC).  
 **Purpose:** Complete one real, UI-equivalent Apex Atlas discovery → research → evidence/admission → card-creation run, recording each observable transition and any setup/runtime defects.
 
@@ -2246,3 +2246,11 @@ Append timestamped events here as the run advances. Keep the audit sequential; d
   }
 }
 ```
+
+
+## Append-only correction — terminal status and action-count reconciliation
+
+- **Status correction:** the opening status line originally described the pre-launch checkpoint and became stale after Event 003. The single canonical job `8eb7c47b-dc94-46d6-a851-133104a6a806` ended `failed` / `incomplete` at the 20-Investigator-iteration ceiling. Durable after-state remained `entities=0`, `assets=0`, `relationships=0`, `contact_evidence=0`, `research_evidence=0`, `research_sessions=0`, `research_run_events=0`, and `cards=0`. No card was lost in projection because no candidate was admitted.
+- **Unreconciled search-count discrepancy:** Event 012 reports eight successful web-search actions. The individually enumerated event log identifies successful outbound searches at turns 1 and 2, three provider queries within parallel turn 4, and the zero-result web search at turn 17: six successful provider search requests as currently itemized. The other explicitly itemized registry calls were blocked or failed; turn 20 was a failed parallel-registry action, not a successful web search. The total of eight cannot be reconciled from the listed events without the raw durable trajectory rows. The original tally is preserved; no two missing searches are inferred or invented.
+- **Live-fix boundary:** the phrase-aware source-class alias was prepared only after attempt 1 had ended; the running API used the old guard. Run 03 does not verify that phrase fix in live execution.
+- **OpenCorporates authentication:** the official API docs state that an API token is required and support sending it in the `X-API-TOKEN` header ([authentication documentation](https://knowledge.opencorporates.com/knowledge-base/api-authentication-authorisation/)). The previous source still advertised OpenCorporates without a configured token, and its HTTP error embedded upstream response text. The follow-up now hides credential-gated registries from model schema when unconfigured, checks the credential before network I/O, and preserves HTTP status without provider body text.

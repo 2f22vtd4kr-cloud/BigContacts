@@ -144,6 +144,26 @@ export const REGISTRY_IDS = [
 ] as const;
 export type RegistryId = (typeof REGISTRY_IDS)[number];
 
+function openCorporatesApiToken(): string {
+  return process.env["OPENCORPORATES_API_TOKEN"]?.trim()
+    || process.env["OPENCORPORATES_API_KEY"]?.trim()
+    || "";
+}
+
+/** Advertise only registries that are callable with the current runtime configuration. */
+export function isRegistryProviderAvailable(registry: string): boolean {
+  const normalized = normalizeRegistryId(registry);
+  if (!normalized) return false;
+  if (normalized === "opencorporates") return Boolean(openCorporatesApiToken());
+  if (normalized === "companies-house") return Boolean(process.env["COMPANIES_HOUSE_API_KEY"]?.trim());
+  return true;
+}
+
+export function getAvailableRegistryIds(): RegistryId[] {
+  return REGISTRY_IDS.filter(isRegistryProviderAvailable);
+}
+
+
 export const RANDOM_DISCOVERY_REGISTRIES = [
   "sec-edgar", "companies-house", "brreg", "ares-czechia", "bodacc-france", "gleif",
   "cvr-denmark", "zefix-switzerland", "offeneregister-germany", "bolagsverket-sweden",
@@ -151,9 +171,7 @@ export const RANDOM_DISCOVERY_REGISTRIES = [
 ] as const satisfies readonly RegistryId[];
 
 export function getRandomDiscoveryRegistries(): RegistryId[] {
-  return RANDOM_DISCOVERY_REGISTRIES.filter(
-    (registry) => registry !== "companies-house" || Boolean(process.env["COMPANIES_HOUSE_API_KEY"]),
-  );
+  return RANDOM_DISCOVERY_REGISTRIES.filter(isRegistryProviderAvailable);
 }
 
 function firstRegistryRecordName(...candidates: unknown[]): string | null {
@@ -201,16 +219,21 @@ export function normalizeOpenCorporatesCompany(item: any): RegistryResult | null
   };
 }
 
-async function searchOpenCorporates(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> {
+async function searchOpenCorporates(query: string, limit: number, apiToken: string, signal?: AbortSignal): Promise<RegistryResult[]> {
   const url = `https://api.opencorporates.com/v0.4/companies/search?q=${encodeURIComponent(query)}&per_page=${Math.min(limit, 20)}&order=score`;
   const resp = await registryFetch("registry", url, {
-    headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Intelligence-Platform" },
+    headers: {
+      Accept: "application/json",
+      "User-Agent": "ApexFinder/1.0 OSINT-Intelligence-Platform",
+      "X-API-TOKEN": apiToken,
+    },
     signal: createRegistryRequestSignal(signal, 10_000),
   });
   if (!resp.ok) {
-    const body = await resp.text().catch(() => "");
-    const error = new Error(`OpenCorporates ${resp.status}: ${body.slice(0, 200) || resp.statusText}`);
-    Object.assign(error, { code: `HTTP_${resp.status}` });
+    // Preserve status for recovery but never store raw upstream response bodies.
+    await resp.body?.cancel().catch(() => undefined);
+    const error = new Error(`OpenCorporates HTTP ${resp.status}`);
+    Object.assign(error, { code: `HTTP_${resp.status}`, status: resp.status });
     throw error;
   }
   const data = (await resp.json()) as any;
@@ -611,10 +634,18 @@ export async function searchRegistry(params: RegistrySearchParams): Promise<Regi
   const normalizedRegistry = normalizeRegistryId(registry);
   if (!normalizedRegistry) throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
   let results: RegistryResult[];
-  if (normalizedRegistry === "opencorporates") results = await searchOpenCorporates(query.trim(), limit, signal);
+  if (normalizedRegistry === "opencorporates") {
+    const apiToken = openCorporatesApiToken();
+    if (!apiToken) {
+      const error = new Error("OpenCorporates unavailable: API token is not configured.");
+      Object.assign(error, { code: "REGISTRY_AUTH_REQUIRED" });
+      throw error;
+    }
+    results = await searchOpenCorporates(query.trim(), limit, apiToken, signal);
+  }
   else if (normalizedRegistry === "companies-house") {
     const apiKey = process.env["COMPANIES_HOUSE_API_KEY"];
-    if (!apiKey) throw new Error("COMPANIES_HOUSE_API_KEY is not configured. Register for a free key at https://developer.company-information.service.gov.uk/ and set it as an environment variable.");
+    if (!apiKey) { const error = new Error("COMPANIES_HOUSE_API_KEY is not configured. Register for a free key at https://developer.company-information.service.gov.uk/ and set it as an environment variable."); Object.assign(error, { code: "REGISTRY_AUTH_REQUIRED" }); throw error; }
     results = await searchCompaniesHouse(query.trim(), apiKey, limit, signal);
   } else if (normalizedRegistry === "sec-edgar") results = await searchSecEdgar(query.trim(), limit, signal);
   else if (normalizedRegistry === "gleif") { const gleifResults = await searchGleif(query.trim(), limit, signal); results = gleifResults.map((r) => ({ name: r.name, type: r.type, nationality: r.nationality, knownResidences: r.knownResidences, sourceRegistries: r.sourceRegistries, notes: r.notes, metadata: r.metadata })); }
