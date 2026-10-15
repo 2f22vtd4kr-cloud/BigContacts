@@ -67,6 +67,8 @@ describe("provider error diagnostics", () => {
 
   it("classifies provider HTTP status codes without exposing response bodies", () => {
     expect(classifyProviderHttpStatus(400)).toBe("invalid_request");
+    expect(classifyProviderHttpStatus(401)).toBe("unauthorized");
+    expect(classifyProviderHttpStatus(403)).toBe("forbidden");
     expect(classifyProviderHttpStatus(429)).toBe("rate_limited");
     expect(classifyProviderHttpStatus(413)).toBe("request_size");
     expect(classifyProviderHttpStatus(503)).toBe("provider_unavailable");

@@ -209,7 +209,9 @@ async function searchOpenCorporates(query: string, limit: number, signal?: Abort
   });
   if (!resp.ok) {
     const body = await resp.text().catch(() => "");
-    throw new Error(`OpenCorporates ${resp.status}: ${body.slice(0, 200) || resp.statusText}`);
+    const error = new Error(`OpenCorporates ${resp.status}: ${body.slice(0, 200) || resp.statusText}`);
+    Object.assign(error, { code: `HTTP_${resp.status}` });
+    throw error;
   }
   const data = (await resp.json()) as any;
   const companies: any[] = data?.results?.companies ?? [];

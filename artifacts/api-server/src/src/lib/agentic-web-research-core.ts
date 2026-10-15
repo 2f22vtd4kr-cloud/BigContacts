@@ -2164,9 +2164,9 @@ function pivotScopeRequiredSourceAnchors(direction: string): string[] {
 }
 
 const PIVOT_SOURCE_CLASS_SYNONYMS: Record<string, readonly string[]> = {
-  registry: ["registry", "register", "database", "filing"],
-  filing: ["filing", "registry", "register", "database", "corporate", "corporation", "corporations"],
-  database: ["database", "registry", "register", "filing"],
+  registry: ["registry", "register", "database", "filing", "secretary of state", "business entity search", "corporate entity search", "corporation search"],
+  filing: ["filing", "registry", "register", "database", "corporate", "corporation", "corporations", "secretary of state", "business entity search", "corporate entity search"],
+  database: ["database", "registry", "register", "filing", "secretary of state", "business entity search", "corporate entity search"],
   directory: ["directory", "catalog", "listing", "list"],
   association: ["association", "chamber"],
   chamber: ["chamber", "association", "directory"],
@@ -2185,10 +2185,17 @@ function pivotTextMatchesAnyAnchor(value: string, anchors: readonly string[]): b
     // an association pivot. This is semantic class normalization, not permission
     // to use arbitrary provider metadata or a rationale in place of query text.
     const synonyms = PIVOT_SOURCE_CLASS_SYNONYMS[anchor] ?? [anchor];
-    return synonyms.some((synonym) => tokens.some((token) =>
-      token === synonym || (Math.min(token.length, synonym.length) >= 6
-        && (token.startsWith(synonym.slice(0, 7)) || synonym.startsWith(token.slice(0, 7)))),
-    ));
+    return synonyms.some((synonym) => {
+      const synonymTokens = (synonym.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
+      if (synonymTokens.length > 1) {
+        return tokens.some((_, start) => synonymTokens.every((token, offset) => tokens[start + offset] === token));
+      }
+      const normalizedSynonym = synonymTokens[0] ?? pivotScopeToken(synonym);
+      return tokens.some((token) =>
+        token === normalizedSynonym || (Math.min(token.length, normalizedSynonym.length) >= 6
+          && (token.startsWith(normalizedSynonym.slice(0, 7)) || normalizedSynonym.startsWith(token.slice(0, 7)))),
+      );
+    });
   });
 }
 

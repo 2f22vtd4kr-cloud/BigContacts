@@ -593,6 +593,32 @@ Choose each next action yourself from the available capabilities and observed ev
       provider: "serper",
     }, [])).toContain("pivot_alignment_guard");
   });
+  it("accepts Secretary-of-State entity-search wording for a registry pivot without relaxing subject or geography", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Shift focus to privately held service-sector businesses (e.g., regional logistics or specialty construction firms) in Wisconsin or Minnesota, and search state business registries for publicly listed owners/operators.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): none.",
+    ].join("\n");
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Wisconsin Secretary of State business entity search regional logistics firms",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Wisconsin regional logistics company ownership public record",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Iowa Secretary of State business entity search regional logistics firms",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Wisconsin Secretary of State business entity search private equity firms",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+  });
   it("accepts member-state and city queries for a Pacific Northwest pivot without weakening sector or geography", () => {
     const equityObjective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
