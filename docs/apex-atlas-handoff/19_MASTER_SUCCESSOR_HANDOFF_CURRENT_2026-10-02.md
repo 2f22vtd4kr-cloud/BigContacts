@@ -1,17 +1,15 @@
-# CURRENT OVERRIDE — RECONCILED 2026-10-09
+# CURRENT OVERRIDE — VERIFIED 2026-10-15
 
-> The historical body below is retained for incident lineage only. This override, `docs/context.md`, `README.md`, and executable code on `main` supersede conflicting role law, provider claims and SHAs in the historical body.
+> This override supersedes older current-state, role and CI summaries below. The historical body is retained for incident lineage; it is not today's runtime status.
 
-- Canonical control plane: **Groq Boss → selected Groq Investigator capability**, with **Groq Right-hand** as independent bounded oversight.
-- Boss primary: `openai/gpt-oss-120b`; bounded same-role fallback: `openai/gpt-oss-20b`.
-- Right-hand primary: `openai/gpt-oss-120b`; bounded same-role fallback: `openai/gpt-oss-20b`.
-- Investigator registry: up to six separately configured Groq Investigator credential capabilities. These are selectable capabilities, not an automatic model ladder. Durable reassignment is allowed only through the explicit recovery path after classified hard request-quota exhaustion.
-- Gemini and Mistral control/Investigator adapters are historical/retired, not active canonical paths.
-- Current source-level hardening from this audit: model action text bounds are now enforced; discovery search-only liveness has direct regression tests; IPv6 `5f00::/16` SRv6 SID destinations are blocked with regression coverage. CI status must be checked for the actual current head.
-- This review did **not** run Replit or start a live Atlas discovery job. Do not claim live runtime acceptance from source review or CI alone.
-- `main` SHA when this override was authored: `ab783c41c9fe7a14bdc01203ad17bc2d4d596d86`. Always verify the actual SHA before acting.
-
-See `docs/context.md` for current architecture and release gates.
+- **Canonical repository/branch:** `2f22vtd4kr-cloud/BigContacts`, `main`. Always fetch the actual HEAD and recent commits before working; this document will become dated after later commits.
+- **First read:** `README.md`, `docs/CURRENT_STATUS_2026-10-15.md`, and the newest dated live-run audit. The latest recorded live audit is `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md`.
+- **Latest live-run truth:** job `8eb7c47b-dc94-46d6-a851-133104a6a806` failed/incomplete at the 20-Investigator-iteration ceiling. The report records 1 successful page visit, 0 findings, 0 admissions/inserts and 0 cards. The summary reports eight successful searches while the enumerated event detail currently supports six provider search requests; do not invent the difference. No candidate was admitted, so this is not evidence that downstream card rendering/persistence is broken.
+- **Recent source changes (2026-10-15):** phrase-aware source-class aliases were added to fix a real false-negative scope guard; key-gated registry choices are filtered dynamically from direct and parallel Investigator schema; OpenCorporates fails locally when no token is configured, hides response bodies from errors, and uses its documented `api_token` query parameter. See commits `adc43994`, `83dd3634`, `411d9f95`, and `40a243d0`.
+- **Architecture law:** Groq Boss directs, Groq Right-hand provides bounded independent oversight, and the selected Groq Investigator owns research strategy/trajectory. Deterministic runtime code enforces safety, schema, capability availability, source/geography/subject validation, provenance, identity, persistence, cancellation, budgets and terminal integrity. Vocabulary normalization inside a guard is not permission to introduce a scripted research itinerary. Tools are capabilities, not prescribed stages.
+- **Verification boundary:** on source SHA `411d9f95bc6a7aec4783be9e234d8c9513a1a20b`, Atlas CI, API Build, frontend gate and discovery static gate were green; Audit 1 of the five-audit workflow passed while Audit 2 was still running. OpenCorporates transport correction at `40a243d05f8d315f4a7c8446f18f0514fecd6f94` triggered fresh workflows; check their current status directly.
+- **No live acceptance yet:** no Replit run after these source changes is recorded in this audit chain. Next acceptance must use the normal UI-equivalent model-owned launch and prove real fetched-page observations, source-grounded findings, durable admission/evidence deltas and cards against the before-state. Do not force a target, inject evidence, synthesize cards, relax admission or silently rotate credentials.
+- Use `docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md` for mandatory source study and `docs/RUN_BUREAU.md` for launch procedure. Refresh the current status snapshot when a newer audit/commit appears.
 
 ---
 # Apex Atlas — Master Successor Handoff — 2026-10-02
