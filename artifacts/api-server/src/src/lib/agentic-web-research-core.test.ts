@@ -1214,7 +1214,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const missingFailure = describeAgentActionParseFailure(missing);
     expect(missingFailure).toBe("invalid_action_arguments action=parallel_registry_search searches[0].registry missing");
     expect(parseAgentAction(missing)).toBeNull();
-    expect(buildActionParseFailureObservation(missingFailure)).toContain("explicit configured \"registry\" ID");
+    expect(buildActionParseFailureObservation(missingFailure)).toContain('a supported "registry" ID explicitly selected from the configured choices');
 
     const unsupported = registryAction(["sec-edgar", "not-a-real-registry"]);
     expect(describeAgentActionParseFailure(unsupported)).toBe("invalid_action_arguments action=parallel_registry_search searches[1].registry unsupported");
