@@ -1,6 +1,6 @@
 import { logger } from "./logger";
 import { emitInvestigatorProviderRequestAudit } from "./investigator-request-audit";
-import { emitModelPromptAudit } from "./model-prompt-audit";
+import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
@@ -1451,6 +1451,8 @@ async function callGroqJson(
     while (retry429 <= 1) {
       attempt += 1;
       const started = Date.now();
+      let modelAuditRequestId: string | null = null;
+      let modelAuditResponseRecorded = false;
       try {
         const quotaReadiness = await waitForKnownGroqTokenWindow(
           quotaAccount,
@@ -1476,7 +1478,7 @@ async function callGroqJson(
           caseId: caseId ?? null,
           requestBody,
         });
-        emitModelPromptAudit({
+        modelAuditRequestId = emitModelPromptAudit({
           provider: "groq",
           role: "groq_investigator",
           model,
@@ -1501,6 +1503,16 @@ async function callGroqJson(
         // same text rather than attempting a second read of an already-consumed
         // Response stream.
         const body = await readResponseTextCapped(response, signal);
+        emitModelPromptAuditResponse({
+          requestId: modelAuditRequestId,
+          provider: "groq",
+          role: "groq_investigator",
+          model,
+          httpStatus: response.status,
+          responseBody: body,
+          latencyMs: Date.now() - started,
+        });
+        modelAuditResponseRecorded = true;
 
         if (response.status === 429) {
           const hardQuota = groqHardRequestQuota(response, body);
@@ -1681,6 +1693,15 @@ async function callGroqJson(
         if (raw) return { model, raw };
         break;
       } catch (error: any) {
+        if (modelAuditRequestId && !modelAuditResponseRecorded) {
+          emitModelPromptAuditResponse({
+            requestId: modelAuditRequestId,
+            provider: "groq",
+            role: "groq_investigator",
+            model,
+            transportFailure: error instanceof Error ? error.name : "unknown_error",
+          });
+        }
         if (signal.aborted) throw new Error("cancelled");
         const localProviderGateFailure = isLocalProviderQuotaError(error)
           ? (error.code === "cooldown" ? "local_provider_cooldown" : "local_provider_budget_exhausted")

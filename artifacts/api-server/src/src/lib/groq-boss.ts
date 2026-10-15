@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { logger } from "./logger";
-import { emitModelPromptAudit } from "./model-prompt-audit";
+import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
 import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 
@@ -287,7 +287,7 @@ async function generateGroqBossTextImpl(
           stream: false,
           ...(responseFormat ? { response_format: jsonObjectFallbackUsed ? { type: "json_object" } : responseFormat } : {}),
         };
-        emitModelPromptAudit({
+        const modelAuditRequestId = emitModelPromptAudit({
           provider: "groq",
           role: "groq_boss",
           model,
@@ -296,6 +296,7 @@ async function generateGroqBossTextImpl(
           caseId: options?.caseId ?? null,
           requestBody,
         });
+        let modelAuditResponseRecorded = false;
         const body = JSON.stringify(requestBody);
 
         try {
@@ -310,6 +311,15 @@ async function generateGroqBossTextImpl(
             signal: controller.signal,
           }));
           const responseBody = await response.text();
+          emitModelPromptAuditResponse({
+            requestId: modelAuditRequestId,
+            provider: "groq",
+            role: "groq_boss",
+            model,
+            httpStatus: response.status,
+            responseBody,
+          });
+          modelAuditResponseRecorded = true;
 
           if (response.status === 503) {
             const failureClass = classifyProviderHttpStatus(response.status);
@@ -427,6 +437,15 @@ async function generateGroqBossTextImpl(
           }, "Groq Boss returned an empty control response");
           break;
         } catch (error) {
+          if (!modelAuditResponseRecorded) {
+            emitModelPromptAuditResponse({
+              requestId: modelAuditRequestId,
+              provider: "groq",
+              role: "groq_boss",
+              model,
+              transportFailure: error instanceof Error ? error.name : "unknown_error",
+            });
+          }
           const isAbort = error instanceof Error && error.name === "AbortError";
           const failureClass = classifyThrownProviderError(error, false);
           const localProviderCode = isLocalProviderQuotaError(error) && error instanceof Error && typeof (error as Error & { code?: unknown }).code === "string"

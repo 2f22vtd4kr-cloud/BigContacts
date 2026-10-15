@@ -1,4 +1,4 @@
-# Apex Atlas Sequential Audit — 2026-10-15, Live Run 04
+# ⭐ Apex Atlas Sequential Audit — 2026-10-15, Live Run 04
 
 **Audit file:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md`  
 **Started:** 2026-10-15 17:32:50 UTC (Europe/Kyiv: 20:32:50)  
@@ -13,7 +13,7 @@ Record observable model requests sent by Apex, structured/model response content
 
 Do not record hidden chain-of-thought or private internal reasoning. When a rationale is needed, use a short decision summary based on observable outputs and events. Provider-side reasoning fields, if any, are not an audit target.
 
-The app’s existing model audit currently records request shape and message sizes, not message bodies, model responses, tool outputs, or contact values. Full prompt/response tracing is not yet verified as available; do not imply that it has been captured until the logger and run output confirm it.
+The existing shape-only logger has been extended for this run to capture the outbound model messages, full response schema and tool definitions, visible structured completion content, usage/status metadata, and transport failures. Credential fields and common secret-shaped strings are redacted. Provider-only reasoning fields and model `thought`/analysis fields are omitted; unstructured completions are represented by their size rather than copied. The updated configuration and build are verified, but no runtime request has yet confirmed that the process is writing here.
 
 ## Prior-run constraints to avoid repeating
 
@@ -56,6 +56,8 @@ Do not force a target, scripted query, tool sequence, synthetic source, or synth
 | Seq. | Time (UTC) | Phase | Observed event | Evidence / result |
 |---:|---|---|---|---|
 | 0 | 2026-10-15 17:32:50 | Pre-launch | Created this audit before launching Apex. | Current upstream `main` matches the imported revision; the audit path is not ignored by Git. |
+| 1 | 2026-10-15 17:43:47 | Audit instrumentation | Expanded model trace for Run 04 and aligned both development destinations. | Request/response trace code, focused tests, full typecheck, and API build passed; workflow still has not executed. |
+| 2 | 2026-10-15 17:45:10 | Startup gate | The next managed API restart timed out before running the configured command; `/api/healthz` returned 502. | Workflow remains `finished`, with no fresh workflow logs; no application process or Atlas job was started. |
 
 ## Findings and terminal result
 
@@ -64,3 +66,26 @@ Do not force a target, scripted query, tool sequence, synthetic source, or synth
 **Discovery actions / Investigator turns / source visits:** None in this run.  
 **Findings / admissions / contacts / cards:** None in this run.  
 **Current blocker:** Replit run-environment rebuild timeout before the configured API command executes.
+
+### Event 001 — enable detailed, bounded model-request and visible-response tracing
+
+- **Timestamp:** 2026-10-15T17:43:47Z.
+- **Request trace:** the local audit writer now records the outbound model message contents, request parameters, full response-format schema, and full tool definitions, alongside its shape summaries. It captures the Groq response’s visible structured completion content, finish reason, usage, HTTP status, latency where available, and a transport-failure marker when a request fails before receiving a response.
+- **Privacy boundary:** request credential fields and common credential patterns are redacted; authorization headers are not part of the audited body. Public-source text and contact values that Apex actually receives may appear in these prompts, as requested. Provider-only reasoning fields and response keys such as `thought`, `reasoning`, `analysis`, and `scratchpad` are removed. If the model returns unstructured text instead of structured JSON, the audit records its length, not the text. This is not a hidden-chain-of-thought trace.
+- **Configuration:** both `.replit` development settings and the managed API artifact development environment now point to this exact audit file with model trace enabled. Each config passed its Replit schema-validated replacement flow. The current workflow process has not started, so it has not yet loaded the updated destination.
+- **Verification:** the focused model-audit test passed 6/6; `pnpm run typecheck` passed; `pnpm --filter @workspace/api-server run build` passed its architecture guards and emitted `dist/index.mjs`. One initial test assertion expected unescaped JSON in Markdown; only the assertion was corrected, and the rerun passed.
+- **No live work:** no Atlas job, model request, web search, page visit, contact, evidence row, admission, or card has been produced by Run 04 at this event.
+
+### Event 002 — API workflow restart pending
+
+- **Status at 2026-10-15T17:43:47Z:** the managed API workflow remained `finished`; no new logs were emitted. The earlier run-environment rebuild timeout remains the blocker. The new build/configuration is ready for one restart attempt, but no restart has yet been recorded in this audit.
+
+### Event 003 — restart timed out before Apex boot
+
+- **Result observed:** 2026-10-15T17:45:10Z.
+- **Action:** retried the existing managed workflow `artifacts/api-server: API Server` after the source build and both validated configuration updates. The restart was given a 300-second workflow timeout.
+- **Failure point:** Replit returned `timed out waiting for run environment to rebuild`. The configured `cd ../.. && bash scripts/replit-boot.sh` command did not begin; this is still a platform run-environment startup failure, not an Apex boot or model/provider error.
+- **Fresh-log check:** workflow status remained `FINISHED`; `RefreshAllLogs` reported no new content. The latest available API log file is timestamped 17:25:29Z, before this audit/run attempt, so it is stale and is not treated as evidence of current Apex behavior.
+- **Health check:** `GET http://localhost:80/api/healthz` returned HTTP 502 at 2026-10-15T17:45:10Z.
+- **Outcome:** no running API, job ID, discovery action, Investigator request, web search, page visit, finding, contact, evidence, admission, or card exists for Run 04. No provider-key or quota recovery path was exercised.
+- **Next safe step:** Replit’s documented remedy for this pre-command rebuild timeout is `Cmd/Ctrl+K` → `Restart compute`; after the compute restart, retry this same managed API workflow. Do not issue another identical workflow restart before that environment change.

@@ -16,10 +16,17 @@ const SAFE_REQUEST_KEYS = new Set([
   "top_p",
 ]);
 const SAFE_MESSAGE_ROLES = new Set(["system", "user", "assistant", "tool"]);
-const EMAIL_ADDRESS = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
-const LABELED_PHONE = /(\b(?:phone|telephone|mobile|cell|fax|tel)(?:\s*(?:number|no\.?|#))?\b["']?\s*(?::|=|is)\s*["']?)(\+?[\d(][\d\s().-]{5,}\d)/gi;
-const INTERNATIONAL_PHONE = /(?:\+|00)\d[\d().\s-]{5,}\d/g;
-const NORTH_AMERICAN_PHONE = /\b(?:\+?1[ .-]?)?\(?\d{3}\)?[ .-]\d{3}[ .-]\d{4}\b/g;
+const SENSITIVE_AUDIT_KEY = /^(?:authorization|api[-_]?key|api[-_]?token|access[-_]?token|refresh[-_]?token|token|secret|password|credential|cookie|session|private[-_]?key)$/i;
+const PRIVATE_REASONING_KEY = /^(?:thought|thoughts|reasoning|reasoning_content|analysis|chain_of_thought|private_reasoning|internal_reasoning|scratchpad)$/i;
+const MAX_AUDIT_STRING_CHARS = 300_000;
+const MAX_AUDIT_ARRAY_ITEMS = 128;
+const AUDIT_SECRET_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\b(Bearer\s+)[A-Za-z0-9._~+/-=]{12,}/gi, "$1[REDACTED_SECRET]"],
+  [/\b((?:authorization|api[-_]?key|api[-_]?token|access[-_]?token|refresh[-_]?token|token|secret|password|credential|cookie|session|private[-_]?key)\s*[:=]\s*["']?)[^\s&"'<>]+/gi, "$1[REDACTED_SECRET]"],
+  [/([?&](?:api[-_]?key|api[-_]?token|access[-_]?token|refresh[-_]?token|secret|password|token|session)=)[^&#\s"']+/gi, "$1[REDACTED_SECRET]"],
+  [/\b(?:gsk|sk|rk|hf|ghp|github_pat|AIza)[_-][A-Za-z0-9_-]{16,}\b/gi, "[REDACTED_SECRET]"],
+  [/\b(redis|rediss|postgres|postgresql):\/\/[^\s/@]+:[^\s/@]+@/gi, "$1://[REDACTED_CREDENTIALS]@"],
+];
 
 type AuditEnvironment = {
   NODE_ENV?: string;
@@ -70,18 +77,118 @@ export function resolveModelAuditFilePath(
   return resolve(workspaceRootFrom(cwd), configuredPath);
 }
 
-function redactContactDetails(content: string): string {
-  return content
-    .replace(EMAIL_ADDRESS, "[REDACTED_EMAIL]")
-    .replace(LABELED_PHONE, "$1[REDACTED_PHONE]")
-    .replace(INTERNATIONAL_PHONE, "[REDACTED_PHONE]")
-    .replace(NORTH_AMERICAN_PHONE, "[REDACTED_PHONE]");
+function redactAuditSecrets(content: string): string {
+  return AUDIT_SECRET_REPLACEMENTS.reduce(
+    (result, [pattern, replacement]) => result.replace(pattern, replacement),
+    content,
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : null;
+}
+
+function sanitizeAuditPayload(value: unknown, depth = 0): unknown {
+  if (typeof value === "string") {
+    const bounded = value.length <= MAX_AUDIT_STRING_CHARS
+      ? value
+      : `${value.slice(0, MAX_AUDIT_STRING_CHARS)}\n[AUDIT STRING TRUNCATED: ${value.length - MAX_AUDIT_STRING_CHARS} characters omitted]`;
+    return redactAuditSecrets(bounded);
+  }
+  if (value === null || typeof value === "number" || typeof value === "boolean") return value;
+  if (depth >= 16) return "[AUDIT DEPTH LIMIT]";
+  if (Array.isArray(value)) {
+    const items = value.slice(0, MAX_AUDIT_ARRAY_ITEMS).map((item) => sanitizeAuditPayload(item, depth + 1));
+    if (value.length > MAX_AUDIT_ARRAY_ITEMS) {
+      items.push(`[AUDIT ARRAY TRUNCATED: ${value.length - MAX_AUDIT_ARRAY_ITEMS} items omitted]`);
+    }
+    return items;
+  }
+  const record = asRecord(value);
+  if (!record) return typeof value === "undefined" ? null : String(value);
+  return Object.fromEntries(
+    Object.entries(record)
+      .slice(0, MAX_AUDIT_ARRAY_ITEMS)
+      .filter(([key]) => !SENSITIVE_AUDIT_KEY.test(key))
+      .map(([key, item]) => [key, sanitizeAuditPayload(item, depth + 1)]),
+  );
+}
+
+function removePrivateReasoningFields(
+  value: unknown,
+  omitted: { count: number },
+  depth = 0,
+): unknown {
+  if (typeof value === "string") return redactAuditSecrets(value);
+  if (value === null || typeof value === "number" || typeof value === "boolean") return value;
+  if (depth >= 16) return "[AUDIT DEPTH LIMIT]";
+  if (Array.isArray(value)) {
+    return value.slice(0, MAX_AUDIT_ARRAY_ITEMS).map((item) => removePrivateReasoningFields(item, omitted, depth + 1));
+  }
+  const record = asRecord(value);
+  if (!record) return null;
+  return Object.fromEntries(
+    Object.entries(record)
+      .slice(0, MAX_AUDIT_ARRAY_ITEMS)
+      .filter(([key]) => {
+        if (PRIVATE_REASONING_KEY.test(key)) {
+          omitted.count += 1;
+          return false;
+        }
+        return !SENSITIVE_AUDIT_KEY.test(key);
+      })
+      .map(([key, item]) => [key, removePrivateReasoningFields(item, omitted, depth + 1)]),
+  );
+}
+
+function sanitizeVisibleCompletion(value: unknown): Record<string, unknown> {
+  if (typeof value === "string") {
+    const credentialSafe = redactAuditSecrets(value);
+    try {
+      const parsed = JSON.parse(credentialSafe) as unknown;
+      const omitted = { count: 0 };
+      return {
+        format: "json",
+        content: removePrivateReasoningFields(parsed, omitted),
+        privateReasoningFieldsOmitted: omitted.count,
+      };
+    } catch {
+      return {
+        format: "unstructured",
+        content: null,
+        contentOmitted: "Unstructured model output is not copied because it may contain private reasoning.",
+        outputChars: value.length,
+      };
+    }
+  }
+  const omitted = { count: 0 };
+  return {
+    format: "structured",
+    content: removePrivateReasoningFields(value, omitted),
+    privateReasoningFieldsOmitted: omitted.count,
+  };
+}
+
+function sanitizeVisibleToolCalls(value: unknown): unknown {
+  if (!Array.isArray(value)) return null;
+  return value.slice(0, 16).map((rawCall) => {
+    const call = asRecord(rawCall);
+    const fn = asRecord(call?.function);
+    return {
+      id: typeof call?.id === "string" ? redactAuditSecrets(call.id) : null,
+      type: typeof call?.type === "string" ? call.type : null,
+      function: fn
+        ? {
+            name: typeof fn.name === "string" ? redactAuditSecrets(fn.name) : null,
+            arguments: typeof fn.arguments === "string"
+              ? sanitizeVisibleCompletion(fn.arguments)
+              : sanitizeVisibleCompletion(fn.arguments ?? null),
+          }
+        : null,
+    };
+  });
 }
 
 function summarizeResponseFormat(value: unknown): Record<string, unknown> | null {
@@ -118,7 +225,7 @@ function summarizeTools(value: unknown): { toolCount: number | null; tools: Reco
   return { toolCount: value.length, tools, toolsTruncated: value.length > 16 };
 }
 
-/** Request shape only: never serialize message bodies, tools descriptions, or full schemas. */
+/** Capture the actual model-visible payload while excluding credential-shaped values. */
 function safeRequestBody(body: Record<string, unknown>): Record<string, unknown> {
   const safe = Object.fromEntries(
     Object.entries(body).filter(([key, value]) =>
@@ -129,7 +236,8 @@ function safeRequestBody(body: Record<string, unknown>): Record<string, unknown>
   );
   const messages = Array.isArray(body.messages) ? body.messages : null;
   safe.messageCount = messages?.length ?? null;
-  safe.messages = (messages ?? []).slice(0, 16).map((message) => {
+  safe.messages = sanitizeAuditPayload(messages ?? []);
+  safe.messageSummary = (messages ?? []).slice(0, 64).map((message) => {
     const record = asRecord(message);
     if (!record) {
       return {
@@ -147,9 +255,12 @@ function safeRequestBody(body: Record<string, unknown>): Record<string, unknown>
     if (content && typeof content === "object") return { role, contentKind: "object", contentChars: null, itemCount: null };
     return { role, contentKind: content === null ? "null" : typeof content, contentChars: null, itemCount: null };
   });
-  safe.messagesTruncated = Boolean(messages && messages.length > 16);
+  safe.messageSummaryTruncated = Boolean(messages && messages.length > 64);
+  safe.messagesTruncated = Boolean(messages && messages.length > MAX_AUDIT_ARRAY_ITEMS);
   safe.responseFormat = summarizeResponseFormat(body.response_format);
+  safe.responseFormatPayload = sanitizeAuditPayload(body.response_format ?? null);
   Object.assign(safe, summarizeTools(body.tools));
+  safe.toolDefinitions = sanitizeAuditPayload(body.tools ?? []);
   safe.toolChoiceKind = typeof body.tool_choice === "string"
     ? (["auto", "none", "required"].includes(body.tool_choice) ? body.tool_choice : "other-string")
     : body.tool_choice && typeof body.tool_choice === "object"
@@ -162,9 +273,9 @@ function longestBacktickRun(value: string): number {
 }
 
 /**
- * Opt-in development trace of model request shape and sizing only. Raw message
- * content, source material, target details, contact values, tool descriptions,
- * and full JSON schemas are never serialized.
+ * Opt-in development trace of the exact model-visible request and visible
+ * response content. Public contact/source material can be present by design;
+ * credential-shaped values and provider-only reasoning fields are excluded.
  */
 export function emitModelPromptAudit(
   input: AuditInput,
@@ -190,6 +301,7 @@ export function emitModelPromptAudit(
     jobId: input.jobId ?? null,
     caseId: input.caseId ?? null,
     requestSummary: safeRequestBody(input.requestBody),
+    providerPrivateReasoningCaptured: false,
   };
   const serialized = JSON.stringify(record, null, 2);
   const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
@@ -200,7 +312,113 @@ export function emitModelPromptAudit(
     );
     return requestId;
   } catch {
-    process.stderr.write("[atlas_model_prompt_audit] append failed; request shape was not written to logs.\n");
+    process.stderr.write("[atlas_model_prompt_audit] append failed; model request was not written to the audit file.\n");
     return null;
+  }
+}
+
+type AuditResponseInput = {
+  requestId: string | null;
+  provider: string;
+  role: AuditInput["role"];
+  model: string;
+  httpStatus?: number | null;
+  responseBody?: string;
+  latencyMs?: number;
+  transportFailure?: string;
+};
+
+function visibleProviderResponse(responseBody: string, httpStatus: number | null | undefined): Record<string, unknown> {
+  let payload: Record<string, unknown> | null = null;
+  try {
+    payload = asRecord(JSON.parse(responseBody));
+  } catch {}
+  if (!payload) {
+    return {
+      jsonParsed: false,
+      responseChars: responseBody.length,
+    };
+  }
+
+  if (httpStatus != null && (httpStatus < 200 || httpStatus >= 300)) {
+    const error = asRecord(payload.error);
+    return {
+      jsonParsed: true,
+      providerError: error
+        ? {
+            code: typeof error.code === "string" ? error.code : null,
+            type: typeof error.type === "string" ? error.type : null,
+            message: typeof error.message === "string" ? sanitizeAuditPayload(error.message) : null,
+          }
+        : null,
+      responseChars: responseBody.length,
+    };
+  }
+
+  const choices = Array.isArray(payload.choices) ? payload.choices : [];
+  return {
+    jsonParsed: true,
+    providerResponseId: typeof payload.id === "string" ? payload.id : null,
+    model: typeof payload.model === "string" ? payload.model : null,
+    usage: sanitizeAuditPayload(payload.usage ?? null),
+    choices: choices.slice(0, 16).map((rawChoice) => {
+      const choice = asRecord(rawChoice);
+      const message = asRecord(choice?.message);
+      return {
+        index: typeof choice?.index === "number" ? choice.index : null,
+        finishReason: typeof choice?.finish_reason === "string" ? choice.finish_reason : null,
+        visibleMessage: message
+          ? {
+              role: typeof message.role === "string" ? message.role : null,
+              content: sanitizeVisibleCompletion(message.content ?? null),
+              toolCalls: sanitizeVisibleToolCalls(message.tool_calls),
+              functionCall: sanitizeVisibleToolCalls(message.function_call ? [message.function_call] : null),
+              refusal: sanitizeAuditPayload(message.refusal ?? null),
+            }
+          : null,
+      };
+    }),
+    providerPrivateReasoningCaptured: false,
+  };
+}
+
+/** Append the provider's visible completion, never its separate reasoning fields. */
+export function emitModelPromptAuditResponse(
+  input: AuditResponseInput,
+  env: AuditEnvironment = process.env,
+  write: AuditWriter = appendFileSync,
+  cwd: string = process.cwd(),
+): void {
+  if (
+    !input.requestId
+    || (env.NODE_ENV !== "development" && env.NODE_ENV !== "test")
+    || env.APEX_CAPTURE_MODEL_PROMPTS !== "true"
+    || !env.APEX_MODEL_AUDIT_FILE?.trim()
+  ) return;
+
+  const responseBody = input.responseBody ?? "";
+  const record = {
+    event: "atlas_model_response",
+    recordedAt: new Date().toISOString(),
+    requestId: input.requestId,
+    provider: input.provider,
+    role: input.role,
+    model: input.model,
+    httpStatus: input.httpStatus ?? null,
+    latencyMs: input.latencyMs ?? null,
+    transportFailure: input.transportFailure ?? null,
+    response: responseBody
+      ? visibleProviderResponse(responseBody, input.httpStatus)
+      : null,
+  };
+  const serialized = JSON.stringify(record, null, 2);
+  const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
+  try {
+    write(
+      resolveModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE, cwd),
+      `\n\n### Model response ${input.requestId}\n\n${fence}json\n${serialized}\n${fence}\n`,
+    );
+  } catch {
+    process.stderr.write("[atlas_model_prompt_audit] append failed; model response was not written to the audit file.\n");
   }
 }

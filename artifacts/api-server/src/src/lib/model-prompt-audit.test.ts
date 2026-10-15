@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
-import { emitModelPromptAudit } from "./model-prompt-audit";
+import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
 
 const input = {
   provider: "groq",
@@ -14,7 +14,7 @@ const input = {
     model: "openai/gpt-oss-120b",
     messages: [
       { role: "system", content: "PRIVATE_SYSTEM_PROMPT_SENTINEL and schema instructions." },
-      { role: "user", content: "PRIVATE_TARGET_SENTINEL source passage and contact person@example.org +1 (415) 555-0100." },
+       { role: "user", content: "PRIVATE_TARGET_SENTINEL source passage and contact person@example.org +1 (415) 555-0100. Test secret gsk_123456789012345678901234 and https://example.test/?api_token=private_token_value." },
     ],
     include_reasoning: false,
     max_completion_tokens: 1024,
@@ -60,7 +60,7 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(0);
   });
 
-  it("records bounded request shape and sizing without serializing prompt or tool content", () => {
+  it("records exact prompt, schema, and tool content while redacting credential values", () => {
     const writes: Array<{ path: string; contents: string }> = [];
     const requestId = emitModelPromptAudit(input, {
       NODE_ENV: "development",
@@ -72,15 +72,20 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(1);
     expect(writes[0]?.path).toBe("/tmp/audit.md");
     const captured = writes[0]?.contents ?? "";
-    for (const privateMarker of [
+    for (const observablePromptContent of [
       "PRIVATE_SYSTEM_PROMPT_SENTINEL",
       "PRIVATE_TARGET_SENTINEL",
       "PRIVATE_TOOL_DESCRIPTION_SENTINEL",
       "person@example.org",
       "415) 555-0100",
-      "PRIVATE_CREDENTIAL_SENTINEL",
       "source passage",
-    ]) expect(captured).not.toContain(privateMarker);
+    ]) expect(captured).toContain(observablePromptContent);
+    for (const secretValue of [
+      "PRIVATE_CREDENTIAL_SENTINEL",
+      "gsk_123456789012345678901234",
+      "private_token_value",
+    ]) expect(captured).not.toContain(secretValue);
+    expect(captured).toContain("[REDACTED_SECRET]");
 
     expect(captured).toContain('"jobId": "job-1"');
     expect(captured).toContain('"caseId": 4');
@@ -96,10 +101,10 @@ describe("model prompt audit", () => {
     expect(captured).not.toContain('"authorization"');
   });
 
-  it("caps message and tool details rather than serializing unbounded collections", () => {
+  it("bounds very large message collections while preserving their count and truncation markers", () => {
     const requestBody = {
       ...input.requestBody,
-      messages: Array.from({ length: 18 }, () => ({ role: "user", content: "PRIVATE_LONG_MESSAGE_SENTINEL" })),
+      messages: Array.from({ length: 140 }, () => ({ role: "user", content: "PRIVATE_LONG_MESSAGE_SENTINEL" })),
       tools: Array.from({ length: 18 }, (_, index) => ({ type: "function", function: { name: "tool_" + index, description: "PRIVATE_TOOL_SENTINEL" } })),
     };
     const writes: string[] = [];
@@ -111,11 +116,49 @@ describe("model prompt audit", () => {
 
     expect(writes).toHaveLength(1);
     expect(writes[0]).toContain('"messagesTruncated": true');
+    expect(writes[0]).toContain('"messageSummaryTruncated": true');
     expect(writes[0]).toContain('"toolsTruncated": true');
-    expect(writes[0]).toContain('"messageCount": 18');
+    expect(writes[0]).toContain('"messageCount": 140');
     expect(writes[0]).toContain('"toolCount": 18');
-    expect(writes[0]).not.toContain("PRIVATE_LONG_MESSAGE_SENTINEL");
-    expect(writes[0]).not.toContain("PRIVATE_TOOL_SENTINEL");
+    expect(writes[0]).toContain("PRIVATE_LONG_MESSAGE_SENTINEL");
+    expect(writes[0]).toContain("PRIVATE_TOOL_SENTINEL");
+  });
+
+  it("records visible structured model output but omits separate provider reasoning fields", () => {
+    const writes: Array<{ path: string; contents: string }> = [];
+    emitModelPromptAuditResponse({
+      requestId: "request-visible-output",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "openai/gpt-oss-120b",
+      httpStatus: 200,
+      responseBody: JSON.stringify({
+        id: "completion-1",
+        model: "openai/gpt-oss-120b",
+        usage: { prompt_tokens: 12, completion_tokens: 8 },
+        choices: [{
+          index: 0,
+          finish_reason: "stop",
+          message: {
+            role: "assistant",
+            content: '{"action":"safe_search","query":"public company registry","thought":"PRIVATE_MODEL_THOUGHT_SENTINEL"}',
+            reasoning_content: "PRIVATE_PROVIDER_REASONING_SENTINEL",
+            analysis: "PRIVATE_ANALYSIS_SENTINEL",
+          },
+        }],
+      }),
+    }, {
+      NODE_ENV: "test",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    }, (path, contents) => writes.push({ path, contents }));
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.contents).toContain("safe_search");
+    expect(writes[0]?.contents).toContain("public company registry");
+    expect(writes[0]?.contents).not.toContain("PRIVATE_MODEL_THOUGHT_SENTINEL");
+    expect(writes[0]?.contents).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
+    expect(writes[0]?.contents).not.toContain("PRIVATE_ANALYSIS_SENTINEL");
   });
 
   it("resolves workspace-relative audit paths from the repository root when the API cwd is nested", () => {

@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { logger } from "./logger";
-import { emitModelPromptAudit } from "./model-prompt-audit";
+import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
 import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import {
   classifyProviderHttpStatus,
@@ -242,13 +242,16 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
   let lastRetryAfterHeader: string | null = null;
   while(Date.now()<deadline){
     const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat, reasoning_effort:"medium", include_reasoning:false};
-    emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:failures.length+1,jobId:auditContext?.jobId??null,caseId:auditContext?.caseId??null,requestBody});
+     const modelAuditRequestId=emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:failures.length+1,jobId:auditContext?.jobId??null,caseId:auditContext?.caseId??null,requestBody});
     const body=JSON.stringify(requestBody);
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
+    let modelAuditResponseRecorded=false;
    try{
     await waitForGroqRightHandRequestSlot(controller.signal);
     const response=await withProviderRetryOwnership("groq","caller",()=>fetch(GROQ_RIGHT_HAND_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal}));
     const responseBody=await response.text();
+     emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,httpStatus:response.status,responseBody});
+     modelAuditResponseRecorded=true;
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
     if(response.status===429&&hardRateLimit(response,responseBody)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const kind=rateLimitKind(response,responseBody);const waitMs=kind==="tokens"?tokenRateLimitWaitMs(response):null;if(kind==="tokens"&&waitMs!==null&&waitMs<=MAX_TOKEN_RATE_LIMIT_WAIT_MS&&retryTokenRateLimit<MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL&&Date.now()+waitMs<deadline){retryTokenRateLimit++;lastRetryAfterMs=waitMs;lastRetryAfterHeader=response.headers.get("retry-after");await new Promise(r=>setTimeout(r,Math.min(waitMs,Math.max(0,deadline-Date.now()))));continue;}const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:waitMs??null,retryAfterHeader:response.headers.get("retry-after"),rateLimitKind:kind,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);break;}
     if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const retryHeader=response.headers.get("retry-after");const delay=retryHeader?retryAfterMs(response,GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS):GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS;lastRetryAfterMs=delay;lastRetryAfterHeader=retryHeader;if(delay<=2500){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
@@ -263,6 +266,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
      }
     failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:null,body:null,rateLimitHeaders:{},failureClass:"invalid_response",keyFingerprint:fingerprint(candidate.entry.key)});break;
    }catch(error){
+     if(!modelAuditResponseRecorded)emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,transportFailure:error instanceof Error?error.name:"unknown_error"});
     const cls=classifyThrownProviderError(error,error instanceof Error&&error.name==="AbortError");
     failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:cls==="rate_limited"&&error instanceof Error&&error.name==="ProviderQuotaError"?(error as any).code:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:cls==="rate_limited"&&error instanceof Error&&error.name==="ProviderQuotaError"&&typeof (error as any).retryAfterMs==="number"?(error as any).retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:cls==="rate_limited"?"unknown":null,body:null,rateLimitHeaders:{},failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)});
     if(cls!=="network_error"&&cls!=="timeout")return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls}: ${JSON.stringify(describeThrownProviderError(error))}`,model:candidate.model};
