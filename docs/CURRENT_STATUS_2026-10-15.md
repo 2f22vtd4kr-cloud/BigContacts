@@ -3,12 +3,18 @@
 **Updated:** 2026-10-15 (UTC)  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Canonical branch:** `main`  
-**Source revision inspected for this snapshot:** `40a243d05f8d315f4a7c8446f18f0514fecd6f94`  
-**Release state:** **NOT LIVE-ACCEPTED — zero cards in the latest run**
+**Source revision inspected for this snapshot:** `778d56401a2f059366d73c32b68b221d3a7f8ab3`  
+**Release state:** **NOT LIVE-ACCEPTED — latest audit blocked before launch; zero cards in latest executed investigation**
 
 This is a dated status snapshot, not a substitute for checking current `main`, GitHub Actions, or the newest audit file before acting. Source and persisted run evidence outrank any stale handoff note.
 
-## Latest user-operated live run
+## Latest audit attempt — Run 04 blocked before launch
+
+Run 04 (`audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md`) is the newest audit attempt, but it is **BLOCKED_BEFORE_LAUNCH**, not a research run. Replit reported `timed out waiting for run environment to rebuild` before `cd ../.. && bash scripts/replit-boot.sh` began; `/api/healthz` returned 502 and the available API log timestamp predates the attempt. No API process, Atlas job, model request, web search, visit, finding, evidence, admission, or card was produced. This is not a confirmed Apex application-code failure: the canonical boot command did not execute. Replit's recorded safe action is `Cmd/Ctrl+K` → `Restart compute`, then retry the existing API Server workflow once. Do not repeatedly restart the workflow against the same unrestarted compute.
+
+The Run 04 audit file begins at source revision `7902670e338b76db3295e062a431af02727af26c`. Replit then committed the expanded model request/response audit logger in `62aa49959ea20bc3bc27b05f19730d01a1a7a695`, preceded by audit/config notes in `b329b5ad56a32d90e6f1bbe17211a4388c5cd2bb`. The logger is configured in both `.replit` and `artifacts/api-server/.replit-artifact/artifact.toml` to write to Run 04. Its focused test passed 6/6 and Replit reports typecheck/build success, but the platform timeout happened before the process executed the updated code, so no logged model request proves runtime operation yet.
+
+## Latest user-operated live investigation (last run that actually executed)
 
 The newest live-run audit in the repository as of this update is [APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md).
 
@@ -22,7 +28,7 @@ The newest live-run audit in the repository as of this update is [APEX_ATLAS_SEQ
 
 **Why no card was created:** the latest run did not produce an evidence-backed candidate that crossed admission. That is upstream of card creation. This run does **not** establish that the downstream card renderer or persistence layer is broken. The immediate release blocker remains that the research trajectory is not generating admissible source-grounded findings.
 
-## Code changes since Run 03
+## Code changes since Run 03 / Run 04 instrumentation
 
 Commits on `main` following the failed live run:
 
@@ -30,6 +36,8 @@ Commits on `main` following the failed live run:
 - `83dd3634` — hid credential-gated registry choices from direct and parallel Investigator schema fields when not configured; made OpenCorporates fail locally without a token and kept raw provider response bodies out of exceptions.
 - `411d9f95` — restored the canonical `AGENTIC_ACTION_SCHEMA` contract required by repository architecture checks while retaining dynamic available-registry enums.
 - `40a243d0` — corrected OpenCorporates authentication to the documented `api_token` query parameter, rather than the initially assumed header. Its regression test checks the official transport contract and that raw response bodies are not persisted in the thrown error.
+- `b329b5ad` and `62aa4995` — Replit expanded audit tracing for visible outbound model messages, structured response/schema/tool definitions, status/usage and transport failures; audit redaction omits credential-shaped values and hidden reasoning/`thought` fields. Run 04 has not exercised this logger live because the platform never started the API command.
+- `778d5640` — restored the capability guidance prompt under its 1,000-character budget and aligned regression tests/diagnostic wording with the more specific unsupported-registry error.
 
 OpenCorporates requires an API token. If neither `OPENCORPORATES_API_TOKEN` nor `OPENCORPORATES_API_KEY` is configured, the registry is omitted from the model's available-registry choices and an invalid selection fails locally without network I/O. This optional credential is not part of the mandatory Replit preflight list.
 
@@ -67,3 +75,13 @@ Apex is model-led ReAct, not deterministic enrichment:
 ## Follow-up verification — after documentation reconciliation
 
 At the next status check, the documentation-updated HEAD was `e1e0f4dd7fce171fd00590f053e896cd6f460178`. On that HEAD, Atlas CI completed successfully (15/15 jobs), the frontend five-condition gate passed, and the discovery static check passed. Apex API Build completed successfully on the code revision `40a243d05f8d315f4a7c8446f18f0514fecd6f94`; the subsequent commits changed documentation only. The five-consecutive-full-code-audits workflow remained in Audit 1, with 14 of 19 steps complete and no failure observed; older runs triggered by earlier documentation pushes were cancelled, so no five-green certification exists. These observations are themselves time-bound; re-check current HEAD and Actions before another run.
+
+
+## Current GitHub Actions snapshot — source HEAD `778d56401a2f059366d73c32b68b221d3a7f8ab3`
+
+At the first check on this SHA, Apex frontend five-condition gate and discovery static check passed, and Apex API Build passed. Atlas CI was still in progress; the five-consecutive-full-code-audits workflow was still on Audit 1 and had not completed its five passes. The previous run at `62aa499` failed the API regression suite and Audit 1 because three assertions were stale after the registry feedback change: the capability prompt exceeded its 1,000-character budget, the runtime correctness test expected the generic `invalid=searches` diagnostic, and the Right-hand/Investigator contract expected the older `supported \"registry\" ID` wording. Commit `778d564` addresses these with a shorter guidance line, updated test expectation, and contract-compatible more specific wording. Re-query workflows on the final documentation SHA after consolidation; do not count skipped/cancelled audits as passes.
+
+
+## What blocks the next Replit launch
+
+The remaining Run 04 blocker is at the Replit compute/run-environment layer, before application boot. A repository source change cannot prove or repair a command that the platform did not start. Once compute has been restarted, retry the existing managed API Server workflow once, require fresh logs that begin with `[replit-boot]`, and confirm `GET /api/healthz` returns 200 before launching the UI-equivalent Atlas job. Then preserve the request-audit evidence and trace real search → fetched page → source-grounded finding → durable admission → card. Do not start the research job while the API is unhealthy.

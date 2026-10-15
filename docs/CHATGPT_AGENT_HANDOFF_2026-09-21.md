@@ -1,14 +1,14 @@
 # CURRENT OVERRIDE — VERIFIED 2026-10-15
 
-> This 2026-09-21 handoff is historical background, not today's source/runtime status. Before acting, read `README.md`, `docs/CURRENT_STATUS_2026-10-15.md`, and the newest live audit; then verify actual `main` HEAD and Actions.
+> This 2026-09-21 handoff is historical background, not today's runtime status. Read `README.md`, `docs/CURRENT_STATUS_2026-10-15.md` and the newest audit; verify current `main` and Actions before acting.
 
-The latest recorded live run is [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md): job `8eb7c47b-dc94-46d6-a851-133104a6a806` failed/incomplete at the 20-iteration ceiling; one page visit; zero findings/admissions/cards. Its search-count discrepancy remains explicitly unreconciled. There is no evidence that a candidate reached admission, so do not assert a downstream card-persistence defect from this run alone.
+Latest audit attempt: [Run 04](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md) is blocked before launch because Replit timed out rebuilding its run environment before `scripts/replit-boot.sh` began. `/api/healthz` returned 502; no Atlas job or research action ran. Restart compute with `Cmd/Ctrl+K` → `Restart compute`, retry the existing API workflow once, and require fresh boot logs/health before launching research.
 
-Current role law: Groq Boss → selected Groq Investigator, with Groq Right-hand as independent bounded oversight. The Investigator owns research strategy; deterministic software owns guardrails and durable truth. Older Gemini/Mistral role descriptions in this file are historical and do not override current source.
+The last actual research investigation remains [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md): 20-iteration ceiling, one page visit, zero findings/admissions/cards. Its search count remains unreconciled. No candidate crossed admission, so do not infer a downstream card-persistence defect.
 
-Latest relevant source changes: `adc43994` (phrase-aware source-class normalization), `83dd3634` (dynamic registry availability and safe auth failures), `411d9f95` (canonical action schema contract restored), `40a243d0` (official OpenCorporates `api_token` query parameter). Re-read actual diffs through `git log`; this note is only a pointer.
+Current roles are Groq Boss → selected Groq Investigator, with Groq Right-hand as independent bounded oversight. The Investigator owns strategy; deterministic runtime owns safety, capability checks and durable truth. Older provider/role statements below are historical.
 
-`docs/CURRENT_STATUS_2026-10-15.md` and the repository's newest dated audit are the current run-status authority; recheck current GitHub Actions and never trust the CI snapshot below without revalidation.
+Current source `778d56401a2f059366d73c32b68b221d3a7f8ab3` contains Replit's detailed model-audit instrumentation (`62aa4995`) and the registry diagnostic test/compact-prompt fixes (`778d5640`). The logger is not live-verified because Run 04's process never started. At first check frontend/static and API Build passed; Atlas CI and five-consecutive-audits were still running. Re-check current Actions.
 
 ---
 # Apex Atlas — Master ChatGPT / Agent Handoff

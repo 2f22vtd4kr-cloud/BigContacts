@@ -4,7 +4,8 @@
 > **Canonical branch:** `main`  
 > **Status:** active architecture handoff; static correctness is not production/live-research certification.
 
-> **Latest live run:** [October 15 Run 03 audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md) — failed/incomplete at 20 Investigator iterations, one successful visit, zero findings/admissions/cards.
+> **Latest audit attempt:** [October 15 Run 04 audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md) — blocked before launch by a Replit run-environment rebuild timeout; no Atlas job ran.
+> **Latest executed research run:** Run 03 failed/incomplete at 20 Investigator iterations with one successful visit and zero findings/admissions/cards.
 > **Current status and verification snapshot:** [CURRENT_STATUS_2026-10-15.md](CURRENT_STATUS_2026-10-15.md). Re-check actual `main` HEAD and Actions before relying on dated CI states.
 
 ## 1. Current architecture
@@ -153,7 +154,7 @@ APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
 Schema mutation must not remain enabled during ordinary boot.
 
-The most recent user-operated run is documented in [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md). It ended failed/incomplete after 20 Investigator iterations with one successful visit and no findings/admissions/cards. This is an admission-stage failure, not proof of a downstream card-creation defect. The exact diagnostic and code/CI timeline are maintained in [CURRENT_STATUS_2026-10-15.md](CURRENT_STATUS_2026-10-15.md).
+Run 04 is the newest audit attempt ([audit file](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md)), but it is blocked before launch: Replit timed out rebuilding the run environment before `scripts/replit-boot.sh` started; `/api/healthz` returned 502 and no Atlas job ran. The correct next step is `Cmd/Ctrl+K` → `Restart compute`, then retry the same managed API workflow once and verify fresh boot logs/health before launching Atlas. The latest actual research investigation remains [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md), which ended at 20 iterations with one visit and no findings/admissions/cards. That is an admission-stage failure, not evidence of a downstream card-creation defect. Details and the current CI timeline are in [CURRENT_STATUS_2026-10-15.md](CURRENT_STATUS_2026-10-15.md).
 
 The repository must not claim live provider success, production readiness, or research quality from static tests alone. A controlled live run requires the canonical environment, initialized durable schema, healthy runtime, actual provider execution, and persisted evidence.
 

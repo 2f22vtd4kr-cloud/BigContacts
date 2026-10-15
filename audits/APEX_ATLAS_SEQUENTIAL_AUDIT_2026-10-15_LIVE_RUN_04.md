@@ -89,3 +89,11 @@ Do not force a target, scripted query, tool sequence, synthetic source, or synth
 - **Health check:** `GET http://localhost:80/api/healthz` returned HTTP 502 at 2026-10-15T17:45:10Z.
 - **Outcome:** no running API, job ID, discovery action, Investigator request, web search, page visit, finding, contact, evidence, admission, or card exists for Run 04. No provider-key or quota recovery path was exercised.
 - **Next safe step:** Replit’s documented remedy for this pre-command rebuild timeout is `Cmd/Ctrl+K` → `Restart compute`; after the compute restart, retry this same managed API workflow. Do not issue another identical workflow restart before that environment change.
+
+
+## Append-only status update — current source and safe recovery boundary
+
+- **Recorded after the original Run 04 attempts:** this audit started on source SHA `7902670e338b76db3295e062a431af02727af26c`. Subsequent commits `b329b5ad` and `62aa499` added the full visible model-request/structured-response audit logger and kept both development audit destinations set to this file. Neither commit changes the fact that the recorded Run 04 managed workflow timed out before its configured command executed. This audit therefore contains no proof that the new logger ran in a live process.
+- **Current source at documentation reconciliation:** `778d56401a2f059366d73c32b68b221d3a7f8ab3`. That revision also fixes the prompt-guidance budget and aligns two regression assertions plus the contract-compatible registry error wording after three tests failed at `62aa499`.
+- **CI snapshot:** on `778d564`, frontend five-condition and discovery static gates passed, API Build passed, while Atlas CI and the five-audit workflow were still running. Re-check the final documentation SHA before claiming green; cancelled/skipped audits do not count as passes.
+- **Recovery:** the only demonstrated blocker in this Run 04 trace is the Replit run-environment rebuild timeout before `scripts/replit-boot.sh`. Restart compute (`Cmd/Ctrl+K` → `Restart compute`), retry the existing API Server workflow once, inspect fresh logs (must show `[replit-boot]`), and require `/api/healthz` 200 before a UI-equivalent Atlas launch. Do not modify application boot logic without fresh evidence that the command itself ran and failed.

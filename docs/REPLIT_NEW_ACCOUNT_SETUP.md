@@ -2,7 +2,7 @@
 
 ## Repository
 
-Before modifying code or starting a live run, read `docs/CURRENT_STATUS_2026-10-15.md`, verify current `main` HEAD and GitHub Actions, and inspect the newest file under `audits/`. The latest recorded live run is [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md), which failed/incomplete with zero admissions/cards. This dated snapshot must be refreshed against the actual repository before acting.
+Before modifying code or starting a live run, read `docs/CURRENT_STATUS_2026-10-15.md`, verify current `main` HEAD and GitHub Actions, and inspect the newest file under `audits/`. The latest audit attempt is [Run 04](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md), blocked before launch by a Replit environment-rebuild timeout; no Atlas job started. The last actual research investigation is [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md), failed/incomplete with zero admissions/cards. Run 04's recorded remedy is `Cmd/Ctrl+K` → `Restart compute`, then retry the existing API workflow once. This dated snapshot must be refreshed against actual repository/workflow state before acting.
 
 Import the existing repository through the connected Replit ↔ GitHub integration:
 

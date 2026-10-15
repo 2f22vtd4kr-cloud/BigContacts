@@ -8,7 +8,7 @@
 **Master handoff:** `docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md` (read its 2026-10-09 current override first; historical body is not role authority)
 
 **Latest verified status:** `docs/CURRENT_STATUS_2026-10-15.md`
-**Latest user-operated audit:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md` (failed/incomplete; zero admissions/cards). Read both before another run, and re-check newest audit/HEAD/Actions before using these dated pointers.
+**Latest audit attempt:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md` (blocked before launch; no Atlas job). **Last actual research run:** Run 03 (failed/incomplete; zero admissions/cards). Read both via `docs/CURRENT_STATUS_2026-10-15.md`, and re-check newest audit/HEAD/Actions before acting. For a pre-command run-environment rebuild timeout, use `Cmd/Ctrl+K` → `Restart compute` before retrying the same workflow.
 
 ## 0. Product law
 
