@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
+import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
 import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
@@ -674,5 +674,62 @@ describe("canonical Investigator continuation failure handling", () => {
     expect(canonicalDiscoverySource).toContain("failureDomain: diagnostic.domain");
     expect(canonicalDiscoverySource).toContain("await clearActiveJobIfOwned(lockKey, atlasJobId);");
     expect(canonicalDiscoverySource).toContain("return { phase: 3, ingested: 0, enriched: materialized");
+  });
+});
+
+
+describe("Right-hand-approved opening direction", () => {
+  it("activates only an explicitly approved, valid first Boss direction as the initial research scope", () => {
+    const direction = "Query the German Handelsregister for privately held Mittelstand manufacturing firms in Bavaria and identify listed owners/operators.";
+    expect(resolveApprovedOpeningDirection({ rightHandDecision: "Approve", firstDirection: direction })).toEqual({
+      status: "approved",
+      direction,
+      reason: null,
+    });
+    expect(resolveApprovedOpeningDirection({ rightHandDecision: "Approved — aligned with the objective", firstDirection: direction })).toMatchObject({
+      status: "approved",
+      direction,
+    });
+  });
+
+  it("does not activate Boss directions when Right-hand rejects or does not approve", () => {
+    for (const decision of ["Reject", "Needs revision", "Unavailable", "", null]) {
+      expect(resolveApprovedOpeningDirection({
+        rightHandDecision: decision,
+        firstDirection: "Investigate privately held manufacturers in Bavaria.",
+      }).status).toBe("not_approved");
+    }
+  });
+
+  it("keeps missing or malformed opening directions out of active scope", () => {
+    for (const firstDirection of [null, undefined, "", "   "]) {
+      expect(resolveApprovedOpeningDirection({
+        rightHandDecision: "Approve",
+        firstDirection,
+      }).status).toBe("missing");
+    }
+    for (const firstDirection of [
+      "Use parallel_web_search for the next step.",
+      "Investigate this URL: https://example.test/person",
+      "Search using site:example.com owners Bavaria",
+      "x".repeat(1_201),
+    ]) {
+      const result = resolveApprovedOpeningDirection({ rightHandDecision: "Approve", firstDirection });
+      expect(result.status).toBe("invalid");
+      expect(result.direction).toBeNull();
+    }
+  });
+
+  it("fails closed on unavailable Right-hand before resolving or passing the opening objective to Investigator", () => {
+    const oversightUnavailable = canonicalDiscoverySource.indexOf('if (rightHandRaw.status !== "completed")');
+    const openingResolution = canonicalDiscoverySource.indexOf("resolveApprovedOpeningDirection({");
+    const openingObjective = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [");
+    expect(oversightUnavailable).toBeGreaterThan(-1);
+    expect(openingResolution).toBeGreaterThan(oversightUnavailable);
+    expect(openingObjective).toBeGreaterThan(openingResolution);
+    expect(canonicalDiscoverySource).toContain('currentAction: "groq-right-hand-unavailable"');
+    expect(canonicalDiscoverySource).toContain("Groq Right-hand unavailable; failing closed");
+    expect(canonicalDiscoverySource).toContain("rightHandDecision: rightHand.decision");
+    expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
   });
 });

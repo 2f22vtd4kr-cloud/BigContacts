@@ -22,7 +22,7 @@ import { nextResearchCaseEventIteration } from "./research-case-event-iteration"
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
-import { resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
+import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateRoleCorroborationSources, hasCredibleDiscoveryWealthPotentialSignal, hasRealisticPersonRouteSource, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
@@ -858,14 +858,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }, { isolationLevel: "serializable" });
 
     const compactControlText = (value: unknown, max: number): string => typeof value === "string" ? value.trim().slice(0, max) : "";
-    const approvedOpeningDirection = /^approv(?:e|ed)\b/i.test(rightHand.decision ?? "")
-      ? compactControlText(Array.isArray(boss.nextDirections) ? boss.nextDirections[0] : null, 1_200)
+    const openingDirectionResolution = resolveApprovedOpeningDirection({
+      rightHandDecision: rightHand.decision,
+      firstDirection: Array.isArray(boss.nextDirections) ? boss.nextDirections[0] : null,
+    });
+    const approvedOpeningDirection = openingDirectionResolution.status === "approved"
+      ? openingDirectionResolution.direction
       : "";
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
       approvedOpeningDirection ? "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection : "",
       "BOSS OPENING CONTROL DIRECTION:",
-      "The Right-hand-approved first direction above defines the opening scope only; reports, other directions, and uncertainties are unverified context, not evidence.",
+      openingDirectionResolution.status === "approved"
+        ? "The Right-hand-approved first direction above defines the opening scope only; it remains a research hypothesis, not source evidence. Reports, other directions, and uncertainties are unverified context, not evidence."
+        : "No active opening direction was authorized (" + openingDirectionResolution.reason + "). Research the base objective without treating unapproved Boss directions as active scope; if the scope needs revision, return control to Boss/Right-hand. Boss reports, directions, and uncertainties are not source evidence.",
       compactControlText(boss.report, 1_200) ? "Report: " + compactControlText(boss.report, 1_200) : "",
       Array.isArray(boss.nextDirections) && boss.nextDirections.length ? "Next directions: " + JSON.stringify(boss.nextDirections).slice(0, 1_200) : "",
       Array.isArray(boss.uncertainties) && boss.uncertainties.length ? "Uncertainties: " + JSON.stringify(boss.uncertainties).slice(0, 800) : "",

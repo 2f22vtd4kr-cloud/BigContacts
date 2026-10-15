@@ -17,6 +17,40 @@ export function validateResearchObjective(direction: string | null | undefined):
   return { valid: true, direction: value };
 }
 
+/**
+ * Resolve the opening Boss direction only when Right-hand explicitly approves it
+ * and the direction satisfies the same runtime contract used for later pivots.
+ * Approval activates a research scope; it does not turn a Boss hypothesis into
+ * observed source evidence or give Right-hand authority over tool selection.
+ */
+export type ApprovedOpeningDirectionResolution =
+  | { status: "approved"; direction: string; reason: null }
+  | { status: "not_approved" | "missing" | "invalid"; direction: null; reason: string };
+
+export function resolveApprovedOpeningDirection(input: {
+  rightHandDecision: unknown;
+  firstDirection: unknown;
+}): ApprovedOpeningDirectionResolution {
+  const decision = typeof input.rightHandDecision === "string" ? input.rightHandDecision.trim() : "";
+  if (!/^approv(?:e|ed)\b/i.test(decision)) {
+    return { status: "not_approved", direction: null, reason: "Right-hand did not approve the opening direction." };
+  }
+
+  if (typeof input.firstDirection !== "string" || !input.firstDirection.trim()) {
+    return { status: "missing", direction: null, reason: "Right-hand approved the opening review, but Boss supplied no first research direction." };
+  }
+  const direction = input.firstDirection.trim();
+  if (direction.length > 1_200) {
+    return { status: "invalid", direction: null, reason: "The opening research direction exceeds the 1200-character control bound." };
+  }
+
+  const validated = validateResearchObjective(direction);
+  if (!validated.valid) {
+    return { status: "invalid", direction: null, reason: validated.reason };
+  }
+  return { status: "approved", direction: validated.direction, reason: null };
+}
+
 export function formatBossDirectedObjective(baseObjective: string, direction: string): string {
   return `${baseObjective.trim()}\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\n${direction.trim()}`;
 }

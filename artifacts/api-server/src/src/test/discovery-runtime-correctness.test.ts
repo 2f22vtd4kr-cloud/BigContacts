@@ -21,10 +21,12 @@ describe("discovery runtime architecture", () => {
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
   });
 
-  it("binds an approved Boss opening direction into the real first Investigator scope", () => {
-    expect(canonicalDiscoverySource).toContain("const approvedOpeningDirection = /^approv(?:e|ed)");
+  it("binds a validated Right-hand-approved Boss opening direction into the real first Investigator scope", () => {
+    expect(canonicalDiscoverySource).toContain("resolveApprovedOpeningDirection({");
+    expect(canonicalDiscoverySource).toContain('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
     expect(canonicalDiscoverySource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
+    expect(canonicalDiscoverySource).toContain("No active opening direction was authorized");
     expect(researchCoreSource).toContain("If the Boss wording explicitly orders dependent source stages");
     expect(researchCoreSource).toContain("explain any material deviation");
   });
@@ -71,7 +73,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("rightHand.reason");
     expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
     expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective");
-    expect(canonicalSource).toMatch(/approvedOpeningDirection[\s\S]{0,300}rightHand\.decision/);
+    expect(canonicalSource).toContain("rightHandDecision: rightHand.decision");
+    expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
     expect(canonicalSource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
   });
 
