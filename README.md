@@ -4,7 +4,7 @@
 
 Apex Atlas is an OSINT research desk built to identify decision-makers, owners, founders, operators, and high-net-worth individuals connected to private companies and capital, then surface **real, attributable contact paths** from public sources.
 
-> **★ Active live audit:** [APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_03.md](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_03.md)
+> **Latest live-run evidence (2026-10-15):** [APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md) — failed/incomplete, 20 Investigator iterations, one successful page visit, zero findings/admissions/cards. See [Current verified status](docs/CURRENT_STATUS_2026-10-15.md) for the code/CI snapshot and next acceptance criteria.
 
 It is a model-led research bureau, not a fixed enrichment script:
 
@@ -119,7 +119,11 @@ APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
 Do not leave schema mutation enabled for ordinary runtime boot.
 
-The latest user-operated live-run evidence is the [October 14, 2026 Live Run 08 audit](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_08.md). Canonical Atlas job `9884c4a6-203b-43fa-a6cc-45a87e2f9a7c` ended `failed/incomplete` at phase 3/4 with zero admissions and no card. The final in-scope Washington State corporate-filings search observed six URLs but produced no findings and no successful fetched-page visits before `upstream_token_window_wait_exceeded`; the recorded run therefore never reached candidate admission, so this is not evidence of a downstream card-persistence failure. Its HTTP 429 token-window telemetry did not prove hard request-quota exhaustion. The audit also records an authorized recovery request for case 1 accepted with HTTP 202 as job `583c11a6-e704-4588-81d9-2bb81cf7a297`, but it does not establish that job's terminal status or later database/event deltas. Its outcome remains **unknown and unreconciled**; do not assume success or failure or launch a duplicate while durable status is ambiguous. Earlier Run 03–07 audits remain historical incident evidence. Subsequent source fixes address the corporation-search scope guard and the interaction between productive provider-failed episodes and the separate token-window recovery threshold. Current CI must be checked against the exact current `main` SHA, and CI green is not live-research certification. A subsequent operator-controlled Replit audit must verify actual fetched pages, source-bound `done(findings)`, durable candidate admission, target/contact attribution, and a truthful downstream card.
+The latest user-operated live run is the [October 15, 2026 Live Run 03 audit](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md). Canonical job `8eb7c47b-dc94-46d6-a851-133104a6a806` ended `failed/incomplete` at the 20-Investigator-iteration ceiling (phase 3/4). The recorded totals are 8 successful web-search actions, 1 successful page visit, 0 findings, 0 admissions/inserts, and 0 cards. The turn-by-turn audit currently itemizes six successful provider search requests, so its search count remains unreconciled; do not guess the difference.
+
+The fetched GrowthCap/private-equity article produced no named target or attributable target contact. Later turns were consumed by a malformed Investigator registry action, scope-guard blocks (including one semantically aligned Secretary-of-State query the old guard rejected), one empty search result, and OpenCorporates HTTP 401 errors. The post-run database check showed no entities, assets, relationships, contact evidence, research evidence/sessions, or research-run events beyond the preserved discovery-case trace. Therefore there is no evidence of a downstream card-rendering/persistence failure: no candidate reached admission.
+
+Since Run 03, `main` includes the phrase-aware source-class normalization regression, runtime schema filtering for registries that require credentials, safe registry-auth status handling, and OpenCorporates authentication using its documented `api_token` query parameter. These changes are not yet proven by a new Replit live run. On code SHA `40a243d05f8d315f4a7c8446f18f0514fecd6f94`, the discovery static gate passed; Atlas CI, API Build, frontend gate, and five-consecutive-audits workflow had not all reached terminal state at the last check. See [Current verified status](docs/CURRENT_STATUS_2026-10-15.md); always refresh GitHub Actions before claiming a gate is green. CI success does not certify live research. The next live acceptance must show real fetched-page observations, source-bound findings, durable evidence-backed admission, and a card backed by that newly admitted state.
 
 ## Runtime secret contract
 
@@ -127,9 +131,11 @@ Never print or commit secret values. Do not ask the user for GitHub credentials 
 
 ## Canonical documents
 
-- `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md` — master agent continuation contract.
-- `docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md` — mandatory repository study protocol.
-- `docs/context.md` — living architecture, deployment truth, release gates, and research handoff.
+- `docs/CURRENT_STATUS_2026-10-15.md` — latest audited run, verified fixes, CI snapshot, and next live-acceptance criteria.
+- `docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md` — current override at the top, followed by explicitly historical handoff material.
+- `docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md` — mandatory repository study, HEAD-check, and newest-audit selection procedure.
+- `docs/context.md` — living architecture, runtime status pointer, deployment truth, and release gates.
+- `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md` — historical continuation background; its dated body is subordinate to current status, source, and newest audit.
 - `docs/BUREAU_REACT_ARCHITECTURE.md` — role law and canonical ReAct boundary.
 - `docs/APEX_ATLAS_VERY_STRONG_ROADMAP.md` — Very Strong implementation and remaining hardening.
 - `docs/APEX_RESEARCH_GAUNTLET_V1.md` — empirical research-quality protocol.
