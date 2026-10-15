@@ -2192,6 +2192,103 @@ function pivotTextMatchesAnyAnchor(value: string, anchors: readonly string[]): b
   });
 }
 
+type ExplicitPivotSourceStageDependency = {
+  firstStageText: string;
+  firstStageAnchors: string[];
+  laterStageText: string;
+  laterStageAnchors: string[];
+  laterNamedSources: string[];
+};
+
+function explicitPivotSourceStageDependency(direction: string): ExplicitPivotSourceStageDependency | null {
+  // Only an explicit Boss-written "first ... then ..." sentence creates a
+  // source-stage dependency. Ordinary source alternatives remain model-led.
+  const match = /\bfirst\b([^.;\n]{1,320}?)\bthen\b([^.;\n]{1,320})/i.exec(direction);
+  if (!match) return null;
+  const firstStageText = match[1]!.trim();
+  const laterStageText = match[2]!.trim();
+  const firstStageAnchors = pivotScopeRequiredSourceAnchors(firstStageText);
+  const laterStageAnchors = pivotScopeRequiredSourceAnchors(laterStageText);
+  if (firstStageAnchors.length === 0 || laterStageAnchors.length === 0) return null;
+
+  // Preserve named source systems (for example, Companies House) even if their
+  // URL hostname does not contain a generic word like "registry" or "filing".
+  const laterNamedSources = Array.from(
+    laterStageText.matchAll(/\b(?:from|via|using|through|at|on|with)\s+([A-Z][A-Za-z0-9&.'’ -]{1,70}?)(?=\s+(?:or|and|for)\b|[.,;]|$)/g),
+    (sourceMatch) => normalizeDiscoverySearchQuery(sourceMatch[1] ?? "").replace(/\s+/g, ""),
+  ).filter((source) => source.length >= 6);
+
+  return { firstStageText, firstStageAnchors, laterStageText, laterStageAnchors, laterNamedSources };
+}
+
+function hasFetchedExplicitFirstSourceStage(
+  dependency: ExplicitPivotSourceStageDependency,
+  scopeKey: string,
+  priorRecords: readonly AgenticTrajectoryRecord[],
+): boolean {
+  return priorRecords.some((record) => {
+    if (
+      record.pivotScopeKey !== scopeKey
+      || record.execution !== "success"
+      || (record.action !== "visit" && record.action !== "browser_fetch")
+      || (record.observedUrls ?? []).length === 0
+    ) return false;
+    const observedSource = [String(record.args.url ?? ""), String(record.observation ?? "")].join(" ");
+    return pivotTextMatchesAnyAnchor(observedSource, dependency.firstStageAnchors);
+  });
+}
+
+function pivotActionTargetsLaterSourceStage(
+  action: string,
+  args: Record<string, unknown>,
+  dependency: ExplicitPivotSourceStageDependency,
+): boolean {
+  const laterStageIncludesRegistry = dependency.laterStageAnchors.some((anchor) =>
+    anchor === "registry" || anchor === "filing" || anchor === "database",
+  );
+  if ((action === "registry_search" || action === "parallel_registry_search") && laterStageIncludesRegistry) {
+    return true;
+  }
+
+  let requestText = "";
+  if (action === "web_search") {
+    requestText = String(args.query ?? "");
+  } else if (action === "parallel_web_search") {
+    requestText = Array.isArray(args.searches)
+      ? args.searches.map((item) => item && typeof item === "object" && !Array.isArray(item)
+        ? String((item as Record<string, unknown>).query ?? "")
+        : "").join(" ")
+      : "";
+  } else if (action === "visit" || action === "browser_fetch") {
+    requestText = String(args.url ?? "");
+  } else if (action === "domain_lookup" || action === "harvest_domain") {
+    requestText = String(args.domain ?? "");
+  } else {
+    requestText = Object.values(args).filter((value): value is string => typeof value === "string").join(" ");
+  }
+
+  if (pivotTextMatchesAnyAnchor(requestText, dependency.laterStageAnchors)) return true;
+  const normalizedRequest = normalizeDiscoverySearchQuery(requestText).replace(/\s+/g, "");
+  return dependency.laterNamedSources.some((source) => normalizedRequest.includes(source));
+}
+
+function explicitSourceStageOrderReason(
+  direction: string,
+  scopeKey: string,
+  action: string,
+  args: Record<string, unknown>,
+  priorRecords: readonly AgenticTrajectoryRecord[],
+): string | null {
+  const dependency = explicitPivotSourceStageDependency(direction);
+  if (!dependency || hasFetchedExplicitFirstSourceStage(dependency, scopeKey, priorRecords)) return null;
+  if (!pivotActionTargetsLaterSourceStage(action, args, dependency)) return null;
+  return "pivot_alignment_guard / ordered_source_stage_guard blocked this outbound action before execution. The active Boss-approved direction explicitly requires the first source stage ("
+    + dependency.firstStageText.slice(0, 180)
+    + ") before the later stage ("
+    + dependency.laterStageText.slice(0, 180)
+    + "). A search result or URL listing alone does not complete the first stage; at least one observed first-stage page must be fetched successfully. Fetch an observed source from the first stage, or return control to Boss/Right-hand if that stage is infeasible. No outbound request was made.";
+}
+
 function pivotTextMatchesGeography(value: string, options: readonly string[][]): boolean {
   if (options.length === 0) return true;
   const tokens = new Set((value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken));
@@ -2370,6 +2467,8 @@ export function discoveryPivotAlignmentReason(
   const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
   // Provenance grows only through successful actions already grounded in the active
   // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
+  const sourceStageReason = explicitSourceStageOrderReason(direction, activePivotScopeKey, action, args, priorRecords);
+  if (sourceStageReason) return sourceStageReason;
   const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, activePivotScopeKey);
   if (pivotActionIsAligned(action, args, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText)) return null;
 
@@ -2408,7 +2507,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const discoveryLivenessAdvisory = input.mode === "discovery" ? discoverySearchLivenessAdvisory(input.trajectoryRecords) : null;
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
   const terminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): done only when contract passes: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; allowOpenQuestions=" + terminalContract.allowOpenQuestions + "; allowHighSeverityContradictions=" + terminalContract.allowHighSeverityContradictions + ". " + (terminalContract.requireFalsification ? "Falsification requirement: at least one successful external action must explicitly attempt to disprove, refute, find counter-evidence, rule out the leading claim, or test an alternative hypothesis via hypothesis/purpose/query; repeated corroboration alone does not count. " : "") + "This states the stopping condition, not a prescribed action sequence.";
-  const researchContract = "MISSION PRIORITY: The case objective and realistic-targetability gate outrank Boss/Right-hand suggestions that conflict with the mission or policy. Reject a fame/ranking/global-brand executive path unless it traces to a reachable local owner/operator/distributor/franchise/concession. ACTIVE PIVOT: when compatible with the mission, the latest Boss-approved pivot defines the current scope; prior trajectory is historical evidence, not a standing search instruction. Stay within that scope unless observed evidence directly falsifies it or makes it infeasible, and report why before requesting a new scope. This constrains scope, not tool or provider choice. If the Boss wording explicitly orders dependent source stages (for example, a member directory before an ownership registry), honor that dependency; otherwise the Investigator chooses action order freely. RESEARCH CONTRACT: you own the research trajectory. Choose the next action from the available capabilities using evidence, expected information gain, identity discrimination, source independence, and cost; no fixed sequence.";
+  const researchContract = "MISSION PRIORITY: The case objective and realistic-targetability gate outrank Boss/Right-hand suggestions that conflict with the mission or policy. Reject a fame/ranking/global-brand executive path unless it traces to a reachable local owner/operator/distributor/franchise/concession. ACTIVE PIVOT: when compatible with the mission, the latest Boss-approved pivot defines the current scope; prior trajectory is historical evidence, not a standing search instruction. Stay within that scope unless observed evidence directly falsifies it or makes it infeasible, and report why before requesting a new scope. This constrains scope, not tool or provider choice. If the Boss wording explicitly orders dependent source stages (for example, a member directory before an ownership registry), do not advance to the later stage until a first-stage page has been fetched successfully; search result URLs alone do not complete the first stage. If that source fails, try another observed first-stage source or return control to Boss/Right-hand if the stage is infeasible. Otherwise the Investigator chooses action order freely. RESEARCH CONTRACT: you own the research trajectory. Choose the next action from the available capabilities using evidence, expected information gain, identity discrimination, source independence, and cost; no fixed sequence.";
   const actionLiveness = "ACTION LIVENESS: block exact normalized repeats with unchanged hypothesis/purpose and no new evidence. A changed rationale, provider/market/resource, or new evidence can justify revisiting. This prevents redundancy, not a preferred action sequence. MIXED-SOURCE RESEARCH: generate and compare plausible hypotheses, then select complementary sources. Use parallel web searches and, where corporate records are relevant, 2–4 registry queries across appropriate supported jurisdictions in one parallel_registry_search action. Apply source-language terms when useful. Do not exhaustively query every registry or treat registry hits as verified evidence.";
   const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   const registryGuidance = "SUPPORTED REGISTRY IDS: sec-edgar, companies-house (requires COMPANIES_HOUSE_API_KEY), brreg, ares-czechia, bodacc-france, gleif, cvr-denmark, zefix-switzerland, offeneregister-germany, bolagsverket-sweden, ytj-finland, atoka-italy, borme-spain, kvk-netherlands, kbo-belgium, opencorporates (optional API access). Select only sources relevant to the current hypothesis and available jurisdiction; registry search returns leads, not source evidence. Use parallel_registry_search for 2–4 complementary jurisdiction/source queries when that increases expected information gain; do not blindly call every registry.";

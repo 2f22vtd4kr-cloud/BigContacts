@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -484,6 +484,72 @@ Choose each next action yourself from the available capabilities and observed ev
     ].join("\n");
 
     expect(extractBossPivotDirectionForCompactPrompt(objective)).toBe(direction);
+  });
+
+  it("enforces an explicit directory-before-registry dependency until a directory page is actually fetched", () => {
+    const stagedObjective = [
+      "Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held construction businesses in the Midlands, first sourced from local chamber/industry-association directories, then director/shareholder information from Companies House or another public registry.",
+    ].join("\n\n");
+    const scopeKey = discoveryPivotScopeKey(stagedObjective);
+    expect(scopeKey).not.toBeNull();
+
+    expect(discoveryPivotAlignmentReason(stagedObjective, "web_search", {
+      query: "Midlands privately held construction businesses chamber member directory",
+      provider: "serper",
+    }, [])).toBeNull();
+
+    expect(discoveryPivotAlignmentReason(stagedObjective, "web_search", {
+      query: "Midlands private limited construction Companies House director shareholder registry",
+      provider: "serper",
+    }, [])).toContain("ordered_source_stage_guard");
+
+    expect(discoveryPivotAlignmentReason(stagedObjective, "visit", {
+      url: "https://beta.companieshouse.gov.uk/company/04960386",
+    }, [])).toContain("ordered_source_stage_guard");
+
+    const failedDirectoryFetch = {
+      turn: 1,
+      model: "openai/gpt-oss-120b",
+      action: "browser_fetch",
+      args: { url: "https://midlandschamber.example/members-directory/" },
+      pivotScopeKey: scopeKey ?? undefined,
+      execution: "error",
+      observation: "External fetch failed; no page was observed.",
+      observedUrls: [],
+      findings: [],
+    } as AgenticTrajectoryRecord;
+    expect(discoveryPivotAlignmentReason(stagedObjective, "web_search", {
+      query: "Midlands private limited construction Companies House director shareholder registry",
+      provider: "serper",
+    }, [failedDirectoryFetch])).toContain("ordered_source_stage_guard");
+
+    const fetchedDirectoryPage = {
+      turn: 2,
+      model: "openai/gpt-oss-120b",
+      action: "visit",
+      args: { url: "https://www.midlandschamber.co.uk/midlands-construction-members-directory/" },
+      pivotScopeKey: scopeKey ?? undefined,
+      execution: "success",
+      observation: "The Midlands chamber member directory lists local construction firms.",
+      observedUrls: ["https://www.midlandschamber.co.uk/midlands-construction-members-directory/"],
+      findings: [],
+    } as AgenticTrajectoryRecord;
+    expect(discoveryPivotAlignmentReason(stagedObjective, "web_search", {
+      query: "Midlands private limited construction Companies House director shareholder registry",
+      provider: "serper",
+    }, [fetchedDirectoryPage])).toBeNull();
+  });
+
+  it("does not infer a source-stage order from ordinary source alternatives", () => {
+    const alternativeObjective = [
+      "Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held construction businesses in the Midlands using local chamber directories and Companies House public ownership records.",
+    ].join("\n\n");
+    expect(discoveryPivotAlignmentReason(alternativeObjective, "web_search", {
+      query: "Midlands privately held construction businesses Companies House director shareholder registry",
+      provider: "serper",
+    }, [])).toBeNull();
   });
 
   it("accepts each country query when it uses either Boss-approved announcement or filing sources", () => {
