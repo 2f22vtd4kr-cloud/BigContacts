@@ -67,6 +67,14 @@ describe("Atlas control-plane contract regression", () => {
     expect(namedTargetPrompt).toContain("TARGET-LOCKED public-web research case");
   });
 
+  it("passes the canonical Right-hand control validator into the adapter's bounded model fallback", () => {
+    expect(controlSource).toMatch(
+      /runGroqRightHandFreeJson\(rightHandPrompt,[\s\S]*?ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,\s*\(raw\)\s*=>\s*validateAtlasRightHandControl\(parseObject\(raw\)\)\)/,
+    );
+    expect(rightHandSource).toContain("if(validateRaw&&!validateRaw(raw))");
+    expect(rightHandSource).toContain('failureClass:"invalid_contract"');
+  });
+
   it("preserves the active discovery objective on continuation and hands validated pivots to the next Investigator pass", () => {
     const baseObjective = "Find source-backed owners of reachable regional businesses.";
     const pivot = resolveBossDirectedDiscoveryObjective({
