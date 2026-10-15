@@ -9,6 +9,8 @@ Apex Atlas is too consequential to continue by reading only a few “important�
 
 A future agent must treat the repository itself as the primary engineering artifact.
 
+Before relying on any handoff or status paragraph, inspect recent commits on `main`, list dated live-run audits, and choose the newest actual run by timestamp/run sequence. A dated audit records one attempt; it is not a timeless description of current source or runtime. Never copy an old active-audit path, SHA, branch status, or file reference forward without checking the current tree.
+
 The agent must:
 
 1. check out `main`;
@@ -285,12 +287,21 @@ Do not hide uncertainty behind prose.
 
 # Required study sequence for a new agent
 
+## Current-state precedence (2026-10-15 update)
+
+1. Confirm actual `main` HEAD and inspect recent commits first.
+2. Read `README.md` and `docs/CURRENT_STATUS_2026-10-15.md`; independently verify that the referenced audit is the newest file under `audits/`.
+3. Re-check GitHub Actions against the actual HEAD. CI snapshots in documents are historical.
+4. Continue the required study sequence below; discover current file names from the tree if the repository changes.
+
+
 Follow this sequence unless a user explicitly changes the task:
 
-1. Read `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md`.
-2. Read `README.md`.
+1. Read `README.md`.
+2. Read `docs/CURRENT_STATUS_2026-10-15.md` and verify the newest audit pointer.
 3. Read `docs/context.md`.
-4. Read `docs/BUREAU_REACT_ARCHITECTURE.md`.
+4. Read `docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md` — follow its current override at the top; treat the dated body as historical incident lineage.
+5. Read `docs/BUREAU_REACT_ARCHITECTURE.md`.
 5. Read `docs/APEX_ATLAS_VERY_STRONG_ROADMAP.md`.
 6. Read `docs/APEX_ATLAS_CEO_RELEASE_REVIEW_2026-09-20.md`.
 7. Read `docs/RUN_BUREAU.md`.
