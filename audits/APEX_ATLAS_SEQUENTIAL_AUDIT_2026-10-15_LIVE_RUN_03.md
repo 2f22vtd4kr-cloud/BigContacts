@@ -1,5 +1,7 @@
 # ⭐ Apex Atlas Sequential Audit — LIVE RUN 03
 
+> **Run-specific incident record:** repository-wide current status and post-run fixes are summarized in [docs/CURRENT_STATUS_2026-10-15.md](../docs/CURRENT_STATUS_2026-10-15.md). This file records the October 15 run itself; it does not certify later code or live execution.
+
 **Status:** FAILED / INCOMPLETE — Attempt 1 exhausted the 20-Investigator-iteration ceiling; zero findings, admissions, and cards. The original pre-launch status is preserved in the append-only correction below.  
 **Started:** 2026-10-15 (timestamps below are UTC).  
 **Purpose:** Complete one real, UI-equivalent Apex Atlas discovery → research → evidence/admission → card-creation run, recording each observable transition and any setup/runtime defects.
