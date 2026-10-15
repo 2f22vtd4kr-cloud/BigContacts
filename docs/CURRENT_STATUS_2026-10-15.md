@@ -63,3 +63,7 @@ Apex is model-led ReAct, not deterministic enrichment:
 3. Run a fresh canonical UI-equivalent Replit audit; do not force a target or scripted itinerary.
 4. Inspect every Investigator turn and reconcile action/search/fetch counts from durable trajectory rows.
 5. Require evidence of successful page retrieval, source-grounded finding(s), persisted admission/entity and evidence rows, and the corresponding card. Until all of that is present, report live research as failed/incomplete.
+
+## Follow-up verification — after documentation reconciliation
+
+At the next status check, the documentation-updated HEAD was `e1e0f4dd7fce171fd00590f053e896cd6f460178`. On that HEAD, Atlas CI completed successfully (15/15 jobs), the frontend five-condition gate passed, and the discovery static check passed. Apex API Build completed successfully on the code revision `40a243d05f8d315f4a7c8446f18f0514fecd6f94`; the subsequent commits changed documentation only. The five-consecutive-full-code-audits workflow remained in Audit 1, with 14 of 19 steps complete and no failure observed; older runs triggered by earlier documentation pushes were cancelled, so no five-green certification exists. These observations are themselves time-bound; re-check current HEAD and Actions before another run.
