@@ -22,9 +22,10 @@ const MAX_AUDIT_STRING_CHARS = 300_000;
 const MAX_AUDIT_ARRAY_ITEMS = 128;
 const AUDIT_SECRET_REPLACEMENTS: Array<[RegExp, string]> = [
   [/\b(Bearer\s+)[A-Za-z0-9._~+/-=]{12,}/gi, "$1[REDACTED_SECRET]"],
-  [/\b((?:authorization|api[-_]?key|api[-_]?token|access[-_]?token|refresh[-_]?token|token|secret|password|credential|cookie|session|private[-_]?key)\s*[:=]\s*["']?)[^\s&"'<>]+/gi, "$1[REDACTED_SECRET]"],
-  [/([?&](?:api[-_]?key|api[-_]?token|access[-_]?token|refresh[-_]?token|secret|password|token|session)=)[^&#\s"']+/gi, "$1[REDACTED_SECRET]"],
-  [/\b(?:gsk|sk|rk|hf|ghp|github_pat|AIza)[_-][A-Za-z0-9_-]{16,}\b/gi, "[REDACTED_SECRET]"],
+  [/\b([A-Z0-9_.-]*(?:authorization|api[-_]?key|api[-_]?token|access[-_]?token|refresh[-_]?token|token|secret|password|credential|cookie|session|private[-_]?key)\s*[:=]\s*["']?)[^\s&"'<>]+/gi, "$1[REDACTED_SECRET]"],
+  [/([?&](?:x[-_]?api[-_]?(?:key|token)|api[-_]?(?:key|token)|access[-_]?token|refresh[-_]?token|secret|password|token|session)=)[^&#\s"']+/gi, "$1[REDACTED_SECRET]"],
+  [/\b(?:gsk|sk|rk|hf|ghp|gho|ghu|ghs|ghr|github_pat)[_-][A-Za-z0-9_-]{16,}\b/gi, "[REDACTED_SECRET]"],
+[/\bAIza[A-Za-z0-9_-]{20,}\b/gi, "[REDACTED_SECRET]"],
   [/\b(redis|rediss|postgres|postgresql):\/\/[^\s/@]+:[^\s/@]+@/gi, "$1://[REDACTED_CREDENTIALS]@"],
 ];
 

@@ -14,7 +14,7 @@ const input = {
     model: "openai/gpt-oss-120b",
     messages: [
       { role: "system", content: "PRIVATE_SYSTEM_PROMPT_SENTINEL and schema instructions." },
-       { role: "user", content: "PRIVATE_TARGET_SENTINEL source passage and contact person@example.org +1 (415) 555-0100. Test secret gsk_123456789012345678901234 and https://example.test/?api_token=private_token_value." },
+       { role: "user", content: "PRIVATE_TARGET_SENTINEL source passage and contact person@example.org +1 (415) 555-0100. Test secret gsk_123456789012345678901234 and https://example.test/?api_token=private_token_value&x-api-key=query_secret_value. Also AIzaSyDUMMYKEYSTRING0123456789abcdefgh and GROQ_API_KEY=named_api_secret_value." },
     ],
     include_reasoning: false,
     max_completion_tokens: 1024,
@@ -84,6 +84,9 @@ describe("model prompt audit", () => {
       "PRIVATE_CREDENTIAL_SENTINEL",
       "gsk_123456789012345678901234",
       "private_token_value",
+      "query_secret_value",
+      "AIzaSyDUMMYKEYSTRING0123456789abcdefgh",
+      "named_api_secret_value",
     ]) expect(captured).not.toContain(secretValue);
     expect(captured).toContain("[REDACTED_SECRET]");
 
