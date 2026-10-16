@@ -1,12 +1,20 @@
 # Apex Atlas / BigContacts — Living Context
 
-> **Updated:** 2026-10-15  
+> **Updated:** 2026-10-16  
 > **Canonical branch:** `main`  
-> **Status:** active architecture handoff; static correctness is not production/live-research certification.
+> **Status:** model-led ReAct control loop demonstrated in live execution; end-to-end research/card creation is not yet live-accepted.
 
-> **Latest audit attempt:** [October 15 Run 04 audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md) — blocked before launch by a Replit run-environment rebuild timeout; no Atlas job ran.
-> **Latest executed research run:** Run 03 failed/incomplete at 20 Investigator iterations with one successful visit and zero findings/admissions/cards.
-> **Current status and verification snapshot:** [CURRENT_STATUS_2026-10-15.md](CURRENT_STATUS_2026-10-15.md). Re-check actual `main` HEAD and Actions before relying on dated CI states.
+> **Run 04:** [full append-only audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md). The first workflow restart timed out before boot, but a later restart succeeded and the dashboard launch ran. Run 04 terminal state: failed/incomplete at 20 Investigator iterations, zero findings/admissions/cards.
+> **Run 05:** [separate reconstructed audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md). Job `4b85fc7c-a239-478c-a455-94baf02ffdee`; 30 Investigator turns in the available trace, no candidate/card evidenced, terminal state and final database counts unverified after Replit credits ran out.
+> **Current verified status:** [CURRENT_STATUS_2026-10-15.md](CURRENT_STATUS_2026-10-15.md). Always re-check actual `main`, the newest audit, Actions and durable run state before acting.
+
+## 0. Current empirical status
+
+The live records confirm that Boss directs, Right-hand reviews, and the selected Investigator makes model-owned action and pivot decisions. The runtime actually executed accepted web actions and blocked unauthorized or out-of-scope proposals without outbound requests. This is evidence the architecture's live control loop runs; it is not evidence that the whole bureau is productive or accepted.
+
+The repeated failure pattern is upstream of card projection: investigations spend turns on scope blocks, generic recovery feedback, provider output-validation failures, source leads that do not become claim-grade evidence, and local action-contract rejection. No inspected run demonstrates a person crossing candidate admission and then failing to render as a card. Do not declare the card layer broken without that proof, and do not relax admission thresholds to manufacture positive output.
+
+The latest code-validation snapshot is SHA `4c09192d0b747635ad7fa830018d1e3d7831f47f`. All five release workflows were green on that SHA; verify the exact final `main` SHA and Actions after any subsequent commits.
 
 ## 1. Current architecture
 
@@ -154,7 +162,7 @@ APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
 Schema mutation must not remain enabled during ordinary boot.
 
-Run 04 is the newest audit attempt ([audit file](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md)), but it is blocked before launch: Replit timed out rebuilding the run environment before `scripts/replit-boot.sh` started; `/api/healthz` returned 502 and no Atlas job ran. The correct next step is `Cmd/Ctrl+K` → `Restart compute`, then retry the same managed API workflow once and verify fresh boot logs/health before launching Atlas. The latest actual research investigation remains [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md), which ended at 20 iterations with one visit and no findings/admissions/cards. That is an admission-stage failure, not evidence of a downstream card-creation defect. Details and the current CI timeline are in [CURRENT_STATUS_2026-10-15.md](CURRENT_STATUS_2026-10-15.md).
+Run 04 and Run 05 chronology is summarized at the top of this document and in [CURRENT_STATUS_2026-10-15.md](CURRENT_STATUS_2026-10-15.md). Run 04 was eventually launched after a successful workflow restart and terminated incomplete at 20 Investigator iterations with no admissions/cards. Run 05 did execute but its terminal state/final durable counts are not available in the captured audit. Resolve that job state before another launch; do not repeat the earlier compute-restart remedy unless fresh health/boot evidence shows a platform boot failure.
 
 The repository must not claim live provider success, production readiness, or research quality from static tests alone. A controlled live run requires the canonical environment, initialized durable schema, healthy runtime, actual provider execution, and persisted evidence.
 
