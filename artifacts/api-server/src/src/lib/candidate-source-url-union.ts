@@ -214,12 +214,58 @@ function normalizeTargetabilityText(value: string): string {
     .trim();
 }
 
+/** Ownership/control terms are enough for a review lead, not proof of material wealth. */
+const DISCOVERY_OWNERSHIP_SIGNALS = [
+  "owner", "owns", "owned", "ownership", "proprietor", "founder", "founded",
+  "co founder", "shareholder", "shareholding", "equity stake", "controlling stake",
+  "beneficial owner", "majority owner", "majority shareholder", "investor in",
+  "invested in", "investment partner", "investor", "general partner", "managing partner",
+  "private equity partner", "venture capital partner", "family office principal",
+  "concession holder", "concessionaire", "franchise owner", "franchisee",
+  "license holder", "licensed operator", "lastnik", "lastnica", "solastnik",
+  "solastnica", "ustanovitelj", "soustanovitelj", "delnicar", "druzbenik",
+  "investitor", "koncesionar", "imetnik licence", "vlasnik", "suvlasnik",
+  "osnivac", "dionicar", "proprietario", "fondatore", "azionista",
+  "concessionario", "eigentumer", "gesellschafter", "grunder", "betreiber",
+] as const;
+
+
 /**
  * Discovery is about plausible high-value people, not any person with a public title.
  * Count only source-observed ownership/control/investment signals attached to the
  * exact person's nearby text, or an explicitly targetable ownership/investment role.
  * Do not infer wealth from seniority, prominence, or merely appearing in a registry.
  */
+/**
+ * Minimum discovery handoff evidence: the same successfully fetched claim-grade
+ * source must mention the exact person alongside an ownership/control/investment
+ * signal. Company scale, material assets, independent corroboration and contact
+ * routes are deliberately left to target-scoped research. This is a review lead,
+ * never an HNWI or contact conclusion.
+ */
+export function hasDiscoveryOwnershipLeadSignal(input: {
+  personName: string;
+  role: string;
+  observations: readonly DiscoveryTargetabilityObservation[];
+}): boolean {
+  const person = normalizeTargetabilityText(input.personName);
+  const role = normalizeTargetabilityText(input.role);
+  if (person.length < 3 || !role) return false;
+  return input.observations.some((observation) => {
+    if (observation.execution !== "success" || !["visit", "browser_fetch"].includes(observation.action)) return false;
+    if (!isClaimGradeDiscoverySourceUrl(observation.sourceUrl)) return false;
+    const passages = observation.observation.split(/(?:\r?\n)+|[.!?;]\s+/u);
+    return passages.some((passage) => {
+      const nearby = normalizeTargetabilityText(passage);
+      if (!nearby.includes(person)) return false;
+      return DISCOVERY_OWNERSHIP_SIGNALS.some((term) => {
+        const normalizedTerm = normalizeTargetabilityText(term);
+        return normalizedTerm.length > 0 && nearby.includes(normalizedTerm);
+      });
+    });
+  });
+}
+
 export function hasCredibleDiscoveryWealthPotentialSignal(input: {
   personName: string;
   role: string;
