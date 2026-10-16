@@ -45,10 +45,10 @@ All six HTTP 400 responses were recorded with provider code `json_validate_faile
 
 | UTC | Request ID | Safe provider message / evidence | Retry outcome |
 |---|---|---|---|
-| 02:50:37 | `f07a0adb-05b8-4542-9c2a-d3e03381a955` | `Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.` | JSON-object retry at 02:50:40 also returned HTTP 400 with the same code/message. |
-| 02:50:40 | `dea61c25-2896-4240-b8cb-e135356d6912` | Same generic `json_validate_failed` output-validation message. | This was the failing retry; no action was returned. |
-| 02:52:15 | `87ced98c-e3fe-4d72-baf1-36e4838f657d` | `Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.` | JSON-object retry at 02:52:17 returned HTTP 200; the action was subsequently blocked by scope guard. |
-| 02:53:06 | `6703621c-ff5c-45ce-a48d-0d1cc0af84a7` | `Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.` | JSON-object retry at 02:53:09 returned HTTP 200 with `parallel_web_search`. |
+| 02:50:37 | `fa09f3ca-332c-4eb9-9a40-982a6635fb5b` | `Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.` | JSON-object retry at 02:50:40 also returned HTTP 400 with the same code/message. |
+| 02:50:40 | `0c5d9b1f-9f2b-45c6-a141-8d42fbbef6aa` | Same generic `json_validate_failed` output-validation message. | This was the failing retry; no action was returned. |
+| 02:52:15 | `6703621c-ff5c-45ce-a48d-0d1cc0af84a7` | `Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.` | JSON-object retry at 02:52:17 returned HTTP 200; the action was subsequently blocked by scope guard. |
+| 02:53:06 | `a3849606-a142-a440-a95d-d5f5767af49820` | `Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.` | JSON-object retry at 02:53:09 returned HTTP 200 with `parallel_web_search`. |
 | 02:57:17 | `5b064be3-2c72-431f-bacd-7840343d478a` | Explicit truncation: `max completion tokens reached before generating a valid document ... output was truncated to fit max_completion_tokens and is missing required content ... missing properties: 'findings'`. | JSON-object retry at 02:57:21 returned HTTP 200 with `parallel_web_search`. |
 | 02:58:03 | `6ac80f8f-308a-40fa-a00a-65f8a9027f8a` | `Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.` | JSON-object retry at 02:58:06 returned HTTP 200 but proposed unsupported registry IDs `washington` and `oregon`; local action validation rejected it. |
 
