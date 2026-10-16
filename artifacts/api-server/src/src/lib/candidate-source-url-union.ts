@@ -280,19 +280,7 @@ export function hasCredibleDiscoveryWealthPotentialSignal(input: {
   // material business, asset, investment, or transaction. This deliberately
   // avoids requiring a public net-worth number while rejecting ordinary
   // founders/owners based on title alone.
-  const ownershipSignals = [
-    "owner", "owns", "owned", "ownership", "proprietor", "founder", "founded",
-    "co founder", "shareholder", "shareholding", "equity stake", "controlling stake",
-    "beneficial owner", "majority owner", "majority shareholder", "investor in",
-    "invested in", "investment partner", "investor", "general partner", "managing partner",
-    "private equity partner", "venture capital partner", "family office principal",
-    "concession holder", "concessionaire", "franchise owner", "franchisee",
-    "license holder", "licensed operator", "lastnik", "lastnica", "solastnik",
-    "solastnica", "ustanovitelj", "soustanovitelj", "delnicar", "druzbenik",
-    "investitor", "koncesionar", "imetnik licence", "vlasnik", "suvlasnik",
-    "osnivac", "dionicar", "proprietario", "fondatore", "azionista",
-    "concessionario", "eigentumer", "gesellschafter", "grunder", "betreiber",
-  ];
+  const ownershipSignals = DISCOVERY_OWNERSHIP_SIGNALS;
   const materialitySignals = [
     "casino", "gaming resort", "hotel group", "hotel resort", "resort operator",
     "marina operator", "port concession", "airport concession", "real estate portfolio",
