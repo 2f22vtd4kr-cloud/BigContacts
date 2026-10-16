@@ -79,9 +79,9 @@ export function resolveModelAuditFilePath(
 }
 
 const AUDIT_CONTACT_REPLACEMENTS: Array<[RegExp, string]> = [
-  [/\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b/gi, "[REDACTED_EMAIL]"],
-  [/(?<![A-Za-z0-9])(?:\\+\\d{1,3}[\\s.-]?)?(?:\\(\\d{3}\\)|\\d{3})[\\s.-]?\\d{3}[\\s.-]?\\d{4}(?!\\d)/g, "[REDACTED_PHONE]"],
-  [/\\b(?:phone|telephone|mobile)\\s*[:=]\\s*\\+?\\d{7,15}\\b/gi, "[REDACTED_PHONE]"],
+  [/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[REDACTED_EMAIL]"],
+  [/(?<![A-Za-z0-9])(?:\+\d{1,3}[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]?\d{3}[\s.-]?\d{4}(?!\d)/g, "[REDACTED_PHONE]"],
+  [/\b(?:phone|telephone|mobile)\s*[:=]\s*\+?\d{7,15}\b/gi, "[REDACTED_PHONE]"],
 ];
 const CONTACT_AUDIT_KEY = /^(?:email|emails|emailAddress|emailAddresses|phone|phones|phoneNumber|phoneNumbers|mobile|telephone|contactEmail|contactPhone)$/i;
 
