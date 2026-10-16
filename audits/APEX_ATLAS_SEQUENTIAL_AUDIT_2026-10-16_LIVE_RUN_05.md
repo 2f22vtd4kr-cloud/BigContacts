@@ -6,13 +6,13 @@
 **Current verified code HEAD after the recorded run:** `4c09192d0b747635ad7fa830018d1e3d7831f47f` (the run's exact process SHA was not recorded in every request record; do not attribute later source fixes to this execution).  
 **Job:** `4b85fc7c-a239-478c-a455-94baf02ffdee`  
 **Observed window:** 2026-10-16 02:47:37–02:59:18 UTC  
-**Status:** `INCOMPLETE — TERMINAL STATE UNVERIFIED`
+**Status:** `FAILED / INCOMPLETE — JOB TERMINAL VERIFIED; ORIGINAL-PROJECT DURABLE STATE UNRECONCILED`
 
 ## Why this is a separate audit
 
 Run 05 model request/response records were appended to `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md` while the model-audit output path still pointed at the Run 04 filename. This document separates the later job's chronology from Run 04 history. The original append-only record remains unchanged and is the source for timestamps, request IDs, provider errors, visible responses, and trajectory snippets.
 
-The owner reported that the Replit Agent ran out of credits before the investigation and recovery could be fully reconciled. The available record ends after the Investigator returned a structured action at 02:59:18.761 UTC. It does not contain a verified terminal job response, final database count snapshot, or confirmed active-job check. Do not describe Run 05 as completed, failed, or cancelled until the durable runtime state is checked.
+The owner reported that the Replit Agent ran out of credits before the investigation and recovery could be fully reconciled. The original model-audit record ends after the Investigator returned a structured action at 02:59:18.761 UTC and contains no terminal job poll. A later read-only check in the imported Replit project verified job `4b85fc7c-a239-478c-a455-94baf02ffdee` as `failed / incomplete`, with a finish timestamp of `03:00:24.824 UTC`, and verified both active-job pointers absent in that checked environment. That same check did **not** reconcile the original project's durable database: the imported project's database does not contain trace `caseId=2`, so its empty tables cannot establish the original run's final case, evidence, contact, admission, entity, or card counts. The job-level terminal failure is verified; the original-project persistence outcome remains unavailable. Do not infer zero original-project records from the unrelated empty database.
 
 ## Executive result
 
