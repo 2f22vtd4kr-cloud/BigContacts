@@ -48,6 +48,14 @@ describe("research objective validation", () => {
     })).toEqual({ status: "approved", direction, reason: null });
   });
 
+  it("does not mistake the observed Run 07 narrative review for explicit approval", () => {
+    const direction = "Search the Ohio Secretary of State business entity database for family-owned manufacturing companies with disclosed shareholder lists.";
+    const observedRun07Review = "Boss's proposed search strategy aligns with the objective, but refine criteria to ensure wealth potential and viable contact routes.";
+    expect(resolveApprovedOpeningDirection({ rightHandDecision: observedRun07Review, firstDirection: direction }).status).toBe("not_approved");
+    expect(resolveApprovedOpeningDirection({ rightHandDecision: "approve", firstDirection: direction })).toEqual({ status: "approved", direction, reason: null });
+    expect(resolveApprovedOpeningDirection({ rightHandDecision: "reject", firstDirection: direction }).status).toBe("not_approved");
+  });
+
   it("fails closed for explicit refusal or noncommittal Right-hand wording", () => {
     const direction = "Investigate privately held renewable-energy Mittelstand firms in Bavaria.";
     for (const decision of [

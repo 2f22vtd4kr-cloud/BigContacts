@@ -8,6 +8,7 @@ const discoverySource = fs.readFileSync(path.join(libDir, "discovery-agent.ts"),
 const researchSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
 const researchCoreSource = fs.readFileSync(path.join(libDir, "agentic-web-research-core.ts"), "utf8");
 const canonicalDiscoverySource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+const atlasControlDecisionSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
 const bossDiscoverySource = fs.readFileSync(path.join(libDir, "case-bureau.ts"), "utf8");
 const telemetrySource = fs.readFileSync(path.join(libDir, "agentic-llm-telemetry.ts"), "utf8");
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
@@ -23,6 +24,13 @@ describe("discovery runtime architecture", () => {
 
   it("binds a validated Right-hand-approved Boss opening direction into the real first Investigator scope", () => {
     expect(canonicalDiscoverySource).toContain("resolveApprovedOpeningDirection({");
+    expect(canonicalDiscoverySource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
+    expect(canonicalDiscoverySource).toContain("narrative review prose is never parsed as authorization");
+    expect(canonicalDiscoverySource).toContain("Right-hand opening approval: ");
+    expect(canonicalDiscoverySource).toContain("Return a separate explicit approval enum");
+    expect(canonicalDiscoverySource).toContain("decision is a free-form narrative summary");
+    expect(atlasControlDecisionSource).toContain('approval: { type: "string", enum: ["approve", "reject"] }');
+    expect(atlasControlDecisionSource).toContain('["approval", "decision", "reason", "focusLanes", "confidence"]');
     expect(canonicalDiscoverySource).toContain('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
     expect(canonicalDiscoverySource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
