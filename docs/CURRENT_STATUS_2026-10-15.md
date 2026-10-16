@@ -1,86 +1,100 @@
 # Apex Atlas — Current Verified Status
 
-**Updated:** 2026-10-15 (UTC)  
+**Updated:** 2026-10-16 (UTC)  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Canonical branch:** `main`  
-**Source revision inspected for this snapshot:** `778d56401a2f059366d73c32b68b221d3a7f8ab3`  
-**Release state:** **NOT LIVE-ACCEPTED — latest audit blocked before launch; zero cards in latest executed investigation**
+**Last verified application-code SHA:** `4c09192d0b747635ad7fa830018d1e3d7831f47f`  
+**Release state:** **NOT LIVE-ACCEPTED — model-led execution is demonstrated; evidence-backed candidate admission and card creation are not.**
 
-This is a dated status snapshot, not a substitute for checking current `main`, GitHub Actions, or the newest audit file before acting. Source and persisted run evidence outrank any stale handoff note.
+This file is the current operational status and replaces the stale snapshot retained under the historical `CURRENT_STATUS_2026-10-15.md` filename. Before the next code change or live run, refresh actual `main`, the newest audit files, GitHub Actions for the exact current SHA, and durable runtime state.
 
-## Latest audit attempt — Run 04 blocked before launch
+## Read this first
 
-Run 04 (`audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md`) is the newest audit attempt, but it is **BLOCKED_BEFORE_LAUNCH**, not a research run. Replit reported `timed out waiting for run environment to rebuild` before `cd ../.. && bash scripts/replit-boot.sh` began; `/api/healthz` returned 502 and the available API log timestamp predates the attempt. No API process, Atlas job, model request, web search, visit, finding, evidence, admission, or card was produced. This is not a confirmed Apex application-code failure: the canonical boot command did not execute. Replit's recorded safe action is `Cmd/Ctrl+K` → `Restart compute`, then retry the existing API Server workflow once. Do not repeatedly restart the workflow against the same unrestarted compute.
+- [Run 05 — separate reconstructed audit, terminal state unverified](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md)
+- [Run 04 — original full append-only audit, including its real terminal report and later Run 05 request/response append](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md)
+- [Living architecture/context](context.md)
+- [Canonical ReAct architecture](BUREAU_REACT_ARCHITECTURE.md)
+- [Operational run procedure](RUN_BUREAU.md)
 
-The Run 04 audit file begins at source revision `7902670e338b76db3295e062a431af02727af26c`. Replit then committed the expanded model request/response audit logger in `62aa49959ea20bc3bc27b05f19730d01a1a7a695`, preceded by audit/config notes in `b329b5ad56a32d90e6f1bbe17211a4388c5cd2bb`. The logger is configured in both `.replit` and `artifacts/api-server/.replit-artifact/artifact.toml` to write to Run 04. Its focused test passed 6/6 and Replit reports typecheck/build success, but the platform timeout happened before the process executed the updated code, so no logged model request proves runtime operation yet.
+Important chronology: Run 04's first Replit workflow restart did fail before boot. A later restart succeeded, the dashboard launch was accepted, and Run 04 actually executed. Do not keep describing the entire Run 04 attempt as blocked before launch. Run 05 was then executed as a separate job, but its terminal reconciliation was interrupted.
 
-## Latest user-operated live investigation (last run that actually executed)
+## What live execution has demonstrated
 
-The newest live-run audit in the repository as of this update is [APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md).
+The live audit records show the model-led Boss → Right-hand → selected Investigator loop executing with the expected role separation. Models returned structured decisions, chose queries/tools and pivots; the runtime made actual search/fetch calls for accepted actions and stopped outbound execution for rejected actions. The expanded model request/response audit logger captured real provider responses, request formats, request IDs, attempt numbers and errors.
 
-- Canonical job: `8eb7c47b-dc94-46d6-a851-133104a6a806`.
-- Terminal state: `failed` / `incomplete`, phase 3/4, stopped at the 20-Investigator-iteration ceiling.
-- Recorded totals: 8 successful web-search actions, 1 successful page visit, 0 findings, 0 admissions/inserts, and 0 cards.
-- Count-quality note: the audit turn list currently itemizes six successful provider search requests, although its summary says eight. Do not manufacture the two missing actions; reconcile them from durable trajectory rows if available.
-- The only successfully fetched page identified in the turn-by-turn log was a GrowthCap private-equity-firms article. It did not produce a named target or target-attributable contact.
-- The Investigator then spent many turns on a malformed registry-action contract, scope guard blocks, an empty search result, and OpenCorporates authentication failures. A phrase-aligned 'Wisconsin Secretary of State business entity search …' query was rejected by the old source-class matcher before any provider call.
-- The post-run database check found no entities, assets, relationships, contact evidence, research evidence/sessions, or research-run events beyond the preserved case/event trace.
+That is meaningful evidence that the **control loop is running live**. It is not yet end-to-end acceptance of the bureau, and it does not by itself prove that every capability/guard behaves correctly.
 
-**Why no card was created:** the latest run did not produce an evidence-backed candidate that crossed admission. That is upstream of card creation. This run does **not** establish that the downstream card renderer or persistence layer is broken. The immediate release blocker remains that the research trajectory is not generating admissible source-grounded findings.
+## Run 04 — verified terminal outcome
 
-## Code changes since Run 03 / Run 04 instrumentation
+Audit: [APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md)  
+Job: `e0730630-a845-4b1e-9086-d9e27a77319f)
 
-Commits on `main` following the failed live run:
+- Terminal status: `failed`, outcome `incomplete`, Atlas phase 3/4.
+- Finished: `2026-10-16T02:42:00.582Z).
+- Final reason: standard-depth Investigator iteration ceiling reached after 20 iterations; case retained for review.
+- Audit's terminal summary: 20 Investigator iterations, 11 searches, 3 visits, 40 trajectory entries, 0 findings, 0 candidate admissions, 0 cards/promotions.
+- Post-run counts: entities 0, assets 0, contact evidence 0, research evidence 0, relationships 0; one research case and 35 research-case events retained.
+- The Investigator's tool trajectory was constrained by repeated scope-guard blocks and one HTTP 301 visit. The redirect was surfaced rather than followed automatically; this is intentional safety behavior.
+- A separate Right-hand request received HTTP 429 `rate_limit_exceeded` with an explicit tokens-per-minute message. This is a temporary capacity event, not proof of an exhausted key.
 
-- `adc43994` — added phrase-aware matching for multi-word source classes, with regression coverage keeping required subject and geography checks intact. This is deterministic compatibility normalization at the scope-validation boundary, **not** a scripted research route; the Investigator still chooses its query, tool, pivot, and stopping decision. Run 03 ended before this source fix was loaded, so live validation is still required.
-- `83dd3634` — hid credential-gated registry choices from direct and parallel Investigator schema fields when not configured; made OpenCorporates fail locally without a token and kept raw provider response bodies out of exceptions.
-- `411d9f95` — restored the canonical `AGENTIC_ACTION_SCHEMA` contract required by repository architecture checks while retaining dynamic available-registry enums.
-- `40a243d0` — corrected OpenCorporates authentication to the documented `api_token` query parameter, rather than the initially assumed header. Its regression test checks the official transport contract and that raw response bodies are not persisted in the thrown error.
-- `b329b5ad` and `62aa4995` — Replit expanded audit tracing for visible outbound model messages, structured response/schema/tool definitions, status/usage and transport failures; audit redaction omits credential-shaped values and hidden reasoning/`thought` fields. Run 04 has not exercised this logger live because the platform never started the API command.
-- `778d5640` — restored the capability guidance prompt under its 1,000-character budget and aligned regression tests/diagnostic wording with the more specific unsupported-registry error.
+The absence of any admitted person means Run 04 does **not** demonstrate a defect in card rendering or persistence. The candidate never crossed admission.
 
-OpenCorporates requires an API token. If neither `OPENCORPORATES_API_TOKEN` nor `OPENCORPORATES_API_KEY` is configured, the registry is omitted from the model's available-registry choices and an invalid selection fails locally without network I/O. This optional credential is not part of the mandatory Replit preflight list.
+## Run 05 — actual execution, incomplete reconciliation
 
-## Verification snapshot
+Audit: [APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md)  
+Job: `4b85fc7c-a239-478c-a455-94baf02ffdee)
 
-At code revision `411d9f95bc6a7aec4783be9e234d8c9513a1a20b`, the following GitHub Actions results were verified as successful:
+The source records 50 model request/response pairs across Boss, Right-hand and Investigator roles. The reconstructed Investigator trajectory contains 30 turns: 13 successful tool actions, 11 guard-blocked actions, 5 other execution errors, and 1 HTTP error. The final captured model response at 02:59:18.761 UTC is a structured HTTP 200 proposal for another search. The available audit does not contain a verified terminal job result, final database-count poll, or post-run active-job check. The owner reported the Replit Agent ran out of credits before reconciliation finished.
 
-- Atlas CI: passed, including 1,361 tests passed and 17 skipped in the main API suite, plus a separate 18-test contract suite.
-- Apex API Build: passed.
-- Apex frontend five-condition gate: passed.
-- Discovery static check: passed.
-- Five-consecutive-full-code-audits workflow: Audit 1 passed; Audit 2 was still running at the last observation. The workflow had **not** completed all five.
+Therefore:
+- No candidate admission or card is evidenced in the captured Run 05 trace.
+- Do not claim final durable counts or terminal state until the job is checked directly.
+- Do not launch another Atlas job while this one's terminal state or active-job pointer is unclear.
 
-The OpenCorporates transport correction then created source revision `40a243d05f8d315f4a7c8446f18f0514fecd6f94`. At its initial post-push snapshot (2026-10-15T13:50:19Z), the discovery static check had passed; Atlas CI, API Build and the frontend gate were running; the new five-audit workflow was pending. These are historical snapshots. Always re-query current branch HEAD and Actions before claiming current CI status.
+## Groq structured-output failure findings
 
-## Architecture law for the next agent
+The later job recorded six HTTP 400 `json_validate_failed` responses, all with provider type `invalid_request_error`. Investigator attempts used `openai/gpt-oss-120b`, a 1,024-token completion budget, and strict `json_schema` output before retrying as `json_object`.
 
-Apex is model-led ReAct, not deterministic enrichment:
+- At 02:50, both the strict-schema attempt and the JSON-object retry failed with Groq's generic `Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.`
+- At 02:52 and 02:53, JSON-object retries returned structured HTTP 200 results; the proposed actions were still subject to scope authorization.
+- At 02:57, Groq explicitly reported output truncation at `max_completion_tokens`, with required `findings` missing. The JSON-object retry returned a structured action.
+- At 02:58, JSON-object mode returned HTTP 200 but the model proposed unsupported registry IDs `washington` and `oregon`. The runtime rejected the action locally.
 
-- Groq Boss owns case direction and Investigator capability selection.
-- Groq Right-hand provides independent bounded oversight.
-- The selected Groq Investigator owns the research trajectory: questions, searches, retrieval, source selection, pivots, disproof, revisits, and stopping.
-- Deterministic code may validate schema, tool authorization/capability availability, SSRF, geography/subject/source constraints from an accepted Boss direction, evidence provenance, identity, persistence, cancellation, budgets, and terminal state. It must not secretly prescribe an itinerary or replace model reasoning with query templates.
-- Search-result snippets and registry records are leads, not claim-grade evidence. Admissions/cards require actual source observations, attribution, and durable evidence.
-- Do not weaken admission rules, synthesize evidence/cards, rotate credentials silently, or call an iteration-limit failure a quota failure.
+The generic provider messages do not reveal the contents of Groq's `failed_generation` payload, so they do not establish whether each was invalid JSON syntax, schema mismatch, or another generation failure. They do establish provider-reported output validation failures, not authentication or exhausted-key failures. The current main code contains bounded Groq output recovery, including explicit-truncation recognition; these live records predate proof that the later recovery implementation works end to end.
 
-## Required next verification
+## Confirmed blockers versus hypotheses
 
-1. Re-read actual `main` HEAD and workflow statuses; do not assume the above snapshot is current.
-2. Ensure Replit/workspace is synchronized to that HEAD and the API has restarted so the committed phrase matcher and registry capability schema are active.
-3. Run a fresh canonical UI-equivalent Replit audit; do not force a target or scripted itinerary.
-4. Inspect every Investigator turn and reconcile action/search/fetch counts from durable trajectory rows.
-5. Require evidence of successful page retrieval, source-grounded finding(s), persisted admission/entity and evidence rows, and the corresponding card. Until all of that is present, report live research as failed/incomplete.
+**Confirmed:** no admission/card is evidenced in the inspected run traces; both runs consumed turns on blocked actions; Run 05 had repeated provider output-validation failures; one recovered structured response failed local registry validation; Run 05 terminal state remains unknown.
 
-## Follow-up verification — after documentation reconciliation
+**Strong hypothesis to test:** scope-guard feedback is too generic to let a model reliably repair a rejected action. The recurring message says the query must match subject, geography and source class but does not say which dimension failed. Some rejected actions omit an evident source-class phrase or active geography, while the exact intended match needs case-specific tests. This is not permission to bypass the guard.
 
-At the next status check, the documentation-updated HEAD was `e1e0f4dd7fce171fd00590f053e896cd6f460178`. On that HEAD, Atlas CI completed successfully (15/15 jobs), the frontend five-condition gate passed, and the discovery static check passed. Apex API Build completed successfully on the code revision `40a243d05f8d315f4a7c8446f18f0514fecd6f94`; the subsequent commits changed documentation only. The five-consecutive-full-code-audits workflow remained in Audit 1, with 14 of 19 steps complete and no failure observed; older runs triggered by earlier documentation pushes were cancelled, so no five-green certification exists. These observations are themselves time-bound; re-check current HEAD and Actions before another run.
+**Not established:** that the card renderer is defective, that credentials are exhausted, that the model must be replaced, that every scope block is wrong, or that the latest application source SHA was running in Replit for every recorded request.
 
+## Last verified GitHub Actions snapshot
 
-## Current GitHub Actions snapshot — corrective test/documentation commit
+At application-code SHA `4c09192d0b747635ad7fa830018d1e3d7831f47f`, these five workflows all completed successfully:
 
-On source revision `778d56401a2f059366d73c32b68b221d3a7f8ab3`, frontend five-condition and discovery static gates passed, and API Build passed. However, Atlas CI and Audit 1 failed on the newly added registry-recovery test because it still expected `explicit configured "registry" ID`; the runtime intentionally emits the required `supported "registry" ID` wording and dynamically lists available registries. This follow-up commit updates that one assertion and retains the fail-closed parser behavior. An additional audit-log review found that Google `AIza…` keys use no separator after `AIza`, and query parameters such as `x-api-key` plus provider-prefixed labels such as `GROQ_API_KEY=value` were not covered by the first redaction patterns. The logger and tests are now hardened for those formats. **CI status on the resulting HEAD is pending re-verification**: re-query Atlas CI, API Build where triggered, frontend/static gates and the five-audit workflow. Do not count skipped/cancelled audits as passes.
+- [Atlas CI — 38845818849](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/38845818849)
+- [Apex API Build — 38845818856](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/38845818856)
+- [Discovery static check — 38845818865](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/38845818865)
+- [Frontend five-condition gate — 38845819056](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/38845819056)
+- [Five Consecutive Full Code Audits — 38845818953](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/38845818953); all five audit jobs and their steps completed successfully.
 
-## What blocks the next Replit launch
+Those results apply to the cited SHA. Documentation changes advance `main`; re-check the current final HEAD and required workflows before relying on that snapshot. CI does not establish live research success.
 
-The remaining Run 04 blocker is at the Replit compute/run-environment layer, before application boot. A repository source change cannot prove or repair a command that the platform did not start. Once compute has been restarted, retry the existing managed API Server workflow once, require fresh logs that begin with `[replit-boot]`, and confirm `GET /api/healthz` returns 200 before launching the UI-equivalent Atlas job. Then preserve the request-audit evidence and trace real search → fetched page → source-grounded finding → durable admission → card. Do not start the research job while the API is unhealthy.
+## Required next actions
+
+1. **Reconcile Run 05 first:** query job `4b85fc7c-a239-478c-a455-94baf02ffdee`, active-job state, terminal events and final durable counts. Record timestamp and evidence. No new launch until state is clear.
+2. Add a mocked-request regression covering the full `callGroqJson` retry sequence, including strict-schema failure → JSON-object fallback, explicit truncation → bounded budget increase, repeated failure → bounded stop, and non-output failures that must not enter recovery.
+3. Improve scope-guard diagnostics to name the exact failed dimension(s). Add tests for the observed Pacific Northwest / water-transportation query formulations, filing-source synonyms, registry IDs and URL provenance. Keep guard rejection fail-closed and no outbound request on a block.
+4. Trace accepted action → outbound request → fetched page → source-bound finding → admission → persistence → card projection. Investigate card projection only if a valid candidate is shown to have crossed admission and was not projected.
+5. Run focused tests, then complete release workflows on the exact current `main` SHA. No skipped, cancelled or incomplete audit job counts as a pass.
+6. Conduct the next live investigation only after the unresolved Run 05 state is reconciled and the relevant source fixes are on the process actually booted in Replit.
+
+## Non-negotiable architecture law
+
+Boss owns direction and role/capability selection. Right-hand provides bounded independent oversight. The selected Investigator owns research strategy, query/tool selection, pivots, corroboration, falsification and stopping. Deterministic runtime code owns authorization, outbound safety, capability availability, evidence provenance, identity/admission, durable state, cancellation, budgets and truthful terminal outcomes.
+
+Never force a person, query, source, provider or action sequence. Never fabricate findings or cards. A blocked action is not an outbound request; a search result is a lead, not fetched evidence; a fetched page is not automatically a finding; a finding is not automatically an admitted target.
+
+**Owner-facing conclusion:** the live model-led control loop is demonstrated. The remaining release blocker is productive, safely scoped research that yields source-grounded people who actually pass admission and become durable cards.
