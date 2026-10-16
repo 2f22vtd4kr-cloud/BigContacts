@@ -107,9 +107,10 @@ export function resolveDiscoveryIterationsPerAct(
 
 /**
  * Resolve the remaining actions for a model-approved discovery continuation.
- * A target reserve protects admitted candidates; it must not silently terminate
- * discovery when there is no admitted candidate to research. In that case, free
- * the unused reserve while preserving the hard job-wide Investigator ceiling.
+ * Discovery always respects its bounded allocation so a promising lead can receive
+ * target-scoped research within the same run. If no lead qualifies by the discovery
+ * ceiling, leave the protected budget unused rather than letting discovery expand
+ * into the entire job.
  */
 export function resolveRemainingDiscoveryIterations(input: {
   totalIterationCeiling: number;
@@ -126,8 +127,8 @@ export function resolveRemainingDiscoveryIterations(input: {
   const investigatorUsed = nonNegativeInteger(input.investigatorIterationsUsed);
   const configuredDiscoveryCeiling = Math.min(total, nonNegativeInteger(input.discoveryIterationCeiling));
   const targetReserve = Math.min(total, nonNegativeInteger(input.targetResearchReserveIterations));
-  const effectiveDiscoveryCeiling = input.hasAdmittedCandidates ? configuredDiscoveryCeiling : total;
-  const effectiveTargetReserve = input.hasAdmittedCandidates ? targetReserve : 0;
+  const effectiveDiscoveryCeiling = configuredDiscoveryCeiling;
+  const effectiveTargetReserve = targetReserve;
   const discoveryRemaining = Math.max(0, effectiveDiscoveryCeiling - discoveryUsed);
   const globalRemaining = Math.max(0, total - investigatorUsed - effectiveTargetReserve);
   return Math.min(discoveryRemaining, globalRemaining);
