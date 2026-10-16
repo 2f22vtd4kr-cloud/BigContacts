@@ -821,6 +821,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("hasCredibleDiscoveryWealthPotentialSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
+    expect(canonicalAtlasDiscoverySource).toContain("No additional Boss control calls are made without an eligible target.");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
