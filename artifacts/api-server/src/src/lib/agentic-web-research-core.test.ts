@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -1404,4 +1404,61 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(isAcceptedInvestigatorTerminal({ action: "visit", execution: "success", stopReason: "MODEL_DECIDED_DONE" })).toBe(false);
   });
 
+});
+
+
+describe("Groq Investigator structured-output recovery", () => {
+  it("detects explicit truncation separately from generic JSON validation errors", () => {
+    expect(isGroqCompletionTruncationMessage(
+      "max completion tokens reached before generating a valid document: output was truncated and missing required content; increase max_completion_tokens",
+    )).toBe(true);
+    expect(isGroqCompletionTruncationMessage("Failed to generate JSON. Please adjust your prompt.")).toBe(false);
+    expect(isGroqCompletionTruncationMessage("Invalid API key")).toBe(false);
+  });
+
+  it("raises output budget once, without exceeding the bounded ceiling", () => {
+    expect(nextGroqInvestigatorCompletionBudget(1024)).toBe(1536);
+    expect(nextGroqInvestigatorCompletionBudget(1536)).toBe(2048);
+    expect(nextGroqInvestigatorCompletionBudget(2048)).toBeNull();
+    expect(nextGroqInvestigatorCompletionBudget(Number.NaN)).toBeNull();
+  });
+
+  it("retries explicit truncation with a larger completion budget before changing response format", () => {
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed",
+      providerMessage: "max_completion_tokens reached; output was truncated; increase max_completion_tokens",
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
+  });
+
+  it("uses JSON-object compatibility for schema mismatch, then one bounded budget increase if that also fails", () => {
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed",
+      providerMessage: "Generated JSON does not match the expected schema: missing registry",
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+    })).toEqual({ action: "retry_json_object" });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed",
+      providerMessage: "Failed to generate JSON",
+      responseFormat: "json_object", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 1536 });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 400, providerCode: "json_validate_failed",
+      providerMessage: "Failed to generate JSON",
+      responseFormat: "json_object", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 1536,
+    })).toEqual({ action: "fail" });
+  });
+
+  it("does not route authentication, quota, or unrelated HTTP errors into JSON recovery", () => {
+    for (const failure of [
+      { status: 401, providerCode: "invalid_api_key" },
+      { status: 429, providerCode: "rate_limit_exceeded" },
+      { status: 400, providerCode: "invalid_request_error" },
+    ]) {
+      expect(chooseGroqInvestigatorOutputRecovery({
+        ...failure, providerMessage: "provider failure", responseFormat: "json_schema",
+        completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
+      })).toEqual({ action: "fail" });
+    }
+  });
 });

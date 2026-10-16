@@ -78,10 +78,27 @@ export function resolveModelAuditFilePath(
   return resolve(workspaceRootFrom(cwd), configuredPath);
 }
 
+const AUDIT_CONTACT_REPLACEMENTS: Array<[RegExp, string]> = [
+  [/\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b/gi, "[REDACTED_EMAIL]"],
+  [/(?<![A-Za-z0-9])(?:\\+\\d{1,3}[\\s.-]?)?(?:\\(\\d{3}\\)|\\d{3})[\\s.-]?\\d{3}[\\s.-]?\\d{4}(?!\\d)/g, "[REDACTED_PHONE]"],
+  [/\\b(?:phone|telephone|mobile)\\s*[:=]\\s*\\+?\\d{7,15}\\b/gi, "[REDACTED_PHONE]"],
+];
+const CONTACT_AUDIT_KEY = /^(?:email|emails|emailAddress|emailAddresses|phone|phones|phoneNumber|phoneNumbers|mobile|telephone|contactEmail|contactPhone)$/i;
+
+function isContactDataField(key: string, record: Record<string, unknown>): boolean {
+  if (CONTACT_AUDIT_KEY.test(key)) return true;
+  const vectorType = typeof record.vectorType === "string" ? record.vectorType.toLowerCase() : "";
+  return key === "value" && (vectorType === "email" || vectorType === "phone");
+}
+
 function redactAuditSecrets(content: string): string {
-  return AUDIT_SECRET_REPLACEMENTS.reduce(
+  const credentialSafe = AUDIT_SECRET_REPLACEMENTS.reduce(
     (result, [pattern, replacement]) => result.replace(pattern, replacement),
     content,
+  );
+  return AUDIT_CONTACT_REPLACEMENTS.reduce(
+    (result, [pattern, replacement]) => result.replace(pattern, replacement),
+    credentialSafe,
   );
 }
 
@@ -113,7 +130,12 @@ function sanitizeAuditPayload(value: unknown, depth = 0): unknown {
     Object.entries(record)
       .slice(0, MAX_AUDIT_ARRAY_ITEMS)
       .filter(([key]) => !SENSITIVE_AUDIT_KEY.test(key))
-      .map(([key, item]) => [key, sanitizeAuditPayload(item, depth + 1)]),
+      .map(([key, item]) => [
+        key,
+        isContactDataField(key, record) && typeof item === "string"
+          ? "[REDACTED_CONTACT_DATA]"
+          : sanitizeAuditPayload(item, depth + 1),
+      ]),
   );
 }
 
@@ -140,7 +162,12 @@ function removePrivateReasoningFields(
         }
         return !SENSITIVE_AUDIT_KEY.test(key);
       })
-      .map(([key, item]) => [key, removePrivateReasoningFields(item, omitted, depth + 1)]),
+      .map(([key, item]) => [
+        key,
+        isContactDataField(key, record) && typeof item === "string"
+          ? "[REDACTED_CONTACT_DATA]"
+          : removePrivateReasoningFields(item, omitted, depth + 1),
+      ]),
   );
 }
 
@@ -274,9 +301,8 @@ function longestBacktickRun(value: string): number {
 }
 
 /**
- * Opt-in development trace of the exact model-visible request and visible
- * response content. Public contact/source material can be present by design;
- * credential-shaped values and provider-only reasoning fields are excluded.
+ * Opt-in development trace of model-visible requests and responses. E-mail/phone
+ * values and credentials are redacted; provider-only reasoning fields are omitted.
  */
 export function emitModelPromptAudit(
   input: AuditInput,

@@ -1256,6 +1256,50 @@ function groqInvestigatorCompletionBudget(task: ResearchCognitiveTask): number {
   return 1024;
 }
 
+const MAX_GROQ_INVESTIGATOR_COMPLETION_TOKENS = 2048;
+
+/** Increase output allowance once when Groq explicitly reports a truncated completion. */
+export function nextGroqInvestigatorCompletionBudget(current: number): number | null {
+  if (!Number.isFinite(current) || current <= 0) return null;
+  const bounded = Math.floor(current);
+  if (bounded >= MAX_GROQ_INVESTIGATOR_COMPLETION_TOKENS) return null;
+  return Math.min(
+    MAX_GROQ_INVESTIGATOR_COMPLETION_TOKENS,
+    Math.max(bounded + 512, Math.ceil((bounded * 1.5) / 256) * 256),
+  );
+}
+
+export function isGroqCompletionTruncationMessage(message: string): boolean {
+  return /max_completion_tokens/i.test(message)
+    && /(truncat|reached before generating|missing required content|increase max_completion_tokens)/i.test(message);
+}
+
+export type GroqInvestigatorOutputRecoveryDecision =
+  | { action: "increase_completion_budget"; nextMaxCompletionTokens: number }
+  | { action: "retry_json_object" }
+  | { action: "fail" };
+
+/** Retry only output-format/completion failures; never alter strategy or capability. */
+export function chooseGroqInvestigatorOutputRecovery(input: {
+  status: number;
+  providerCode: string | null;
+  providerMessage: string;
+  responseFormat: "json_schema" | "json_object";
+  completionBudgetRetryUsed: boolean;
+  currentMaxCompletionTokens: number;
+}): GroqInvestigatorOutputRecoveryDecision {
+  if (input.status !== 400 || input.providerCode !== "json_validate_failed") return { action: "fail" };
+
+  const explicitTruncation = isGroqCompletionTruncationMessage(input.providerMessage);
+  if (!input.completionBudgetRetryUsed && (explicitTruncation || input.responseFormat === "json_object")) {
+    const nextMaxCompletionTokens = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
+    if (nextMaxCompletionTokens !== null) return { action: "increase_completion_budget", nextMaxCompletionTokens };
+  }
+  if (input.responseFormat === "json_schema") return { action: "retry_json_object" };
+  return { action: "fail" };
+}
+
+
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask }): Record<string, unknown> {
   const { model, prompt, cognitiveTask } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
@@ -1448,6 +1492,8 @@ async function callGroqJson(
     if (signal.aborted) throw new Error("cancelled");
     let retry429 = 0;
     let jsonObjectFallbackUsed = false;
+    let completionBudgetRetryUsed = false;
+    let completionTokensOverride: number | null = null;
     while (retry429 <= 1) {
       attempt += 1;
       const started = Date.now();
@@ -1458,7 +1504,7 @@ async function callGroqJson(
           quotaAccount,
           model,
           workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
-          groqInvestigatorCompletionBudget(cognitiveTask),
+          completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
           signal,
         );
         if (quotaReadiness === "token_window_wait_exceeded") {
@@ -1468,6 +1514,7 @@ async function callGroqJson(
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model);
         const requestBody = {
           ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask }),
+          max_completion_tokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
           response_format: responseFormat,
         };
         emitInvestigatorProviderRequestAudit({
@@ -1572,6 +1619,14 @@ async function callGroqJson(
               return null;
             }
           })();
+          const providerMessage = (() => {
+            try {
+              const parsed = JSON.parse(body) as { error?: { message?: unknown } };
+              return typeof parsed.error?.message === "string" ? parsed.error.message : "";
+            } catch {
+              return "";
+            }
+          })();
           lastProviderError = providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
           const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
           let providerErrorType: string | null = null;
@@ -1591,7 +1646,9 @@ async function callGroqJson(
             latencyMs: Date.now() - started,
             retryIndex: attempt,
             reason: response.status === 400 && providerCode === "json_validate_failed"
-              ? (jsonObjectFallbackUsed ? "json_object_compatibility_rejected" : "json_schema_rejected")
+              ? (isGroqCompletionTruncationMessage(providerMessage)
+                ? "completion_output_truncated"
+                : (jsonObjectFallbackUsed || responseFormat.type === "json_object" ? "json_object_output_rejected" : "json_schema_rejected"))
               : response.status === 413
                 ? "request_size"
                 : "provider_rejected",
@@ -1602,16 +1659,27 @@ async function callGroqJson(
             rateLimitRemainingRequests: rateLimits.remainingRequests,
             rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
-          // Groq may reject a structurally valid strict schema even though the
-          // model can return the same contract under JSON-object mode. Retry once
-          // on the SAME model and keep the existing parseAction validation gate.
-          // This is a compatibility fallback, not a scripted action decision.
+          const recovery = chooseGroqInvestigatorOutputRecovery({
+            status: response.status,
+            providerCode,
+            providerMessage,
+            responseFormat: responseFormat.type === "json_schema" ? "json_schema" : "json_object",
+            completionBudgetRetryUsed,
+            currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
+          });
+          if (recovery.action === "increase_completion_budget") {
+            // Truncation is an output-capacity failure, not a key or quota failure.
+            // Retry only this selected model/capability with a bounded completion budget.
+            completionBudgetRetryUsed = true;
+            completionTokensOverride = recovery.nextMaxCompletionTokens;
+            continue;
+          }
           if (
-            response.status === 400 &&
-            providerCode === "json_validate_failed" &&
+            recovery.action === "retry_json_object" &&
             !jsonObjectFallbackUsed &&
             structuredActionResponseFormat(model).type === "json_schema"
           ) {
+            // Compatibility fallback only. Local action parsing and authorization remain mandatory.
             jsonObjectFallbackUsed = true;
             continue;
           }

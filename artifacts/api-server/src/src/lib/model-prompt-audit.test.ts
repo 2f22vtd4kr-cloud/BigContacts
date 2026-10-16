@@ -76,10 +76,13 @@ describe("model prompt audit", () => {
       "PRIVATE_SYSTEM_PROMPT_SENTINEL",
       "PRIVATE_TARGET_SENTINEL",
       "PRIVATE_TOOL_DESCRIPTION_SENTINEL",
-      "person@example.org",
-      "415) 555-0100",
       "source passage",
     ]) expect(captured).toContain(observablePromptContent);
+    for (const privateContactValue of ["person@example.org", "+1 (415) 555-0100", "415) 555-0100"]) {
+      expect(captured).not.toContain(privateContactValue);
+    }
+    expect(captured).toContain("[REDACTED_EMAIL]");
+    expect(captured).toContain("[REDACTED_PHONE]");
     for (const secretValue of [
       "PRIVATE_CREDENTIAL_SENTINEL",
       "gsk_123456789012345678901234",
@@ -162,6 +165,46 @@ describe("model prompt audit", () => {
     expect(writes[0]?.contents).not.toContain("PRIVATE_MODEL_THOUGHT_SENTINEL");
     expect(writes[0]?.contents).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
     expect(writes[0]?.contents).not.toContain("PRIVATE_ANALYSIS_SENTINEL");
+  });
+
+
+  it("redacts contact fields from visible structured findings without hiding action diagnostics", () => {
+    const writes: Array<{ path: string; contents: string }> = [];
+    emitModelPromptAuditResponse({
+      requestId: "request-contact-redaction",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "openai/gpt-oss-120b",
+      httpStatus: 200,
+      responseBody: JSON.stringify({
+        choices: [{
+          index: 0,
+          finish_reason: "stop",
+          message: {
+            role: "assistant",
+            content: JSON.stringify({
+              action: "done",
+              findings: [
+                { vectorType: "email", value: "jane.doe@example.org", personName: "Jane Doe", role: "Owner" },
+                { vectorType: "phone", value: "4155550100", personName: "Jane Doe", role: "Owner" },
+              ],
+            }),
+          },
+        }],
+      }),
+    }, {
+      NODE_ENV: "test",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    }, (path, contents) => writes.push({ path, contents }));
+
+    expect(writes).toHaveLength(1);
+    const captured = writes[0]?.contents ?? "";
+    expect(captured).toContain("done");
+    expect(captured).toContain("[REDACTED_CONTACT_DATA]");
+    expect(captured).not.toContain("jane.doe@example.org");
+    expect(captured).not.toContain("4155550100");
+    expect(captured).toContain("Jane Doe");
   });
 
   it("resolves workspace-relative audit paths from the repository root when the API cwd is nested", () => {
