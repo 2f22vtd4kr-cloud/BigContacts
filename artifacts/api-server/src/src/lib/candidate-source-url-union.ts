@@ -231,12 +231,6 @@ const DISCOVERY_OWNERSHIP_SIGNALS = [
 
 
 /**
- * Discovery is about plausible high-value people, not any person with a public title.
- * Count only source-observed ownership/control/investment signals attached to the
- * exact person's nearby text, or an explicitly targetable ownership/investment role.
- * Do not infer wealth from seniority, prominence, or merely appearing in a registry.
- */
-/**
  * Minimum discovery handoff evidence: the same successfully fetched claim-grade
  * source must mention the exact person alongside an ownership/control/investment
  * signal. Company scale, material assets, independent corroboration and contact
@@ -266,6 +260,12 @@ export function hasDiscoveryOwnershipLeadSignal(input: {
   });
 }
 
+/**
+ * Discovery is about plausible high-value people, not any person with a public title.
+ * For a wealth-potential conclusion, require source-observed ownership/control
+ * plus materiality in the exact person's nearby text; never infer wealth from
+ * seniority, prominence, or merely appearing in a registry.
+ */
 export function hasCredibleDiscoveryWealthPotentialSignal(input: {
   personName: string;
   role: string;
