@@ -1,14 +1,13 @@
-# CURRENT OVERRIDE — VERIFIED 2026-10-15
+# CURRENT OVERRIDE — VERIFIED 2026-10-16
 
-> This 2026-09-21 handoff is historical background, not today's runtime status. Read `README.md`, `docs/CURRENT_STATUS_2026-10-15.md` and the newest audit; verify current `main` and Actions before acting.
+> This September handoff is historical background. This override plus `README.md`, `docs/CURRENT_STATUS_2026-10-15.md`, current source and run-specific audits govern current work.
 
-Latest audit attempt: [Run 04](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md) is blocked before launch because Replit timed out rebuilding its run environment before `scripts/replit-boot.sh` began. `/api/healthz` returned 502; no Atlas job or research action ran. Restart compute with `Cmd/Ctrl+K` → `Restart compute`, retry the existing API workflow once, and require fresh boot logs/health before launching research.
-
-The last actual research investigation remains [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md): 20-iteration ceiling, one page visit, zero findings/admissions/cards. Its search count remains unreconciled. No candidate crossed admission, so do not infer a downstream card-persistence defect.
-
-Current roles are Groq Boss → selected Groq Investigator, with Groq Right-hand as independent bounded oversight. The Investigator owns strategy; deterministic runtime owns safety, capability checks and durable truth. Older provider/role statements below are historical.
-
-Current source `778d56401a2f059366d73c32b68b221d3a7f8ab3` contains Replit's detailed model-audit instrumentation (`62aa4995`) and the registry diagnostic test/compact-prompt fixes (`778d5640`). The logger is not live-verified because Run 04's process never started. At first check frontend/static and API Build passed; Atlas CI and five-consecutive-audits were still running. Re-check current Actions.
+- **Canonical branch:** `main`; fetch actual HEAD, recent commits and Actions before acting.
+- **Run 04:** did eventually launch and terminate failed/incomplete at 20 Investigator iterations; zero findings/admissions/cards. The initial pre-boot Replit timeout was followed by a successful workflow restart and a real Atlas job.
+- **Run 05:** job `4b85fc7c-a239-478c-a455-94baf02ffdee`, separate audit `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md`. The captured record shows live model-led actions and several output-validation failures but contains no verified terminal state/final counts. Reconcile durable job state and active-job pointer before another launch.
+- **Architecture read:** the Boss → Right-hand → selected Investigator control loop is demonstrated live. End-to-end candidate admission/card creation is not. Never relax evidence, provenance, identity or admission gates to make cards appear.
+- **Current source-validation snapshot:** `4c09192d0b747635ad7fa830018d1e3d7831f47f`; all five release workflows passed on that code SHA. Re-check the exact final `main` SHA after docs commits.
+- First read `docs/CURRENT_STATUS_2026-10-15.md`, `docs/context.md`, the current ReAct architecture, and the separate Run 05 audit. Do not rely on any current-state claims in the older body below.
 
 ---
 # Apex Atlas — Master ChatGPT / Agent Handoff
