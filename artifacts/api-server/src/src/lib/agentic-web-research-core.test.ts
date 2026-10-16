@@ -349,11 +349,11 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("an organization is a lead, not");
     expect(prompt).toMatch(/Fortune(?: 500)?\/ranking lists/);
     expect(prompt).toContain("a plausible local owner/operator route hypothesis");
-    expect(prompt).toContain("Honor the approved Boss scope");
+    expect(prompt).toContain("Honor approved Boss scope");
     expect(prompt).toContain("a new search query must name the pivot subject, geography, and class");
     expect(prompt).toMatch(/Fortune(?: 500)?\/ranking lists/);
-    expect(prompt).toContain("No preset target or query sequence");
-    expect(prompt).toMatch(/(?:News publishers and articles are evidence leads only|Publisher articles are evidence leads, never targets or access routes|Press articles (?:and third-party profiles are leads|are leads), not targets or access routes)/);
+    expect(prompt).toContain("No preset targets/queries");
+    expect(prompt).toMatch(/(?:News publishers and articles are evidence leads only|Publisher articles are evidence leads, never targets or access routes|Press articles (?:and third-party profiles are leads|are leads), not targets or access routes|Press\/profile pages are leads, not targets\/access routes)/);
     expect(prompt).toContain("Never use placeholders such as CompanyName, companywebsite.com, or example.com.");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     // The emergency prompt may omit the verbose JSON example to stay within the provider ceiling;

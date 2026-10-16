@@ -447,7 +447,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain('kind: "discovery_budget"');
     expect(canonicalSource).toContain("Discovery allocation exhausted at");
     expect(canonicalSource).toContain("No additional Boss control calls are made without an eligible target.");
-    expect(canonicalSource).toContain("remaining actions are reserved for target-scoped research");
+    expect(canonicalSource).toContain("global action(s) remain protected/unused");
   });
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
