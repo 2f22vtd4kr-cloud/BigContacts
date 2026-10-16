@@ -259,7 +259,7 @@ describe("Investigator prompt architecture", () => {
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(discovery).toContain("one successfully fetched claim-grade source");
-    expect(discovery).toContain("target-scoped research owns independent corroboration, falsification, and contact-route verification");
+    expect(discovery).toContain("target-scoped research owns independent corroboration, falsification, business/materiality analysis, and contact-route verification");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
@@ -361,7 +361,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("third-party people-search/profile-directory aggregators are leads only");
     expect(prompt).toContain("official company leadership/staff pages and official filing/registry pages are acceptable");
     expect(prompt).toContain("one successfully fetched claim-grade source");
-    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, and contact-route verification");
+    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, business/materiality analysis, and contact-route verification");
     expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
     expect(prompt).toContain("minEvidence=1; minIndependentSourceUnits=1");
     expect(prompt).toContain("requireFalsification=false");
@@ -432,7 +432,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(prompt).toContain("one successfully fetched claim-grade source");
-    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, and contact-route verification");
+    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, business/materiality analysis, and contact-route verification");
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -515,7 +515,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("VALID PROVIDERS:");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(prompt).toContain("one successfully fetched claim-grade source");
-    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, and contact-route verification");
+    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, business/materiality analysis, and contact-route verification");
   });
 
   it("excludes the pursue-unless continuation instruction from accepted pivot scope", () => {
@@ -807,7 +807,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, and contact-route verification");
+    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, business/materiality analysis, and contact-route verification");
   });
 
   it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
