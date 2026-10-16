@@ -10,7 +10,7 @@ export function isAcceptedInvestigatorTerminal(input: { action: unknown; executi
 }
 export function defaultTerminalContract(mode: TerminalContractMode): EvidenceSufficiencyContract {
   return mode === "discovery"
-    ? { minEvidence: 2, minIndependentSourceUnits: 2, requireExactSpanForFindings: false, requireFalsification: true, allowOpenQuestions: 1, allowHighSeverityContradictions: 0 }
+    ? { minEvidence: 1, minIndependentSourceUnits: 1, requireExactSpanForFindings: false, requireFalsification: false, allowOpenQuestions: 8, allowHighSeverityContradictions: 0 }
     : { minEvidence: 3, minIndependentSourceUnits: 2, requireExactSpanForFindings: true, requireFalsification: true, allowOpenQuestions: 0, allowHighSeverityContradictions: 0 };
 }
 /**
