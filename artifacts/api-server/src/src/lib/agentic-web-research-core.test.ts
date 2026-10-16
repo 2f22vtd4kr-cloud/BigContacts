@@ -259,7 +259,8 @@ describe("Investigator prompt architecture", () => {
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(discovery).toContain("one successfully fetched claim-grade source");
-    expect(discovery).toContain("target-scoped research owns independent corroboration, falsification, business/materiality analysis, and contact-route verification");
+    expect(discovery).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(discovery).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
@@ -338,20 +339,20 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
     expect(prompt).toContain("MISSION PRIORITY:");
     expect(prompt).toContain("case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice");
-    expect(prompt).toContain("avoid Fortune 500/ranking lists, celebrities and global-brand leaders without a reachable local owner/operator/distributor/franchise/concession route");
+    expect(prompt).toContain("avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis");
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY PROGRESS GATE");
     expect(prompt).toContain("DISCOVERY TARGETABILITY GATE");
     expect(prompt).toContain("People—not companies or executive prestige—are the target");
-    expect(prompt).toContain("credible wealth potential");
-    expect(prompt).toMatch(/do not infer wealth from seniority alone|seniority alone is not wealth/i);
+    expect(prompt).toContain("ownership/equity/control/investment clue");
+    expect(prompt).toMatch(/do not infer wealth from seniority alone|never infer wealth from seniority alone|seniority alone is not wealth/i);
     expect(prompt).toContain("an organization is a lead, not");
-    expect(prompt).toContain("Fortune 500/ranking lists");
-    expect(prompt).toContain("plausible person-level");
-    expect(prompt).toContain("Honor only Boss sector/geography compatible with the mission");
+    expect(prompt).toMatch(/Fortune(?: 500)?\/ranking lists/);
+    expect(prompt).toContain("a plausible local owner/operator route hypothesis");
+    expect(prompt).toContain("Honor the approved Boss scope");
     expect(prompt).toContain("a new search query must name the pivot subject, geography, and class");
-    expect(prompt).toContain("Fortune 500/ranking lists");
-    expect(prompt).toContain("once a real entity appears, test that exact named anchor");
+    expect(prompt).toMatch(/Fortune(?: 500)?\/ranking lists/);
+    expect(prompt).toContain("No preset target or query sequence");
     expect(prompt).toMatch(/(?:News publishers and articles are evidence leads only|Publisher articles are evidence leads, never targets or access routes|Press articles are leads, not targets or access routes)/);
     expect(prompt).toContain("Never use placeholders such as CompanyName, companywebsite.com, or example.com.");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
@@ -361,7 +362,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("third-party people-search/profile-directory aggregators are leads only");
     expect(prompt).toContain("official company leadership/staff pages and official filing/registry pages are acceptable");
     expect(prompt).toContain("one successfully fetched claim-grade source");
-    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, business/materiality analysis, and contact-route verification");
+    expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
     expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
     expect(prompt).toContain("minEvidence=1; minIndependentSourceUnits=1");
     expect(prompt).toContain("requireFalsification=false");
@@ -432,7 +434,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(prompt).toContain("one successfully fetched claim-grade source");
-    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, business/materiality analysis, and contact-route verification");
+    expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -515,7 +518,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("VALID PROVIDERS:");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(prompt).toContain("one successfully fetched claim-grade source");
-    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, business/materiality analysis, and contact-route verification");
+    expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
   });
 
   it("excludes the pursue-unless continuation instruction from accepted pivot scope", () => {
@@ -807,7 +811,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, business/materiality analysis, and contact-route verification");
+    expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
   });
 
   it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
