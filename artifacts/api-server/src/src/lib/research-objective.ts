@@ -34,8 +34,13 @@ export function resolveApprovedOpeningDirection(input: {
   firstDirection: unknown;
 }): ApprovedOpeningDirectionResolution {
   const decision = typeof input.rightHandDecision === "string" ? input.rightHandDecision.trim() : "";
-  if (!/^approv(?:e|ed)\b/i.test(decision)) {
-    return { status: "not_approved", direction: null, reason: "Right-hand did not approve the opening direction." };
+  // Right-hand returns a natural-language decision, not a single enum. Accept
+  // only an unambiguous affirmative at the start; never activate a negated or
+  // rejected Boss hypothesis as the opening scope.
+  const explicitRefusal = /\b(?:(?:do not|don't|does not|doesn't|cannot|can't|should not|shouldn't)\s+(?:explicitly\s+)?(?:approve|proceed|pursue|accept|support|endorse|recommend)|not\s+(?:approved|endorsed|supported|recommended)|reject(?:ed)?\b|decline(?:d)?\b|oppose(?:d)?\b|disagree\b|hold off\b)/i.test(decision);
+  const explicitApproval = /^(?:(?:i|we)\s+)?(?:approv(?:e|ed|es|al)\b|proceed\b|go\s+ahead\b|pursue\b|accept(?:ed)?\b|agree(?:\s+with)?\b|support(?:s|ed)?\b|endorse(?:s|d)?\b)/i.test(decision);
+  if (explicitRefusal || !explicitApproval) {
+    return { status: "not_approved", direction: null, reason: "Right-hand did not explicitly approve the opening direction." };
   }
 
   if (typeof input.firstDirection !== "string" || !input.firstDirection.trim()) {
