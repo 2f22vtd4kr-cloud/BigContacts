@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -404,6 +404,19 @@ Choose each next action yourself from the available capabilities and observed ev
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
+  it("preserves classified scope and source-stage reasons in compact feedback", () => {
+    const classified = compactEmergencyTrajectoryObservation(
+      "pivot_alignment_guard blocked this outbound action before execution. Scope mismatch dimensions: searches[1] geography, source class. No outbound request was made.",
+    );
+    expect(classified).toContain("searches[1] geography, source class");
+
+    const ordered = compactEmergencyTrajectoryObservation(
+      "pivot_alignment_guard / ordered_source_stage_guard blocked this outbound action before execution. The active direction requires the first source stage before the later source stage. No outbound request was made.",
+    );
+    expect(ordered).toContain("first source stage");
+    expect(ordered).toContain("search-result URLs alone do not complete");
+  });
+
   it("fits the active Central-European ownership-source pivot and latest blocked action into the hard prompt ceiling", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE:",
@@ -593,6 +606,62 @@ Choose each next action yourself from the available capabilities and observed ev
       provider: "serper",
     }, [])).toContain("pivot_alignment_guard");
   });
+
+  it("recognizes the Run 05 water-utility licensee source and reports exact mismatch dimensions", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Search Washington and Oregon state water-rights or water-service provider registries (e.g., Washington Department of Ecology water-rights database, Oregon Water Resources Department permits) for private firms, then retrieve named principals or managing partners from corporate filings, LinkedIn, or firm websites.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): none.",
+    ].join("\n");
+    const observedWaterUtilityQuery = "Washington State Public Utilities Commission water utility licensees list officers";
+
+    expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", {
+      searches: [
+        { query: observedWaterUtilityQuery, provider: "serper" },
+        { query: "Oregon water rights provider registry permit", provider: "serper" },
+      ],
+    }, [])).toBeNull();
+
+    const outOfRegionReason = discoveryPivotAlignmentReason(objective, "parallel_web_search", {
+      searches: [
+        { query: observedWaterUtilityQuery, provider: "serper" },
+        { query: "California water utility licensees list officers", provider: "serper" },
+      ],
+    }, []);
+    expect(outOfRegionReason).toContain("Scope mismatch dimensions: searches[1] geography.");
+
+    const missingSourceClassReason = discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Washington water utility officers",
+      provider: "serper",
+    }, []);
+    expect(missingSourceClassReason).toContain("Scope mismatch dimensions: query source class.");
+
+    const unobservedUrlReason = discoveryPivotAlignmentReason(objective, "visit", {
+      url: "https://example.org/about",
+    }, []);
+    expect(unobservedUrlReason).toContain("observed-source provenance");
+
+    const scopeKey = discoveryPivotScopeKey(objective);
+    expect(scopeKey).not.toBeNull();
+    const priorBlockedQuery = {
+      turn: 1,
+      model: "openai/gpt-oss-120b",
+      action: "web_search",
+      args: { query: "California water utility licensees list officers", provider: "serper" },
+      pivotScopeKey: scopeKey ?? undefined,
+      execution: "blocked",
+      observation: "pivot_alignment_guard blocked this outbound action. Scope mismatch dimensions: query geography.",
+      observedUrls: [],
+      findings: [],
+    } as AgenticTrajectoryRecord;
+    expect(repeatedPivotBlockedActionReason(objective, "web_search", {
+      query: "California water utility licensees list officers",
+      provider: "serper",
+    }, [priorBlockedQuery])).toContain("Previous scope mismatch dimensions: query geography.");
+  });
+
   it("accepts Secretary-of-State entity-search wording for a registry pivot without relaxing subject or geography", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",

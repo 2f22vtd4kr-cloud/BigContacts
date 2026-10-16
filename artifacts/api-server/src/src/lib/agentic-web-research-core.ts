@@ -450,14 +450,20 @@ export function repeatedPivotBlockedActionReason(
     if (!priorIntents.length) continue;
     priorOutOfScopeActionsWithoutNewEvidence += 1;
     if (currentIntents.some((current) => priorIntents.some((prior) => prior.kind === current.kind && prior.key === current.key))) {
-      return "repeat_pivot_alignment_guard blocked an identical out-of-scope query/resource already rejected under the current Boss-approved pivot. Changing provider, registry, batch composition, or rationale alone does not justify another attempt; wait for new fetched source evidence or choose a materially different in-scope action.";
+      const previousMismatch = String(record.observation ?? "").match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
+      return "repeat_pivot_alignment_guard blocked an identical out-of-scope query/resource already rejected under the current Boss-approved pivot."
+        + (previousMismatch ? ` Previous scope mismatch dimensions: ${previousMismatch}.` : "")
+        + " Changing provider, registry, batch composition, or rationale alone does not justify another attempt; wait for new fetched source evidence or choose a materially different in-scope action.";
     }
     // Query wording can change while the research intent remains stuck outside
     // scope. Two prior blocked actions without new fetched evidence are enough
     // to return control on the next attempted variant instead of spending every
     // remaining Investigator turn on the same dead end.
     if (priorOutOfScopeActionsWithoutNewEvidence >= 2) {
-      return "repeat_pivot_alignment_guard blocked another out-of-scope query/resource after multiple distinct actions were already rejected under the current Boss-approved pivot, with no new fetched source evidence. Do not keep trying wording variants; return control to Boss/Right-hand for a revised objective or stop decision.";
+      const previousMismatch = String(record.observation ?? "").match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
+      return "repeat_pivot_alignment_guard blocked another out-of-scope query/resource after multiple distinct actions were already rejected under the current Boss-approved pivot, with no new fetched source evidence."
+        + (previousMismatch ? ` Previous scope mismatch dimensions: ${previousMismatch}.` : "")
+        + " Do not keep trying wording variants; return control to Boss/Right-hand for a revised objective or stop decision.";
     }
   }
   return null;
@@ -2107,7 +2113,14 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
  */
 export function compactEmergencyTrajectoryObservation(observation: string): string {
   const normalized = typeof observation === "string" ? observation.trim() : "";
+  if (/ordered_source_stage_guard/i.test(normalized)) {
+    return "SOURCE-STAGE GUARD BLOCKED ACTION (no request): fetch an observed page from the required first source stage before advancing to the later source stage; search-result URLs alone do not complete the first stage. Return control if that stage is infeasible.";
+  }
   if (/pivot_alignment_guard/i.test(normalized)) {
+    const mismatch = normalized.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
+    if (mismatch) {
+      return `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}. Revise those dimensions; fetch only an observed aligned URL; do not repeat without new evidence.`;
+    }
     return "SCOPE GUARD BLOCKED ACTION (no request): query must name active scope subject, geography and source class; fetch only an observed aligned URL. Metadata is not scope. Revise or request new scope; do not repeat.";
   }
   return boundInvestigatorPromptSection(normalized, 100);
@@ -2198,6 +2211,8 @@ const PIVOT_SCOPE_NON_SUBJECT_TERMS = new Set([
 
 const PIVOT_GEOGRAPHIC_WORD = String.raw`[A-Z][\p{L}\p{M}'’.-]*`;
 const PIVOT_GEOGRAPHIC_NAME = `${PIVOT_GEOGRAPHIC_WORD}(?:[- ]${PIVOT_GEOGRAPHIC_WORD})*`;
+const PIVOT_GEOGRAPHIC_JURISDICTION_LIST =
+  `\\b(?!(?:search|investigate|research|find|look|check|query|scan|review|analyze|focus|shift|target|explore|prioritize)\\b)(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)\\s+(?=(?:state|county|province|territory|registry|registries|filing|database|companies|firms)\\b)`;
 const PIVOT_GEOGRAPHIC_REGION_ALIASES: Array<{
   pattern: RegExp;
   alternatives: readonly (readonly string[])[];
@@ -2238,10 +2253,7 @@ function pivotScopeGeographyOptions(direction: string): string[][] {
   }
   // Some model-written pivots put alternatives immediately before a jurisdiction
   // noun ("Michigan/Illinois state registries") rather than after a preposition.
-  const jurisdictionList = new RegExp(
-    `\\b(${PIVOT_GEOGRAPHIC_NAME}\\s*\\/\\s*${PIVOT_GEOGRAPHIC_NAME})(?=\\s+(?:state|county|province|territory|registry|registries|filing|database|companies|firms))`,
-    "gu",
-  );
+  const jurisdictionList = new RegExp(PIVOT_GEOGRAPHIC_JURISDICTION_LIST, "gu");
   for (const match of direction.matchAll(jurisdictionList)) {
     options.push(...pivotGeographicAlternatives(match[1]!));
   }
@@ -2264,10 +2276,7 @@ function removePivotGeographyPhrases(direction: string): string {
     `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
     "gu",
   );
-  const jurisdictionList = new RegExp(
-    `\\b${PIVOT_GEOGRAPHIC_NAME}\\s*\\/\\s*${PIVOT_GEOGRAPHIC_NAME}(?=\\s+(?:state|county|province|territory|registry|registries|filing|database|companies|firms))`,
-    "gu",
-  );
+  const jurisdictionList = new RegExp(PIVOT_GEOGRAPHIC_JURISDICTION_LIST, "gu");
   return direction.replace(locationClause, " ").replace(jurisdictionList, " ").replace(/\b(?:Pacific\s+Northwest|PNW)\b/giu, " ");
 }
 
@@ -2300,9 +2309,9 @@ function pivotScopeRequiredSourceAnchors(direction: string): string[] {
 }
 
 const PIVOT_SOURCE_CLASS_SYNONYMS: Record<string, readonly string[]> = {
-  registry: ["registry", "register", "database", "filing", "secretary of state", "business entity search", "corporate entity search", "corporation search"],
+  registry: ["registry", "register", "database", "filing", "secretary of state", "business entity search", "corporate entity search", "corporation search", "licensee list", "licensee directory"],
   filing: ["filing", "registry", "register", "database", "corporate", "corporation", "corporations", "secretary of state", "business entity search", "corporate entity search"],
-  database: ["database", "registry", "register", "filing", "secretary of state", "business entity search", "corporate entity search"],
+  database: ["database", "registry", "register", "filing", "secretary of state", "business entity search", "corporate entity search", "licensee list", "licensee database"],
   directory: ["directory", "catalog", "listing", "list"],
   association: ["association", "chamber"],
   chamber: ["chamber", "association", "directory"],
@@ -2449,6 +2458,17 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
       token === anchor || (Math.min(token.length, anchor.length) >= 6
         && (token.startsWith(anchor.slice(0, 7)) || anchor.startsWith(token.slice(0, 7)))),
     )));
+  // In a water-service-provider pivot, "water utility" is a direct subject
+  // equivalent, not a new sector or a substitute for geographic/source checks.
+  if (
+    anchors.includes("water")
+    && (anchors.includes("service") || anchors.includes("provider"))
+    && /\bwater\s+utilities?\b/iu.test(value)
+  ) {
+    matched.add("water");
+    if (anchors.includes("service")) matched.add("service");
+    else matched.add("provider");
+  }
   // A single distinctive industry/entity anchor (e.g. "fitness") is sufficient;
   // a short, broad word such as "food" must be accompanied by another pivot anchor.
   return matched.size >= 2 || [...matched].some((anchor) => anchor.length >= 7);
@@ -2535,6 +2555,70 @@ function pivotActionIsAligned(
   if (action === "footprint_spiderfoot") return matchesScopeOrEvidence(args.target);
   return false;
 }
+function pivotActionAlignmentFailureDetails(
+  action: string,
+  args: Record<string, unknown>,
+  anchors: readonly string[],
+  excludedSubjects: readonly string[],
+  geographyOptions: readonly string[][],
+  requiredSourceAnchors: readonly string[],
+  sourceUrls: ReadonlySet<string>,
+  evidenceText: string,
+): string[] {
+  type Request = { label: string; value: unknown; kind: "query" | "url" | "domain" | "resource" };
+  const requests: Request[] = [];
+  if (action === "parallel_web_search" || action === "parallel_registry_search") {
+    const searches = Array.isArray(args.searches) ? args.searches : [];
+    searches.forEach((item, index) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return;
+      requests.push({
+        label: `searches[${index}]`,
+        value: (item as Record<string, unknown>).query,
+        kind: "query",
+      });
+    });
+  } else if (action === "web_search" || action === "registry_search") {
+    requests.push({ label: "query", value: args.query, kind: "query" });
+  } else if (action === "visit" || action === "browser_fetch") {
+    requests.push({ label: "url", value: args.url, kind: "url" });
+  } else if (action === "domain_lookup" || action === "harvest_domain") {
+    requests.push({ label: "domain", value: args.domain, kind: "domain" });
+  } else if (action === "footprint_email") {
+    requests.push({ label: "email", value: args.email, kind: "resource" });
+  } else if (action === "footprint_username_maigret" || action === "footprint_username_sherlock") {
+    requests.push({ label: "username", value: args.username, kind: "resource" });
+  } else if (action === "footprint_spiderfoot") {
+    requests.push({ label: "target", value: args.target, kind: "resource" });
+  }
+
+  return requests.flatMap(({ label, value, kind }) => {
+    const text = typeof value === "string" ? value : "";
+    const excluded = pivotTextContainsExcludedSubject(text, excludedSubjects);
+    const alreadyObserved = kind === "url"
+      ? sourceUrls.has(normalizedActionResourceUrl(text) ?? "")
+      : kind === "domain" && !excluded
+        ? pivotDomainMatchesSourceUrls(value, sourceUrls)
+        : false;
+    if (alreadyObserved && !excluded) return [];
+
+    const dimensions: string[] = [];
+    if (excluded) dimensions.push("subject/exclusion");
+    else if (!pivotTextMatchesAnchors(text, anchors)) dimensions.push("subject");
+    if (!pivotTextMatchesGeography(text, geographyOptions)) dimensions.push("geography");
+    if (requiredSourceAnchors.length > 0 && !pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)) {
+      dimensions.push("source class");
+    }
+    if (
+      dimensions.length > 0
+      && !excluded
+      && pivotResourceIsGroundedInAlignedEvidence(value, evidenceText)
+    ) return [];
+    if (dimensions.length > 0 && kind !== "query" && !alreadyObserved) {
+      dimensions.push("observed-source provenance");
+    }
+    return dimensions.length > 0 ? [`${label} ${dimensions.join(", ")}`] : [];
+  });
+}
 function pivotAlignedEvidenceState(
   priorRecords: readonly AgenticTrajectoryRecord[],
   anchors: readonly string[],
@@ -2615,7 +2699,22 @@ export function discoveryPivotAlignmentReason(
   const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, activePivotScopeKey);
   if (pivotActionIsAligned(action, args, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText)) return null;
 
-  return "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: "
+  const failureDetails = pivotActionAlignmentFailureDetails(
+    action,
+    args,
+    anchors,
+    excludedSubjects,
+    geographyOptions,
+    requiredSourceAnchors,
+    evidence.sourceUrls,
+    evidence.evidenceText,
+  );
+  const mismatch = failureDetails.length > 0
+    ? failureDetails.join("; ")
+    : "required scope dimensions could not be classified";
+  return "pivot_alignment_guard blocked this outbound action before execution. Scope mismatch dimensions: "
+    + mismatch
+    + ". The active Boss-accepted pivot is: "
     + direction.slice(0, 420)
     + ". A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
 }

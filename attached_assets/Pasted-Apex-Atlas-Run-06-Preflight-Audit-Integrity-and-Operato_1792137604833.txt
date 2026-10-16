@@ -1,0 +1,267 @@
+Apex Atlas — Run 06 Preflight, Audit Integrity and Operator-Launched End-to-End Acceptance
+Repository: 2f22vtd4kr-cloud/BigContacts Canonical branch: main only Prepared run: Run 06 Audit: audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_06.md Purpose of this task: Prepare the existing application for a clean, evidence-rich live run, resolve any concrete pre-run blockers, and report readiness. The operator will launch the research run manually through the normal UI-equivalent workflow. Do not launch, enqueue, or simulate a research job during this preparation.
+0. Operating rules and present state
+This is an existing application with repository import, Replit setup and provider-key configuration already completed. Do not repeat setup, create another app, reconfigure secrets without evidence of a problem, or redesign the architecture.
+The target is one genuine, model-led, source-grounded investigation that follows real evidence through to a defensible terminal state and, when the evidence qualifies a person, durable candidate admission and a normal UI card.
+This is not a request to maximize commit count, produce green output at any cost, run endless broad code audits, or manufacture a candidate.
+The last prepared main commit known to this prompt is:
+5c4dd18329fe8be0491d0f8cbfd38ee21e29e07c
+That SHA is a reference, not an assumption about the current repository. Fetch and inspect the actual latest main before doing anything consequential. Do not downgrade the repository to the reference SHA.
+The following preparation is already committed on main:
+* .replit points model prompt capture at audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_06.md.
+* The Run 06 audit scaffold already exists and is marked PREPARED — NOT STARTED.
+* docs/RUN_BUREAU.md records the corrected Run 05 terminal status and the remaining cross-project persistence limitation.
+* The Run 05 audit summary distinguishes the verified job-terminal outcome from the unresolved original-project durable state.
+Do not create a second Run 06 audit, overwrite the scaffold, reuse Run 04 or Run 05 as the live destination, or erase history. If fresh evidence establishes that Run 06 has already been used for an actual job or the date/run numbering has to advance, preserve it and choose the next unused run-specific filename instead.
+The operator will start the research job after receiving the readiness report. Do not press the Run/Launch control or call an endpoint that starts discovery during this task. Do not claim that you will monitor work in the background after your response.
+1. Understand the application before touching it
+Apex Atlas is a model-led ReAct research bureau, not a deterministic enrichment pipeline.
+* Groq Boss directs the case, evaluates progress, considers pivots, and decides whether to continue or stop.
+* Groq Right-hand independently evaluates evidence quality, contradictions, and research gaps, then advises Boss. It does not take over Investigator research strategy.
+* The selected Groq Investigator capability owns its hypotheses, queries, action and capability choice, source selection, corroboration, falsification, pivots, and stopping decisions.
+* The deterministic runtime enforces authorization, network safety, capability availability, action contracts, source provenance, identity and candidate-admission requirements, durable persistence, cancellation, budgets, and truthful terminal outcomes.
+Do not replace this architecture with a scripted sequence. Do not impose a mandatory sequence such as identity → company → LinkedIn → email. Do not force a target, query, source, provider, capability, admission, or card into existence.
+Deterministic code may enforce integrity and safety. It must not covertly choose the Investigator’s research strategy.
+Read the current versions of the applicable documents, including:
+* README.md
+* AGENTS.md
+* docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md
+* docs/context.md
+* docs/CURRENT_STATUS_2026-10-15.md
+* docs/BUREAU_REACT_ARCHITECTURE.md
+* docs/RUN_BUREAU.md
+* docs/REPLIT_NEW_ACCOUNT_SETUP.md
+* docs/APEX_REPLIT_STARTUP_PROMPT.md
+* docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md
+* audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md
+* audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md
+* audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_06.md
+If a listed path no longer exists on current main, locate the current replacement by inspecting the repository. Do not silently substitute an outdated document or infer that its contents remain accurate.
+Inspect executable source, relevant tests, schemas/migrations, scripts, runtime configuration, the recent commit history and current GitHub Actions results. Documentation is evidence and guidance, not proof that the implementation behaves as described.
+2. Safely verify the current repository and running process
+Before modifying files or restarting anything, record:
+* Git remote and current branch.
+* Exact workspace HEAD SHA.
+* git status --short.
+* Recent commits and the actual diff since the last known prepared SHA.
+* Whether the current workspace and running API process refer to the intended repository and revision.
+* Any local work that is not committed or not present on GitHub.
+The canonical branch is main. If the workspace is clean and simply behind the latest upstream main, update it safely using a fast-forward where possible. Never force-push, hard-reset, discard operator changes, downgrade main, or overwrite uncommitted work to obtain a clean-looking checkout.
+If the workspace diverges, has unexpected dirty changes, or the proper update cannot be made safely, preserve the work and report the exact blocker. Do not guess which changes are expendable.
+Do not confuse the workspace SHA with the code revision loaded by the running API. Establish the process revision from available startup logs, build stamps or equivalent authoritative evidence. Record any uncertainty.
+If a safe restart is necessary for the application to load the prepared configuration, first establish that there is no active research job, preserve workspace changes, restart only the intended API workflow, and verify the actual running revision afterward. Do not kill sibling processes or create duplicate API workflows.
+3. Reconcile Run 05 in one bounded, honest pass
+Prior job:
+4b85fc7c-a239-478c-a455-94baf02ffdee
+The available evidence already establishes the following in the checked, imported Replit project:
+* The durable job record reported failed / incomplete, finished at 2026-10-16T03:00:24.824Z.
+* Both the atlas-run and legacy case-bureau-discovery active-job pointers were absent in the checked Redis store.
+* Seven additional discovery-trace records reconciled to 16 searches and 4 visits.
+* Those trace records contained zero recorded findings, zero parsed candidates and no recorded admission.
+* The last additional trace entry reported unavailable / LLM_UNAVAILABLE.
+* The imported project’s database did not contain the trace’s caseId=2; the corresponding case API returned 404, and its current UI had zero entities and priority profiles.
+Critical limitation: the empty database in the imported project is not evidence that the original project persisted nothing. The original project’s final durable case, event, evidence, contact-attribution, admission, entity and card counts remain unknown unless its actual durable records can be accessed.
+Perform one bounded, read-only attempt to locate and reconcile the original project’s authoritative records using available, authorized access. Do not fabricate counts, seed replacement data, or modify either project’s database to make this reconciliation appear complete.
+If the original database or project is inaccessible, document precisely:
+* What record or access is missing.
+* What was checked and when.
+* Which counts are confirmed and which remain unavailable.
+* Why the imported project’s empty tables cannot answer the original-project question.
+Retain Run 05’s FAILED / INCOMPLETE outcome and mark original-project persistence reconciliation unresolved.
+Do not let inaccessible historical records block work indefinitely. Run 06 may proceed to operator launch once the current runtime independently passes the current-job, lock, configuration, health and baseline gates below. The unresolved Run 05 database must remain an explicit limitation; it must not be converted into a claim of zero prior persistence.
+Never launch if the current runtime has an active job or its job/lock status is unclear.
+4. Make the Run 06 audit trustworthy before launch
+The prepared audit already exists:
+audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_06.md
+Inspect the actual audit logger and its configuration, particularly:
+* .replit
+* artifacts/api-server/src/src/lib/model-prompt-audit.ts
+* artifacts/api-server/src/src/lib/model-prompt-audit.test.ts
+* The relevant runtime request/response logging, discovery trace, durable event and job-status paths.
+The prepared .replit configuration should use:
+* NODE_ENV = "development" in the applicable development environment.
+* APEX_CAPTURE_MODEL_PROMPTS = "true".
+* APEX_MODEL_AUDIT_FILE = "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_06.md".
+These values in .replit do not prove that the currently running process has loaded them. Verify the effective runtime configuration safely without printing secrets or dumping the environment. The model audit logger only captures when its environment and destination conditions are satisfied. If they are not satisfied in the actual process, fix the configuration narrowly and safely before the operator launches.
+Confirm that:
+1. The actual next model request and response will append to the new run-specific file.
+2. New records include the actual request IDs and the available role, model, attempt, timestamp, job and case identifiers.
+3. The logger writes incrementally during execution and does not rely on a final end-of-run dump.
+4. The destination is the visible repository audits/ path and the file is not ignored by Git.
+5. Contact and credential redaction remains enabled and working.
+6. Private reasoning fields remain excluded. Do not attempt to collect hidden chain-of-thought.
+7. The existing audit file remains append-only. Do not rewrite or reorder existing chronological evidence.
+8. If a request or response cannot be recorded, that failure is explicit and does not disappear silently from the final accounting.
+Run focused tests for the audit logger. Where practical, exercise its append path and interruption behavior without making a real model call or launching a research job. Verify what it records and what remains in the runtime trace or database; do not assume the model request/response audit captures every tool action or persistence event.
+If a simulated interruption test would require invasive changes, do not invent a simulation or refactor the logger speculatively. Document exactly which incremental-write behavior is established by source and tests, and what remains unverified.
+Never disable redaction to get more detail. Never commit access tokens, API keys, unredacted personal email addresses or phone numbers, or hidden reasoning.
+5. Establish a clean pre-run baseline
+Using read-only checks wherever possible, record the current runtime state before launch:
+* Exact repository HEAD and actual API process revision.
+* API health from GET /api/healthz.
+* Redis connectivity and bureau-integrity status.
+* Current active-job state and the relevant lock pointers.
+* Whether the normal desk at / renders and the entity/card ledger is accessible.
+* Current database and API baseline counts for relevant cases, events, entities, evidence, contact evidence, candidates/admissions, and cards where those counters are available.
+* Relevant failures or unavailable endpoints, clearly distinguished from confirmed zero counts.
+* Effective audit-capture configuration and intended audit path.
+Do not create a synthetic person, case, candidate, evidence row, contact record, or card for testing. Do not mutate existing production-like data merely to manufacture a baseline.
+The new run must be distinguishable from all previous jobs through its actual job and case identifiers. Record these only when allocated by the real launch process; do not invent IDs.
+6. Verify current checks and CI without treating green checks as research success
+Fetch current main and inspect GitHub Actions for the exact commit intended for the run. Do not rely on old check results from a different SHA.
+At the last checked snapshot, these three workflows passed on prepared commit 5c4dd18329fe8be0491d0f8cbfd38ee21e29e07c:
+* Atlas CI, including workspace/API typechecking, the non-live API regression suite and API build.
+* Apex frontend five-condition gate.
+* Apex discovery static check.
+The separate Five Consecutive Full Code Audits workflow was still in progress at that snapshot. Refresh its actual status and do not call an in-progress or cancelled workflow a pass. Do not wait indefinitely for repeated broad audit automation if the current commit’s necessary CI and direct readiness checks are green; report that workflow separately.
+Before reporting ready for operator launch, run the current repository’s applicable required checks against the exact workspace SHA:
+* node scripts/replit-preflight.mjs
+* pnpm run typecheck
+* pnpm run build
+* pnpm run check:bureau
+Run relevant focused regression tests, including at least the existing Investigator core and model-audit tests:
+pnpm --dir artifacts/api-server exec vitest run src/src/lib/agentic-web-research-core.test.ts src/src/lib/model-prompt-audit.test.ts
+Use the actual current test paths and scripts if main has changed them. Record the exact commands, outcome and SHA. Do not report a command as passed if it was not run to completion. Do not lower, skip or remove an architecture gate to get a green result.
+Do not launch the 150-run research campaign as part of this preparation.
+A successful build, healthy API, working Redis or passing static test is necessary infrastructure evidence, not proof of a successful investigation.
+7. Investigate the known failure boundaries without speculative rewrites
+The objective is to identify concrete issues that materially threaten the next run. Use focused source inspection and reproduction, not another unlimited round of broad refactoring.
+A. Groq structured-output failures and retries
+Run 05 recorded six HTTP 400 json_validate_failed responses from the Investigator. The 02:50 strict-schema request and its JSON-object retry both failed. At 02:57, Groq explicitly reported output truncation when max_completion_tokens was reached, leaving a required findings property missing. Other JSON-object retries returned HTTP 200 but did not always lead to valid, executable actions.
+Inspect the current implementations of:
+* chooseGroqInvestigatorOutputRecovery
+* nextGroqInvestigatorCompletionBudget
+* isGroqCompletionTruncationMessage
+* callGroqJson
+in artifacts/api-server/src/src/lib/agentic-web-research-core.ts, along with the actual tests.
+The source now contains bounded output-recovery logic, including a limited completion-budget increase capped at 2,048 tokens and JSON-object compatibility handling. The helper-level unit tests do not by themselves prove the complete HTTP request/retry sequence behaves correctly.
+Review whether the existing tests actually exercise the mocked network-request boundary. Where the current test harness supports a narrow integration regression, prove:
+* The first strict-schema request is constructed as intended.
+* A qualifying schema/output failure changes to the expected compatible request format.
+* Explicit truncation causes only the permitted bounded completion-budget recovery.
+* The exact outgoing request body changes as expected and retains the original model/capability.
+* Retry budgets and termination remain bounded.
+* Repeated invalid structured output fails honestly instead of retrying indefinitely.
+* Authentication, quota/rate-limit and unrelated provider failures are not misclassified as JSON-recovery cases.
+* A syntactically valid model response still passes local action-contract and authorization checks before any outbound tool request.
+Do not arbitrarily change models, providers, credentials, token budgets or action contracts. Do not assume the current source fix was running during Run 05; its exact running source revision was not captured consistently.
+If a narrow mocked test exposes a real defect, document the evidence, fix the smallest responsible boundary and rerun the relevant tests. If a complete mocked request-sequence test is not feasible without a broad refactor, state that limitation honestly and assess the remaining risk. Do not start speculative architecture work merely to eliminate every uncertainty before a live run.
+B. Scope-guard feedback and action validation
+The Run 05 trace contained repeated actions blocked before network execution. The recorded compact feedback often said that the query needed the active subject, geography and source class, or that a fetch needed an observed aligned URL, but did not always identify the specific mismatch.
+Inspect the active scope guard, including discoveryPivotAlignmentReason, the relevant phrase-aware scope/source-class matchers, compactEmergencyTrajectoryObservation, the Investigator action parser and registry availability/validation.
+Determine which checks produced the recorded blocks, and distinguish a genuine authorization block from a possible false rejection or unclear feedback. Exercise representative cases from the actual trace, especially local filing/database and water-utility research, but do not hard-code those old targets as the new run’s strategy.
+Where the implementation can safely determine the mismatch, feedback should identify whether the problem is:
+* Substantive subject alignment.
+* Geographic alignment.
+* Required source-class alignment.
+* Lack of a previously observed, aligned URL or other required provenance.
+* Invalid or unsupported action arguments.
+* An unavailable or unconfigured registry/capability.
+Unsupported registry IDs must fail locally with clear feedback and must never result in an outbound call.
+Preserve fail-closed authorization. Do not permit actions merely because the model supplied provider metadata, a registry name, a rationale, or an ungrounded URL. Do not weaken the guard simply to reduce the count of blocked actions.
+If a source defect is actually reproduced, add a targeted regression test and make the smallest fix. If not reproduced, preserve the observation as an explicit live-run risk; do not invent a code repair.
+C. Research productivity and use of observations
+The existing evidence suggests that the model-led loop executed live, but productive source-grounded research and a candidate card have not been demonstrated end to end.
+Use the actual model-visible prompts, visible responses, tool observations, trajectory records, available capabilities, scope changes and previous rejected actions to assess whether the Investigator is:
+* Failing to use relevant successful searches or fetched pages.
+* Repeating low-yield or substantially duplicate searches.
+* Ignoring source evidence that could support a meaningful follow-up.
+* Failing to form or falsify a research hypothesis.
+* Receiving feedback too generic to recover from an action rejection.
+* Proposing unsupported actions despite clear capability guidance.
+* Correctly abstaining because the evidence is insufficient.
+* Being stopped by provider availability, budget, timeout or runtime failure rather than by research logic.
+Distinguish a demonstrated defect from a hypothesis about model behavior. Search snippets and URLs are leads; only observed, provenance-bound source content can support findings. Preserve contradictions, negative evidence, source dependence and unresolved identity.
+Do not add fixed tool sequences, forced query variants or a scripted enrichment itinerary. Do not lower candidate-admission standards to manufacture a card.
+D. Provider and capability health
+Inspect the exact safe diagnostics for LLM_UNAVAILABLE and other provider failures seen in Run 05. Do not assume that LLM_UNAVAILABLE necessarily means a bad key; establish its cause from available evidence.
+Respect the existing configured Groq Investigator capabilities, their health, budgets and role assignments. If the runtime confirms a particular capability is unavailable, use only the existing permitted selection/failover mechanism and record the real error classification and selection decision.
+Do not rotate credentials manually, switch providers merely because an HTTP 400 occurred, treat a scope block as quota exhaustion, retry indefinitely, silently change Boss or Right-hand roles, or ask the operator to paste secret values.
+If no eligible Investigator capability is available, the truthful result is a blocked or failed run—not fabricated progress.
+E. Prompt/context size and resource use
+Review actual prompt lengths, token usage, completion budgets, retry overhead and the trajectory context sent to each role. Large repeated prompts and verbose observations can consume the available budget without generating new evidence.
+Look for clear evidence that prompt/context handling or repeated retries materially impaired Run 05. Check whether compacted prompts preserve the active Boss-approved scope, mandatory output schema, latest action result and provenance constraints.
+Make changes only if a specific, tested defect is demonstrated. Do not remove required evidence contracts or alter research strategy just to shorten a prompt. Optimize the narrowest relevant boundary and compare before/after payload sizes and behavior where measurement is available.
+F. Candidate admission, persistence and UI card projection
+Trace the actual pipeline boundaries in source:
+accepted action → real outbound call → observed result → fetched source → source-bound finding → identity/attribution checks → admission decision → durable records → card/UI projection.
+Determine which layer owns each transition and which events/counters are authoritative.
+Do not modify the card renderer merely because a run produced no cards. First establish that a candidate satisfied the existing admission contract and was durably persisted. If one was admitted and the card is missing, trace that specific candidate’s durable identity and projection path.
+Never use internal insertion paths, synthetic observations or hand-created contacts to manufacture a successful end-to-end result.
+8. Bounded fix-and-verify policy
+When evidence demonstrates a material defect:
+1. Record the observed failure and its supporting evidence.
+2. Identify the narrowest correct source boundary.
+3. Add a regression test that reproduces the defect.
+4. Make the smallest architecture-preserving change.
+5. Run the focused test, relevant typecheck/build and appropriate static checks.
+6. Re-run the relevant provenance, redaction, cancellation, budget, registry, scope and admission regressions.
+7. Inspect the exact diff and verify it does not overwrite newer work.
+8. Verify the final main SHA and, where relevant, that the intended source has been loaded by the running process.
+Do not silently modify application source during a live research job. No research job should be active during this preflight, and none should be started by this task.
+If a fix cannot be reproduced or justified, do not make it. If a genuine critical blocker remains, report it. Avoid endless speculative fixes: perform a bounded, focused diagnostic cycle and identify the exact unresolved issue instead of broadening the scope indefinitely.
+9. Pre-launch acceptance gate
+Before you report the application ready for the operator to launch, confirm all of the following from actual evidence:
+* ☐ The existing intended Replit application is using the correct repository and current main.
+* ☐ The current branch, source SHA and working-tree status are recorded, and local work has not been discarded.
+* ☐ Current relevant GitHub checks have been refreshed and their real terminal statuses recorded.
+* ☐ The current API process is running the expected source revision.
+* ☐ The current project has no active Atlas/discovery job and its relevant active-job pointers/locks are absent.
+* ☐ Run 05 has been reconciled as far as authorized records permit, with the original-project database limitation stated clearly.
+* ☐ The current runtime database baseline has been recorded; unavailable counters are not described as zero.
+* ☐ APEX_CAPTURE_MODEL_PROMPTS and APEX_MODEL_AUDIT_FILE are effective in the actual API process, not merely present in .replit.
+* ☐ The audit destination resolves to the separate Run 06 audit, and existing contact/credential redaction remains intact.
+* ☐ Preflight, typecheck, build, check:bureau and the relevant focused tests have real recorded results for the intended SHA.
+* ☐ /api/healthz, Redis, bureau integrity, the normal desk and relevant API/data access have been checked.
+* ☐ Any concrete critical blocker discovered in the known failure boundaries has been fixed and re-tested, or is explicitly documented with a justified decision on whether it prevents this run.
+* ☐ No source change, database mutation, synthetic record or research job was introduced during preparation without a demonstrated reason and proper verification.
+If every applicable gate passes, finish with a clear READY FOR OPERATOR LAUNCH status. If a critical check fails, report BLOCKED and give the exact failure and evidence. Do not claim readiness based only on successful startup, CI or health checks.
+Stop here. Do not launch Run 06. The operator will start the job manually through the normal UI-equivalent workflow after reviewing your readiness report.
+10. Instructions for auditing the operator-launched Run 06
+These instructions apply once the operator has launched the run and supplied its job ID or asked you to continue the audit. Do not execute them by launching a job now.
+Use the existing separate Run 06 audit file and preserve chronological events. Capture or reconcile evidence incrementally from the logger, actual runtime trace, APIs and durable stores. Do not depend on a post-run summary alone.
+For every significant step, distinguish:
+1. The model’s actual visible proposal or response.
+2. The local schema/contract and authorization result.
+3. Whether the action was accepted or blocked.
+4. Whether network I/O actually occurred.
+5. The actual provider, destination, result and safe diagnostic.
+6. The resulting observation and source URL.
+7. Whether a finding was bound to fetched, observed source evidence.
+8. Whether a candidate passed admission and why.
+9. What durable record was written, skipped, rejected or unavailable.
+10. What feedback informed the next model-visible turn and what happened next.
+A blocked action is not a network call. A search result is a lead, not fetched evidence. A fetched page is not automatically a finding. A finding is not automatically an admission. A model response with HTTP 200 does not prove that its action was valid or executed.
+Capture the run’s actual UTC timeline, job/case IDs, exact process SHA, model role and identifier, request/response identifiers, usage and safe errors, Boss dispositions, Right-hand recommendations, Investigator-selected actions, scope/registry rejections, executed tool calls, fetched observations, source-bound findings, contradictions, admission decisions and persistence events.
+Keep contact values redacted in Git-tracked audit text. Preserve source URLs, evidence identifiers, field type and attribution status so a reviewer can follow the decision without exposing the personal contact value itself. Never log provider credentials, tokens or hidden reasoning.
+11. Terminal reconciliation and honest outcome
+The audit must continue until the actual job reaches a terminal state and the available persistence/UI evidence has been reconciled. Do not stop at the first successful search, model response or fetched page.
+After terminal state, capture:
+* Exact job ID, case ID, terminal status/outcome, started/finished timestamps and actual process SHA.
+* Final model request/response and action counts, the audit destination, and any missing or failed audit writes.
+* Accepted network actions versus guard-blocked actions, with evidence for counts and results.
+* Search, visit, fetch, observation, finding, admission and candidate counts, distinguishing unavailable values from zero.
+* Provider errors, structured-output retries, budget recovery, scope/registry errors and whether each recovery worked.
+* Final durable case/event/evidence/contact-attribution/entity/candidate counts from the actual database the run wrote to.
+* Candidate identity and source-bound evidence supporting admission, where any candidate was admitted.
+* Persisted card identifiers and confirmation that the normal UI projection reflects that durable state.
+* Final active-job pointers/locks and any discrepancy between job counters, trace, events, database, API and UI.
+Evaluate operational outcome and research yield separately.
+An honest end-to-end success requires a reconciled terminal job, correct Boss/Right-hand/Investigator roles, genuine model-owned decisions, real accepted tool executions, observed source evidence, valid provenance, any supported candidate passing existing admission rules, durable persistence and a normal UI card reflecting that durable state. Final counts and audit records must agree.
+If the research fails to substantiate a qualifying person, do not manufacture a candidate or card. Record an honest no-qualified-candidate or incomplete outcome, with the actual bottleneck. If the provider becomes unavailable, preserve the actual failure. If persistence or UI reconciliation is impossible, mark the audit incomplete rather than claiming success.
+12. Required readiness report before the operator starts
+Report only what was actually verified, including:
+* Repository, branch and exact current SHA.
+* Running API source revision and working-tree status.
+* Current commit diff and relevant recent commits.
+* Latest relevant CI results, including pending/cancelled workflows distinguished from successful ones.
+* Run 05 terminal/lock verification and the unresolved original-project persistence counts.
+* Preflight, typecheck, build, check:bureau and focused-test results with the exact SHA.
+* API health, Redis, bureau integrity and desk status.
+* Effective audit capture configuration and Run 06 output destination.
+* Current database baseline counts and any unavailable counters.
+* Concrete defects discovered, fixes made, tests run and any unresolved scope/output/persistence risks.
+* A single final disposition: READY FOR OPERATOR LAUNCH or BLOCKED.
+* The exact blocker and the next concrete action if blocked.
+Do not report success merely because the app starts, calls a model, makes a web request, receives structured JSON, passes CI, or produces a completed job status.
+The objective is one genuine, honest, source-grounded bureau run while preserving Apex Atlas’s model-led architecture and every evidence, provenance, identity, authorization, admission, redaction, cancellation, persistence and UI-integrity invariant. Let the models do the research; make deterministic code responsible for safe execution and truthful accounting. No fabricated evidence, forced targets, or endless speculative fixing.
