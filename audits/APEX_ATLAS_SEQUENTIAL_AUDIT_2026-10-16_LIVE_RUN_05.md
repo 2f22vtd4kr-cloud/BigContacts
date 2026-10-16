@@ -93,3 +93,32 @@ The code's phrase-aware source-class matcher must be tested against the observed
 ## Source locations
 
 The original model request/response records are appended near the end of `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md` and are identified by job ID `4b85fc7c-a239-478c-a455-94baf02ffdee`. That file contains 29,653 lines in the inspected GitHub blob. Run 04's own terminal outcome is recorded much earlier in the same file, under Event 007, and must not be conflated with this later job.
+
+## Read-only reconciliation attempt in the imported Replit project
+
+**Checked at:** `2026-10-16T06:54:07Z`
+
+**Workspace:** branch `main`, HEAD `de6dc08a635967785ffaf0d2fdd1b8010cf1da19`. The API startup log reported source commit `407b2a6072ddef13e3680109190b32e1f22e43c8`; the later workspace commit changed only agent memory and attached instructions, not application source.
+
+**Health:** `GET /api/healthz` returned HTTP 200 with Redis `ok` and research keys configured.
+
+### Durable job and lock state
+
+- `GET /api/ingest/job/4b85fc7c-a239-478c-a455-94baf02ffdee` returned HTTP 200: status `failed`, outcome `incomplete`, started `2026-10-16T02:47:35.997Z`, finished `2026-10-16T03:00:24.824Z`.
+- The persisted job counters were `inserted=0`, `skipped=0`, `errors=0`, and `atlasPhase=3` of `atlasPhaseTotal=4`. The job result reported 16 discovery searches, 4 visits and 0 findings.
+- The active-job API returned `active=false` for both `atlas-run` and `case-bureau-discovery`. Read-only checks of both Redis pointers found them absent (`TTL=-2`).
+- The job is terminal and no active pointer remains in the checked Redis store.
+
+### Additional trace records
+
+`GET /api/ingest/atlas-trace/4b85fc7c-a239-478c-a455-94baf02ffdee` returned HTTP 200. The Redis-backed discovery trace contained seven records, last updated at `2026-10-16T03:00:17.282Z`; the last record was timestamped `2026-10-16T03:00:17.143Z`, after the audit's final captured model response at `02:59:18.761Z`. Across those records, the counts reconcile to 16 searches and 4 visits. Every record has zero model findings and zero parsed candidates; no record contains an admission. The last record reports `unavailable` / `LLM_UNAVAILABLE`. The trace identifies `caseId=2`.
+
+### Current API, database and UI comparison
+
+- The imported project's current database has zero rows in `entities`, `research_cases`, `research_case_events`, `research_run_events`, `research_evidence`, `contact_evidence` and `enrichment_runs`.
+- The current API returned HTTP 404 for discovery case `2`, its events endpoint, and the latest-discovery-case endpoint.
+- The current UI shows zero entities, priority profiles, assets and links, with no priority profiles projected.
+
+### Reconciliation limit and stop decision
+
+The current API and UI agree with the newly initialized project's empty database, but that database does not contain the trace's `caseId=2`. Therefore its zero counts cannot be attributed to Run 05, and the prior project's final durable case/event/evidence/contact/card counts cannot be verified from this imported project. This addendum confirms Run 05's terminal status, inactive locks and the additional Redis-backed trace; it does not claim that the prior project's final database state was reconciled. Per the reconciliation gate above, no Run 06 audit was created and no new research job was launched.
