@@ -9,6 +9,7 @@ import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError } from
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
+const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 
 describe("thrown provider error classification", () => {
   it("does not misclassify local prompt-budget failures as network failures", () => {
@@ -235,6 +236,37 @@ describe("Investigator outbound request audit boundary", () => {
 });
 
 describe("Investigator prompt architecture", () => {
+  it("separates a bounded review-lead handoff from target-scoped evidence verification", () => {
+    const discovery = buildStepPrompt({
+      targetName: "",
+      objective: "Discover a source-backed person with credible wealth potential.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+    const target = buildStepPrompt({
+      targetName: "Alex Morgan",
+      companyName: "Northstar Holdings",
+      objective: "Investigate the exact named target for ownership, counter-evidence, and realistic public contact routes.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "target",
+    });
+    expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
+    expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
+    expect(discovery).toContain("one successfully fetched claim-grade source");
+    expect(discovery).toContain("target-scoped research owns independent corroboration, falsification, and contact-route verification");
+    expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
+    expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
+    expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
+    expect(target).not.toContain("DISCOVERY TARGETABILITY GATE");
+  });
+
+
   it("preserves the complete multiline Boss pivot in the emergency compact objective", () => {
     expect(extractBossPivotDirectionForCompactPrompt(
       "base objective\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\nVerify the exact entity anchor against public evidence.\nThen test a materially different independent source for the same name and role.",
@@ -322,18 +354,18 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("once a real entity appears, test that exact named anchor");
     expect(prompt).toMatch(/(?:News publishers and articles are evidence leads only|Publisher articles are evidence leads, never targets or access routes|Press articles are leads, not targets or access routes)/);
     expect(prompt).toContain("Never use placeholders such as CompanyName, companywebsite.com, or example.com.");
-    expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
+    expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     // The emergency prompt may omit the verbose JSON example to stay within the provider ceiling;
     // the compact field-level finding contract remains mandatory and testable.
     expect(prompt).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.");
     expect(prompt).toContain("third-party people-search/profile-directory aggregators are leads only");
     expect(prompt).toContain("official company leadership/staff pages and official filing/registry pages are acceptable");
-    expect(prompt).toContain("two independent evidence/source units");
-    expect(prompt).toContain("successful falsification-intent action");
+    expect(prompt).toContain("one successfully fetched claim-grade source");
+    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, and contact-route verification");
     expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
-    expect(prompt).toContain("minEvidence=2; minIndependentSourceUnits=2");
-    expect(prompt).toContain("requireFalsification=true");
-    expect(prompt).toContain("at least one successful external action must explicitly attempt to disprove");
+    expect(prompt).toContain("minEvidence=1; minIndependentSourceUnits=1");
+    expect(prompt).toContain("requireFalsification=false");
+    expect(prompt).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(prompt).toContain("not a prescribed action sequence");
   });
 
@@ -398,9 +430,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("subject, geography and source class");
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider");
-    expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
-    expect(prompt).toContain("two independent evidence/source units");
-    expect(prompt).toContain("successful falsification-intent action");
+    expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
+    expect(prompt).toContain("one successfully fetched claim-grade source");
+    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, and contact-route verification");
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -482,8 +514,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("VALID PROVIDERS:");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
-    expect(prompt).toContain("two independent evidence/source units");
-    expect(prompt).toContain("successful falsification-intent action");
+    expect(prompt).toContain("one successfully fetched claim-grade source");
+    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, and contact-route verification");
   });
 
   it("excludes the pursue-unless continuation instruction from accepted pivot scope", () => {
@@ -774,17 +806,21 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
-    expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
-    expect(prompt).toContain("successful falsification-intent action");
+    expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
+    expect(prompt).toContain("target-scoped research owns independent corroboration, falsification, and contact-route verification");
   });
 
   it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
     const { isClaimGradeDiscoverySourceUrl } = await import("./candidate-source-url-union");
     expect(isClaimGradeDiscoverySourceUrl("https://www.naatp.org/staff")).toBe(true);
     expect(isClaimGradeDiscoverySourceUrl("https://www.zoominfo.com/p/example-person/123")).toBe(false);
-    // Source eligibility is not candidate admission: the durable admission path
-    // still requires two independently published observations of the same name/role.
-    expect(agenticCoreSource).toContain("two independent evidence/source units");
+    // Source eligibility is not HNWI promotion: only an explicit model-promoted,
+    // same-source identity/role plus wealth-potential lead can be materialized.
+    // Independent corroboration and the realistic contact route remain target-stage work.
+    expect(agenticCoreSource).toContain("one successfully fetched claim-grade source");
+    expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
+    expect(canonicalAtlasDiscoverySource).toContain("hasCredibleDiscoveryWealthPotentialSignal");
+    expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
