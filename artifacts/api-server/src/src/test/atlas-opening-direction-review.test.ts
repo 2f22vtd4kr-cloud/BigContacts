@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
-  validateAtlasOpeningRightHandReview,
+  validateAtlasOpeningRightHandApprovalReview,
 } from "../lib/atlas-control-decision";
 
 describe("explicit Atlas opening approval", () => {
@@ -15,7 +15,7 @@ describe("explicit Atlas opening approval", () => {
   };
 
   it("accepts explicit approval separately from the free-form narrative", () => {
-    expect(validateAtlasOpeningRightHandReview(base)).toBe(true);
+    expect(validateAtlasOpeningRightHandApprovalReview(base)).toBe(true);
     expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.properties.approval).toEqual({
       type: "string",
       enum: ["approve", "reject"],
@@ -24,12 +24,12 @@ describe("explicit Atlas opening approval", () => {
 
   it("fails closed when approval is missing or is not an exact enum", () => {
     const { approval: _approval, ...missingApproval } = base;
-    expect(validateAtlasOpeningRightHandReview(missingApproval)).toBe(false);
-    expect(validateAtlasOpeningRightHandReview({ ...base, approval: "Boss agrees" })).toBe(false);
-    expect(validateAtlasOpeningRightHandReview({ ...base, approval: null })).toBe(false);
+    expect(validateAtlasOpeningRightHandApprovalReview(missingApproval)).toBe(false);
+    expect(validateAtlasOpeningRightHandApprovalReview({ ...base, approval: "Boss agrees" })).toBe(false);
+    expect(validateAtlasOpeningRightHandApprovalReview({ ...base, approval: null })).toBe(false);
   });
 
   it("accepts an explicit rejection with the same narrative field and keeps the decision fields separate", () => {
-    expect(validateAtlasOpeningRightHandReview({ ...base, approval: "reject" })).toBe(true);
+    expect(validateAtlasOpeningRightHandApprovalReview({ ...base, approval: "reject" })).toBe(true);
   });
 });

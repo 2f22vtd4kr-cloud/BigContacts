@@ -28,9 +28,11 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("narrative review prose is never parsed as authorization");
     expect(canonicalDiscoverySource).toContain("Right-hand opening approval: ");
     expect(canonicalDiscoverySource).toContain("Return a separate explicit approval enum");
+    expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandApprovalReview(parsed)");
     expect(canonicalDiscoverySource).toContain("decision is a free-form narrative summary");
     expect(atlasControlDecisionSource).toContain('approval: { type: "string", enum: ["approve", "reject"] }');
-    expect(atlasControlDecisionSource).toContain('["approval", "decision", "reason", "focusLanes", "confidence"]');
+    expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {\n  if (!value || !validateExactObjectFields(value, ["decision", "reason", "focusLanes", "confidence"])) return false;');
+    expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandApprovalReview(value: Record<string, unknown> | null): boolean {');
     expect(canonicalDiscoverySource).toContain('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
     expect(canonicalDiscoverySource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");

@@ -63,9 +63,22 @@ function formatBossAttemptDiagnostics(attempts: Array<{ model: string; httpStatu
 }
 
 export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {
+  if (!value || !validateExactObjectFields(value, ["decision", "reason", "focusLanes", "confidence"])) return false;
+  const decision = typeof value.decision === "string" ? value.decision.trim() : "";
+  const reason = typeof value.reason === "string" ? value.reason.trim() : "";
+  const focusLanes = value.focusLanes;
+  return decision.length > 0 && decision.length <= 300
+    && reason.length > 0 && reason.length <= 1_200
+    && Array.isArray(focusLanes) && focusLanes.length <= 8
+    && focusLanes.every((lane) => typeof lane === "string" && lane.trim().length > 0 && lane.length <= 160)
+    && typeof value.confidence === "number" && Number.isFinite(value.confidence)
+    && value.confidence >= 0 && value.confidence <= 1;
+}
+
+/** Opening review requires a machine-readable scope authorization in addition to advisory prose. */
+export function validateAtlasOpeningRightHandApprovalReview(value: Record<string, unknown> | null): boolean {
   if (!value || !validateExactObjectFields(value, ["approval", "decision", "reason", "focusLanes", "confidence"])) return false;
-  const approval = value.approval;
-  if (approval !== "approve" && approval !== "reject") return false;
+  if (value.approval !== "approve" && value.approval !== "reject") return false;
   const decision = typeof value.decision === "string" ? value.decision.trim() : "";
   const reason = typeof value.reason === "string" ? value.reason.trim() : "";
   const focusLanes = value.focusLanes;
