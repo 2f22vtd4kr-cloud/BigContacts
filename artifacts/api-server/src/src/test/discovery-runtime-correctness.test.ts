@@ -445,7 +445,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("maxInvestigatorIterations: remainingTargetIterations");
     expect(canonicalSource).toContain("investigatorIterationsUsed += Math.max(0, targetResult.investigatorIterationsUsed)");
     expect(canonicalSource).toContain('kind: "discovery_budget"');
-    expect(canonicalSource).toContain("Global Investigator ceiling exhausted");
+    expect(canonicalSource).toContain("Discovery allocation exhausted at");
+    expect(canonicalSource).toContain("No additional Boss control calls are made without an eligible target.");
     expect(canonicalSource).toContain("remaining actions are reserved for target-scoped research");
   });
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
