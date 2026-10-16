@@ -2,7 +2,9 @@
 
 ## Repository
 
-Before modifying code or starting a live run, read `docs/CURRENT_STATUS_2026-10-15.md`, verify current `main` HEAD and GitHub Actions, and inspect the newest file under `audits/`. The latest audit attempt is [Run 04](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md), blocked before launch by a Replit environment-rebuild timeout; no Atlas job started. The last actual research investigation is [Run 03](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_03.md), failed/incomplete with zero admissions/cards. Run 04's recorded remedy is `Cmd/Ctrl+K` → `Restart compute`, then retry the existing API workflow once. This dated snapshot must be refreshed against actual repository/workflow state before acting.
+Before modifying code or launching research, read `docs/CURRENT_STATUS_2026-10-15.md`, verify current `main` HEAD and GitHub Actions, and inspect the newest run-specific audit. The newest captured live job is Run 05: [separate audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md), job `4b85fc7c-a239-478c-a455-94baf02ffdee`. It executed model-led research but ends before terminal reconciliation; verify its terminal status, active-job pointer and final database counts before any new launch. Run 04 actually executed and failed/incompleted at 20 Investigator iterations with zero admissions/cards. Its full chronological audit is [here](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md).
+
+Architecture assessment: live logs demonstrate that Boss/Right-hand/Investigator control flow and outbound guard boundaries run. End-to-end productive research and card creation are not yet accepted. Preserve model-owned research strategy, evidence and admission gates; do not force a target or itinerary to obtain cards.
 
 Import the existing repository through the connected Replit ↔ GitHub integration:
 
