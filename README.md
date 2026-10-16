@@ -4,7 +4,7 @@
 
 Apex Atlas is an OSINT research desk built to identify decision-makers, owners, founders, operators, and high-net-worth individuals connected to private companies and capital, then surface **real, attributable contact paths** from public sources.
 
-> **Latest audit attempt (2026-10-15):** [APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md) — blocked before launch by a Replit run-environment rebuild timeout; no Atlas job started. The latest actually executed research investigation is Run 03 (failed/incomplete, zero cards). See [Current verified status](docs/CURRENT_STATUS_2026-10-15.md).
+> **Current live status — 2026-10-16:** Run 04 actually executed and ended failed/incomplete at 20 Investigator iterations, with zero findings/admissions/cards. The later Run 05 job also executed and demonstrated model-selected research actions and pivots, but the audit ends before terminal reconciliation; no candidate or card is evidenced in the captured trace. See [Run 05 audit](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md), [full Run 04 audit](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md), and [current verified status](docs/CURRENT_STATUS_2026-10-15.md).
 
 It is a model-led research bureau, not a fixed enrichment script:
 
@@ -46,6 +46,17 @@ The current `main` line contains the Very Strong engineering batch and the later
 - dedicated CI/static verification workflows.
 
 These are architecture/engineering capabilities. They are **not** proof of empirical research superiority or live production readiness.
+
+## Empirical runtime status — 2026-10-16
+
+The live logs demonstrate that Groq Boss, Right-hand and the selected Investigator are executing the model-led control loop, returning structured decisions, changing direction, choosing capabilities and receiving fail-closed runtime feedback. Accepted searches/fetches happened; blocked actions did not create outbound requests. This is evidence of a functioning **AI-driven control loop**, not yet a fully accepted research bureau.
+
+- **Run 04:** actual job execution; 20 Investigator iterations, 11 successful tool actions, 8 guard blocks and one HTTP 301 visit; zero findings, admissions or cards.
+- **Run 05:** 30 reconstructed Investigator turns, 13 successful actions, 11 guard blocks, 5 other execution errors and one HTTP error. Six Groq HTTP 400 `json_validate_failed` responses occurred; several JSON-object retries recovered structured responses, but one retry failed and another produced unsupported registry IDs. The job's terminal state and final durable counts have not been verified.
+- **Current bottleneck:** model output and scope-guard feedback must lead to productive, valid research, followed by fetched source evidence, evidence-backed named people, admission and durable cards. No evidence currently points to a downstream card renderer defect, because no candidate is shown crossing admission.
+- **Last source-code CI snapshot:** all five release workflows passed on `4c09192d0b747635ad7fa830018d1e3d7831f47f`. Recheck workflows on the final documentation-updated `main` SHA; CI is not live research acceptance.
+
+The current phase is targeted Bureau tuning and verification—not replacing the architecture or imposing a fixed search itinerary. Preserve AI ownership of research strategy and all fail-closed provenance/admission rules.
 
 ## Architecture in one view
 
