@@ -1,6 +1,6 @@
 # Apex Atlas — ReAct Bureau Architecture
 
-**Updated:** 2026-10-09  
+**Updated:** 2026-10-16  
 **Canonical branch:** `main`  
 **Authority:** executable code on `main`, `docs/context.md`, and `README.md`.
 
@@ -98,3 +98,19 @@ Ordinary boot must not mutate schema. Static tests validate structural invariant
 ## 9. Evaluation
 
 Evaluate matched, reviewable runs with separate metrics for identity correctness, attribution, claim support, source quality, contradictions, negative findings, useful pivots, unnecessary calls, trajectory length, and system failures. Do not collapse these dimensions into a single “smartness” score or claim live performance from architecture tests alone.
+
+
+## 10. Live evidence and acceptance boundary — 2026-10-16
+
+The current audit trail demonstrates live execution of the model-led control loop: Boss decisions, Right-hand reviews, Investigator-owned action proposals and pivots, actual accepted web actions, and runtime blocks that prevent out-of-scope requests. The role separation is operationally visible; this is stronger than static architecture evidence alone.
+
+End-to-end bureau acceptance is still **not demonstrated**. Run 04 terminated incomplete at 20 Investigator iterations with zero admitted people/cards. Run 05 continued to 30 observed Investigator turns but its terminal state and final durable counts are unverified; no candidate/card is evidenced in the captured trace. Both runs include repeated scope-guard blocks. Run 05 also records Groq output-validation failures and an unsupported registry action rejected locally.
+
+The correct engineering focus is to improve the quality of model progress and runtime feedback while retaining the core architecture:
+
+- Test the full provider request/retry boundary, not only the output-recovery helper.
+- Have scope refusal details identify which required subject, geography, source class or provenance check failed; maintain fail-closed/no-network-on-block behavior.
+- Preserve source provenance, independent evidence, falsification, identity, wealth basis, person-level contact route, admission and durable card rules.
+- Trace every accepted model action through outbound execution, fetched material, findings, admission, persistence and UI projection before assigning a defect to a later stage.
+
+CI green on code SHA `4c09192d0b747635ad7fa830018d1e3d7831f47f` is evidence of static/build/test correctness for that revision, not proof that a live run creates cards. Re-check the exact current `main` SHA and workflows before release.
