@@ -2212,7 +2212,7 @@ const PIVOT_SCOPE_NON_SUBJECT_TERMS = new Set([
 const PIVOT_GEOGRAPHIC_WORD = String.raw`[A-Z][\p{L}\p{M}'’.-]*`;
 const PIVOT_GEOGRAPHIC_NAME = `${PIVOT_GEOGRAPHIC_WORD}(?:[- ]${PIVOT_GEOGRAPHIC_WORD})*`;
 const PIVOT_GEOGRAPHIC_JURISDICTION_LIST =
-  `\\b(?!(?:search|investigate|research|find|look|check|query|scan|review|analyze|focus|shift|target|explore|prioritize)\\b)(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)\\s+(?=(?:state|county|province|territory|registry|registries|filing|database|companies|firms)\\b)`;
+  `\\b(?!(?:[Ss]earch|[Ii]nvestigate|[Rr]esearch|[Ff]ind|[Ll]ook|[Cc]heck|[Qq]uery|[Ss]can|[Rr]eview|[Aa]nalyze|[Ff]ocus|[Ss]hift|[Tt]arget|[Ee]xplore|[Pp]rioritize)\\b)(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)\\s+(?=(?:state|county|province|territory|registry|registries|filing|database|companies|firms)\\b)`;
 const PIVOT_GEOGRAPHIC_REGION_ALIASES: Array<{
   pattern: RegExp;
   alternatives: readonly (readonly string[])[];
