@@ -156,3 +156,55 @@ Judge the next run using these checkpoints:
 If no person crosses the source-backed review-lead threshold, an empty card view may still be the correct outcome; the run should finish as a low-yield/incomplete investigation within its budget, not silently exhaust all resources. If a review-only PersonCandidate is persisted and the target pipeline runs, investigate any later failure at the exact transition where durable evidence diverges from research/control decisions. Do not modify the UI unless admitted and persisted records prove a projection/rendering defect.
 
 **Current verdict:** The parent Run 06 was a failed, low-yield discovery run with a demonstrated opening-scope parser bug and linked discovery-budget/handoff design faults. The UI is not the demonstrated root cause. Narrow fixes and regression tests are committed to `main`, including a review-only ownership-lead threshold that deliberately defers wealth/materiality and route proof to target research. CI and test execution remain unverified, and the child continuation's final state remains unknown. Do not call the system ready for another live run until checks are confirmed and the operator's Replit runtime is synchronized to the revised main.
+
+## 6. Successor validation addendum — 2026-10-16
+
+### Revision and scope
+
+This addendum supplements the original Run 06 analysis. It does not rewrite or replace the chronological record in `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_06.md`. That sequential audit remains unchanged (blob SHA `b4a1b2029a10e54f710a9bfd4d5d755dd8955c66`, 15,345 lines). The child continuation's final state and final durable database counts remain **unknown**; no new evidence resolved them.
+
+The code revision validated by the completed non-live gates below was `2807740435c382b45dc3d363b1f39957fb0c6368`. This review did not launch, queue, restart, or interfere with an Apex/Replit research run. No new named person or candidate was investigated by Run 06 as a result of this work.
+
+### Architecture review and changes
+
+Current source inspection confirmed these intended boundaries:
+
+- Opening approval is accepted for an unambiguous affirmative such as “Proceed with the … search”, while explicit refusals and noncommittal decisions fail closed. The committed `research-objective.test.ts` covers the positive “Proceed with…” decision and negative/ambiguous examples.
+- Discovery admission is a **review-only ownership lead**: explicit Investigator promotion, a successful fetched claim-grade source binding the exact full name and page-stated role, and an ownership/control/equity/investment clue observed in eligible source text. Search snippets, unvisited URLs, generic seniority, and unrelated ownership language do not qualify. Source URL, same-run binding, bounded name/role-span checks and publisher/lineage controls remain in place.
+- A provisional lead is not an HNWI finding or contact conclusion. Its evidence remains `reviewOnly` / `evidence_only`; materiality, independent corroboration, falsification and practical direct/indirect route verification remain target-stage obligations.
+- Discovery's own iteration allocation and target-stage reserve remain separate. With no eligible lead and no discovery allocation remaining, the controller records the exhausted allocation and stops making further Boss control calls rather than spending the protected reserve or continuing an empty loop.
+- The emergency/compact discovery prompt now explicitly retains the warning against generic wealth/net-worth/private-equity-profile searches without a concrete lead, as well as the ownership clue, seniority-only, ranking/global-brand, scope, and target-stage verification boundaries. It does not prescribe a fixed target or search sequence.
+
+Only one runtime prompt source file was changed in this investigation: `artifacts/api-server/src/src/lib/agentic-web-research-core.ts`, to preserve that anti-generic-search rule in the size-bounded prompt. The other changes in the commit series update static architecture guards and regression expectations to the approved staged-discovery contract; they do not replace model decisions with scripted research.
+
+Commit sequence (all changes went directly to `main`):
+
+1. `226fde7ff24c73e13120d14ee967d0bba99f6374` — aligned `scripts/check-single-canonical-discovery-control-plane.mjs`, `scripts/check-discovery-admission-strategy.mjs`, `scripts/check-discovery-context-control.mjs`, and `scripts/check-discovery-quality.mjs` with one-source review-lead admission while retaining source/run-binding requirements.
+2. `7eb5036169d8f9a0ba922c0b40ec5bc6055a9e59`, `730819e2bf2dbb8d56c43783ab1c0a7f33905faf` — corrected `scripts/check-discovery-quality.mjs` assertions to the actual target-stage route contract wording.
+3. `c565874830c18c9a60eb5d8e5e50e3a7fa6be83e`, `7fa9ce0811784b5fc17991f10218c030ce0e30e4` — updated `scripts/check-canonical-promotion-boundary-v2.mjs` to test review-only handoff separately from target-stage materiality/route obligations.
+4. `752425597ff82df9c256a3eead3da93e0695d421` — corrected the stale two-source assertion in `scripts/check-canonical-atlas-provider-scope.mjs` without removing source/provenance guards.
+5. `08d19960df46bab1c813cf7e553061051e526674`, `9adaf444d76957ec7c6ba31197bd99e3ae683772` — revised `artifacts/api-server/src/src/lib/agentic-web-research-core.test.ts` to test the bounded prompt contract and added a static guard for emergency-prompt handoff/target-stage duties; the provider-scope guard was updated accordingly.
+6. `96c08ccd49730a334a7c8bc51a25e7221496f377` — updated `artifacts/api-server/src/src/lib/agentic-web-research-core.test.ts`, `artifacts/api-server/src/src/test/canonical-atlas-ownership-provenance.test.ts`, `artifacts/api-server/src/src/test/discovery-runtime-correctness.test.ts`, `artifacts/api-server/src/src/test/groq-investigator-runtime-contract.test.ts`, `artifacts/api-server/src/src/test/research-depth.test.ts`, and `artifacts/api-server/src/src/test/research-terminal-gate.test.ts` for one-source review leads, permanent target reserve, bounded discovery, and stage-specific terminal obligations.
+7. `06ee448a72be90b8379fcaab19e87c8abe54094e` — updated the compact discovery prompt in `artifacts/api-server/src/src/lib/agentic-web-research-core.ts` to retain the anti-generic-search guard and aligned the current reserve-exhaustion assertion in `artifacts/api-server/src/src/test/discovery-runtime-correctness.test.ts`.
+8. `2807740435c382b45dc3d363b1f39957fb0c6368` — kept compact prompt/contract wording and `artifacts/api-server/src/src/test/discovery-runtime-correctness.test.ts` budget assertions aligned with the actual source.
+
+### Executed validation evidence
+
+All results below are for the source revision `2807740435c382b45dc3d363b1f39957fb0c6368` (before this report-only addendum commit):
+
+- [Apex frontend five-condition gate, run 38912239279](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/38912239279) — **success**.
+- [apex-discovery-static-check, run 38912239355](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/38912239355) — **success**.
+- [Atlas CI, run 38912239493](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/38912239493) — **success**. The non-live API regression suite reported **176 test files passed, 1 skipped, 177 total**; the separate Apex Finder run-status contract test reported **1 passed**.
+- [Apex API Build, run 38912239436](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/38912239436) — **success**. The workflow completed the Apex/Bureau static audit suite, production boot-safety and boundary checks, API build, workspace typecheck, strict provenance/provider-cache regression tests, Groq Boss/Right-hand control-plane tests, and canonical race/continuation tests.
+- [Five Consecutive Full Code Audits, run 38912239534](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/38912239534) — **in progress at addendum time; not a pass**. Audit 1 had completed its architecture contract suite, typecheck, build, Atlas control contract regression, ephemeral database invariants and the workflow's local smoke API test; its per-file isolated API test stage was still running. This CI smoke test is not evidence of a Replit research run.
+
+The non-live application tests and build are now genuinely executed and green, unlike the earlier intermediate revisions. Earlier CI failures were stale source/prompt assertions exposed as the suite reached the relevant paths. The last successful Atlas CI run no longer has those failures. Do not infer an end-to-end research success from these test results.
+
+### Unresolved facts and gate for the next operator-launched run
+
+- The child continuation `9916dba1-a02f-4017-959e-56e0e6200043` still has no verified terminal status or final durable record counts in the reviewed audit evidence. The observed Groq daily-token-limit (HTTP 429) remains an operational risk; retries or model-name rotation on the same exhausted account are not a reliable fallback.
+- No evidence proves which revision is currently running in Replit. The user/operator must verify that the actual runtime corresponds to the current `main` code before launching. This assistant has not launched a research run.
+- The next run should correlate its job ID and runtime revision and capture: the approved direction as actually supplied to the Investigator; discovery and total iteration use versus the reserved target budget; successful outbound actions and fetched source observations; the exact source-bound person/role/ownership clue; review-only admission and durable evidence rows; target-stage identity/ownership corroboration, counter-evidence, materiality and route checks; final job/candidate/entity/evidence counts; API projection and visible cards; and provider/rate-limit/fallback events.
+- If no lead meets the review threshold, an empty card view can be correct if the run stops within budget with auditable reasons. If a lead is admitted and persisted but does not appear in the same project's API/UI projection, diagnose that exact transition rather than assuming the UI is at fault. Do not claim a named person was found or investigated unless the new run's evidence establishes it.
+
+**Readiness verdict at this point: conditional, not fully signed off.** The frontend gate, discovery static check, Atlas CI regression suite, and API build/typecheck are green on the source revision above. The full five-consecutive-audit workflow had not yet completed when this addendum was written, and Replit revision synchronization is not established. Hold the next operator-launched run until the full-audit workflow has a terminal green result on the resulting `main` revision and the operator verifies the runtime source SHA. After those checks, proceed with one controlled user-launched research run; evaluate the observable model-decision → tool/action → fetched evidence → source-bound finding → admission → persistence → API/UI chain. Do not call the repair end-to-end successful until that run supplies evidence.
