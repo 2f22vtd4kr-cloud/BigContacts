@@ -82,14 +82,19 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     expect(targetRunner).not.toContain("evidenceGraphCount: latestResult?.evidenceGraphs?.length ?? 0");
   });
 
-  it("requires two independently published observations that bind candidate identity to the same role before durable admission", () => {
+  it("admits a review-only ownership lead from one fetched exact identity/role source without weakening provenance", () => {
     const discovery = read("src/src/lib/canonical-atlas-discovery.ts");
     const policy = read("src/src/lib/candidate-source-url-union.ts");
     expect(discovery).toContain("candidateRoleCorroborationSources");
-    expect(discovery).toContain("sources.length >= 2");
-    expect(discovery).toContain("durableSourceCount >= 2");
+    expect(discovery).toContain("sources.length >= 1");
+    expect(discovery).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(discovery).toContain("claimGradeObservations");
+    expect(discovery).toContain("durableSourceCount >= 1");
+    expect(discovery).toContain("reviewOnly: true");
     expect(policy).toContain("bindExactSourceSpan(observation.observation, role, input.personName, 320)");
     expect(policy).toContain("supporting.has(publisher)");
+    expect(policy).toContain('observation.execution !== "success"');
+    expect(policy).toContain('observation.action !== "visit" && observation.action !== "browser_fetch"');
   });
 
   it("reconstructs target trajectory from immutable event ID order", () => {

@@ -360,7 +360,7 @@ describe("Investigator prompt architecture", () => {
     // the compact field-level finding contract remains mandatory and testable.
     expect(prompt).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.");
     expect(prompt).toContain("third-party people-search/profile-directory aggregators are leads only");
-    expect(prompt).toContain("official company leadership/staff pages and official filing/registry pages are acceptable");
+    expect(prompt).toContain("Official company leadership/staff pages and official filing/registry pages are acceptable");
     expect(prompt).toContain("one successfully fetched claim-grade source");
     expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
     expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");

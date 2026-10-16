@@ -107,7 +107,9 @@ describe("discovery runtime architecture", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const candidateSourcePolicy = fs.readFileSync(path.join(libDir, "candidate-source-url-union.ts"), "utf8");
     expect(canonicalSource).toContain("candidateRoleCorroborationSources");
-    expect(canonicalSource).toContain("sources.length >= 2");
+    expect(canonicalSource).toContain("sources.length >= 1");
+    expect(canonicalSource).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(canonicalSource).toContain("claimGradeObservations");
     expect(candidateSourcePolicy).toContain('observation.action !== "visit" && observation.action !== "browser_fetch"');
     expect(candidateSourcePolicy).toContain('observation.execution !== "success"');
     expect(candidateSourcePolicy).toContain("bindExactSourceSpan(observation.observation, role, input.personName, 320)");
@@ -423,7 +425,7 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("groundingTrajectoryRecords: [...historyRecords, ...records]");
   });
 
-  it("protects target budget only when a candidate is admitted and preserves the global discovery ceiling otherwise", () => {
+  it("always protects the target-stage reserve while keeping discovery within its own ceiling", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.4)))");
     expect(canonicalSource).toContain("const discoveryIterationCeiling = Math.max(1, depth.agenticMaxIterations - targetResearchReserveIterations)");
@@ -435,8 +437,10 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("let discoveryIterationsUsed = discovery.iterations");
     expect(canonicalSource).toContain("const remainingInvestigatorIterations = resolveRemainingDiscoveryIterations({");
     expect(canonicalSource).toContain("hasAdmittedCandidates: admittedCandidateSources.length > 0");
-    expect(canonicalSource).toContain("if (admittedCandidateSources.length === 0 && remainingInvestigatorIterations > protectedDiscoveryIterationsRemaining)");
-    expect(fs.readFileSync(path.join(libDir, "research-depth.ts"), "utf8")).toContain("const effectiveTargetReserve = input.hasAdmittedCandidates ? targetReserve : 0");
+    expect(canonicalSource).toContain("if (admittedCandidateSources.length === 0 && resolveRemainingDiscoveryIterations({");
+    const depthSource = fs.readFileSync(path.join(libDir, "research-depth.ts"), "utf8");
+    expect(depthSource).toContain("const effectiveTargetReserve = targetReserve");
+    expect(depthSource).toContain("const globalRemaining = Math.max(0, total - investigatorUsed - effectiveTargetReserve)");
     expect(canonicalSource).toContain("const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)");
     expect(canonicalSource).toContain("maxInvestigatorIterations: remainingTargetIterations");
     expect(canonicalSource).toContain("investigatorIterationsUsed += Math.max(0, targetResult.investigatorIterationsUsed)");
@@ -467,7 +471,9 @@ describe("discovery runtime architecture", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }");
     expect(canonicalSource).toContain("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) })");
-    expect(canonicalSource).toContain("durableSourceCount >= 2");
+    expect(canonicalSource).toContain("durableSourceCount >= 1");
+    expect(canonicalSource).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(canonicalSource).toContain("reviewOnly: true");
     expect(canonicalSource).toContain("if (!session?.id) throw new Error(");
     expect(canonicalSource).toContain('latestEvidenceBackedTerminal = deriveLatestEvidenceBackedTerminal("discovery", nextDiscovery.status, nextDiscovery.stopReason, investigatorResourceLimited) !== null && admitted.length > 0 ? "discovery" : null');
     expect(canonicalSource).toContain("const evidenceBackedTerminal = isCanonicalAtlasRunEvidenceComplete(latestEvidenceBackedTerminal, researched)");

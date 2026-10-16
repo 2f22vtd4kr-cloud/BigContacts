@@ -129,7 +129,7 @@ describe("research terminal gate", () => {
     expect(result.reasons).toContain("required_falsification_not_satisfied");
   });
 
-  it("enforces the terminal contract even when the adaptive plan does not require falsification", () => {
+  it("uses stage-specific falsification rules even when the adaptive plan has no active discriminator", () => {
     const sample = context(2);
     sample.falsification = {
       ...sample.falsification,
@@ -138,11 +138,13 @@ describe("research terminal gate", () => {
       reason: "No discriminator is currently recorded.",
     };
 
-    for (const mode of ["target", "discovery"] as const) {
-      const result = evaluateResearchTerminal(sample, mode);
-      expect(result.allowed).toBe(false);
-      expect(result.reasons).toContain("required_falsification_not_satisfied");
-    }
+    const targetResult = evaluateResearchTerminal(sample, "target");
+    expect(targetResult.allowed).toBe(false);
+    expect(targetResult.reasons).toContain("required_falsification_not_satisfied");
+
+    const discoveryResult = evaluateResearchTerminal(sample, "discovery");
+    expect(discoveryResult.allowed).toBe(true);
+    expect(discoveryResult.reasons).not.toContain("required_falsification_not_satisfied");
   });
 
   it("does not mistake a high falsification priority score for proof of an attempt", () => {

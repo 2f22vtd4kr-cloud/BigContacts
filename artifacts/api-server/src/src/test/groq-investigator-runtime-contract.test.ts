@@ -141,11 +141,11 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
-    expect(submitted).toContain("DISCOVERY ADMISSION CONTRACT");
+    expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(submitted).toContain("Avoid generic wealth/net-worth/private-equity-profile searches alone");
     expect(submitted).toContain("Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
-    expect(submitted).toContain("Falsification requirement:");
+    expect(submitted).toMatch(/target-scoped research owns independent corroboration, falsification/i);
     expect(submitted).toContain('"url":null');
     expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
@@ -187,7 +187,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
-    expect(prompt).toContain("DISCOVERY ADMISSION CONTRACT");
+    expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
   });
 
   it("uses the GPT-OSS-compatible reasoning contract", () => {
