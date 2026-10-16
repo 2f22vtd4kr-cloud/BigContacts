@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
-import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -538,7 +538,7 @@ describe("Atlas control-plane contract regression", () => {
     })).toBe(false);
   });
 
-  it("requires a complete, bounded schema-valid opening Right-hand review before Investigator execution", () => {
+  it("preserves the bounded four-field Right-hand review contract for target-stage oversight", () => {
     const valid = {
       decision: "Proceed, with source-quality caution",
       reason: "The assignment is coherent but the first evidence should come from a primary source.",
@@ -556,13 +556,26 @@ describe("Atlas control-plane contract regression", () => {
 
     expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.required).toEqual(["decision", "reason", "focusLanes", "confidence"]);
     expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.additionalProperties).toBe(false);
-    expect(canonicalDiscoverySource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
-    expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandReview(parsed)");
-    expect(canonicalDiscoverySource).toContain("Right-hand returned an empty opening review response.");
-    expect(canonicalDiscoverySource).toContain("if (rightHand.error || rightHand.status !== \"completed\")");
     expect(canonicalTargetSource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
     expect(canonicalTargetSource).toContain("validateAtlasOpeningRightHandReview(parsed)");
     expect(canonicalTargetSource).toContain("!rightHandRaw.raw?.trim()");
+  });
+
+  it("requires explicit enum approval in the opening Right-hand review before Investigator execution", () => {
+    const valid = {
+      approval: "approve",
+      decision: "Boss's proposed search strategy aligns with the objective, but refine criteria to ensure wealth potential and viable contact routes.",
+      reason: "The first direction is compatible with the mission as a bounded hypothesis.",
+      focusLanes: ["verify named owners through a public source"],
+      confidence: 0.86,
+    };
+    expect(validateAtlasOpeningRightHandApprovalReview(valid)).toBe(true);
+    expect(validateAtlasOpeningRightHandApprovalReview({ ...valid, approval: "perhaps" })).toBe(false);
+    expect(ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT.schema.required).toEqual(["approval", "decision", "reason", "focusLanes", "confidence"]);
+    expect(canonicalDiscoverySource).toContain("ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT");
+    expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandApprovalReview(parsed)");
+    expect(canonicalDiscoverySource).toContain("Right-hand returned an empty opening review response.");
+    expect(canonicalDiscoverySource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
   });
 
   it("recovers only from an out-of-set candidate selection without relaxing admission", () => {
@@ -729,7 +742,7 @@ describe("Right-hand-approved opening direction", () => {
     expect(openingObjective).toBeGreaterThan(openingResolution);
     expect(canonicalDiscoverySource).toContain('currentAction: "groq-right-hand-unavailable"');
     expect(canonicalDiscoverySource).toContain("Groq Right-hand unavailable; failing closed");
-    expect(canonicalDiscoverySource).toContain("rightHandDecision: rightHand.decision");
+    expect(canonicalDiscoverySource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
   });
 });

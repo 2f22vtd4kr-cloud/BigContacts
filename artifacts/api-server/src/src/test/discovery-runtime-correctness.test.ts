@@ -29,7 +29,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("Right-hand opening approval: ");
     expect(canonicalDiscoverySource).toContain("Return a separate explicit approval enum");
     expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandApprovalReview(parsed)");
-    expect(canonicalDiscoverySource).toContain("decision is a free-form narrative summary");
+    expect(canonicalDiscoverySource).toContain("The decision is a free-form narrative summary");
     expect(atlasControlDecisionSource).toContain('approval: { type: "string", enum: ["approve", "reject"] }');
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {\n  if (!value || !validateExactObjectFields(value, ["decision", "reason", "focusLanes", "confidence"])) return false;');
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandApprovalReview(value: Record<string, unknown> | null): boolean {');
@@ -83,7 +83,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("rightHand.reason");
     expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
     expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective");
-    expect(canonicalSource).toContain("rightHandDecision: rightHand.decision");
+    expect(canonicalSource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
     expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
     expect(canonicalSource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
   });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
+  ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT,
   validateAtlasOpeningRightHandApprovalReview,
 } from "../lib/atlas-control-decision";
 
@@ -16,7 +16,7 @@ describe("explicit Atlas opening approval", () => {
 
   it("accepts explicit approval separately from the free-form narrative", () => {
     expect(validateAtlasOpeningRightHandApprovalReview(base)).toBe(true);
-    expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.properties.approval).toEqual({
+    expect(ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT.schema.properties.approval).toEqual({
       type: "string",
       enum: ["approve", "reject"],
     });

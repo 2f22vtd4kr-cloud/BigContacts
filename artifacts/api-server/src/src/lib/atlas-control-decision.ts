@@ -165,6 +165,26 @@ export const ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT = {
   schema: {
     type: "object",
     properties: {
+      decision: { type: "string", minLength: 1, maxLength: 300 },
+      reason: { type: "string", minLength: 1, maxLength: 1_200 },
+      focusLanes: {
+        type: "array",
+        maxItems: 8,
+        items: { type: "string", minLength: 1, maxLength: 160 },
+      },
+      confidence: { type: "number", minimum: 0, maximum: 1 },
+    },
+    required: ["decision", "reason", "focusLanes", "confidence"],
+    additionalProperties: false,
+  },
+} as const;
+
+export const ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT = {
+  type: "text",
+  mime_type: "application/json",
+  schema: {
+    type: "object",
+    properties: {
       approval: { type: "string", enum: ["approve", "reject"] },
       decision: { type: "string", minLength: 1, maxLength: 300 },
       reason: { type: "string", minLength: 1, maxLength: 1_200 },
