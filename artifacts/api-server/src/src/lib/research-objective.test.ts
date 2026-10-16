@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBossDirectedObjective, validateResearchObjective } from "./research-objective";
+import { formatBossDirectedObjective, resolveApprovedOpeningDirection, validateResearchObjective } from "./research-objective";
 
 describe("research objective validation", () => {
   it("accepts an epistemic research question without prescribing a tool or provider", () => {
@@ -38,6 +38,26 @@ describe("research objective validation", () => {
     expect(formatBossDirectedObjective("Base objective", "Resolve the filing discrepancy.")).toBe(
       "Base objective\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\nResolve the filing discrepancy.",
     );
+  });
+
+  it("accepts an explicit natural-language proceed decision from Right-hand", () => {
+    const direction = "Investigate privately held renewable-energy Mittelstand firms in Bavaria and identify public ownership records.";
+    expect(resolveApprovedOpeningDirection({
+      rightHandDecision: "Proceed with the Bavarian renewable-energy Mittelstand search, but note limited shareholder visibility.",
+      firstDirection: direction,
+    })).toEqual({ status: "approved", direction, reason: null });
+  });
+
+  it("fails closed for explicit refusal or noncommittal Right-hand wording", () => {
+    const direction = "Investigate privately held renewable-energy Mittelstand firms in Bavaria.";
+    for (const decision of [
+      "Do not approve this direction.",
+      "Reject this direction; the ownership route is unsupported.",
+      "I don't recommend proceeding with this scope.",
+      "This could be useful, but I have not approved it.",
+    ]) {
+      expect(resolveApprovedOpeningDirection({ rightHandDecision: decision, firstDirection: direction }).status).toBe("not_approved");
+    }
   });
 
   it("rejects an empty redirect", () => {
