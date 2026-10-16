@@ -5,7 +5,7 @@
 **Historical Very Strong review branch:** `audit/apex-atlas-very-strong-v1` (fully incorporated into `main`)  
 **Historical five-green branch:** `audit/genuine-five-green-final`  
 **Living context:** `docs/context.md`  
-**Master handoff:** `docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md` (read its 2026-10-09 current override first; historical body is not role authority)
+**Master handoff:** `docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md` (read its 2026-10-16 current override first; historical body is not role authority)
 
 **Current verified status:** `docs/CURRENT_STATUS_2026-10-15.md` (updated 2026-10-16)  
 **Latest actual investigation:** Run 05 job `4b85fc7c-a239-478c-a455-94baf02ffdee`, documented separately in `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md`. The captured trace ends without verified terminal status or final durable counts. Run 04 did run and ended incomplete at 20 Investigator iterations with zero admissions/cards.  
