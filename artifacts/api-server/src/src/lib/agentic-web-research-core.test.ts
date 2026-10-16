@@ -819,7 +819,7 @@ Choose each next action yourself from the available capabilities and observed ev
     // Independent corroboration and the realistic contact route remain target-stage work.
     expect(agenticCoreSource).toContain("one successfully fetched claim-grade source");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
-    expect(canonicalAtlasDiscoverySource).toContain("hasCredibleDiscoveryWealthPotentialSignal");
+    expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
     expect(canonicalAtlasDiscoverySource).toContain("No additional Boss control calls are made without an eligible target.");
   });
