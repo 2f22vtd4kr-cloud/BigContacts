@@ -986,6 +986,23 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       await assertAtlasJobActive(atlasJobId);
       assertAtlasDeadline();
       if (researched >= targetLimit) break;
+      // If no review-only lead qualified, do not keep spending model tokens on
+      // Boss control turns after discovery has exhausted its own allocation.
+      // There is no valid target-research action without an admitted candidate.
+      if (admittedCandidateSources.length === 0 && resolveRemainingDiscoveryIterations({
+        totalIterationCeiling: depth.agenticMaxIterations,
+        discoveryIterationCeiling,
+        discoveryIterationsUsed,
+        investigatorIterationsUsed,
+        targetResearchReserveIterations,
+        hasAdmittedCandidates: false,
+      }) <= 0) {
+        discoveryResourceLimited = true;
+        phaseSummary.discoveryBudgetPolicy = `Discovery allocation exhausted at ${discoveryIterationsUsed}/${discoveryIterationCeiling} Investigator actions without a source-backed lead; ${Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)} global action(s) remain protected/unused. No additional Boss control calls are made without an eligible target.`;
+        phaseSummary.discoveryIterationCeiling = phaseSummary.discoveryBudgetPolicy;
+        finalControlAction = "stop";
+        break;
+      }
       if (controlTurns >= maxControlTurns) {
         const safetyMessage = `Canonical Atlas control safety ceiling reached after ${maxControlTurns} AI control turns; refusing another transition.`;
         phaseSummary.controlSafetyCeiling = safetyMessage;
