@@ -287,10 +287,10 @@ Do not hide uncertainty behind prose.
 
 # Required study sequence for a new agent
 
-## Current-state precedence (2026-10-15 update)
+## Current-state precedence (2026-10-16 update)
 
 1. Confirm actual `main` HEAD and inspect recent commits first.
-2. Read `README.md` and `docs/CURRENT_STATUS_2026-10-15.md`; independently verify that the referenced audit is the newest file under `audits/`.
+2. Read `README.md` and `docs/CURRENT_STATUS_2026-10-15.md`; verify both the newest run-specific audit and the latest appended evidence. Run 05 has a separate audit, while later Run 05 request/response records were appended to the Run 04 file.
 3. Re-check GitHub Actions against the actual HEAD. CI snapshots in documents are historical.
 4. Continue the required study sequence below; discover current file names from the tree if the repository changes.
 
@@ -321,3 +321,10 @@ Follow this sequence unless a user explicitly changes the task:
 This protocol is intentionally strict.
 
 Apex is a research system where a plausible answer can be more dangerous than an obvious error. The engineering process must therefore prefer verified truth over speed.
+
+
+## Empirical-state guard — 2026-10-16
+
+The live control loop is demonstrated, but the bureau is not live-accepted end-to-end. Run 04 executed and stopped at its 20-iteration ceiling with zero findings/admissions/cards. Run 05 executed to at least 30 recorded Investigator turns; its final job state and durable counts have not been reconciled. Read `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md` and the complete `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md` before drawing conclusions.
+
+Do not infer a card-rendering failure without evidence of a candidate crossing admission. Distinguish strict-schema/output validation, local action validation, scope guard blocks, actual outbound execution, fetched evidence, findings, admission, persistence and UI projection. A blocked proposal is not a network request, and CI success is not a live research acceptance test.
