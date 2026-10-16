@@ -765,7 +765,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     failureStage = "right_hand_opening_review";
     const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
       runGroqRightHandFreeJson(
-        `Review Groq Boss's opening Atlas decision against the exact research objective before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified control hypothesis, not source evidence): ${boss.report ?? ""}. Next directions (unverified control hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. The human mission and realistic-targetability rules outrank Boss next-directions; reject prestige-only global-company leadership suggestions unless tied to a plausible local owner/operator/investor or documented intermediary route. Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead. Return concise oversight/advisory observations only. Do not browse, choose tools, replace the Investigator, or invent people or evidence. Return exactly decision (1–300 characters), reason (1–1,200 characters), focusLanes (0–8 non-empty strings, each at most 160 characters), and confidence (a number from 0 to 1).`,
+        `Review Groq Boss's opening Atlas decision against the exact research objective before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified control hypothesis, not source evidence): ${boss.report ?? ""}. Next directions (unverified control hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. The human mission and realistic-targetability rules outrank Boss next-directions; reject prestige-only global-company leadership suggestions unless tied to a plausible local owner/operator/investor or documented intermediary route. Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead. Return a separate explicit approval enum: approval must be exactly "approve" or "reject". Review the first Boss nextDirection as the only proposed opening scope; do not authorize the entire list. Approve only if that first direction is compatible with the human objective and a plausible, executable public-source path. Reject if it is unsupported, too broad, materially mis-scoped, or premised on an unavailable/non-public source. Keep decision as a free-form narrative summary; it is advisory prose and MUST NOT encode or substitute for the approval field. Do not browse, choose tools, replace the Investigator, or invent people or evidence. Return exactly approval ("approve" or "reject"), decision (1–300 characters), reason (1–1,200 characters), focusLanes (0–8 non-empty strings, each at most 160 characters), and confidence (a number from 0 to 1).`,
         "You are the Groq Right-hand. Independently check the Boss opening claims against the human mission; treat Boss-generated reports and directions as unverified hypotheses, not evidence. The human mission and realistic-targetability rules outrank Boss suggestions; flag prestige-only global-company leadership paths unless they identify a reachable local ownership/intermediary route. Explicitly flag unsupported scope and never treat internal memory/storage/workflow terminology as a sector or lead. Advise the Boss only; do not act as Investigator, browse, choose tools, or replace the selected Investigator. Reply with ONE JSON object.",
         ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
         (raw) => {
@@ -788,9 +788,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       error: safeThrownErrorSummary("Groq Right-hand opening review unavailable", error),
     }));
     await assertAtlasJobActive(atlasJobId);
-    let rightHand: { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null } = {
+    let rightHand: { status: "completed" | "unavailable"; model: string; approval: "approve" | "reject" | null; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null } = {
       status: rightHandRaw.status === "completed" ? "completed" : "unavailable",
       model: rightHandRaw.model,
+      approval: null,
       decision: null,
       reason: null,
       focusLanes: [],
@@ -814,6 +815,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             rightHand = {
               status: "completed",
               model: rightHandRaw.model,
+              approval: parsed.approval as "approve" | "reject",
               decision: (parsed.decision as string).trim(),
               reason: (parsed.reason as string).trim(),
               focusLanes: (parsed.focusLanes as string[]).map((lane) => lane.trim()),
@@ -863,13 +865,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         status: "recorded",
         summary: "Groq Right-hand reviewed the Boss opening decision before Investigator execution.",
         correlationKey: `${atlasJobId}:right-hand-opening`,
-        payload: JSON.stringify({ jobId: atlasJobId, bossModel: boss.model, investigatorLlm: boss.investigatorLlm, decision: rightHand.decision, reason: rightHand.reason, focusLanes: rightHand.focusLanes, confidence: rightHand.confidence }),
+        payload: JSON.stringify({ jobId: atlasJobId, bossModel: boss.model, investigatorLlm: boss.investigatorLlm, approval: rightHand.approval, decision: rightHand.decision, reason: rightHand.reason, focusLanes: rightHand.focusLanes, confidence: rightHand.confidence }),
       });
     }, { isolationLevel: "serializable" });
 
     const compactControlText = (value: unknown, max: number): string => typeof value === "string" ? value.trim().slice(0, max) : "";
+    // Only the validated enum can authorize the opening scope; narrative review prose is never parsed as authorization.
     const openingDirectionResolution = resolveApprovedOpeningDirection({
-      rightHandDecision: rightHand.decision,
+      rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject",
       firstDirection: Array.isArray(boss.nextDirections) ? boss.nextDirections[0] : null,
     });
     const approvedOpeningDirection = openingDirectionResolution.status === "approved"
@@ -886,6 +889,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       openingDirectionResolution.status === "approved" && Array.isArray(boss.nextDirections) && boss.nextDirections.length ? "Next directions: " + JSON.stringify(boss.nextDirections).slice(0, 1_200) : "",
       openingDirectionResolution.status === "approved" && Array.isArray(boss.uncertainties) && boss.uncertainties.length ? "Uncertainties: " + JSON.stringify(boss.uncertainties).slice(0, 800) : "",
       openingDirectionResolution.status === "approved" ? "RIGHT-HAND OPENING REVIEW (advisory):" : "",
+      "Right-hand opening approval: " + (rightHand.approval ?? "reject"),
       openingDirectionResolution.status === "approved" && compactControlText(rightHand.decision, 300) ? "Decision: " + compactControlText(rightHand.decision, 300) : "",
       openingDirectionResolution.status === "approved" && compactControlText(rightHand.reason, 800) ? "Reason: " + compactControlText(rightHand.reason, 800) : "",
       openingDirectionResolution.status === "approved" && rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",

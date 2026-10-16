@@ -63,7 +63,9 @@ function formatBossAttemptDiagnostics(attempts: Array<{ model: string; httpStatu
 }
 
 export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {
-  if (!value || !validateExactObjectFields(value, ["decision", "reason", "focusLanes", "confidence"])) return false;
+  if (!value || !validateExactObjectFields(value, ["approval", "decision", "reason", "focusLanes", "confidence"])) return false;
+  const approval = value.approval;
+  if (approval !== "approve" && approval !== "reject") return false;
   const decision = typeof value.decision === "string" ? value.decision.trim() : "";
   const reason = typeof value.reason === "string" ? value.reason.trim() : "";
   const focusLanes = value.focusLanes;
@@ -150,6 +152,7 @@ export const ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT = {
   schema: {
     type: "object",
     properties: {
+      approval: { type: "string", enum: ["approve", "reject"] },
       decision: { type: "string", minLength: 1, maxLength: 300 },
       reason: { type: "string", minLength: 1, maxLength: 1_200 },
       focusLanes: {
@@ -159,7 +162,7 @@ export const ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT = {
       },
       confidence: { type: "number", minimum: 0, maximum: 1 },
     },
-    required: ["decision", "reason", "focusLanes", "confidence"],
+    required: ["approval", "decision", "reason", "focusLanes", "confidence"],
     additionalProperties: false,
   },
 } as const;
