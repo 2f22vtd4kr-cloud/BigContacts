@@ -808,7 +808,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const parsed = value && typeof value === "object" && !Array.isArray(value)
             ? value as Record<string, unknown>
             : null;
-          if (!validateAtlasOpeningRightHandReview(parsed) || !parsed) {
+          if (!validateAtlasOpeningRightHandApprovalReview(parsed) || !parsed) {
             rightHand.status = "unavailable";
             rightHand.error = "Right-hand returned an invalid opening review contract.";
           } else {
