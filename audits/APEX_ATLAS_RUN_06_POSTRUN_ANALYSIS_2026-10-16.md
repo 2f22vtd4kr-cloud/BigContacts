@@ -5,7 +5,7 @@
 **Branch:** `main` only  
 **Run evidence:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_06.md`  
 **Pre-repair source/audit baseline:** `48f67c1f0661273fc1203e8847ea02f1ada88842`  
-**Latest reviewed code/test commit before this analysis refresh:** `bdd925270a9caa7d5413fcd21e8f9422d34db7bb`
+**Latest reviewed code/test commit before this analysis refresh:** `3c1c242a55b0f1dcdad344c95f0c0c234a4407ce`
 
 This file is a separate review addendum. The large sequential run log and its model-request/response history are left unchanged. The log's opening metadata still describes the pre-run scaffold; its committed chronology later in the same file supersedes that stale top-level status.
 
@@ -114,6 +114,8 @@ All changes below were made directly on `main` after reviewing the Run 06 audit.
 | [`9a6b1fc`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/9a6b1fcac348b937b4880b20b6f9f2b15595cbd3) | Update the prompt/materializer source assertion to verify the ownership-clue helper. |
 | [`87914de`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/87914ded5b3398487e1c17fc62c769b960cbb832) | Add direct helper tests for ownership clue without materiality, rejecting title-only employment, rejecting search/unvisited sources, and distinguishing an ownership lead from a source-backed materiality signal. |
 | [`bdd9252`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/bdd925270a9caa7d5413fcd21e8f9422d34db7bb) | Clarify code documentation for the separate ownership-lead and wealth-materiality gates. |
+| [`29c8701`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/29c8701d74412ea481f9cad37d4b20fad679bb0b) | Share one ownership vocabulary between review-lead admission and the stricter materiality evaluator, preventing the two gates from drifting. |
+| [`3c1c242`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/3c1c242a55b0f1dcdad344c95f0c0c234a4407ce) | Align the prompt regression assertions with the explicit target-stage materiality obligation. |
 
 ### Why these changes preserve the intended AI-driven design
 
@@ -131,6 +133,7 @@ The following regression tests were committed:
 - Discovery-versus-target terminal contracts.
 - Prompt-mode separation and review-lead materialization rules.
 - No-candidate empty-budget loop prevention.
+- Ownership clue without materiality versus the stricter wealth/materiality signal, with title-only and unobserved-source negatives.
 
 **These tests were added but were not executed by this review.** A commit-status lookup for the latest code/test SHA returned no status entries; that is not proof that CI passed. Typecheck, build, API tests, static checks, and the frontend gate must be verified against the final `main` revision before calling this repair validated. No live run has been launched by this review.
 
