@@ -2283,7 +2283,7 @@ function removePivotGeographyPhrases(direction: string): string {
   // substantive-subject anchors and accidentally authorize only that one state.
   const geographyTokens = [...new Set(pivotScopeGeographyOptions(direction).flat())]
     .filter((token) => token.length >= 3)
-    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\  return direction.replace(locationClause, " ").replace(jurisdictionList, " ").replace(/\b(?:Pacific\s+Northwest|PNW)\b/giu, " ");"));
+    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   return geographyTokens.length
     ? withoutPhrases.replace(new RegExp(`\\b(?:${geographyTokens.join("|")})\\b`, "giu"), " ")
     : withoutPhrases;
