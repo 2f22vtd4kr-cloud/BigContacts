@@ -2472,7 +2472,7 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   if (
     anchors.includes("water")
     && (anchors.includes("service") || anchors.includes("provider"))
-    && /\bwater\s+utilities?\b/iu.test(value)
+    && /\bwater\s+utilit(?:y|ies)\b/iu.test(value)
   ) {
     matched.add("water");
     if (anchors.includes("service")) matched.add("service");
