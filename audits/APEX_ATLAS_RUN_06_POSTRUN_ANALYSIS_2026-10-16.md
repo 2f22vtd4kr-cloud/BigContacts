@@ -5,7 +5,7 @@
 **Branch:** `main` only  
 **Run evidence:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_06.md`  
 **Pre-repair source/audit baseline:** `48f67c1f0661273fc1203e8847ea02f1ada88842`  
-**Reviewer's last code/test commit before this document:** `17db5f372a8b42fd33c91414abd66171bc07b93f`
+**Latest reviewed code/test commit before this analysis refresh:** `bdd925270a9caa7d5413fcd21e8f9422d34db7bb`
 
 This file is a separate review addendum. The large sequential run log and its model-request/response history are left unchanged. The log's opening metadata still describes the pre-run scaffold; its committed chronology later in the same file supersedes that stale top-level status.
 
@@ -21,7 +21,7 @@ There were two primary control/design faults and one compounding operating condi
 
 The child continuation is a separate concern: it resumed the same case and later hit Groq's daily token limit. The committed audit does not include a terminal job poll or final post-child database reconciliation. **Its terminal status is unknown from the available committed record.** This analysis does not mislabel the parent’s verified failure as the child’s terminal state.
 
-The appropriate repair is a stage boundary, not forced target selection: one exact, fetched, claim-grade source co-binding a person and role plus a source-observed wealth/materiality signal can create a *review-only PersonCandidate*. The target Investigator then owns independent corroboration, falsification, and direct/indirect public/professional/intermediary route verification. This neither promotes the lead to HNWI nor asserts that it can be contacted.
+The appropriate repair is a stage boundary, not forced target selection: one exact, fetched, claim-grade source co-binding a person and role plus a source-observed ownership/control/investment clue (such as owner, founder, shareholder, beneficial owner, investor, or managing partner) can create a *review-only PersonCandidate*. Discovery does not need to prove company scale or materiality at handoff. The target Investigator owns independent corroboration, falsification/counter-evidence, business and asset materiality, and direct/indirect public/professional/intermediary route verification. This neither promotes the lead to HNWI nor asserts that it can be contacted.
 
 ## 1. What the committed Run 06 record shows
 
@@ -103,17 +103,23 @@ All changes below were made directly on `main` after reviewing the Run 06 audit.
 | [`4531bbe`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/4531bbe0df58506ff4ab07012416d16192d6927d) | Separate discovery terminal evidence from the stricter target research gate. |
 | [`8ac75ba`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/8ac75bab8a354f87e414699df0542852080e018e) | Test stage-specific terminal contracts. |
 | [`eec8d89`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/eec8d89399e8883d41603b7af99c699a7b2a7b33) | Separate discovery-only lead selection/handoff guidance from target-mode prompts. |
-| [`bc072cf`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/bc072cf7b13c14466aa7f113b21d49892c3e395f) | Allow a review-only lead handoff from one fetched role-bound claim-grade source plus a source-observed wealth/materiality signal; retain durable provenance and no HNWI/contact promotion. Also keep discovery bounded. |
+| [`bc072cf`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/bc072cf7b13c14466aa7f113b21d49892c3e395f) | First pass on review-only admission and bounded discovery; later commits below narrow the handoff to a source-backed ownership/control clue and move materiality proof to target research. |
 | [`42c0ca9`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/42c0ca9cbb1009dc907c891a294a88302d213cca) | Add discovery-versus-target prompt regression and materialization-boundary assertions. |
 | [`e5772ad`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/e5772adf6bf85d107c002f1fd244d42b984f2cfa) | Prevent more Boss control calls after no-candidate discovery allocation is exhausted. Park the case rather than consume tokens deciding whether to continue work for which there is no budget or admitted target. |
 | [`b0eee6e`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/b0eee6e58d4366599bd13da7be49ddd90f64a161) | Preserve the revised evidence boundaries in compact/emergency prompts. |
 | [`17db5f3`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/17db5f372a8b42fd33c91414abd66171bc07b93f) | Assert that empty-budget discovery does not continue looping through Boss control turns. |
+| [`f99aac7`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/f99aac7a8177c375daec694000c9de3cdc7c24e2) | Add `hasDiscoveryOwnershipLeadSignal`: the same successfully fetched claim-grade source must mention the exact person with an ownership/control/investment clue. The stricter wealth/materiality helper remains intact for later assessment. |
+| [`4539313`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/453931341b9fb19f8ad8bcbc71fef32f88268808) | Make canonical review-only candidate materialization use the ownership-lead helper, leaving materiality and realistic contact-route verification to target research while keeping exact role binding and explicit model promotion. |
+| [`72134e5`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/72134e51f3a4a17f3261c2796de1b2fb2edadde4) | Align full and compact Investigator prompts with the ownership-clue threshold and state that materiality, corroboration, falsification, and contact route belong to target-scoped research. |
+| [`9a6b1fc`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/9a6b1fcac348b937b4880b20b6f9f2b15595cbd3) | Update the prompt/materializer source assertion to verify the ownership-clue helper. |
+| [`87914de`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/87914ded5b3398487e1c17fc62c769b960cbb832) | Add direct helper tests for ownership clue without materiality, rejecting title-only employment, rejecting search/unvisited sources, and distinguishing an ownership lead from a source-backed materiality signal. |
+| [`bdd9252`](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/bdd925270a9caa7d5413fcd21e8f9422d34db7bb) | Clarify code documentation for the separate ownership-lead and wealth-materiality gates. |
 
 ### Why these changes preserve the intended AI-driven design
 
 No target list, preselected company, fixed query set, or hardcoded investigative sequence was added. Boss/Right-hand remain responsible for model-led hypotheses and control decisions, and the Investigator remains responsible for choosing actions based on the objective and observed evidence.
 
-The deterministic changes address interpretation of a model's explicit approval, resource boundaries, source provenance, stage separation, and safe termination. A source-backed provisional person is created only through explicit Investigator promotion and the existing identity/role and wealth/materiality checks. It remains a low-score `PersonCandidate` with review-only metadata, zero inferred contact confidence, and no claim to HNWI status. The target phase must establish independent corroboration, test counter-evidence, and discover a realistic direct or indirect public/professional/intermediary approach route before any conclusion.
+The deterministic changes address interpretation of a model's explicit approval, resource boundaries, source provenance, stage separation, and safe termination. A review-only person is materialized only after explicit Investigator promotion, exact name/role binding in fetched claim-grade source evidence, and a source-observed ownership/control/investment clue. It remains a low-score `PersonCandidate` with review-only metadata, zero inferred contact confidence, and no claim to HNWI status. The target phase must establish independent corroboration, test counter-evidence, assess business/assets/transaction materiality, and discover a realistic direct or indirect public/professional/intermediary route before any wealth/contact conclusion.
 
 If no credible lead is found by the discovery allocation, Apex should stop honestly with no target phase. It must not invent a candidate or use the reserve to discover forever.
 
@@ -138,7 +144,7 @@ Judge the next run using these checkpoints:
 
 1. Does the Investigator objective actually contain the model-approved opening direction?
 2. Does discovery remain within its allocation instead of consuming target reserve?
-3. Does the model find and explicitly promote any exact person/role supported by a fetched claim-grade source with a real wealth/materiality signal?
+3. Does the model find and explicitly promote any exact person/role supported by a fetched claim-grade source with a source-observed ownership/control/investment clue (not seniority alone)?
 4. If a lead is admitted, does the run enter target-scoped research with unresolved questions intact?
 5. Does the target Investigator continue the same person's evidence thread when ownership/counter-evidence/contact routes are promising, revisit where useful, or let the control models pivot/stop when evidence suggests a better use of effort?
 6. Are contacts and any HNWI conclusion based on source-backed evidence rather than organizational prominence or seniority?
@@ -146,4 +152,4 @@ Judge the next run using these checkpoints:
 
 If no person crosses the source-backed review-lead threshold, an empty card view may still be the correct outcome; the run should finish as a low-yield/incomplete investigation within its budget, not silently exhaust all resources. If a review-only PersonCandidate is persisted and the target pipeline runs, investigate any later failure at the exact transition where durable evidence diverges from research/control decisions. Do not modify the UI unless admitted and persisted records prove a projection/rendering defect.
 
-**Current verdict:** The parent Run 06 was a failed, low-yield discovery run with a demonstrated opening-scope bug and two discovery/target-stage boundary issues. The UI is not the demonstrated root cause. Narrow fixes and regression tests are now committed to `main`; CI remains unverified, and the child continuation's final state remains unknown. Do not call the system ready for another live run until CI is confirmed and the operator's Replit runtime is synchronized to the revised main.
+**Current verdict:** The parent Run 06 was a failed, low-yield discovery run with a demonstrated opening-scope parser bug and linked discovery-budget/handoff design faults. The UI is not the demonstrated root cause. Narrow fixes and regression tests are committed to `main`, including a review-only ownership-lead threshold that deliberately defers wealth/materiality and route proof to target research. CI and test execution remain unverified, and the child continuation's final state remains unknown. Do not call the system ready for another live run until checks are confirmed and the operator's Replit runtime is synchronized to the revised main.
