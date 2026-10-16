@@ -24,7 +24,7 @@ import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchActi
 import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { candidateRoleCorroborationSources, hasCredibleDiscoveryWealthPotentialSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
+import { candidateRoleCorroborationSources, hasDiscoveryOwnershipLeadSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 
 export type CanonicalAtlasOptions = {
@@ -205,9 +205,10 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     }
     if (supportingSources.length < 1) continue;
     // This is a review-only target handoff, not an HNWI conclusion. Require one
-    // actually fetched, claim-grade source co-binding exact name and role; the
-    // target Investigator must independently corroborate the claim, falsify it,
-    // and establish a realistic route before contact promotion.
+    // actually fetched, claim-grade source co-binding exact name and role plus
+    // an observable ownership/control clue. Do not require public evidence of
+    // business scale or materiality yet; target research must test that, falsify
+    // the lead, and establish a realistic route before any contact/wealth promotion.
     const roleBoundSourceUrls = new Set(supportingSources.map((support) => support.sourceUrl));
     const claimGradeObservations = observations.filter((observation) =>
       observation.execution === "success"
@@ -215,7 +216,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       && roleBoundSourceUrls.has(normalizeSourceUrl(observation.sourceUrl) ?? observation.sourceUrl)
       && isClaimGradeDiscoverySourceUrl(observation.sourceUrl)
     );
-    if (!hasCredibleDiscoveryWealthPotentialSignal({ personName: name, role: selectedRole, observations: claimGradeObservations })) continue;
+    if (!hasDiscoveryOwnershipLeadSignal({ personName: name, role: selectedRole, observations: claimGradeObservations })) continue;
     const primarySupport = supportingSources[0];
     if (!primarySupport) continue;
 
@@ -268,7 +269,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
         const [session] = await tx.insert(researchSessionsTable).values({
           targetEntityId: entityId,
           winningPath: JSON.stringify([{ sourceUrl: support.sourceUrl, caseId: input.discoveryCaseId, admission: "investigator-explicit-promotion", role: selectedRole, independentPublisher: support.publisher }]),
-          notes: "One observed role-bound source plus a wealth-potential signal admits this review-only lead; target-scoped investigation must corroborate identity/ownership, test counter-evidence, and establish a contact route before promotion.",
+          notes: "One observed role-bound source plus an ownership/control clue admits this review-only lead; target-scoped investigation must corroborate identity/ownership, test materiality and counter-evidence, and establish a contact route before promotion.",
           safeUseStatus: "manual_review", crmStatus: "Lead Gen",
         }).returning({ id: researchSessionsTable.id });
         if (!session?.id) throw new Error("Canonical discovery evidence session insert returned no durable session ID.");
