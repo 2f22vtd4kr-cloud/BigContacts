@@ -19,20 +19,24 @@ if (violations.length) {
   );
 }
 
-// Admission is grounded in the same Investigator run, and the canonical
-// source policy requires an exact, bounded name+role span on independent
-// publishers. Identical supporting passages are one lineage unit, not two.
-const exactRoleBoundCorroboration =
+// A discovery handoff is a review-only ownership lead, not a wealth/contact
+// conclusion. Keep source/run binding and exact role attribution, but do not
+// require target-stage corroboration or route/materiality proof before handoff.
+const exactRoleBoundOwnershipLead =
   source.includes("candidateRoleCorroborationSources") &&
   source.includes("payload.runId !== input.discoveryRunId") &&
-  source.includes("sources.length >= 2") &&
+  source.includes("sources.length >= 1") &&
+  source.includes("hasDiscoveryOwnershipLeadSignal") &&
+  source.includes("claimGradeObservations") &&
   epistemic.includes("hasExactTokenBoundary") &&
   candidateSourcePolicy.includes("bindExactSourceSpan(observation.observation, role, input.personName, 320)") &&
   candidateSourcePolicy.includes("sourceLineageId(sourceUrl, passageFingerprint)") &&
-  candidateSourcePolicy.includes("supporting.has(publisher)");
+  candidateSourcePolicy.includes("supporting.has(publisher)") &&
+  candidateSourcePolicy.includes('observation.execution !== "success"') &&
+  candidateSourcePolicy.includes('observation.action !== "visit"');
 
-if (!exactRoleBoundCorroboration || !source.includes("supportingEventId: support.eventId") || !source.includes("sourceUrl: support.sourceUrl")) {
-  throw new Error("Canonical discovery admission must persist candidate-specific, token-bound identity/role evidence from independent observed sources.");
+if (!exactRoleBoundOwnershipLead || !source.includes("supportingEventId: support.eventId") || !source.includes("sourceUrl: support.sourceUrl") || source.includes("hasRealisticPersonRouteSource(")) {
+  throw new Error("Canonical discovery admission must persist a same-run, fetched, exact name/role ownership lead without requiring target-stage route or materiality proof.");
 }
 
 if (!/db\.transaction\(async \(tx\) => \{[\s\S]*tx\.update\(researchCasesTable\)[\s\S]*tx\.insert\(researchCaseEventsTable\)/.test(source)) {
@@ -49,8 +53,8 @@ const durableAdmissionChecks = [
   ["search-result endpoints are excluded from claim-grade discovery evidence", source.includes("isClaimGradeDiscoverySourceUrl") && source.includes("isClaimGradeSourceUrl: isClaimGradeDiscoverySourceUrl")],
   ["case projection and control receive only durable supporting URLs", source.includes("admittedCandidateSources.map(({ name, sourceUrls })") && source.includes("admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls })")],
 
-  ["only two-source durable admissions are returned to control", source.includes("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }") && source.includes("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) })")],
-  ["admission requires two successful direct source observations in the same Investigator run", source.includes("payload.runId !== input.discoveryRunId") && source.includes("sources.length >= 2") && candidateSourcePolicy.includes('observation.action !== "visit"') && candidateSourcePolicy.includes('observation.execution !== "success"')],
+  ["only durably persisted review-only ownership leads are returned to control", source.includes("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }") && source.includes("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) })") && source.includes("hasDiscoveryOwnershipLeadSignal") && source.includes("reviewOnly: true")],
+  ["admission requires one successful fetched exact name/role source and ownership clue from the same Investigator run", source.includes("payload.runId !== input.discoveryRunId") && source.includes("sources.length >= 1") && source.includes("hasDiscoveryOwnershipLeadSignal") && candidateSourcePolicy.includes('observation.action !== "visit"') && candidateSourcePolicy.includes('observation.execution !== "success"') && candidateSourcePolicy.includes("bindExactSourceSpan(observation.observation, role, input.personName, 320)")],
   ["a missing admission evidence session fails the transaction closed", source.includes("if (!session?.id) throw new Error(")],
   ["discovery-only completion requires at least one durable admission", /const durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !discoveryResourceLimited && admitted\.length > 0 \? "complete" : "review"/.test(source)],
   ["discovery terminal authority cannot be set by model completion alone", /latestEvidenceBackedTerminal: "discovery" \| "target" \| null = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && admitted\.length > 0 \? "discovery" : null/.test(source)],
