@@ -605,6 +605,23 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [fetchedDirectoryPage])).toBeNull();
   });
 
+  it("accepts a business directory as a database-class source when subject and geography align", () => {
+    const objective = [
+      "Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Houston metropolitan area, extracting officer or member names from filing records.",
+    ].join("\n\n");
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Houston privately held metal-fabrication manufacturers business directory",
+      provider: "serper",
+    }, [])).toBeNull();
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Houston privately held metal-fabrication manufacturers",
+      provider: "serper",
+    }, [])).toContain("query source class");
+  });
+
   it("does not infer a source-stage order from ordinary source alternatives", () => {
     const alternativeObjective = [
       "Discover under-the-radar people with credible wealth potential.",
