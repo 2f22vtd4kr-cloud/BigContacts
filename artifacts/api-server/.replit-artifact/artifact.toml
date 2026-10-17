@@ -14,6 +14,7 @@ run = "cd ../.. && bash scripts/replit-boot.sh"
 
 [services.development.env]
 APEX_CAPTURE_MODEL_PROMPTS = "true"
+APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"
 APEX_MODEL_AUDIT_FILE = "private-audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-17_REPLIT_FRESH_RUN_05.md"
 
 [services.production]

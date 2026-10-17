@@ -1,5 +1,7 @@
 # Apex Atlas — Current Verified Status
 
+> **Latest operational override — 2026-10-17.** This file's detailed run history below reflects earlier audits and must not be mistaken for the current 17 October pre-launch sequence. The 17 October Fresh Run 05 report recorded 65 model request/response pairs with `jobId=null` and `caseId=null` during local validation. Its own chronology classifies them as non-run telemetry and ends at the final pre-launch gate; it does not prove a live research result. Replit's declared next steps were to restart the rebuilt API, recheck the effective audit destination and Atlas lock state, then launch via the UI's default request. Preserve that full trace in the ignored `private-audits/` path and continue it rather than starting from a blank report. Do not conflate this 17 October Fresh Run 05 preflight trace with the separate 16 October Run 05 job documented below. The current acceptance state remains **NOT LIVE-ACCEPTED** until a real job-bound run reaches terminal state and its source-backed findings/admission/persistence are verified. Read [the current successor handoff](apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md) before another code change or launch.
+
 **Updated:** 2026-10-16 (UTC)  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Canonical branch:** `main`  

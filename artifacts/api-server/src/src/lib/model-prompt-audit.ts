@@ -34,6 +34,8 @@ type AuditEnvironment = {
   APEX_CAPTURE_MODEL_PROMPTS?: string;
   /** Additional explicit opt-in required to write test telemetry into any audit file. */
   APEX_CAPTURE_MODEL_PROMPTS_IN_TEST?: string;
+  /** Private-workspace opt-in for retaining public contact values in an ignored audit file. */
+  APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA?: string;
   APEX_MODEL_AUDIT_FILE?: string;
 };
 
@@ -99,11 +101,12 @@ function isContactDataField(key: string, record: Record<string, unknown>): boole
   return key === "value" && (vectorType === "email" || vectorType === "phone");
 }
 
-function redactAuditSecrets(content: string): string {
+function redactAuditSecrets(content: string, includeContactData = false): string {
   const credentialSafe = AUDIT_SECRET_REPLACEMENTS.reduce(
     (result, [pattern, replacement]) => result.replace(pattern, replacement),
     content,
   );
+  if (includeContactData) return credentialSafe;
   return AUDIT_CONTACT_REPLACEMENTS.reduce(
     (result, [pattern, replacement]) => result.replace(pattern, replacement),
     credentialSafe,
@@ -116,17 +119,17 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function sanitizeAuditPayload(value: unknown, depth = 0): unknown {
+function sanitizeAuditPayload(value: unknown, depth = 0, includeContactData = false): unknown {
   if (typeof value === "string") {
     const bounded = value.length <= MAX_AUDIT_STRING_CHARS
       ? value
       : `${value.slice(0, MAX_AUDIT_STRING_CHARS)}\n[AUDIT STRING TRUNCATED: ${value.length - MAX_AUDIT_STRING_CHARS} characters omitted]`;
-    return redactAuditSecrets(bounded);
+    return redactAuditSecrets(bounded, includeContactData);
   }
   if (value === null || typeof value === "number" || typeof value === "boolean") return value;
   if (depth >= 16) return "[AUDIT DEPTH LIMIT]";
   if (Array.isArray(value)) {
-    const items = value.slice(0, MAX_AUDIT_ARRAY_ITEMS).map((item) => sanitizeAuditPayload(item, depth + 1));
+    const items = value.slice(0, MAX_AUDIT_ARRAY_ITEMS).map((item) => sanitizeAuditPayload(item, depth + 1, includeContactData));
     if (value.length > MAX_AUDIT_ARRAY_ITEMS) {
       items.push(`[AUDIT ARRAY TRUNCATED: ${value.length - MAX_AUDIT_ARRAY_ITEMS} items omitted]`);
     }
@@ -140,9 +143,9 @@ function sanitizeAuditPayload(value: unknown, depth = 0): unknown {
       .filter(([key]) => !SENSITIVE_AUDIT_KEY.test(key))
       .map(([key, item]) => [
         key,
-        isContactDataField(key, record) && typeof item === "string"
+        !includeContactData && isContactDataField(key, record) && typeof item === "string"
           ? "[REDACTED_CONTACT_DATA]"
-          : sanitizeAuditPayload(item, depth + 1),
+          : sanitizeAuditPayload(item, depth + 1, includeContactData),
       ]),
   );
 }
@@ -151,12 +154,13 @@ function removePrivateReasoningFields(
   value: unknown,
   omitted: { count: number },
   depth = 0,
+  includeContactData = false,
 ): unknown {
-  if (typeof value === "string") return redactAuditSecrets(value);
+  if (typeof value === "string") return redactAuditSecrets(value, includeContactData);
   if (value === null || typeof value === "number" || typeof value === "boolean") return value;
   if (depth >= 16) return "[AUDIT DEPTH LIMIT]";
   if (Array.isArray(value)) {
-    return value.slice(0, MAX_AUDIT_ARRAY_ITEMS).map((item) => removePrivateReasoningFields(item, omitted, depth + 1));
+    return value.slice(0, MAX_AUDIT_ARRAY_ITEMS).map((item) => removePrivateReasoningFields(item, omitted, depth + 1, includeContactData));
   }
   const record = asRecord(value);
   if (!record) return null;
@@ -172,42 +176,45 @@ function removePrivateReasoningFields(
       })
       .map(([key, item]) => [
         key,
-        isContactDataField(key, record) && typeof item === "string"
+        !includeContactData && isContactDataField(key, record) && typeof item === "string"
           ? "[REDACTED_CONTACT_DATA]"
-          : removePrivateReasoningFields(item, omitted, depth + 1),
+          : removePrivateReasoningFields(item, omitted, depth + 1, includeContactData),
       ]),
   );
 }
 
-function sanitizeVisibleCompletion(value: unknown): Record<string, unknown> {
+function sanitizeVisibleCompletion(value: unknown, includeContactData = false): Record<string, unknown> {
   if (typeof value === "string") {
-    const credentialSafe = redactAuditSecrets(value);
+    const credentialSafe = redactAuditSecrets(value, includeContactData);
     try {
       const parsed = JSON.parse(credentialSafe) as unknown;
       const omitted = { count: 0 };
       return {
         format: "json",
-        content: removePrivateReasoningFields(parsed, omitted),
+        content: removePrivateReasoningFields(parsed, omitted, 0, includeContactData),
         privateReasoningFieldsOmitted: omitted.count,
       };
     } catch {
+      // This is the provider's visible message.content, not its separate
+      // reasoning_content/analysis fields. Preserve it so malformed structured
+      // actions can be diagnosed, while applying the same sanitization and size cap.
       return {
         format: "unstructured",
-        content: null,
-        contentOmitted: "Unstructured model output is not copied because it may contain private reasoning.",
+        content: sanitizeAuditPayload(credentialSafe, 0, includeContactData),
         outputChars: value.length,
+        outputTruncated: value.length > MAX_AUDIT_STRING_CHARS,
       };
     }
   }
   const omitted = { count: 0 };
   return {
     format: "structured",
-    content: removePrivateReasoningFields(value, omitted),
+    content: removePrivateReasoningFields(value, omitted, 0, includeContactData),
     privateReasoningFieldsOmitted: omitted.count,
   };
 }
 
-function sanitizeVisibleToolCalls(value: unknown): unknown {
+function sanitizeVisibleToolCalls(value: unknown, includeContactData = false): unknown {
   if (!Array.isArray(value)) return null;
   return value.slice(0, 16).map((rawCall) => {
     const call = asRecord(rawCall);
@@ -219,8 +226,8 @@ function sanitizeVisibleToolCalls(value: unknown): unknown {
         ? {
             name: typeof fn.name === "string" ? redactAuditSecrets(fn.name) : null,
             arguments: typeof fn.arguments === "string"
-              ? sanitizeVisibleCompletion(fn.arguments)
-              : sanitizeVisibleCompletion(fn.arguments ?? null),
+              ? sanitizeVisibleCompletion(fn.arguments, includeContactData)
+              : sanitizeVisibleCompletion(fn.arguments ?? null, includeContactData),
           }
         : null,
     };
@@ -262,7 +269,7 @@ function summarizeTools(value: unknown): { toolCount: number | null; tools: Reco
 }
 
 /** Capture the actual model-visible payload while excluding credential-shaped values. */
-function safeRequestBody(body: Record<string, unknown>): Record<string, unknown> {
+function safeRequestBody(body: Record<string, unknown>, includeContactData = false): Record<string, unknown> {
   const safe = Object.fromEntries(
     Object.entries(body).filter(([key, value]) =>
       SAFE_REQUEST_KEYS.has(key)
@@ -272,7 +279,7 @@ function safeRequestBody(body: Record<string, unknown>): Record<string, unknown>
   );
   const messages = Array.isArray(body.messages) ? body.messages : null;
   safe.messageCount = messages?.length ?? null;
-  safe.messages = sanitizeAuditPayload(messages ?? []);
+  safe.messages = sanitizeAuditPayload(messages ?? [], 0, includeContactData);
   safe.messageSummary = (messages ?? []).slice(0, 64).map((message) => {
     const record = asRecord(message);
     if (!record) {
@@ -294,9 +301,9 @@ function safeRequestBody(body: Record<string, unknown>): Record<string, unknown>
   safe.messageSummaryTruncated = Boolean(messages && messages.length > 64);
   safe.messagesTruncated = Boolean(messages && messages.length > MAX_AUDIT_ARRAY_ITEMS);
   safe.responseFormat = summarizeResponseFormat(body.response_format);
-  safe.responseFormatPayload = sanitizeAuditPayload(body.response_format ?? null);
+  safe.responseFormatPayload = sanitizeAuditPayload(body.response_format ?? null, 0, includeContactData);
   Object.assign(safe, summarizeTools(body.tools));
-  safe.toolDefinitions = sanitizeAuditPayload(body.tools ?? []);
+  safe.toolDefinitions = sanitizeAuditPayload(body.tools ?? [], 0, includeContactData);
   safe.toolChoiceKind = typeof body.tool_choice === "string"
     ? (["auto", "none", "required"].includes(body.tool_choice) ? body.tool_choice : "other-string")
     : body.tool_choice && typeof body.tool_choice === "object"
@@ -331,7 +338,7 @@ export function emitModelPromptAudit(
     attempt: input.attempt ?? 1,
     jobId: input.jobId ?? null,
     caseId: input.caseId ?? null,
-    requestSummary: safeRequestBody(input.requestBody),
+    requestSummary: safeRequestBody(input.requestBody, env.APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA === "true"),
     providerPrivateReasoningCaptured: false,
   };
   const serialized = JSON.stringify(record, null, 2);
@@ -361,7 +368,11 @@ type AuditResponseInput = {
   transportFailure?: string;
 };
 
-function visibleProviderResponse(responseBody: string, httpStatus: number | null | undefined): Record<string, unknown> {
+function visibleProviderResponse(
+  responseBody: string,
+  httpStatus: number | null | undefined,
+  includeContactData = false,
+): Record<string, unknown> {
   let payload: Record<string, unknown> | null = null;
   try {
     payload = asRecord(JSON.parse(responseBody));
@@ -370,6 +381,8 @@ function visibleProviderResponse(responseBody: string, httpStatus: number | null
     return {
       jsonParsed: false,
       responseChars: responseBody.length,
+      responseExcerpt: sanitizeAuditPayload(responseBody.slice(0, 12_000), 0, includeContactData),
+      responseExcerptTruncated: responseBody.length > 12_000,
     };
   }
 
@@ -381,9 +394,10 @@ function visibleProviderResponse(responseBody: string, httpStatus: number | null
         ? {
             code: typeof error.code === "string" ? error.code : null,
             type: typeof error.type === "string" ? error.type : null,
-            message: typeof error.message === "string" ? sanitizeAuditPayload(error.message) : null,
+            message: typeof error.message === "string" ? sanitizeAuditPayload(error.message, 0, includeContactData) : null,
           }
         : null,
+      providerErrorDetails: error ? sanitizeAuditPayload(error, 0, includeContactData) : null,
       responseChars: responseBody.length,
     };
   }
@@ -393,7 +407,7 @@ function visibleProviderResponse(responseBody: string, httpStatus: number | null
     jsonParsed: true,
     providerResponseId: typeof payload.id === "string" ? payload.id : null,
     model: typeof payload.model === "string" ? payload.model : null,
-    usage: sanitizeAuditPayload(payload.usage ?? null),
+    usage: sanitizeAuditPayload(payload.usage ?? null, 0, includeContactData),
     choices: choices.slice(0, 16).map((rawChoice) => {
       const choice = asRecord(rawChoice);
       const message = asRecord(choice?.message);
@@ -403,10 +417,10 @@ function visibleProviderResponse(responseBody: string, httpStatus: number | null
         visibleMessage: message
           ? {
               role: typeof message.role === "string" ? message.role : null,
-              content: sanitizeVisibleCompletion(message.content ?? null),
-              toolCalls: sanitizeVisibleToolCalls(message.tool_calls),
-              functionCall: sanitizeVisibleToolCalls(message.function_call ? [message.function_call] : null),
-              refusal: sanitizeAuditPayload(message.refusal ?? null),
+              content: sanitizeVisibleCompletion(message.content ?? null, includeContactData),
+              toolCalls: sanitizeVisibleToolCalls(message.tool_calls, includeContactData),
+              functionCall: sanitizeVisibleToolCalls(message.function_call ? [message.function_call] : null, includeContactData),
+              refusal: sanitizeAuditPayload(message.refusal ?? null, 0, includeContactData),
             }
           : null,
       };
@@ -436,7 +450,11 @@ export function emitModelPromptAuditResponse(
     latencyMs: input.latencyMs ?? null,
     transportFailure: input.transportFailure ?? null,
     response: responseBody
-      ? visibleProviderResponse(responseBody, input.httpStatus)
+      ? visibleProviderResponse(
+          responseBody,
+          input.httpStatus,
+          env.APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA === "true",
+        )
       : null,
   };
   const serialized = JSON.stringify(record, null, 2);
