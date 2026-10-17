@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET,
+  ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,
   atlasLeadUtilizationLaw,
   atlasRegistryFeasibilityLaw,
   buildAtlasBossControlPrompt,
+  validateAtlasRightHandControl,
   buildAtlasRightHandControlPrompt,
   compactAtlasInvestigatorReport,
 } from "./atlas-control-decision";
@@ -99,6 +102,38 @@ describe("Atlas control-plane lead continuity", () => {
     expect(buildAtlasBossControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
     expect(buildAtlasBossControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
+  });
+
+  it("bounds the post-discovery Right-hand control prompt and rationale contract", () => {
+    const prompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: JSON.stringify({
+        provider: "groq",
+        status: "completed",
+        searches: 12,
+        visits: 1,
+        findings: [],
+        openQuestions: [{ action: "web_search", execution: "success", unfetchedLeadUrls: ["https://businesssearch.ohiosos.gov/"] }],
+        repeatedHistory: "low-value historical detail ".repeat(1_000),
+      }),
+      compactState: "Latest durable state and source observations. ".repeat(4_000),
+    });
+
+    expect(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET).toBe(9_600);
+    expect(prompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
+    expect(ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT.schema.properties.reason.maxLength).toBe(600);
+    expect(ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT.schema.properties.direction.maxLength).toBe(600);
+    expect(ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT.schema.required).toEqual([
+      "decision", "reason", "direction", "confidence",
+    ]);
+    expect(validateAtlasRightHandControl({
+      decision: "continue_discovery", reason: "Supported lead remains.", direction: null, confidence: 0.8,
+    })).toBe(true);
+    expect(validateAtlasRightHandControl({
+      decision: "continue_discovery", reason: "r".repeat(601), direction: null, confidence: 0.8,
+    })).toBe(false);
+    expect(validateAtlasRightHandControl({
+      decision: "pivot_discovery", reason: "Supported alternative.", direction: "d".repeat(601), confidence: 0.8,
+    })).toBe(false);
   });
 
 });
