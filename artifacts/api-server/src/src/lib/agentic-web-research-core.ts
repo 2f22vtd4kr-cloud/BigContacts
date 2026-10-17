@@ -3070,7 +3070,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             return [
               caseObjective,
               ...(activeScope ? ["ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 420)] : []),
-            ].filter(Boolean).join("\\n");
+            ].filter(Boolean).join("\n");
           })()
         : "";
       const finalEmergencyPrefix = [
