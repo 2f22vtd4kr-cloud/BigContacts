@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
-import { buildInvestigatorContext } from "./investigation-context-compaction";
+import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError } from "./canonical-atlas-failure-diagnostics";
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
@@ -541,6 +541,32 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(compact).toContain("source classes: business entity filings");
     expect(compact).toMatch(/geographies: washington state;/i);
     expect(compact).not.toContain("geographies: washington, oregon");
+  });
+
+  it("keeps opening scope separate from appended Boss and Right-hand control notes during compaction", () => {
+    const direction = "Search Washington State Secretary of State corporation filings for privately held manufacturing firms with listed owners or officers, focusing on the aerospace components sector.";
+    const rawObjective = [
+      "PRIMARY OPERATOR OBJECTIVE: Discover under-the-radar people with credible wealth potential and realistic public routes.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      direction,
+      "BOSS OPENING CONTROL DIRECTION:",
+      "Report: " + "Unverified opening narrative. ".repeat(8),
+      "Next directions: " + JSON.stringify(["Investigate private manufacturing firms in Indiana using the Indiana Secretary of State database."]),
+      "RIGHT-HAND OPENING REVIEW (advisory):",
+      "Decision: Approve the opening direction.",
+    ].join("\n");
+
+    const bounded = buildBoundedInvestigatorObjective({ base: rawObjective, maxChars: 1_800 });
+    expect(extractBossPivotDirectionForCompactPrompt(bounded)).toBe(direction);
+
+    // Emergency prompt construction must not reinterpret "Washington State
+    // Secretary of State" as a source-first phrase and drop the geography after
+    // appended control prose makes the scope look long.
+    const emergency = compactEmergencyInvestigatorObjective(bounded);
+    expect(emergency).toContain("Washington State");
+    expect(emergency).toContain("aerospace components");
+    expect(emergency).not.toContain("Indiana");
+    expect(emergency).not.toContain("Unverified opening narrative");
   });
 
   it("preserves a complete Dallas–Fort Worth scope in source-first emergency compaction", () => {
