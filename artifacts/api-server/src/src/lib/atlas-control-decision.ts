@@ -384,7 +384,7 @@ export function buildAtlasScopeRecoveryFeedback(records: readonly {
   return `No-progress scope-recovery feedback (control state, not research evidence): ${blockedCount} Investigator action(s) since the latest successful external action with usable output were blocked before any outbound request, across ${scopeVariantCount} accepted pivot-scope variant(s). These blocks say nothing negative about the public world and must not be treated as failed searches or evidence. Challenge why the accepted direction is not yielding an executable, scope-aligned action. The models may choose a substantively different research question that satisfies the active scope constraints, continue only when justified by the evidence, or stop/park for review. Do not prescribe a fixed target, sector, query, provider, source, tool, or action sequence.`;
 }
 
-type TrajectoryRecordInput = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: string; observation?: string; observedUrls: string[]; findings: CompactionFinding[]; providerFallback?: string[]; stopReason?: string };
+type TrajectoryRecordInput = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: string; observation?: string; observedUrls: string[]; /** Unfetched search-result leads; never claim-grade evidence. */ leadUrls?: string[]; findings: CompactionFinding[]; providerFallback?: string[]; stopReason?: string };
 export function buildAtlasControlEventPayload(input: { decision: AtlasControlDecision; controlTurn: number; jobId?: string | null }): {
   action: AtlasControlAction;
   status: AtlasControlDecision["status"];
