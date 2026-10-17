@@ -1067,6 +1067,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           execution: record.execution,
           observation: record.observation,
           observedUrls: record.observedUrls,
+          // Make search results visible to Boss/Right-hand without mislabelling
+          // them as retrieved evidence. A blocked action is never a source result.
+          unfetchedLeadUrls: record.execution === "success"
+            && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)
+            ? (record.leadUrls ?? []).slice(0, 2)
+              .map((url) => sanitizeUrlForEvidence(url))
+              .filter((url) => !url.startsWith("["))
+            : [],
           stopReason: record.stopReason,
           failureDomain: record.failureDomain,
           failureKind: record.failureKind,
