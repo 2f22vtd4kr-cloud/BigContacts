@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveRemainingDiscoveryIterations } from "./research-depth";
 
 describe("bounded discovery allocation", () => {
-  it("preserves the target-research reserve when no candidate has been admitted yet", () => {
+  it("releases the target-stage reserve while discovery has no admitted candidate", () => {
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
       discoveryIterationCeiling: 12,
@@ -10,7 +10,7 @@ describe("bounded discovery allocation", () => {
       investigatorIterationsUsed: 4,
       targetResearchReserveIterations: 8,
       hasAdmittedCandidates: false,
-    })).toBe(8);
+    })).toBe(16);
 
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
@@ -19,17 +19,35 @@ describe("bounded discovery allocation", () => {
       investigatorIterationsUsed: 12,
       targetResearchReserveIterations: 8,
       hasAdmittedCandidates: false,
-    })).toBe(0);
-  });
+    })).toBe(8);
 
-  it("also respects the remaining global budget after a lead is admitted", () => {
     expect(resolveRemainingDiscoveryIterations({
       totalIterationCeiling: 20,
       discoveryIterationCeiling: 12,
+      discoveryIterationsUsed: 20,
+      investigatorIterationsUsed: 20,
+      targetResearchReserveIterations: 8,
+      hasAdmittedCandidates: false,
+    })).toBe(0);
+  });
+
+  it("activates the protected target-research reserve after a lead is admitted", () => {
+    expect(resolveRemainingDiscoveryIterations({
+      totalIterationCeiling: 20,
+      discoveryIterationCeiling: 20,
       discoveryIterationsUsed: 8,
       investigatorIterationsUsed: 8,
       targetResearchReserveIterations: 8,
       hasAdmittedCandidates: true,
     })).toBe(4);
+
+    expect(resolveRemainingDiscoveryIterations({
+      totalIterationCeiling: 20,
+      discoveryIterationCeiling: 20,
+      discoveryIterationsUsed: 12,
+      investigatorIterationsUsed: 12,
+      targetResearchReserveIterations: 8,
+      hasAdmittedCandidates: true,
+    })).toBe(0);
   });
 });
