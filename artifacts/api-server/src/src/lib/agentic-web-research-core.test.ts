@@ -522,6 +522,21 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
   });
 
+  it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
+    const direction = "Search the Washington State Secretary of State business entity filings for privately held artisan food manufacturers and extract their names. The scope explicitly names geographies (Washington State) and source classes (business entity filings); the broader objective mentions the Pacific Northwest as an example only without changing this direction.";
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      direction,
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+    ].join("\n\n");
+    const compact = compactEmergencyInvestigatorObjective(objective);
+    expect(compact).toContain("artisan food manufacturers");
+    expect(compact).toContain("source classes: business entity filings");
+    expect(compact).toMatch(/geographies: washington state;/i);
+    expect(compact).not.toContain("geographies: washington, oregon");
+  });
+
   it("excludes the pursue-unless continuation instruction from accepted pivot scope", () => {
     const direction = "Search for recent renewable-energy private-equity transactions in Vietnam, Thailand, and Indonesia and extract named fund managers or principal investors from transaction announcements or regulatory filings.";
     const objective = [
@@ -1369,6 +1384,43 @@ Choose each next action yourself from the available capabilities and observed ev
         { query: "model-registry-query-1", registry: "sec-edgar" },
         { query: "model-registry-query-2", registry: "brreg" },
       ],
+    });
+  });
+
+  it("rejects unsupported single-registry IDs before they can reach the registry client", () => {
+    const action = (registry: string) => JSON.stringify({
+      action: "registry_search",
+      query: "Portland specialty food manufacturers",
+      provider: null,
+      url: null,
+      email: null,
+      username: null,
+      domain: null,
+      registry,
+      thought: null,
+      hypothesis: "A configured registry may disclose company identity and listed ownership clues.",
+      purpose: "Find candidate companies for evidence-based person discovery.",
+      expectedInformationGain: 0.7,
+      locale: null,
+      market: null,
+      target: null,
+      targetType: null,
+      profile: null,
+      searches: [],
+      findings: [],
+    });
+
+    for (const id of ["oregon_sos", "or_sos_business_entity", "not-a-real-registry"]) {
+      expect(describeAgentActionParseFailure(action(id))).toBe(
+        "invalid_action_arguments action=registry_search registry unsupported",
+      );
+      expect(parseAgentAction(action(id))).toBeNull();
+    }
+
+    expect(describeAgentActionParseFailure(action("sec-edgar"))).toBe("");
+    expect(parseAgentAction(action("sec-edgar"))).toMatchObject({
+      action: "registry_search",
+      registry: "sec-edgar",
     });
   });
 

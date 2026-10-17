@@ -1108,7 +1108,11 @@ function describeInvalidActionArguments(action: string, value: Record<string, un
     if (!["rdap", "whoisjson"].includes(provider)) return "invalid_action_arguments action=domain_lookup invalid=provider";
   } else if (action === "registry_search") {
     if (textField("query", 200).length < 2) return "invalid_action_arguments action=registry_search invalid=query";
-    if (!textField("registry", 60)) return "invalid_action_arguments action=registry_search missing=registry";
+    const registryText = textField("registry", 60);
+    if (!registryText) return "invalid_action_arguments action=registry_search missing=registry";
+    const normalizedRegistry = normalizeRegistryId(registryText);
+    if (!normalizedRegistry) return "invalid_action_arguments action=registry_search registry unsupported";
+    if (!new Set(getAvailableRegistryIds()).has(normalizedRegistry)) return "invalid_action_arguments action=registry_search registry unavailable";
   } else if (action === "harvest_domain" && !textField("domain", 120).includes(".")) return "invalid_action_arguments action=harvest_domain invalid=domain";
   else if (action === "footprint_spiderfoot") {
     const targetType = textField("targetType", 20).toLowerCase();
@@ -2001,9 +2005,12 @@ function compactActiveBossScope(direction: string, maxChars: number): string {
   const raw = direction.replace(/\s+/g, " ").trim();
   if (raw.length <= maxChars) return raw;
 
-  const geographyGroup = raw.match(/\b(?:geographies|countries|jurisdictions|regions|states|provinces)\s*\((?:e\.g\.?,?\s*)?([^)]{1,180})\)/i);
+  // Keep compaction anchored to the primary clause. Later explanatory text can
+  // mention a region or example that is not actually part of the active scope.
+  const primaryScopeClause = raw.split(/[;\n]/u, 1)[0] ?? raw;
+  const geographyGroup = primaryScopeClause.match(/\b(?:geographies|countries|jurisdictions|regions|states|provinces)\s*\((?:e\.g\.?\,?\s*)?([^)]{1,180})\)/i);
   const geography = geographyGroup?.[1]?.trim()
-    || pivotScopeGeographyOptions(raw).map((option) => option.join(" ")).join(", ");
+    || pivotScopeGeographyOptions(primaryScopeClause).map((option) => option.join(" ")).join(", ");
   const sourceGroup = raw.match(/\bsource classes?\s*\(([^)]{1,180})\)/i);
   const sourceNoun = String.raw`(?:filings?|registr(?:y|ies)|registers?|databases?|directories|associations?|chambers?|lists?|announcements?|releases?)`;
   const sourceModifier = String.raw`(?:transaction|regulatory|ownership|local|public(?:ly)?(?: listed)?|official|state|corporate|business|company|trade)`;
@@ -2015,10 +2022,18 @@ function compactActiveBossScope(direction: string, maxChars: number): string {
 
   // If the pivot includes a worked query example, retain its subject anchor
   // separately from the full allowed geography and source-class alternatives.
-  const queryExample = raw.match(/(?:e\.g\.?|for example)[^"“']{0,100}["“']([^"”']{1,160})["”']/i)?.[1]?.trim();
+  const queryExample = primaryScopeClause.match(/(?:e\.g\.?|for example)[^"“']{0,100}["“']([^"”']{1,160})["”']/i)?.[1]?.trim();
   const geographyTokens = new Set((geography.match(/[A-Za-z]+/g) ?? []).map((token) => token.toLowerCase()));
-  // Retain the example's subject class only; specific example geographies and
-  // dates remain context, not a prescribed query sequence.
+  // A source-first direction often places its subject after "for" (for example,
+  // "state registry filings for artisan food manufacturers"). Keep that subject
+  // instead of cutting the lead at the first source-class noun.
+  const sourceStart = source ? raw.toLowerCase().indexOf(source.toLowerCase()) : -1;
+  const forStart = primaryScopeClause.search(/\bfor\b/i);
+  const afterForSubject = sourceStart >= 0 && forStart > sourceStart
+    ? primaryScopeClause.match(/\bfor\s+(?:the\s+)?(.+?)(?=\s+(?:in|across|throughout|within|near|from|between|via|using|and\s+(?:extract|identify|locate|collect|retrieve|seek|review|verify|find|search|target|document|check))\b|[.;]|$)/i)?.[1]?.trim() ?? ""
+    : "";
+  // Retain a quoted example subject where explicit; otherwise preserve the
+  // substantive phrase after "for" only when it follows the source-class label.
   const querySubject = queryExample
     ? queryExample.split(/\s+/).filter((token) => {
         const normalized = token.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, "");
@@ -2026,7 +2041,7 @@ function compactActiveBossScope(direction: string, maxChars: number): string {
           && !geographyTokens.has(normalized)
           && !/^(?:19|20)\d{2}$/.test(normalized);
       }).join(" ")
-    : "";
+    : afterForSubject;
   const sourceIndex = source ? raw.indexOf(source) : -1;
   const geographyIndex = geographyGroup?.index ?? (sourceIndex >= 0 ? sourceIndex : raw.length);
   const lead = querySubject || raw.slice(0, geographyIndex)
