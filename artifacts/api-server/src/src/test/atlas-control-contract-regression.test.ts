@@ -69,7 +69,7 @@ describe("Atlas control-plane contract regression", () => {
 
   it("passes the canonical Right-hand control validator into the adapter's bounded model fallback", () => {
     expect(controlSource).toMatch(
-      /runGroqRightHandFreeJson\(rightHandPrompt,[\s\S]*?ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,\s*\(raw\)\s*=>\s*validateAtlasRightHandControl\(parseObject\(raw\)\),\s*\{\s*jobId:\s*input\.jobId\s*\?\?\s*null,\s*caseId:\s*input\.caseId\s*\}\)/,
+      /runGroqRightHandFreeJson\(rightHandPrompt,[\s\S]*?ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,\s*\(raw\)\s*=>\s*validateAtlasRightHandControl\(parseObject\(raw\)\),\s*\{\s*jobId:\s*input\.jobId\s*\?\?\s*null,\s*caseId:\s*input\.caseId\s*\},\s*\{\s*maxCompletionTokens:\s*1_024,\s*reasoningEffort:\s*["']low["'],\s*maxAttempts:\s*5,\s*generationBudgetRecovery:\s*\{\s*maxCompletionTokens:\s*1_280,\s*reasoningEffort:\s*["']low["']\s*\}\s*\}\s*\)/,
     );
     expect(rightHandSource).toContain("if(validateRaw&&!validateRaw(raw))");
     expect(rightHandSource).toContain('failureClass:"invalid_contract"');
