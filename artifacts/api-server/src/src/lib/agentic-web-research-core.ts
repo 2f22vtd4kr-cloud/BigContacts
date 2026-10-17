@@ -2848,9 +2848,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // observation that the next model decision must respond to.
   const orderedTrajectoryRecords = [...input.trajectoryRecords].sort((a, b) => a.turn - b.turn);
   const latestRecord = orderedTrajectoryRecords.at(-1);
+  const activePivotScopeKey = input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") : null;
+  const belongsToActiveScope = (record: AgenticTrajectoryRecord): boolean => activePivotScopeKey ? record.pivotScopeKey === activePivotScopeKey : !record.pivotScopeKey;
   const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
   const latestSuccessfulSearchRecord = [...orderedTrajectoryRecords].reverse().find((record) =>
-    searchActions.has(record.action) && record.execution === "success",
+    searchActions.has(record.action) && record.execution === "success" && belongsToActiveScope(record),
   );
   const hasSuccessfulFetchAfterSearch = Boolean(latestSuccessfulSearchRecord && orderedTrajectoryRecords.some((record) =>
     record.turn > latestSuccessfulSearchRecord.turn
