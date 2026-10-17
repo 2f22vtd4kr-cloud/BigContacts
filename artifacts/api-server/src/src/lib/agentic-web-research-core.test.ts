@@ -1035,6 +1035,20 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(singleDispatch.indexOf("repeatedDiscoverySearchReason(action, previousResearchRecords)")).toBeLessThan(singleDispatch.indexOf("toolWebSearch(action.query"));
   });
 
+  it("counts single registry searches as search-only activity in liveness guidance", () => {
+    const records = [
+      livenessRecord("registry_search", "success"),
+      livenessRecord("registry_search", "success"),
+      livenessRecord("registry_search", "success"),
+    ];
+    const advisory = discoverySearchLivenessAdvisory(records);
+    expect(advisory).toContain("Three consecutive successful search actions have occurred");
+    expect(advisory).toContain("further searches remain available");
+
+    const afterObservedPage = [...records, livenessRecord("visit", "success")];
+    expect(discoverySearchLivenessAdvisory(afterObservedPage)).toBeNull();
+  });
+
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
     const records = [
       livenessRecord("web_search", "success"),
