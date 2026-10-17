@@ -127,10 +127,15 @@ export function resolveRemainingDiscoveryIterations(input: {
   const investigatorUsed = nonNegativeInteger(input.investigatorIterationsUsed);
   const configuredDiscoveryCeiling = Math.min(total, nonNegativeInteger(input.discoveryIterationCeiling));
   const targetReserve = Math.min(total, nonNegativeInteger(input.targetResearchReserveIterations));
+  // Once an admitted lead exists, cap discovery while preserving the target
+  // reserve that has not already been consumed by target-scoped research.
   const effectiveDiscoveryCeiling = input.hasAdmittedCandidates
     ? Math.min(configuredDiscoveryCeiling, Math.max(0, total - targetReserve))
     : total;
-  const effectiveTargetReserve = input.hasAdmittedCandidates ? targetReserve : 0;
+  const targetActionsUsed = Math.max(0, investigatorUsed - discoveryUsed);
+  const effectiveTargetReserve = input.hasAdmittedCandidates
+    ? Math.max(0, targetReserve - targetActionsUsed)
+    : 0;
   const discoveryRemaining = Math.max(0, effectiveDiscoveryCeiling - discoveryUsed);
   const globalRemaining = Math.max(0, total - investigatorUsed - effectiveTargetReserve);
   return Math.min(discoveryRemaining, globalRemaining);
