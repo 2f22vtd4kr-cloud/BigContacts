@@ -21,8 +21,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! git show "${source_commit}:${source_path}" > "$tmp_source"; then
-  echo "[restore-private-atlas-audit] Could not recover the original report from Git history." >&2
+if [[ -s "$source_path" ]]; then
+  # Prefer the workspace copy so any uncommitted operator annotations survive.
+  cp "$source_path" "$tmp_source"
+elif ! git show "${source_commit}:${source_path}" > "$tmp_source"; then
+  echo "[restore-private-atlas-audit] Could not recover the original report from the workspace or Git history." >&2
   exit 3
 fi
 if [[ ! -s "$tmp_source" ]]; then
