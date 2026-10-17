@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyInvestigatorEpisodeFailure } from "./investigator-episode-health";
+import { classifyInvestigatorEpisodeFailure, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 
 describe("canonical Investigator continuation health", () => {
   it("fails closed when the pass wrapper reports an unexpected error with no persisted acts", () => {
@@ -191,4 +191,25 @@ describe("canonical Investigator continuation health", () => {
       stopReason: "CANCELLED",
     })).toBeNull();
   });
+  it("reports blocks, rejected contracts, rate limits, fetched pages and unfetched leads separately", () => {
+    expect(summarizeAtlasDiscoveryResearchHealth([
+      { action: "web_search", execution: "blocked", observation: "pivot_alignment_guard blocked query before outbound execution." },
+      { action: "parallel_registry_search", execution: "blocked", observation: "Unsupported registry: inbiz" },
+      { action: "parse_failure", execution: "error", failureDomain: "model_action", failureKind: "invalid_contract" },
+      { action: "investigator_provider_error", execution: "error", failureDomain: "model_provider", failureKind: "provider_rate_limited", observation: "HTTP_429" },
+      { action: "visit", execution: "success", observation: "Page title and visible filing fields.", observedUrls: ["https://example.gov/filings"] },
+      { action: "parallel_web_search", execution: "success", observation: "Two search result URLs.", leadUrls: ["https://example.gov/a", "https://example.gov/b"] },
+    ], 1)).toEqual({
+      trajectoryRecords: 6,
+      blockedActions: 2,
+      scopeGuardBlocks: 1,
+      unsupportedRegistryActions: 1,
+      actionContractFailures: 1,
+      providerRateLimitEvents: 1,
+      successfulFetchedPages: 1,
+      unfetchedSearchLeadUrls: 2,
+      admittedCandidates: 1,
+    });
+  });
+
 });
