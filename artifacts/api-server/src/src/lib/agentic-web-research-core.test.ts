@@ -1500,6 +1500,63 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("must visit");
   });
 
+  it("does not carry a successful lead from a superseded Boss pivot as the active follow-up", () => {
+    const oldObjective = [
+      "PRIMARY CASE OBJECTIVE: Discover people with credible ownership evidence.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Find privately held construction-material suppliers in Ohio via Ohio Secretary of State business filings.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+    ].join("\n");
+    const activeObjective = [
+      "PRIMARY CASE OBJECTIVE: Discover people with credible ownership evidence.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Find privately held agricultural-equipment manufacturers in Michigan via Michigan LARA business entity filings.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+    ].join("\n");
+    const records: AgenticTrajectoryRecord[] = [
+      {
+        turn: 4,
+        model: "openai/gpt-oss-120b",
+        pivotScopeKey: discoveryPivotScopeKey(oldObjective) ?? undefined,
+        action: "web_search",
+        execution: "success",
+        args: { query: "Ohio Secretary of State construction material suppliers business filings", provider: "serper" },
+        leadUrls: ["https://businesssearch.ohiosos.gov/"],
+        observation: "Ohio portal returned as an unfetched lead under the superseded pivot.",
+        observedUrls: [],
+        findings: [],
+        providerFallback: [],
+      },
+      {
+        turn: 5,
+        model: "openai/gpt-oss-120b",
+        pivotScopeKey: discoveryPivotScopeKey(activeObjective) ?? undefined,
+        action: "web_search",
+        execution: "blocked",
+        args: { query: "Texas agricultural equipment Secretary of State business filings", provider: "serper" },
+        observation: "pivot_alignment_guard blocked the query before outbound execution.",
+        observedUrls: [],
+        findings: [],
+        providerFallback: [],
+      },
+    ];
+
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: activeObjective,
+      history: [],
+      trajectoryRecords: records,
+      lastObservation: records[1]!.observation ?? "",
+      findings: [],
+      priorContext: "",
+      intelligenceContext: "",
+      mode: "discovery",
+    });
+
+    expect(prompt).not.toContain("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS");
+    expect(prompt).not.toContain("consider inspecting a promising in-scope lead URL next");
+  });
+
   it("keeps a final compact Investigator prompt within the ceiling for oversized geographic/source alternatives", () => {
     const states = "Illinois, Indiana, Ohio, Michigan, Wisconsin, Minnesota, Iowa, Missouri, North Dakota, South Dakota, Kansas, Nebraska";
     const sourceClasses = "official Secretary of State business entity search portals, public corporate registration filings, official state registries, corporate filings, government databases, beneficial ownership records, licensee directories, trade association membership lists, transaction announcements";
