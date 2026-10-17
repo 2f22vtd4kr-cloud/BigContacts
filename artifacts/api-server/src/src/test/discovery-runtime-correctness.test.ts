@@ -965,3 +965,12 @@ describe("registry catalogue honesty", () => {
     expect(REGISTRY_COVERAGE_MATRIX.filter((entry) => !entry.runtimeAdapterImplemented).map((entry) => entry.id).sort()).toEqual(["faa", "hmlr-ppd"]);
   });
 });
+
+
+describe("canonical control failure accounting", () => {
+  it("persists a nonzero durable error count when the Right-hand control result is unavailable", () => {
+    expect(canonicalDiscoverySource).toMatch(
+      /if \(decision\.status !== "completed"\) \{[\s\S]{0,1_500}priorErrorCount = Number\(\(await getJobStrict\(atlasJobId\)\)\?\.errors \?\? 0\);[\s\S]{0,700}errors: Math\.max\(1, priorErrorCount\)/,
+    );
+  });
+});
