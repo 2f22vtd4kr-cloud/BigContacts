@@ -3236,7 +3236,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an adapter ID; public sites outside these integrations must be searched via web tools. Verify ownership fields before relying on them; search hits are leads.",
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactTerminalContractGuidance,
-        ...(input.mode === "discovery" ? [compactDiscoveryAdmissionContract ?? ""] : []),
+        ...(input.mode === "discovery" ? [compactDiscoveryQualityGate ?? "", compactDiscoveryAdmissionContract ?? ""] : []),
         compactOutputContract,
         minimalTail,
       ].filter(Boolean).join("\n\n");
