@@ -197,7 +197,7 @@ describe("canonical Investigator continuation health", () => {
       { action: "parallel_registry_search", execution: "blocked", observation: "Unsupported registry: inbiz" },
       { action: "parse_failure", execution: "error", failureDomain: "model_action", failureKind: "invalid_contract" },
       { action: "investigator_provider_error", execution: "error", failureDomain: "model_provider", failureKind: "provider_rate_limited", observation: "HTTP_429" },
-      { action: "visit", execution: "success", observation: "Page title and visible filing fields.", observedUrls: ["https://example.gov/filings"] },
+      { action: "visit", execution: "success", observation: "Page title and visible filing fields.", observedUrls: ["https://example.gov/filings", "https://example.gov/a/"] },
       { action: "parallel_web_search", execution: "success", observation: "Two search result URLs.", leadUrls: ["https://example.gov/a", "https://example.gov/b"] },
     ], 1)).toEqual({
       trajectoryRecords: 6,
@@ -207,7 +207,7 @@ describe("canonical Investigator continuation health", () => {
       actionContractFailures: 1,
       providerRateLimitEvents: 1,
       successfulFetchedPages: 1,
-      unfetchedSearchLeadUrls: 2,
+      unfetchedSearchLeadUrls: 1,
       admittedCandidates: 1,
     });
   });
