@@ -21,7 +21,7 @@ import {
 import { nextResearchCaseEventIteration } from "./research-case-event-iteration";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
-import { classifyCanonicalAtlasFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
+import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
 import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateRoleCorroborationSources, hasDiscoveryOwnershipLeadSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
@@ -1609,6 +1609,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const jobMissing = !jobStateUnavailable && !durableJob;
     const jobStateMismatch = !jobStateUnavailable && Boolean(durableJob) && durableJob?.status !== "running" && !cancelled;
     const leaseLost = !jobStateUnavailable && durableJob?.status === "running" && /Canonical Atlas lease was lost/i.test(rawMessage);
+    const recoverableRightHandOpeningFailure = isRecoverableRightHandOpeningFailure(failureStage, error);
     const currentAction = cancelled
       ? "canonical-atlas-cancelled"
       : jobStateUnavailable
@@ -1617,7 +1618,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           ? "canonical-atlas-job-missing"
           : leaseLost
             ? "canonical-lease-lost"
-            : "canonical-atlas-failed";
+            : recoverableRightHandOpeningFailure
+              ? "groq-right-hand-unavailable"
+              : "canonical-atlas-failed";
     const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
     const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
     const message = cancelled
