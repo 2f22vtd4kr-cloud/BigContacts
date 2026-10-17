@@ -49,5 +49,17 @@ describe("bounded discovery allocation", () => {
       targetResearchReserveIterations: 8,
       hasAdmittedCandidates: true,
     })).toBe(0);
+
+    // Five target-stage actions already consumed half the reserve. Discovery
+    // may use the other six iterations allowed by its ceiling, protecting only
+    // the three target-stage actions that remain unspent.
+    expect(resolveRemainingDiscoveryIterations({
+      totalIterationCeiling: 20,
+      discoveryIterationCeiling: 20,
+      discoveryIterationsUsed: 6,
+      investigatorIterationsUsed: 11,
+      targetResearchReserveIterations: 8,
+      hasAdmittedCandidates: true,
+    })).toBe(6);
   });
 });
