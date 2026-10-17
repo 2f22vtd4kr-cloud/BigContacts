@@ -970,7 +970,7 @@ describe("registry catalogue honesty", () => {
 describe("canonical control failure accounting", () => {
   it("persists a nonzero durable error count when the Right-hand control result is unavailable", () => {
     expect(canonicalDiscoverySource).toMatch(
-      /if \(decision\.status !== "completed"\) \{[\s\S]{0,1_500}priorErrorCount = Number\(\(await getJobStrict\(atlasJobId\)\)\?\.errors \?\? 0\);[\s\S]{0,700}errors: Math\.max\(1, priorErrorCount\)/,
+      /if \(decision\.status !== "completed"\) \{[\s\S]{0,1500}priorErrorCount = Number\(\(await getJobStrict\(atlasJobId\)\)\?\.errors \?\? 0\);[\s\S]{0,700}errors: Math\.max\(1, priorErrorCount\)/,
     );
   });
 });
