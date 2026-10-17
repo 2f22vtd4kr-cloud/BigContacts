@@ -258,7 +258,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
   const report = trimPromptSection(input.investigatorReport, Math.min(1_500, Math.floor(dynamicBudget * 0.25)));
   const state = trimPromptSection(input.compactState, Math.max(0, dynamicBudget - report.length));
   const prompt = fixedPrefix + "\n\n" + reportLabel + report + stateLabel + state;
-  return prompt.length <= ATLAS_RIGHT_HAND_PROMPT_BUDGET ? prompt : trimPromptSection(prompt, ATLAS_RIGHT_HAND_PROMPT_BUDGET);
+  return prompt.length <= ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET ? prompt : trimPromptSection(prompt, ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
 }
 
 export function buildAtlasBossControlPrompt(input: { investigatorReport: string; compactState: string; rightHand: { status: "completed" | "unavailable"; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null } }): string {
