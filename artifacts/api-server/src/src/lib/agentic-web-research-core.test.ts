@@ -1493,6 +1493,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 17");
     expect(prompt).toContain("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS");
+    expect(prompt).toContain("consider inspecting a promising in-scope lead URL next");
     expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
     expect(prompt).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
     expect(prompt).toContain("not evidence or a mandated next action");
