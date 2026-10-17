@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -605,21 +605,62 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [fetchedDirectoryPage])).toBeNull();
   });
 
-  it("accepts a business directory as a database-class source when subject and geography align", () => {
+  it("recognizes filing-document names as valid filing-source language", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
-      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Houston metropolitan area, extracting officer or member names from filing records.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search Delaware Division of Corporations filings for privately held renewable-energy firms located in Delaware and identify named principals from public filing records.",
     ].join("\n\n");
 
-    expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Houston privately held metal-fabrication manufacturers business directory",
-      provider: "serper",
+    expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", {
+      searches: [
+        { query: 'Delaware renewable-energy firms "Certificate of Formation"', provider: "serper" },
+        { query: 'Delaware renewable-energy firms "Annual Report"', provider: "serper" },
+      ],
     }, [])).toBeNull();
 
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Houston privately held metal-fabrication manufacturers",
+      query: "Delaware renewable-energy firms privately held ownership",
       provider: "serper",
-    }, [])).toContain("query source class");
+    }, [])).toContain("source class");
+  });
+
+  it("matches Dallas, Fort Worth, and DFW alternatives without admitting another Texas metro", () => {
+    const objective = [
+      "Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records.",
+    ].join("\n\n");
+
+    for (const query of [
+      "Dallas private metal fabrication manufacturer database",
+      "Fort Worth private metal fabrication manufacturer database",
+      "DFW private metal fabrication manufacturer database",
+    ]) {
+      expect(discoveryPivotAlignmentReason(objective, "web_search", {
+        query, provider: "serper",
+      }, [])).toBeNull();
+    }
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Austin private metal fabrication manufacturer database",
+      provider: "serper",
+    }, [])).toContain("geography");
+  });
+
+  it("filters only out-of-scope items from a mixed parallel search batch", () => {
+    const objective = [
+      "Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records.",
+    ].join("\n\n");
+    const searches = [
+      { query: "Dallas private metal fabrication manufacturer database", provider: "serper" },
+      { query: "Dallas metal fabricator privately held site:linkedin.com/company", provider: "serper" },
+    ];
+
+    const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
+    expect(partition.allowed).toEqual([searches[0]]);
+    expect(partition.rejected).toHaveLength(1);
+    expect(partition.rejected[0]?.search).toEqual(searches[1]);
+    expect(partition.rejected[0]?.reason).toContain("source class");
   });
 
   it("does not infer a source-stage order from ordinary source alternatives", () => {
