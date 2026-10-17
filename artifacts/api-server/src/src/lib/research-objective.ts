@@ -7,12 +7,14 @@ const GENERIC_PROVIDER_OR_TOOL_DIRECTIVE = /\b(?:switch|change|move|fall\s+back)
 const EXPLICIT_URL = /https?:\/\/|www\.[^\s]+/i;
 const TOOL_DIRECTIVE = /\b(?:visit|open|fetch)\s+(?:https?:\/\/|www\.)/i;
 const SEARCH_QUERY_OPERATOR = /\b(?:site|inurl|intitle|allinurl|allintitle|filetype|intext):\s*\S+/i;
+const UNRESOLVED_SCOPE_PLACEHOLDER = /\b(?:chosen|selected|appropriate|unspecified|any)\s+(?:region|geography|location|jurisdiction|market|sector|industry)\b/i;
 const UNRESOLVED_TEMPLATE_PLACEHOLDER = /(?:\[\s*(?:country|country name|target country|city|state|province|region|location|geography|market|sector|industry|company(?: name)?|person(?: name)?|name|url|domain|query|search query|source)\s*\]|\{\{\s*(?:country|country name|target country|city|state|province|region|location|geography|market|sector|industry|company(?: name)?|person(?: name)?|name|url|domain|query|search query|source)\s*\}\}|\{\s*(?:country|country name|target country|city|state|province|region|location|geography|market|sector|industry|company(?: name)?|person(?: name)?|name|url|domain|query|search query|source)\s*\}|<\s*(?:country|country name|target country|city|state|province|region|location|geography|market|sector|industry|company(?: name)?|person(?: name)?|name|url|domain|query|search query|source)\s*>|\b(?:TODO|TBD|CHANGEME|REPLACE_ME|INSERT_[A-Z0-9_]+)\b)/i;
 
 export function validateResearchObjective(direction: string | null | undefined): { valid: true; direction: string } | { valid: false; reason: string } {
   const value = typeof direction === "string" ? direction.trim().slice(0, 1800) : "";
   if (!value) return { valid: false, reason: "Research redirect contained no research objective." };
   if (UNRESOLVED_TEMPLATE_PLACEHOLDER.test(value)) return { valid: false, reason: "Research redirect contains an unresolved template placeholder." };
+  if (UNRESOLVED_SCOPE_PLACEHOLDER.test(value)) return { valid: false, reason: "Research redirect leaves its subject or geography as an unresolved placeholder." };
   if (PROVIDER_OR_TOOL_DIRECTIVE.test(value) || GENERIC_PROVIDER_OR_TOOL_DIRECTIVE.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe an Investigator provider or tool." };
   if (SEARCH_QUERY_OPERATOR.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe a search-engine query operator." };
   if (EXPLICIT_URL.test(value) || TOOL_DIRECTIVE.test(value)) return { valid: false, reason: "Research redirect attempted to prescribe a concrete URL/tool destination." };

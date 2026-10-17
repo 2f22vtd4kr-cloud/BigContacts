@@ -233,6 +233,22 @@ describe("Atlas control-plane contract regression", () => {
     expect(validateResearchObjective("Fetch https://example.test/filing.pdf and extract the officers.").valid).toBe(false);
   });
 
+  it("requires concrete, executable pivot directions in both ongoing control prompts", () => {
+    const investigatorReport = "No-progress scope-recovery feedback: six actions were blocked before any outbound request.";
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState: "No source-backed findings or admitted candidates." });
+    expect(rightHandPrompt).toContain("direction field itself must name one substantive subject/sector hypothesis");
+    expect(rightHandPrompt).toContain("one actual geography/jurisdiction");
+    expect(rightHandPrompt).toContain("a chosen region");
+
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport,
+      compactState: "No source-backed findings or admitted candidates.",
+      rightHand: { status: "completed", decision: "pivot_discovery", reason: "The current scope is blocked.", direction: "Shift to a sector-specific approach in a chosen region.", confidence: 0.8, model: "openai/gpt-oss-120b", error: null },
+    });
+    expect(bossPrompt).toContain("A pivot must be self-contained and executable");
+    expect(bossPrompt).toContain("a chosen region");
+  });
+
   it("requires both opening and ongoing Right-hand reviews to flag unsupported scope", () => {
     expect(canonicalDiscoverySource).toContain("Boss report (unverified control hypothesis, not source evidence)");
     expect(canonicalDiscoverySource).toContain("Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");

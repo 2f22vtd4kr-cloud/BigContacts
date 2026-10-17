@@ -698,6 +698,36 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [priorBlockedQuery])).toContain("Previous scope mismatch dimensions: query geography.");
   });
 
+  it("does not treat procedural wording as a required subject when a pivot leaves the subject open, while retaining source-class enforcement", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Shift to a sector-specific, geography-focused discovery approach (e.g., identify private mid-size firms in a chosen region and locate their registered owners via public corporate registries).",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+    ].join("\n");
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Austin Texas private manufacturing company owners official Texas Secretary of State business entity search",
+      provider: "serper",
+    }, [])).toBeNull();
+
+    const missingSourceClass = discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Austin Texas private manufacturing company owners", provider: "serper",
+    }, []);
+    expect(missingSourceClass).toContain("Scope mismatch dimensions: query source class.");
+
+    const scopeKey = discoveryPivotScopeKey(objective);
+    if (!scopeKey) throw new Error("Expected the pivot source class to define a scope key");
+    expect(repeatedPivotBlockedActionReason(objective, "web_search", {
+      query: "Austin Texas private manufacturing company owners", provider: "serper",
+    }, [{
+      turn: 1, model: "openai/gpt-oss-120b", action: "web_search",
+      args: { query: "Austin Texas private manufacturing company owners", provider: "serper" },
+      pivotScopeKey: scopeKey, execution: "blocked",
+      observation: "pivot_alignment_guard blocked this outbound action. Scope mismatch dimensions: query source class.",
+      observedUrls: [], findings: [],
+    } as AgenticTrajectoryRecord])).toContain("repeat_pivot_alignment_guard");
+  });
+
   it("accepts Secretary-of-State entity-search wording for a registry pivot without relaxing subject or geography", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",

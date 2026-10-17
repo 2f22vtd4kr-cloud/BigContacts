@@ -397,11 +397,12 @@ export function repeatedPivotBlockedActionReason(
   const scopeKey = discoveryPivotScopeKey(objective);
   if (!scopeKey) return null;
   const anchors = pivotScopeAnchors(objective);
-  if (!anchors.length) return null;
   const direction = extractBossPivotDirectionForCompactPrompt(objective);
   const exclusions = pivotScopeExclusions(direction);
   const geographyOptions = pivotScopeGeographyOptions(direction);
   const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
+  // A missing substantive subject must not disable a source-class/geography constraint.
+  if (anchors.length === 0 && exclusions.length === 0 && geographyOptions.length === 0 && requiredSourceAnchors.length === 0) return null;
   const evidence = pivotAlignedEvidenceState(priorRecords, anchors, exclusions, geographyOptions, requiredSourceAnchors, scopeKey);
   const currentIntents = pivotActionRequestIntents(action, args);
   if (!currentIntents.length) return null;
@@ -2142,7 +2143,11 @@ const PIVOT_SCOPE_GENERIC_TERMS = new Set([
   "channel", "channels", "professional", "professionally", "realistic", "public",
   "publicly", "documented", "document", "equity", "holder", "holders", "source",
   "sources", "evidence", "potential", "media", "partnership", "marketing", "press", "pr", "wealth", "wealthy", "rich", "credible",
-  "approach", "route", "routes", "with", "from", "into", "through", "their",
+  // Procedural wording and unresolved-scope scaffolding are not subject anchors.
+  // If a pivot leaves the subject open, keep explicit source/geography constraints.
+  "shift", "sector", "specific", "geography", "geographic", "focused", "discovery", "discover",
+  "approach", "approaches", "identify", "identification", "locate", "locating", "registered",
+  "chosen", "selected", "size", "sized", "route", "routes", "with", "from", "into", "through", "their",
   "those", "that", "this", "these", "where", "which", "while", "about", "among",
   "around", "across", "within", "under", "using", "based", "local", "locales",
   "state", "states", "country", "countries", "regionally", "midwestern",
@@ -2318,9 +2323,9 @@ function pivotScopeRequiredSourceAnchors(direction: string): string[] {
 }
 
 const PIVOT_SOURCE_CLASS_SYNONYMS: Record<string, readonly string[]> = {
-  registry: ["registry", "register", "database", "filing", "secretary of state", "business entity search", "corporate entity search", "corporation search", "licensee list", "licensee directory"],
+  registry: ["registry", "registries", "register", "database", "filing", "registration", "registrations", "business registration", "company registration", "state registration", "secretary of state", "business entity search", "corporate entity search", "corporation search", "licensee list", "licensee directory"],
   filing: ["filing", "registry", "register", "database", "corporate", "corporation", "corporations", "secretary of state", "business entity search", "corporate entity search"],
-  database: ["database", "registry", "register", "filing", "secretary of state", "business entity search", "corporate entity search", "licensee list", "licensee database"],
+  database: ["database", "registry", "registries", "register", "filing", "registration", "registrations", "business registration", "company registration", "state registration", "secretary of state", "business entity search", "corporate entity search", "licensee list", "licensee database"],
   directory: ["directory", "catalog", "listing", "list"],
   association: ["association", "chamber"],
   chamber: ["chamber", "association", "directory"],
@@ -2522,7 +2527,7 @@ function pivotActionIsAligned(
 ): boolean {
   const matchesScopeOrEvidence = (value: unknown) => {
     const text = typeof value === "string" ? value : "";
-    const matchesSubject = pivotTextMatchesAnchors(text, anchors);
+    const matchesSubject = anchors.length === 0 || pivotTextMatchesAnchors(text, anchors);
     const matchesGeography = pivotTextMatchesGeography(text, geographyOptions);
     // The Boss may list several acceptable public-source classes. One matching
     // class is sufficient; requiring two source-class tokens made valid single-
@@ -2544,7 +2549,7 @@ function pivotActionIsAligned(
   if (action === "visit" || action === "browser_fetch") {
     const requestedUrl = normalizedActionResourceUrl(args.url);
     const urlText = String(args.url ?? "");
-    const matchesSubject = pivotTextMatchesAnchors(urlText, anchors);
+    const matchesSubject = anchors.length === 0 || pivotTextMatchesAnchors(urlText, anchors);
     const matchesGeography = pivotTextMatchesGeography(urlText, geographyOptions);
     const matchesRequiredSource = requiredSourceAnchors.length === 0
       || pivotTextMatchesAnyAnchor(urlText, requiredSourceAnchors);
@@ -2612,7 +2617,7 @@ function pivotActionAlignmentFailureDetails(
 
     const dimensions: string[] = [];
     if (excluded) dimensions.push("subject/exclusion");
-    else if (!pivotTextMatchesAnchors(text, anchors)) dimensions.push("subject");
+    else if (anchors.length > 0 && !pivotTextMatchesAnchors(text, anchors)) dimensions.push("subject");
     if (!pivotTextMatchesGeography(text, geographyOptions)) dimensions.push("geography");
     if (requiredSourceAnchors.length > 0 && !pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)) {
       dimensions.push("source class");
@@ -2695,12 +2700,12 @@ export function discoveryPivotAlignmentReason(
   const activePivotScopeKey = discoveryPivotScopeKey(objective);
   if (!direction || !activePivotScopeKey) return null;
   const anchors = pivotScopeAnchors(objective);
-  // A pivot that contains no extractable substantive subject stays model-led rather
-  // than becoming an accidental stop gate.
-  if (anchors.length === 0) return null;
   const excludedSubjects = pivotScopeExclusions(direction);
   const geographyOptions = pivotScopeGeographyOptions(direction);
   const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
+  // Keep a subject-open pivot model-led while still enforcing every explicit
+  // source class, geography, and exclusion found in the direction.
+  if (anchors.length === 0 && excludedSubjects.length === 0 && geographyOptions.length === 0 && requiredSourceAnchors.length === 0) return null;
   // Provenance grows only through successful actions already grounded in the active
   // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
   const sourceStageReason = explicitSourceStageOrderReason(direction, activePivotScopeKey, action, args, priorRecords);

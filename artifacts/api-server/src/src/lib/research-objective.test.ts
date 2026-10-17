@@ -34,6 +34,15 @@ describe("research objective validation", () => {
   });
 
 
+  it("rejects pivots that leave their research scope as an unresolved placeholder", () => {
+    const genericPivot = "Shift to a sector-specific, geography-focused discovery approach (e.g., identify private mid-size firms in a chosen region and locate their registered owners via public corporate registries).";
+    expect(validateResearchObjective(genericPivot)).toEqual({
+      valid: false,
+      reason: "Research redirect leaves its subject or geography as an unresolved placeholder.",
+    });
+    expect(validateResearchObjective("Investigate private manufacturing companies in Austin, Texas through official state business registries.").valid).toBe(true);
+  });
+
   it("formats Boss directions with real prompt line breaks", () => {
     expect(formatBossDirectedObjective("Base objective", "Resolve the filing discrepancy.")).toBe(
       "Base objective\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\nResolve the filing discrepancy.",
