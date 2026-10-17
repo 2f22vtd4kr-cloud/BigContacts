@@ -97,6 +97,26 @@ export function summarizeAtlasDiscoveryResearchHealth(
 } {
   const isSearch = (action: string) =>
     ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(action);
+  const normalizeUrl = (value: string): string | null => {
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+      url.hash = "";
+      url.hostname = url.hostname.toLowerCase();
+      return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href;
+    } catch {
+      return null;
+    }
+  };
+  const fetchedUrlKeys = new Set(records
+    .filter((record) => record.execution === "success"
+      && ["visit", "browser_fetch"].includes(String(record.action ?? ""))
+      && Boolean(String(record.observation ?? "").trim()))
+    .flatMap((record) => (record.observedUrls ?? []).map(normalizeUrl).filter((url): url is string => Boolean(url))));
+  const unfetchedLeadUrlKeys = new Set(records
+    .filter((record) => record.execution === "success" && isSearch(String(record.action ?? "")))
+    .flatMap((record) => (record.leadUrls ?? []).map(normalizeUrl).filter((url): url is string => Boolean(url)))
+    .filter((url) => !fetchedUrlKeys.has(url)));
   const isPageFetch = (record: AtlasDiscoveryHealthRecord) =>
     record.execution === "success"
     && ["visit", "browser_fetch"].includes(String(record.action ?? ""))
@@ -117,9 +137,7 @@ export function summarizeAtlasDiscoveryResearchHealth(
       record.failureKind === "provider_rate_limited"
       || /\b(?:HTTP[_ ]429|rate_limit_exceeded|upstream_rate_limited|too many requests)\b/i.test(String(record.observation ?? ""))).length,
     successfulFetchedPages: records.filter(isPageFetch).length,
-    unfetchedSearchLeadUrls: records.filter((record) =>
-      record.execution === "success" && isSearch(String(record.action ?? "")))
-      .reduce((total, record) => total + (record.leadUrls ?? []).filter((url) => typeof url === "string" && /^https?:\/\//i.test(url)).length, 0),
+    unfetchedSearchLeadUrls: unfetchedLeadUrlKeys.size,
     admittedCandidates: Math.max(0, Number.isFinite(admittedCandidates) ? Math.floor(admittedCandidates) : 0),
   };
 }
