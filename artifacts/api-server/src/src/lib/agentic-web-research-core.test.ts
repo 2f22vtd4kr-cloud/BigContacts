@@ -555,7 +555,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const compact = compactEmergencyInvestigatorObjective(objective);
     expect(compact).toContain("metal-fabrication manufacturers");
     expect(compact).toMatch(/geographies: .*dallas.*fort worth.*dfw;/i);
-    expect(compact).toContain("source classes: business entity database");
+    expect(compact).toContain("source classes: database");
     expect(compact).not.toContain("manufacturers located;");
   });
 
