@@ -1313,6 +1313,53 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(schema?.properties?.targetType).toEqual({ type: ["string", "null"] });
   });
 
+  it("preserves unfetched search-result leads in compacted Investigator context", () => {
+    const context = buildInvestigatorContext({
+      targetName: "",
+      objective: "Search Midwest state business registries for privately held manufacturers.",
+      trajectoryRecords: [
+        {
+          turn: 1,
+          model: "openai/gpt-oss-120b",
+          action: "parallel_web_search",
+          execution: "success",
+          args: {
+            searches: [
+              { query: "Ohio Secretary of State business entity search", provider: "serper" },
+              { query: "Indiana Secretary of State business entity search", provider: "serper" },
+            ],
+          },
+          leadUrls: [
+            "https://businesssearch.ohiosos.gov/",
+            "https://bsd.sos.in.gov/PublicBusinessSearch",
+          ],
+          observation: "Search returned official government lookup pages. These URLs are leads, not fetched evidence.",
+          observedUrls: [],
+          findings: [],
+        },
+        {
+          turn: 2,
+          model: "openai/gpt-oss-120b",
+          action: "web_search",
+          execution: "blocked",
+          args: { query: "Texas Secretary of State business entity search" },
+          observation: "pivot_alignment_guard blocked the query before outbound execution; no request was made.",
+          observedUrls: [],
+          findings: [],
+        },
+      ],
+      lastObservation: "The latest action was blocked before outbound execution.",
+      findings: [],
+      mode: "discovery",
+      maxChars: 3_500,
+    });
+
+    expect(context).toContain("LEAD_URLS (search results only; not evidence until fetched)");
+    expect(context).toContain("https://businesssearch.ohiosos.gov/");
+    expect(context).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
+    expect(context).toContain("not evidence");
+  });
+
   it("reserves the latest trajectory exactly once during context compaction", () => {
     const latest = {
       turn: 2,
