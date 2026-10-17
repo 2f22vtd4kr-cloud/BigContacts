@@ -3069,7 +3069,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
               || extractBossOpeningDirectionForCompactPrompt(input.objective ?? "");
             return [
               caseObjective,
-              ...(activeScope ? ["ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 420)] : []),
+              ...(activeScope ? ["ACTIVE BOSS SCOPE; BOSS ADVISORY DIRECTION (not a fixed action sequence): " + compactActiveBossScope(activeScope, 420)] : []),
             ].filter(Boolean).join("\n");
           })()
         : "";
