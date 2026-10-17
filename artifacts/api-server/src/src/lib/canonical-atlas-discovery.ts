@@ -1053,7 +1053,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             ? `The previous Boss candidate selection at control turn ${controlValidationFeedback.controlTurn} was rejected because the candidate was absent from the durable admitted-candidate list. No target investigation was executed. Do not treat a name in source text or a Right-hand suggestion as candidate admission. Choose a valid model-owned control action; if more discovery is needed, direct the Investigator to continue gathering source-backed evidence and make an explicit admission decision. This feedback is control state, not research evidence.`
             : (admittedCandidateSources.length > 0
             ? `The bounded discovery allocation is exhausted at ${discoveryIterationsUsed}/${depth.agenticMaxIterations} total Investigator actions. ${Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)} global action(s) remain reserved for target-scoped research. Choose research_candidate or revisit_candidate only from the durable admitted-candidate list, or stop. Do not choose another discovery continuation without remaining allocated budget. This is control state, not research evidence.`
-            : `The bounded discovery allocation is exhausted at ${discoveryIterationsUsed}/${discoveryIterationCeiling} actions without an admitted candidate. ${Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)} global Investigator action(s) remain unused; target-scoped research is not authorized without a source-backed lead. Stop/park rather than consuming the protected research budget on repeated discovery. This is control state, not research evidence.`)) : null,
+            : `The global ${depth.agenticMaxIterations}-action discovery ceiling has been reached without an admitted candidate. No target-scoped research is authorized without a source-backed lead. Stop/park rather than requesting another discovery act. This is control state, not research evidence.`)) : null,
         scopeRecoveryFeedback: buildAtlasScopeRecoveryFeedback(discovery.trajectoryRecords ?? []),
         status: discovery.status,
         stopReason: discovery.stopReason ?? null,
@@ -1283,14 +1283,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           hasAdmittedCandidates: admittedCandidateSources.length > 0,
         });
         if (admittedCandidateSources.length === 0) {
-          phaseSummary.discoveryBudgetPolicy = admittedCandidateSources.length > 0
-            ? `Discovery is capped at ${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)} actions after admission, protecting ${targetResearchReserveIterations} global action(s) for target-scoped research.`
-            : `No candidate has been admitted, so the unused target-stage reserve is released for additional discovery within the global ${depth.agenticMaxIterations}-action and hard-timeout limits.`;
+          phaseSummary.discoveryBudgetPolicy = `No candidate has been admitted, so the unused target-stage reserve is released for additional discovery within the global ${depth.agenticMaxIterations}-action and hard-timeout limits.`;
         }
         if (remainingInvestigatorIterations <= 0) {
           discoveryResourceLimited = true;
           phaseSummary.discoveryIterationCeiling = admittedCandidateSources.length > 0
-            ? `Discovery allocation exhausted at ${discoveryIterationsUsed}/${discoveryIterationCeiling} discovery actions; remaining global actions are protected for target-scoped research.`
+            ? `Discovery allocation exhausted at ${discoveryIterationsUsed}/${Math.max(0, depth.agenticMaxIterations - targetResearchReserveIterations)} discovery actions; remaining global actions are protected for target-scoped research.`
             : `Discovery reached the global ${depth.agenticMaxIterations}-action ceiling without an admitted candidate; target research remains unauthorized without a qualifying lead.`;
           rejectedControlDecision = { controlTurn: controlTurns, reason: "The bounded discovery-action budget is exhausted; no further discovery episode can execute.", kind: "discovery_budget" };
           priorAction = previousAcceptedAction;
@@ -1556,6 +1554,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         admitted = admittedCandidateSources.map(({ name }) => name);
         materialized += admission.materialized;
         evidenceRows += admission.evidenceRows;
+        discoveryResourceLimited = nextDiscovery.stopReason !== "MODEL_DECIDED_DONE"
+          && resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, discoveryIterationCeiling, discoveryIterationsUsed, investigatorIterationsUsed, targetResearchReserveIterations, hasAdmittedCandidates: admittedCandidateSources.length > 0 }) <= 0;
         latestEvidenceBackedTerminal = deriveLatestEvidenceBackedTerminal("discovery", nextDiscovery.status, nextDiscovery.stopReason, investigatorResourceLimited) !== null && admitted.length > 0 ? "discovery" : null;
       }
     }
