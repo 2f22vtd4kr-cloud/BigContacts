@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 
@@ -32,8 +32,16 @@ const AUDIT_SECRET_REPLACEMENTS: Array<[RegExp, string]> = [
 type AuditEnvironment = {
   NODE_ENV?: string;
   APEX_CAPTURE_MODEL_PROMPTS?: string;
+  /** Additional explicit opt-in required to write test telemetry into any audit file. */
+  APEX_CAPTURE_MODEL_PROMPTS_IN_TEST?: string;
   APEX_MODEL_AUDIT_FILE?: string;
 };
+
+function shouldCaptureModelPromptAudit(env: AuditEnvironment): boolean {
+  if (env.APEX_CAPTURE_MODEL_PROMPTS !== "true" || !env.APEX_MODEL_AUDIT_FILE?.trim()) return false;
+  if (env.NODE_ENV === "development") return true;
+  return env.NODE_ENV === "test" && env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST === "true";
+}
 
 type AuditInput = {
   provider: string;
@@ -310,11 +318,7 @@ export function emitModelPromptAudit(
   write: AuditWriter = appendFileSync,
   cwd: string = process.cwd(),
 ): string | null {
-  if (
-    (env.NODE_ENV !== "development" && env.NODE_ENV !== "test")
-    || env.APEX_CAPTURE_MODEL_PROMPTS !== "true"
-    || !env.APEX_MODEL_AUDIT_FILE?.trim()
-  ) return null;
+  if (!shouldCaptureModelPromptAudit(env)) return null;
 
   const requestId = randomUUID();
   const record = {
@@ -333,8 +337,10 @@ export function emitModelPromptAudit(
   const serialized = JSON.stringify(record, null, 2);
   const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
   try {
+    const auditPath = resolveModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE!, cwd);
+    if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
     write(
-      resolveModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE, cwd),
+      auditPath,
       `\n\n### Model request ${requestId}\n\n${fence}json\n${serialized}\n${fence}\n`,
     );
     return requestId;
@@ -416,12 +422,7 @@ export function emitModelPromptAuditResponse(
   write: AuditWriter = appendFileSync,
   cwd: string = process.cwd(),
 ): void {
-  if (
-    !input.requestId
-    || (env.NODE_ENV !== "development" && env.NODE_ENV !== "test")
-    || env.APEX_CAPTURE_MODEL_PROMPTS !== "true"
-    || !env.APEX_MODEL_AUDIT_FILE?.trim()
-  ) return;
+  if (!input.requestId || !shouldCaptureModelPromptAudit(env)) return;
 
   const responseBody = input.responseBody ?? "";
   const record = {
@@ -441,8 +442,10 @@ export function emitModelPromptAuditResponse(
   const serialized = JSON.stringify(record, null, 2);
   const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
   try {
+    const auditPath = resolveModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE!, cwd);
+    if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
     write(
-      resolveModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE, cwd),
+      auditPath,
       `\n\n### Model response ${input.requestId}\n\n${fence}json\n${serialized}\n${fence}\n`,
     );
   } catch {
