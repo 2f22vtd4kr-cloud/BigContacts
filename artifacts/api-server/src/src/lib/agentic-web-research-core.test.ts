@@ -450,6 +450,12 @@ Choose each next action yourself from the available capabilities and observed ev
     );
     expect(ordered).toContain("first source stage");
     expect(ordered).toContain("search-result URLs alone do not complete");
+
+    const filteredBatch = compactEmergencyTrajectoryObservation(
+      "SCOPE FILTERED PARALLEL SEARCHES: retained 1 scope-aligned query(s); removed 1 out-of-scope query(s) before any outbound request. Rejected dimensions: searches[1] source class. Rejected queries were not sent.",
+    );
+    expect(filteredBatch).toContain("rejected queries were not sent");
+    expect(filteredBatch).toContain("Use results and observed URLs only from the queries that actually executed");
   });
 
   it("fits the active Central-European ownership-source pivot and latest blocked action into the hard prompt ceiling", () => {
