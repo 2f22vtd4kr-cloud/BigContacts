@@ -457,7 +457,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain('kind: "discovery_budget"');
     expect(canonicalSource).toContain("The global ${depth.agenticMaxIterations}-action discovery ceiling has been reached without an admitted candidate.");
     expect(canonicalSource).toContain("No candidate has been admitted, so the unused target-stage reserve is released for additional discovery");
-    expect(canonicalSource).toContain("target research remains unauthorized without a qualifying candidate");
+    expect(canonicalSource).toContain("Discovery reached the global ${depth.agenticMaxIterations}-action ceiling without an admitted candidate; target research remains unauthorized without a qualifying lead.");
   });
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
