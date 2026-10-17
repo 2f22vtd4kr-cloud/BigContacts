@@ -36,14 +36,18 @@ fi
 if [[ -s "$destination" ]]; then
   source_bytes="$(wc -c < "$tmp_source" | tr -d ' ')"
   destination_bytes="$(wc -c < "$destination" | tr -d ' ')"
-  if (( destination_bytes >= source_bytes )) && head -c "$source_bytes" "$destination" | cmp -s "$tmp_source" -; then
-    echo "[restore-private-atlas-audit] Original report is already the file prefix; leaving all data unchanged."
+  if (( destination_bytes <= source_bytes )) && head -c "$destination_bytes" "$tmp_source" | cmp -s "$destination" -; then
+    cp "$tmp_source" "$tmp_combined"
+    mv "$tmp_combined" "$destination"
+    echo "[restore-private-atlas-audit] Existing destination was a prefix; preserved it and restored the fuller workspace report."
+  elif (( destination_bytes >= source_bytes )) && head -c "$source_bytes" "$destination" | cmp -s "$tmp_source" -; then
+    echo "[restore-private-atlas-audit] Destination already contains the recovered report as its prefix; leaving all data unchanged."
   else
     cat "$tmp_source" > "$tmp_combined"
     printf '\n\n## Existing private-path telemetry preserved during audit recovery\n\n' >> "$tmp_combined"
     cat "$destination" >> "$tmp_combined"
     mv "$tmp_combined" "$destination"
-    echo "[restore-private-atlas-audit] Restored original report first and appended pre-existing destination content without discarding it."
+    echo "[restore-private-atlas-audit] Combined source report and existing destination content without discarding either."
   fi
 else
   cp "$tmp_source" "$destination"
