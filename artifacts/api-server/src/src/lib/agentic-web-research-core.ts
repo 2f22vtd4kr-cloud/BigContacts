@@ -2919,8 +2919,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ];
     if (carryForwardSuccessfulSearch) {
       parts.push(
-        "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS (advisory, not evidence or a mandated next action):\n"
+        "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS (advisory, not evidence or a mandated next action):\\n"
         + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, observationChars, leadUrlCount)),
+      );
+    }
+    const latestLeadCount = latestRecord?.leadUrls?.length ?? 0;
+    const carriedLeadCount = carryForwardSuccessfulSearch?.leadUrls?.length ?? 0;
+    if (latestLeadCount > 0 || carriedLeadCount > 0) {
+      parts.push(
+        "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when that offers more information than another search. The Investigator may choose any justified action; search-result URLs remain leads, not evidence until fetched.",
       );
     }
     return parts.join("\n\n");
