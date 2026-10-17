@@ -816,16 +816,16 @@ Choose each next action yourself from the available capabilities and observed ev
       expect(discoveryPivotAlignmentReason(objective, "web_search", {
         query: `${state} Secretary of State business entity search privately held mid-market manufacturing companies`,
         provider: "serper",
-      })).toBeNull();
+      }, [])).toBeNull();
     }
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Midwest US Secretary of State business entity search privately held mid-market manufacturing companies",
       provider: "serper",
-    })).toBeNull();
+    }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Texas Secretary of State business entity search privately held mid-market manufacturing companies",
       provider: "serper",
-    })).toContain("Scope mismatch dimensions: query geography.");
+    }, [])).toContain("Scope mismatch dimensions: query geography.");
   });
 
   it("accepts member-state and city queries for a Pacific Northwest pivot without weakening sector or geography", () => {
