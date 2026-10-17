@@ -29,7 +29,7 @@ The durable trajectory stored `leadUrls`, but the regular context compactor did 
 Fixed on `main`:
 - Preserve structured lead URLs explicitly in the regular recent/archived Investigator context, clearly labelled as un-fetched leads.
 - Preserve the last successful search and its URLs in the final prompt tail when no successful same-scope fetch has followed it, even if the newest act was blocked.
-- Keep that carry-forward scoped to the active Boss pivot so a stale lead from an older pivot is not presented as the current follow-up.
+- Keep that carry-forward scoped to the active Boss pivot. The compact prompt tail now suppresses prior-pivot URLs and the follow-up cue when those URLs do not belong to the current scope.
 - Include a non-binding cue to consider inspecting a promising, in-scope lead when that has higher expected information gain than another search.
 
 ### 2. Boss/Right-hand were not given structured unfetched leads
@@ -80,9 +80,13 @@ The remediation is split into small, directly committed changes:
 - [`1b2409c` — retain leads in Boss and Right-hand context](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/1b2409cc16527fea63180772b9c21f87cfc2cc2e)
 - [`e7c326e` — test the control-report and prompt lead path](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/e7c326ebc8d3647287ecabb3b96b28c29ac27fda)
 
+- [`3d31113` — type control-trajectory lead URLs explicitly](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/3d3111352cca3de4239aec9ec37419a213af06c4)
+- [`088fd9f` — suppress prior-pivot URLs in the active prompt tail](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/088fd9f532553d21616c6638b94b57b2287649a4)
+- [`6fb2946` — test that superseded-pivot leads are not carried as active follow-up](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/6fb2946c77ecc2df86f7853a5dc9ffe1a5bdea59)
+
 ## Validation status and next gate
 
-Regression tests have been added for Midwest/member-state matching, rejecting out-of-region queries, retaining the last same-scope successful search's URLs after a blocked action, preserving search leads in ordinary context compaction, keeping oversized prompt composition from throwing, and allowing an observed lead URL while rejecting a guessed URL.
+Regression tests have been added for Midwest/member-state matching, rejecting out-of-region queries, retaining the last same-scope successful search's URLs after a blocked action, preventing superseded-pivot lead carryover, preserving search leads in ordinary context compaction, keeping oversized prompt composition from throwing, allowing an observed lead URL while rejecting a guessed URL, and retaining unfetched lead provenance through the Right-hand/Boss control report and prompt compaction.
 
 **The tests have not been executed in this session, and no CI status is available for the latest remediation commits. Do not treat the code as test-verified or start another live research run yet.** Before the next operator-run, verify that the Replit workspace has imported the current `main` HEAD, run the API server's `test`, `typecheck`, and `build` scripts, and check their actual results. Do not rotate the Investigator key just for the captured TPM response.
 
