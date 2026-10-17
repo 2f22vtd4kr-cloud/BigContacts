@@ -1036,7 +1036,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
-    expect(canonicalAtlasDiscoverySource).toContain("No additional Boss control calls are made without an eligible target.");
+    expect(canonicalAtlasDiscoverySource).toContain("No candidate has been admitted, so the unused target-stage reserve is released for additional discovery");
+    expect(canonicalAtlasDiscoverySource).toContain("No target-scoped research is authorized without a source-backed lead");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
