@@ -537,6 +537,22 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(compact).not.toContain("geographies: washington, oregon");
   });
 
+  it("preserves a complete Dallas–Fort Worth scope in source-first emergency compaction", () => {
+    const direction = "Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records. The active scope must remain limited to this sector and metro; use public business registry filings to identify owners, not generic social profiles.";
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      direction,
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+    ].join("\n\n");
+
+    const compact = compactEmergencyInvestigatorObjective(objective);
+    expect(compact).toContain("metal-fabrication manufacturers");
+    expect(compact).toMatch(/geographies: .*dallas.*fort worth.*dfw;/i);
+    expect(compact).toContain("source classes: business entity database");
+    expect(compact).not.toContain("manufacturers located;");
+  });
+
   it("excludes the pursue-unless continuation instruction from accepted pivot scope", () => {
     const direction = "Search for recent renewable-energy private-equity transactions in Vietnam, Thailand, and Indonesia and extract named fund managers or principal investors from transaction announcements or regulatory filings.";
     const objective = [
