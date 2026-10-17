@@ -120,6 +120,14 @@ export function resolveRemainingDiscoveryIterations(input: {
   targetResearchReserveIterations: number;
   hasAdmittedCandidates: boolean;
 }): number {
+  const budgetInputs = [
+    input.totalIterationCeiling,
+    input.discoveryIterationCeiling,
+    input.discoveryIterationsUsed,
+    input.investigatorIterationsUsed,
+    input.targetResearchReserveIterations,
+  ];
+  if (budgetInputs.some((value) => !Number.isFinite(value) || value < 0)) return 0;
   const nonNegativeInteger = (value: number): number =>
     Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
   const total = nonNegativeInteger(input.totalIterationCeiling);
