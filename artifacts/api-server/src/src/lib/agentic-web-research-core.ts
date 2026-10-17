@@ -2491,10 +2491,11 @@ function explicitSourceStageOrderReason(
 
 function pivotTextMatchesGeography(value: string, options: readonly string[][]): boolean {
   if (options.length === 0) return true;
-  const tokens = new Set((value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken));
-  // Each parsed location phrase is one alternative; all tokens within a
-  // multi-word place name must match, but only one alternative needs to match.
-  return options.some((option) => option.every((token) => tokens.has(token)));
+  // Geography labels are proper names, not English plurals. The generic token
+  // normalizer turns names such as Illinois, Kansas, Indianapolis and Sioux Falls
+  // into different tokens, which rejects valid member-state/city queries.
+  const tokens = new Set((value.toLowerCase().match(/[a-z]{3,}/g) ?? []));
+  return options.some((option) => option.every((token) => tokens.has(token.toLowerCase())));
 }
 
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
@@ -3127,13 +3128,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // distinction, discovery admission gate and schema contract while shedding
       // redundant explanatory text. Action choice remains model-led.
       const finalScope = activeScope
-        ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 420)
+        ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 360)
         : "CASE OBJECTIVE: discover real people with credible wealth potential and a realistic person-level public/professional/intermediary route.";
-      const finalEvidenceRules = "RESEARCH RULES: Choose any permitted next action; no fixed tool order. Honor the active subject, geography, source class and exclusions. New searches must match scope; fetch only observed in-scope URLs. Search URLs/snippets are leads, not evidence. A blocked request is not negative evidence. Never invent identity, ownership clues, wealth or contacts.";
-      const finalDiscoveryGate = input.mode === "discovery"
-        ? "DISCOVERY ADMISSION: one successfully fetched claim-grade source must co-bind an exact full person name and page-stated role and show an observable ownership/control/equity/investment clue. This is review-only; never infer wealth from seniority."
-        : "";
-      const finalCompactOutputContract = "OUTPUT CONTRACT: Return one root JSON object satisfying the supplied schema; include every required field; unused scalar fields=null and unused arrays=[]. Every nonterminal action requires hypothesis, purpose and expectedInformationGain.";
+      const finalEvidenceRules = "SCOPE RECOVERY: a search query must name the active scope subject, geography and source class. After a block, revise the mismatched dimension or ask Boss/Right-hand for new scope; fetch only observed in-scope URLs. A blocked request is not negative evidence. Search-result URLs and snippets are leads, not evidence. Never invent identities, ownership clues, wealth or contacts.";
+      const finalDiscoveryGate = input.mode === "discovery" ? (compactDiscoveryAdmissionContract ?? "") : "";
+      // Keep schema, the scope-recovery rule, discovery admission law, latest
+      // blocked action, and any same-pivot unfetched leads even in the last tier.
+      // The previous final slice cut the prompt's tail first, deleting the very
+      // recovery instructions and lead URLs the earlier compaction tiers protected.
+      const finalLatestRecordTail = buildLatestRecordTail(60, 2);
       const finalFallbackParts = [
         finalEmergencyAssignment,
         finalScope,
@@ -3141,19 +3144,38 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         availableActionsGuidance,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
+        compactEvidenceLaw,
         compactTerminalContractGuidance,
         "PAGE LIMIT: visit/browser_fetch do not extract PDF binaries; search snippets and result URLs are leads, not evidence.",
+        ...(input.mode === "discovery" ? [compactDiscoveryQualityGate ?? ""] : []),
         finalDiscoveryGate,
-        finalCompactOutputContract,
-        buildLatestRecordTail(60, 1),
+        compactOutputContract,
+        finalLatestRecordTail,
       ].filter(Boolean);
       const finalFallbackPrompt = finalFallbackParts.join("\n\n");
-      // This clipping is only a last-resort safeguard if a deployment configures
-      // an extraordinarily small ceiling; with the standard 5,600-char ceiling,
-      // all of the explicit scope and evidence rules above fit intact.
-      return finalFallbackPrompt.length <= maxUserPromptChars
-        ? finalFallbackPrompt
-        : finalFallbackPrompt.slice(0, maxUserPromptChars);
+      if (finalFallbackPrompt.length <= maxUserPromptChars) return finalFallbackPrompt;
+
+      // Last-resort budgeting shortens optional prose, never by clipping the
+      // required output contract or newest trajectory/lead tail. Proper-name
+      // geography and source-class alternatives are preserved by the scope compactor.
+      const minimalTail = buildLatestRecordTail(24, 2);
+      const minimalFallback = [
+        finalEmergencyAssignment,
+        activeScope
+          ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 240)
+          : finalScope,
+        "SCOPE RECOVERY: name the active subject, geography and source class in new searches; fetch only observed in-scope URLs. A blocked request is not negative evidence. Leads are not evidence.",
+        compactTerminalContractGuidance,
+        ...(input.mode === "discovery" ? [compactDiscoveryAdmissionContract ?? ""] : []),
+        compactOutputContract,
+        minimalTail,
+      ].filter(Boolean).join("\n\n");
+      if (minimalFallback.length <= maxUserPromptChars) return minimalFallback;
+
+      // The supported provider ceiling is normally 5,600 chars, well above this
+      // critical minimum. If configured lower, keep whole mandatory sections and
+      // the durable tail rather than returning a syntactically truncated prompt.
+      throw new Error("Canonical Investigator critical prompt contract exceeds the provider ceiling.");
     }
     const boundedState = boundedAuxiliaryState(dynamicState, compactBudget);
     return [compactPrefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n");
