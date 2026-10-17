@@ -3232,6 +3232,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 240)
           : finalScope,
         "SCOPE RECOVERY: name the active subject, geography and source class in new searches; fetch only observed in-scope URLs. A blocked request is not negative evidence. Leads are not evidence.",
+        "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
+        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an adapter ID; public sites outside these integrations must be searched via web tools.",
+        "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactTerminalContractGuidance,
         ...(input.mode === "discovery" ? [compactDiscoveryAdmissionContract ?? ""] : []),
         compactOutputContract,
