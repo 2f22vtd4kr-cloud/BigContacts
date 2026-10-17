@@ -175,6 +175,19 @@ export function compactCanonicalDiscoveryContinuationContext(
 }
 
 /**
+ * Extract only the text owned by the legacy Boss-pivot field. Opening-control
+ * reports and Right-hand notes are adjacent advisory context, not part of the
+ * active research scope; including them can make scope compaction drop geography.
+ */
+function extractEmbeddedBossDirection(raw: string, start: number): string {
+  const remainder = raw.slice(start);
+  const boundary = remainder.search(
+    /\n(?:BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|RIGHT-HAND OPENING REVIEW(?: \(advisory\))?:|CONTINUATION STATE:|RECENT PRIOR ACTS(?: \(newest last\))?:|CANONICAL EVIDENCE GRAPH STATE:|Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue\.)/i,
+  );
+  return remainder.slice(0, boundary >= 0 ? boundary : undefined).trim();
+}
+
+/**
  * Compose the short objective field independently from durable history/context.
  * The prompt builder keeps only the first 2,000 objective characters, so a
  * Boss-directed question must not be appended after large state/history blobs.
@@ -217,11 +230,11 @@ export function buildBoundedInvestigatorObjective(input: {
       const directionEnd = directionEndCandidates.length ? Math.min(...directionEndCandidates) : input.base.length;
       embeddedDirection = input.base.slice(directionStart, directionEnd).trim();
     } else if (legacyPivotIndex >= baseStart) {
-      embeddedDirection = input.base.slice(legacyPivotIndex + pivotMarker.length).trim();
+      embeddedDirection = extractEmbeddedBossDirection(input.base, legacyPivotIndex + pivotMarker.length);
     }
   } else if (legacyPivotIndex >= 0) {
     baseText = input.base.slice(0, legacyPivotIndex).trim();
-    embeddedDirection = input.base.slice(legacyPivotIndex + pivotMarker.length).trim();
+    embeddedDirection = extractEmbeddedBossDirection(input.base, legacyPivotIndex + pivotMarker.length);
   }
 
   const requestedDirection = input.direction?.trim() || embeddedDirection;

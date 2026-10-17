@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
-import { buildInvestigatorContext } from "./investigation-context-compaction";
+import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError } from "./canonical-atlas-failure-diagnostics";
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
@@ -336,7 +336,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("domain_lookup");
     expect(prompt).toMatch(/(?:PAGE FORMAT \/ RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries|PAGE LIMIT: visits do not extract PDF binaries)/);
     expect(prompt).toMatch(/search snippets (?:remain leads, not evidence|are leads, not evidence)/i);
-    expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
+    expect(prompt).toMatch(/BOSS ADVISORY DIRECTION \(not a fixed action sequence\):|ACTIVE BOSS SCOPE:/);
     expect(prompt).toContain("MISSION PRIORITY:");
     expect(prompt).toContain("case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice");
     expect(prompt).toContain("avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis");
@@ -541,6 +541,32 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(compact).toContain("source classes: business entity filings");
     expect(compact).toMatch(/geographies: washington state;/i);
     expect(compact).not.toContain("geographies: washington, oregon");
+  });
+
+  it("keeps opening scope separate from appended Boss and Right-hand control notes during compaction", () => {
+    const direction = "Search Washington State Secretary of State corporation filings for privately held manufacturing firms with listed owners or officers, focusing on the aerospace components sector.";
+    const rawObjective = [
+      "PRIMARY OPERATOR OBJECTIVE: Discover under-the-radar people with credible wealth potential and realistic public routes.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      direction,
+      "BOSS OPENING CONTROL DIRECTION:",
+      "Report: " + "Unverified opening narrative. ".repeat(8),
+      "Next directions: " + JSON.stringify(["Investigate private manufacturing firms in Indiana using the Indiana Secretary of State database."]),
+      "RIGHT-HAND OPENING REVIEW (advisory):",
+      "Decision: Approve the opening direction.",
+    ].join("\n");
+
+    const bounded = buildBoundedInvestigatorObjective({ base: rawObjective, maxChars: 1_800 });
+    expect(extractBossPivotDirectionForCompactPrompt(bounded)).toBe(direction);
+
+    // Emergency prompt construction must not reinterpret "Washington State
+    // Secretary of State" as a source-first phrase and drop the geography after
+    // appended control prose makes the scope look long.
+    const emergency = compactEmergencyInvestigatorObjective(bounded);
+    expect(emergency).toContain("Washington State");
+    expect(emergency).toContain("aerospace components");
+    expect(emergency).not.toContain("Indiana");
+    expect(emergency).not.toContain("Unverified opening narrative");
   });
 
   it("preserves a complete Dallas–Fort Worth scope in source-first emergency compaction", () => {
@@ -1010,7 +1036,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
-    expect(canonicalAtlasDiscoverySource).toContain("No additional Boss control calls are made without an eligible target.");
+    expect(canonicalAtlasDiscoverySource).toContain("No candidate has been admitted, so the unused target-stage reserve is released for additional discovery");
+    expect(canonicalAtlasDiscoverySource).toContain("No target-scoped research is authorized without a source-backed lead");
   });
 
   it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
@@ -1635,6 +1662,23 @@ Choose each next action yourself from the available capabilities and observed ev
 
     expect(prompt).not.toContain("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS");
     expect(prompt).not.toContain("consider inspecting a promising in-scope lead URL next");
+  });
+
+  it("advertises only registry adapters callable in the current runtime", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Research private manufacturing ownership leads using public sources.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toMatch(/RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/);
+    expect(prompt).toContain("sec-edgar");
+    expect(prompt).not.toContain("inbiz");
+    expect(prompt).toMatch(/never invent an ID based on a jurisdiction or agency name|Never invent an adapter ID/i);
+    expect(prompt).toMatch(/Do not assume records expose owners, shareholders, members, or managers|verify data fields rather than assuming ownership disclosure/);
   });
 
   it("keeps a final compact Investigator prompt within the ceiling for oversized geographic/source alternatives", () => {

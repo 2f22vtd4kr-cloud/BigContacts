@@ -31,11 +31,11 @@ describe("model-directed discovery continuation budget", () => {
     targetResearchReserveIterations: 8,
   };
 
-  it("never releases the target reserve when the discovery allocation is exhausted without a candidate", () => {
+  it("releases the unused target reserve when no candidate has been admitted", () => {
     expect(resolveRemainingDiscoveryIterations({
       ...standard,
       hasAdmittedCandidates: false,
-    })).toBe(0);
+    })).toBe(8);
   });
 
   it("preserves the target reserve when there is an admitted candidate to research", () => {
@@ -51,7 +51,7 @@ describe("model-directed discovery continuation budget", () => {
       discoveryIterationsUsed: 16,
       investigatorIterationsUsed: 16,
       hasAdmittedCandidates: false,
-    })).toBe(0);
+    })).toBe(4);
     expect(resolveRemainingDiscoveryIterations({
       ...standard,
       discoveryIterationsUsed: 20,
