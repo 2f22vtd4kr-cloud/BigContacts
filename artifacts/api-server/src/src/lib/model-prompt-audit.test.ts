@@ -232,6 +232,64 @@ describe("model prompt audit", () => {
     expect(writes[0]?.path).not.toBe(resolve(apiPackageCwd, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md"));
   });
 
+  it("preserves visible unstructured model output for diagnosis with explicit contact-data opt-in", () => {
+    const writes: Array<{ path: string; contents: string }> = [];
+    emitModelPromptAuditResponse({
+      requestId: "request-unstructured-visible-output",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "openai/gpt-oss-120b",
+      httpStatus: 200,
+      responseBody: JSON.stringify({
+        id: "completion-unstructured",
+        model: "openai/gpt-oss-120b",
+        choices: [{
+          index: 0,
+          finish_reason: "stop",
+          message: {
+            role: "assistant",
+            content: "The JSON action was malformed. Public contact: jane.doe@example.org, phone +1 (415) 555-0100. Key=gsk_123456789012345678901234.",
+            reasoning_content: "PRIVATE_PROVIDER_REASONING_SENTINEL",
+          },
+        }],
+      }),
+    }, {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    }, (path, contents) => writes.push({ path, contents }));
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.contents).toContain('"format": "unstructured"');
+    expect(writes[0]?.contents).toContain("The JSON action was malformed.");
+    expect(writes[0]?.contents).toContain("jane.doe@example.org");
+    expect(writes[0]?.contents).toContain("+1 (415) 555-0100");
+    expect(writes[0]?.contents).not.toContain("gsk_123456789012345678901234");
+    expect(writes[0]?.contents).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
+  });
+
+  it("includes a bounded sanitized excerpt when the outer provider response is not JSON", () => {
+    const writes: string[] = [];
+    emitModelPromptAuditResponse({
+      requestId: "request-invalid-provider-json",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "openai/gpt-oss-120b",
+      httpStatus: 502,
+      responseBody: "upstream gateway error; GROQ_API_KEY=gsk_123456789012345678901234",
+    }, {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    }, (_path, contents) => writes.push(contents));
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain("upstream gateway error");
+    expect(writes[0]).not.toContain("gsk_123456789012345678901234");
+    expect(writes[0]).toContain('"responseExcerptTruncated": false');
+  });
+
   it("requires an audit destination even when prompt capture is enabled", () => {
     const writes: string[] = [];
     expect(emitModelPromptAudit(input, {
