@@ -695,7 +695,7 @@ describe("canonical Investigator continuation failure handling", () => {
     expect(canonicalDiscoverySource).toContain("investigator-episode-failure:control:");
     expect(canonicalDiscoverySource).toContain("trajectoryRecordCount");
     expect(canonicalDiscoverySource).toContain("hasExecutedInvestigatorResearchAction(newTrajectoryRecords)");
-    expect(canonicalDiscoverySource).toContain("import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction }");
+    expect(canonicalDiscoverySource).toContain("import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, summarizeAtlasDiscoveryResearchHealth }");
     expect(canonicalDiscoverySource).not.toContain('!["done", "parse_failure", "investigator_provider_error"].includes(record.action)');
     expect(canonicalDiscoverySource).toContain("const newTrajectoryRecords = nextDiscovery.trajectoryRecords ?? [];");
     expect(canonicalDiscoverySource).toContain("const newTrajectoryRecordCount = newTrajectoryRecords.length;");
