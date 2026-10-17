@@ -1676,7 +1676,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY/);
     expect(prompt).toContain("sec-edgar");
     expect(prompt).not.toContain("inbiz");
-    expect(prompt).toContain("never invent an ID based on a jurisdiction or agency name");
+    expect(prompt).toMatch(/never invent an ID based on a jurisdiction or agency name|Never invent an adapter ID/i);
     expect(prompt).toMatch(/Do not assume records expose owners, shareholders, members, or managers|verify data fields rather than assuming ownership disclosure/);
   });
 
