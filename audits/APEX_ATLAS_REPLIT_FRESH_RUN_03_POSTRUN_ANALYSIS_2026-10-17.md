@@ -52,17 +52,20 @@ The captured Groq response classified the limit as tokens-per-minute (TPM), with
 
 ## Commits on `main`
 
-- [`d953315` — preserve search leads and recover compact prompts](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/d953315f841ff0f5cebee21e946f431d2fe195cd)
-- [`47f89b1` — retain search leads in compacted context](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/47f89b1b556f31b01fc767428de3767f1067390e)
-- [`fed1939` — keep compact search leads within active scope](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/fed19390eb4b3cbe80d6b025b0ad9966c61a92b9)
-- [`2594d07` — retain terminal gates in final prompt fallback](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/2594d0791e7003b227d7118d9c468d7094e08385)
-- [`88db526` — surface non-binding lead follow-up guidance](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/88db526745b77949b871f1bd13ae69862af5e0cb)
-- [`47f89b1` and `d95acda` — compaction implementation and regression coverage](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/d95acda936a7e26e8946347ed54e505b58245827)
-- [`18ba445` — Midwest scope and prompt-compaction regression tests](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/18ba445e7e027cbe2077049e95f2e7f7f703cc90)
-- [`eef6ccf` — protect lead-versus-guessed URL guard behavior](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/eef6ccfcf248e58f58dea222fc0eff69502064af)
-- [`4c5d1d7` — document lead continuity and blocked-action semantics](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/4c5d1d7019fe2ecf4a42d940457966a0581e0100)
+The remediation is split into small, directly committed changes:
 
-Additional test and scope-binding changes are recorded in the direct commits immediately following those changes in the main-branch history.
+- [`d953315` — preserve search leads and recover compact prompts](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/d953315f841ff0f5cebee21e946f431d2fe195cd)
+- [`18ba445` — cover Midwest scope and prompt recovery](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/18ba445e7e027cbe2077049e95f2e7f7f703cc90)
+- [`47f89b1` — retain search leads in compacted context](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/47f89b1b556f31b01fc767428de3767f1067390e)
+- [`d95acda` — test compacted lead continuity](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/d95acda936a7e26e8946347ed54e505b58245827)
+- [`4c5d1d7` — document lead continuity and blocked-action semantics](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/4c5d1d7019fe2ecf4a42d940457966a0581e0100)
+- [`fed1939` — keep carried search leads within the active pivot](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/fed19390eb4b3cbe80d6b025b0ad9966c61a92b9)
+- [`9d37e50` — test active-scope lead continuity](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/9d37e50ab98fbd9ed7286dd98baff19c4f6464b6)
+- [`2594d07` — retain terminal gates in the final prompt fallback](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/2594d0791e7003b227d7118d9c468d7094e08385)
+- [`88db526` — surface non-binding lead follow-up guidance](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/88db526745b77949b871f1bd13ae69862af5e0cb)
+- [`6c4ab2f` — test follow-up guidance survives compaction](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/6c4ab2fb67e0bb2ea1268d59d7f2a3133734781d)
+- [`eef6ccf` — protect lead-versus-guessed URL guard behavior](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/eef6ccfcf248e58f58dea222fc0eff69502064af)
+- [`836a424` — correct compact prompt line formatting](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/836a424a42b04b540a0d955edddf400210c09d4a)
 
 ## Validation status and next gate
 
