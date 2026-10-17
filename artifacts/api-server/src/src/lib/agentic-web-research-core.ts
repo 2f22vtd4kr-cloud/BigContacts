@@ -2919,7 +2919,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ];
     if (carryForwardSuccessfulSearch) {
       parts.push(
-        "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS (advisory, not evidence or a mandated next action):\\n"
+        "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS (advisory, not evidence or a mandated next action):\n"
         + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, observationChars, leadUrlCount)),
       );
     }
