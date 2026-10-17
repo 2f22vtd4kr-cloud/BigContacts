@@ -1651,7 +1651,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     if (!jobStateUnavailable) {
       const terminalMessage = failureStatePersistenceFailed ? `${message} (failureStatePersistence=case_update_failed)` : message;
       try {
-        await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", message: terminalMessage, finishedAt: new Date().toISOString() });
+        await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", errors: cancelled ? Number(durableJob?.errors ?? 0) : Math.max(1, Number(durableJob?.errors ?? 0)), message: terminalMessage, finishedAt: new Date().toISOString() });
       } catch {
         // There is no safe durable sink left at this boundary. Preserve the
         // original error so the outer launch boundary can reconcile it.
