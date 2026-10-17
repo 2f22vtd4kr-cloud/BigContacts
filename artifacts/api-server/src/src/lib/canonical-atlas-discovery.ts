@@ -1034,7 +1034,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           atlasPhaseTotal: 4,
           outcome: "incomplete",
           message: safetyMessage,
-          result: JSON.stringify({ control: { turns: controlTurns, maxControlTurns, safetyCeiling: true } }),
+          result: JSON.stringify({ discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryRecordCount: discovery.trajectoryRecords?.length ?? 0 }, discoveryHealth: summarizeAtlasDiscoveryResearchHealth(discovery.trajectoryRecords ?? [], admitted.length), control: { turns: controlTurns, maxControlTurns, safetyCeiling: true } }),
           finishedAt: new Date().toISOString(),
         });
         await clearActiveJobIfOwned(lockKey, atlasJobId);
@@ -1435,6 +1435,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                 cumulativeSearches: discovery.searches,
                 cumulativeVisits: discovery.visits,
                 cumulativeTrajectoryRecordCount: discovery.trajectoryRecords?.length ?? 0,
+                discoveryHealth: summarizeAtlasDiscoveryResearchHealth(discovery.trajectoryRecords ?? [], admitted.length),
                 messageDigest: providerDiagnostic.messageDigest,
               },
             }),
@@ -1521,6 +1522,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
                 rightHand,
                 boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm },
                 discovery: { status: nextDiscovery.status, searches: nextDiscovery.searches, visits: nextDiscovery.visits, caseId: discoveryCaseId, runs: discoveryRuns + 1 },
+                discoveryHealth: summarizeAtlasDiscoveryResearchHealth(discovery.trajectoryRecords ?? [], admitted.length),
                 providerRecovery: {
                   consecutiveUnavailable: consecutiveInvestigatorProviderUnavailable,
                   consecutiveTokenCapacityFailures: consecutiveInvestigatorTokenCapacityFailures,
