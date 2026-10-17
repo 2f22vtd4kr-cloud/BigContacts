@@ -769,6 +769,31 @@ Choose each next action yourself from the available capabilities and observed ev
       provider: "serper",
     }, [])).toContain("pivot_alignment_guard");
   });
+  it("expands a Midwest scope to member states while rejecting out-of-region searches", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Identify privately held mid-market manufacturing companies in the Midwest US via state Secretary of State business entity search portals.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): none.",
+    ].join("\n");
+
+    for (const state of ["Illinois", "Indiana", "Ohio", "Michigan"]) {
+      expect(discoveryPivotAlignmentReason(objective, "web_search", {
+        query: `${state} Secretary of State business entity search privately held mid-market manufacturing companies`,
+        provider: "serper",
+      })).toBeNull();
+    }
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Midwest US Secretary of State business entity search privately held mid-market manufacturing companies",
+      provider: "serper",
+    })).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Texas Secretary of State business entity search privately held mid-market manufacturing companies",
+      provider: "serper",
+    })).toContain("Scope mismatch dimensions: query geography.");
+  });
+
   it("accepts member-state and city queries for a Pacific Northwest pivot without weakening sector or geography", () => {
     const equityObjective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
@@ -1328,6 +1353,112 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(context.match(/https:\/\/example\.com\/anchor/g)?.length).toBe(1);
   });
 
+
+  it("keeps the last successful search's exact lead URLs visible when the newest action is blocked", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary routes.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Identify privately held mid-market manufacturing companies in the Midwest US via state Secretary of State business entity search portals.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+    ].join("\n");
+    const records: AgenticTrajectoryRecord[] = [
+      {
+        turn: 16,
+        model: "openai/gpt-oss-120b",
+        action: "parallel_web_search",
+        execution: "success",
+        args: {
+          searches: [
+            { query: "Ohio Secretary of State business entity search manufacturing companies", provider: "serper" },
+            { query: "Indiana Secretary of State business entity search manufacturing companies", provider: "serper" },
+          ],
+        },
+        leadUrls: [
+          "https://businesssearch.ohiosos.gov/",
+          "https://bsd.sos.in.gov/PublicBusinessSearch",
+        ],
+        observation: "Search returned official state business entity portals as retrieval leads.",
+        observedUrls: [],
+        findings: [],
+        providerFallback: [],
+      },
+      {
+        turn: 17,
+        model: "openai/gpt-oss-120b",
+        action: "web_search",
+        execution: "blocked",
+        args: { query: "Texas Secretary of State business entity search manufacturing companies", provider: "serper" },
+        observation: "pivot_alignment_guard blocked this out-of-scope query before outbound execution; no request was made.",
+        observedUrls: [],
+        findings: [],
+        providerFallback: [],
+      },
+    ];
+
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective,
+      history: [],
+      trajectoryRecords: records,
+      lastObservation: records[1]!.observation ?? "",
+      findings: [],
+      priorContext: "Durable discovery context. ".repeat(300),
+      intelligenceContext: "Research frontier context. ".repeat(300),
+      mode: "discovery",
+    });
+
+    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 17");
+    expect(prompt).toContain("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS");
+    expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
+    expect(prompt).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
+    expect(prompt).toContain("not evidence or a mandated next action");
+    expect(prompt).not.toContain("must visit");
+  });
+
+  it("keeps a final compact Investigator prompt within the ceiling for oversized geographic/source alternatives", () => {
+    const states = "Illinois, Indiana, Ohio, Michigan, Wisconsin, Minnesota, Iowa, Missouri, North Dakota, South Dakota, Kansas, Nebraska";
+    const sourceClasses = "official Secretary of State business entity search portals, public corporate registration filings, official state registries, corporate filings, government databases, beneficial ownership records, licensee directories, trade association membership lists, transaction announcements";
+    const direction = `Search privately held mid-market manufacturing businesses in geographies (${states}) using source classes (${sourceClasses}) to find attributable owners.`;
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential and realistic routes.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      direction,
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): search actions yielded leads but no fetched claim-grade source.",
+    ].join("\n");
+    const blockedObservation = "pivot_alignment_guard blocked a later action before outbound execution; this is not evidence that the search avenue is infeasible.";
+    const trajectoryRecords: AgenticTrajectoryRecord[] = Array.from({ length: 17 }, (_, index) => ({
+      turn: index + 1,
+      model: "openai/gpt-oss-120b",
+      action: "web_search",
+      execution: index === 16 ? "blocked" : "success",
+      args: { query: `Midwest private manufacturing ownership filings ${index} ${"q".repeat(160)}`, provider: "serper" },
+      leadUrls: index === 15 ? ["https://businesssearch.ohiosos.gov/", "https://bsd.sos.in.gov/PublicBusinessSearch"] : [],
+      observation: `${index === 16 ? blockedObservation : "Search returned possible official business entity lookup leads, not evidence."}${"o".repeat(700)}`,
+      observedUrls: [],
+      findings: [],
+      providerFallback: [],
+    }));
+
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective,
+      history: Array.from({ length: 24 }, (_, index) => `Prior model-led action ${index}. ${"h".repeat(180)}`),
+      trajectoryRecords,
+      lastObservation: blockedObservation,
+      findings: [],
+      priorContext: "Durable discovery evidence context. ".repeat(400),
+      intelligenceContext: "Research frontier and unresolved evidence requirements. ".repeat(400),
+      mode: "discovery",
+    });
+
+    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt).toContain("ACTIVE BOSS SCOPE");
+    expect(prompt).toContain("Illinois");
+    expect(prompt).toContain("source classes");
+    expect(prompt).toContain("OUTPUT CONTRACT:");
+  });
 
   it("rejects invalid parallel search cardinality and entries instead of silently rewriting the model action", () => {
     const searches = (count: number) => Array.from({ length: count }, (_, index) => ({
