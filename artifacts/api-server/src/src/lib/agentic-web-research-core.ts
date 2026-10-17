@@ -2029,9 +2029,15 @@ function compactActiveBossScope(direction: string, maxChars: number): string {
   // instead of cutting the lead at the first source-class noun.
   const sourceStart = source ? raw.toLowerCase().indexOf(source.toLowerCase()) : -1;
   const forStart = primaryScopeClause.search(/\bfor\b/i);
-  const afterForSubject = sourceStart >= 0 && forStart > sourceStart
+  const afterForSubjectRaw = sourceStart >= 0 && forStart > sourceStart
     ? primaryScopeClause.match(/\bfor\s+(?:the\s+)?(.+?)(?=\s+(?:in|across|throughout|within|near|from|between|via|using|and\s+(?:extract|identify|locate|collect|retrieve|seek|review|verify|find|search|target|document|check))\b|[.;]|$)/i)?.[1]?.trim() ?? ""
     : "";
+  // A location verb can be captured immediately before the geography boundary
+  // (e.g. "... manufacturers located in the Dallas–Fort Worth area"). It is not
+  // part of the subject label and should not survive as a dangling tail.
+  const afterForSubject = afterForSubjectRaw
+    .replace(/\s+(?:located|situated|based|positioned|headquartered)\s*$/i, "")
+    .trim();
   // Retain a quoted example subject where explicit; otherwise preserve the
   // substantive phrase after "for" only when it follows the source-class label.
   const querySubject = queryExample
