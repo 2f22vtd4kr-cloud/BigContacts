@@ -79,6 +79,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain('"groq-right-hand-unavailable"');
     expect(canonicalContinuationSource).toContain("isRecoverableLegacyRightHandOpeningFailure");
     expect(canonicalContinuationSource).toContain("await getJobStrict(priorJobId)");
+    expect(canonicalDiscoverySource).toContain("errors: cancelled ? Number(durableJob?.errors ?? 0) : Math.max(1, Number(durableJob?.errors ?? 0))");
+    expect(canonicalContinuationSource).toContain("errors:Math.max(1,Number(priorJob?.errors??0))");
   });
 
   it("propagates the opening Boss and Right-hand control data into the first Investigator objective", () => {
