@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { classifyAtlasScopeGuardObservation, classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
+import {
+  classifyAtlasScopeGuardObservation,
+  classifyCanonicalAtlasFailure,
+  isRecoverableLegacyRightHandOpeningFailure,
+  isRecoverableRightHandOpeningFailure,
+} from "../lib/canonical-atlas-failure-diagnostics";
 
 describe("Atlas scope-guard diagnostics", () => {
   it("classifies a preflight scope block as a model-action rejection, not a provider failure", () => {
@@ -17,6 +22,30 @@ describe("canonical Atlas lease-read diagnostics", () => {
       stage: "right_hand_opening_review",
       error: new Error("Groq Right-hand returned invalid oversight: Right-hand returned an invalid opening review contract."),
     })).toEqual({ domain: "model_provider", kind: "invalid_contract" });
+  });
+
+  it("classifies provider JSON-generation errors as contract failures and keeps the opening boundary recoverable", () => {
+    const error = new Error('Groq Right-hand unavailable; failing closed: Groq Right-hand exhausted bounded attempts: [{"httpStatus":400,"providerCode":"json_validate_failed"}]');
+    expect(classifyCanonicalAtlasFailure({ stage: "right_hand_opening_review", error })).toEqual({
+      domain: "model_provider",
+      kind: "invalid_contract",
+    });
+    expect(isRecoverableRightHandOpeningFailure("right_hand_opening_review", error)).toBe(true);
+    expect(isRecoverableRightHandOpeningFailure("investigator_episode", error)).toBe(false);
+  });
+
+  it("allows legacy control recovery only for a terminal failed Atlas job at the Right-hand opening stage", () => {
+    const legacyFailure = {
+      currentAction: "canonical-atlas-failed",
+      jobType: "atlas-run",
+      jobStatus: "failed",
+      jobMessage: "Canonical Atlas discovery failed (stage=right_hand_opening_review; failureDomain=unexpected_programming_error)",
+    };
+    expect(isRecoverableLegacyRightHandOpeningFailure(legacyFailure)).toBe(true);
+    expect(isRecoverableLegacyRightHandOpeningFailure({ ...legacyFailure, jobType: "case-bureau-discovery" })).toBe(false);
+    expect(isRecoverableLegacyRightHandOpeningFailure({ ...legacyFailure, jobStatus: "running" })).toBe(false);
+    expect(isRecoverableLegacyRightHandOpeningFailure({ ...legacyFailure, jobMessage: "stage=investigator_episode" })).toBe(false);
+    expect(isRecoverableLegacyRightHandOpeningFailure({ ...legacyFailure, currentAction: "canonical-atlas-cancelled" })).toBe(false);
   });
 
   it("labels a transport failure during the authoritative job/lease read as a lease request failure", () => {

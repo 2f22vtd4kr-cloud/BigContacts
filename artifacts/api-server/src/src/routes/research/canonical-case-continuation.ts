@@ -13,6 +13,7 @@ import { resolveResearchDepth } from "../../lib/research-depth";
 import { restorePersistedDiscoveryObjective } from "../../lib/research-objective";
 import { enablePermanentRedis } from "../../lib/redis";
 import { withProviderScope } from "../../lib/provider-gate";
+import { isRecoverableLegacyRightHandOpeningFailure } from "../../lib/canonical-atlas-failure-diagnostics";
 const router=Router();
 const cancellationFenceSql=(caseId:number)=>sql`NOT (status = 'cancelled' OR (status = 'review' AND current_action IN ('canonical-atlas-cancelled','canonical-lease-lost','canonical-continuation-cancelled'))) AND id = ${caseId}`;
 function parseFile(raw:string|null):Record<string,any>|null{try{const value=raw?JSON.parse(raw):null;return value&&typeof value==="object"?value:null;}catch{return null;}}
@@ -25,7 +26,25 @@ router.post(["/research/bureau/cases/:caseId/run-next-pass","/research/bureau/ca
  const file=parseFile(current.caseFile);if(!file||file.caseType!=="discovery"){res.status(409).json({error:"Only a discovery case can run the canonical continuation"});return;}
  const isControlRecovery=req.path.endsWith("/recover-control");
  const recoverableControlActions=new Set(["groq-right-hand-unavailable","canonical-control-unavailable","canonical-investigator-provider-unavailable"]);
- if(isControlRecovery&&!recoverableControlActions.has(String(current.currentAction??""))){res.status(409).json({error:"This case is not parked at a recoverable canonical control boundary.",currentAction:current.currentAction??null});return;}
+ let legacyRightHandOpeningRecovery=false;
+ if(isControlRecovery&&current.currentAction==="canonical-atlas-failed"){
+  const priorJobId=typeof file.jobId==="string"?file.jobId.trim():"";
+  if(priorJobId){
+   try{
+    const priorJob=await getJobStrict(priorJobId);
+    legacyRightHandOpeningRecovery=isRecoverableLegacyRightHandOpeningFailure({
+     currentAction:current.currentAction,
+     jobType:priorJob?.type??null,
+     jobStatus:priorJob?.status??null,
+     jobMessage:priorJob?.message??null,
+    });
+   }catch{
+    res.status(503).json({error:"Prior canonical Atlas job state is unavailable; refusing control recovery."});
+    return;
+   }
+  }
+ }
+ if(isControlRecovery&&!recoverableControlActions.has(String(current.currentAction??""))&&!legacyRightHandOpeningRecovery){res.status(409).json({error:"This case is not parked at a recoverable canonical control boundary.",currentAction:current.currentAction??null});return;}
  let active:string|null=null;let legacyActive:string|null=null;try{active=await getActiveJobStrict("atlas-run");legacyActive=await getActiveJobStrict("case-bureau-discovery");}catch(error){res.status(503).json({error:error instanceof Error?`Canonical active-job state is unknown; refusing continuation: ${error.message}`:"Canonical active-job state is unknown; refusing continuation."});return;}
  if(active){let existing;try{existing=await getJobStrict(active);}catch(error){res.status(503).json({error:error instanceof Error?`Canonical job record is unknown; refusing continuation: ${error.message}`:"Canonical job record is unknown; refusing continuation.",jobId:active});return;}const terminal=existing?.status==="done"||existing?.status==="failed"||existing?.status==="cancelled";if(!terminal){res.status(409).json({error:"A canonical Atlas investigation is already running.",jobId:active});return;}}
  if(legacyActive){let existing;try{existing=await getJobStrict(legacyActive);}catch(error){res.status(503).json({error:error instanceof Error?`Canonical job record is unknown; refusing continuation: ${error.message}`:"Canonical job record is unknown; refusing continuation.",jobId:legacyActive});return;}const terminal=existing?.status==="done"||existing?.status==="failed"||existing?.status==="cancelled";if(!terminal){res.status(409).json({error:"A bureau discovery continuation is already running.",jobId:legacyActive});return;}}

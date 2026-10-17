@@ -89,6 +89,23 @@ function safeErrorShape(error: unknown): { name: string; message: string; code: 
   return { name, message, code, status };
 }
 
+export function isRecoverableRightHandOpeningFailure(stage: AtlasFailureStage, error: unknown): boolean {
+  return stage === "right_hand_opening_review"
+    && /Groq Right-hand unavailable; failing closed:/i.test(safeErrorShape(error).message);
+}
+
+export function isRecoverableLegacyRightHandOpeningFailure(input: {
+  currentAction: string | null;
+  jobType: string | null;
+  jobStatus: string | null;
+  jobMessage: string | null;
+}): boolean {
+  return input.currentAction === "canonical-atlas-failed"
+    && input.jobType === "atlas-run"
+    && input.jobStatus === "failed"
+    && /(?:^|[;( ])stage=right_hand_opening_review(?:;|$)/.test(input.jobMessage ?? "");
+}
+
 /**
  * Classify the bounded provider error codes returned by the Investigator Groq adapter.
  * The input is a code, never a raw error message or response body.
@@ -146,6 +163,9 @@ export function classifyCanonicalAtlasFailure(input: {
     || input.stage === "oversight_control_decision";
   if (isModelProviderStage) {
     if (/invalid(?:[\s_-]+(?:opening[\s_-]+review[\s_-]+)?)contract/i.test(error.message)) {
+      return { domain: "model_provider", kind: "invalid_contract" };
+    }
+    if (/json_validate_failed|failed to (?:generate|validate) json/i.test(error.message)) {
       return { domain: "model_provider", kind: "invalid_contract" };
     }
     // A locally classified hard quota exhaustion is distinct from ordinary HTTP 429.

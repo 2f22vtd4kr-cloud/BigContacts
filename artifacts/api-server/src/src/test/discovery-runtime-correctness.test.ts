@@ -8,6 +8,7 @@ const discoverySource = fs.readFileSync(path.join(libDir, "discovery-agent.ts"),
 const researchSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
 const researchCoreSource = fs.readFileSync(path.join(libDir, "agentic-web-research-core.ts"), "utf8");
 const canonicalDiscoverySource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+const canonicalContinuationSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts"), "utf8");
 const atlasControlDecisionSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
 const bossDiscoverySource = fs.readFileSync(path.join(libDir, "case-bureau.ts"), "utf8");
 const telemetrySource = fs.readFileSync(path.join(libDir, "agentic-llm-telemetry.ts"), "utf8");
@@ -71,6 +72,13 @@ describe("discovery runtime architecture", () => {
     const rightHandSource = canonicalSource.slice(rightHandCall, rightHandCall + 2200);
     expect(rightHandSource).toContain("boss.report");
     expect(rightHandSource).toContain("boss.nextDirections");
+  });
+
+  it("preserves and narrowly recovers terminal Right-hand opening failures", () => {
+    expect(canonicalDiscoverySource).toContain("isRecoverableRightHandOpeningFailure(failureStage, error)");
+    expect(canonicalDiscoverySource).toContain('"groq-right-hand-unavailable"');
+    expect(canonicalContinuationSource).toContain("isRecoverableLegacyRightHandOpeningFailure");
+    expect(canonicalContinuationSource).toContain("await getJobStrict(priorJobId)");
   });
 
   it("propagates the opening Boss and Right-hand control data into the first Investigator objective", () => {
