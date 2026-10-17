@@ -127,8 +127,10 @@ export function resolveRemainingDiscoveryIterations(input: {
   const investigatorUsed = nonNegativeInteger(input.investigatorIterationsUsed);
   const configuredDiscoveryCeiling = Math.min(total, nonNegativeInteger(input.discoveryIterationCeiling));
   const targetReserve = Math.min(total, nonNegativeInteger(input.targetResearchReserveIterations));
-  const effectiveDiscoveryCeiling = configuredDiscoveryCeiling;
-  const effectiveTargetReserve = targetReserve;
+  const effectiveDiscoveryCeiling = input.hasAdmittedCandidates
+    ? Math.min(configuredDiscoveryCeiling, Math.max(0, total - targetReserve))
+    : total;
+  const effectiveTargetReserve = input.hasAdmittedCandidates ? targetReserve : 0;
   const discoveryRemaining = Math.max(0, effectiveDiscoveryCeiling - discoveryUsed);
   const globalRemaining = Math.max(0, total - investigatorUsed - effectiveTargetReserve);
   return Math.min(discoveryRemaining, globalRemaining);
