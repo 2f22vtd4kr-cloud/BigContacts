@@ -2967,7 +2967,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactObservation = compactEmergencyTrajectoryObservation(record.observation ?? "");
       // Guard summaries encode recovery instructions; truncating even the compact
       // version can erase the action the next turn must recover from.
-      return /^(?:SCOPE GUARD BLOCKED ACTION|SOURCE-STAGE GUARD BLOCKED ACTION)/u.test(compactObservation)
+      return /^(?:SCOPE GUARD BLOCKED ACTION|SOURCE-STAGE GUARD BLOCKED ACTION|PARTIAL PARALLEL SCOPE FILTER)/u.test(compactObservation)
         ? compactObservation
         : compactObservation.slice(0, observationChars);
     })(),
