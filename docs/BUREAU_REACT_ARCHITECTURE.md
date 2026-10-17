@@ -45,7 +45,7 @@ The Investigator may choose among enabled capabilities, including web search, pa
 
 No forced search order: the runtime must not secretly prescribe a query list, provider order, source sequence, identity hop, or research ladder. Guidance may explain capability semantics and current evidence gaps, but the model still chooses the research move.
 
-A discovery-only liveness advisory flags three successful search-only actions (including registry searches) without a successful non-search observation and recommends inspecting a lead or changing capability. This advisory is non-binding: further searches remain available when justified by evidence and expected information gain. Separate deterministic guards still reject invalid, repeated, or out-of-scope actions before outbound execution; do not describe the advisory itself as a hard tool-order gate.
+A discovery-only liveness advisory flags three successful search-only actions (including registry searches) without a successful non-search observation and recommends inspecting a lead or changing capability. This advisory is non-binding: further searches remain available when justified by evidence and expected information gain. Prompt compaction must preserve available search-result lead URLs separately from successfully fetched source URLs, including when the latest action is blocked; label leads as unverified and never elevate them to evidence. A blocked request is a control outcome, not evidence that a source or market is infeasible. Separate deterministic guards still reject invalid, repeated, or out-of-scope actions before outbound execution; do not describe the advisory itself as a hard tool-order gate.
 
 ## 4. Evidence and identity
 
