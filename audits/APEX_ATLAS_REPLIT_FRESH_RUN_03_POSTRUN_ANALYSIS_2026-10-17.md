@@ -32,21 +32,30 @@ Fixed on `main`:
 - Keep that carry-forward scoped to the active Boss pivot so a stale lead from an older pivot is not presented as the current follow-up.
 - Include a non-binding cue to consider inspecting a promising, in-scope lead when that has higher expected information gain than another search.
 
-### 2. Midwest geography was parsed as a literal phrase, not a region
+### 2. Boss/Right-hand were not given structured unfetched leads
+
+The control report projected the last Investigator actions into `openQuestions` without the structured `leadUrls` field. The control-report compactor also omitted that field. This meant oversight models could see `visits=0` and scope-block events without a compact, explicit list of URLs the Investigator had already found.
+
+Fixed on `main`:
+- Successful search/registry results now reach the control report as `unfetchedLeadUrls`, explicitly separated from fetched `observedUrls`.
+- The compactor retains up to two leads per recent action; both Right-hand and Boss prompts explicitly distinguish a preflight block, a search-result lead, and a successful visit with observed page content.
+- The prompt forbids using a blocked request as evidence that a registry or sector lacks ownership information, while leaving the control model free to choose a justified next action.
+
+### 3. Midwest geography was parsed as a literal phrase, not a region
 
 The geography parser already knew the Pacific Northwest aliases, but had no Midwest alias. It could treat “Midwest US” as one required literal geography phrase, failing member-state queries. The parser now expands Midwest/Midwestern to the standard twelve-state Midwest set and common city aliases, while retaining scope enforcement and rejecting an out-of-region query such as Texas.
 
-### 3. Prompt composition had a final run-ending failure path
+### 4. Prompt composition had a final run-ending failure path
 
 The source contained a terminal `throw new Error` when all prompt-compaction tiers still exceeded the calculated provider ceiling. That path could terminate a discovery slot instead of falling back to a minimal prompt. The final tier now emits a compact prompt that retains the active scope, action/provider/schema contracts, lead-versus-evidence distinction, discovery admission rule, and terminal evidence/falsification gate rather than throwing.
 
 The audit identifies a prompt-composition exception but does not expose its exact exception message or stack. This change removes the identified deterministic throw path; the available audit alone cannot prove that exact statement was the exception raised in the failed slot.
 
-### 4. Evidence/provenance gates remain intact
+### 5. Evidence/provenance gates remain intact
 
 The full scope-guard function already treats URLs returned by an aligned successful search as eligible retrieval leads. It still blocks a guessed/unobserved URL, and search-result URLs remain non-evidence until the page is actually fetched. That existing behavior is now covered by a regression test; no evidence or admission gate was relaxed, and no target/card was forced.
 
-### 5. The 429 was not the cause of zero visits
+### 6. The 429 was not the cause of zero visits
 
 The captured Groq response classified the limit as tokens-per-minute (TPM), with request capacity still available. Retrying the same Investigator capability succeeded with HTTP 200. There is no evidence that changing API keys would have fixed this run.
 
@@ -66,6 +75,10 @@ The remediation is split into small, directly committed changes:
 - [`6c4ab2f` — test follow-up guidance survives compaction](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/6c4ab2fb67e0bb2ea1268d59d7f2a3133734781d)
 - [`eef6ccf` — protect lead-versus-guessed URL guard behavior](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/eef6ccfcf248e58f58dea222fc0eff69502064af)
 - [`836a424` — correct compact prompt line formatting](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/836a424a42b04b540a0d955edddf400210c09d4a)
+
+- [`0f438f6` — expose unfetched leads to the control plane](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/0f438f69b322c74504a74c1450781353cde6b94e)
+- [`1b2409c` — retain leads in Boss and Right-hand context](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/1b2409cc16527fea63180772b9c21f87cfc2cc2e)
+- [`e7c326e` — test the control-report and prompt lead path](https://github.com/2f22vtd4kr-cloud/BigContacts/commit/e7c326ebc8d3647287ecabb3b96b28c29ac27fda)
 
 ## Validation status and next gate
 
