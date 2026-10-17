@@ -2903,11 +2903,16 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     action: record.action,
     execution: record.execution ?? "unknown",
     args: compactLatestArgs(record.args ?? {}),
-    observedUrls: (record.observedUrls ?? []).slice(0, 1).map((url) => sanitizeUrlForEvidence(url).slice(0, 100)),
+    // Do not expose prior-pivot URLs as if they were actionable in the current scope.
+    observedUrls: belongsToActiveScope(record)
+      ? (record.observedUrls ?? []).slice(0, 1).map((url) => sanitizeUrlForEvidence(url).slice(0, 100))
+      : [],
     // Search results are actionable leads but not claim-grade evidence. Keep
-    // URLs explicit; the 220-char observation summary may otherwise clip them.
-    leadUrls: (record.leadUrls ?? []).slice(0, leadUrlCount)
-      .map((url) => sanitizeUrlForEvidence(url).slice(0, 180)),
+    // same-scope URLs explicit; the bounded observation summary may otherwise clip them.
+    leadUrls: belongsToActiveScope(record)
+      ? (record.leadUrls ?? []).slice(0, leadUrlCount)
+        .map((url) => sanitizeUrlForEvidence(url).slice(0, 180))
+      : [],
     observation: compactEmergencyTrajectoryObservation(record.observation ?? "").slice(0, observationChars),
   });
   const buildLatestRecordTail = (observationChars: number, leadUrlCount: number): string => {
@@ -2923,7 +2928,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, observationChars, leadUrlCount)),
       );
     }
-    const latestLeadCount = latestRecord?.leadUrls?.length ?? 0;
+    const latestLeadCount = latestRecord && belongsToActiveScope(latestRecord)
+      ? (latestRecord.leadUrls?.length ?? 0)
+      : 0;
     const carriedLeadCount = carryForwardSuccessfulSearch?.leadUrls?.length ?? 0;
     if (latestLeadCount > 0 || carriedLeadCount > 0) {
       parts.push(
