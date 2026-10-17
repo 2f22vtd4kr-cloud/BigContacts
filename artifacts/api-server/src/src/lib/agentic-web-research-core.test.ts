@@ -1412,6 +1412,7 @@ Choose each next action yourself from the available capabilities and observed ev
       {
         turn: 16,
         model: "openai/gpt-oss-120b",
+        pivotScopeKey: discoveryPivotScopeKey(objective) ?? undefined,
         action: "parallel_web_search",
         execution: "success",
         args: {
@@ -1432,6 +1433,7 @@ Choose each next action yourself from the available capabilities and observed ev
       {
         turn: 17,
         model: "openai/gpt-oss-120b",
+        pivotScopeKey: discoveryPivotScopeKey(objective) ?? undefined,
         action: "web_search",
         execution: "blocked",
         args: { query: "Texas Secretary of State business entity search manufacturing companies", provider: "serper" },
