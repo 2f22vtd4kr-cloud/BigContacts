@@ -24,6 +24,8 @@ export type CompactionTrajectoryRecord = {
   execution?: string;
   observation?: string;
   observedUrls?: string[];
+  /** Search-result URLs remain leads until a successful fetch observes their content. */
+  leadUrls?: string[];
   findings?: CompactionFinding[];
   providerFallback?: string[];
   stopReason?: string;
@@ -91,10 +93,14 @@ function compactFinding(finding: CompactionFinding, max: number): string {
 
 function compactRecord(record: CompactionTrajectoryRecord, observationChars: number, max: number): string {
   const urls = unique(record.observedUrls ?? []).map((url) => sanitizeUrlForEvidence(url));
+  const leadUrls = unique(record.leadUrls ?? []).map((url) => sanitizeUrlForEvidence(url)).slice(0, 4);
   const findings = (record.findings ?? []).map((finding) => compactFinding(finding, 700)).filter(Boolean);
   const observation = trim(record.observation, observationChars);
   return trim([
     "TURN " + record.turn + " | action=" + trim(record.action, 80) + " | execution=" + trim(record.execution || "unknown", 40),
+    // Put fetchable leads before long free-text observations so ordinary head
+    // truncation cannot silently erase every URL that the Investigator could fetch.
+    leadUrls.length ? "LEAD_URLS (search results only; not evidence until fetched): " + leadUrls.join(" | ") : "",
     urls.length ? "OBSERVED_URLS: " + urls.join(" | ") : "",
     findings.length ? "FINDINGS:\n" + findings.join("\n") : "",
     observation ? "OBSERVATION_EXCERPT: " + observation : "",
@@ -103,11 +109,13 @@ function compactRecord(record: CompactionTrajectoryRecord, observationChars: num
 
 function archiveRecord(record: CompactionTrajectoryRecord, max: number): string {
   const urls = unique(record.observedUrls ?? []).map((url) => sanitizeUrlForEvidence(url));
+  const leadUrls = unique(record.leadUrls ?? []).map((url) => sanitizeUrlForEvidence(url)).slice(0, 2);
   const findings = (record.findings ?? []).map((finding) => compactFinding(finding, 500)).filter(Boolean);
   return trim([
     "turn=" + record.turn,
     "action=" + trim(record.action, 70),
     "execution=" + trim(record.execution || "unknown", 30),
+    leadUrls.length ? "lead_urls (unfetched; not evidence)=" + leadUrls.join(" | ") : "",
     urls.length ? "urls=" + urls.join(" | ") : "",
     findings.length ? "findings=" + findings.join(" ; ") : "",
   ].filter(Boolean).join(" | "), max);
