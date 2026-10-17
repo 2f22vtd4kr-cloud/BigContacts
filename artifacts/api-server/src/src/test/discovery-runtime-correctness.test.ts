@@ -435,10 +435,10 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).toContain("groundingTrajectoryRecords: [...historyRecords, ...records]");
   });
 
-  it("always protects the target-stage reserve while keeping discovery within its own ceiling", () => {
+  it("releases the target-stage reserve until a lead qualifies, then protects the remaining target budget", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("const targetResearchReserveIterations = Math.min(depth.agenticMaxIterations, Math.max(depth.investigatorIterationsPerAct, Math.ceil(depth.agenticMaxIterations * 0.4)))");
-    expect(canonicalSource).toContain("const discoveryIterationCeiling = Math.max(1, depth.agenticMaxIterations - targetResearchReserveIterations)");
+    expect(canonicalSource).toContain("const discoveryIterationCeiling = depth.agenticMaxIterations");
     expect(canonicalSource).toContain("const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations)");
@@ -449,15 +449,15 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("hasAdmittedCandidates: admittedCandidateSources.length > 0");
     expect(canonicalSource).toContain("if (admittedCandidateSources.length === 0 && resolveRemainingDiscoveryIterations({");
     const depthSource = fs.readFileSync(path.join(libDir, "research-depth.ts"), "utf8");
-    expect(depthSource).toContain("const effectiveTargetReserve = targetReserve");
+    expect(depthSource).toContain("const effectiveTargetReserve = input.hasAdmittedCandidates")
     expect(depthSource).toContain("const globalRemaining = Math.max(0, total - investigatorUsed - effectiveTargetReserve)");
     expect(canonicalSource).toContain("const remainingTargetIterations = Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)");
     expect(canonicalSource).toContain("maxInvestigatorIterations: remainingTargetIterations");
     expect(canonicalSource).toContain("investigatorIterationsUsed += Math.max(0, targetResult.investigatorIterationsUsed)");
     expect(canonicalSource).toContain('kind: "discovery_budget"');
-    expect(canonicalSource).toContain("Discovery allocation exhausted at");
-    expect(canonicalSource).toContain("No additional Boss control calls are made without an eligible target.");
-    expect(canonicalSource).toContain("global action(s) remain protected/unused");
+    expect(canonicalSource).toContain("The global \\${depth.agenticMaxIterations}-action discovery ceiling has been reached without an admitted candidate.");
+    expect(canonicalSource).toContain("No candidate has been admitted, so the unused target-stage reserve is released for additional discovery");
+    expect(canonicalSource).toContain("target research remains unauthorized without a qualifying candidate");
   });
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
