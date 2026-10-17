@@ -66,3 +66,60 @@ export function classifyInvestigatorEpisodeFailure(
   }
   return null;
 }
+
+export type AtlasDiscoveryHealthRecord = {
+  action?: string | null;
+  execution?: string | null;
+  observation?: string | null;
+  observedUrls?: readonly string[];
+  leadUrls?: readonly string[];
+  failureDomain?: string | null;
+  failureKind?: string | null;
+};
+
+/**
+ * A bounded, source-provenance-aware health summary for run reports.
+ * Search leads are counted separately from successful fetches and admitted people.
+ */
+export function summarizeAtlasDiscoveryResearchHealth(
+  records: readonly AtlasDiscoveryHealthRecord[],
+  admittedCandidates: number,
+): {
+  trajectoryRecords: number;
+  blockedActions: number;
+  scopeGuardBlocks: number;
+  unsupportedRegistryActions: number;
+  actionContractFailures: number;
+  providerRateLimitEvents: number;
+  successfulFetchedPages: number;
+  unfetchedSearchLeadUrls: number;
+  admittedCandidates: number;
+} {
+  const isSearch = (action: string) =>
+    ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(action);
+  const isPageFetch = (record: AtlasDiscoveryHealthRecord) =>
+    record.execution === "success"
+    && ["visit", "browser_fetch"].includes(String(record.action ?? ""))
+    && Array.isArray(record.observedUrls)
+    && record.observedUrls.some((url) => typeof url === "string" && /^https?:\/\//i.test(url))
+    && Boolean(String(record.observation ?? "").trim());
+  return {
+    trajectoryRecords: records.length,
+    blockedActions: records.filter((record) => record.execution === "blocked").length,
+    scopeGuardBlocks: records.filter((record) =>
+      record.execution === "blocked" && /\b(?:repeat_)?pivot_alignment_guard\b/i.test(String(record.observation ?? ""))).length,
+    unsupportedRegistryActions: records.filter((record) =>
+      record.execution === "blocked" && ["registry_search", "parallel_registry_search"].includes(String(record.action ?? ""))
+      && /unsupported registry|unknown registry/i.test(String(record.observation ?? ""))).length,
+    actionContractFailures: records.filter((record) =>
+      record.action === "parse_failure" || (record.failureDomain === "model_action" && record.failureKind === "invalid_contract")).length,
+    providerRateLimitEvents: records.filter((record) =>
+      record.failureKind === "provider_rate_limited"
+      || /\b(?:HTTP[_ ]429|rate_limit_exceeded|upstream_rate_limited|too many requests)\b/i.test(String(record.observation ?? ""))).length,
+    successfulFetchedPages: records.filter(isPageFetch).length,
+    unfetchedSearchLeadUrls: records.filter((record) =>
+      record.execution === "success" && isSearch(String(record.action ?? "")))
+      .reduce((total, record) => total + (record.leadUrls ?? []).filter((url) => typeof url === "string" && /^https?:\/\//i.test(url)).length, 0),
+    admittedCandidates: Math.max(0, Number.isFinite(admittedCandidates) ? Math.floor(admittedCandidates) : 0),
+  };
+}
