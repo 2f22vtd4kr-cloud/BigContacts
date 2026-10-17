@@ -3106,7 +3106,7 @@ export function discoverySearchLivenessAdvisory(records: readonly AgenticTraject
   const recent = records.slice(-12);
   let successfulSearchesSinceObservedSource = 0;
   for (const record of [...records].reverse()) {
-    if (record.action === "web_search" || record.action === "parallel_web_search" || record.action === "parallel_registry_search") {
+    if (record.action === "web_search" || record.action === "parallel_web_search" || record.action === "registry_search" || record.action === "parallel_registry_search") {
       if (record.execution === "success") successfulSearchesSinceObservedSource += 1;
       continue;
     }
