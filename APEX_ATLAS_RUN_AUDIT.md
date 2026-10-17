@@ -1,6 +1,6 @@
 # Apex Atlas End-to-End Run Audit
 
-⭐ **Current sequential audit:** [LIVE RUN 05 — 2026-10-14](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-14_LIVE_RUN_05.md)
+⭐ **Current sequential audit:** [Replit Fresh Run 05 — 2026-10-17](APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-17_REPLIT_FRESH_RUN_05.md)
 
 ## Audit contract
 
