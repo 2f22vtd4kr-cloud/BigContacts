@@ -4,7 +4,7 @@
 
 Apex Atlas is an OSINT research desk built to identify decision-makers, owners, founders, operators, and high-net-worth individuals connected to private companies and capital, then surface **real, attributable contact paths** from public sources.
 
-> **Current live status — 2026-10-16:** Run 04 actually executed and ended failed/incomplete at 20 Investigator iterations, with zero findings/admissions/cards. The later Run 05 job also executed and demonstrated model-selected research actions and pivots, but the audit ends before terminal reconciliation; no candidate or card is evidenced in the captured trace. See [Run 05 audit](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md), [full Run 04 audit](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md), and [current verified status](docs/CURRENT_STATUS_2026-10-15.md).
+> **Current acceptance status — 2026-10-17:** Apex Atlas is **not yet live-accepted**: the previous live investigations did not demonstrate a source-backed person passing admission and becoming a durable card. Core control-plane fixes were merged in `c4ddee7d65040e9ce46b119a8e38481da93e9c6e`; audit-capture hygiene was merged in `16ed16943c8815bb02285c33b86ad96786550cc0`. The 2026-10-17 “Fresh Run 05” trace is a deliberately detailed pre-launch/validation audit: its 65 jobless request/response pairs are explicitly non-run telemetry, and its original report ended before the live launch. Replit's declared next steps were to restart the rebuilt API, confirm the effective audit destination and lock state, then launch through the UI's default request. Do **not** treat those 65 pairs as research evidence, and do not mistake preflight telemetry for proof that the live run succeeded or failed. Continue with [the 2026-10-17 successor handoff](docs/apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md) and [current status notes](docs/CURRENT_STATUS_2026-10-15.md). The detailed run trace must remain in the ignored local `private-audits/` workspace folder, not tracked on public `main`.
 
 It is a model-led research bureau, not a fixed enrichment script:
 
@@ -24,6 +24,7 @@ The repository default branch is `main`. `main` contains `audit/genuine-five-gre
 For a full agent continuation contract, read:
 
 - `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md`
+- `docs/apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md` — current live-run handoff and acceptance loop.
 - `docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md`
 
 ## Current engineering state
