@@ -3136,7 +3136,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // blocked action, and any same-pivot unfetched leads even in the last tier.
       // The previous final slice cut the prompt's tail first, deleting the very
       // recovery instructions and lead URLs the earlier compaction tiers protected.
-      const finalLatestRecordTail = buildLatestRecordTail(60, 2);
+      const preservedLatestRecordTail = buildLatestRecordTail(60, 2);
       const finalFallbackParts = [
         finalEmergencyAssignment,
         finalScope,
@@ -3150,7 +3150,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate ?? ""] : []),
         finalDiscoveryGate,
         compactOutputContract,
-        finalLatestRecordTail,
+        preservedLatestRecordTail,
       ].filter(Boolean);
       const finalFallbackPrompt = finalFallbackParts.join("\n\n");
       if (finalFallbackPrompt.length <= maxUserPromptChars) return finalFallbackPrompt;
