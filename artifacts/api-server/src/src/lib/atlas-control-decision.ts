@@ -49,10 +49,10 @@ export function validateAtlasRightHandControl(value: Record<string, unknown> | n
   const decision = normalizeAtlasControlAction(value.decision);
   const direction = typeof value.direction === "string" ? value.direction.trim() : "";
   const reason = typeof value.reason === "string" ? value.reason.trim() : "";
-  const directionValid = value.direction === null || (direction.length > 0 && direction.length <= 1_200);
+  const directionValid = value.direction === null || (direction.length > 0 && direction.length <= 600);
   const pivotDirectionValid = decision !== "pivot_discovery" || direction.length > 0;
   return decision !== null
-    && reason.length > 0 && reason.length <= 1_200
+    && reason.length > 0 && reason.length <= 600
     && (typeof value.direction === "string" || value.direction === null)
     && directionValid
     && pivotDirectionValid
