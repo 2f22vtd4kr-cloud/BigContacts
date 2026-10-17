@@ -5,6 +5,7 @@ import {
   atlasLeadUtilizationLaw,
   atlasRegistryFeasibilityLaw,
   buildAtlasBossControlPrompt,
+  validateAtlasRightHandControl,
   buildAtlasRightHandControlPrompt,
   compactAtlasInvestigatorReport,
 } from "./atlas-control-decision";
@@ -124,6 +125,15 @@ describe("Atlas control-plane lead continuity", () => {
     expect(ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT.schema.required).toEqual([
       "decision", "reason", "direction", "confidence",
     ]);
+    expect(validateAtlasRightHandControl({
+      decision: "continue_discovery", reason: "Supported lead remains.", direction: null, confidence: 0.8,
+    })).toBe(true);
+    expect(validateAtlasRightHandControl({
+      decision: "continue_discovery", reason: "r".repeat(601), direction: null, confidence: 0.8,
+    })).toBe(false);
+    expect(validateAtlasRightHandControl({
+      decision: "pivot_discovery", reason: "Supported alternative.", direction: "d".repeat(601), confidence: 0.8,
+    })).toBe(false);
   });
 
 });
