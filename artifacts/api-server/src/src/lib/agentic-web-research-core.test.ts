@@ -658,6 +658,40 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).toContain("pivot_alignment_guard");
   });
 
+  it("allows fetching a URL returned by an aligned search but still blocks a guessed URL", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Search Washington State corporate filings for privately held aerospace-component companies in King County.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): none.",
+    ].join("\n");
+    const scopeKey = discoveryPivotScopeKey(objective);
+    expect(scopeKey).not.toBeNull();
+    const priorSearch = {
+      turn: 1,
+      model: "openai/gpt-oss-120b",
+      action: "web_search",
+      args: {
+        query: "Washington State corporation search aerospace component King County",
+        provider: "serper",
+      },
+      pivotScopeKey: scopeKey ?? undefined,
+      execution: "success",
+      observation: "Search found a public record lookup lead.",
+      observedUrls: [],
+      leadUrls: ["https://records.example.org/detail/12345"],
+      findings: [],
+    } as AgenticTrajectoryRecord;
+
+    expect(discoveryPivotAlignmentReason(objective, "visit", {
+      url: "https://records.example.org/detail/12345",
+    }, [priorSearch])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "visit", {
+      url: "https://guessed.example.org/owners",
+    }, [priorSearch])).toContain("observed-source provenance");
+  });
+
   it("recognizes the Run 05 water-utility licensee source and reports exact mismatch dimensions", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
