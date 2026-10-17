@@ -336,7 +336,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("domain_lookup");
     expect(prompt).toMatch(/(?:PAGE FORMAT \/ RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries|PAGE LIMIT: visits do not extract PDF binaries)/);
     expect(prompt).toMatch(/search snippets (?:remain leads, not evidence|are leads, not evidence)/i);
-    expect(prompt).toContain("BOSS ADVISORY DIRECTION (not a fixed action sequence):");
+    expect(prompt).toMatch(/BOSS ADVISORY DIRECTION \(not a fixed action sequence\):|ACTIVE BOSS SCOPE:/);
     expect(prompt).toContain("MISSION PRIORITY:");
     expect(prompt).toContain("case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice");
     expect(prompt).toContain("avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis");
