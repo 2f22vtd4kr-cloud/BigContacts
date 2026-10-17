@@ -1663,6 +1663,23 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("consider inspecting a promising in-scope lead URL next");
   });
 
+  it("advertises only registry adapters callable in the current runtime", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Research private manufacturing ownership leads using public sources.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toMatch(/RUNTIME-(?:AVAILABLE )?REGISTRY IDS ONLY/);
+    expect(prompt).toContain("sec-edgar");
+    expect(prompt).not.toContain("inbiz");
+    expect(prompt).toContain("never invent an ID based on a jurisdiction or agency name");
+    expect(prompt).toContain("Do not assume records expose owners, shareholders, members, or managers");
+  });
+
   it("keeps a final compact Investigator prompt within the ceiling for oversized geographic/source alternatives", () => {
     const states = "Illinois, Indiana, Ohio, Michigan, Wisconsin, Minnesota, Iowa, Missouri, North Dakota, South Dakota, Kansas, Nebraska";
     const sourceClasses = "official Secretary of State business entity search portals, public corporate registration filings, official state registries, corporate filings, government databases, beneficial ownership records, licensee directories, trade association membership lists, transaction announcements";
