@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  atlasLeadUtilizationLaw,
   atlasRegistryFeasibilityLaw,
   buildAtlasBossControlPrompt,
   buildAtlasRightHandControlPrompt,
@@ -76,6 +77,8 @@ describe("Atlas control-plane lead continuity", () => {
     expect(law).not.toContain("inbiz");
     expect(law).toContain("A generic agency landing page does not prove that a dedicated register exists");
     expect(law).toContain("frame it as a testable hypothesis");
+    expect(atlasLeadUtilizationLaw()).toContain("Do not treat lack of findings from snippets");
+    expect(atlasLeadUtilizationLaw()).toContain("not a fixed action sequence");
 
     const input = {
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
@@ -92,6 +95,8 @@ describe("Atlas control-plane lead continuity", () => {
     };
     expect(buildAtlasRightHandControlPrompt(input)).toContain("RUNTIME-CALLABLE REGISTRY IDS");
     expect(buildAtlasBossControlPrompt(input)).toContain("RUNTIME-CALLABLE REGISTRY IDS");
+    expect(buildAtlasRightHandControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
+    expect(buildAtlasBossControlPrompt(input)).toContain("LEAD-UTILIZATION JUDGMENT");
     expect(buildAtlasRightHandControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
     expect(buildAtlasBossControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
   });
