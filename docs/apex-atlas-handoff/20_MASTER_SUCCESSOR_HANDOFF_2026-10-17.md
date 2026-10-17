@@ -31,7 +31,7 @@ Study source rather than trusting documents. Trace these paths end to end:
 - UI launch → canonical Atlas launch route → durable job/case creation → Boss → Right-hand (when justified) → Boss-selected Investigator capability → model-selected action → guard/capability validation → actual outbound tool execution → source observation and provenance → evidence graph / research intelligence → candidate identity and attribution → deterministic admission → durable write → UI card/Reactor projection → terminal job status.
 - Prompt construction and compaction across Boss, Right-hand, and Investigator. Track which fields are preserved, dropped, summarized, or repeated. Verify scope, exclusions, source-class/capability options and evidence constraints survive compaction.
 - Provider adapter contract, retries, token budgets, 400 structured-output failures, 429 responses, per-role credentials, transient errors and cancellation.
-- Tests/static checks, CI/workflow definitions, schema, migrations, persistence and benchmark/gau ntlet artifacts. Enumerate the tree; don't claim exhaustive study after reading only these files.
+- Tests/static checks, CI/workflow definitions, schema, migrations, persistence and benchmark/Gauntlet artifacts. Enumerate the tree; don't claim exhaustive study after reading only these files.
 
 Never make a diagnosis from a single isolated prompt or a stale document if source, runtime logs or durable state can verify it.
 
