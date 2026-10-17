@@ -107,6 +107,19 @@ export type GroqRightHandStatus={configured:boolean;model:string;fallbackModels:
 export type GroqRightHandCaseReasoningResult={status:"completed"|"unavailable";model:string;actionId:string|null;decision:string|null;reason:string|null;confidence:number|null;error:string|null};
 export type GroqRightHandDiscoveryAdviceResult={status:"completed"|"unavailable";model:string;decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;error:string|null};
 export type GroqRightHandAuditContext = { jobId?: string | null; caseId?: number | null };
+
+/** Task-scoped generation tuning; omitted options preserve the defaults for every existing caller. */
+export type GroqRightHandRequestOptions = {
+  maxCompletionTokens?: number;
+  reasoningEffort?: "low" | "medium" | "high";
+  /** Maximum actual chat-completion requests for this call, across models and recovery. */
+  maxAttempts?: number;
+  /** One bounded retry only when Groq explicitly reports completion-budget exhaustion. */
+  generationBudgetRecovery?: {
+    maxCompletionTokens: number;
+    reasoningEffort?: "low" | "medium" | "high";
+  };
+};
 export function normalizeGroqRightHandCaseReasoning(parsed: Record<string, unknown> | null, queuedActionIds: readonly string[], model: string): GroqRightHandCaseReasoningResult {
   const expected = ["actionId", "decision", "reason", "confidence"];
   const exact = parsed !== null && Object.keys(parsed).length === expected.length && expected.every((key) => Object.prototype.hasOwnProperty.call(parsed, key));
@@ -220,7 +233,7 @@ function tokenRateLimitWaitMs(response:Response):number|null {
 type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryTokenRateLimit: number; retryAfterMs: number | null; retryAfterHeader: string | null; rateLimitKind: RateLimitKind; rateLimitHeaders: Record<string, string>; body: ReturnType<typeof summarizeProviderBody> | null; };
 function formatAttemptDiagnostic(diagnostic: GroqAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
 
-async function requestImpl(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean,auditContext?:GroqRightHandAuditContext):Promise<{raw:string;error:string|null;model:string}>{
+async function requestImpl(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean,auditContext?:GroqRightHandAuditContext,requestOptions?:GroqRightHandRequestOptions):Promise<{raw:string;error:string|null;model:string}>{
  const entry=keyEntries()[0];
  if(!entry)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
@@ -234,20 +247,27 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
   const structuredResponseFormat=responseFormat(format);
  const failures: GroqAttemptDiagnostic[] = [];
+ const boundedIntegerOption=(value:number|undefined,fallback:number,min:number,max:number):number=>Number.isFinite(value)?Math.min(max,Math.max(min,Math.floor(value as number))):fallback;
+ const maxOutboundAttempts=requestOptions?.maxAttempts===undefined?Number.POSITIVE_INFINITY:boundedIntegerOption(requestOptions.maxAttempts,MAX_MODEL_ATTEMPTS,1,6);
+ let outboundAttemptCount=0;
+ let currentCompletionTokens=boundedIntegerOption(requestOptions?.maxCompletionTokens,768,256,1536);
+ let currentReasoningEffort=requestOptions?.reasoningEffort??"medium";
+ let generationBudgetRecoveryUsed=false;
  for(const candidate of attempts){
-  if(Date.now()>=deadline)break;
+  if(Date.now()>=deadline||outboundAttemptCount>=maxOutboundAttempts)break;
   let retry503=0,retry429=0,retryTokenRateLimit=0;
    let useJsonObjectFallback=false;
   let lastRetryAfterMs: number | null = null;
   let lastRetryAfterHeader: string | null = null;
-  while(Date.now()<deadline){
-    const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat, reasoning_effort:"medium", include_reasoning:false};
-     const modelAuditRequestId=emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:failures.length+1,jobId:auditContext?.jobId??null,caseId:auditContext?.caseId??null,requestBody});
+  while(Date.now()<deadline&&outboundAttemptCount<maxOutboundAttempts){
+    const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:currentCompletionTokens,temperature:0.1,stream:false,response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat, reasoning_effort:currentReasoningEffort, include_reasoning:false};
+     const modelAuditRequestId=emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:outboundAttemptCount+1,jobId:auditContext?.jobId??null,caseId:auditContext?.caseId??null,requestBody});
     const body=JSON.stringify(requestBody);
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
     let modelAuditResponseRecorded=false;
    try{
     await waitForGroqRightHandRequestSlot(controller.signal);
+    outboundAttemptCount++;
     const response=await withProviderRetryOwnership("groq","caller",()=>fetch(GROQ_RIGHT_HAND_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal}));
     const responseBody=await response.text();
      emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,httpStatus:response.status,responseBody});
@@ -255,7 +275,22 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
     if(response.status===429&&hardRateLimit(response,responseBody)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const kind=rateLimitKind(response,responseBody);const waitMs=kind==="tokens"?tokenRateLimitWaitMs(response):null;if(kind==="tokens"&&waitMs!==null&&waitMs<=MAX_TOKEN_RATE_LIMIT_WAIT_MS&&retryTokenRateLimit<MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL&&Date.now()+waitMs<deadline){retryTokenRateLimit++;lastRetryAfterMs=waitMs;lastRetryAfterHeader=response.headers.get("retry-after");await new Promise(r=>setTimeout(r,Math.min(waitMs,Math.max(0,deadline-Date.now()))));continue;}const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:waitMs??null,retryAfterHeader:response.headers.get("retry-after"),rateLimitKind:kind,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);break;}
     if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const retryHeader=response.headers.get("retry-after");const delay=retryHeader?retryAfterMs(response,GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS):GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS;lastRetryAfterMs=delay;lastRetryAfterHeader=retryHeader;if(delay<=2500){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
-     if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:rateLimitKind(response,responseBody),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(response.status===400&&code==="json_validate_failed"&&!useJsonObjectFallback&&structuredResponseFormat?.type==="json_schema"){useJsonObjectFallback=true;continue;}if(response.status===400&&code==="json_validate_failed"&&useJsonObjectFallback)break;if(response.status===401||response.status===403||response.status===404)break;if(response.status===429)break; if(response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
+     if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:rateLimitKind(response,responseBody),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);
+     const completionBudgetExhausted=response.status===400&&code==="json_validate_failed"&&/max completion tokens reached before generating a valid document/i.test(responseBody);
+     const budgetRecovery=requestOptions?.generationBudgetRecovery;
+     if(completionBudgetExhausted&&budgetRecovery&&!generationBudgetRecoveryUsed&&outboundAttemptCount<maxOutboundAttempts){
+       generationBudgetRecoveryUsed=true;
+       currentCompletionTokens=boundedIntegerOption(budgetRecovery.maxCompletionTokens,currentCompletionTokens,currentCompletionTokens,2048);
+       currentReasoningEffort=budgetRecovery.reasoningEffort??currentReasoningEffort;
+       useJsonObjectFallback=true;
+       continue;
+     }
+     if(response.status===400&&code==="json_validate_failed"&&!useJsonObjectFallback&&structuredResponseFormat?.type==="json_schema"){useJsonObjectFallback=true;continue;}
+     if(response.status===400&&code==="json_validate_failed"&&useJsonObjectFallback)break;
+     if(response.status===401||response.status===403||response.status===404)break;
+     if(response.status===429)break;
+     if(response.status===500||response.status===502||response.status===503||response.status===504)break;
+     return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
      const raw=extractText(JSON.parse(responseBody));
      if(raw){
       if(validateRaw&&!validateRaw(raw)){
@@ -277,8 +312,8 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  return {raw:"",error:`Groq Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:attempts.at(-1)?.model??GROQ_RIGHT_HAND_MODEL};
 }
 
-async function request(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean,auditContext?:GroqRightHandAuditContext):Promise<{raw:string;error:string|null;model:string}> {
-  return withProviderRole("control",()=>requestImpl(system,user,format,validateRaw,auditContext));
+async function request(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean,auditContext?:GroqRightHandAuditContext,requestOptions?:GroqRightHandRequestOptions):Promise<{raw:string;error:string|null;model:string}> {
+  return withProviderRole("control",()=>requestImpl(system,user,format,validateRaw,auditContext,requestOptions));
 }
 
 function clip(value: string | null | undefined, maxChars = 360): string | null {
@@ -624,8 +659,8 @@ export async function runGroqRightHandDiscoveryAdvice(input: { file: DiscoveryCa
   if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error };
   return normalizeGroqRightHandDiscoveryAdvice(extractJson(result.raw), result.model);
 }
-export async function runGroqRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.", responseFormat?: Record<string, unknown>, validateRaw?: (raw: string) => boolean, auditContext?: GroqRightHandAuditContext): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> {
- const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt, responseFormat ?? { type: "text", mime_type: "application/json", schema: { type: "object" } }, validateRaw, auditContext);
+export async function runGroqRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.", responseFormat?: Record<string, unknown>, validateRaw?: (raw: string) => boolean, auditContext?: GroqRightHandAuditContext, requestOptions?: GroqRightHandRequestOptions): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> {
+ const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt, responseFormat ?? { type: "text", mime_type: "application/json", schema: { type: "object" } }, validateRaw, auditContext, requestOptions);
  return result.raw ? { status: "completed", model: result.model, raw: result.raw, error: null } : { status: "unavailable", model: result.model, raw: null, error: result.error };
 }
 export async function runGroqRightHandFinalReview(prompt: string): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { return runGroqRightHandFreeJson(prompt, "You are the Apex Atlas Right Hand reviewing final public-contact evidence. Return ONE JSON object only. Never invent contacts, people, or URLs."); }
