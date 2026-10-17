@@ -57,6 +57,11 @@ describe("model prompt audit", () => {
       APEX_CAPTURE_MODEL_PROMPTS: "true",
       APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
     }, write)).toBeNull();
+    expect(emitModelPromptAudit(input, {
+      NODE_ENV: "test",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    }, write)).toBeNull();
     expect(writes).toHaveLength(0);
   });
 
@@ -117,6 +122,7 @@ describe("model prompt audit", () => {
     emitModelPromptAudit({ ...input, requestBody }, {
       NODE_ENV: "test",
       APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "true",
       APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
     }, (_path, contents) => writes.push(contents));
 
@@ -156,6 +162,7 @@ describe("model prompt audit", () => {
     }, {
       NODE_ENV: "test",
       APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "true",
       APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
     }, (path, contents) => writes.push({ path, contents }));
 
@@ -195,6 +202,7 @@ describe("model prompt audit", () => {
     }, {
       NODE_ENV: "test",
       APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "true",
       APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
     }, (path, contents) => writes.push({ path, contents }));
 
