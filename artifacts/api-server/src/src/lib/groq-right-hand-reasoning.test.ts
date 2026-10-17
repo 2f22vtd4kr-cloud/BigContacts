@@ -151,6 +151,74 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     expect(chatBodies.some((body) => body.max_completion_tokens === 1_280)).toBe(true);
   });
 
+  it("does not raise the output budget for a generic structured-output rejection", async () => {
+    const chatBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/models")) {
+        return groqResponse(200, { data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }] });
+      }
+      chatBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      if (chatBodies.length === 1) {
+        return groqResponse(400, {
+          error: {
+            message: "Failed to validate JSON.",
+            type: "invalid_request_error",
+            code: "json_validate_failed",
+            failed_generation: "The generated document did not satisfy the supplied schema.",
+          },
+        });
+      }
+      return groqResponse(200, {
+        choices: [{ message: { content: JSON.stringify(validDecision) } }],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runGroqRightHandFreeJson(
+      "Review the compact durable discovery state and advise the Boss.",
+      "Return one short JSON control decision.",
+      responseFormat,
+      isValidDecision,
+      { jobId: "job-control-contract-test", caseId: 44 },
+      requestOptions,
+    );
+
+    expect(result.status).toBe("completed");
+    expect(chatBodies).toHaveLength(2);
+    expect(chatBodies[0].max_completion_tokens).toBe(1_024);
+    expect(chatBodies[1].max_completion_tokens).toBe(1_024);
+    expect(chatBodies[1].response_format).toEqual({ type: "json_object" });
+  });
+
+  it("leaves unrelated Right-hand tasks on the existing default generation settings", async () => {
+    const chatBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/models")) {
+        return groqResponse(200, { data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }] });
+      }
+      chatBodies.push(JSON.parse(String(init?.body)) as Record<string, unknown>);
+      return groqResponse(200, {
+        choices: [{ message: { content: JSON.stringify(validDecision) } }],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runGroqRightHandFreeJson(
+      "Review a target-scoped research report.",
+      "Return one JSON object.",
+      responseFormat,
+      isValidDecision,
+      { jobId: "job-unrelated-right-hand-test", caseId: 45 },
+    );
+
+    expect(result.status).toBe("completed");
+    expect(chatBodies).toHaveLength(1);
+    expect(chatBodies[0].max_completion_tokens).toBe(768);
+    expect(chatBodies[0].reasoning_effort).toBe("medium");
+  });
+
   it("treats a token-rate-limit response as rate pressure, not as completion-budget exhaustion", async () => {
     const chatBodies: Array<Record<string, unknown>> = [];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
