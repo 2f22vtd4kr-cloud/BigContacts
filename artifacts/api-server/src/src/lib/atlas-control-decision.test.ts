@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  atlasRegistryFeasibilityLaw,
   buildAtlasBossControlPrompt,
   buildAtlasRightHandControlPrompt,
   compactAtlasInvestigatorReport,
@@ -68,4 +69,31 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("A blocked request cannot support a claim that a registry or sector lacks ownership information.");
     expect(prompt).toContain("Do not prescribe a fixed provider, query, tool, source class, or action sequence.");
   });
+  it("grounds both supervisors in runtime registry capabilities and evidence-backed field assumptions", () => {
+    const law = atlasRegistryFeasibilityLaw();
+    expect(law).toContain("RUNTIME-CALLABLE REGISTRY IDS");
+    expect(law).toContain("sec-edgar");
+    expect(law).not.toContain("inbiz");
+    expect(law).toContain("A generic agency landing page does not prove that a dedicated register exists");
+    expect(law).toContain("frame it as a testable hypothesis");
+
+    const input = {
+      investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      compactState: "Search results include a government landing page; no fetched ownership records.",
+      rightHand: {
+        status: "completed" as const,
+        decision: "pivot_discovery",
+        reason: "The source path remains unverified.",
+        direction: "Test whether public filings identify members of private firms in a specified jurisdiction.",
+        confidence: 0.7,
+        model: "test-model",
+        error: null,
+      },
+    };
+    expect(buildAtlasRightHandControlPrompt(input)).toContain("RUNTIME-CALLABLE REGISTRY IDS");
+    expect(buildAtlasBossControlPrompt(input)).toContain("RUNTIME-CALLABLE REGISTRY IDS");
+    expect(buildAtlasRightHandControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
+    expect(buildAtlasBossControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
+  });
+
 });
