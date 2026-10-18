@@ -2620,7 +2620,9 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
 function pivotQueryHasCompetingSubjectTerms(value: string): boolean {
   if (/\bprivate[-\s]+equity\b/iu.test(value)) return true;
   const withoutGeography = removePivotGeographyPhrases(value);
-  const withoutSourceDetails = removePivotSourceSystemClauses(withoutGeography);
+  const withoutSourceDetails = removePivotSourceSystemClauses(withoutGeography)
+    .replace(/\bsite\s*:\s*[\w.-]+/giu, " ")
+    .replace(/\b(?:https?:\/\/)?(?:www\.)?[\w-]+(?:\.[\w-]+)+(?:\/[^\s]*)?/giu, " ");
   const tokens = withoutSourceDetails.toLowerCase().match(/[a-z]{3,}/g) ?? [];
   return tokens.map(pivotScopeToken).some((token) =>
     token.length >= 4
@@ -2801,6 +2803,7 @@ function pivotActionAlignmentFailureDetails(
         && requiredSourceAnchors.some((anchor) => ["registry", "database", "filing"].includes(anchor)));
     const officialSourceDiscovery = isWebDiscovery
       && !matchesSubject
+      && !pivotQueryHasCompetingSubjectTerms(text)
       && pivotTextMatchesGeography(text, geographyOptions)
       && requiredSourceAnchors.length > 0
       && pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
@@ -3240,8 +3243,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactResearchContract = "MISSION PRIORITY: case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice. ACTIVE BOSS PIVOT replaces prior-turn scope; stay in scope unless evidence falsifies or makes it infeasible. SCOPE RECOVERY: keep web searches aligned to the substantive subject and active geography; discovery queries may find company lists or official registries without repeating every source-class phrase. Use native-language equivalents when they express the same subject. A selected registry adapter may supply jurisdiction/source-class context only when it matches the active pivot. Follow-up URLs must be observed leads or grounded in aligned source evidence. RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries. A binary page is unobserved, not evidence; do not cite it or repeat the same URL through another fetch adapter. A block is not negative evidence; revise the actual failed dimension or request new scope.";
       const compactActionLiveness = "ACTION LIVENESS: Block exact repeats unless hypothesis/purpose, provider/market/resource, or new evidence changes.";
       const compactDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are the target; an organization is a lead, not the target. Require a source-backed ownership/equity/control/investment clue, never seniority alone. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Press/profile pages are leads, not targets/access routes. Avoid generic wealth/net-worth/private-equity-profile searches alone; avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor approved Boss scope; compare hypotheses, choose tools/actions, and pivot from evidence. No preset targets/queries. Never use placeholders such as CompanyName, companywebsite.com, or example.com." : null;
-      const minimalDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY: People—not companies or executive prestige—are the target. Require source-backed ownership/equity/control clues; never infer wealth from seniority. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Avoid generic wealth/net-worth searches; rankings/global brands need a plausible local owner/operator route." : null;
-      const minimalDiscoveryAdmissionContract = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF CONTRACT: exact full name and page-stated role co-bound on at least one successfully fetched claim-grade source, plus a source-observed ownership/control/equity/investment clue. This is a review-only PersonCandidate, not an HNWI conclusion. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Search snippets and third-party people-search/profile-directory aggregators are leads, not identity evidence. Never infer wealth from seniority or invent title/contact." : null;
+      const minimalDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are the target; an organization is a lead, not the target. Require an ownership/equity/control/investment clue; never infer wealth from seniority alone. Honor approved Boss scope. No preset targets/queries. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. News publishers and articles are evidence leads only, never targets or access routes. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Never use placeholders such as CompanyName, companywebsite.com, or example.com." : null;
+      const minimalDiscoveryAdmissionContract = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF CONTRACT: exact full name and page-stated role are co-bound on one successfully fetched claim-grade source with a source-observed ownership/control/equity/investment clue. This is a review-only PersonCandidate, not an HNWI conclusion. Official company leadership/staff pages and official filing/registry pages are acceptable only when directly binding exact name and role. Search snippets and third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion." : null;
       const compactLivenessGuidance = discoveryLivenessAdvisory ? "OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available): this suggestion does not mandate visiting, browsing, or any particular provider." : null;
       const compactBossQuestion = extractBossPivotDirectionForCompactPrompt(input.objective ?? "")
         || extractBossOpeningDirectionForCompactPrompt(input.objective ?? "");
@@ -3397,9 +3400,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         activeScope
           ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 240)
           : finalScope,
-        "SCOPE RECOVERY: keep web searches on the active subject/geography; source class need not appear in every discovery query. Match registry adapters to the active jurisdiction; fetch only observed URLs. A block is not negative evidence.",
+        "MISSION PRIORITY: case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice.",
+        "SCOPE RECOVERY: web discovery stays on active subject/geography; source class need not appear in every discovery query. Match registry adapters to the active jurisdiction; fetch only observed URLs. A block is not negative evidence.",
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
-        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an adapter ID; public sites outside these integrations must be searched via web tools. Verify ownership fields before relying on them; search hits are leads.",
+        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent adapter IDs; unintegrated public sources use web search and observed visits. Results are leads until fetched; verify ownership fields.",
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactTerminalContractGuidance,
         ...(input.mode === "discovery" ? [minimalDiscoveryQualityGate ?? "", minimalDiscoveryAdmissionContract ?? ""] : []),
