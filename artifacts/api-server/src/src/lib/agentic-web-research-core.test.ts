@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryLeadFollowUpBackpressureReason, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -1319,6 +1319,61 @@ Choose each next action yourself from the available capabilities and observed ev
 
     const afterObservedPage = [...records, livenessRecord("visit", "success")];
     expect(discoverySearchLivenessAdvisory(afterObservedPage)).toBeNull();
+  });
+
+  it("pauses additional discovery searches when valid in-scope leads remain unvisited", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover source-backed people with realistic public routes.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Family-owned manufacturing businesses in Ohio, official state business registries.",
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+    ].join("\n\n");
+    const scopeKey = discoveryPivotScopeKey(objective);
+    expect(scopeKey).toBeTruthy();
+    const search = (turn: number, url: string) => ({
+      ...livenessRecord("web_search", "success"),
+      turn,
+      pivotScopeKey: scopeKey ?? undefined,
+      args: { query: "Ohio family-owned manufacturing registry", provider: "serper" },
+      observedUrls: [url],
+    });
+    const records = [
+      search(1, "https://www.ohiosos.gov/business"),
+      search(2, "https://www.ohiosos.gov/business/search"),
+    ];
+    const reason = discoveryLeadFollowUpBackpressureReason("web_search", objective, records);
+    expect(reason).toContain("discovery_lead_followup_gate");
+    expect(reason).toContain("2 successful search action(s)");
+    expect(reason).toContain("unvisited URL lead(s)");
+
+    // A fetch attempt, even when the page fails, releases the gate so a dead URL
+    // cannot force an unbounded source-fetch loop.
+    const afterFailedFetch = [
+      ...records,
+      {
+        ...livenessRecord("visit", "error"),
+        turn: 3,
+        pivotScopeKey: scopeKey ?? undefined,
+        args: { url: "https://www.ohiosos.gov/business" },
+        observedUrls: [],
+      },
+    ];
+    expect(discoveryLeadFollowUpBackpressureReason("web_search", objective, afterFailedFetch)).toBeNull();
+
+    // Results from another accepted pivot are never used as active-scope leads.
+    const otherScope = records.map((record) => ({ ...record, pivotScopeKey: "different-accepted-pivot" }));
+    expect(discoveryLeadFollowUpBackpressureReason("web_search", objective, otherScope)).toBeNull();
+
+    // Non-search actions remain model-selectable while the gate is active.
+    expect(discoveryLeadFollowUpBackpressureReason("visit", objective, records)).toBeNull();
+  });
+
+  it("preserves the lead-utilization gate in compacted action feedback", () => {
+    const compacted = compactEmergencyTrajectoryObservation(
+      "discovery_lead_followup_gate blocked web_search before outbound execution. Search results are leads.",
+    );
+    expect(compacted).toContain("DISCOVERY LEAD-UTILIZATION GATE BLOCKED ACTION");
+    expect(compacted).toContain("another non-search action");
   });
 
   it("keeps liveness advice advisory and the last-resort prompt under its hard ceiling", () => {
