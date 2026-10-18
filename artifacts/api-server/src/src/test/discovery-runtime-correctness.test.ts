@@ -511,6 +511,48 @@ describe("discovery runtime architecture", () => {
     expect(controlSource).toContain(".slice(0, 6).map((url) => url.slice(0, 220))");
   });
 
+  it("keeps search-result URLs as unresolved leads instead of fetched observations", async () => {
+    const { assignSearchResultLeads } = await import("../lib/agentic-web-research-core");
+    const record: { leadUrls?: string[]; observedUrls: string[] } = {
+      leadUrls: [],
+      observedUrls: [],
+    };
+
+    assignSearchResultLeads(record, [
+      "https://registry.example.test/search?id=42",
+      "https://registry.example.test/search?id=42",
+      "https://company.example.test/about",
+      "javascript:alert(1)",
+      "not a URL",
+    ]);
+
+    expect(record.leadUrls).toEqual([
+      "https://registry.example.test/search?id=42",
+      "https://company.example.test/about",
+    ]);
+    expect(record.observedUrls).toEqual([]);
+    expect(researchCoreSource).toContain("assignSearchResultLeads(record, successful.flatMap((result) => result.urls))");
+    expect(researchCoreSource).toContain('assignSearchResultLeads(record, record.execution === "success" ? result.urls : [])');
+  });
+
+  it("warns control models against repeating a failed source class by changing jurisdiction only", async () => {
+    const {
+      atlasSourceRouteRecoveryLaw,
+      buildAtlasRightHandControlPrompt,
+      buildAtlasBossControlPrompt,
+    } = await import("../lib/atlas-control-decision");
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport: "No candidates yet.", compactState: "Source route A returned HTTP 403; source route B was a generic landing page." });
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: "No candidates yet.",
+      compactState: "Several state registry routes were inaccessible; no entity-level ownership evidence was observed.",
+      rightHand: { status: "completed", decision: "pivot", reason: "Same source class repeatedly failed.", direction: "Evaluate a materially different public-source family.", confidence: 0.8, model: "test", error: null },
+    });
+    expect(atlasSourceRouteRecoveryLaw()).toContain("Do not pivot only from one jurisdiction to another");
+    expect(rightHandPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
+    expect(bossPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
+    expect(rightHandPrompt).toContain("Never evade access controls");
+  });
+
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
