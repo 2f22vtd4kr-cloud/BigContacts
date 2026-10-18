@@ -1,15 +1,15 @@
 # Apex Atlas — precise deployment and bureau run procedure
 
-**Updated:** 2026-10-16  
+**Updated:** 2026-10-19  
 **Canonical branch:** `main`  
 **Historical Very Strong review branch:** `audit/apex-atlas-very-strong-v1` (fully incorporated into `main`)  
 **Historical five-green branch:** `audit/genuine-five-green-final`  
 **Living context:** `docs/context.md`  
-**Master handoff:** `docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md` (read its 2026-10-16 current override first; historical body is not role authority)
+**Master handoff:** `docs/apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md` (read the 2026-10-19 current override first; historical body is incident lineage)
 
-**Current verified status:** `docs/CURRENT_STATUS_2026-10-15.md` (updated 2026-10-16)  
-**Latest actual investigation:** Run 05 job `4b85fc7c-a239-478c-a455-94baf02ffdee`, documented separately in `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md`. A read-only check in the imported Replit project verified the job as `failed / incomplete` (finished `2026-10-16T03:00:24.824Z`), with both active-job pointers absent there; the additional Redis trace reconciles to 16 searches, 4 visits, 0 findings/candidates and no admissions. That imported project's empty database does **not** contain the trace's `caseId=2`, so the original project's durable case/evidence/contact/entity/card counts remain unavailable and must not be inferred as zero. Run 04 ended incomplete at 20 Investigator iterations with zero admissions/cards evidenced in its captured record.  
-**Before any new launch:** verify the current app's actual branch/HEAD and that the run is terminal with active pointers absent; synchronize `main` safely; run preflight, typecheck, build and `check:bureau`; confirm `APEX_MODEL_AUDIT_FILE` points to a distinct run-specific audit file before the first model call. Preserve the Run 05 limitation as unresolved if its original database remains inaccessible. Never launch while a job is active or its state is unclear. The earlier `Cmd/Ctrl+K` → `Restart compute` remedy only applies if fresh evidence shows Replit failed before boot; it is not a general response to research failure.
+**Current acceptance status:** Apex remains **not live-accepted**; see `README.md`, `docs/context.md`, and the current handoff for the release boundary.  
+**Latest saved live launch:** job `718ed715-aa6d-43c9-916f-463371485ad8`, recorded in `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_FRESH_PROJECT_RUN_03.md` (2026-10-18). The audit shows the live discovery phase ending with zero visible findings/admissions, but it does **not** record the final durable job status, post-run case/evidence/admission/card counts, or a post-run active-lock check. Do not assume the job is terminal or the lock idle from the last saved model response. Run 05 job `4b85fc7c-a239-478c-a455-94baf02ffdee` and Run 04 remain historical evidence with their documented limitations; do not substitute their state for the latest job.  
+**Before any new launch:** the operator must read-only reconcile job `718ed715-aa6d-43c9-916f-463371485ad8` and the current Atlas active-job lock on the actual runtime; confirm terminal state and no active pointers/lock before allowing another run. Then verify deployed branch/HEAD matches reviewed GitHub `main`, run current preflight/typecheck/build/`check:bureau`, verify database/Redis/schema health, and use a unique ignored `.local/audits/*.md` path only if per-run diagnostic capture is explicitly enabled. Keep visible tracked-file audit opt-in off and never store raw prompt traces in tracked audits. Never launch concurrently while state is active or unclear. Do not use the earlier `Cmd/Ctrl+K` → `Restart compute` remedy unless fresh evidence shows a boot failure; it is not a response to research-quality failure.
 
 ## 0. Product law
 
