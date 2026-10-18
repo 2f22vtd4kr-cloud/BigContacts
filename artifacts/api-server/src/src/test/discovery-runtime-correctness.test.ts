@@ -553,8 +553,9 @@ describe("Boss-accepted discovery pivot scope", () => {
       hypothesis: "Find a named regional manufacturer",
       purpose: "Identify ownership through public filings",
     }, []);
-    expect(missingSourceClass).toContain("pivot_alignment_guard");
-    expect(missingSourceClass).toContain("source class");
+    // In-scope web discovery is source-neutral; the Investigator may choose
+    // a useful follow-up source without restating it in every search query.
+    expect(missingSourceClass).toBeNull();
 
     expect(discoveryPivotAlignmentReason(manufacturingPivot, "web_search", {
       query: "Texas family-owned manufacturers state filing database named owner",
