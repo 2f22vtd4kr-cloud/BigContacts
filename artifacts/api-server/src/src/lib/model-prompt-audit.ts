@@ -34,8 +34,10 @@ type AuditEnvironment = {
   APEX_CAPTURE_MODEL_PROMPTS?: string;
   /** Additional explicit opt-in required to write test telemetry into any audit file. */
   APEX_CAPTURE_MODEL_PROMPTS_IN_TEST?: string;
-  /** Private-workspace opt-in for retaining public contact values in an ignored audit file. */
+  /** Explicit per-run opt-in for retaining contact values in the visible audit file. */
   APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA?: string;
+  /** Narrow development-only opt-in for the explicitly authorized visible Run 07 audit. */
+  APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE?: string;
   APEX_MODEL_AUDIT_FILE?: string;
 };
 
@@ -88,7 +90,11 @@ export function resolveModelAuditFilePath(
   return resolve(workspaceRootFrom(cwd), configuredPath);
 }
 
-function resolveSafeModelAuditFilePath(configuredPath: string, cwd: string): string | null {
+function resolveSafeModelAuditFilePath(
+  configuredPath: string,
+  cwd: string,
+  allowVisibleRun07Audit: boolean,
+): string | null {
   const root = workspaceRootFrom(cwd);
   const resolved = resolveModelAuditFilePath(configuredPath, cwd);
   const relativePath = relative(root, resolved);
@@ -98,8 +104,15 @@ function resolveSafeModelAuditFilePath(configuredPath: string, cwd: string): str
   const isInsideWorkspace = relativePath !== "" && !isOutsideWorkspace;
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
   // Model-visible prompts/pages can contain personal data and exact source trails.
-  // Any audit stored in the workspace must live in ignored private-audits/.
-  if (isInsideWorkspace && !normalizedRelativePath.startsWith("private-audits/")) return null;
+  // Workspace capture stays private by default. This one visible destination is
+  // permitted only after an explicit development opt-in for the current run.
+  const isAuthorizedVisibleRun07Audit = allowVisibleRun07Audit
+    && normalizedRelativePath === "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_REPLIT_RUN_07.md";
+  if (
+    isInsideWorkspace
+    && !normalizedRelativePath.startsWith("private-audits/")
+    && !isAuthorizedVisibleRun07Audit
+  ) return null;
   return resolved;
 }
 
@@ -359,9 +372,13 @@ export function emitModelPromptAudit(
   const serialized = JSON.stringify(record, null, 2);
   const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
   try {
-    const auditPath = resolveSafeModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE!, cwd);
+    const auditPath = resolveSafeModelAuditFilePath(
+      env.APEX_MODEL_AUDIT_FILE!,
+      cwd,
+      env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
+    );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit into a tracked workspace path; use private-audits/ or an absolute path outside the repository.\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit to this workspace path; use private-audits/ or explicitly enable the authorized visible audit destination for this run.\n");
       return null;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
@@ -479,9 +496,13 @@ export function emitModelPromptAuditResponse(
   const serialized = JSON.stringify(record, null, 2);
   const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
   try {
-    const auditPath = resolveSafeModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE!, cwd);
+    const auditPath = resolveSafeModelAuditFilePath(
+      env.APEX_MODEL_AUDIT_FILE!,
+      cwd,
+      env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
+    );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit into a tracked workspace path; use private-audits/ or an absolute path outside the repository.\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit to this workspace path; use private-audits/ or explicitly enable the authorized visible audit destination for this run.\n");
       return;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });

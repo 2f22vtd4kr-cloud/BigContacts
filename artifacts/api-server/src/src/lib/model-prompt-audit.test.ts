@@ -246,6 +246,26 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(0);
   });
 
+  it("allows only the explicitly opted-in visible Run 07 audit destination in development", () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
+    const writes: Array<{ path: string; contents: string }> = [];
+    const requestId = emitModelPromptAudit(input, {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true",
+      APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE: "true",
+      APEX_MODEL_AUDIT_FILE: "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_REPLIT_RUN_07.md",
+    }, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
+
+    expect(requestId).toBeTruthy();
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_REPLIT_RUN_07.md"));
+    expect(writes[0]?.contents).toContain("PRIVATE_SYSTEM_PROMPT_SENTINEL");
+    expect(writes[0]?.contents).toContain("person@example.org");
+    expect(writes[0]?.contents).not.toContain("gsk_123456789012345678901234");
+  });
+
   it("preserves visible unstructured model output for diagnosis with explicit contact-data opt-in", () => {
     const writes: Array<{ path: string; contents: string }> = [];
     emitModelPromptAuditResponse({
