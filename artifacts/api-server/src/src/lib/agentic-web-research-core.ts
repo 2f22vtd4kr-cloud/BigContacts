@@ -3515,6 +3515,21 @@ export function discoveryLeadFollowUpBackpressureReason(
   const activeScopeKey = discoveryPivotScopeKey(objective);
   let successfulSearchActions = 0;
   const unvisitedLeads = new Set<string>();
+  const previouslyAttemptedUrls = new Set<string>();
+
+  // Exclude every URL already attempted in this same accepted pivot, including
+  // visits that failed or were blocked. A fresh search result must not make a
+  // known-bad URL appear "unvisited" again.
+  for (const record of priorRecords) {
+    if (activeScopeKey ? record.pivotScopeKey !== activeScopeKey : Boolean(record.pivotScopeKey)) continue;
+    if (record.action !== "visit" && record.action !== "browser_fetch") continue;
+    const requestedUrl = normalizedActionResourceUrl(record.args?.url);
+    if (requestedUrl) previouslyAttemptedUrls.add(requestedUrl);
+    for (const observedUrl of record.observedUrls ?? []) {
+      const normalized = normalizedActionResourceUrl(observedUrl);
+      if (normalized) previouslyAttemptedUrls.add(normalized);
+    }
+  }
 
   for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
     const record = priorRecords[index]!;
@@ -3527,7 +3542,7 @@ export function discoveryLeadFollowUpBackpressureReason(
     successfulSearchActions += 1;
     for (const rawUrl of [...(record.observedUrls ?? []), ...(record.leadUrls ?? [])]) {
       const url = normalizedActionResourceUrl(rawUrl);
-      if (!url || !validateDiscoverySourceUrl(url).allowed) continue;
+      if (!url || previouslyAttemptedUrls.has(url) || !validateDiscoverySourceUrl(url).allowed) continue;
       unvisitedLeads.add(url);
     }
   }
