@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 const SAFE_REQUEST_KEYS = new Set([
   "include_reasoning",
@@ -93,7 +93,7 @@ function resolveSafeModelAuditFilePath(configuredPath: string, cwd: string): str
   const resolved = resolveModelAuditFilePath(configuredPath, cwd);
   const relativePath = relative(root, resolved);
   const isOutsideWorkspace = relativePath === ".."
-    || relativePath.startsWith(`..${require("node:path").sep}`)
+    || relativePath.startsWith(".." + sep)
     || isAbsolute(relativePath);
   const isInsideWorkspace = relativePath !== "" && !isOutsideWorkspace;
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
