@@ -3516,18 +3516,22 @@ export function discoveryLeadFollowUpBackpressureReason(
   let successfulSearchActions = 0;
   const unvisitedLeads = new Set<string>();
   const previouslyAttemptedUrls = new Set<string>();
+  const rejectedLeadUrls = new Set<string>();
 
-  // Exclude every URL already attempted in this same accepted pivot, including
-  // visits that failed or were blocked. A fresh search result must not make a
-  // known-bad URL appear "unvisited" again.
+  // Exclude URLs already fetched/attempted in this same accepted pivot. A
+  // blocked visit made no outbound request, but that URL should also not keep
+  // the gate alive when an authorization/source-stage guard has rejected it.
   for (const record of priorRecords) {
     if (activeScopeKey ? record.pivotScopeKey !== activeScopeKey : Boolean(record.pivotScopeKey)) continue;
     if (record.action !== "visit" && record.action !== "browser_fetch") continue;
     const requestedUrl = normalizedActionResourceUrl(record.args?.url);
-    if (requestedUrl) previouslyAttemptedUrls.add(requestedUrl);
-    for (const observedUrl of record.observedUrls ?? []) {
-      const normalized = normalizedActionResourceUrl(observedUrl);
-      if (normalized) previouslyAttemptedUrls.add(normalized);
+    if (requestedUrl && record.execution === "blocked") rejectedLeadUrls.add(requestedUrl);
+    else if (requestedUrl && record.execution !== "selected") previouslyAttemptedUrls.add(requestedUrl);
+    if (record.execution === "success") {
+      for (const observedUrl of record.observedUrls ?? []) {
+        const normalized = normalizedActionResourceUrl(observedUrl);
+        if (normalized) previouslyAttemptedUrls.add(normalized);
+      }
     }
   }
 
@@ -3547,7 +3551,7 @@ export function discoveryLeadFollowUpBackpressureReason(
     successfulSearchActions += 1;
     for (const rawUrl of [...(record.observedUrls ?? []), ...(record.leadUrls ?? [])]) {
       const url = normalizedActionResourceUrl(rawUrl);
-      if (!url || previouslyAttemptedUrls.has(url) || !validateDiscoverySourceUrl(url).allowed) continue;
+      if (!url || previouslyAttemptedUrls.has(url) || rejectedLeadUrls.has(url) || !validateDiscoverySourceUrl(url).allowed) continue;
       unvisitedLeads.add(url);
     }
   }
