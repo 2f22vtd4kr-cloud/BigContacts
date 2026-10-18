@@ -728,10 +728,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       let iterationsConsumed = Math.max(0, result.iterations ?? result.trajectoryRecords?.length ?? 0);
       while (isInvestigatorHardQuotaExhausted(result) || isInvestigatorTokenDailyQuotaUnavailableEpisode(result)) {
         const dailyTokenQuotaFailure = isInvestigatorTokenDailyQuotaUnavailableEpisode(result);
-        const remainingIterations = dailyTokenQuotaFailure
+        // Preserve the original hard-request-quota budget calculation; the
+        // separate TPD path is bounded to one act and the global budget left.
+        const remainingIterations = Math.max(0, maxIterations - iterationsConsumed);
+        const quotaRecoveryIterations = dailyTokenQuotaFailure
           ? Math.max(0, tokenDailyQuotaAdditionalIterations)
-          : Math.max(0, maxIterations - iterationsConsumed);
-        if (remainingIterations <= 0) break;
+          : remainingIterations;
+        if (quotaRecoveryIterations <= 0) break;
         const failedCapability = selectedInvestigator;
         const replacement = isInvestigatorHardQuotaExhausted(result)
           ? await reassignInvestigatorAfterHardQuota(failedCapability, result.error ?? "upstream_quota_exhausted")
@@ -742,7 +745,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           );
         if (!replacement) break;
         failureStage = "investigator_episode";
-        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: remainingIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0 });
+        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0 });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
         if (!isInvestigatorHardQuotaExhausted(recovered) && !isInvestigatorTokenDailyQuotaUnavailableEpisode(recovered)) break;
