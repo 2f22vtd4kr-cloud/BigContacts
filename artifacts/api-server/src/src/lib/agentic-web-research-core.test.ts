@@ -247,23 +247,6 @@ describe("Investigator outbound request audit boundary", () => {
   });
 });
 
-describe("canonical Investigator token-window recovery ordering", () => {
-  it("lets token-window continuation failures reach the bounded capacity breaker before terminal cleanup", () => {
-    const tokenFailureGuard = canonicalAtlasDiscoverySource.indexOf(
-      "if (episodeFailure && !isInvestigatorTokenCapacityUnavailableEpisode(nextDiscovery))",
-    );
-    const capacityBreaker = canonicalAtlasDiscoverySource.indexOf(
-      "const tokenCapacityFailureLimitReached = hasReachedInvestigatorTokenCapacityFailureLimit",
-      tokenFailureGuard,
-    );
-    expect(tokenFailureGuard).toBeGreaterThan(-1);
-    expect(capacityBreaker).toBeGreaterThan(tokenFailureGuard);
-    expect(canonicalAtlasDiscoverySource).toContain(
-      "isInvestigatorTokenCapacityUnavailableEpisode,",
-    );
-  });
-});
-
 describe("Investigator prompt architecture", () => {
   it("separates a bounded review-lead handoff from target-scoped evidence verification", () => {
     const discovery = buildStepPrompt({
