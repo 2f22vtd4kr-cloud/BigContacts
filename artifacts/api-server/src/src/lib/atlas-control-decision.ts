@@ -479,7 +479,7 @@ export function compactAtlasInvestigatorReport(rawInput: string | null | undefin
   };
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const latestQuestions = Array.isArray(parsed.openQuestions) ? parsed.openQuestions.slice(-4).flatMap((value) => {
+    const latestQuestions = Array.isArray(parsed.openQuestions) ? parsed.openQuestions.slice(-12).flatMap((value) => {
       if (!value || typeof value !== "object" || Array.isArray(value)) return [];
       const question = value as Record<string, unknown>;
       return [{
@@ -491,7 +491,7 @@ export function compactAtlasInvestigatorReport(rawInput: string | null | undefin
           ? question.observedUrls.filter((url): url is string => typeof url === "string").slice(0, 4).map((url) => url.slice(0, 300))
           : [],
         unfetchedLeadUrls: Array.isArray(question.unfetchedLeadUrls)
-          ? question.unfetchedLeadUrls.filter((url): url is string => typeof url === "string").slice(0, 2).map((url) => url.slice(0, 220))
+          ? question.unfetchedLeadUrls.filter((url): url is string => typeof url === "string").slice(0, 6).map((url) => url.slice(0, 220))
           : [],
         stopReason: boundedText(question.stopReason, 80),
         failureDomain: boundedText(question.failureDomain, 48),
