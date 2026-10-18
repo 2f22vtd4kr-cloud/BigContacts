@@ -702,6 +702,8 @@ describe("Run 04 search-lead and route-recovery regression", () => {
     expect(record.observedUrls).toEqual([]);
     expect(agenticCoreSource).toContain("assignSearchResultLeads(record, successful.flatMap((result) => result.urls))");
     expect(agenticCoreSource).toContain('assignSearchResultLeads(record, record.execution === "success" ? result.urls : [])');
+    expect(agenticCoreSource).toContain('summary: (record.leadUrls?.length ?? 0) + " search-result lead URLs surfaced from independent searches"');
+    expect(agenticCoreSource).toContain('summary: `${record.leadUrls?.length ?? 0} search-result lead URLs surfaced`');
   });
 
   it("distinguishes local episode exhaustion from remaining mission capacity", async () => {
