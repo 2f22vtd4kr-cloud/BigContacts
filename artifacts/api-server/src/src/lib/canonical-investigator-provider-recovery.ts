@@ -22,6 +22,24 @@ export type InvestigatorProviderEpisode = {
 export const MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE = 2;
 export const MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES = 2;
 
+/**
+ * Bound a one-off TPD reassignment episode to one normal Investigator act and
+ * the global budget left after the failed episode. This never creates extra
+ * work beyond the canonical run's existing iteration ceiling.
+ */
+export function resolveInvestigatorTokenDailyQuotaRecoveryIterations(
+  maxRecoveryActIterations: number,
+  failedEpisodeIterations: number,
+  remainingTotalIterations: number,
+): number {
+  const positiveInt = (value: number): number =>
+    Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  return Math.min(
+    positiveInt(maxRecoveryActIterations),
+    Math.max(0, positiveInt(remainingTotalIterations) - positiveInt(failedEpisodeIterations)),
+  );
+}
+
 export function isInvestigatorProviderUnavailableEpisode(
   result: InvestigatorProviderEpisode,
 ): boolean {
