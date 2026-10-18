@@ -87,11 +87,6 @@ export function advanceInvestigatorProviderUnavailableStreak(
 }
 
 /**
- * Explicit Groq tokens-per-day exhaustion is recoverable only by the separate,
- * single Boss-directed capability reassignment; it must not be treated as a
- * short token-window failure or hard request-count quota.
- */
-/**
  * Classify the most recent provider failure, not any historical quota record
  * in a merged multi-capability trajectory.
  */
@@ -99,33 +94,41 @@ export function isInvestigatorHardRequestQuotaUnavailableEpisode(
   result: InvestigatorProviderEpisode,
 ): boolean {
   if (!isInvestigatorProviderUnavailableEpisode(result)) return false;
-  if (result.error === "upstream_quota_exhausted" || result.error === "quota_exceeded") return true;
   const latestProviderError = [...(result.trajectoryRecords ?? [])].reverse().find(
     (record) => record.action === "investigator_provider_error",
   );
-  return /(?:upstream_quota_exhausted|quota_exceeded)/i.test(latestProviderError?.observation ?? "");
+  if (latestProviderError) {
+    return /(?:upstream_quota_exhausted|quota_exceeded)/i.test(latestProviderError.observation ?? "");
+  }
+  return result.error === "upstream_quota_exhausted" || result.error === "quota_exceeded";
 }
+
+/**
+ * Explicit Groq tokens-per-day exhaustion is recoverable only by the separate,
+ * single Boss-directed capability reassignment; it must not be treated as a
+ * short token-window failure or hard request-count quota.
+ */
 
 export function isInvestigatorTokenDailyQuotaUnavailableEpisode(
   result: InvestigatorProviderEpisode,
 ): boolean {
   if (!isInvestigatorProviderUnavailableEpisode(result)) return false;
-  if (result.error === "upstream_token_quota_exhausted") return true;
   const latestProviderError = [...(result.trajectoryRecords ?? [])].reverse().find(
     (record) => record.action === "investigator_provider_error",
   );
-  return /upstream_token_quota_exhausted/i.test(latestProviderError?.observation ?? "");
+  if (latestProviderError) return /upstream_token_quota_exhausted/i.test(latestProviderError.observation ?? "");
+  return result.error === "upstream_token_quota_exhausted";
 }
 
 export function isInvestigatorTokenCapacityUnavailableEpisode(
   result: InvestigatorProviderEpisode,
 ): boolean {
   if (!isInvestigatorProviderUnavailableEpisode(result)) return false;
-  return result.error === "upstream_token_window_wait_exceeded"
-    || (result.trajectoryRecords ?? []).some(
-      (record) => record.action === "investigator_provider_error"
-        && /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""),
-    );
+  const latestProviderError = [...(result.trajectoryRecords ?? [])].reverse().find(
+    (record) => record.action === "investigator_provider_error",
+  );
+  if (latestProviderError) return /upstream_token_window_wait_exceeded/i.test(latestProviderError.observation ?? "");
+  return result.error === "upstream_token_window_wait_exceeded";
 }
 
 /**
