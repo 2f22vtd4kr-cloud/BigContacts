@@ -3461,7 +3461,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const shortestPrompt = [
         finalEmergencyAssignment,
         shortestScope,
-        "SCOPE: keep topic/geography aligned; source class need not repeat in every web query. Matching registry jurisdiction required. Model-led action choice; no preset sequence. Blocks are not negative evidence.",
+        "SCOPE: keep topic/geography aligned; source class need not appear in every discovery query. Matching registry jurisdiction required. Model-led action choice; no preset sequence. Blocks are not negative evidence.",
         availableActionsGuidance,
         compactRegistryGuidance,
         "PROVIDERS: search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain=rdap|whoisjson.",
