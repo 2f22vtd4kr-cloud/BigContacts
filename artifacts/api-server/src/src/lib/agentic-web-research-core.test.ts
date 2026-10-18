@@ -754,11 +754,18 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
 
     expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", { searches }, [])).toBeNull();
+    // Topic + geography are sufficient for a web-discovery query. The
+    // Investigator may choose a later search that names a specific filing or
+    // announcement source; the scope guard must not force a fixed tool sequence.
     expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", {
       searches: searches.map((search, index) => index === 1
         ? { ...search, query: "Thailand renewable energy private equity deal 2023 fund manager" }
         : search),
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Thailand water utility officers licensees",
+      provider: "serper",
+    }, [])).toContain("subject");
   });
 
   it("accepts official corporation-search wording for a corporate-filings pivot without relaxing subject or geography", () => {
