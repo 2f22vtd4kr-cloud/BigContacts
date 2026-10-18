@@ -223,13 +223,27 @@ describe("model prompt audit", () => {
     const requestId = emitModelPromptAudit(input, {
       NODE_ENV: "development",
       APEX_CAPTURE_MODEL_PROMPTS: "true",
-      APEX_MODEL_AUDIT_FILE: "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md",
+      APEX_MODEL_AUDIT_FILE: "private-audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md",
     }, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
 
     expect(requestId).toBeTruthy();
     expect(writes).toHaveLength(1);
-    expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md"));
-    expect(writes[0]?.path).not.toBe(resolve(apiPackageCwd, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md"));
+    expect(writes[0]?.path).toBe(resolve(workspaceRoot, "private-audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md"));
+    expect(writes[0]?.path).not.toBe(resolve(apiPackageCwd, "private-audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md"));
+  });
+
+  it("refuses raw prompt capture to tracked paths inside the workspace", () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
+    const writes: Array<{ path: string; contents: string }> = [];
+    const requestId = emitModelPromptAudit(input, {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true",
+      APEX_MODEL_AUDIT_FILE: "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_TRACKED_PATH_REJECTION_TEST.md",
+    }, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
+    expect(requestId).toBeNull();
+    expect(writes).toHaveLength(0);
   });
 
   it("preserves visible unstructured model output for diagnosis with explicit contact-data opt-in", () => {
