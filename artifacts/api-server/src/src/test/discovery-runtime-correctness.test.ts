@@ -105,7 +105,16 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("rightHand.decision");
     expect(canonicalSource).toContain("rightHand.reason");
     expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
-    expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective");
+    const openingCallStart = canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery(");
+    const openingCallEnd = canonicalSource.indexOf("let consecutiveInvestigatorProviderUnavailable", openingCallStart);
+    expect(openingCallStart).toBeGreaterThan(-1);
+    expect(openingCallEnd).toBeGreaterThan(openingCallStart);
+    const openingCall = canonicalSource.slice(openingCallStart, openingCallEnd);
+    expect(openingCall).toContain("discovery");
+    expect(openingCall).toContain("openingInvestigatorObjective");
+    expect(openingCall).toContain("openingDiscoveryBudget");
+    expect(openingCall).toContain("openingInvestigatorIterations");
+    expect(openingCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");
     expect(canonicalSource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
     expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
     expect(canonicalSource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
@@ -466,7 +475,12 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations)");
     expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
-    expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations)");
+    const openingRecoveryCall = canonicalSource.slice(
+      canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery("),
+      canonicalSource.indexOf("let consecutiveInvestigatorProviderUnavailable"),
+    );
+    expect(openingRecoveryCall).toMatch(/runDiscoveryWithQuotaRecovery\s*\(\s*discovery\s*,\s*openingInvestigatorObjective\s*,\s*openingDiscoveryBudget\s*,\s*openingInvestigatorIterations/s);
+    expect(openingRecoveryCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");
     expect(canonicalSource).toContain("let discoveryIterationsUsed = discovery.iterations");
     expect(canonicalSource).toContain("const remainingInvestigatorIterations = resolveRemainingDiscoveryIterations({");
     expect(canonicalSource).toContain("hasAdmittedCandidates: admittedCandidateSources.length > 0");
