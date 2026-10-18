@@ -77,11 +77,11 @@ export function isInvestigatorTokenDailyQuotaUnavailableEpisode(
   result: InvestigatorProviderEpisode,
 ): boolean {
   if (!isInvestigatorProviderUnavailableEpisode(result)) return false;
-  return result.error === "upstream_token_quota_exhausted"
-    || (result.trajectoryRecords ?? []).some(
-      (record) => record.action === "investigator_provider_error"
-        && /upstream_token_quota_exhausted/i.test(record.observation ?? ""),
-    );
+  if (result.error === "upstream_token_quota_exhausted") return true;
+  const latestProviderError = [...(result.trajectoryRecords ?? [])].reverse().find(
+    (record) => record.action === "investigator_provider_error",
+  );
+  return /upstream_token_quota_exhausted/i.test(latestProviderError?.observation ?? "");
 }
 
 export function isInvestigatorTokenCapacityUnavailableEpisode(
