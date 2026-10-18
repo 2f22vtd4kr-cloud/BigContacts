@@ -107,4 +107,32 @@ _Append verified events here in order. Update this file at each meaningful job, 
 1. Job `f2d5f3a9-a24c-40cb-92a8-c74d6cae055d` is terminal `failed / incomplete`, progress `3/4` of total `4`, with `inserted=0`, `skipped=0`, and `errors=0`. It started `2026-10-18T11:08:21.491Z`. No second run has been started.
 2. The prompt ledger ended with 31 high-level request/response pairs: 5 Boss, 7 Right-hand, and 19 Investigator. The recorded response classes were 25 HTTP 200, one HTTP 400, and five HTTP 429. Each 429 must be classified from its own provider diagnostics; the two already inspected were token-window limits, not hard request-quota exhaustion. No manual key/capability switch occurred.
 3. Case `1` is in `review` with `current_action=canonical-evidence-terminal-incomplete`. Its durable case file reports 17 search actions, 4 visit actions, 16 Investigator trajectory records, and no entries in `investigationTimeline`. The stored base/active objective flags mention family-owned business and Ohio, but not manufacturing; the model's manufacturing query therefore needs trajectory-level review before treating the blocked page as a guard defect.
-4. The job reports zero insertions. Post-run entity/evidence/card counts, per-turn tool outcomes, the terminal reason, and all remaining 429 classifications are still pending read-only reconciliation. Do not launch again until the lock is clear and that review identifies a specific, architecture-safe correction.
+4. Post-run database counts are: `entities=0`, `assets=0`, `research_evidence=0`, `contact_evidence=0`, and `relationships=0`; there is one retained discovery case and 26 research-case events. The zero entity delta confirms that no card was created.
+5. The five high-level HTTP 429 responses are all explicitly typed by Groq as `rate_limit_exceeded` / `tokens`: three Investigator calls and two Right-hand calls. Their observed token windows were 8,000 TPM (used 7,153; requested 2,459; retry hint 12.09s) and 200,000 TPM windows (used 197,270–197,359; requested 2,788–2,990; retry hints 1–59.184s). No 429 in this run was classified as an exhausted request quota. The Investigator's final trajectory record says `failureKind=provider_capacity_exhausted`, while provider diagnostics say token capacity; that distinction must be preserved and the classification boundary reviewed before changing failover behavior.
+6. All 16 stored Investigator trajectory records show no findings and no recorded `providerFallback`. This does not indicate a missed hard-quota reassignment: none of the inspected 429s is a hard request-quota event, and the current canonical code's Boss-directed reassignment trigger is the explicit `upstream_quota_exhausted` classification.
+7. The job's terminal message was `Canonical Atlas control stopped without an evidence-backed terminal state; case preserved for review.` Do not launch again until the active lock is checked and a specific, architecture-safe correction is identified.
+
+#### Case 1 — per-turn observable Investigator trajectory
+
+The table records model-selected actions and results, not private reasoning. Query text is shown with possible person/organization names redacted; result counts are leads, not evidence.
+
+| Turn | Model-selected action | Sanitized query or target | Observable execution |
+|---:|---|---|---|
+| 1 | Serper `web_search` | `[possible person/organization] of State business entity search manufacturing family owned before 2010` | Success; 6 result URLs; 0 findings. |
+| 2 | `parallel_web_search` | Ohio manufacturing company/family ownership at `ohiosos.gov`; Ohio manufacturing corporation filing/PDF ownership; Ohio manufacturing entity search for manufacturing/family/establishment around 2010. | Success; 18 result URLs; 0 findings. |
+| 3 | Serper `web_search` | `[possible person/organization] of State business entity search family owned manufacturing before 2010` | Success; 6 result URLs; 0 findings. |
+| 4 | `visit` | `www.ohiosos.gov` | Fetch returned `http_error`; no page evidence or finding. |
+| 5 | `parallel_web_search` | Ohio state business filings and family-owned manufacturing around 2005–2009. | Success; 16 result URLs; 0 findings. |
+| 6 | `visit` | `www.ohiosos.gov` | Rejected by `repeat_action_guard` before outbound execution. |
+| 7 | `visit` | `bsd.sos.in.gov` | Rejected by `pivot_alignment_guard` as out of scope before outbound execution. |
+| 8 | Serper `web_search` | State business-entity search for family-owned agribusiness. | Success; 6 result URLs; 0 findings. |
+| 9 | `parse_failure` | No query was executed. | `invalid_contract`; no outbound action. |
+| 10 | Serper `web_search` | Indiana privately held agribusiness corporation founded before 2015, limited to `in.gov`; person-like query tokens redacted. | Success; 6 result URLs; 0 findings. |
+| 11 | `parallel_web_search` | Indiana privately held agribusiness founded in 2014; Indiana legislative agriculture/corporation filing around 2013; one proposed search was scope-rejected. | Success; 12 result URLs; 0 findings. |
+| 12 | Serper `web_search` | State business-entity search for agribusiness. | Success; 6 result URLs; 0 findings. |
+| 13 | `visit` | `www.in.gov` | Fetch succeeded; 1 observed URL; 0 findings. |
+| 14 | Serper `web_search` | Indiana privately held agribusiness/farm/grain processor founded before 2015, limited to `in.gov`. | Success; 6 result URLs; 0 findings. |
+| 15 | `parallel_web_search` | Indiana privately held farm corporation; grain processor LLC; Indiana farm filing around 2013. Person-like query tokens redacted. | Success; 18 result URLs; 0 findings. |
+| 16 | `investigator_provider_error` | Provider capability `groq-investigator-1`. | `model_provider / provider_capacity_exhausted`; no findings and no recorded fallback. Provider diagnostics for this run classify the observed 429s as token-window limits, not hard request-quota exhaustion. |
+
+**Trajectory assessment:** 17 search actions and 4 visit actions produced zero findings. One official Indiana page fetch succeeded but did not support a person-level finding. The Ohio portal failure was followed by a repeated visit that the duplicate guard correctly stopped; the later Indiana page action was outside the active Ohio scope and was correctly blocked. No candidate crossed admission, so this trace does not implicate the downstream card renderer.
