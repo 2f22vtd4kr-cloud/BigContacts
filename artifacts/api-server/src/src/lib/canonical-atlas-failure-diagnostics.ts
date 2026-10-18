@@ -118,6 +118,7 @@ export function classifyAtlasScopeGuardObservation(observation: string): { domai
 
 export function classifyInvestigatorProviderError(value: string): { domain: AtlasFailureDomain; kind: AtlasFailureKind } {
   const code = value.trim().toLowerCase();
+  if (code === "upstream_token_quota_exhausted") return { domain: "model_provider", kind: "provider_capacity_exhausted" };
   if (code === "upstream_quota_exhausted" || code === "quota_exceeded") return { domain: "model_provider", kind: "hard_request_quota" };
   if (code === "local_provider_cooldown") return { domain: "model_provider", kind: "local_provider_cooldown" };
   if (code === "local_provider_budget_exhausted") return { domain: "model_provider", kind: "local_provider_budget_exhausted" };
