@@ -1698,6 +1698,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
     expect(prompt).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
     expect(prompt).toContain("not evidence or a mandated next action");
+    expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
     expect(prompt).not.toContain("must visit");
   });
 
