@@ -528,7 +528,7 @@ export function emitModelPromptAuditResponse(
       env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
     );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused visible model-audit path; enable the development-only opt-in for an audits/ destination or use private-audits/.\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\n");
       return;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
