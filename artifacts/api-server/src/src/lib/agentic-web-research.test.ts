@@ -29,6 +29,9 @@ describe("target wrapper parse-failure routing", () => {
     expect(ordinaryOversight).toBeGreaterThan(terminalReturn);
     expect(targetWrapperSource.slice(parseFailureBranch, ordinaryOversight)).toContain("continue;");
     expect(targetWrapperSource.slice(parseFailureBranch, ordinaryOversight)).toContain("consecutiveActionParseFailures");
+    const targetLoop = targetWrapperSource.slice(targetLoopStart);
+    expect(targetLoop).toContain("error = actResult.error;");
+    expect(targetLoop).not.toContain("error = actResult.error ?? error;");
   });
 });
 
