@@ -104,6 +104,7 @@ export function resolveModelAuditFilePath(
 function resolveSafeModelAuditFilePath(
   configuredPath: string,
   cwd: string,
+  allowVisibleWorkspaceFile = false,
 ): string | null {
   const root = workspaceRootFrom(cwd);
   const resolved = resolveModelAuditFilePath(configuredPath, cwd);
@@ -114,8 +115,14 @@ function resolveSafeModelAuditFilePath(
   const isInsideWorkspace = relativePath !== "" && !isOutsideWorkspace;
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
   // Model-visible prompts/pages can contain personal data and exact source trails.
-  // Raw workspace captures are permitted only under the ignored private-audits directory.
-  if (isInsideWorkspace && !normalizedRelativePath.startsWith("private-audits/")) return null;
+  // Visible captures require a per-run development opt-in and must stay in audits/.
+  const isAllowedVisibleAudit = allowVisibleWorkspaceFile
+    && normalizedRelativePath.startsWith("audits/");
+  if (
+    isInsideWorkspace
+    && !normalizedRelativePath.startsWith("private-audits/")
+    && !isAllowedVisibleAudit
+  ) return null;
   return resolved;
 }
 
@@ -378,9 +385,10 @@ export function emitModelPromptAudit(
     const auditPath = resolveSafeModelAuditFilePath(
       env.APEX_MODEL_AUDIT_FILE!,
       cwd,
+      env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
     );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit to a visible workspace path; use private-audits/ or a path outside the workspace.\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused visible model-audit path; enable the development-only opt-in for an audits/ destination or use private-audits/.\n");
       return null;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
@@ -518,9 +526,10 @@ export function emitModelPromptAuditResponse(
     const auditPath = resolveSafeModelAuditFilePath(
       env.APEX_MODEL_AUDIT_FILE!,
       cwd,
+      env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
     );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit to a visible workspace path; use private-audits/ or a path outside the workspace.\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused visible model-audit path; enable the development-only opt-in for an audits/ destination or use private-audits/.\n");
       return;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
