@@ -36,13 +36,24 @@ type AuditEnvironment = {
   APEX_CAPTURE_MODEL_PROMPTS_IN_TEST?: string;
   /** Explicit per-run opt-in for retaining contact values in the visible audit file. */
   APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA?: string;
-  /** Narrow development-only opt-in for the explicitly authorized visible Run 07 audit. */
+  /** Narrow development-only opt-in for one explicitly authorized visible audit. */
   APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE?: string;
   APEX_MODEL_AUDIT_FILE?: string;
+  VITEST?: string;
+  VITEST_POOL_ID?: string;
+  VITEST_WORKER_ID?: string;
+  JEST_WORKER_ID?: string;
+  NODE_TEST_CONTEXT?: string;
 };
 
 function shouldCaptureModelPromptAudit(env: AuditEnvironment): boolean {
   if (env.APEX_CAPTURE_MODEL_PROMPTS !== "true" || !env.APEX_MODEL_AUDIT_FILE?.trim()) return false;
+  const isTestRunner = env.VITEST === "true"
+    || Boolean(env.VITEST_POOL_ID)
+    || Boolean(env.VITEST_WORKER_ID)
+    || Boolean(env.JEST_WORKER_ID)
+    || Boolean(env.NODE_TEST_CONTEXT);
+  if (isTestRunner) return env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST === "true";
   if (env.NODE_ENV === "development") return true;
   return env.NODE_ENV === "test" && env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST === "true";
 }
@@ -93,7 +104,7 @@ export function resolveModelAuditFilePath(
 function resolveSafeModelAuditFilePath(
   configuredPath: string,
   cwd: string,
-  allowVisibleRun07Audit: boolean,
+  allowVisibleAudit: boolean,
 ): string | null {
   const root = workspaceRootFrom(cwd);
   const resolved = resolveModelAuditFilePath(configuredPath, cwd);
@@ -106,12 +117,12 @@ function resolveSafeModelAuditFilePath(
   // Model-visible prompts/pages can contain personal data and exact source trails.
   // Workspace capture stays private by default. This one visible destination is
   // permitted only after an explicit development opt-in for the current run.
-  const isAuthorizedVisibleRun07Audit = allowVisibleRun07Audit
-    && normalizedRelativePath === "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_REPLIT_RUN_07.md";
+  const isAuthorizedVisibleAudit = allowVisibleAudit
+    && normalizedRelativePath === "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_NEW_PROJECT_IMPORT.md";
   if (
     isInsideWorkspace
     && !normalizedRelativePath.startsWith("private-audits/")
-    && !isAuthorizedVisibleRun07Audit
+    && !isAuthorizedVisibleAudit
   ) return null;
   return resolved;
 }

@@ -39,6 +39,26 @@ const input = {
 };
 
 describe("model prompt audit", () => {
+  it("does not capture test-runner telemetry from a development environment without the separate test opt-in", () => {
+    const writes: Array<{ path: string; contents: string }> = [];
+    const testRunnerEnvironment = {
+      NODE_ENV: "development",
+      VITEST: "true",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    };
+
+    expect(emitModelPromptAudit(input, testRunnerEnvironment, (path, contents) => writes.push({ path, contents }))).toBeNull();
+    expect(writes).toHaveLength(0);
+
+    const requestId = emitModelPromptAudit(input, {
+      ...testRunnerEnvironment,
+      APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "true",
+    }, (path, contents) => writes.push({ path, contents }));
+    expect(requestId).toBeTruthy();
+    expect(writes).toHaveLength(1);
+  });
+
   it("is disabled unless explicitly enabled in development or test", () => {
     const writes: Array<{ path: string; contents: string }> = [];
     const write = (path: string, contents: string) => writes.push({ path, contents });
@@ -246,23 +266,26 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(0);
   });
 
-  it("allows only the explicitly opted-in visible Run 07 audit destination in development", () => {
+  it("allows only the explicitly opted-in visible new-project audit and redacts contact values", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
     const writes: Array<{ path: string; contents: string }> = [];
     const requestId = emitModelPromptAudit(input, {
       NODE_ENV: "development",
       APEX_CAPTURE_MODEL_PROMPTS: "true",
-      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true",
+      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "false",
       APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE: "true",
-      APEX_MODEL_AUDIT_FILE: "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_REPLIT_RUN_07.md",
+      APEX_MODEL_AUDIT_FILE: "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_NEW_PROJECT_IMPORT.md",
     }, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
 
     expect(requestId).toBeTruthy();
     expect(writes).toHaveLength(1);
-    expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_REPLIT_RUN_07.md"));
+    expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_NEW_PROJECT_IMPORT.md"));
     expect(writes[0]?.contents).toContain("PRIVATE_SYSTEM_PROMPT_SENTINEL");
-    expect(writes[0]?.contents).toContain("person@example.org");
+    expect(writes[0]?.contents).toContain("[REDACTED_EMAIL]");
+    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
+    expect(writes[0]?.contents).not.toContain("person@example.org");
+    expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
     expect(writes[0]?.contents).not.toContain("gsk_123456789012345678901234");
   });
 
