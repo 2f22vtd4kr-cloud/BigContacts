@@ -2233,7 +2233,7 @@ function directionWithoutNegatedPivotSubjects(direction: string): string {
   return direction.replace(/\bnon[\s\u2010-\u2015-]+[\p{L}\p{N}][\p{L}\p{N}'’.-]*/giu, " ");
 }
 const PIVOT_SCOPE_NON_SUBJECT_TERMS = new Set([
-  "county", "counties", "province", "provinces", "employ", "employing", "employee",
+  "county", "counties", "province", "provinces", "entity", "entities", "site", "sites", "official", "portal", "portals", "domain", "domains", "url", "urls", "website", "websites", "name", "names", "employ", "employing", "employee",
   "employees", "staff", "cross", "reference", "identified", "linkedin", "principal",
   "corporate", "corporation", "corporations", "secretary", "held",
   "principals", "shareholder", "shareholders", "disclosure", "disclosures", "asset",
@@ -2342,10 +2342,6 @@ function pivotScopeGeographyOptions(direction: string): string[][] {
     const isRegionalAlias = PIVOT_GEOGRAPHIC_REGION_ALIASES.some((region) => region.pattern.test(phrase));
     if (!isRegionalAlias) options.push(...pivotGeographicAlternatives(phrase));
   }
-  // Jurisdiction names can precede a formal source name rather than a preposition.
-  for (const match of direction.matchAll(PIVOT_ADMINISTRATIVE_SOURCE_GEO_PREFIX)) {
-    options.push(...pivotGeographicAlternatives(match[1]!));
-  }
   // Some model-written pivots put alternatives immediately before a jurisdiction
   // noun ("Michigan/Illinois state registries") rather than after a preposition.
   const jurisdictionList = new RegExp(PIVOT_GEOGRAPHIC_JURISDICTION_LIST, "gu");
@@ -2400,7 +2396,7 @@ function removePivotSourceSystemClauses(direction: string): string {
   );
 }
 
-function pivotScopeAnchors(objective: string): string[] {
+export function pivotScopeAnchors(objective: string): string[] {
   const direction = extractBossPivotDirectionForCompactPrompt(objective);
   if (!direction) return [];
   // Keep the leading pivot clause for subject matching; later clauses commonly
@@ -2584,12 +2580,15 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   // equivalent, not a new sector or a substitute for geographic/source checks.
   if (
     anchors.includes("water")
-    && (anchors.includes("service") || anchors.includes("provider"))
+    && anchors.some((anchor) => ["right", "rights", "service", "provider"].includes(anchor))
     && /\bwater\s+utilit(?:y|ies)\b/iu.test(value)
   ) {
+    // "Water utility" is a jurisdictional provider type corresponding to water
+    // rights / water-service providers. Normalize it to a pair of anchors that
+    // actually exists in this pivot; do not let it bypass the topic/geography gate.
     matched.add("water");
-    if (anchors.includes("service")) matched.add("service");
-    else matched.add("provider");
+    const equivalent = anchors.find((anchor) => ["service", "provider", "right", "rights"].includes(anchor));
+    if (equivalent) matched.add(equivalent);
   }
   // Accept common native-language equivalents when the model localizes a query.
   // These aliases establish topical equivalence only; evidence and admission remain separate.
@@ -2613,6 +2612,24 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   // a short, broad word such as "food" must be accompanied by another pivot anchor.
   return matched.size >= 2 || [...matched].some((anchor) => anchor.length >= 7);
 }
+/**
+ * Official-source discovery may omit the sector, but it must not smuggle in a
+ * different sector/target type. After removing geography and neutral registry
+ * wording, any remaining substantive anchor keeps the normal topic guard active.
+ */
+function pivotQueryHasCompetingSubjectTerms(value: string): boolean {
+  if (/\bprivate[-\s]+equity\b/iu.test(value)) return true;
+  const withoutGeography = removePivotGeographyPhrases(value);
+  const withoutSourceDetails = removePivotSourceSystemClauses(withoutGeography);
+  const tokens = withoutSourceDetails.toLowerCase().match(/[a-z]{3,}/g) ?? [];
+  return tokens.map(pivotScopeToken).some((token) =>
+    token.length >= 4
+    && !PIVOT_SCOPE_GENERIC_TERMS.has(token)
+    && !PIVOT_SCOPE_NON_SUBJECT_TERMS.has(token)
+    && !PIVOT_SCOPE_SOURCE_CLASS_TERMS.has(token),
+  );
+}
+
 function pivotTextContainsExcludedSubject(value: string, excludedSubjects: readonly string[]): boolean {
   if (!value.trim() || excludedSubjects.length === 0) return false;
   const tokens = new Set((value.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []).map(pivotScopeToken));
@@ -2673,6 +2690,7 @@ function pivotActionIsAligned(
     // it locates the in-scope registry instead of changing the research lane.
     const officialSourceDiscovery = isWebDiscovery
       && !matchesSubject
+      && !pivotQueryHasCompetingSubjectTerms(text)
       && matchesGeographyInQuery
       && requiredSourceAnchors.length > 0
       && pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
@@ -3361,7 +3379,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
         compactTerminalContractGuidance,
-        "PAGE LIMIT: visit/browser_fetch do not extract PDF binaries; search snippets and result URLs are leads, not evidence.",
+        "PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries. Search snippets and result URLs are leads, not evidence.",
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate ?? ""] : []),
         finalDiscoveryGate,
         compactOutputContract,
