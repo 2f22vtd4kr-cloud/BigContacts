@@ -94,6 +94,15 @@ describe("canonical Investigator provider-unavailable breaker", () => {
     )).toBe(false);
     expect(isInvestigatorTokenDailyQuotaUnavailableEpisode(tokenWindow)).toBe(false);
     expect(isInvestigatorTokenDailyQuotaUnavailableEpisode(hardRequestQuota)).toBe(false);
+    const priorWindowThenTpd = {
+      ...tpd,
+      trajectoryRecords: [
+        { action: "investigator_provider_error", observation: "upstream_token_window_wait_exceeded" },
+        { action: "investigator_provider_error", observation: "upstream_token_quota_exhausted" },
+      ],
+    };
+    expect(isInvestigatorTokenCapacityUnavailableEpisode(priorWindowThenTpd)).toBe(false);
+    expect(isInvestigatorTokenDailyQuotaUnavailableEpisode(priorWindowThenTpd)).toBe(true);
     expect(isInvestigatorHardRequestQuotaUnavailableEpisode(hardRequestQuota)).toBe(true);
     expect(isInvestigatorHardRequestQuotaUnavailableEpisode(tpd)).toBe(false);
     expect(isInvestigatorHardRequestQuotaUnavailableEpisode({
