@@ -73,6 +73,35 @@ export function providerErrorCode(body: string): string | null {
   }
 }
 
+/**
+ * Identify Groq's explicit tokens-per-day (TPD) cap without conflating it
+ * with request-count quota exhaustion or a short token-window 429.
+ *
+ * Groq reports both short-window token limits and daily token limits with
+ * error.type="tokens"; the provider message is needed to distinguish them.
+ * The message is inspected only for classification and is never returned.
+ */
+export function isTokenPerDayQuotaError(status: number, body: string): boolean {
+  if (status !== 429 || !body) return false;
+  try {
+    const parsed = JSON.parse(body) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return false;
+    const record = parsed as Record<string, unknown>;
+    const error = record.error && typeof record.error === "object" && !Array.isArray(record.error)
+      ? record.error as Record<string, unknown>
+      : null;
+    const type = typeof error?.type === "string" ? error.type : record.type;
+    const message = typeof error?.message === "string"
+      ? error.message
+      : typeof record.message === "string" ? record.message : "";
+    return typeof type === "string"
+      && type.toLowerCase() === "tokens"
+      && /\\b(?:tokens?\\s+per\\s+day|TPD)\\b/i.test(message.slice(0, 4_096));
+  } catch {
+    return false;
+  }
+}
+
 export function summarizeProviderBody(body: string): ProviderBodyShape {
   if (!body) {
     return {
