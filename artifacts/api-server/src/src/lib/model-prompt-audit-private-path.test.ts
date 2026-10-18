@@ -23,7 +23,7 @@ describe("private model audit destinations", () => {
       APEX_CAPTURE_MODEL_PROMPTS: "true",
       APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "false",
       APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE: "false",
-      APEX_MODEL_AUDIT_FILE: ".local/audits/APEX_ATLAS_MODEL_AUDIT_TEST.jsonl",
+      APEX_MODEL_AUDIT_FILE: ".local/audits/APEX_ATLAS_MODEL_AUDIT_TEST.md",
     }, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
 
     expect(requestId).toBeTruthy();
