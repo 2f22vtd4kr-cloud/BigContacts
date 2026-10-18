@@ -5,8 +5,8 @@ import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
-import { ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandApprovalReview, type AtlasControlAction } from "./atlas-control-decision";
-import { resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
+import { ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, summarizeAtlasDiscoveryLeads, validateAtlasOpeningRightHandApprovalReview, type AtlasControlAction } from "./atlas-control-decision";
+import { buildInvestigatorBudgetContext, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
@@ -996,6 +996,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         discoveryIterationCeiling,
       ),
     );
+    let lastDiscoveryEpisode = {
+      actionsUsed: discovery.iterations ?? discovery.trajectoryRecords?.length ?? 0,
+      actionLimit: openingInvestigatorIterations,
+      status: discovery.status,
+      stopReason: discovery.stopReason ?? null,
+    };
     let consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(0, discovery);
     consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(0, discovery);
     let tokenCapacityFailureInvestigator = selectedInvestigator;
@@ -1124,6 +1130,16 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         findings: discovery.findings,
         modelFindings: discovery.modelFindings,
         targetInvestigation: latestTargetInvestigation,
+        iterationBudget: buildInvestigatorBudgetContext({
+          totalIterationCeiling: depth.agenticMaxIterations,
+          discoveryIterationCeiling,
+          discoveryIterationsUsed,
+          investigatorIterationsUsed,
+          targetResearchReserveIterations,
+          hasAdmittedCandidates: admittedCandidateSources.length > 0,
+          lastDiscoveryEpisode,
+        }),
+        leadState: summarizeAtlasDiscoveryLeads(discovery.trajectoryRecords ?? []),
         openQuestions: discovery.trajectoryRecords?.map((record) => ({
           turn: record.turn,
           action: record.action,
@@ -1264,6 +1280,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           targetName: name,
           caseId: targetCase?.id ?? null,
           status: targetCase?.status ?? "unknown",
+          investigatorActionsUsed: Math.max(0, targetResult.investigatorIterationsUsed),
+          investigatorActionLimit: remainingTargetIterations,
           iteration: Number(targetCase?.iteration ?? 0),
           completedActs: Number(targetState.completedActs ?? 0),
           resourceLimited: Boolean(targetState.resourceLimited),
@@ -1381,13 +1399,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         activeDiscoveryObjective = directedObjective;
         latestEvidenceBackedTerminal = null;
         failureStage = "investigator_episode";
-        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0 });
+        const nextDiscoveryActionLimit = Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations);
+        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: nextDiscoveryActionLimit, hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0 });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(
           nextDiscovery,
           directedObjective,
           discoveryBudget,
-          Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations),
+          nextDiscoveryActionLimit,
           discovery.trajectoryRecords ?? [],
           resolveInvestigatorTokenDailyQuotaRecoveryIterations(
             Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations),
@@ -1395,6 +1414,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             remainingInvestigatorIterations,
           ),
         );
+
+        lastDiscoveryEpisode = {
+          actionsUsed: nextDiscovery.iterations ?? nextDiscovery.trajectoryRecords?.length ?? 0,
+          actionLimit: nextDiscoveryActionLimit,
+          status: nextDiscovery.status,
+          stopReason: nextDiscovery.stopReason ?? null,
+        };
 
         // A failed/empty continuation is an orchestration failure, not permission
         // to ask Boss for another pivot without executing useful Investigator work.
