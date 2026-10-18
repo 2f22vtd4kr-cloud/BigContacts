@@ -92,9 +92,10 @@ function resolveSafeModelAuditFilePath(configuredPath: string, cwd: string): str
   const root = workspaceRootFrom(cwd);
   const resolved = resolveModelAuditFilePath(configuredPath, cwd);
   const relativePath = relative(root, resolved);
-  const isInsideWorkspace = relativePath !== ""
-    && !relativePath.startsWith("..")
-    && !isAbsolute(relativePath);
+  const isOutsideWorkspace = relativePath === ".."
+    || relativePath.startsWith(`..${require("node:path").sep}`)
+    || isAbsolute(relativePath);
+  const isInsideWorkspace = relativePath !== "" && !isOutsideWorkspace;
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
   // Model-visible prompts/pages can contain personal data and exact source trails.
   // Any audit stored in the workspace must live in ignored private-audits/.
