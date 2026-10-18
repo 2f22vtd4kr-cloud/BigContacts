@@ -96,7 +96,7 @@ export function isTokenPerDayQuotaError(status: number, body: string): boolean {
       : typeof record.message === "string" ? record.message : "";
     return typeof type === "string"
       && type.toLowerCase() === "tokens"
-      && /\\b(?:tokens?\\s+per\\s+day|TPD)\\b/i.test(message.slice(0, 4_096));
+      && /\b(?:tokens?\s+per\s+day|TPD)\b/i.test(message.slice(0, 4_096));
   } catch {
     return false;
   }
