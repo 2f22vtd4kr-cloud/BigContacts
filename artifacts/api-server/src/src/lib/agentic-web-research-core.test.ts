@@ -1355,13 +1355,20 @@ Choose each next action yourself from the available capabilities and observed ev
       observedUrls: [url],
     });
     const records = [
+      {
+        ...livenessRecord("visit", "error"),
+        turn: 0,
+        pivotScopeKey: scopeKey ?? undefined,
+        args: { url: "https://www.ohiosos.gov/business" },
+        observedUrls: [],
+      },
       search(1, "https://www.ohiosos.gov/business"),
       search(2, "https://www.ohiosos.gov/business/search"),
     ];
     const reason = discoveryLeadFollowUpBackpressureReason("web_search", objective, records);
     expect(reason).toContain("discovery_lead_followup_gate");
     expect(reason).toContain("2 successful search action(s)");
-    expect(reason).toContain("unvisited URL lead(s)");
+    expect(reason).toContain("1 valid, unvisited URL lead(s)");
 
     // A fetch attempt, even when the page fails, releases the gate so a dead URL
     // cannot force an unbounded source-fetch loop.
