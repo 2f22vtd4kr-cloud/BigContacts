@@ -17,7 +17,6 @@ import {
   hasReachedInvestigatorTokenCapacityFailureLimit,
   MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
-  isInvestigatorTokenCapacityUnavailableEpisode,
 } from "./canonical-investigator-provider-recovery";
 import { nextResearchCaseEventIteration } from "./research-case-event-iteration";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
@@ -1348,11 +1347,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           stopReason: nextDiscovery.stopReason,
           trajectoryRecords: nextDiscovery.trajectoryRecords ?? [],
         });
-        // Provider token-window exhaustion is a recoverable control-plane interruption,
-        // not a failed research episode. Let it reach the existing consecutive-failure
-        // counter and Boss-directed reassignment logic below. Other empty/failed episodes
-        // retain the fail-closed terminal handling.
-        if (episodeFailure && !isInvestigatorTokenCapacityUnavailableEpisode(nextDiscovery)) {
+        if (episodeFailure) {
           const runtimeFailureRecord = [...newTrajectoryRecords].reverse().find((record) => record.action === "runtime_error");
           const runtimeFailureStage = typeof runtimeFailureRecord?.args?.stage === "string" ? runtimeFailureRecord.args.stage : null;
           // This branch exits before the success-path merge below; keep the failed episode in the cumulative terminal report.
