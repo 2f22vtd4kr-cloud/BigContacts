@@ -829,7 +829,7 @@ Choose each next action yourself from the available capabilities and observed ev
       "Search Midwest state business registry filings for family-owned manufacturing firms in Illinois and Indiana.",
     ].join("\n");
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: 'Illinois family owned manufacturing company site:.gov "business entity"',
+      query: 'Illinois family owned manufacturing company site:ilsos.gov "business entity"',
       provider: "serper",
     }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
