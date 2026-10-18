@@ -5,6 +5,7 @@ import {
   classifyThrownProviderError,
   describeThrownProviderError,
   isLocalProviderQuotaError,
+  isTokenPerDayQuotaError,
   summarizeProviderBody,
   safeThrownErrorSummary,
 } from "../lib/provider-error-diagnostics";
@@ -59,6 +60,25 @@ describe("provider error diagnostics", () => {
 
   it("recognizes a daily-quota message even when the provider uses generic too_many_requests", () => {
     expect(providerErrorCode(JSON.stringify({ error: { code: "too_many_requests", message: "Free Tier limit of 500 requests per day has been exceeded." } }))).toBe("quota_exceeded");
+  });
+
+  it("classifies explicit Groq tokens-per-day quota separately from a short token window", () => {
+    const tpd = JSON.stringify({
+      error: {
+        code: "rate_limit_exceeded",
+        type: "tokens",
+        message: "Rate limit reached for model example in organization example on tokens per day (TPD): Limit 200000.",
+      },
+    });
+    expect(isTokenPerDayQuotaError(429, tpd)).toBe(true);
+    expect(providerErrorCode(tpd)).toBe("rate_limit_exceeded");
+    expect(isTokenPerDayQuotaError(429, JSON.stringify({
+      error: { code: "rate_limit_exceeded", type: "tokens", message: "Rate limit reached for tokens with short window reset." },
+    }))).toBe(false);
+    expect(isTokenPerDayQuotaError(429, JSON.stringify({
+      error: { code: "rate_limit_exceeded", type: "requests", message: "Limit is requests per day." },
+    }))).toBe(false);
+    expect(isTokenPerDayQuotaError(400, tpd)).toBe(false);
   });
 
   it("keeps ordinary burst too_many_requests transient", () => {
