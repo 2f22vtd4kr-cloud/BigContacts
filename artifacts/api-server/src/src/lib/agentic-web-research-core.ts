@@ -3536,7 +3536,12 @@ export function discoveryLeadFollowUpBackpressureReason(
     // Do not reuse old-pivot leads, or count activity from before the accepted
     // scope changed. Unversioned opening records are likewise outside a later pivot.
     if (activeScopeKey ? record.pivotScopeKey !== activeScopeKey : Boolean(record.pivotScopeKey)) break;
-    if (DISCOVERY_LEAD_ATTEMPT_ACTIONS_FOR_BACKPRESSURE.has(record.action)) break;
+    if (DISCOVERY_LEAD_ATTEMPT_ACTIONS_FOR_BACKPRESSURE.has(record.action)) {
+      // Only an actual outbound attempt releases the search gate. A scope/repeat
+      // guard rejection performed no research and must not be an escape hatch.
+      if (record.execution !== "blocked" && record.execution !== "selected") break;
+      continue;
+    }
     if (!DISCOVERY_SEARCH_ACTIONS_FOR_LEAD_BACKPRESSURE.has(record.action) || record.execution !== "success") continue;
 
     successfulSearchActions += 1;
