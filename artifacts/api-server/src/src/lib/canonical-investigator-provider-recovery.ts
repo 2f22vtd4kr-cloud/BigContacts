@@ -22,6 +22,24 @@ export type InvestigatorProviderEpisode = {
 export const MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE = 2;
 export const MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES = 2;
 
+/**
+ * Bound a one-off TPD reassignment episode to one normal Investigator act and
+ * the global budget left after the failed episode. This never creates extra
+ * work beyond the canonical run's existing iteration ceiling.
+ */
+export function resolveInvestigatorTokenDailyQuotaRecoveryIterations(
+  maxRecoveryActIterations: number,
+  failedEpisodeIterations: number,
+  remainingTotalIterations: number,
+): number {
+  const positiveInt = (value: number): number =>
+    Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  return Math.min(
+    positiveInt(maxRecoveryActIterations),
+    Math.max(0, positiveInt(remainingTotalIterations) - positiveInt(failedEpisodeIterations)),
+  );
+}
+
 export function isInvestigatorProviderUnavailableEpisode(
   result: InvestigatorProviderEpisode,
 ): boolean {
@@ -68,15 +86,49 @@ export function advanceInvestigatorProviderUnavailableStreak(
     : 0;
 }
 
+/**
+ * Classify the most recent provider failure, not any historical quota record
+ * in a merged multi-capability trajectory.
+ */
+export function isInvestigatorHardRequestQuotaUnavailableEpisode(
+  result: InvestigatorProviderEpisode,
+): boolean {
+  if (!isInvestigatorProviderUnavailableEpisode(result)) return false;
+  const latestProviderError = [...(result.trajectoryRecords ?? [])].reverse().find(
+    (record) => record.action === "investigator_provider_error",
+  );
+  if (latestProviderError) {
+    return /(?:upstream_quota_exhausted|quota_exceeded)/i.test(latestProviderError.observation ?? "");
+  }
+  return result.error === "upstream_quota_exhausted" || result.error === "quota_exceeded";
+}
+
+/**
+ * Explicit Groq tokens-per-day exhaustion is recoverable only by the separate,
+ * single Boss-directed capability reassignment; it must not be treated as a
+ * short token-window failure or hard request-count quota.
+ */
+
+export function isInvestigatorTokenDailyQuotaUnavailableEpisode(
+  result: InvestigatorProviderEpisode,
+): boolean {
+  if (!isInvestigatorProviderUnavailableEpisode(result)) return false;
+  const latestProviderError = [...(result.trajectoryRecords ?? [])].reverse().find(
+    (record) => record.action === "investigator_provider_error",
+  );
+  if (latestProviderError) return /upstream_token_quota_exhausted/i.test(latestProviderError.observation ?? "");
+  return result.error === "upstream_token_quota_exhausted";
+}
+
 export function isInvestigatorTokenCapacityUnavailableEpisode(
   result: InvestigatorProviderEpisode,
 ): boolean {
   if (!isInvestigatorProviderUnavailableEpisode(result)) return false;
-  return result.error === "upstream_token_window_wait_exceeded"
-    || (result.trajectoryRecords ?? []).some(
-      (record) => record.action === "investigator_provider_error"
-        && /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""),
-    );
+  const latestProviderError = [...(result.trajectoryRecords ?? [])].reverse().find(
+    (record) => record.action === "investigator_provider_error",
+  );
+  if (latestProviderError) return /upstream_token_window_wait_exceeded/i.test(latestProviderError.observation ?? "");
+  return result.error === "upstream_token_window_wait_exceeded";
 }
 
 /**

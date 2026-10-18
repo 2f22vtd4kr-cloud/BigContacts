@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifyAtlasScopeGuardObservation,
   classifyCanonicalAtlasFailure,
+  classifyInvestigatorProviderError,
   isRecoverableLegacyRightHandOpeningFailure,
   isRecoverableRightHandOpeningFailure,
 } from "../lib/canonical-atlas-failure-diagnostics";
@@ -13,6 +14,23 @@ describe("Atlas scope-guard diagnostics", () => {
       kind: "out_of_scope_action",
     });
     expect(classifyAtlasScopeGuardObservation("The search provider returned HTTP 403.")).toBeNull();
+  });
+});
+
+describe("Investigator quota diagnostics", () => {
+  it("keeps daily token quota exhaustion distinct from request-count exhaustion", () => {
+    expect(classifyInvestigatorProviderError("upstream_token_quota_exhausted")).toEqual({
+      domain: "model_provider",
+      kind: "provider_capacity_exhausted",
+    });
+    expect(classifyInvestigatorProviderError("upstream_quota_exhausted")).toEqual({
+      domain: "model_provider",
+      kind: "hard_request_quota",
+    });
+    expect(classifyInvestigatorProviderError("upstream_token_window_wait_exceeded")).toEqual({
+      domain: "model_provider",
+      kind: "provider_capacity_exhausted",
+    });
   });
 });
 

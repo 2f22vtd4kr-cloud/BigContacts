@@ -10,7 +10,7 @@ import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from ".
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences, sanitizeUrlsInText } from "./url-privacy";
 import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
-import { isLocalProviderQuotaError } from "./provider-error-diagnostics";
+import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
 import { renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
@@ -1579,7 +1579,10 @@ async function callGroqJson(
         modelAuditResponseRecorded = true;
 
         if (response.status === 429) {
-          const hardQuota = groqHardRequestQuota(response, body);
+          // An explicit tokens-per-day cap is neither a request-count quota nor
+          // a short-window token reset. Classify it before considering any wait.
+          const tokenDailyQuota = isTokenPerDayQuotaError(response.status, body);
+          const hardQuota = !tokenDailyQuota && groqHardRequestQuota(response, body);
           const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
           let providerErrorCode: string | null = null;
           let providerErrorType: string | null = null;
@@ -1599,7 +1602,7 @@ async function callGroqJson(
             success: false,
             latencyMs: Date.now() - started,
             retryIndex: attempt,
-            reason: hardQuota ? "upstream_quota_exhausted" : "upstream_rate_limited",
+            reason: tokenDailyQuota ? "upstream_token_quota_exhausted" : hardQuota ? "upstream_quota_exhausted" : "upstream_rate_limited",
             providerErrorCode,
             providerErrorType,
             rateLimitRemainingTokens: rateLimits.remainingTokens,
@@ -1607,6 +1610,12 @@ async function callGroqJson(
             rateLimitRemainingRequests: rateLimits.remainingRequests,
             rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
+          if (tokenDailyQuota) {
+            // Retrying the same key after a retry-after hint cannot replenish a
+            // daily token budget. Canonical Atlas may request one durable,
+            // Boss-directed capability reassignment for this explicit TPD code.
+            return { model, raw: "", error: "upstream_token_quota_exhausted" };
+          }
           const tokenWaitMs = groqTokenWindowWaitMs(response, body);
           if (!hardQuota && tokenWaitMs !== null) {
             if (tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS && retry429 < 1 && Date.now() + tokenWaitMs < started + AGENTIC_PROVIDER_DECISION_TIMEOUT_MS) {
