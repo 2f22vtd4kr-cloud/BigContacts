@@ -10,11 +10,10 @@ vi.mock("../lib/provider-gate", () => ({
   runProviderCall: async (_options: unknown, operation: () => Promise<Response>) => operation(),
 }));
 
-import { searchRegistry } from "../lib/registry-client";
+import { getAvailableRegistryIds, isRegistryProviderAvailable, searchRegistry } from "../lib/registry-client";
 
 const registries = [
   { registry: "offeneregister-germany", error: "Offeneregister Germany HTTP 503" },
-  { registry: "bolagsverket-sweden", error: "Allabolag 503" },
   { registry: "ytj-finland", error: "YTJ Finland HTTP 503" },
   { registry: "borme-spain", error: "BORME Spain HTTP 503" },
   { registry: "kvk-netherlands", error: "KvK Netherlands HTTP 503" },
@@ -22,6 +21,16 @@ const registries = [
 ] as const;
 
 describe("registry failure semantics", () => {
+  it("refuses to advertise or call the unsupported Swedish adapter and provides a truthful fallback", async () => {
+    expect(isRegistryProviderAvailable("bolagsverket-sweden")).toBe(false);
+    expect(getAvailableRegistryIds()).not.toContain("bolagsverket-sweden");
+
+    await expect(
+      searchRegistry({ query: "Stockholm private machinery firms", registry: "bolagsverket-sweden" }),
+    ).rejects.toThrow(/REGISTRY_ADAPTER_UNAVAILABLE.*Allabolag.*SNI.*beneficial-owner/i);
+    expect(safeOutboundFetchMock).not.toHaveBeenCalled();
+  });
+
   beforeEach(() => {
     safeOutboundFetchMock.mockReset();
     vi.stubEnv("COMPANIES_HOUSE_API_KEY", "test-registry-key");
