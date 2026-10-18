@@ -105,7 +105,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("rightHand.decision");
     expect(canonicalSource).toContain("rightHand.reason");
     expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
-    expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective");
+    expect(canonicalSource).toMatch(/runDiscoveryWithQuotaRecovery\(\s*discovery,\s*openingInvestigatorObjective/);
     expect(canonicalSource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
     expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
     expect(canonicalSource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
@@ -466,7 +466,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations)");
     expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
-    expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations)");
+    expect(canonicalSource).toMatch(/runDiscoveryWithQuotaRecovery\(\s*discovery,\s*openingInvestigatorObjective,\s*openingDiscoveryBudget,\s*openingInvestigatorIterations,/);
     expect(canonicalSource).toContain("let discoveryIterationsUsed = discovery.iterations");
     expect(canonicalSource).toContain("const remainingInvestigatorIterations = resolveRemainingDiscoveryIterations({");
     expect(canonicalSource).toContain("hasAdmittedCandidates: admittedCandidateSources.length > 0");
@@ -526,6 +526,126 @@ describe("discovery runtime architecture", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("isUntargetableDiscoveryPersonName");
     expect(canonicalSource).toContain('.filter((finding) => typeof finding.personName === "string" && !isUntargetableDiscoveryPersonName(finding.personName))');
+  });
+});
+
+describe("truthful Investigator budget and lead state for control", () => {
+  it("distinguishes local episode exhaustion from the remaining mission budget", async () => {
+    const { buildInvestigatorBudgetContext } = await import("../lib/research-depth");
+    const budget = buildInvestigatorBudgetContext({
+      totalIterationCeiling: 20,
+      discoveryIterationCeiling: 20,
+      discoveryIterationsUsed: 6,
+      investigatorIterationsUsed: 6,
+      targetResearchReserveIterations: 8,
+      hasAdmittedCandidates: false,
+      lastDiscoveryEpisode: {
+        actionsUsed: 6,
+        actionLimit: 6,
+        status: "completed",
+        stopReason: "ITERATION_BUDGET",
+      },
+    });
+
+    expect(budget.lastDiscoveryEpisode).toMatchObject({
+      actionsUsed: 6,
+      maximumActions: 6,
+      stopReason: "ITERATION_BUDGET",
+      episodeLimitReached: true,
+    });
+    expect(budget.mission).toMatchObject({
+      actionsUsed: 6,
+      maximumActions: 20,
+      actionsRemaining: 14,
+      globalLimitReached: false,
+    });
+    expect(budget.discovery).toMatchObject({
+      actionsUsed: 6,
+      maximumActions: 20,
+      actionsRemaining: 14,
+      targetReserveProtected: false,
+      targetReservePolicy: "released-until-candidate-admitted",
+    });
+  });
+
+  it("preserves full-trajectory lead dispositions through the compact control report", async () => {
+    const {
+      compactAtlasInvestigatorReport,
+      summarizeAtlasDiscoveryLeads,
+      buildAtlasRightHandControlPrompt,
+      atlasBudgetInterpretationLaw,
+    } = await import("../lib/atlas-control-decision");
+    const records = [
+      {
+        turn: 1, model: "test-model", action: "web_search", args: { query: "business owners" },
+        execution: "success", observedUrls: [], findings: [],
+        leadUrls: [
+          "https://example.com/unvisited",
+          "https://example.com/failed",
+          "https://example.com/uninformative",
+          "https://example.com/evidence",
+        ],
+      },
+      {
+        turn: 2, model: "test-model", action: "browser_fetch", args: { url: "https://example.com/failed" },
+        execution: "error", observedUrls: [], findings: [],
+      },
+      {
+        turn: 3, model: "test-model", action: "visit", args: { url: "https://example.com/uninformative" },
+        execution: "success", observedUrls: ["https://example.com/uninformative"], findings: [],
+      },
+      {
+        turn: 4, model: "test-model", action: "visit", args: { url: "https://example.com/evidence" },
+        execution: "success", observedUrls: ["https://example.com/evidence"],
+        findings: [{
+          vectorType: "other", value: "Jane Doe", personName: "Jane Doe", role: "Owner",
+          scope: "candidate", sourceUrls: ["https://example.com/evidence"], note: "source-cited test finding",
+        }],
+      },
+    ];
+    const leadState = summarizeAtlasDiscoveryLeads(records);
+    expect(leadState.total).toBe(4);
+    expect(leadState.counts).toEqual({
+      unvisited: 1,
+      retrievalFailed: 1,
+      retrievedWithoutReportedFinding: 1,
+      findingReported: 1,
+    });
+    expect(leadState.leads.find((lead) => lead.url === "https://example.com/unvisited")?.status).toBe("unvisited");
+    expect(leadState.leads.find((lead) => lead.url === "https://example.com/failed")?.status).toBe("retrieval_failed");
+    expect(leadState.leads.find((lead) => lead.url === "https://example.com/uninformative")?.status).toBe("retrieved_without_reported_finding");
+    expect(leadState.leads.find((lead) => lead.url === "https://example.com/evidence")?.status).toBe("finding_reported");
+
+    const iterationBudget = {
+      lastDiscoveryEpisode: {
+        actionsUsed: 6, maximumActions: 6, status: "completed",
+        stopReason: "ITERATION_BUDGET", episodeLimitReached: true,
+      },
+      mission: { actionsUsed: 6, maximumActions: 20, actionsRemaining: 14, globalLimitReached: false },
+      discovery: {
+        actionsUsed: 6, maximumActions: 20, actionsRemaining: 14,
+        targetResearchReserveActions: 8, targetReserveProtected: false,
+        targetReservePolicy: "released-until-candidate-admitted",
+      },
+    };
+    const report = JSON.parse(compactAtlasInvestigatorReport(JSON.stringify({
+      provider: "groq-investigator-1", status: "completed", stopReason: "ITERATION_BUDGET",
+      searches: 1, visits: 2, findings: [], modelFindings: [], openQuestions: [],
+      iterationBudget, leadState,
+    }))) as Record<string, any>;
+    expect(report.iterationBudget.mission.actionsRemaining).toBe(14);
+    expect(report.iterationBudget.mission.globalLimitReached).toBe(false);
+    expect(report.leadState.counts.unvisited).toBe(1);
+    expect(report.leadState.counts.retrievalFailed).toBe(1);
+    expect(report.leadState.leads).toHaveLength(4);
+
+    const prompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: JSON.stringify(report),
+      compactState: JSON.stringify({ iterationBudget: report.iterationBudget, leadState: report.leadState }),
+    });
+    expect(atlasBudgetInterpretationLaw()).toContain("not evidence that the mission budget is exhausted");
+    expect(prompt).toContain("mission.actionsRemaining");
+    expect(prompt).toContain("lastDiscoveryEpisode.stopReason=ITERATION_BUDGET");
   });
 });
 
