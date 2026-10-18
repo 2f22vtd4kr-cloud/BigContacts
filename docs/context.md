@@ -6,6 +6,7 @@
 
 > **Run 04:** [full append-only audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md). The first workflow restart timed out before boot, but a later restart succeeded and the dashboard launch ran. Run 04 terminal state: failed/incomplete at 20 Investigator iterations, zero findings/admissions/cards.
 > **Run 05:** [separate reconstructed audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md). Job `4b85fc7c-a239-478c-a455-94baf02ffdee`; 30 Investigator turns in the available trace, no candidate/card evidenced, terminal state and final database counts unverified after Replit credits ran out.
+> **Run 06 (17 October):** [sanitized code/audit review](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-17_LIVE_RUN_06_REVIEW.md). Job `4903869d-4d4e-43e6-aca5-54f360234bd8` failed/incomplete at the 20-iteration ceiling with zero admissions/cards. Confirmed issues were false-positive scope blocks, missing geographic/local-language aliases, and a broken OffeneRegister adapter. A raw prompt trace had been committed with contact-data capture enabled; the raw trace is removed from the current tree, but deletion does not purge earlier Git history. New raw audit output is configured to the ignored `private-audits/` path.
 > **Current verified status:** [CURRENT_STATUS_2026-10-15.md](CURRENT_STATUS_2026-10-15.md). Always re-check actual `main`, the newest audit, Actions and durable run state before acting.
 
 ## 0. Current empirical status
