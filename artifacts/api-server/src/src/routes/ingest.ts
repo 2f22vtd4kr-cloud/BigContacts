@@ -23,6 +23,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable } from "@workspace/db";
 import {
   REGISTRY_IDS,
+  getAvailableRegistryIds,
   getRandomDiscoveryRegistries,
   searchRegistry,
   type RegistryId,
@@ -96,7 +97,7 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
   // Note: atoka-italy, borme-spain, kvk-netherlands, kbo-belgium are registered but
   // blocked from server-side containers (Cloudflare / HTML-only portals). They can be
   // called explicitly but are excluded here to avoid timeout latency on every search.
-  const FREE_DEFAULTS: ValidRegistry[] = ["bodacc-france", "brreg", "ares-czechia", "gleif", "cvr-denmark", "zefix-switzerland", "offeneregister-germany", "bolagsverket-sweden", "ytj-finland"];
+  const FREE_DEFAULTS: ValidRegistry[] = ["bodacc-france", "brreg", "ares-czechia", "gleif", "cvr-denmark", "zefix-switzerland", "offeneregister-germany", "ytj-finland"];
   const requested: ValidRegistry[] = (
     sources?.length ? sources : registry ? [registry] : FREE_DEFAULTS
   ).filter((s): s is ValidRegistry => (validRegistries as readonly string[]).includes(s));
@@ -141,23 +142,31 @@ router.post("/registry-search", async (req: Request, res: Response): Promise<voi
 // ── Public: Phase J2 registry coverage matrix ─────────────────────────────────
 router.get("/registry-matrix", (_req: Request, res: Response): void => {
   const randomDiscoveryIds = new Set(getRandomDiscoveryRegistries());
+  const availableRegistryIds = new Set(getAvailableRegistryIds());
   res.json({
     phase: "J2",
     sources: REGISTRY_COVERAGE_MATRIX.map((source) => ({
       ...source,
       randomDiscoveryEnabled: randomDiscoveryIds.has(source.id as RegistryId),
+      directSearchAvailable: availableRegistryIds.has(source.id as RegistryId),
       runtimeMode:
         source.id === "faa" || source.id === "hmlr-ppd"
           ? "bulk_only"
-          : randomDiscoveryIds.has(source.id as RegistryId)
-            ? "random_mix"
-            : "explicit_only",
+          : !availableRegistryIds.has(source.id as RegistryId)
+            ? "unavailable"
+            : randomDiscoveryIds.has(source.id as RegistryId)
+              ? "random_mix"
+              : "explicit_only",
       runtimeNote:
         source.id === "faa" || source.id === "hmlr-ppd"
-          ? "Bulk ingestion source; not a queryable random-search adapter."
-          : randomDiscoveryIds.has(source.id as RegistryId)
-            ? "Eligible for the shuffled discovery pass."
-            : "Available only when explicitly selected or after required access is configured.",
+          ? "Bulk ingestion source; not a queryable direct-search adapter."
+          : !availableRegistryIds.has(source.id as RegistryId)
+            ? source.runtimeAdapterImplemented
+              ? "Direct search is unavailable until this runtime has the required access configured."
+              : "No supported direct-search adapter is implemented. Use public web search and fetch observed source pages."
+            : randomDiscoveryIds.has(source.id as RegistryId)
+              ? "Eligible for the shuffled discovery pass."
+              : "Available only when explicitly selected or after required access is configured.",
     })),
     randomDiscoveryIds: [...randomDiscoveryIds],
     note: "Runtime availability and production review are separate: a source can be active in private research while still awaiting public-production review.",

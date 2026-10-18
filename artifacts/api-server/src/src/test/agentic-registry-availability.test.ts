@@ -21,10 +21,12 @@ describe("Investigator registry schema reflects configured capabilities", () => 
 
     const enums = registryEnums(structuredActionResponseFormat("openai/gpt-oss-120b"));
     expect(enums.direct).toContain("sec-edgar");
+    expect(enums.direct).not.toContain("bolagsverket-sweden");
     expect(enums.direct).toContain(null);
     expect(enums.direct).not.toContain("opencorporates");
     expect(enums.direct).not.toContain("companies-house");
     expect(enums.parallel).toContain("sec-edgar");
+    expect(enums.parallel).not.toContain("bolagsverket-sweden");
     expect(enums.parallel).toContain(null);
     expect(enums.parallel).not.toContain("opencorporates");
     expect(enums.parallel).not.toContain("companies-house");

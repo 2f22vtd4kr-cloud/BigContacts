@@ -29,7 +29,8 @@ interface RegistryCoverage {
   productionReviewStatus: "review_required" | "reviewed_for_production" | "not_yet_assessed";
   notes?: string;
   randomDiscoveryEnabled?: boolean;
-  runtimeMode?: "random_mix" | "explicit_only" | "bulk_only";
+  directSearchAvailable?: boolean;
+  runtimeMode?: "random_mix" | "explicit_only" | "bulk_only" | "unavailable";
   runtimeNote?: string;
 }
 
@@ -693,10 +694,12 @@ function RegistryMatrixPanel() {
                       ? "bg-[#9CFF1A]/10 text-[#d4ff8a]"
                       : source.runtimeMode === "bulk_only"
                         ? "bg-lime-400/10 text-lime-300"
-                        : "bg-[#9CFF1A]/10 text-[#d4ff8a]",
+                        : source.runtimeMode === "unavailable"
+                          ? "bg-muted/40 text-muted-foreground"
+                          : "bg-[#9CFF1A]/10 text-[#d4ff8a]",
                   )}>
                     {source.runtimeMode === "random_mix" && <Shuffle className="h-3 w-3" />}
-                    {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
+                    {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : source.runtimeMode === "unavailable" ? "unavailable" : "explicit only"}
                   </span>
                 </td>
                 <td className={cn(
@@ -745,8 +748,8 @@ function RegistryMatrixPanel() {
               </button>
               <div className="flex items-center gap-2 text-[10px] font-mono">
                 <span className="text-lime-300">{source.jurisdiction}</span>
-                <span className={source.runtimeMode === "random_mix" ? "text-[#d4ff8a]" : source.runtimeMode === "bulk_only" ? "text-lime-300" : "text-[#d4ff8a]"}>
-                  {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
+                <span className={source.runtimeMode === "unavailable" ? "text-muted-foreground" : source.runtimeMode === "random_mix" ? "text-[#d4ff8a]" : source.runtimeMode === "bulk_only" ? "text-lime-300" : "text-[#d4ff8a]"}>
+                  {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : source.runtimeMode === "unavailable" ? "unavailable" : "explicit only"}
                 </span>
               </div>
               {expandedId === source.id && (
@@ -763,7 +766,7 @@ function RegistryMatrixPanel() {
       )}
       <p className="flex items-start gap-1.5 text-[10px] font-mono text-muted-foreground mt-3">
         <Info className="h-3 w-3 mt-0.5 flex-shrink-0" />
-        Random mix means the source is eligible for the shuffled discovery pass. Review status describes public-production readiness, not private-research availability.
+        Runtime availability and production review are separate. Random mix means the source is eligible for the shuffled discovery pass; unavailable sources are not callable in this deployment.
       </p>
     </section>
   );

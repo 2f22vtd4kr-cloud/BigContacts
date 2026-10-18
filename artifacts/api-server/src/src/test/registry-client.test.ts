@@ -35,6 +35,7 @@ import {
   normalizeSecEdgarHit,
   buildOffeneregisterSearchUrl,
 } from "../lib/registry-client";
+import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("registry candidate classification safety", () => {
@@ -266,6 +267,16 @@ describe("registry capability availability", () => {
     expect(available).not.toContain("companies-house");
     expect(isRegistryProviderAvailable("opencorporates")).toBe(false);
     expect(isRegistryProviderAvailable("companies-house")).toBe(false);
+  });
+
+  it("keeps the unsupported Swedish adapter out of runtime choices and labels its coverage honestly", () => {
+    expect(getAvailableRegistryIds()).not.toContain("bolagsverket-sweden");
+    expect(getRandomDiscoveryRegistries()).not.toContain("bolagsverket-sweden");
+    expect(isRegistryProviderAvailable("bolagsverket-sweden")).toBe(false);
+    const sweden = REGISTRY_COVERAGE_MATRIX.find((source) => source.id === "bolagsverket-sweden");
+    expect(sweden?.runtimeAdapterImplemented).toBe(false);
+    expect(sweden?.accessMethod).toMatch(/unavailable|no supported direct-search/i);
+    expect(sweden?.freshness).toBe("Unavailable");
   });
 
   it("advertises OpenCorporates only when a token is configured", () => {
