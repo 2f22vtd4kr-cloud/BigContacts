@@ -487,12 +487,7 @@ async function searchOffeneregisterGermany(query: string, limit: number, signal?
   }
   return results;
 }
-async function searchBolagsverketSweden(_query: string, _limit: number, _signal?: AbortSignal): Promise<RegistryResult[]> {
-  const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: bolagsverket-sweden has no supported direct-search integration configured. The previous implementation used an undocumented third-party Allabolag endpoint and mislabeled results as Bolagsverket records. Use web_search/parallel_web_search for Swedish company discovery, fetch observed source pages, use Sweden's SNI classification rather than assuming UK SIC labels, and verify beneficial-owner disclosures separately; do not assume a Swedish Companies House-style PSC record.");
-  Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
-  throw error;
-}
-async function searchYtjFinland(
+async async function searchYtjFinland(
   query: string,
   limit: number,
   signal?: AbortSignal,
@@ -720,7 +715,6 @@ export async function searchRegistry(params: RegistrySearchParams): Promise<Regi
   else if (normalizedRegistry === "cvr-denmark") results = await searchCvrDenmark(query.trim(), limit, signal);
   else if (normalizedRegistry === "zefix-switzerland") results = await searchZefixSwitzerland(query.trim(), limit, signal);
   else if (normalizedRegistry === "offeneregister-germany") results = await searchOffeneregisterGermany(query.trim(), limit, signal);
-  else if (normalizedRegistry === "bolagsverket-sweden") results = await searchBolagsverketSweden(query.trim(), limit, signal);
   else if (normalizedRegistry === "ytj-finland") results = await searchYtjFinland(query.trim(), limit, signal);
   else if (normalizedRegistry === "atoka-italy") results = await searchAtokaItaly(query.trim(), limit, signal);
   else if (normalizedRegistry === "borme-spain") results = await searchBormeSpain(query.trim(), limit, signal);
