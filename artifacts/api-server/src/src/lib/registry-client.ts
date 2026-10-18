@@ -154,6 +154,9 @@ function openCorporatesApiToken(): string {
 export function isRegistryProviderAvailable(registry: string): boolean {
   const normalized = normalizeRegistryId(registry);
   if (!normalized) return false;
+  // The previous Sweden adapter called an undocumented Allabolag endpoint and mislabeled its output as Bolagsverket data.
+  // Keep the ID in the action schema for compatibility, but do not advertise it as callable until a supported source exists.
+  if (normalized === "bolagsverket-sweden") return false;
   if (normalized === "opencorporates") return Boolean(openCorporatesApiToken());
   if (normalized === "companies-house") return Boolean(process.env["COMPANIES_HOUSE_API_KEY"]?.trim());
   return true;
@@ -484,7 +487,17 @@ async function searchOffeneregisterGermany(query: string, limit: number, signal?
   }
   return results;
 }
-async function searchBolagsverketSweden(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const url = `https://www.allabolag.se/api/search/company?query=${encodeURIComponent(query)}&limit=${Math.min(limit, 20)}`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)", "X-Requested-With": "XMLHttpRequest" }, signal: createRegistryRequestSignal(signal, 12_000) }); if (!resp.ok) throw new Error(`Allabolag ${resp.status}`); const data = (await resp.json()) as any; const hits: any[] = data?.hits ?? data?.results ?? data?.companies ?? []; const results: RegistryResult[] = []; for (const hit of hits.slice(0, limit)) { const name: string = hit?.name ?? hit?.companyName ?? ""; if (!name) continue; const orgNumber: string = hit?.orgNumber ?? hit?.organizationNumber ?? hit?.org_number ?? ""; const city: string = hit?.city ?? hit?.municipality ?? ""; const status: string = hit?.status ?? ""; const legalForm: string = hit?.legalForm ?? hit?.legal_form ?? ""; const address = [hit?.address, city, "Sweden"].filter(Boolean).join(", "); results.push({ name, type: "Corporation", nationality: "SE", knownResidences: address || city ? address : undefined, sourceRegistries: JSON.stringify(["Bolagsverket Sweden"]), notes: [orgNumber ? `Org: ${orgNumber}` : null, legalForm ? `Form: ${legalForm}` : null, status ? `Status: ${status}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "bolagsverket-sweden", orgNumber, legalForm, status, city }) }); } return results; }
+async function searchBolagsverketSweden(
+  _query: string,
+  _limit: number,
+  signal?: AbortSignal,
+): Promise<RegistryResult[]> {
+  if (signal?.aborted) throw new Error("cancelled");
+  const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: bolagsverket-sweden has no supported direct-search integration configured. The previous implementation used an undocumented third-party Allabolag endpoint and mislabeled results as Bolagsverket records. Use web_search/parallel_web_search for Swedish company discovery, fetch observed source pages, use Sweden's SNI classification rather than assuming UK SIC labels, and verify beneficial-owner disclosures separately; do not assume a Swedish Companies House-style PSC record.");
+  Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
+  throw error;
+}
+
 async function searchYtjFinland(
   query: string,
   limit: number,
@@ -688,6 +701,9 @@ export async function searchRegistry(params: RegistrySearchParams): Promise<Regi
   if (!query.trim()) throw new Error("Search query cannot be empty.");
   const normalizedRegistry = normalizeRegistryId(registry);
   if (!normalizedRegistry) throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
+  if (normalizedRegistry === "bolagsverket-sweden") {
+    return searchBolagsverketSweden(query.trim(), limit, signal);
+  }
   let results: RegistryResult[];
   if (normalizedRegistry === "opencorporates") {
     const apiToken = openCorporatesApiToken();
@@ -710,7 +726,6 @@ export async function searchRegistry(params: RegistrySearchParams): Promise<Regi
   else if (normalizedRegistry === "cvr-denmark") results = await searchCvrDenmark(query.trim(), limit, signal);
   else if (normalizedRegistry === "zefix-switzerland") results = await searchZefixSwitzerland(query.trim(), limit, signal);
   else if (normalizedRegistry === "offeneregister-germany") results = await searchOffeneregisterGermany(query.trim(), limit, signal);
-  else if (normalizedRegistry === "bolagsverket-sweden") results = await searchBolagsverketSweden(query.trim(), limit, signal);
   else if (normalizedRegistry === "ytj-finland") results = await searchYtjFinland(query.trim(), limit, signal);
   else if (normalizedRegistry === "atoka-italy") results = await searchAtokaItaly(query.trim(), limit, signal);
   else if (normalizedRegistry === "borme-spain") results = await searchBormeSpain(query.trim(), limit, signal);
