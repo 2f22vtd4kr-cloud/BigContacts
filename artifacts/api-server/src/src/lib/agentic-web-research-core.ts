@@ -3438,7 +3438,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const ultimatePromptParts = [
         finalEmergencyAssignment,
         ultimateScope,
-        "MISSION/SCOPE RECOVERY: honor accepted topic and geography; source class need not appear in every discovery query. Official-source discovery may omit the sector only when it does not introduce another subject. Registry adapter must match jurisdiction/source class. Model chooses the next action; no fixed sequence. A scope block is not negative evidence; revise the failed dimension or request new scope.",
+        "MISSION/SCOPE RECOVERY: honor accepted topic/geography; source class need not appear in every discovery query. Official-source discovery may omit sector only if it adds no competing subject or jurisdiction. Registry adapter must match jurisdiction/source class. Model chooses actions; no fixed sequence. Blocks are not negative evidence; revise failed dimensions or request new scope.",
         availableActionsGuidance,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
