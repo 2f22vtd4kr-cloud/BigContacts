@@ -22,7 +22,7 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
     const boundedCapabilityHistory = /investigatorCapabilityHistory:\s*\[\.\.\.history,\s*\{[\s\S]*?trigger:\s*(?:"upstream_(?:quota_exhausted|token_window_wait_exceeded)"|trigger)[\s\S]*?\}\s*\]\.slice\(-15\)/g;
     expect(capabilityHistorySource).toMatch(/investigatorCapabilityHistory:\s*\[\.\.\.history,\s*\{\s*from:\s*(?:previous|previousAssignment),\s*to:\s*replacement,\s*trigger:\s*"upstream_quota_exhausted"\s*\}\s*\]\.slice\(-15\)/);
     expect(capabilityHistorySource).toMatch(/investigatorCapabilityHistory:\s*\[\.\.\.history,\s*\{[\s\S]*?trigger:\s*(?:"upstream_token_window_wait_exceeded"|trigger)[\s\S]*?\}\s*\]\.slice\(-15\)/);
-    expect(capabilityHistorySource).toContain('trigger: "upstream_token_quota_exhausted"');
+    expect(capabilityHistorySource).toContain('trigger === "upstream_token_quota_exhausted"');
     expect(capabilityHistorySource).toContain('trigger,');
 
     for (const content of durableFiles) {
