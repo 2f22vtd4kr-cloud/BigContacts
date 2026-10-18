@@ -72,7 +72,7 @@ type AuditWriter = (path: string, contents: string) => unknown;
 
 /**
  * Resolve relative audit destinations from the workspace root, not the API
- * package's process.cwd(). Replit sets APEX_MODEL_AUDIT_FILE to "audits/…",
+ * package's process.cwd(). Replit may set APEX_MODEL_AUDIT_FILE to a relative private path such as ".local/audits/…",
  * while its API process may run with artifacts/api-server as its working
  * directory. Anchoring to the workspace root avoids relying on a temporary
  * symlink inside that package.
