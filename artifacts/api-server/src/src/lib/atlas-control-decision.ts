@@ -504,6 +504,9 @@ export function compactAtlasInvestigatorReport(rawInput: string | null | undefin
       scopeRecoveryFeedback: boundedText(parsed.scopeRecoveryFeedback, 1_200),
       status: boundedText(parsed.status, 32),
       stopReason: boundedText(parsed.stopReason, 80),
+      missionActionBudget: parsed.missionActionBudget && typeof parsed.missionActionBudget === "object"
+        ? parsed.missionActionBudget
+        : null,
       errorSummary: boundedText(parsed.errorSummary, 500),
       searches: boundedCount(parsed.searches),
       visits: boundedCount(parsed.visits),
