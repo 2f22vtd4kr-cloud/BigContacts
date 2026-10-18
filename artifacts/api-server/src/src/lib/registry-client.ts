@@ -433,7 +433,57 @@ export function normalizeBodaccRecord(record: any): RegistryResult | null { cons
 async function searchBodacc(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const params = new URLSearchParams({ where: `search("${query.replace(/"/g, '\\"')}")`, limit: String(Math.min(limit * 3, 60)), order_by: "dateparution DESC" }); const resp = await registryFetch("registry", `https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?${params.toString()}`, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research" }, signal: createRegistryRequestSignal(signal, 12_000) }); if (!resp.ok) { const body = await resp.text().catch(() => ""); throw new Error(`BODACC ${resp.status}: ${body.slice(0, 200) || resp.statusText}`); } const data = (await resp.json()) as any; const seen = new Set<string>(); const results: RegistryResult[] = []; for (const record of data?.results ?? []) { const result = normalizeBodaccRecord(record); if (!result) continue; const key = `${result.name.toLowerCase()}|${result.metadata}`; if (seen.has(key)) continue; seen.add(key); results.push(result); if (results.length >= limit) break; } return results; }
 async function searchCvrDenmark(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; const queries = [query, ...query.split(/\s+/).filter(w => w.length > 3)].slice(0, 3); const seen = new Set<string>(); let hadRequestFailure = false; for (const q of queries) { try { const url = `https://cvrapi.dk/api?search=${encodeURIComponent(q)}&country=dk`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 10_000) }); if (resp.status === 404) continue; if (!resp.ok) { hadRequestFailure = true; continue; } const data = (await resp.json()) as any; const name: string = data?.name ?? ""; if (!name || seen.has(name.toLowerCase())) continue; seen.add(name.toLowerCase()); const vat: string = data?.vat ? String(data.vat) : ""; const city: string = data?.city ?? ""; const zipcode: string = data?.zipcode ?? ""; const address: string = [data?.address, zipcode, city, "Denmark"].filter(Boolean).join(", "); results.push({ name, type: "Corporation", nationality: "DK", knownResidences: address || undefined, sourceRegistries: JSON.stringify(["CVR Denmark"]), notes: [vat ? `CVR: ${vat}` : null, data?.phone ? `Phone: ${data.phone}` : null, data?.email ? `Email: ${data.email}` : null, data?.startdate ? `Founded: ${data.startdate}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "cvr-denmark", vat, phone: data?.phone ?? null, email: data?.email ?? null, address, city, startdate: data?.startdate ?? null, industrydesc: data?.industrydesc ?? null }) }); if (results.length >= limit) break; } catch (error) { if (signal?.aborted) throw new Error("cancelled"); hadRequestFailure = true; logger.debug({ provider: "cvr-denmark", error: error instanceof Error ? error.name : "unknown" }, "CVR query variant failed"); } } if (hadRequestFailure) throw new Error("CVR Denmark lookup incomplete: one or more query variants failed."); return results; }
 async function searchZefixSwitzerland(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const resp = await registryFetch("registry", "https://www.zefix.ch/ZefixREST/api/v1/firm/search.json", { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, body: JSON.stringify({ name: query, maxEntries: Math.min(limit, 20), searchType: "0" }), signal: createRegistryRequestSignal(signal, 12_000) }); if (!resp.ok) { const body = await resp.text().catch(() => ""); throw new Error(`Zefix ${resp.status}: ${body.slice(0, 200) || resp.statusText}`); } const data = (await resp.json()) as any; const firms: any[] = Array.isArray(data) ? data : (data?.list ?? []); const results: RegistryResult[] = []; for (const firm of firms.slice(0, limit)) { const name: string = firm?.name ?? ""; if (!name) continue; const uid: string = firm?.uid ?? firm?.ehraid ?? ""; const canton: string = firm?.cantonAbbreviation ?? firm?.legalSeat ?? ""; const municipality: string = firm?.legalSeat ?? ""; const address = [municipality, canton, "Switzerland"].filter(Boolean).join(", "); results.push({ name, type: "Corporation", nationality: "CH", knownResidences: address || undefined, sourceRegistries: JSON.stringify(["Zefix Switzerland"]), notes: [uid ? `UID: ${uid}` : null, firm?.status ? `Status: ${firm.status}` : null, canton ? `Canton: ${canton}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "zefix-switzerland", uid, ehraid: firm?.ehraid ?? null, canton, legalSeat: firm?.legalSeat ?? null, status: firm?.status ?? null, chid: firm?.chid ?? null }) }); } return results; }
-async function searchOffeneregisterGermany(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const sql = `SELECT id, current_name, registered_address, company_type_code, jurisdiction_code, current_status FROM companies WHERE current_name LIKE '%${query.replace(/'/g, "''")}%' LIMIT ${Math.min(limit, 20)}`; const url = `https://db.offeneregister.de/handelsregister.json?sql=${encodeURIComponent(sql)}`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 15_000) }); if (!resp.ok) throw new Error(`Offeneregister Germany HTTP ${resp.status}`); const data = (await resp.json()) as any; const rows: any[] = data?.rows ?? []; const columns: string[] = data?.columns ?? []; const results: RegistryResult[] = []; for (const row of rows) { const get = (col: string) => { const i = columns.indexOf(col); return i >= 0 ? row[i] : null; }; const name: string = get("current_name") ?? ""; if (!name) continue; const address: string = get("registered_address") ?? ""; const companyType: string = get("company_type_code") ?? ""; const jurisdiction: string = get("jurisdiction_code") ?? ""; const status: string = get("current_status") ?? ""; const id: string = get("id") ?? ""; results.push({ name, type: "Corporation", nationality: "DE", knownResidences: address || undefined, sourceRegistries: JSON.stringify(["Handelsregister Germany (offeneregister.de)"]), notes: [companyType ? `Type: ${companyType}` : null, jurisdiction ? `Court: ${jurisdiction}` : null, status ? `Status: ${status}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "offeneregister-germany", id, companyType, jurisdiction, status, offeneregisterUrl: id ? `https://offeneregister.de/companies/${id}` : null }) }); } return results; }
+export function buildOffeneregisterSearchUrl(query: string, limit = 10): string {
+  const normalizedQuery = query.trim().slice(0, 180);
+  const boundedLimit = Number.isFinite(limit) ? Math.max(1, Math.min(20, Math.floor(limit))) : 10;
+  const sql = [
+    "SELECT company.name, company.company_number, company.registered_address, company.native_company_number",
+    "FROM company",
+    "WHERE company.name LIKE :p0",
+    `LIMIT ${boundedLimit}`,
+  ].join(" ");
+  // Use the documented bound SQL parameter rather than interpolating model text.
+  const url = new URL("https://db.offeneregister.de/openregister.json");
+  url.searchParams.set("sql", sql);
+  url.searchParams.set("p0", `%${normalizedQuery}%`);
+  return url.toString();
+}
+
+async function searchOffeneregisterGermany(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> {
+  const url = buildOffeneregisterSearchUrl(query, limit);
+  const resp = await registryFetch("registry", url, {
+    headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" },
+    signal: createRegistryRequestSignal(signal, 15_000),
+  });
+  if (!resp.ok) throw new Error(`Offeneregister Germany HTTP ${resp.status}`);
+  const data = (await resp.json()) as any;
+  if (data?.error) throw new Error(`Offeneregister Germany SQL API error: ${String(data.error).slice(0, 180)}`);
+  const rows: any[] = data?.rows ?? [];
+  const columns: string[] = data?.columns ?? [];
+  const results: RegistryResult[] = [];
+  for (const row of rows) {
+    const get = (col: string) => {
+      const index = columns.indexOf(col);
+      return index >= 0 ? row[index] : null;
+    };
+    const name: string = get("name") ?? "";
+    if (!name.trim()) continue;
+    const address: string = get("registered_address") ?? "";
+    const nativeCompanyNumber: string = get("native_company_number") ?? "";
+    const companyNumber: string = get("company_number") ?? "";
+    results.push({
+      name: name.trim(),
+      type: "Corporation",
+      nationality: "DE",
+      knownResidences: address || undefined,
+      sourceRegistries: JSON.stringify(["OffeneRegister.de German Commercial Register"]),
+      notes: nativeCompanyNumber ? `Register reference: ${nativeCompanyNumber}` : undefined,
+      metadata: JSON.stringify({ source: "offeneregister-germany", companyNumber: companyNumber || null, nativeCompanyNumber: nativeCompanyNumber || null }),
+    });
+    if (results.length >= Math.min(limit, 20)) break;
+  }
+  return results;
+}
 async function searchBolagsverketSweden(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const url = `https://www.allabolag.se/api/search/company?query=${encodeURIComponent(query)}&limit=${Math.min(limit, 20)}`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)", "X-Requested-With": "XMLHttpRequest" }, signal: createRegistryRequestSignal(signal, 12_000) }); if (!resp.ok) throw new Error(`Allabolag ${resp.status}`); const data = (await resp.json()) as any; const hits: any[] = data?.hits ?? data?.results ?? data?.companies ?? []; const results: RegistryResult[] = []; for (const hit of hits.slice(0, limit)) { const name: string = hit?.name ?? hit?.companyName ?? ""; if (!name) continue; const orgNumber: string = hit?.orgNumber ?? hit?.organizationNumber ?? hit?.org_number ?? ""; const city: string = hit?.city ?? hit?.municipality ?? ""; const status: string = hit?.status ?? ""; const legalForm: string = hit?.legalForm ?? hit?.legal_form ?? ""; const address = [hit?.address, city, "Sweden"].filter(Boolean).join(", "); results.push({ name, type: "Corporation", nationality: "SE", knownResidences: address || city ? address : undefined, sourceRegistries: JSON.stringify(["Bolagsverket Sweden"]), notes: [orgNumber ? `Org: ${orgNumber}` : null, legalForm ? `Form: ${legalForm}` : null, status ? `Status: ${status}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "bolagsverket-sweden", orgNumber, legalForm, status, city }) }); } return results; }
 async function searchYtjFinland(
   query: string,
