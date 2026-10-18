@@ -28,6 +28,6 @@ describe("private model audit destinations", () => {
 
     expect(requestId).toBeTruthy();
     expect(writes).toHaveLength(1);
-    expect(writes[0]?.path).toBe(resolve(workspaceRoot, ".local/audits/APEX_ATLAS_MODEL_AUDIT_TEST.jsonl"));
+    expect(writes[0]?.path).toBe(resolve(workspaceRoot, ".local/audits/APEX_ATLAS_MODEL_AUDIT_TEST.md"));
   });
 });
