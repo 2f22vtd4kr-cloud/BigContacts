@@ -3502,8 +3502,9 @@ const DISCOVERY_LEAD_ATTEMPT_ACTIONS_FOR_BACKPRESSURE = new Set([
 /**
  * Keep model-led discovery from endlessly widening its searches while it already
  * has source URLs it has not tried. This is deliberately a search-only backpressure
- * gate: it does not select a lead, query, provider, or tool, and any attempted
- * non-search action releases the gate so an inaccessible lead cannot deadlock research.
+ * gate: it does not select a lead, query, provider, or tool. An actual non-search
+ * attempt releases the gate, while guard-blocked actions do not; dead leads can
+ * therefore be retired without allowing authorization rejections to reopen search loops.
  */
 export function discoveryLeadFollowUpBackpressureReason(
   action: string,
