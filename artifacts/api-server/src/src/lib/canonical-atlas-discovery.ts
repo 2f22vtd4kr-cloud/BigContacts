@@ -6,7 +6,7 @@ import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandApprovalReview, type AtlasControlAction } from "./atlas-control-decision";
-import { resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
+import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
@@ -1118,15 +1118,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         scopeRecoveryFeedback: buildAtlasScopeRecoveryFeedback(discovery.trajectoryRecords ?? []),
         status: discovery.status,
         stopReason: discovery.stopReason ?? null,
-        missionActionBudget: {
+        missionActionBudget: buildMissionActionBudget({
           actionsUsed: investigatorIterationsUsed,
           maximumActions: depth.agenticMaxIterations,
-          actionsRemaining: Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed),
           maximumActionsPerEpisode: discoveryIterationsPerAct,
           episodeStopReason: discovery.stopReason ?? null,
-          episodeLimitReached: discovery.stopReason === "ITERATION_BUDGET",
-          missionLimitReached: investigatorIterationsUsed >= depth.agenticMaxIterations,
-        },
+        }),
         errorSummary: discovery.error ? safeThrownErrorSummary("Investigator result", new Error(discovery.error)) : null,
         searches: discovery.searches,
         visits: discovery.visits,
