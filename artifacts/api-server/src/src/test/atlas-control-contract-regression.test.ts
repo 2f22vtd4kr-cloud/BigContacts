@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
-import { atlasSourceRouteRecoveryLaw, ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { atlasBudgetInterpretationLaw, atlasSourceRouteRecoveryLaw, ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -700,6 +700,48 @@ describe("Run 04 search-lead and route-recovery regression", () => {
     expect(agenticCoreSource).toContain('assignSearchResultLeads(record, record.execution === "success" ? result.urls : [])');
   });
 
+  it("distinguishes local episode exhaustion from remaining mission capacity", async () => {
+    const { buildMissionActionBudget } = await import("../lib/research-depth");
+    const { compactAtlasInvestigatorReport } = await import("../lib/atlas-control-decision");
+    const budget = buildMissionActionBudget({
+      actionsUsed: 16,
+      maximumActions: 20,
+      maximumActionsPerEpisode: 6,
+      episodeStopReason: "ITERATION_BUDGET",
+    });
+
+    expect(budget).toEqual({
+      actionsUsed: 16,
+      maximumActions: 20,
+      actionsRemaining: 4,
+      maximumActionsPerEpisode: 6,
+      episodeStopReason: "ITERATION_BUDGET",
+      episodeLimitReached: true,
+      missionLimitReached: false,
+    });
+    const report = JSON.parse(compactAtlasInvestigatorReport(JSON.stringify({
+      provider: "groq-investigator-1",
+      status: "completed",
+      stopReason: "ITERATION_BUDGET",
+      missionActionBudget: budget,
+    }))) as Record<string, any>;
+    expect(report.missionActionBudget.actionsRemaining).toBe(4);
+    expect(report.missionActionBudget.missionLimitReached).toBe(false);
+    expect(atlasBudgetInterpretationLaw()).toContain("Do not claim global budget exhaustion while actionsRemaining is greater than zero");
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: JSON.stringify(report),
+      compactState: JSON.stringify({ missionActionBudget: report.missionActionBudget }),
+    });
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: JSON.stringify(report),
+      compactState: JSON.stringify({ missionActionBudget: report.missionActionBudget }),
+      rightHand: { status: "completed", decision: "continue or stop based on evidence", reason: "Test only", direction: null, confidence: 0.5, model: "test-model", error: null },
+    });
+    expect(rightHandPrompt).toContain("episodeStopReason=ITERATION_BUDGET");
+    expect(bossPrompt).toContain("actionsRemaining is greater than zero");
+    expect(canonicalDiscoverySource).toContain("missionActionBudget: buildMissionActionBudget({");
+  });
+
   it("gives both supervisor prompts source-route recovery guidance without prescribing the next action", () => {
     const rightHandPrompt = buildAtlasRightHandControlPrompt({
       investigatorReport: "A public registry route returned HTTP 403; another successful fetch exposed only a generic agency landing page.",
@@ -716,6 +758,8 @@ describe("Run 04 search-lead and route-recovery regression", () => {
     expect(bossPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
     expect(rightHandPrompt).toContain("Never evade access controls");
     expect(bossPrompt).toContain("The Investigator remains autonomous");
+    expect(rightHandPrompt).toContain("Do not claim global budget exhaustion");
+    expect(bossPrompt).toContain("Do not claim global budget exhaustion");
   });
 });
 
