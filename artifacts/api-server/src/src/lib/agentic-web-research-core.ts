@@ -2696,7 +2696,7 @@ function pivotActionIsAligned(
       && matchesGeographyInQuery
       && requiredSourceAnchors.length > 0
       && pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
-      && /\b(?:site\s*:\s*[\w.-]+|\.gov\b|official|secretary of state|business entity|corporate entity|company register|company registry|state registry|handelsregister|krs|ceidg)\b/i.test(text);
+      && /\b(?:\.gov\b|official|secretary of state|business entity|corporate entity|company register|company registry|state registry|handelsregister|krs|ceidg)\b/i.test(text);
     const evidenceGrounded = pivotResourceIsGroundedInAlignedEvidence(value, evidenceText);
     return !pivotTextContainsExcludedSubject(text, excludedSubjects)
       && (matchesCoreScope || officialSourceDiscovery || evidenceGrounded);
@@ -2807,7 +2807,7 @@ function pivotActionAlignmentFailureDetails(
       && pivotTextMatchesGeography(text, geographyOptions)
       && requiredSourceAnchors.length > 0
       && pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
-      && /\b(?:site\s*:\s*[\w.-]+|\.gov\b|official|secretary of state|business entity|corporate entity|company register|company registry|state registry|handelsregister|krs|ceidg)\b/i.test(text);
+      && /\b(?:\.gov\b|official|secretary of state|business entity|corporate entity|company register|company registry|state registry|handelsregister|krs|ceidg)\b/i.test(text);
     const dimensions: string[] = [];
     if (excluded) dimensions.push("subject/exclusion");
     else if (!matchesSubject && !officialSourceDiscovery) dimensions.push("subject");
@@ -3401,11 +3401,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 240)
           : finalScope,
         "MISSION PRIORITY: case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice.",
-        "SCOPE RECOVERY: web discovery stays on active subject/geography; source class need not appear in every discovery query. Match registry adapters to the active jurisdiction; fetch only observed URLs. A block is not negative evidence.",
+        "SCOPE RECOVERY: web discovery must match active subject/geography; source class need not repeat in every query. Registry adapter must match jurisdiction; visits use observed URLs. Blocks are not evidence.",
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
-        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent adapter IDs; unintegrated public sources use web search and observed visits. Results are leads until fetched; verify ownership fields.",
+        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Other public sources require web search and observed visits; registry results are leads until fetched.",
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
-        compactTerminalContractGuidance,
+        "TERMINAL GATE: minimum evidence/source thresholds apply; " + (terminalContract.requireFalsification ? "seek counter-evidence before done. " : "") + "This is a stopping condition, not a tool order.",
+        "PAGE LIMIT: visits do not extract PDF binaries; search snippets are leads, not evidence.",
         ...(input.mode === "discovery" ? [minimalDiscoveryQualityGate ?? "", minimalDiscoveryAdmissionContract ?? ""] : []),
         compactOutputContract,
         minimalTail,
