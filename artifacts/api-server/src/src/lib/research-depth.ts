@@ -83,6 +83,46 @@ export function resolveResearchDepth(options?: {
   return CONFIGS[depth];
 }
 
+export type MissionActionBudget = {
+  actionsUsed: number;
+  maximumActions: number;
+  actionsRemaining: number;
+  maximumActionsPerEpisode: number;
+  episodeStopReason: string | null;
+  episodeLimitReached: boolean;
+  missionLimitReached: boolean;
+};
+
+/**
+ * Derive supervisor-facing budget flags from the one authoritative mission
+ * counter and the actual most-recent episode result. This does not allocate,
+ * increment, or own research counters.
+ */
+export function buildMissionActionBudget(input: {
+  actionsUsed: number;
+  maximumActions: number;
+  maximumActionsPerEpisode: number;
+  episodeStopReason: string | null;
+}): MissionActionBudget {
+  const count = (value: number): number =>
+    Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  const actionsUsed = count(input.actionsUsed);
+  const maximumActions = count(input.maximumActions);
+  const maximumActionsPerEpisode = count(input.maximumActionsPerEpisode);
+  const episodeStopReason = typeof input.episodeStopReason === "string"
+    ? input.episodeStopReason.slice(0, 80)
+    : null;
+  return {
+    actionsUsed,
+    maximumActions,
+    actionsRemaining: Math.max(0, maximumActions - actionsUsed),
+    maximumActionsPerEpisode,
+    episodeStopReason,
+    episodeLimitReached: episodeStopReason === "ITERATION_BUDGET",
+    missionLimitReached: actionsUsed >= maximumActions,
+  };
+}
+
 /**
  * Bound a discovery episode so the reserved discovery-action budget can normally
  * accommodate three model-controlled Investigator acts. That gives Boss/Right-hand
