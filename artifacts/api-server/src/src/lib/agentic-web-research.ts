@@ -425,7 +425,7 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
          searches += actResult.searches;
          visits += actResult.visits;
          lastStatus = actResult.status;
-         error = actResult.error ?? error;
+         error = actResult.error;
          if (actResult.stopReason === "UNEXPECTED_ERROR") {
            // Do not let a failed core act enter ordinary Right-hand/Boss oversight. Preserve all records before returning fail-closed.
            for (const failedRecord of actResult.trajectoryRecords) {
