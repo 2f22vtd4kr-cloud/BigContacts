@@ -149,6 +149,76 @@ export function resolveRemainingDiscoveryIterations(input: {
   return Math.min(discoveryRemaining, globalRemaining);
 }
 
+/**
+ * A read-only projection of the existing Investigator counters for supervisor context.
+ * It never owns/increments counters; all figures are derived from the counters and
+ * the actual last discovery-episode result returned by the runtime.
+ */
+export type InvestigatorBudgetEpisodeSnapshot = {
+  actionsUsed: number;
+  actionLimit: number;
+  status: string;
+  stopReason: string | null;
+};
+
+export function buildInvestigatorBudgetContext(input: {
+  totalIterationCeiling: number;
+  discoveryIterationCeiling: number;
+  discoveryIterationsUsed: number;
+  investigatorIterationsUsed: number;
+  targetResearchReserveIterations: number;
+  hasAdmittedCandidates: boolean;
+  lastDiscoveryEpisode: InvestigatorBudgetEpisodeSnapshot | null;
+}) {
+  const count = (value: number): number =>
+    Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  const total = count(input.totalIterationCeiling);
+  const discoveryCeiling = Math.min(total, count(input.discoveryIterationCeiling));
+  const discoveryUsed = count(input.discoveryIterationsUsed);
+  const investigatorUsed = count(input.investigatorIterationsUsed);
+  const targetReserve = Math.min(total, count(input.targetResearchReserveIterations));
+  const hasAdmittedCandidates = input.hasAdmittedCandidates === true;
+  const discoveryActionsRemaining = resolveRemainingDiscoveryIterations({
+    totalIterationCeiling: total,
+    discoveryIterationCeiling: discoveryCeiling,
+    discoveryIterationsUsed: discoveryUsed,
+    investigatorIterationsUsed: investigatorUsed,
+    targetResearchReserveIterations: targetReserve,
+    hasAdmittedCandidates,
+  });
+
+  const last = input.lastDiscoveryEpisode;
+  const episodeUsed = last ? count(last.actionsUsed) : 0;
+  const episodeLimit = last ? count(last.actionLimit) : 0;
+  const stopReason = last && typeof last.stopReason === "string" ? last.stopReason.slice(0, 80) : null;
+
+  return {
+    lastDiscoveryEpisode: last
+      ? {
+          actionsUsed: episodeUsed,
+          maximumActions: episodeLimit,
+          status: typeof last.status === "string" ? last.status.slice(0, 32) : "unknown",
+          stopReason,
+          episodeLimitReached: stopReason === "ITERATION_BUDGET" || (episodeLimit > 0 && episodeUsed >= episodeLimit),
+        }
+      : null,
+    mission: {
+      actionsUsed: investigatorUsed,
+      maximumActions: total,
+      actionsRemaining: Math.max(0, total - investigatorUsed),
+      globalLimitReached: investigatorUsed >= total,
+    },
+    discovery: {
+      actionsUsed: discoveryUsed,
+      maximumActions: discoveryCeiling,
+      actionsRemaining: discoveryActionsRemaining,
+      targetResearchReserveActions: targetReserve,
+      targetReserveProtected: hasAdmittedCandidates,
+      targetReservePolicy: hasAdmittedCandidates ? "protected-for-admitted-candidate" : "released-until-candidate-admitted",
+    },
+  };
+}
+
 export function describeResearchDepth(config: ResearchDepthConfig): string {
   return [
     `depth=${config.depth}`,
