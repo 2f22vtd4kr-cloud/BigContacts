@@ -115,14 +115,13 @@ function resolveSafeModelAuditFilePath(
   const isInsideWorkspace = relativePath !== "" && !isOutsideWorkspace;
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
   // Model-visible prompts/pages can contain personal data and exact source trails.
-  // Visible captures require a per-run development opt-in and must stay in audits/.
+  // Private captures may use the ignored private-audits/ or .local/audits/ trees.
+  // Visible captures require a separate per-run development opt-in and must stay in audits/.
+  const isAllowedPrivateAudit = normalizedRelativePath.startsWith("private-audits/")
+    || normalizedRelativePath.startsWith(".local/audits/");
   const isAllowedVisibleAudit = allowVisibleWorkspaceFile
     && normalizedRelativePath.startsWith("audits/");
-  if (
-    isInsideWorkspace
-    && !normalizedRelativePath.startsWith("private-audits/")
-    && !isAllowedVisibleAudit
-  ) return null;
+  if (isInsideWorkspace && !isAllowedPrivateAudit && !isAllowedVisibleAudit) return null;
   return resolved;
 }
 
