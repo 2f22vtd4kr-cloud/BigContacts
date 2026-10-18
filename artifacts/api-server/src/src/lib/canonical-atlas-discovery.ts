@@ -16,6 +16,7 @@ import {
   advanceInvestigatorTokenCapacityFailureStreak,
   hasReachedInvestigatorTokenCapacityFailureLimit,
   isInvestigatorTokenDailyQuotaUnavailableEpisode,
+  resolveInvestigatorTokenDailyQuotaRecoveryIterations,
   MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
 } from "./canonical-investigator-provider-recovery";
@@ -721,11 +722,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       return replacement;
     };
     const mergeDiscoveryResults = (failed: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, recovered: Awaited<ReturnType<typeof runBureauAgenticWebPass>>): Awaited<ReturnType<typeof runBureauAgenticWebPass>> => ({ ...recovered, searches: failed.searches + recovered.searches, visits: failed.visits + recovered.visits, iterations: failed.iterations + recovered.iterations, findings: [...(failed.findings ?? []), ...(recovered.findings ?? [])], modelFindings: [...(failed.modelFindings ?? []), ...(recovered.modelFindings ?? [])], trajectory: [...(failed.trajectory ?? []), ...(recovered.trajectory ?? [])], trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])], consecutiveActionParseFailures: recovered.consecutiveActionParseFailures ?? failed.consecutiveActionParseFailures ?? 0 });
-    const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = []): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
+    const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = [], tokenDailyQuotaAdditionalIterations = maxIterations): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
       let result = initial;
       let iterationsConsumed = Math.max(0, result.iterations ?? result.trajectoryRecords?.length ?? 0);
       while (isInvestigatorHardQuotaExhausted(result) || isInvestigatorTokenDailyQuotaUnavailableEpisode(result)) {
-        const remainingIterations = Math.max(0, maxIterations - iterationsConsumed);
+        const dailyTokenQuotaFailure = isInvestigatorTokenDailyQuotaUnavailableEpisode(result);
+        const remainingIterations = dailyTokenQuotaFailure
+          ? Math.max(0, tokenDailyQuotaAdditionalIterations)
+          : Math.max(0, maxIterations - iterationsConsumed);
         if (remainingIterations <= 0) break;
         const failedCapability = selectedInvestigator;
         const replacement = isInvestigatorHardQuotaExhausted(result)
@@ -976,7 +980,18 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling);
     failureStage = "investigator_episode";
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget });
-    discovery = await runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations);
+    discovery = await runDiscoveryWithQuotaRecovery(
+      discovery,
+      openingInvestigatorObjective,
+      openingDiscoveryBudget,
+      openingInvestigatorIterations,
+      [],
+      resolveInvestigatorTokenDailyQuotaRecoveryIterations(
+        openingInvestigatorIterations,
+        discovery.iterations ?? discovery.trajectoryRecords?.length ?? 0,
+        discoveryIterationCeiling,
+      ),
+    );
     let consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(0, discovery);
     consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(0, discovery);
     let tokenCapacityFailureInvestigator = selectedInvestigator;
@@ -1364,7 +1379,18 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         failureStage = "investigator_episode";
         let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0 });
         await assertAtlasJobActive(atlasJobId);
-        nextDiscovery = await runDiscoveryWithQuotaRecovery(nextDiscovery, directedObjective, discoveryBudget, Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations), discovery.trajectoryRecords ?? []);
+        nextDiscovery = await runDiscoveryWithQuotaRecovery(
+          nextDiscovery,
+          directedObjective,
+          discoveryBudget,
+          Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations),
+          discovery.trajectoryRecords ?? [],
+          resolveInvestigatorTokenDailyQuotaRecoveryIterations(
+            Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations),
+            nextDiscovery.iterations ?? nextDiscovery.trajectoryRecords?.length ?? 0,
+            remainingInvestigatorIterations,
+          ),
+        );
 
         // A failed/empty continuation is an orchestration failure, not permission
         // to ask Boss for another pivot without executing useful Investigator work.
