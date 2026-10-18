@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
-import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { atlasSourceRouteRecoveryLaw, ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -673,6 +673,50 @@ describe("Atlas control-plane contract regression", () => {
     expect(validateAtlasBossControl({ ...boss, direction: "d".repeat(1_201) })).toBe(false);
   });
 
+});
+
+describe("Run 04 search-lead and route-recovery regression", () => {
+  it("keeps search-result URLs as unresolved leads instead of fetched observations", async () => {
+    const { assignSearchResultLeads } = await import("../lib/agentic-web-research-core");
+    const record: { leadUrls?: string[]; observedUrls: string[] } = {
+      leadUrls: [],
+      observedUrls: [],
+    };
+
+    assignSearchResultLeads(record, [
+      "https://registry.example.test/search?id=42",
+      "https://registry.example.test/search?id=42",
+      "https://company.example.test/about",
+      "javascript:alert(1)",
+      "not a URL",
+    ]);
+
+    expect(record.leadUrls).toEqual([
+      "https://registry.example.test/search?id=42",
+      "https://company.example.test/about",
+    ]);
+    expect(record.observedUrls).toEqual([]);
+    expect(agenticCoreSource).toContain("assignSearchResultLeads(record, successful.flatMap((result) => result.urls))");
+    expect(agenticCoreSource).toContain('assignSearchResultLeads(record, record.execution === "success" ? result.urls : [])');
+  });
+
+  it("gives both supervisor prompts source-route recovery guidance without prescribing the next action", () => {
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: "A public registry route returned HTTP 403; another successful fetch exposed only a generic agency landing page.",
+      compactState: "Observed attempts did not reach entity-level ownership records.",
+    });
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: "A public registry route returned HTTP 403; another successful fetch exposed only a generic agency landing page.",
+      compactState: "Observed attempts did not reach entity-level ownership records.",
+      rightHand: { status: "completed", decision: "reassess", reason: "The current source route has not yielded entity-level data.", direction: null, confidence: 0.8, model: "test-model", error: null },
+    });
+
+    expect(atlasSourceRouteRecoveryLaw()).toContain("Do not pivot only from one jurisdiction to another");
+    expect(rightHandPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
+    expect(bossPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
+    expect(rightHandPrompt).toContain("Never evade access controls");
+    expect(bossPrompt).toContain("The Investigator remains autonomous");
+  });
 });
 
 describe("discovery trajectory turn persistence", () => {
