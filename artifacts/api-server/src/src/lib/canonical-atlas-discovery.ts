@@ -15,6 +15,7 @@ import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
   hasReachedInvestigatorTokenCapacityFailureLimit,
+  isInvestigatorTokenDailyQuotaUnavailableEpisode,
   MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
 } from "./canonical-investigator-provider-recovery";
@@ -451,6 +452,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
     const tokenCapacityUnavailableInvestigators = new Set<InvestigatorCapability>();
     let tokenCapacityReassignmentUsed = false;
+    // This counter is initialized before opening-episode recovery can invoke the
+    // shared reassignment helper.
+    let consecutiveInvestigatorTokenCapacityFailures = 0;
     const allUnavailableInvestigatorCapabilities = () => [...new Set([
       ...quotaExhaustedInvestigators,
       ...tokenCapacityUnavailableInvestigators,
@@ -508,6 +512,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       failedCapability: InvestigatorCapability,
       failure: string,
       detail: Record<string, unknown>,
+      trigger: "upstream_token_window_wait_exceeded" | "upstream_token_quota_exhausted" = "upstream_token_window_wait_exceeded",
     ): Promise<void> => {
       failureStage = "case_persistence";
       await db.transaction(async (tx) => {
@@ -545,12 +550,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           actorRole: "groq_boss",
           eventType: "provider_error",
           status: "error",
-          summary: "Boss-directed Investigator reassignment was unavailable after repeated token-window capacity failures; discovery will be parked for review.",
+          summary: trigger === "upstream_token_quota_exhausted"
+            ? "Boss-directed Investigator reassignment was unavailable after an explicit tokens-per-day quota failure; discovery will be parked for review."
+            : "Boss-directed Investigator reassignment was unavailable after repeated token-window capacity failures; discovery will be parked for review.",
           correlationKey: `${atlasJobId}:investigator-token-capacity-reassignment-unavailable:${nextIteration}`,
           payload: JSON.stringify({
             jobId: atlasJobId,
             from: failedCapability,
-            trigger: "upstream_token_window_wait_exceeded",
+            trigger,
             failure,
             ...detail,
           }),
@@ -560,9 +567,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const reassignInvestigatorAfterPersistentTokenCapacity = async (
       failedCapability: InvestigatorCapability,
       failure: string,
+      trigger: "upstream_token_window_wait_exceeded" | "upstream_token_quota_exhausted" = "upstream_token_window_wait_exceeded",
     ): Promise<InvestigatorCapability | null> => {
       if (tokenCapacityReassignmentUsed) return null;
       tokenCapacityReassignmentUsed = true;
+      const dailyTokenQuota = trigger === "upstream_token_quota_exhausted";
       tokenCapacityUnavailableInvestigators.add(failedCapability);
       const unavailableCapabilities = allUnavailableInvestigatorCapabilities();
       const excludedCapabilityAliases = getInvestigatorCredentialAliases(process.env, unavailableCapabilities);
@@ -572,8 +581,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await persistTokenCapacityReassignmentFailure(failedCapability, failure, {
           reason: "no_distinct_configured_investigator",
           availableAlternates,
-        });
-        phaseSummary.investigatorReassignment = `${failedCapability} remained unavailable after bounded token-window retries; no distinct configured Investigator remains, so the case is parked for review.`;
+        }, trigger);
+        phaseSummary.investigatorReassignment = dailyTokenQuota
+          ? `${failedCapability} exhausted the explicit tokens-per-day budget; no distinct configured Investigator remains, so the case is parked for review.`
+          : `${failedCapability} remained unavailable after bounded token-window retries; no distinct configured Investigator remains, so the case is parked for review.`;
         return null;
       }
       await assertAtlasJobActive(atlasJobId);
@@ -581,8 +592,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const reassignment = await runGroqBossDiscovery({
         jobId: atlasJobId,
         caseId: discoveryCaseId,
-        objective: `${discoveryObjective}\n\nPERSISTENT TOKEN-CAPACITY RECOVERY: Investigator capability ${failedCapability} returned repeated upstream_token_window_wait_exceeded failures after bounded same-capability retries in consecutive discovery episodes. This is token-window capacity exhaustion, NOT hard request-quota exhaustion; do not relabel it as upstream_quota_exhausted. If a distinct configured Investigator remains available, choose one to continue this same durable case. Do not prescribe a search query, tool, provider, or research sequence. If no distinct capability is viable, leave the case for review.\n\nFAILURE: ${failure}`,
-        motivation: "Recover one canonical investigation after repeated token-window capacity failures. Let the Boss choose a distinct available Investigator capability; preserve all existing evidence and research gates.",
+        objective: `${discoveryObjective}\n\n${dailyTokenQuota
+          ? `EXPLICIT TOKENS-PER-DAY QUOTA RECOVERY: Investigator capability ${failedCapability} returned upstream_token_quota_exhausted after Groq explicitly reported its tokens-per-day (TPD) limit. This is a daily token budget, NOT hard request-count quota and NOT a short-window token reset; do not relabel it as upstream_quota_exhausted or retry the same key. Choose a distinct configured Investigator capability to continue this same durable case if one is available. Do not prescribe a search query, tool, provider, or research sequence. If no distinct capability is viable, leave the case for review.`
+          : `PERSISTENT TOKEN-CAPACITY RECOVERY: Investigator capability ${failedCapability} returned repeated upstream_token_window_wait_exceeded failures after bounded same-capability retries in consecutive discovery episodes. This is token-window capacity exhaustion, NOT hard request-quota exhaustion; do not relabel it as upstream_quota_exhausted. If a distinct configured Investigator remains available, choose one to continue this same durable case. Do not prescribe a search query, tool, provider, or research sequence. If no distinct capability is viable, leave the case for review.`}\n\nFAILURE: ${failure}`,
+        motivation: dailyTokenQuota
+          ? "Recover one canonical investigation after an explicit daily token-cap failure. Let the Boss choose a distinct available Investigator capability; preserve all existing evidence and research gates."
+          : "Recover one canonical investigation after repeated token-window capacity failures. Let the Boss choose a distinct available Investigator capability; preserve all existing evidence and research gates.",
         geography: opts.discoveryGeography || "Public web; geography selected by the research objective",
         exclusions: opts.discoveryExclusions ?? [
           "Do not browse as Boss.",
@@ -590,7 +605,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           "Do not invent people, contacts, relationships, or URLs.",
           "Do not select any excluded or previously unavailable Investigator capability.",
         ],
-        startingLane: "Boss-directed Investigator reassignment after repeated token-window capacity failures",
+        startingLane: dailyTokenQuota
+          ? "Boss-directed Investigator reassignment after explicit tokens-per-day quota exhaustion"
+          : "Boss-directed Investigator reassignment after repeated token-window capacity failures",
         excludedInvestigatorLlm: bossExcludedCapabilities,
       });
       await assertAtlasJobActive(atlasJobId);
@@ -609,8 +626,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           bossStatus: reassignment.status,
           bossSelectedCapability: replacement ?? null,
           bossError: reassignment.error ?? null,
-        });
-        phaseSummary.investigatorReassignment = `${failedCapability} remained unavailable after bounded token-window retries; Boss did not select a distinct viable Investigator, so the case is parked for review.`;
+        }, trigger);
+        phaseSummary.investigatorReassignment = dailyTokenQuota
+          ? `${failedCapability} hit the explicit tokens-per-day cap; Boss did not select a distinct viable Investigator, so the case is parked for review.`
+          : `${failedCapability} remained unavailable after bounded token-window retries; Boss did not select a distinct viable Investigator, so the case is parked for review.`;
         return null;
       }
       failureStage = "case_persistence";
@@ -648,7 +667,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           investigatorCapabilityHistory: [...history, {
             from: previousAssignment,
             to: replacement,
-            trigger: "upstream_token_window_wait_exceeded",
+            trigger,
           }].slice(-15),
         };
         const [latestEvent] = await tx.select({ iteration: researchCaseEventsTable.iteration })
@@ -675,14 +694,17 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           actorRole: "groq_boss",
           eventType: "assignment",
           status: "recorded",
-          summary: "Groq Boss reassigned the canonical Investigator after repeated token-window capacity failures; the unavailable capability remains excluded for this job.",
+          summary: dailyTokenQuota
+            ? "Groq Boss reassigned the canonical Investigator after an explicit tokens-per-day quota failure; the exhausted capability remains excluded for this job."
+            : "Groq Boss reassigned the canonical Investigator after repeated token-window capacity failures; the unavailable capability remains excluded for this job.",
           correlationKey: `${atlasJobId}:investigator-token-capacity-reassignment:${failedCapability}:${replacement}:${nextIteration}`,
           payload: JSON.stringify({
             jobId: atlasJobId,
             from: failedCapability,
             to: replacement,
-            trigger: "upstream_token_window_wait_exceeded",
+            trigger,
             hardRequestQuotaExhausted: false,
+            tokenDailyQuotaExhausted: dailyTokenQuota,
             consecutiveCapacityFailures: consecutiveInvestigatorTokenCapacityFailures,
             excludedInvestigators: bossExcludedCapabilities,
             bossModel: reassignment.model,
@@ -693,23 +715,32 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         });
       }, { isolationLevel: "serializable" });
       selectedInvestigator = replacement;
-      phaseSummary.investigatorReassignment = `${failedCapability} → ${replacement} after repeated upstream_token_window_wait_exceeded; the original capability is excluded for this job.`;
+      phaseSummary.investigatorReassignment = dailyTokenQuota
+        ? `${failedCapability} → ${replacement} after upstream_token_quota_exhausted; the original capability is excluded for this job.`
+        : `${failedCapability} → ${replacement} after repeated upstream_token_window_wait_exceeded; the original capability is excluded for this job.`;
       return replacement;
     };
     const mergeDiscoveryResults = (failed: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, recovered: Awaited<ReturnType<typeof runBureauAgenticWebPass>>): Awaited<ReturnType<typeof runBureauAgenticWebPass>> => ({ ...recovered, searches: failed.searches + recovered.searches, visits: failed.visits + recovered.visits, iterations: failed.iterations + recovered.iterations, findings: [...(failed.findings ?? []), ...(recovered.findings ?? [])], modelFindings: [...(failed.modelFindings ?? []), ...(recovered.modelFindings ?? [])], trajectory: [...(failed.trajectory ?? []), ...(recovered.trajectory ?? [])], trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])], consecutiveActionParseFailures: recovered.consecutiveActionParseFailures ?? failed.consecutiveActionParseFailures ?? 0 });
     const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = []): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
       let result = initial;
       let iterationsConsumed = Math.max(0, result.iterations ?? result.trajectoryRecords?.length ?? 0);
-      while (isInvestigatorHardQuotaExhausted(result)) {
+      while (isInvestigatorHardQuotaExhausted(result) || isInvestigatorTokenDailyQuotaUnavailableEpisode(result)) {
         const remainingIterations = Math.max(0, maxIterations - iterationsConsumed);
         if (remainingIterations <= 0) break;
         const failedCapability = selectedInvestigator;
-        const replacement = await reassignInvestigatorAfterHardQuota(failedCapability, result.error ?? "upstream_quota_exhausted");
+        const replacement = isInvestigatorHardQuotaExhausted(result)
+          ? await reassignInvestigatorAfterHardQuota(failedCapability, result.error ?? "upstream_quota_exhausted")
+          : await reassignInvestigatorAfterPersistentTokenCapacity(
+            failedCapability,
+            result.error ?? "upstream_token_quota_exhausted",
+            "upstream_token_quota_exhausted",
+          );
+        if (!replacement) break;
         failureStage = "investigator_episode";
         const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: remainingIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0 });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
-        if (!isInvestigatorHardQuotaExhausted(recovered)) break;
+        if (!isInvestigatorHardQuotaExhausted(recovered) && !isInvestigatorTokenDailyQuotaUnavailableEpisode(recovered)) break;
       }
       return result;
     };
@@ -947,7 +978,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget });
     discovery = await runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations);
     let consecutiveInvestigatorProviderUnavailable = advanceInvestigatorProviderUnavailableStreak(0, discovery);
-    let consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(0, discovery);
+    consecutiveInvestigatorTokenCapacityFailures = advanceInvestigatorTokenCapacityFailureStreak(0, discovery);
     let tokenCapacityFailureInvestigator = selectedInvestigator;
     await assertAtlasJobActive(atlasJobId);
     failureStage = "candidate_admission_persistence";
