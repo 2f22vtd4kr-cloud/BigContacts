@@ -485,6 +485,33 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
            if (raw.action === "runtime_error") {
              return { status: "error", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "UNEXPECTED_ERROR", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: actResult.error ?? "Unexpected Investigator runtime exception.", executionId, consecutiveActionParseFailures };
            }
+           // A malformed target-research action is not a completed act and must
+           // not be offered to Right-hand/Boss oversight as if it were research.
+           // Reuse the same bounded correction policy as discovery mode, preserving
+           // the rejected record in the next turn's context without replaying tools.
+           if (raw.action === "parse_failure") {
+             if (shouldContinueAfterInvestigatorParseFailure({
+               stopReason: actResult.stopReason,
+               consecutiveFailures: consecutiveActionParseFailures,
+               actionTurn,
+               maxActionTurns,
+             })) {
+               continue;
+             }
+             return {
+               ...actResult,
+               searches,
+               visits,
+               findings,
+               modelFindings,
+               trajectory,
+               trajectoryRecords: records,
+               groundingTrajectoryRecords: [...historyRecords, ...records],
+               executionId,
+               consecutiveActionParseFailures,
+             };
+           }
+
            targetWrapperFailureStage = "result_aggregation";
            if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
            if (raw.findings.length) findings = [...findings, ...(groundedTerminalFindings as CoreResult["findings"])];
