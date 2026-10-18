@@ -68,6 +68,22 @@ export function advanceInvestigatorProviderUnavailableStreak(
     : 0;
 }
 
+/**
+ * Explicit Groq tokens-per-day exhaustion is recoverable only by the separate,
+ * single Boss-directed capability reassignment; it must not be treated as a
+ * short token-window failure or hard request-count quota.
+ */
+export function isInvestigatorTokenDailyQuotaUnavailableEpisode(
+  result: InvestigatorProviderEpisode,
+): boolean {
+  if (!isInvestigatorProviderUnavailableEpisode(result)) return false;
+  return result.error === "upstream_token_quota_exhausted"
+    || (result.trajectoryRecords ?? []).some(
+      (record) => record.action === "investigator_provider_error"
+        && /upstream_token_quota_exhausted/i.test(record.observation ?? ""),
+    );
+}
+
 export function isInvestigatorTokenCapacityUnavailableEpisode(
   result: InvestigatorProviderEpisode,
 ): boolean {
