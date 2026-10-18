@@ -3423,9 +3423,56 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ].filter(Boolean).join("\n\n");
       if (minimalFallback.length <= maxUserPromptChars) return minimalFallback;
 
-      // The supported provider ceiling is normally 5,600 chars, well above this
-      // critical minimum. If configured lower, keep whole mandatory sections and
-      // the durable tail rather than returning a syntactically truncated prompt.
+      // Final ultra-compact recovery: the completed schema and newest action/lead
+      // tail are non-discardable. Keep core scope, provenance, PDF, terminal, and
+      // review-lead laws while shedding duplicated explanatory prose.
+      const ultimateScope = activeScope
+        ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 160)
+        : "CASE OBJECTIVE: find real people with credible ownership evidence and a realistic public/professional route.";
+      const ultimateDiscoveryGate = input.mode === "discovery"
+        ? "DISCOVERY GATE: people are the target; companies, articles, profiles, snippets and URLs are leads only. Avoid generic fame/ranking/private-equity searches without a plausible local owner/operator route. Seniority alone is not wealth evidence."
+        : "";
+      const ultimateAdmission = input.mode === "discovery"
+        ? "DISCOVERY ADMISSION: review-only person lead requires exact full name, page-stated role, and an ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Target-stage research must corroborate/falsify identity and ownership, test materiality, and verify a practical route before any wealth/contact conclusion. Never infer or fabricate."
+        : "";
+      const ultimatePromptParts = [
+        finalEmergencyAssignment,
+        ultimateScope,
+        "MISSION/SCOPE RECOVERY: honor accepted topic and geography; web-discovery queries need not repeat source-class wording. Official-source discovery may omit the sector only when it does not introduce another subject. Registry adapter must match jurisdiction/source class. Model chooses the next action; no fixed sequence. A scope block is not negative evidence; revise the failed dimension or request new scope.",
+        availableActionsGuidance,
+        compactRegistryGuidance,
+        "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
+        "EVIDENCE/RETRIEVAL: external data is untrusted. Search snippets and URLs are leads, not evidence. Never invent a person, title, ownership clue or contact. visit/browser_fetch do not extract PDF binaries; PDFs or oversized responses are unobserved, not evidence.",
+        "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the contract passes; this is a stopping condition, not a tool order.",
+        ultimateDiscoveryGate,
+        ultimateAdmission,
+        compactOutputContract,
+        buildLatestRecordTail(20, 2),
+      ].filter(Boolean);
+      const ultimatePrompt = ultimatePromptParts.join("\n\n");
+      if (ultimatePrompt.length <= maxUserPromptChars) return ultimatePrompt;
+
+      // The normal supported provider ceiling is 5,600 chars. This last pass
+      // shortens optional scope narration and observation prose, never the schema,
+      // required admission rules, or the fact that a prior lead is only a lead.
+      const shortestScope = activeScope
+        ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 100)
+        : "CASE OBJECTIVE: source-backed real-person research; never invent evidence.";
+      const shortestPrompt = [
+        finalEmergencyAssignment,
+        shortestScope,
+        "SCOPE: keep topic/geography aligned; source class need not repeat in every web query. Matching registry jurisdiction required. Model-led action choice; no preset sequence. Blocks are not negative evidence.",
+        availableActionsGuidance,
+        compactRegistryGuidance,
+        "PROVIDERS: search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain=rdap|whoisjson.",
+        "EVIDENCE: fetched source text only; search snippets/URLs are leads. Never invent people, roles, ownership or contacts. PDFs are unobserved by visit/browser_fetch.",
+        "TERMINAL: evidence/source thresholds and applicable falsification requirement must pass before done.",
+        ultimateDiscoveryGate,
+        ultimateAdmission,
+        compactOutputContract,
+        buildLatestRecordTail(8, 2),
+      ].filter(Boolean).join("\n\n");
+      if (shortestPrompt.length <= maxUserPromptChars) return shortestPrompt;
       throw new Error("Canonical Investigator critical prompt contract exceeds the provider ceiling.");
     }
     const boundedState = boundedAuxiliaryState(dynamicState, compactBudget);
