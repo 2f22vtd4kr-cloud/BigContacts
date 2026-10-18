@@ -104,7 +104,6 @@ export function resolveModelAuditFilePath(
 function resolveSafeModelAuditFilePath(
   configuredPath: string,
   cwd: string,
-  allowVisibleAudit: boolean,
 ): string | null {
   const root = workspaceRootFrom(cwd);
   const resolved = resolveModelAuditFilePath(configuredPath, cwd);
@@ -115,15 +114,8 @@ function resolveSafeModelAuditFilePath(
   const isInsideWorkspace = relativePath !== "" && !isOutsideWorkspace;
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
   // Model-visible prompts/pages can contain personal data and exact source trails.
-  // Workspace capture stays private by default. This one visible destination is
-  // permitted only after an explicit development opt-in for the current run.
-  const isAuthorizedVisibleAudit = allowVisibleAudit
-    && normalizedRelativePath === "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_NEW_PROJECT_IMPORT.md";
-  if (
-    isInsideWorkspace
-    && !normalizedRelativePath.startsWith("private-audits/")
-    && !isAuthorizedVisibleAudit
-  ) return null;
+  // Raw workspace captures are permitted only under the ignored private-audits directory.
+  if (isInsideWorkspace && !normalizedRelativePath.startsWith("private-audits/")) return null;
   return resolved;
 }
 
@@ -386,10 +378,9 @@ export function emitModelPromptAudit(
     const auditPath = resolveSafeModelAuditFilePath(
       env.APEX_MODEL_AUDIT_FILE!,
       cwd,
-      env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
     );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit to this workspace path; use private-audits/ or explicitly enable the authorized visible audit destination for this run.\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit to a visible workspace path; use private-audits/ or a path outside the workspace.\n");
       return null;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
@@ -414,6 +405,23 @@ type AuditResponseInput = {
   latencyMs?: number;
   transportFailure?: string;
 };
+
+function summarizeProviderErrorDetails(error: Record<string, unknown>, includeContactData = false): Record<string, unknown> {
+  // Groq's failed_generation can contain an incomplete model completion, not just
+  // an error code. Never copy that payload into audit files because it may include
+  // user context or untagged reasoning-like text; retain only diagnostic metadata.
+  const failedGeneration = typeof error.failed_generation === "string" ? error.failed_generation : null;
+  return {
+    code: typeof error.code === "string" ? error.code : null,
+    type: typeof error.type === "string" ? error.type : null,
+    message: typeof error.message === "string" ? sanitizeAuditPayload(error.message, 0, includeContactData) : null,
+    param: typeof error.param === "string" ? sanitizeAuditPayload(error.param, 0, includeContactData) : null,
+    failedGenerationPresent: failedGeneration !== null && failedGeneration.length > 0,
+    failedGenerationChars: failedGeneration?.length ?? null,
+    failedGenerationBudgetExhausted: failedGeneration !== null
+      && /max completion tokens reached before generating a valid document/i.test(failedGeneration),
+  };
+}
 
 function visibleProviderResponse(
   responseBody: string,
@@ -444,7 +452,7 @@ function visibleProviderResponse(
             message: typeof error.message === "string" ? sanitizeAuditPayload(error.message, 0, includeContactData) : null,
           }
         : null,
-      providerErrorDetails: error ? sanitizeAuditPayload(error, 0, includeContactData) : null,
+      providerErrorDetails: error ? summarizeProviderErrorDetails(error, includeContactData) : null,
       responseChars: responseBody.length,
     };
   }
@@ -510,10 +518,9 @@ export function emitModelPromptAuditResponse(
     const auditPath = resolveSafeModelAuditFilePath(
       env.APEX_MODEL_AUDIT_FILE!,
       cwd,
-      env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
     );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit to this workspace path; use private-audits/ or explicitly enable the authorized visible audit destination for this run.\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit to a visible workspace path; use private-audits/ or a path outside the workspace.\n");
       return;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });

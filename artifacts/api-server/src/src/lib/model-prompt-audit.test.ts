@@ -266,7 +266,7 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(0);
   });
 
-  it("allows only the explicitly opted-in visible new-project audit and redacts contact values", () => {
+  it("refuses raw prompt capture to visible workspace paths even when the legacy opt-in is set", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
     const writes: Array<{ path: string; contents: string }> = [];
@@ -278,15 +278,8 @@ describe("model prompt audit", () => {
       APEX_MODEL_AUDIT_FILE: "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_NEW_PROJECT_IMPORT.md",
     }, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
 
-    expect(requestId).toBeTruthy();
-    expect(writes).toHaveLength(1);
-    expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_NEW_PROJECT_IMPORT.md"));
-    expect(writes[0]?.contents).toContain("PRIVATE_SYSTEM_PROMPT_SENTINEL");
-    expect(writes[0]?.contents).toContain("[REDACTED_EMAIL]");
-    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
-    expect(writes[0]?.contents).not.toContain("person@example.org");
-    expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
-    expect(writes[0]?.contents).not.toContain("gsk_123456789012345678901234");
+    expect(requestId).toBeNull();
+    expect(writes).toHaveLength(0);
   });
 
   it("preserves visible unstructured model output for diagnosis with explicit contact-data opt-in", () => {
@@ -324,6 +317,35 @@ describe("model prompt audit", () => {
     expect(writes[0]?.contents).toContain("+1 (415) 555-0100");
     expect(writes[0]?.contents).not.toContain("gsk_123456789012345678901234");
     expect(writes[0]?.contents).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
+  });
+
+  it("does not persist provider failed_generation contents that may contain partial model output", () => {
+    const writes: string[] = [];
+    emitModelPromptAuditResponse({
+      requestId: "request-failed-generation-redaction",
+      provider: "groq",
+      role: "groq_right_hand",
+      model: "openai/gpt-oss-120b",
+      httpStatus: 400,
+      responseBody: JSON.stringify({
+        error: {
+          message: "Failed to generate JSON. Please adjust your prompt.",
+          type: "invalid_request_error",
+          code: "json_validate_failed",
+          failed_generation: "max completion tokens reached before generating a valid document PRIVATE_FAILED_GENERATION_SENTINEL",
+        },
+      }),
+    }, {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    }, (_path, contents) => writes.push(contents));
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain('"failedGenerationPresent": true');
+    expect(writes[0]).toContain('"failedGenerationBudgetExhausted": true');
+    expect(writes[0]).not.toContain("PRIVATE_FAILED_GENERATION_SENTINEL");
+    expect(writes[0]).not.toContain('"failed_generation"');
   });
 
   it("includes a bounded sanitized excerpt when the outer provider response is not JSON", () => {
