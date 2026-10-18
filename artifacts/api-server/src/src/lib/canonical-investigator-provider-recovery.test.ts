@@ -5,6 +5,7 @@ import {
   hasReachedInvestigatorTokenCapacityFailureLimit,
   isInvestigatorTokenCapacityUnavailableEpisode,
   isInvestigatorTokenDailyQuotaUnavailableEpisode,
+  resolveInvestigatorTokenDailyQuotaRecoveryIterations,
   isInvestigatorProviderUnavailableEpisode,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
   MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
@@ -22,6 +23,14 @@ function unavailable(observation: string) {
 }
 
 describe("canonical Investigator provider-unavailable breaker", () => {
+  it("limits one TPD recovery act to remaining global Investigator iterations", () => {
+    expect(resolveInvestigatorTokenDailyQuotaRecoveryIterations(6, 6, 16)).toBe(6);
+    expect(resolveInvestigatorTokenDailyQuotaRecoveryIterations(6, 6, 6)).toBe(0);
+    expect(resolveInvestigatorTokenDailyQuotaRecoveryIterations(6, 1, 4)).toBe(3);
+    expect(resolveInvestigatorTokenDailyQuotaRecoveryIterations(Number.NaN, 1, 4)).toBe(0);
+    expect(resolveInvestigatorTokenDailyQuotaRecoveryIterations(6, Number.NaN, 4)).toBe(4);
+  });
+
   it("counts a token-window 429 after the bounded same-capability wait fails", () => {
     const tokenWindow = unavailable(
       "INVESTIGATOR_PROVIDER_ERROR upstream_token_window_wait_exceeded",
