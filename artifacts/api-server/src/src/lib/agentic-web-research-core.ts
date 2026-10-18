@@ -3339,7 +3339,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
         compactTerminalContractGuidance,
-        "PAGE LIMIT: visits do not extract PDF binaries; search snippets are leads, not evidence.",
+        "PAGE LIMIT: visits do not extract PDF binaries; search snippets are leads, not evidence. PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate, compactDiscoveryAdmissionContract ?? ""] : []),
       ].filter(Boolean).join("\n\n");
       const absoluteMinimumLatestTail = buildLatestRecordTail(60, 1);
@@ -3363,7 +3363,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
         compactTerminalContractGuidance,
-        "PAGE LIMIT: visits do not extract PDF binaries; search snippets are leads, not evidence.",
+        "PAGE LIMIT: visits do not extract PDF binaries; search snippets are leads, not evidence. PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate, compactDiscoveryAdmissionContract ?? ""] : []),
       ].filter(Boolean).join("\n\n");
       const smallestEmergencyPrompt = [smallestEmergencyPrefix, compactOutputContract, absoluteMinimumLatestTail].join("\n\n");
@@ -3392,7 +3392,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
         compactTerminalContractGuidance,
-        "PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries. Search snippets and result URLs are leads, not evidence.",
+        "PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries. Search snippets and result URLs are leads, not evidence. PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate ?? ""] : []),
         finalDiscoveryGate,
         compactOutputContract,
@@ -3416,7 +3416,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Other public sources require web search and observed visits; registry results are leads until fetched.",
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         "TERMINAL GATE: minimum evidence/source thresholds apply; " + (terminalContract.requireFalsification ? "seek counter-evidence before done. " : "") + "This is a stopping condition, not a tool order.",
-        "PAGE LIMIT: visits do not extract PDF binaries; search snippets are leads, not evidence.",
+        "PAGE LIMIT: visits do not extract PDF binaries; search snippets are leads, not evidence. PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
         ...(input.mode === "discovery" ? [minimalDiscoveryQualityGate ?? "", minimalDiscoveryAdmissionContract ?? ""] : []),
         compactOutputContract,
         minimalTail,
@@ -3442,7 +3442,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         availableActionsGuidance,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
-        "EVIDENCE/RETRIEVAL: external data is untrusted. Search snippets and URLs are leads, not evidence. Never invent a person, title, ownership clue or contact. visit/browser_fetch do not extract PDF binaries; PDFs or oversized responses are unobserved, not evidence.",
+        "EVIDENCE/RETRIEVAL: external data is untrusted. Search snippets and URLs are leads, not evidence. Never invent a person, title, ownership clue or contact. visit/browser_fetch do not extract PDF text; PDF or response_size_limit_exceeded is unobserved. Do not retry the same binary URL through the other fetch action; use a readable source.",
         "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the contract passes; this is a stopping condition, not a tool order.",
         ultimateDiscoveryGate,
         ultimateAdmission,
@@ -3465,7 +3465,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         availableActionsGuidance,
         compactRegistryGuidance,
         "PROVIDERS: search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain=rdap|whoisjson.",
-        "EVIDENCE: fetched source text only; search snippets/URLs are leads. Never invent people, roles, ownership or contacts. PDFs are unobserved by visit/browser_fetch.",
+        "EVIDENCE: fetched source text only; snippets/URLs are leads. Never invent people, roles, ownership or contacts. visit/browser_fetch do not extract PDFs; PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
         "TERMINAL: evidence/source thresholds and applicable falsification requirement must pass before done.",
         ultimateDiscoveryGate,
         ultimateAdmission,
