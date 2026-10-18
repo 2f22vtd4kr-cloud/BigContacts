@@ -57,8 +57,10 @@ Thumbs.db
 # Local holdout outputs (regenerated)
 # scripts/results/
 
-# Private live-run audits can contain raw research data and provider prompts.
+# Raw model-prompt and live-run captures can contain full prompt/context payloads.
+# Keep them in the local ignored directory; commit only sanitized post-run analysis.
 /private-audits/
+/audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_NEW_PROJECT_IMPORT.md
 
 /audits/*LIVE_RUN_[0-9][0-9].md
 /audits/*FRESH_RUN_[0-9][0-9].md
