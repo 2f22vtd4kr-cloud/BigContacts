@@ -2149,7 +2149,7 @@ export function compactEmergencyTrajectoryObservation(observation: string): stri
     if (mismatch) {
       return `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}. Revise those dimensions; fetch only an observed aligned URL; do not repeat without new evidence.`;
     }
-    return "SCOPE GUARD BLOCKED ACTION (no request): query must name active scope subject, geography and source class; fetch only an observed aligned URL. Metadata is not scope. Revise or request new scope; do not repeat.";
+    return "SCOPE GUARD BLOCKED ACTION (no request): revise the failed scope dimensions; web discovery may search in-scope topic/company terms without repeating source-class wording; choose a registry adapter matching the active geography when using registry_search; fetch only an observed aligned URL and do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.";
   }
   return boundInvestigatorPromptSection(normalized, 100);
 }
@@ -2276,16 +2276,42 @@ const PIVOT_GEOGRAPHIC_REGION_ALIASES: Array<{
       ["portland"], ["eugene"], ["boise"],
     ],
   },
+  {
+    // The Baltics is an OR-region: one country name is enough to align a query.
+    pattern: /\b(?:baltic(?:\s+states?)?|baltic\s+region)\b/i,
+    alternatives: [["baltic"], ["estonia"], ["latvia"], ["lithuania"]],
+  },
+];
+
+const PIVOT_GEOGRAPHIC_NAME_ALIASES: Array<{
+  pattern: RegExp;
+  alternatives: readonly (readonly string[])[];
+}> = [
+  { pattern: /\b(?:czech\s+republic|czechia)\b/i, alternatives: [["czech", "republic"], ["czechia"], ["czech"], ["cesko"], ["ceske"], ["cesky"]] },
+  { pattern: /\bpoland\b/i, alternatives: [["poland"], ["polska"], ["polish"]] },
+  { pattern: /\bestonia\b/i, alternatives: [["estonia"], ["estonian"], ["eesti"]] },
+  { pattern: /\blatvia\b/i, alternatives: [["latvia"], ["latvian"], ["latvija"]] },
+  { pattern: /\blithuania\b/i, alternatives: [["lithuania"], ["lithuanian"], ["lietuva"]] },
+  { pattern: /\bgermany\b/i, alternatives: [["germany"], ["german"], ["deutschland"]] },
 ];
 
 function pivotGeographicAlternatives(phrase: string): string[][] {
-  return phrase.split(/\s*(?:,|\/|\bor\b|\band\b)\s*/iu)
+  const options = phrase.split(/\s*(?:,|\/|\bor\b|\band\b)\s*/iu)
     .map((part) => (part.match(/[\p{L}\p{M}][\p{L}\p{M}'’.-]*/gu) ?? [])
-      // Geographic names are proper nouns, not English plurals: "Illinois",
-      // "Midlands" and "Kansas" must not be singularized to different tokens.
-      // Strip punctuation but preserve the source spelling's lexical form.
-      .map((value) => value.replace(/[.,;:!?]+$/u, "").toLowerCase()))
+      // Geographic names are proper nouns, not English plurals. Normalize accents,
+      // but do not singularize place names such as Illinois, Kansas, or Midlands.
+      .map((value) => value.replace(/[.,;:!?]+$/u, "").toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "")))
     .filter((parts) => parts.length > 0);
+  for (const alias of PIVOT_GEOGRAPHIC_NAME_ALIASES) {
+    if (alias.pattern.test(phrase)) options.push(...alias.alternatives.map((parts) => [...parts]));
+  }
+  const seen = new Set<string>();
+  return options.filter((option) => {
+    const key = option.join(" ");
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**
@@ -2375,7 +2401,7 @@ function pivotScopeRequiredSourceAnchors(direction: string): string[] {
 }
 
 const PIVOT_SOURCE_CLASS_SYNONYMS: Record<string, readonly string[]> = {
-  registry: ["registry", "registries", "register", "database", "filing", "registration", "registrations", "business registration", "company registration", "state registration", "secretary of state", "business entity search", "corporate entity search", "corporation search", "licensee list", "licensee directory"],
+  registry: ["registry", "registries", "register", "database", "filing", "registration", "registrations", "business registration", "company registration", "state registration", "secretary of state", "business entity", "business registry", "state registry", "company register", "commercial register", "handelsregister", "offeneregister", "krs", "ceidg", "ares", "business entity search", "corporate entity search", "corporation search", "licensee list", "licensee directory"],
   filing: ["filing", "registry", "register", "database", "corporate", "corporation", "corporations", "secretary of state", "business entity search", "corporate entity search", "certificate of formation", "certificate of incorporation", "articles of organization", "articles of incorporation", "annual report", "formation documents", "formation certificate", "public filing", "public filings"],
   database: ["database", "registry", "registries", "register", "filing", "registration", "registrations", "business registration", "company registration", "state registration", "secretary of state", "business entity search", "corporate entity search", "licensee list", "licensee database"],
   directory: ["directory", "catalog", "listing", "list"],
@@ -2512,8 +2538,8 @@ function pivotTextMatchesGeography(value: string, options: readonly string[][]):
   // Geography labels are proper names, not English plurals. The generic token
   // normalizer turns names such as Illinois, Kansas, Indianapolis and Sioux Falls
   // into different tokens, which rejects valid member-state/city queries.
-  const tokens = new Set((value.toLowerCase().match(/[a-z]{3,}/g) ?? []));
-  return options.some((option) => option.every((token) => tokens.has(token.toLowerCase())));
+  const tokens = new Set((value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").match(/[\p{L}]{3,}/gu) ?? []));
+  return options.some((option) => option.every((token) => tokens.has(token.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, ""))));
 }
 
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
@@ -2535,6 +2561,24 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
     matched.add("water");
     if (anchors.includes("service")) matched.add("service");
     else matched.add("provider");
+  }
+  // Accept common native-language equivalents when the model localizes a query.
+  // These aliases establish topical equivalence only; evidence and admission remain separate.
+  const normalizedValue = value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "");
+  if (
+    anchors.includes("renewable") && anchors.includes("energy")
+    && /\b(?:renewable\s+energy|odnawialn\w*\s+energi\w*|energi\w*\s+odnawialn\w*|erneuerbar\w*\s+energi\w*|obnoviteln\w*\s+zdroj\w*|atjaunojam\w*\s+energij\w*|atsinaujinant\w*\s+energetik\w*|taastuvenergi\w*)\b/iu.test(normalizedValue)
+  ) {
+    matched.add("renewable");
+    matched.add("energy");
+  }
+  if (
+    anchors.some((anchor) => ["agribusiness", "agriculture", "agricultural"].includes(anchor))
+    && /\b(?:agribusiness|agricultur\w*|zem[e]?d[e]?l\w*|rolnictw\w*|roln\w*|agrar\w*|landwirtschaft\w*)\b/iu.test(normalizedValue)
+  ) {
+    for (const anchor of anchors) {
+      if (["agribusiness", "agriculture", "agricultural"].includes(anchor)) matched.add(anchor);
+    }
   }
   // A single distinctive industry/entity anchor (e.g. "fitness") is sufficient;
   // a short, broad word such as "food" must be accompanied by another pivot anchor.
@@ -2578,26 +2622,50 @@ function pivotActionIsAligned(
   sourceUrls: ReadonlySet<string>,
   evidenceText: string,
 ): boolean {
-  const matchesScopeOrEvidence = (value: unknown) => {
+  const isWebDiscovery = action === "web_search" || action === "parallel_web_search";
+  const isRegistryAction = action === "registry_search" || action === "parallel_registry_search";
+  const matchesScopeOrEvidence = (value: unknown, selectedRegistry = "") => {
     const text = typeof value === "string" ? value : "";
+    const registry = selectedRegistry.trim();
+    const hasSelectedRegistry = registry.length > 0;
     const matchesSubject = anchors.length === 0 || pivotTextMatchesAnchors(text, anchors);
-    const matchesGeography = pivotTextMatchesGeography(text, geographyOptions);
-    // The Boss may list several acceptable public-source classes. One matching
-    // class is sufficient; requiring two source-class tokens made valid single-
-    // registry searches impossible. The first branch remains scoped by subject,
-    // geography, and source class; fetched evidence can ground later model-led work.
+    const matchesGeographyInQuery = pivotTextMatchesGeography(text, geographyOptions);
+    // A selected registry adapter can carry the jurisdiction (e.g. ares-czechia)
+    // when the model reasonably uses a concise query such as "agribusiness".
+    const matchesGeography = matchesGeographyInQuery
+      || (isRegistryAction && hasSelectedRegistry && pivotTextMatchesGeography(registry, geographyOptions));
     const matchesRequiredSource = requiredSourceAnchors.length === 0
-      || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors);
+      || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
+      || (isRegistryAction && hasSelectedRegistry
+        && requiredSourceAnchors.some((anchor) => ["registry", "database", "filing"].includes(anchor)));
+    const matchesCoreScope = matchesSubject && matchesGeography
+      && (isWebDiscovery || matchesRequiredSource);
+    // An official source discovery query can legitimately omit the business sector:
+    // it locates the in-scope registry instead of changing the research lane.
+    const officialSourceDiscovery = isWebDiscovery
+      && !matchesSubject
+      && matchesGeographyInQuery
+      && requiredSourceAnchors.length > 0
+      && pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
+      && /\b(?:site\s*:\s*[\w.-]+|\.gov\b|official|secretary of state|business entity|corporate entity|company register|company registry|state registry|handelsregister|krs|ceidg)\b/i.test(text);
+    const evidenceGrounded = pivotResourceIsGroundedInAlignedEvidence(value, evidenceText);
     return !pivotTextContainsExcludedSubject(text, excludedSubjects)
-      && ((matchesSubject && matchesGeography && matchesRequiredSource)
-        || pivotResourceIsGroundedInAlignedEvidence(value, evidenceText));
+      && (matchesCoreScope || officialSourceDiscovery || evidenceGrounded);
   };
   if (action === "web_search") return matchesScopeOrEvidence(args.query);
-  if (action === "parallel_web_search" || action === "parallel_registry_search") {
+  if (action === "parallel_web_search") {
     const searches = Array.isArray(args.searches) ? args.searches.filter((item) =>
       Boolean(item && typeof item === "object" && !Array.isArray(item)),
     ) as Array<Record<string, unknown>> : [];
     return searches.length > 0 && searches.every((item) => matchesScopeOrEvidence(item.query));
+  }
+  if (action === "parallel_registry_search") {
+    const searches = Array.isArray(args.searches) ? args.searches.filter((item) =>
+      Boolean(item && typeof item === "object" && !Array.isArray(item)),
+    ) as Array<Record<string, unknown>> : [];
+    return searches.length > 0 && searches.every((item) =>
+      matchesScopeOrEvidence(item.query, typeof item.registry === "string" ? item.registry : ""),
+    );
   }
   if (action === "visit" || action === "browser_fetch") {
     const requestedUrl = normalizedActionResourceUrl(args.url);
@@ -2609,7 +2677,9 @@ function pivotActionIsAligned(
     return Boolean(requestedUrl && !pivotTextContainsExcludedSubject(urlText, excludedSubjects)
       && (sourceUrls.has(requestedUrl) || (matchesSubject && matchesGeography && matchesRequiredSource)));
   }
-  if (action === "registry_search") return matchesScopeOrEvidence(args.query);
+  if (action === "registry_search") {
+    return matchesScopeOrEvidence(args.query, typeof args.registry === "string" ? args.registry : "");
+  }
   if (action === "domain_lookup" || action === "harvest_domain") {
     const domain = String(args.domain ?? "");
     return matchesScopeOrEvidence(domain)
@@ -2632,20 +2702,25 @@ function pivotActionAlignmentFailureDetails(
   sourceUrls: ReadonlySet<string>,
   evidenceText: string,
 ): string[] {
-  type Request = { label: string; value: unknown; kind: "query" | "url" | "domain" | "resource" };
+  type Request = { label: string; value: unknown; kind: "query" | "url" | "domain" | "resource"; registry?: string };
   const requests: Request[] = [];
   if (action === "parallel_web_search" || action === "parallel_registry_search") {
     const searches = Array.isArray(args.searches) ? args.searches : [];
     searches.forEach((item, index) => {
       if (!item || typeof item !== "object" || Array.isArray(item)) return;
+      const record = item as Record<string, unknown>;
       requests.push({
         label: `searches[${index}]`,
-        value: (item as Record<string, unknown>).query,
+        value: record.query,
         kind: "query",
+        registry: action === "parallel_registry_search" && typeof record.registry === "string" ? record.registry : undefined,
       });
     });
   } else if (action === "web_search" || action === "registry_search") {
-    requests.push({ label: "query", value: args.query, kind: "query" });
+    requests.push({
+      label: "query", value: args.query, kind: "query",
+      registry: action === "registry_search" && typeof args.registry === "string" ? args.registry : undefined,
+    });
   } else if (action === "visit" || action === "browser_fetch") {
     requests.push({ label: "url", value: args.url, kind: "url" });
   } else if (action === "domain_lookup" || action === "harvest_domain") {
@@ -2658,7 +2733,7 @@ function pivotActionAlignmentFailureDetails(
     requests.push({ label: "target", value: args.target, kind: "resource" });
   }
 
-  return requests.flatMap(({ label, value, kind }) => {
+  return requests.flatMap(({ label, value, kind, registry = "" }) => {
     const text = typeof value === "string" ? value : "";
     const excluded = pivotTextContainsExcludedSubject(text, excludedSubjects);
     const alreadyObserved = kind === "url"
@@ -2668,21 +2743,34 @@ function pivotActionAlignmentFailureDetails(
         : false;
     if (alreadyObserved && !excluded) return [];
 
+    const isWebDiscovery = action === "web_search" || action === "parallel_web_search";
+    const isRegistryAction = action === "registry_search" || action === "parallel_registry_search";
+    const matchesSubject = anchors.length === 0 || pivotTextMatchesAnchors(text, anchors);
+    const matchesGeography = pivotTextMatchesGeography(text, geographyOptions)
+      || (isRegistryAction && Boolean(registry) && pivotTextMatchesGeography(registry, geographyOptions));
+    const matchesRequiredSource = requiredSourceAnchors.length === 0
+      || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
+      || (isRegistryAction && Boolean(registry)
+        && requiredSourceAnchors.some((anchor) => ["registry", "database", "filing"].includes(anchor)));
+    const officialSourceDiscovery = isWebDiscovery
+      && !matchesSubject
+      && pivotTextMatchesGeography(text, geographyOptions)
+      && requiredSourceAnchors.length > 0
+      && pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
+      && /\b(?:site\s*:\s*[\w.-]+|\.gov\b|official|secretary of state|business entity|corporate entity|company register|company registry|state registry|handelsregister|krs|ceidg)\b/i.test(text);
     const dimensions: string[] = [];
     if (excluded) dimensions.push("subject/exclusion");
-    else if (anchors.length > 0 && !pivotTextMatchesAnchors(text, anchors)) dimensions.push("subject");
-    if (!pivotTextMatchesGeography(text, geographyOptions)) dimensions.push("geography");
-    if (requiredSourceAnchors.length > 0 && !pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)) {
-      dimensions.push("source class");
+    else if (!matchesSubject && !officialSourceDiscovery) dimensions.push("subject");
+    if (!matchesGeography) dimensions.push("geography");
+    if (!isWebDiscovery && !matchesRequiredSource) dimensions.push("source class");
+    if (dimensions.length > 0 && kind !== "query" && !alreadyObserved) {
+      dimensions.push("observed-source provenance");
     }
     if (
       dimensions.length > 0
       && !excluded
       && pivotResourceIsGroundedInAlignedEvidence(value, evidenceText)
     ) return [];
-    if (dimensions.length > 0 && kind !== "query" && !alreadyObserved) {
-      dimensions.push("observed-source provenance");
-    }
     return dimensions.length > 0 ? [`${label} ${dimensions.join(", ")}`] : [];
   });
 }
@@ -2783,7 +2871,7 @@ export function discoveryPivotAlignmentReason(
     + mismatch
     + ". The active Boss-accepted pivot is: "
     + direction.slice(0, 420)
-    + ". A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
+    + ". Web discovery queries must remain on the substantive topic and active geography, but do not need to repeat source-class wording; official registry discovery may precede named-company searches. Native-language equivalents are valid when they express the same topic. Registry searches must use an adapter matching the active jurisdiction/source class. Follow-up URLs must be observed leads or grounded in successful aligned evidence. Revise the actually mismatched dimension or ask Boss/Right-hand for new scope. No outbound request was made.";
 }
 /**
  * Split a model-selected parallel web-search batch at the active-pivot boundary.
@@ -3073,7 +3161,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactDiscoveryAdmissionContract = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF CONTRACT: exact full name and page-stated role co-bound on at least one successfully fetched claim-grade source, plus a source-observed ownership/control/equity/investment clue; business materiality is evaluated during target-scoped research; never infer wealth from seniority alone. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. This is a review-only PersonCandidate, not an HNWI conclusion. Official company leadership/staff pages and official filing/registry pages are acceptable only when directly binding exact name and role; search snippets and third-party people-search/profile-directory aggregators are leads only; URL lists and CONTACT FACTS (observed, not attributed) are not identity evidence. Never invent title, wealth, relationship or contact." : null;
       const compactEvidenceLaw = "EVIDENCE: Search snippets are leads, not evidence. Never invent identities, URLs or contacts. Non-terminal actions need hypothesis, purpose and expectedInformationGain; prefer independent sources and falsification.";
       const compactOutputContract = "OUTPUT CONTRACT: Return exactly ONE root JSON object and no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Defaults: {\"url\":null,\"searches\":[],\"findings\":[]}; unused scalars=null; arrays=[]. Allowed action/provider enums only. Non-terminal actions need hypothesis, purpose, expectedInformationGain in [0,1]. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose and registry=null. Parallel registry searches need 2–4 objects, each with query/registry/purpose and provider=null, locale=null, market=null; use only supported registry IDs in REGISTRY GUIDANCE. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Actions: web_search=query+provider; parallel_web_search=searches; visit=url; browser_fetch=url+provider; registry_search=query+registry; domain_lookup=domain+provider; done=findings+thought.";
-      const compactResearchContract = "MISSION PRIORITY: case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice. ACTIVE BOSS PIVOT replaces prior-turn scope; stay in scope unless evidence falsifies or makes it infeasible. SCOPE RECOVERY: for source-class pivots, a new search query must name the pivot subject, geography, and class; this means naming the active subject, geography and source class. Follow-up URL/resource actions must use observed pivot-aligned evidence. A blocked request is not negative evidence. Rationale/provider/registry metadata alone do not count. After a block, revise the mismatched dimension or request a new scope.";
+      const compactResearchContract = "MISSION PRIORITY: case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice. ACTIVE BOSS PIVOT replaces prior-turn scope; stay in scope unless evidence falsifies or makes it infeasible. SCOPE RECOVERY: keep web searches aligned to the substantive subject and active geography; discovery queries may find company lists or official registries without repeating every source-class phrase. Use native-language equivalents when they express the same subject. A selected registry adapter may supply jurisdiction/source-class context only when it matches the active pivot. Follow-up URLs must be observed leads or grounded in aligned source evidence. A block is not negative evidence; revise the actual failed dimension or request new scope.";
       const compactActionLiveness = "ACTION LIVENESS: Block exact repeats unless hypothesis/purpose, provider/market/resource, or new evidence changes.";
       const compactDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are the target; an organization is a lead, not the target. Require a source-backed ownership/equity/control/investment clue, never seniority alone. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Press/profile pages are leads, not targets/access routes. Avoid generic wealth/net-worth/private-equity-profile searches alone; avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor approved Boss scope; compare hypotheses, choose tools/actions, and pivot from evidence. No preset targets/queries. Never use placeholders such as CompanyName, companywebsite.com, or example.com." : null;
       const minimalDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY: People—not companies or executive prestige—are the target. Require source-backed ownership/equity/control clues; never infer wealth from seniority. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Avoid generic wealth/net-worth searches; rankings/global brands need a plausible local owner/operator route." : null;
@@ -3199,7 +3287,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const finalScope = activeScope
         ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 360)
         : "CASE OBJECTIVE: discover real people with credible wealth potential and a realistic person-level public/professional/intermediary route.";
-      const finalEvidenceRules = "SCOPE RECOVERY: a search query must name the active scope subject, geography and source class. After a block, revise the mismatched dimension or ask Boss/Right-hand for new scope; fetch only observed in-scope URLs. A blocked request is not negative evidence. Search-result URLs and snippets are leads, not evidence. Never invent identities, ownership clues, wealth or contacts.";
+      const finalEvidenceRules = "SCOPE RECOVERY: keep web discovery searches aligned to the active subject and geography; do not require every discovery query to repeat the chosen source class. Native-language equivalents are valid when they match the same subject. Registry searches must select an in-scope adapter; the adapter may supply jurisdiction and source-class context. After a block, revise the failed dimension or request new scope; fetch only observed leads. A blocked request is not negative evidence. Search-result URLs and snippets are leads, not evidence. Never invent identities, ownership clues, wealth or contacts.";
       const finalDiscoveryGate = input.mode === "discovery" ? (compactDiscoveryAdmissionContract ?? "") : "";
       // Keep schema, the scope-recovery rule, discovery admission law, latest
       // blocked action, and any same-pivot unfetched leads even in the last tier.
@@ -3233,7 +3321,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         activeScope
           ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 240)
           : finalScope,
-        "SCOPE RECOVERY: name the active subject, geography and source class in new searches; fetch only observed in-scope URLs. A blocked request is not negative evidence. Leads are not evidence.",
+        "SCOPE RECOVERY: keep web searches on the active subject/geography; source class need not appear in every discovery query. Match registry adapters to the active jurisdiction; fetch only observed URLs. A block is not negative evidence.",
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an adapter ID; public sites outside these integrations must be searched via web tools. Verify ownership fields before relying on them; search hits are leads.",
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
