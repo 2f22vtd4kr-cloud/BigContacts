@@ -628,7 +628,11 @@ describe("Atlas control-plane contract regression", () => {
     // each must merge the same episode once so the job projection cannot omit failed-episode activity.
     const mergeCount = canonicalDiscoverySource.match(/discovery = mergeDiscoveryResults\(discovery, nextDiscovery\);/g)?.length ?? 0;
     expect(mergeCount).toBe(2);
-    const failureStart = canonicalDiscoverySource.indexOf("if (episodeFailure) {");
+    // Token-window capacity failures are a deliberate exception: they flow through
+    // the shared capacity breaker below instead of entering terminal episode cleanup.
+    const failureStart = canonicalDiscoverySource.indexOf(
+      "if (episodeFailure && !isInvestigatorTokenCapacityUnavailableEpisode(nextDiscovery)) {",
+    );
     const failureMerge = canonicalDiscoverySource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery);", failureStart);
     const failureUpdate = canonicalDiscoverySource.indexOf("await updateJob(atlasJobId,", failureStart);
     const successMerge = canonicalDiscoverySource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery);", failureMerge + 1);
