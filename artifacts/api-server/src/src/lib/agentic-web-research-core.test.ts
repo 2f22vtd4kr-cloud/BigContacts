@@ -429,7 +429,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
-    expect(prompt).toContain("source-class wording");
+    expect(prompt).toContain("source class");
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
