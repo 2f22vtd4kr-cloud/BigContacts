@@ -1370,6 +1370,22 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(reason).toContain("2 successful search action(s)");
     expect(reason).toContain("1 valid, unvisited URL lead(s)");
 
+    // A guard rejection is not an actual source attempt and must not provide
+    // a way to resume broad searching while viable leads remain.
+    const afterBlockedOffScopeVisit = [
+      ...records,
+      {
+        ...livenessRecord("visit", "blocked"),
+        turn: 3,
+        pivotScopeKey: scopeKey ?? undefined,
+        args: { url: "https://unrelated.example/private-equity/team" },
+        observedUrls: [],
+      },
+    ];
+    expect(discoveryLeadFollowUpBackpressureReason("web_search", objective, afterBlockedOffScopeVisit)).toContain(
+      "discovery_lead_followup_gate",
+    );
+
     // A fetch attempt, even when the page fails, releases the gate so a dead URL
     // cannot force an unbounded source-fetch loop.
     const afterFailedFetch = [
