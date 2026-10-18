@@ -584,10 +584,17 @@ describe("Boss-accepted discovery pivot scope", () => {
     }, [])).toBeNull();
 
     // The guard remains strict on all three dimensions.
+    // Same-topic discovery is allowed even if every search does not repeat
+    // the source-class wording from the Boss pivot.
     expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
       query: "Texas manufacturing company owners",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toBeNull();
+    // A different industry in the same geography is still blocked.
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Texas offshore drilling rig executives",
+      provider: "serper",
+    }, [])).toContain("subject");
     expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
       query: "Michigan manufacturing database companies",
       provider: "serper",
