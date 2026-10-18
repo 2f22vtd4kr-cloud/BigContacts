@@ -487,6 +487,17 @@ async function searchOffeneregisterGermany(query: string, limit: number, signal?
   }
   return results;
 }
+async function searchBolagsverketSweden(
+  _query: string,
+  _limit: number,
+  signal?: AbortSignal,
+): Promise<RegistryResult[]> {
+  if (signal?.aborted) throw new Error("cancelled");
+  const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: bolagsverket-sweden has no supported direct-search integration configured. The previous implementation used an undocumented third-party Allabolag endpoint and mislabeled results as Bolagsverket records. Use web_search/parallel_web_search for Swedish company discovery, fetch observed source pages, use Sweden's SNI classification rather than assuming UK SIC labels, and verify beneficial-owner disclosures separately; do not assume a Swedish Companies House-style PSC record.");
+  Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
+  throw error;
+}
+
 async function searchYtjFinland(
   query: string,
   limit: number,
@@ -691,9 +702,7 @@ export async function searchRegistry(params: RegistrySearchParams): Promise<Regi
   const normalizedRegistry = normalizeRegistryId(registry);
   if (!normalizedRegistry) throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
   if (normalizedRegistry === "bolagsverket-sweden") {
-    const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: bolagsverket-sweden has no supported direct-search integration configured. The previous implementation used an undocumented third-party Allabolag endpoint and mislabeled results as Bolagsverket records. Use web_search/parallel_web_search for Swedish company discovery, fetch observed source pages, use Sweden's SNI classification rather than assuming UK SIC labels, and verify beneficial-owner disclosures separately; do not assume a Swedish Companies House-style PSC record.");
-    Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
-    throw error;
+    return searchBolagsverketSweden(query.trim(), limit, signal);
   }
   let results: RegistryResult[];
   if (normalizedRegistry === "opencorporates") {
