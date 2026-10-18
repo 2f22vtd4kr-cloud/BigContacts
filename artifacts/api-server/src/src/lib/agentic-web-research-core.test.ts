@@ -1353,21 +1353,33 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(reason).toContain("2 successful search action(s)");
     expect(reason).toContain("1 valid, unvisited URL lead(s)");
 
-    // A guard rejection is not an actual source attempt and must not provide
-    // a way to resume broad searching while viable leads remain.
-    const afterBlockedOffScopeVisit = [
-      ...records,
+    // A blocked visit must not release the gate or itself count as usable
+    // unvisited work; another unvisited lead should continue to hold back searches.
+    const twoUnvisitedLeads = [
+      ...records.slice(0, 1),
+      search(1, "https://www.ohiosos.gov/business/search"),
+      {
+        ...search(2, "https://www.ohiosos.gov/business/search"),
+        observedUrls: [
+          "https://www.ohiosos.gov/business/search",
+          "https://www.ohiosos.gov/business/filings",
+        ],
+      },
+    ];
+    const afterBlockedLeadVisit = [
+      ...twoUnvisitedLeads,
       {
         ...livenessRecord("visit", "blocked"),
         turn: 3,
         pivotScopeKey: scopeKey ?? undefined,
-        args: { url: "https://unrelated.example/private-equity/team" },
+        args: { url: "https://www.ohiosos.gov/business/search" },
+        observation: "ordered_source_stage_guard blocked the URL before outbound execution.",
         observedUrls: [],
       },
     ];
-    expect(discoveryLeadFollowUpBackpressureReason("web_search", objective, afterBlockedOffScopeVisit)).toContain(
-      "discovery_lead_followup_gate",
-    );
+    const afterBlockedReason = discoveryLeadFollowUpBackpressureReason("web_search", objective, afterBlockedLeadVisit);
+    expect(afterBlockedReason).toContain("discovery_lead_followup_gate");
+    expect(afterBlockedReason).toContain("1 valid, unvisited URL lead(s)");
 
     // A fetch attempt, even when the page fails, releases the gate so a dead URL
     // cannot force an unbounded source-fetch loop.
