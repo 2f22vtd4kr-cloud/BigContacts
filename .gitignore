@@ -62,4 +62,5 @@ Thumbs.db
 
 /audits/*LIVE_RUN_[0-9][0-9].md
 /audits/*FRESH_RUN_[0-9][0-9].md
+/audits/*REPLIT_RUN_*.md
 /APEX_ATLAS_SEQUENTIAL_AUDIT_*.md
