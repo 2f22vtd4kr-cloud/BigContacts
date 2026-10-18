@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -894,6 +894,9 @@ Choose each next action yourself from the available capabilities and observed ev
       "RECENT PRIOR ACTS (newest last): none.",
     ].join("\n");
     const observedWaterUtilityQuery = "Washington State Public Utilities Commission water utility licensees list officers";
+    const waterAnchors = pivotScopeAnchors(objective);
+    expect(waterAnchors).toContain("water");
+    expect(waterAnchors.some((anchor) => ["service", "provider", "right", "rights"].includes(anchor))).toBe(true);
 
     expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", {
       searches: [
@@ -1005,6 +1008,10 @@ Choose each next action yourself from the available capabilities and observed ev
       "RECENT PRIOR ACTS (newest last): none.",
     ].join("\n");
 
+    const midwestAnchors = pivotScopeAnchors(objective);
+    expect(midwestAnchors).toContain("manufacturing");
+    expect(midwestAnchors).not.toContain("secretary");
+    expect(midwestAnchors).not.toContain("portal");
     for (const state of ["Illinois", "Indiana", "Ohio", "Michigan"]) {
       expect(discoveryPivotAlignmentReason(objective, "web_search", {
         query: `${state} Secretary of State business entity search privately held mid-market manufacturing companies`,
