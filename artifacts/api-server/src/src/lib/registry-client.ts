@@ -487,7 +487,7 @@ async function searchOffeneregisterGermany(query: string, limit: number, signal?
   }
   return results;
 }
-async async function searchYtjFinland(
+async function searchYtjFinland(
   query: string,
   limit: number,
   signal?: AbortSignal,
