@@ -4,6 +4,7 @@ import {
   advanceInvestigatorTokenCapacityFailureStreak,
   hasReachedInvestigatorTokenCapacityFailureLimit,
   isInvestigatorTokenCapacityUnavailableEpisode,
+  isInvestigatorTokenDailyQuotaUnavailableEpisode,
   isInvestigatorProviderUnavailableEpisode,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
   MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
@@ -68,6 +69,21 @@ describe("canonical Investigator provider-unavailable breaker", () => {
     expect(advanceInvestigatorTokenCapacityFailureStreak(1, failure)).toBe(0);
     expect(advanceInvestigatorProviderUnavailableStreak(0, failure)).toBe(1);
     expect(failure.trajectoryRecords[0]?.observation).not.toContain("upstream_quota_exhausted");
+  });
+
+  it("identifies explicit TPD exhaustion without collapsing it into either quota class", () => {
+    const tpd = unavailable("INVESTIGATOR_PROVIDER_ERROR upstream_token_quota_exhausted");
+    const tokenWindow = unavailable("INVESTIGATOR_PROVIDER_ERROR upstream_token_window_wait_exceeded");
+    const hardRequestQuota = unavailable("INVESTIGATOR_PROVIDER_ERROR upstream_quota_exhausted");
+
+    expect(isInvestigatorTokenDailyQuotaUnavailableEpisode(tpd)).toBe(true);
+    expect(isInvestigatorTokenCapacityUnavailableEpisode(tpd)).toBe(false);
+    expect(hasReachedInvestigatorTokenCapacityFailureLimit(
+      MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
+      tpd,
+    )).toBe(false);
+    expect(isInvestigatorTokenDailyQuotaUnavailableEpisode(tokenWindow)).toBe(false);
+    expect(isInvestigatorTokenDailyQuotaUnavailableEpisode(hardRequestQuota)).toBe(false);
   });
 
   it("tracks repeated token-window failures separately from hard request-quota exhaustion", () => {
