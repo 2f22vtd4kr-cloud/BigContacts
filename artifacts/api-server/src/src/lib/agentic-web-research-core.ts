@@ -51,8 +51,14 @@ export function assignSearchResultLeads(
     if (typeof candidate !== "string" || !candidate.trim()) continue;
     let normalized: string;
     try {
-      const url = new URL(candidate.trim());
+      // Search adapters return untrusted URLs. Persist only the safe evidence
+      // representation; do not copy URL credentials or token-like parameters
+      // into trajectory/event state.
+      const safeUrl = sanitizeUrlForEvidence(candidate.trim());
+      if (!safeUrl || safeUrl.startsWith("[")) continue;
+      const url = new URL(safeUrl);
       if (url.protocol !== "http:" && url.protocol !== "https:") continue;
+      url.hash = "";
       normalized = url.href;
     } catch {
       continue;
