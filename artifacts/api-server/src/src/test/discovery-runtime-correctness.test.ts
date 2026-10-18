@@ -57,6 +57,19 @@ describe("discovery runtime architecture", () => {
     expect(orchestratorSource).toBe("");
   });
 
+  it("uses bounded output-budget recovery for the canonical opening Right-hand review", () => {
+    const rightHandCall = canonicalDiscoverySource.indexOf("runGroqRightHandFreeJson(");
+    const nextControlBoundary = canonicalDiscoverySource.indexOf("await assertAtlasJobActive(atlasJobId);", rightHandCall);
+    expect(rightHandCall).toBeGreaterThan(-1);
+    expect(nextControlBoundary).toBeGreaterThan(rightHandCall);
+    const openingCall = canonicalDiscoverySource.slice(rightHandCall, nextControlBoundary);
+    expect(openingCall).toContain("maxCompletionTokens: 1_024");
+    expect(openingCall).toContain('reasoningEffort: "low"');
+    expect(openingCall).toContain("maxAttempts: 4");
+    expect(openingCall).toContain("generationBudgetRecovery");
+    expect(openingCall).toContain("maxCompletionTokens: 1_536");
+  });
+
   it("keeps the canonical opening order Boss first, Right-hand second", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const bossIndex = canonicalSource.indexOf("const boss = await runGroqBossDiscovery(");

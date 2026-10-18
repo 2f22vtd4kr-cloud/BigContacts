@@ -780,6 +780,17 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           }
         },
         { jobId: atlasJobId, caseId: discoveryCaseId },
+        {
+          // The generic 768-token / medium-reasoning default exhausted this
+          // compact approval contract. Recover once with a bounded larger budget.
+          maxCompletionTokens: 1_024,
+          reasoningEffort: "low",
+          maxAttempts: 4,
+          generationBudgetRecovery: {
+            maxCompletionTokens: 1_536,
+            reasoningEffort: "low",
+          },
+        },
       ),
     ).catch((error) => ({
       status: "unavailable" as const,
