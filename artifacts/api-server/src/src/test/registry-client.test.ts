@@ -1,3 +1,21 @@
+describe("OffeneRegister SQL API request contract", () => {
+  it("uses the documented JSON SQL endpoint, singular company table and bound query parameter", () => {
+    const url = new URL(buildOffeneregisterSearchUrl("GmbH' OR 1=1 --", 999));
+    expect(url.origin + url.pathname).toBe("https://db.offeneregister.de/openregister.json");
+    expect(url.searchParams.get("sql")).toContain("FROM company");
+    expect(url.searchParams.get("sql")).toContain("company.name LIKE :p0");
+    expect(url.searchParams.get("sql")).not.toContain("GmbH");
+    expect(url.searchParams.get("p0")).toBe("%GmbH' OR 1=1 --%");
+    expect(url.searchParams.get("sql")).toContain("LIMIT 20");
+  });
+
+  it("bounds empty, overlong and non-finite requests before building the URL", () => {
+    expect(new URL(buildOffeneregisterSearchUrl("   ", 0)).searchParams.get("p0")).toBe("%%");
+    expect(new URL(buildOffeneregisterSearchUrl("A".repeat(300), Number.POSITIVE_INFINITY)).searchParams.get("p0")).toBe("%" + "A".repeat(180) + "%");
+    expect(new URL(buildOffeneregisterSearchUrl("Test", Number.POSITIVE_INFINITY)).searchParams.get("sql")).toContain("LIMIT 10");
+  });
+});
+
 import {
   classifyRegistryRecordType,
   normalizeUnverifiedRegistryType,
@@ -15,6 +33,7 @@ import {
   normalizeCompaniesHouseCompany,
   normalizeCompaniesHouseOfficer,
   normalizeSecEdgarHit,
+  buildOffeneregisterSearchUrl,
 } from "../lib/registry-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 

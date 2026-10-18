@@ -59,3 +59,7 @@ Thumbs.db
 
 # Private live-run audits can contain raw research data and provider prompts.
 /private-audits/
+
+/audits/*LIVE_RUN_[0-9][0-9].md
+/audits/*FRESH_RUN_[0-9][0-9].md
+/APEX_ATLAS_SEQUENTIAL_AUDIT_*.md

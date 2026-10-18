@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync, mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 const SAFE_REQUEST_KEYS = new Set([
   "include_reasoning",
@@ -86,6 +86,21 @@ export function resolveModelAuditFilePath(
 ): string {
   if (isAbsolute(configuredPath)) return configuredPath;
   return resolve(workspaceRootFrom(cwd), configuredPath);
+}
+
+function resolveSafeModelAuditFilePath(configuredPath: string, cwd: string): string | null {
+  const root = workspaceRootFrom(cwd);
+  const resolved = resolveModelAuditFilePath(configuredPath, cwd);
+  const relativePath = relative(root, resolved);
+  const isOutsideWorkspace = relativePath === ".."
+    || relativePath.startsWith(".." + sep)
+    || isAbsolute(relativePath);
+  const isInsideWorkspace = relativePath !== "" && !isOutsideWorkspace;
+  const normalizedRelativePath = relativePath.replace(/\\/g, "/");
+  // Model-visible prompts/pages can contain personal data and exact source trails.
+  // Any audit stored in the workspace must live in ignored private-audits/.
+  if (isInsideWorkspace && !normalizedRelativePath.startsWith("private-audits/")) return null;
+  return resolved;
 }
 
 const AUDIT_CONTACT_REPLACEMENTS: Array<[RegExp, string]> = [
@@ -344,7 +359,11 @@ export function emitModelPromptAudit(
   const serialized = JSON.stringify(record, null, 2);
   const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
   try {
-    const auditPath = resolveModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE!, cwd);
+    const auditPath = resolveSafeModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE!, cwd);
+    if (!auditPath) {
+      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit into a tracked workspace path; use private-audits/ or an absolute path outside the repository.\n");
+      return null;
+    }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
     write(
       auditPath,
@@ -460,7 +479,11 @@ export function emitModelPromptAuditResponse(
   const serialized = JSON.stringify(record, null, 2);
   const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
   try {
-    const auditPath = resolveModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE!, cwd);
+    const auditPath = resolveSafeModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE!, cwd);
+    if (!auditPath) {
+      process.stderr.write("[atlas_model_prompt_audit] refused to write a raw model audit into a tracked workspace path; use private-audits/ or an absolute path outside the repository.\n");
+      return;
+    }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
     write(
       auditPath,

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -350,7 +350,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/Fortune(?: 500)?\/ranking lists/);
     expect(prompt).toContain("a plausible local owner/operator route hypothesis");
     expect(prompt).toContain("Honor approved Boss scope");
-    expect(prompt).toContain("a new search query must name the pivot subject, geography, and class");
+    expect(prompt).toContain("source class need not appear in every discovery query");
     expect(prompt).toMatch(/Fortune(?: 500)?\/ranking lists/);
     expect(prompt).toContain("No preset targets/queries");
     expect(prompt).toMatch(/(?:News publishers and articles are evidence leads only|Publisher articles are evidence leads, never targets or access routes|Press articles (?:and third-party profiles are leads|are leads), not targets or access routes|Press\/profile pages are leads, not targets\/access routes)/);
@@ -375,7 +375,7 @@ describe("Investigator prompt architecture", () => {
     const blockedObservation = "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Midwest family-owned manufacturing businesses, United States Midwest, official state business registries. A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
     const compacted = compactEmergencyTrajectoryObservation(blockedObservation);
     expect(compacted).toContain("SCOPE GUARD BLOCKED ACTION");
-    expect(compacted).toContain("subject, geography and source class");
+    expect(compacted).toContain("web discovery may search in-scope topic/company terms");
     expect(compacted).toContain("observed aligned URL");
     expect(compacted).toContain("request new scope");
     expect(compacted).not.toContain("pivot_alignment_guard blocked this outbound action");
@@ -429,7 +429,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
-    expect(prompt).toContain("subject, geography and source class");
+    expect(prompt).toContain("source class");
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider");
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
@@ -669,7 +669,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Delaware renewable-energy firms privately held ownership",
       provider: "serper",
-    }, [])).toContain("source class");
+    }, [])).toBeNull();
   });
 
   it("matches Dallas, Fort Worth, and DFW alternatives without admitting another Texas metro", () => {
@@ -701,14 +701,31 @@ Choose each next action yourself from the available capabilities and observed ev
     ].join("\n\n");
     const searches = [
       { query: "Dallas private metal fabrication manufacturer database", provider: "serper" },
-      { query: "Dallas metal fabricator privately held site:linkedin.com/company", provider: "serper" },
+      { query: "Austin private metal fabrication manufacturer database", provider: "serper" },
     ];
 
     const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
     expect(partition.allowed).toEqual([searches[0]]);
     expect(partition.rejected).toHaveLength(1);
     expect(partition.rejected[0]?.search).toEqual(searches[1]);
-    expect(partition.rejected[0]?.reason).toContain("source class");
+    expect(partition.rejected[0]?.reason).toContain("geography");
+  });
+
+  it("filters out-of-scope registry pairs without vetoing aligned pairs in a parallel batch", () => {
+    const objective = [
+      "Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held mid-market agribusiness companies in the Czech Republic using the ARES-Czechia registry to identify owners/operators.",
+    ].join("\n");
+    const searches = [
+      { query: "Czech Republic privately held mid-market agribusiness companies", registry: "ares-czechia" },
+      { query: "Germany privately held mid-market manufacturing firms", registry: "offeneregister-germany" },
+    ];
+
+    const partition = partitionParallelRegistrySearchesByPivotScope(objective, searches, []);
+    expect(partition.allowed).toEqual([searches[0]]);
+    expect(partition.rejected).toHaveLength(1);
+    expect(partition.rejected[0]?.search).toEqual(searches[1]);
+    expect(partition.rejected[0]?.reason).toContain("geography");
   });
 
   it("does not infer a source-stage order from ordinary source alternatives", () => {
@@ -737,11 +754,18 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
 
     expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", { searches }, [])).toBeNull();
+    // Topic + geography are sufficient for a web-discovery query. The
+    // Investigator may choose a later search that names a specific filing or
+    // announcement source; the scope guard must not force a fixed tool sequence.
     expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", {
       searches: searches.map((search, index) => index === 1
         ? { ...search, query: "Thailand renewable energy private equity deal 2023 fund manager" }
         : search),
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Thailand water utility officers licensees",
+      provider: "serper",
+    }, [])).toContain("subject");
   });
 
   it("accepts official corporation-search wording for a corporate-filings pivot without relaxing subject or geography", () => {
@@ -798,6 +822,69 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [priorSearch])).toContain("observed-source provenance");
   });
 
+  it("allows in-scope discovery searches without forcing every query to repeat source-class wording", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Search Midwest state business registry filings for family-owned manufacturing firms in Illinois and Indiana.",
+    ].join("\n");
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: 'Illinois family owned manufacturing company site:ilsos.gov "business entity"',
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Illinois Secretary of State business entity search site:ilsos.gov",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Texas Secretary of State business entity search family-owned manufacturers",
+      provider: "serper",
+    }, [])).toContain("geography");
+  });
+
+  it("treats the Baltics as an OR-region and accepts local-language subject/geography aliases", () => {
+    const balticObjective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held mid-market renewable energy firms in the Baltic states (Estonia, Latvia, Lithuania) and identify registered owners via national business registries.",
+    ].join("\n");
+    expect(discoveryPivotAlignmentReason(balticObjective, "web_search", {
+      query: "Estonia business register renewable energy companies",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(balticObjective, "web_search", {
+      query: "Germany renewable energy companies",
+      provider: "serper",
+    }, [])).toContain("geography");
+
+    const polandObjective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held mid-market renewable energy firms in Poland using KRS or CEIDG to identify registered owners.",
+    ].join("\n");
+    expect(discoveryPivotAlignmentReason(polandObjective, "web_search", {
+      query: "Polska odnawialna energia KRS",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(polandObjective, "registry_search", {
+      query: "renewable energy",
+      registry: "ares-czechia",
+    }, [])).toContain("geography");
+  });
+
+  it("lets a scoped registry adapter supply jurisdiction and source-class context for concise queries", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held mid-market agribusiness companies in the Czech Republic using the ARES-Czechia registry to identify owners/operators.",
+    ].join("\n");
+    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
+      query: "agribusiness",
+      registry: "ares-czechia",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
+      query: "manufacturing",
+      registry: "sec-edgar",
+    }, [])).toContain("subject");
+  });
+
   it("recognizes the Run 05 water-utility licensee source and reports exact mismatch dimensions", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
@@ -807,6 +894,9 @@ Choose each next action yourself from the available capabilities and observed ev
       "RECENT PRIOR ACTS (newest last): none.",
     ].join("\n");
     const observedWaterUtilityQuery = "Washington State Public Utilities Commission water utility licensees list officers";
+    const waterAnchors = pivotScopeAnchors(objective);
+    expect(waterAnchors).toContain("water");
+    expect(waterAnchors.some((anchor) => ["service", "provider", "right", "rights"].includes(anchor))).toBe(true);
 
     expect(discoveryPivotAlignmentReason(objective, "parallel_web_search", {
       searches: [
@@ -823,11 +913,11 @@ Choose each next action yourself from the available capabilities and observed ev
     }, []);
     expect(outOfRegionReason).toContain("Scope mismatch dimensions: searches[1] geography.");
 
-    const missingSourceClassReason = discoveryPivotAlignmentReason(objective, "web_search", {
+    const inScopeDiscoveryQuery = discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Washington water utility officers",
       provider: "serper",
     }, []);
-    expect(missingSourceClassReason).toContain("Scope mismatch dimensions: query source class.");
+    expect(inScopeDiscoveryQuery).toBeNull();
 
     const unobservedUrlReason = discoveryPivotAlignmentReason(objective, "visit", {
       url: "https://example.org/about",
@@ -865,10 +955,10 @@ Choose each next action yourself from the available capabilities and observed ev
       provider: "serper",
     }, [])).toBeNull();
 
-    const missingSourceClass = discoveryPivotAlignmentReason(objective, "web_search", {
+    const inScopeDiscoveryQuery = discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Austin Texas private manufacturing company owners", provider: "serper",
     }, []);
-    expect(missingSourceClass).toContain("Scope mismatch dimensions: query source class.");
+    expect(inScopeDiscoveryQuery).toBeNull();
 
     const scopeKey = discoveryPivotScopeKey(objective);
     if (!scopeKey) throw new Error("Expected the pivot source class to define a scope key");
@@ -880,7 +970,7 @@ Choose each next action yourself from the available capabilities and observed ev
       pivotScopeKey: scopeKey, execution: "blocked",
       observation: "pivot_alignment_guard blocked this outbound action. Scope mismatch dimensions: query source class.",
       observedUrls: [], findings: [],
-    } as AgenticTrajectoryRecord])).toContain("repeat_pivot_alignment_guard");
+    } as AgenticTrajectoryRecord])).toBeNull();
   });
 
   it("accepts Secretary-of-State entity-search wording for a registry pivot without relaxing subject or geography", () => {
@@ -899,7 +989,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Wisconsin regional logistics company ownership public record",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Iowa Secretary of State business entity search regional logistics firms",
       provider: "serper",
@@ -907,7 +997,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Wisconsin Secretary of State business entity search private equity firms",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toContain("subject");
   });
   it("expands a Midwest scope to member states while rejecting out-of-region searches", () => {
     const objective = [
@@ -918,6 +1008,10 @@ Choose each next action yourself from the available capabilities and observed ev
       "RECENT PRIOR ACTS (newest last): none.",
     ].join("\n");
 
+    const midwestAnchors = pivotScopeAnchors(objective);
+    expect(midwestAnchors).toContain("manufacturing");
+    expect(midwestAnchors).not.toContain("secretary");
+    expect(midwestAnchors).not.toContain("portal");
     for (const state of ["Illinois", "Indiana", "Ohio", "Michigan"]) {
       expect(discoveryPivotAlignmentReason(objective, "web_search", {
         query: `${state} Secretary of State business entity search privately held mid-market manufacturing companies`,
@@ -1604,6 +1698,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
     expect(prompt).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
     expect(prompt).toContain("not evidence or a mandated next action");
+    expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
     expect(prompt).not.toContain("must visit");
   });
 

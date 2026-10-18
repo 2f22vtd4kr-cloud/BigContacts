@@ -34,11 +34,11 @@ describe("Groq Investigator runtime contract", () => {
       "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Perform registry queries on Zefix/Swiss commercial register. The action's actual query/resource is outside that scope. No outbound request was made.",
     );
     expect(compacted).toContain("SCOPE GUARD BLOCKED ACTION (no request)");
-    expect(compacted).toContain("query must name active scope subject, geography and source class");
+    expect(compacted).toContain("web discovery may search in-scope topic/company terms without repeating source-class wording");
+    expect(compacted).toContain("choose a registry adapter matching the active geography");
     expect(compacted).toContain("fetch only an observed aligned URL");
-    expect(compacted).toContain("Metadata is not scope");
-    expect(compacted).toContain("Revise or request new scope");
-    expect(compacted).toContain("do not repeat");
+    expect(compacted).toContain("do not retry unchanged without new evidence");
+    expect(compacted).toContain("request new scope from Boss/Right-hand when needed");
     expect(compacted).not.toContain("AUXILIARY CONTEXT BOUND");
   });
 

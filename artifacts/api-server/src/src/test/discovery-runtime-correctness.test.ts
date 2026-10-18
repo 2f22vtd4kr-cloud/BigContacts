@@ -533,7 +533,7 @@ describe("Boss-accepted discovery pivot scope", () => {
       "under-the-radar private equity founder profile",
       "2026 top private equity firm founder profile",
       "private family-owned business founder technology United Kingdom",
-      "private family-owned manufacturing company founder Texas",
+      "private family-owned technology company founder Texas",
       "Texas private company founder Forbes largest private companies",
       "Texas family-owned business founder site:forbes.com",
     ];
@@ -553,8 +553,9 @@ describe("Boss-accepted discovery pivot scope", () => {
       hypothesis: "Find a named regional manufacturer",
       purpose: "Identify ownership through public filings",
     }, []);
-    expect(missingSourceClass).toContain("pivot_alignment_guard");
-    expect(missingSourceClass).toContain("source class");
+    // In-scope web discovery is source-neutral; the Investigator may choose
+    // a useful follow-up source without restating it in every search query.
+    expect(missingSourceClass).toBeNull();
 
     expect(discoveryPivotAlignmentReason(manufacturingPivot, "web_search", {
       query: "Texas family-owned manufacturers state filing database named owner",
@@ -583,10 +584,17 @@ describe("Boss-accepted discovery pivot scope", () => {
     }, [])).toBeNull();
 
     // The guard remains strict on all three dimensions.
+    // Same-topic discovery is allowed even if every search does not repeat
+    // the source-class wording from the Boss pivot.
     expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
       query: "Texas manufacturing company owners",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toBeNull();
+    // A different industry in the same geography is still blocked.
+    expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
+      query: "Texas offshore drilling rig executives",
+      provider: "serper",
+    }, [])).toContain("subject");
     expect(discoveryPivotAlignmentReason(alternativePivot, "web_search", {
       query: "Michigan manufacturing database companies",
       provider: "serper",
