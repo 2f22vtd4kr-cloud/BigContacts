@@ -687,6 +687,7 @@ describe("Run 04 search-lead and route-recovery regression", () => {
       "https://registry.example.test/search?id=42",
       "https://registry.example.test/search?id=42",
       "https://company.example.test/about",
+      "https://user:pass@private.example.test/search?api_key=secret-value#session",
       "javascript:alert(1)",
       "not a URL",
     ]);
@@ -694,7 +695,10 @@ describe("Run 04 search-lead and route-recovery regression", () => {
     expect(record.leadUrls).toEqual([
       "https://registry.example.test/search?id=42",
       "https://company.example.test/about",
+      "https://private.example.test/search?api_key=%5BREDACTED%5D",
     ]);
+    expect(record.leadUrls?.join("\n")).not.toContain("secret-value");
+    expect(record.leadUrls?.join("\n")).not.toContain("user:pass");
     expect(record.observedUrls).toEqual([]);
     expect(agenticCoreSource).toContain("assignSearchResultLeads(record, successful.flatMap((result) => result.urls))");
     expect(agenticCoreSource).toContain('assignSearchResultLeads(record, record.execution === "success" ? result.urls : [])');
