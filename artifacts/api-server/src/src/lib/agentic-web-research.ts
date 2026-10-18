@@ -222,6 +222,16 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
       wrapperFailureStage = "terminal_validation";
       if (isAcceptedInvestigatorTerminal({ action: raw.action, execution: raw.execution, stopReason: actResult.stopReason })) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId, consecutiveActionParseFailures };
     }
+    if (shouldContinueAfterInvestigatorParseFailure({
+      stopReason: actResult.stopReason,
+      consecutiveFailures: consecutiveActionParseFailures,
+      actionTurn,
+      maxActionTurns: maxDynamicActs,
+    })) {
+      // The failed contract remains in durable trajectory/context. Ask the model
+      // for a fresh action; no rejected query or tool call is replayed.
+      continue;
+    }
     if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") return { status: actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: actResult.stopReason, trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId, consecutiveActionParseFailures };
   }
   return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], ...(error ? { error } : {}), executionId, consecutiveActionParseFailures };
@@ -248,6 +258,33 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     }
     return { status: "error", model, iterations: attemptedActionTurn, searches, visits, findings, modelFindings, stopReason: "UNEXPECTED_ERROR", trajectory, trajectoryRecords: records, groundingTrajectoryRecords: [...historyRecords, ...records], error: summary, executionId, consecutiveActionParseFailures };
   }
+}
+
+/**
+ * Each core call is intentionally limited to one model-selected action. A malformed
+ * action can therefore be terminal inside that call even though the outer bureau
+ * still has room for its one bounded corrective Investigator turn.
+ */
+export function shouldContinueAfterInvestigatorParseFailure(input: {
+  stopReason?: string;
+  consecutiveFailures: number;
+  actionTurn: number;
+  maxActionTurns: number;
+}): boolean {
+  const failures = Number.isFinite(input.consecutiveFailures)
+    ? Math.max(0, Math.floor(input.consecutiveFailures))
+    : 0;
+  const actionTurn = Number.isFinite(input.actionTurn)
+    ? Math.max(0, Math.floor(input.actionTurn))
+    : 0;
+  const maxActionTurns = Number.isFinite(input.maxActionTurns)
+    ? Math.max(0, Math.floor(input.maxActionTurns))
+    : 0;
+
+  return input.stopReason === "PARSE_FAILURE"
+    && failures > 0
+    && failures < MAX_CONSECUTIVE_ACTION_PARSE_FAILURES
+    && actionTurn < maxActionTurns;
 }
 
 /** Canonical target research: the selected Investigator owns the sequential research trajectory; Groq Right-hand reviews each completed act and Groq Boss controls continuation. */
