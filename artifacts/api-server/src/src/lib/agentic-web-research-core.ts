@@ -2372,6 +2372,19 @@ function removePivotGeographyPhrases(direction: string): string {
     : withoutPhrases;
 }
 
+/**
+ * Remove named source-system details from the subject-anchor extraction input.
+ * A pivot can name a jurisdiction's registry (e.g. ARES-Czechia or KRS) as a
+ * permitted source without making that registry's brand a required sector term.
+ * Geography and source-class constraints are checked separately at the action boundary.
+ */
+function removePivotSourceSystemClauses(direction: string): string {
+  return direction.replace(
+    /\b(?:using|via|through|from|at|on|against|querying|searching)\s+(?:the\s+)?[^.;\n]{1,180}?\b(?:registr(?:y|ies)|registers?|databases?|filings?|records?|directories?|portals?|indexes?|lists?)\b[^.;\n]*/giu,
+    " ",
+  );
+}
+
 function pivotScopeAnchors(objective: string): string[] {
   const direction = extractBossPivotDirectionForCompactPrompt(objective);
   if (!direction) return [];
@@ -2380,7 +2393,8 @@ function pivotScopeAnchors(objective: string): string[] {
   const primaryScopeClause = direction.split(/[;\n]/u, 1)[0] ?? direction;
   const withoutNegatedSubjects = directionWithoutNegatedPivotSubjects(primaryScopeClause);
   const withoutLocations = removePivotGeographyPhrases(withoutNegatedSubjects);
-  const tokens = withoutLocations.toLowerCase().match(/[a-z]{3,}/g) ?? [];
+  const withoutSourceSystemDetails = removePivotSourceSystemClauses(withoutLocations);
+  const tokens = withoutSourceSystemDetails.toLowerCase().match(/[a-z]{3,}/g) ?? [];
   const anchors = tokens.map(pivotScopeToken).filter((token) =>
     token.length >= 4
     && !PIVOT_SCOPE_GENERIC_TERMS.has(token)
@@ -2391,7 +2405,7 @@ function pivotScopeAnchors(objective: string): string[] {
   // together they identify a substantive sector. Preserve that compound anchor
   // so regional queries can match both sector and geography without relaxing
   // the minimum substantive-scope check.
-  if (/\bprivate[-\s]+equity\b/iu.test(withoutLocations)) anchors.push("private_equity");
+  if (/\bprivate[-\s]+equity\b/iu.test(withoutSourceSystemDetails)) anchors.push("private_equity");
   return [...new Set(anchors)];
 }
 
