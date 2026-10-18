@@ -968,9 +968,12 @@ describe("registry catalogue honesty", () => {
     const { REGISTRY_COVERAGE_MATRIX } = await import("../lib/registry-matrix");
     const { REGISTRY_IDS } = await import("../lib/registry-client");
     const implemented = REGISTRY_COVERAGE_MATRIX.filter((entry) => entry.runtimeAdapterImplemented).map((entry) => entry.id).sort();
-    const callableIds = [...REGISTRY_IDS].sort();
+    // Sweden stays in the legacy registry ID catalogue for compatibility, but
+    // its unsupported adapter is deliberately unavailable and is not callable.
+    const callableIds = REGISTRY_IDS.filter((id) => id !== "bolagsverket-sweden").slice().sort();
     expect(implemented).toEqual(callableIds);
-    expect(REGISTRY_COVERAGE_MATRIX.filter((entry) => !entry.runtimeAdapterImplemented).map((entry) => entry.id).sort()).toEqual(["faa", "hmlr-ppd"]);
+    expect(REGISTRY_COVERAGE_MATRIX.filter((entry) => !entry.runtimeAdapterImplemented).map((entry) => entry.id).sort())
+      .toEqual(["bolagsverket-sweden", "faa", "hmlr-ppd"]);
   });
 });
 
