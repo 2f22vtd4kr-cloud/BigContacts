@@ -3466,7 +3466,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactRegistryGuidance,
         "PROVIDERS: search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain=rdap|whoisjson.",
         "EVIDENCE: fetched source text only; snippets/URLs are leads. Never invent people, roles, ownership or contacts. visit/browser_fetch do not extract PDFs; PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
-        "TERMINAL: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireFalsification=" + terminalContract.requireFalsification + "; all applicable gates must pass before done.,
+        "TERMINAL: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireFalsification=" + terminalContract.requireFalsification + "; all applicable gates must pass before done.",
         ultimateDiscoveryGate,
         ultimateAdmission,
         compactOutputContract,
