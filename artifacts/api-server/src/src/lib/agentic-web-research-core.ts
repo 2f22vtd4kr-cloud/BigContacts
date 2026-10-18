@@ -2245,6 +2245,14 @@ const PIVOT_GEOGRAPHIC_WORD = String.raw`[A-Z][\p{L}\p{M}'’.-]*`;
 const PIVOT_GEOGRAPHIC_NAME = `${PIVOT_GEOGRAPHIC_WORD}(?:[- ]${PIVOT_GEOGRAPHIC_WORD})*`;
 const PIVOT_GEOGRAPHIC_JURISDICTION_LIST =
   `\\b(?!(?:[Ss]earch|[Ii]nvestigate|[Rr]esearch|[Ff]ind|[Ll]ook|[Cc]heck|[Qq]uery|[Ss]can|[Rr]eview|[Aa]nalyze|[Ff]ocus|[Ss]hift|[Tt]arget|[Ee]xplore|[Pp]rioritize)\\b)(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)\\s+(?=(?:states?|counties?|provinces?|territories?|registry|registries|filing|database|companies|firms)\\b)`;
+// Geography can appear inside an official source name, not only after a preposition.
+// Parse jurisdiction prefixes like "Washington State" in "Washington State Secretary of State"
+// as geography so the state name cannot become a false substantive-sector anchor.
+const PIVOT_ADMINISTRATIVE_SOURCE_GEO_PREFIX = new RegExp(
+  "\\b(" + PIVOT_GEOGRAPHIC_NAME + "(?:\\s+(?:state|province|territory))?)\\s+(?=(?:secretary\\s+of\\s+state|department\\b|ministry\\b|business\\s+(?:entity|registry|register)|corporate\\s+filings?)\\b)",
+  "giu",
+);
+
 const PIVOT_GEOGRAPHIC_REGION_ALIASES: Array<{
   pattern: RegExp;
   alternatives: readonly (readonly string[])[];
@@ -2334,6 +2342,10 @@ function pivotScopeGeographyOptions(direction: string): string[][] {
     const isRegionalAlias = PIVOT_GEOGRAPHIC_REGION_ALIASES.some((region) => region.pattern.test(phrase));
     if (!isRegionalAlias) options.push(...pivotGeographicAlternatives(phrase));
   }
+  // Jurisdiction names can precede a formal source name rather than a preposition.
+  for (const match of direction.matchAll(PIVOT_ADMINISTRATIVE_SOURCE_GEO_PREFIX)) {
+    options.push(...pivotGeographicAlternatives(match[1]!));
+  }
   // Some model-written pivots put alternatives immediately before a jurisdiction
   // noun ("Michigan/Illinois state registries") rather than after a preposition.
   const jurisdictionList = new RegExp(PIVOT_GEOGRAPHIC_JURISDICTION_LIST, "gu");
@@ -2360,7 +2372,10 @@ function removePivotGeographyPhrases(direction: string): string {
     "gu",
   );
   const jurisdictionList = new RegExp(PIVOT_GEOGRAPHIC_JURISDICTION_LIST, "gu");
-  const withoutPhrases = direction.replace(locationClause, " ").replace(jurisdictionList, " ").replace(/\b(?:Pacific\s+Northwest|PNW)\b/giu, " ");
+  const withoutPhrases = direction.replace(locationClause, " ")
+    .replace(jurisdictionList, " ")
+    .replace(PIVOT_ADMINISTRATIVE_SOURCE_GEO_PREFIX, " ")
+    .replace(/\b(?:Pacific\s+Northwest|PNW)\b/giu, " ");
   // Geography may also occur inside example source names (e.g. "Washington
   // Department of Ecology"). Do not let those place names leak into the
   // substantive-subject anchors and accidentally authorize only that one state.
