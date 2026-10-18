@@ -496,6 +496,21 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("No candidate has been admitted, so the unused target-stage reserve is released for additional discovery");
     expect(canonicalSource).toContain("Discovery reached the global ${depth.agenticMaxIterations}-action ceiling without an admitted candidate; target research remains unauthorized without a qualifying lead.");
   });
+  it("exposes global mission budget separately from local episode exhaustion and preserves actionable leads", () => {
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    const controlSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
+    expect(canonicalSource).toContain("missionActionBudget: {");
+    expect(canonicalSource).toContain("actionsUsed: investigatorIterationsUsed");
+    expect(canonicalSource).toContain("maximumActions: depth.agenticMaxIterations");
+    expect(canonicalSource).toContain("actionsRemaining: Math.max(0, depth.agenticMaxIterations - investigatorIterationsUsed)");
+    expect(canonicalSource).toContain("episodeLimitReached: discovery.stopReason === \"ITERATION_BUDGET\"");
+    expect(canonicalSource).toContain("missionLimitReached: investigatorIterationsUsed >= depth.agenticMaxIterations");
+    expect(controlSource).toContain("missionActionBudget: parsed.missionActionBudget");
+    expect(controlSource).toContain("parsed.openQuestions.slice(-12)");
+    expect(controlSource).toContain("question.unfetchedLeadUrls.filter");
+    expect(controlSource).toContain(".slice(0, 6).map((url) => url.slice(0, 220))");
+  });
+
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");
