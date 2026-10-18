@@ -2141,6 +2141,9 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
  */
 export function compactEmergencyTrajectoryObservation(observation: string): string {
   const normalized = typeof observation === "string" ? observation.trim() : "";
+  if (/discovery_lead_followup_gate/i.test(normalized)) {
+    return "DISCOVERY LEAD-UTILIZATION GATE BLOCKED ACTION (no request): multiple successful searches left valid in-scope URLs unvisited. Choose any observed lead or another non-search action; no specific URL, target, provider, or sequence is mandated. Search results remain leads until fetched.";
+  }
   if (/SCOPE FILTERED PARALLEL SEARCHES:/i.test(normalized)) {
     const rejectedDimensions = normalized.match(/Rejected dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
     return "PARTIAL PARALLEL SCOPE FILTER (no out-of-scope request): only scope-aligned queries were retained for execution; rejected queries were not sent. "
@@ -3152,7 +3155,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactObservation = compactEmergencyTrajectoryObservation(record.observation ?? "");
       // Guard summaries encode recovery instructions; truncating even the compact
       // version can erase the action the next turn must recover from.
-      return /^(?:SCOPE GUARD BLOCKED ACTION|SOURCE-STAGE GUARD BLOCKED ACTION|PARTIAL PARALLEL SCOPE FILTER)/u.test(compactObservation)
+      return /^(?:SCOPE GUARD BLOCKED ACTION|SOURCE-STAGE GUARD BLOCKED ACTION|PARTIAL PARALLEL SCOPE FILTER|DISCOVERY LEAD-UTILIZATION GATE BLOCKED ACTION)/u.test(compactObservation)
         ? compactObservation
         : compactObservation.slice(0, observationChars);
     })(),
@@ -3486,6 +3489,83 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   }
   const boundedState = boundedAuxiliaryState(dynamicState, dynamicBudget);
   return [prefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n");
+}
+
+const DISCOVERY_SEARCH_ACTIONS_FOR_LEAD_BACKPRESSURE = new Set([
+  "web_search", "parallel_web_search", "registry_search", "parallel_registry_search",
+]);
+const DISCOVERY_LEAD_ATTEMPT_ACTIONS_FOR_BACKPRESSURE = new Set([
+  "visit", "browser_fetch", "domain_lookup", "harvest_domain",
+  "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot",
+]);
+
+/**
+ * Keep model-led discovery from endlessly widening its searches while it already
+ * has source URLs it has not tried. This is deliberately a search-only backpressure
+ * gate: it does not select a lead, query, provider, or tool. An actual non-search
+ * attempt releases the gate, while guard-blocked actions do not; dead leads can
+ * therefore be retired without allowing authorization rejections to reopen search loops.
+ */
+export function discoveryLeadFollowUpBackpressureReason(
+  action: string,
+  objective: string,
+  priorRecords: readonly AgenticTrajectoryRecord[],
+): string | null {
+  if (!DISCOVERY_SEARCH_ACTIONS_FOR_LEAD_BACKPRESSURE.has(action)) return null;
+
+  const activeScopeKey = discoveryPivotScopeKey(objective);
+  let successfulSearchActions = 0;
+  const unvisitedLeads = new Set<string>();
+  const previouslyAttemptedUrls = new Set<string>();
+  const rejectedLeadUrls = new Set<string>();
+
+  // Exclude URLs already fetched/attempted in this same accepted pivot. A
+  // blocked visit made no outbound request, but that URL should also not keep
+  // the gate alive when an authorization/source-stage guard has rejected it.
+  for (const record of priorRecords) {
+    if (activeScopeKey ? record.pivotScopeKey !== activeScopeKey : Boolean(record.pivotScopeKey)) continue;
+    if (record.action !== "visit" && record.action !== "browser_fetch") continue;
+    const requestedUrl = normalizedActionResourceUrl(record.args?.url);
+    if (requestedUrl && record.execution === "blocked") rejectedLeadUrls.add(requestedUrl);
+    else if (requestedUrl && record.execution !== "selected") previouslyAttemptedUrls.add(requestedUrl);
+    if (record.execution === "success") {
+      for (const observedUrl of record.observedUrls ?? []) {
+        const normalized = normalizedActionResourceUrl(observedUrl);
+        if (normalized) previouslyAttemptedUrls.add(normalized);
+      }
+    }
+  }
+
+  for (let index = priorRecords.length - 1; index >= 0; index -= 1) {
+    const record = priorRecords[index]!;
+    // Do not reuse old-pivot leads, or count activity from before the accepted
+    // scope changed. Unversioned opening records are likewise outside a later pivot.
+    if (activeScopeKey ? record.pivotScopeKey !== activeScopeKey : Boolean(record.pivotScopeKey)) break;
+    if (DISCOVERY_LEAD_ATTEMPT_ACTIONS_FOR_BACKPRESSURE.has(record.action)) {
+      // Only an actual outbound attempt releases the search gate. A scope/repeat
+      // guard rejection performed no research and must not be an escape hatch.
+      if (record.execution !== "blocked" && record.execution !== "selected") break;
+      continue;
+    }
+    if (!DISCOVERY_SEARCH_ACTIONS_FOR_LEAD_BACKPRESSURE.has(record.action) || record.execution !== "success") continue;
+
+    successfulSearchActions += 1;
+    for (const rawUrl of [...(record.observedUrls ?? []), ...(record.leadUrls ?? [])]) {
+      const url = normalizedActionResourceUrl(rawUrl);
+      if (!url || previouslyAttemptedUrls.has(url) || rejectedLeadUrls.has(url) || !validateDiscoverySourceUrl(url).allowed) continue;
+      unvisitedLeads.add(url);
+    }
+  }
+
+  // Two completed search actions are enough to surface multiple alternatives;
+  // this avoids burning the bounded discovery window on query paraphrases.
+  if (successfulSearchActions < 2 || unvisitedLeads.size === 0) return null;
+  return "discovery_lead_followup_gate blocked this search before outbound execution. "
+    + successfulSearchActions + " successful search action(s) have left "
+    + unvisitedLeads.size + " valid, unvisited URL lead(s) in the active scope. "
+    + "Search results are leads, not evidence. Choose any observed lead or another non-search action; "
+    + "an attempted non-search action releases this backpressure so an inaccessible or irrelevant lead cannot deadlock the mission. "
+    + "No query, person, provider, URL, or fixed sequence is prescribed. No outbound request was made.";
 }
 
 export function discoverySearchLivenessAdvisory(records: readonly AgenticTrajectoryRecord[]): string | null {
@@ -3824,7 +3904,19 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           + [...new Set(partition.rejected.map(({ reason }) => reason.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim() ?? "active pivot scope"))].join("; ")
           + ". Rejected registry/query pairs were not sent.";
       }
-    } const repeatedPivotBlockReason = input.mode === "discovery" && action.action !== "done" ? repeatedPivotBlockedActionReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (repeatedPivotBlockReason) { record.execution = "blocked"; record.observation = repeatedPivotBlockReason; lastObservation = repeatedPivotBlockReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_pivot_alignment_guard blocked an identical rejected action without new fetched evidence" }); continue; } const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
+    } const repeatedPivotBlockReason = input.mode === "discovery" && action.action !== "done" ? repeatedPivotBlockedActionReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (repeatedPivotBlockReason) { record.execution = "blocked"; record.observation = repeatedPivotBlockReason; lastObservation = repeatedPivotBlockReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_pivot_alignment_guard blocked an identical rejected action without new fetched evidence" }); continue; } const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } const leadFollowUpBackpressure = input.mode === "discovery"
+      ? discoveryLeadFollowUpBackpressureReason(action.action, input.objective ?? "", previousResearchRecords)
+      : null;
+    if (leadFollowUpBackpressure) {
+      record.execution = "blocked";
+      record.observation = leadFollowUpBackpressure;
+      lastObservation = leadFollowUpBackpressure;
+      pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=discovery_lead_followup_gate");
+      await emitSanitizedTrajectoryRecord(record);
+      emit(action.action, { status: "blocked", summary: "Lead-utilization backpressure paused another search while unvisited in-scope leads remain." });
+      continue;
+    }
+    runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
       const boundFindings = bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)]);
       for (const binding of boundFindings) {
         intelligence.recordAction({
