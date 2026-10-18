@@ -533,7 +533,7 @@ describe("Boss-accepted discovery pivot scope", () => {
       "under-the-radar private equity founder profile",
       "2026 top private equity firm founder profile",
       "private family-owned business founder technology United Kingdom",
-      "private family-owned manufacturing company founder Texas",
+      "private family-owned technology company founder Texas",
       "Texas private company founder Forbes largest private companies",
       "Texas family-owned business founder site:forbes.com",
     ];
