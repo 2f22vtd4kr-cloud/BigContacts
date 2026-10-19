@@ -40,11 +40,23 @@ describe("registry failure semantics", () => {
   });
 
   it.each(registries)("surfaces an upstream failure for $registry instead of reporting an empty search", async ({ registry, error }) => {
+    if (registry === "offeneregister-germany") vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "true");
     safeOutboundFetchMock.mockResolvedValueOnce(
       new Response("upstream unavailable", { status: 503, statusText: "Service Unavailable" }),
     );
 
     await expect(searchRegistry({ query: "Apex example", registry })).rejects.toThrow(error);
+  });
+
+  it("does not advertise or call German Open Register before its endpoint contract is live-verified", async () => {
+    vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "");
+    expect(isRegistryProviderAvailable("offeneregister-germany")).toBe(false);
+    expect(getAvailableRegistryIds()).not.toContain("offeneregister-germany");
+
+    await expect(
+      searchRegistry({ query: "Berlin manufacturing companies", registry: "offeneregister-germany" }),
+    ).rejects.toThrow(/REGISTRY_ADAPTER_UNAVAILABLE.*disabled until.*live runtime smoke test.*not a no-hit/i);
+    expect(safeOutboundFetchMock).not.toHaveBeenCalled();
   });
 
 
@@ -141,6 +153,7 @@ describe("registry failure semantics", () => {
   });
 
   it("normalizes valid object-shaped Open Register rows from a successful Datasette response", async () => {
+    vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "true");
     safeOutboundFetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({
         ok: true,
@@ -168,6 +181,7 @@ describe("registry failure semantics", () => {
   });
 
   it("accepts a genuine zero-hit result only with a valid success envelope and columns", async () => {
+    vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "true");
     safeOutboundFetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({
         ok: true,
@@ -186,6 +200,7 @@ describe("registry failure semantics", () => {
   });
 
   it("rejects an incompatible/malformed Open Register response instead of treating it as zero hits", async () => {
+    vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "true");
     safeOutboundFetchMock.mockResolvedValueOnce(
       new Response(JSON.stringify({ ok: true, rows: [], columns: [] }), {
         status: 200,
