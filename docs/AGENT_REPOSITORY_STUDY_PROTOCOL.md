@@ -300,7 +300,7 @@ Follow this sequence unless a user explicitly changes the task:
 1. Read `README.md`.
 2. Read `docs/CURRENT_STATUS_2026-10-15.md` and verify the newest audit pointer.
 3. Read `docs/context.md`.
-4. Read `docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md` — follow its current override at the top; treat the dated body as historical incident lineage.
+4. Read `docs/apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md` — follow its 2026-10-19 current override at the top; treat the dated body as historical incident lineage.
 5. Read `docs/BUREAU_REACT_ARCHITECTURE.md`.
 5. Read `docs/APEX_ATLAS_VERY_STRONG_ROADMAP.md`.
 6. Read `docs/APEX_ATLAS_CEO_RELEASE_REVIEW_2026-09-20.md`.
@@ -325,7 +325,7 @@ Apex is a research system where a plausible answer can be more dangerous than an
 
 ## Current empirical-state addendum — 2026-10-19
 
-The 16 October Run 05 details below are historical. The newest saved actual launch currently recorded in the tracked repository is `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_FRESH_PROJECT_RUN_03.md`, job `718ed715-aa6d-43c9-916f-463371485ad8`. Its visible discovery trace has zero findings/admissions and does not contain the final durable terminal status, post-run case/evidence/admission/card counts, or the active-lock reconciliation. Before any subsequent canonical run, the user/operator must inspect this job and the live active-job lock in the actual runtime, read-only, and confirm it is terminal and idle. This ChatGPT code review must not access or run Replit.
+The 16 October Run 05 details below are historical. The latest recorded launch currently in the tracked repository is `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-19_MAIN_REFRESH_RELAUNCH_01.md`, job `8237e1a8-192a-480e-b415-78f24eb94407`. The report records HTTP 202 acceptance but stops at P012; later progress, final terminal status, post-run case/evidence/admission/card counts, and the active-lock reconciliation are absent. Before any subsequent canonical run, the user/operator must inspect this job and the live active-job lock in the actual runtime, read-only, and confirm terminal state and idle lock. This ChatGPT code review must not access or run Replit.
 
 GitHub CI must be rechecked at the actual current `main` HEAD after integration; past green checks are revision-specific. Passing CI only makes the code a candidate for operator-controlled live validation. It does not establish productive research or end-to-end acceptance.
 
