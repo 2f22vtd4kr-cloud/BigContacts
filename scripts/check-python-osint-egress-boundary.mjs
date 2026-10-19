@@ -21,6 +21,7 @@ const checks = [
   ["worker launches subprocesses with time/output/process limits", worker.includes('"/usr/bin/prlimit"') && worker.includes("max_output_bytes") && worker.includes("kill_process_tree")],
   ["worker enforces per-tool readiness before advertise/execute", worker.includes("initialize_cli_tool_readiness") && worker.includes("resolve_worker_tools")],
   ["SpiderFoot is module-allowlisted, bounded, and cancelled", worker.includes("SPIDERFOOT_ALLOWED_MODULES") && worker.includes("stopscan") && worker.includes("PROFILE_MODULES")],
+  ["SpiderFoot HTTP bodies are capped before JSON parsing", worker.includes("read_spiderfoot_response_capped") && worker.includes("spiderfoot_http.stream(") && worker.includes("MAX_SPIDERFOOT_RAW_EXPORT_BYTES")],
   ["NetworkPolicy restricts worker to DNS plus dedicated proxy", policies.includes("apex-osint-worker-egress") && policies.includes("apex-osint-egress-proxy")],
   ["proxy policy blocks private/reserved destinations on IPv4 and IPv6", policies.includes("0.0.0.0/0") && policies.includes("::/0") && policies.includes("169.254.0.0/16") && policies.includes("fc00::/7")],
   ["live deployment attestor checks network policies and direct-egress denial", attestor.includes("verify_network_policies") && attestor.includes("DIRECT_BLOCKED") && attestor.includes("METADATA_BLOCKED")],

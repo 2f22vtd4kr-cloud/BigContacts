@@ -14,6 +14,7 @@ const discovery = read("artifacts/api-server/src/src/lib/discovery-agent.ts");
 const orchestrator = readOptional("artifacts/api-server/src/src/lib/atlas-orchestrator.ts");
 const registry = read("artifacts/api-server/src/src/lib/registry-client.ts");
 const pythonTools = read("artifacts/api-server/src/src/lib/python-tools.ts");
+const pythonWorkerClient = read("artifacts/api-server/src/src/lib/python-osint-worker-client.ts");
 const capabilityRegistry = read("artifacts/api-server/src/src/lib/atlas-capability-registry.ts");
 const orientation = read("artifacts/api-server/src/src/lib/apex-bureau-orientation.ts");
 const aiExtractorPath = "artifacts/api-server/src/src/lib/ai-extractor.ts";
@@ -33,8 +34,9 @@ const canonicalSources = [wrapper, agentic, strict, batch, discovery, orchestrat
 const modelSelectableActions = agentic.match(/const MODEL_SELECTABLE_AGENT_ACTIONS = \[([\s\S]*?)\] as const/)?.[1] ?? "";
 const schemaUsesSharedActionList = /action:\s*\{\s*type:\s*"string",\s*enum:\s*\[\.\.\.MODEL_SELECTABLE_AGENT_ACTIONS\]/.test(agentic);
 const promptUsesSharedActionList = (agentic.includes('"AVAILABLE ACTIONS: " + availableActions.join(" | ")') || agentic.includes('"AVAILABLE ACTIONS: " + MODEL_SELECTABLE_AGENT_ACTIONS.join(" | ")'))
+  && agentic.includes("const selectableActions = getModelSelectableAgentActions()")
   && agentic.includes("const availableActions = availableBrowserProviders.length")
-  && agentic.includes('MODEL_SELECTABLE_AGENT_ACTIONS.filter((action) => action !== "browser_fetch")')
+  && agentic.includes('selectableActions.filter((action) => action !== "browser_fetch")')
   && agentic.includes("getAvailableBrowserFetchProviders()");
 const nonExecutablePythonActions = ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"];
 
@@ -65,10 +67,10 @@ pass("Sherlock receives run cancellation", /runSherlock\([^\n]*signal:\s*runCont
 pass("registry receives run cancellation", agentic.includes("limit: 8, signal: runController.signal"));
 pass("registry transport composes caller cancellation with local timeout", registry.includes("function createRegistryRequestSignal") && registry.includes("AbortSignal.any([signal, timeoutSignal])"));
 pass("registry has no timeout-only fetch signal", !/signal:\s*AbortSignal\.timeout\(/.test(registry));
-pass("Python OSINT source fails closed", pythonTools.includes("authorizePythonSandboxRequest") && pythonTools.includes("available: false"));
+pass("Python OSINT source fails closed", pythonTools.includes("executePythonOsintTool") && pythonTools.includes("available: false") && !/from ["\']node:child_process["\']|from ["\']child_process["\']|execFile|spawn\(/.test(pythonTools));
 pass("Python OSINT does not directly spawn subprocesses", !/from [\"']node:child_process[\"']|from [\"']child_process[\"']|execFile|spawn\(|spawnSync\(/.test(pythonTools));
-pass("Python OSINT availability requires attestation", pythonTools.includes('state === "attested"') && pythonTools.includes('allowedCapabilities.includes("network_osint")'));
-pass("harvest_domain is fail-closed behind the Python sandbox contract", /runTheHarvester/.test(agentic) && pythonTools.includes('available: false') && pythonTools.includes('const blocked = authorizeNetworkPython(options.signal)'));
+pass("Python OSINT availability requires attestation", pythonWorkerClient.includes('item.state !== "attested"') && pythonWorkerClient.includes('item.allowedCapabilities.includes("network_osint")') && pythonWorkerClient.includes("APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST") && pythonWorkerClient.includes("APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST"));
+pass("harvest_domain is fail-closed behind the Python sandbox contract", /runTheHarvester\(action\.domain, undefined, \{ signal: runController\.signal, correlation:/.test(agentic) && pythonTools.includes('executeTool("theharvester"') && pythonWorkerClient.includes('destinationPolicy: "approved-public-web-only"') && pythonWorkerClient.includes('if (!authorization.allowed) throw new Error'));
 pass("orientation does not present planned Python executors as live tools", orientation.includes("Python-backed Holehe, Maigret, Sherlock, theHarvester, and SpiderFoot are intentionally not available capabilities") && !/^- footprint_(?:email|username_maigret|username_sherlock|spiderfoot)|^- harvest_domain/m.test(orientation));
 pass("compatibility response cannot select a disabled Python capability", agentic.includes("export function isModelSelectableAgentAction(action: unknown)") && /function parseAction\(raw: string\): AgentAction \| null \{[^\n]*if \(!isModelSelectableAgentAction\(action\)\) return null/.test(agentic));
 pass("legacy AI extraction surface is explicitly retired or contains no DeepSeek/NVIDIA fallback", legacyExtractionRetired || !/runDeepSeek|DEEPSEEK|NVIDIA_NIM|nvidia-nim/i.test(aiExtractor));

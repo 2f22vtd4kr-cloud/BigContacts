@@ -119,6 +119,25 @@ describe("canonical Python tool adapters", () => {
     expect(outcome.available).toBe(true);
   });
 
+  it("strips credentials and sensitive query parameters from account-profile candidate URLs", async () => {
+    mockedExecute.mockResolvedValueOnce(result("sherlock", "completed", {
+      found: [{ siteName: "Example", url: "https://alice:password@social.example/alice?token=secret&view=public" }],
+      totalSitesChecked: 1,
+    }));
+    const sherlock = await runSherlock("alice");
+    expect(sherlock.found[0]?.url).not.toContain("password");
+    expect(sherlock.found[0]?.url).not.toContain("secret");
+    expect(sherlock.found[0]?.url).toContain("view=public");
+
+    mockedExecute.mockResolvedValueOnce(result("maigret", "completed", {
+      found: [{ siteName: "Example", url: "javascript:alert(1)", status: "found", profileData: { biography: "See https://example.test/?api_key=hidden" } }],
+      totalSitesChecked: 1,
+    }));
+    const maigret = await runMaigret("alice");
+    expect(maigret.found[0]?.url).toBeUndefined();
+    expect(maigret.found[0]?.profileData?.biography).not.toContain("hidden");
+  });
+
   it("preserves positive Sherlock profile URLs as review-only profile candidates", async () => {
     mockedExecute.mockResolvedValueOnce(result("sherlock", "completed", {
       found: [{ siteName: "Example", url: "https://social.example/alice" }],

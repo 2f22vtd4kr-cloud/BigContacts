@@ -6,7 +6,7 @@
  * Worker output is treated as untrusted, review-only observations and never
  * writes Atlas state directly.
  */
-import { sanitizeUrlForEvidence } from "./url-privacy";
+import { sanitizeObservableValue, sanitizeUrlForEvidence } from "./url-privacy";
 import {
   executePythonOsintTool,
   refreshPythonOsintToolAvailability,
@@ -157,11 +157,11 @@ export async function runHolehe(email: string, options: SubprocessOptions = {}):
   const data = resultPayload(response);
   const found = (Array.isArray(data.found) ? data.found : []).filter(isRecord).slice(0, 100).map((item) => ({
     name: text(item.name, 120) || text(item.service, 120) || "public service",
-    ...(text(item.url, 500) ? { url: text(item.url, 500) } : {}),
+    ...(safeSourceUrl(item.url) ? { url: safeSourceUrl(item.url)! } : {}),
     exists: item.exists === true,
     ...(typeof item.emailrecovery === "boolean" || typeof item.emailrecovery === "string" ? { emailrecovery: item.emailrecovery } : {}),
     ...(typeof item.phonenumber === "boolean" || typeof item.phonenumber === "string" ? { phonenumber: item.phonenumber } : {}),
-    ...(isRecord(item.others) ? { others: item.others } : {}),
+
   }));
   return {
     email: normalizedEmail, found,
@@ -183,10 +183,17 @@ export async function runMaigret(username: string, options: SubprocessOptions = 
   const found = (Array.isArray(data.found) ? data.found : []).filter(isRecord).slice(0, 300).flatMap((item): MaigretProfile[] => {
     const siteName = text(item.siteName, 160) || text(item.site, 160);
     const status = ["found", "not_found", "error", "unknown"].includes(String(item.status)) ? item.status as MaigretProfile["status"] : "unknown";
-    const url = text(item.url, 500);
+    const url = safeSourceUrl(item.url);
     if (!siteName) return [];
     const profileData = isRecord(item.profileData)
-      ? Object.fromEntries(Object.entries(item.profileData).filter((entry): entry is [string, string] => typeof entry[1] === "string").slice(0, 20))
+      ? Object.fromEntries(Object.entries(item.profileData)
+        .filter((entry): entry is [string, string] => typeof entry[1] === "string")
+        .slice(0, 20)
+        .flatMap(([key, value]) => {
+          const safeKey = text(key, 80);
+          const safeValue = text(sanitizeObservableValue(value), 500);
+          return safeKey && safeValue ? [[safeKey, safeValue] as [string, string]] : [];
+        }))
       : undefined;
     return [{
       siteName, status,
@@ -200,7 +207,7 @@ export async function runMaigret(username: string, options: SubprocessOptions = 
     totalSitesChecked: asNonNegativeInteger(data.totalSitesChecked),
     available: response.status === "completed" || (response.status === "partial" && found.length > 0),
     execution: executionMetadata(response),
-    ...(text(data.reportUrl, 500) ? { reportUrl: text(data.reportUrl, 500) } : {}),
+    ...(safeSourceUrl(data.reportUrl) ? { reportUrl: safeSourceUrl(data.reportUrl)! } : {}),
     ...(workerError(response, found.length > 0) ? { error: workerError(response, found.length > 0) } : {}),
   };
 }
@@ -214,7 +221,7 @@ export async function runSherlock(username: string, options: SubprocessOptions =
   const data = resultPayload(response);
   const found = (Array.isArray(data.found) ? data.found : []).filter(isRecord).slice(0, 300).flatMap((item): SherlockProfile[] => {
     const siteName = text(item.siteName, 160) || text(item.site, 160);
-    const url = text(item.url, 500);
+    const url = safeSourceUrl(item.url);
     return siteName && url ? [{ siteName, url, status: "found" }] : [];
   });
   return {

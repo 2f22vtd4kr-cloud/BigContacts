@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import httpx
 import importlib.util
 import base64
 import hashlib
@@ -207,6 +208,64 @@ class IsolationProofTests(unittest.TestCase):
         wrong_policy = {**self.payload, "verifiedNetworkPolicies": ["apex-osint-worker-egress"]}
         self.proof_path.write_text(json.dumps(isolation_envelope(self.private_key, wrong_policy)), encoding="utf-8")
         self.assertIsNone(app.load_isolation_proof())
+
+
+class SpiderFootTargetProjectionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_spiderfoot_events_do_not_duplicate_target_on_each_observation(self) -> None:
+        raw_target = "person@example.test"
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path.endswith("/startscan"):
+                return httpx.Response(200, json=["SUCCESS", "scan-1"])
+            if request.url.path.endswith("/scanstatus"):
+                return httpx.Response(200, json=["scan-1", "", "", "", "", "FINISHED"])
+            if request.url.path.endswith("/scanexportjsonmulti"):
+                return httpx.Response(200, json=[{
+                    "data": raw_target, "event_type": "EMAILADDR", "module": "sfp_test",
+                    "last_seen": "2026-10-19T10:00:00Z", "source_data": "https://source.example.test/report",
+                }])
+            return httpx.Response(404, json={"error": "not found"})
+
+        previous_client = app.spiderfoot_http
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            try:
+                app.spiderfoot_http = client
+                with patch.object(app, "spiderfoot_is_healthy", return_value=True):
+                    status, payload, _error = await app.run_spiderfoot(
+                        raw_target, "email", "contact-adjacent", 5_000, 100_000, "test-request",
+                    )
+            finally:
+                app.spiderfoot_http = previous_client
+        self.assertEqual(status, "completed")
+        self.assertIsNotNone(payload)
+        self.assertEqual(len(payload["observations"]), 1)
+        observation = payload["observations"][0]
+        self.assertNotIn("target", observation)
+        self.assertEqual(observation["value"], raw_target)
+        self.assertEqual(payload["target"], raw_target)
+
+
+class SpiderFootHttpOutputBoundsTests(unittest.IsolatedAsyncioTestCase):
+    async def test_spiderfoot_http_body_is_capped_before_json_parsing(self) -> None:
+        async def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=b'{"events":"' + (b"x" * 10_000) + b'"}')
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            async with client.stream("GET", "https://spiderfoot.test/export") as response:
+                body, truncated = await app.read_spiderfoot_response_capped(response, 512)
+        self.assertTrue(truncated)
+        self.assertLessEqual(len(body), 512)
+        self.assertTrue(body.startswith(b'{"events":'))
+
+    async def test_spiderfoot_http_body_at_budget_is_not_misreported_as_truncated(self) -> None:
+        expected = b'{"status":"FINISHED"}'
+        async def handler(_request: httpx.Request) -> httpx.Response:
+            return httpx.Response(200, content=expected)
+
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            async with client.stream("GET", "https://spiderfoot.test/status") as response:
+                body, truncated = await app.read_spiderfoot_response_capped(response, len(expected))
+        self.assertFalse(truncated)
+        self.assertEqual(body, expected)
 
 
 class ProcessLimitsTests(unittest.IsolatedAsyncioTestCase):

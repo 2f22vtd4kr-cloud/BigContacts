@@ -665,6 +665,26 @@ def spiderfoot_target_for_type(target: str, target_type: str) -> str:
     return target
 
 
+MAX_SPIDERFOOT_CONTROL_RESPONSE_BYTES = 16_384
+MAX_SPIDERFOOT_RAW_EXPORT_BYTES = 4_000_000
+
+
+async def read_spiderfoot_response_capped(response: httpx.Response, max_bytes: int) -> tuple[bytes, bool]:
+    """Read a decoded HTTP body under a hard memory bound; never buffer arbitrary SpiderFoot JSON."""
+    limit = max(1, min(int(max_bytes), MAX_SPIDERFOOT_RAW_EXPORT_BYTES))
+    body = bytearray()
+    async for chunk in response.aiter_bytes():
+        remaining = limit - len(body)
+        if remaining <= 0:
+            await response.aclose()
+            return bytes(body), True
+        body.extend(chunk[:remaining])
+        if len(chunk) > remaining:
+            await response.aclose()
+            return bytes(body), True
+    return bytes(body), False
+
+
 async def run_spiderfoot(target: str, target_type: str, profile: str, timeout_ms: int, max_output_bytes: int, request_id: str) -> tuple[str, dict[str, Any] | None, str | None]:
     global spiderfoot_http
     if not spiderfoot_is_healthy() or spiderfoot_http is None:
@@ -678,8 +698,8 @@ async def run_spiderfoot(target: str, target_type: str, profile: str, timeout_ms
     started = time.monotonic()
     target_value = spiderfoot_target_for_type(target, target_type)
     try:
-        start_response = await spiderfoot_http.post(
-            SPIDERFOOT_BASE_URL + "/startscan",
+        async with spiderfoot_http.stream(
+            "POST", SPIDERFOOT_BASE_URL + "/startscan",
             data={
                 "scanname": "apex-" + request_id[:36],
                 "scantarget": target_value,
@@ -689,25 +709,37 @@ async def run_spiderfoot(target: str, target_type: str, profile: str, timeout_ms
             },
             headers={"Accept": "application/json"},
             timeout=10,
-        )
-        if not start_response.is_success:
-            return "failed", None, "SpiderFoot rejected scan startup (HTTP " + str(start_response.status_code) + ")."
-        start_data = start_response.json()
+        ) as start_response:
+            if not start_response.is_success:
+                return "failed", None, "SpiderFoot rejected scan startup (HTTP " + str(start_response.status_code) + ")."
+            start_body, start_truncated = await read_spiderfoot_response_capped(start_response, MAX_SPIDERFOOT_CONTROL_RESPONSE_BYTES)
+            if start_truncated:
+                return "failed", None, "SpiderFoot scan startup exceeded its bounded response size."
+            try:
+                start_data = json.loads(start_body)
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                return "failed", None, "SpiderFoot returned a malformed scan-creation response."
         if not isinstance(start_data, list) or len(start_data) < 2 or start_data[0] != "SUCCESS":
             return "failed", None, "SpiderFoot returned an invalid scan-creation response."
         scan_id = str(start_data[1])
         deadline = started + timeout_ms / 1000
         status = ""
         while time.monotonic() < deadline:
-            response = await spiderfoot_http.get(
-                SPIDERFOOT_BASE_URL + "/scanstatus", params={"id": scan_id}, timeout=5,
-            )
-            if response.is_success:
-                status_data = response.json()
-                if isinstance(status_data, list) and len(status_data) >= 6:
-                    status = str(status_data[5])
-                    if status in ("FINISHED", "ABORTED", "ERROR-FAILED"):
-                        break
+            async with spiderfoot_http.stream(
+                "GET", SPIDERFOOT_BASE_URL + "/scanstatus", params={"id": scan_id}, timeout=5,
+            ) as status_response:
+                if status_response.is_success:
+                    status_body, status_truncated = await read_spiderfoot_response_capped(status_response, MAX_SPIDERFOOT_CONTROL_RESPONSE_BYTES)
+                    if status_truncated:
+                        raise ValueError("SpiderFoot status response exceeded its bounded size.")
+                    try:
+                        status_data = json.loads(status_body)
+                    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+                        raise ValueError("SpiderFoot returned malformed scan status.") from error
+                    if isinstance(status_data, list) and len(status_data) >= 6:
+                        status = str(status_data[5])
+                        if status in ("FINISHED", "ABORTED", "ERROR-FAILED"):
+                            break
             await asyncio.sleep(0.75)
         else:
             try:
@@ -717,15 +749,21 @@ async def run_spiderfoot(target: str, target_type: str, profile: str, timeout_ms
             return "timeout", None, "SpiderFoot exceeded its scan deadline; the scan was asked to stop."
         if status != "FINISHED":
             return "partial", {"observations": [], "eventsReceived": 0, "partial": True, "scanId": scan_id}, "SpiderFoot ended in status " + status + "."
-        result_response = await spiderfoot_http.post(
-            SPIDERFOOT_BASE_URL + "/scanexportjsonmulti",
+        async with spiderfoot_http.stream(
+            "POST", SPIDERFOOT_BASE_URL + "/scanexportjsonmulti",
             data={"ids": scan_id},
             headers={"Accept": "application/json"},
             timeout=10,
-        )
-        if not result_response.is_success:
-            return "partial", {"observations": [], "eventsReceived": 0, "partial": True, "scanId": scan_id}, "SpiderFoot scan finished but its result export failed."
-        raw_events = result_response.json()
+        ) as result_response:
+            if not result_response.is_success:
+                return "partial", {"observations": [], "eventsReceived": 0, "partial": True, "scanId": scan_id, "targetType": target_type, "profile": profile}, "SpiderFoot scan finished but its result export failed."
+            raw_export, export_truncated = await read_spiderfoot_response_capped(result_response, min(MAX_SPIDERFOOT_RAW_EXPORT_BYTES, max_output_bytes * 4))
+        if export_truncated:
+            return "partial", {"observations": [], "eventsReceived": 0, "partial": True, "scanId": scan_id, "targetType": target_type, "profile": profile}, "SpiderFoot result export exceeded its bounded response size."
+        try:
+            raw_events = json.loads(raw_export)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return "failed", None, "SpiderFoot returned a malformed event list."
         if not isinstance(raw_events, list):
             return "failed", None, "SpiderFoot returned a malformed event list."
         observations: list[dict[str, Any]] = []
@@ -752,7 +790,6 @@ async def run_spiderfoot(target: str, target_type: str, profile: str, timeout_ms
                     source_url = ""
             observations.append({
                 "scanId": scan_id,
-                "target": target,
                 "targetType": target_type,
                 "profile": profile,
                 "sourceModule": source_module[:120],

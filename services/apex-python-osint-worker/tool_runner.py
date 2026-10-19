@@ -43,7 +43,6 @@ def run_holehe(args: dict[str, Any]) -> dict[str, Any]:
             "exists": item.get("exists") is True,
             "emailrecovery": item.get("emailrecovery") if isinstance(item.get("emailrecovery"), (bool, str)) else None,
             "phonenumber": item.get("phoneNumber") if isinstance(item.get("phoneNumber"), (bool, str)) else None,
-            "others": item.get("others") if isinstance(item.get("others"), dict) else {},
             "error": item.get("error") is True,
             "rateLimit": item.get("rateLimit") is True,
         })
