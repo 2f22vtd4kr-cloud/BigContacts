@@ -227,7 +227,8 @@ describe("page visit response classification", () => {
   });
 
   it("persists exact source-span offsets and PDF page numbers in durable observation events", () => {
-    expect(agenticCoreSource).toContain("record.sourceBindings = boundFindings.map");
+    expect(agenticCoreSource).toContain("const sourceBindings = boundFindings.map");
+    expect(agenticCoreSource).toContain("record.sourceBindings = sourceBindings");
     expect(agenticCoreSource).toContain("pageNumber: span.pageNumber ?? null");
     expect(agenticCoreSource).toContain("sourceTurn: sourceRecord.turn");
     expect(bureauAgenticPassSource).toContain("sourceBindings:record.sourceBindings??[]");
