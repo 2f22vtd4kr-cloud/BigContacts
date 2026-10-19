@@ -117,7 +117,13 @@ describe("discovery runtime architecture", () => {
     expect(openingCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");
     expect(canonicalSource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
     expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
-    expect(canonicalSource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
+    const approvedOpeningStart = canonicalSource.indexOf("const approvedOpeningDirection = openingDirectionResolution.status === \\"approved\\"");
+    const persistedOpeningScope = canonicalSource.indexOf("controlTurn: 0", approvedOpeningStart);
+    const firstInvestigatorAct = canonicalSource.indexOf("let discovery = await runBureauAgenticWebPass", approvedOpeningStart);
+    expect(canonicalSource).toContain("persistAcceptedAtlasDiscoveryObjective({");
+    expect(canonicalSource).toContain("activeDiscoveryObjective = openingObjective.objective");
+    expect(persistedOpeningScope).toBeGreaterThan(approvedOpeningStart);
+    expect(firstInvestigatorAct).toBeGreaterThan(persistedOpeningScope);
   });
 
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
