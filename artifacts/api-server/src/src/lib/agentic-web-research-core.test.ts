@@ -238,6 +238,25 @@ describe("model-selectable Investigator capabilities", () => {
   });
 });
 
+describe("decision-scoped action allowlists", () => {
+  it("parses against the same allowlist captured for the model decision, not a later worker-cache state", () => {
+    const raw = JSON.stringify({
+      action: "footprint_email",
+      email: "alice@example.test",
+      hypothesis: "The observed email may have a public service footprint.",
+      purpose: "Test whether a targeted service footprint could distinguish the identity hypothesis.",
+      expectedInformationGain: 0.7,
+      thought: "Use the attested email footprint capability.",
+    });
+    expect(describeAgentActionParseFailure(raw, ["footprint_email"])).toBe("");
+    expect(parseAgentAction(raw, ["footprint_email"])).toMatchObject({
+      action: "footprint_email",
+      email: "alice@example.test",
+    });
+    expect(parseAgentAction(raw, ["web_search"])).toBeNull();
+  });
+});
+
 describe("Investigator outbound request audit boundary", () => {
   it("records the constructed outbound body only through the opt-in sanitized audit path", () => {
     expect(agenticCoreSource).toContain("emitInvestigatorProviderRequestAudit({");

@@ -34,8 +34,8 @@ const canonicalSources = [wrapper, agentic, strict, batch, discovery, orchestrat
 const modelSelectableActions = agentic.match(/const MODEL_SELECTABLE_AGENT_ACTIONS = \[([\s\S]*?)\] as const/)?.[1] ?? "";
 const schemaUsesSharedActionList = /action:\s*\{\s*type:\s*"string",\s*enum:\s*\[\.\.\.MODEL_SELECTABLE_AGENT_ACTIONS\]/.test(agentic);
 const promptUsesSharedActionList = (agentic.includes('"AVAILABLE ACTIONS: " + availableActions.join(" | ")') || agentic.includes('"AVAILABLE ACTIONS: " + MODEL_SELECTABLE_AGENT_ACTIONS.join(" | ")'))
-  && agentic.includes("const selectableActions = getModelSelectableAgentActions()")
-  && agentic.includes("const availableActions = availableBrowserProviders.length")
+  && agentic.includes("input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions()")
+  && agentic.includes("const availableActions = input.actionAllowlist ? [...input.actionAllowlist] : availableBrowserProviders.length")
   && agentic.includes('selectableActions.filter((action) => action !== "browser_fetch")')
   && agentic.includes("getAvailableBrowserFetchProviders()");
 const nonExecutablePythonActions = ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot"];
@@ -72,7 +72,7 @@ pass("Python OSINT does not directly spawn subprocesses", !/from [\"']node:child
 pass("Python OSINT availability requires attestation", pythonWorkerClient.includes('item.state !== "attested"') && pythonWorkerClient.includes('item.allowedCapabilities.includes("network_osint")') && pythonWorkerClient.includes("APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST") && pythonWorkerClient.includes("APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST"));
 pass("harvest_domain is fail-closed behind the Python sandbox contract", /runTheHarvester\(action\.domain, undefined, \{ signal: runController\.signal, correlation:/.test(agentic) && pythonTools.includes('executeTool("theharvester"') && pythonWorkerClient.includes('destinationPolicy: "approved-public-web-only"') && pythonWorkerClient.includes('if (!authorization.allowed) throw new Error'));
 pass("orientation does not present planned Python executors as live tools", orientation.includes("Python-backed Holehe, Maigret, Sherlock, theHarvester, and SpiderFoot are intentionally not available capabilities") && !/^- footprint_(?:email|username_maigret|username_sherlock|spiderfoot)|^- harvest_domain/m.test(orientation));
-pass("compatibility response cannot select a disabled Python capability", agentic.includes("export function isModelSelectableAgentAction(action: unknown)") && /function parseAction\(raw: string\): AgentAction \| null \{[^\n]*if \(!isModelSelectableAgentAction\(action\)\) return null/.test(agentic));
+pass("compatibility response cannot select a disabled Python capability", agentic.includes("export function isModelSelectableAgentAction(action: unknown)") && /function parseAction\(raw: string, actionAllowlist: readonly string\[\] = getModelSelectableAgentActions\(\)\): AgentAction \| null \{[^\n]*if \(!actionAllowlist\.includes\(action\)\) return null/.test(agentic) && agentic.includes("parseAction(llm.raw, actionAllowlistForTurn)"));
 pass("legacy AI extraction surface is explicitly retired or contains no DeepSeek/NVIDIA fallback", legacyExtractionRetired || !/runDeepSeek|DEEPSEEK|NVIDIA_NIM|nvidia-nim/i.test(aiExtractor));
 pass("legacy AI extraction surface is not required for canonical launch", true);
 pass("legacy entity contact-repair routes are retired at the mutation boundary", legacyGuard.includes("/entities/rehydrate-contacts") && legacyGuard.includes("/entities/fix-outcome-honesty"));

@@ -1265,7 +1265,7 @@ export function isModelSelectableAgentAction(action: unknown): boolean {
   return typeof action === "string" && getModelSelectableAgentActions().includes(action.trim().toLowerCase());
 }
 
-export function describeAgentActionParseFailure(raw: string): string {
+export function describeAgentActionParseFailure(raw: string, actionAllowlist: readonly string[] = getModelSelectableAgentActions()): string {
   const trimmed = raw.trim();
   if (!trimmed) return "empty_response";
   const candidate = unwrapOptionalJsonFence(raw);
@@ -1286,13 +1286,13 @@ export function describeAgentActionParseFailure(raw: string): string {
   catch { return `invalid_json chars=${json.length} digest=${digestDiagnosticText(json)}`; }
   const action = cleanText(value.action, 40).toLowerCase();
   if (!action) return "missing_action";
-  if (!isModelSelectableAgentAction(action)) return `unsupported_action action=${action}`;
+  if (!actionAllowlist.includes(action)) return `unsupported_action action=${action}`;
   const rationaleFailure = describeActionRationaleFailure(action, value);
   if (rationaleFailure) return rationaleFailure;
   return describeInvalidActionArguments(action, value) ?? "";
 }
 
-function parseAction(raw: string): AgentAction | null { if (describeAgentActionParseFailure(raw)) return null; const json = extractJsonObject(raw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (!isModelSelectableAgentAction(action)) return null; if (describeActionRationaleFailure(action, value)) return null; const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
+function parseAction(raw: string, actionAllowlist: readonly string[] = getModelSelectableAgentActions()): AgentAction | null { if (describeAgentActionParseFailure(raw, actionAllowlist)) return null; const json = extractJsonObject(raw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (!actionAllowlist.includes(action)) return null; if (describeActionRationaleFailure(action, value)) return null; const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
     const searches = value.searches.map((item) => {
       const entry = item as Record<string, unknown>;
       return {
@@ -1312,7 +1312,7 @@ function parseAction(raw: string): AgentAction | null { if (describeAgentActionP
     }) as Array<{ query: string; registry: string; purpose?: string }>;
     return { action: "parallel_registry_search", searches, thought: cleanText(value.thought, 500) || undefined, ...meta };
   } if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: cleanText(value.locale, 16) || undefined, market: cleanText(value.market, 16) || undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".") && ["rdap","whoisjson"].includes(cleanText(value.provider, 30))) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, provider: cleanText(value.provider, 30) as "rdap" | "whoisjson", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) return { action: "registry_search", query: cleanText(value.query, 200), registry: cleanText(value.registry, 60).toLowerCase(), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500)) && ["scrapfly","zenrows","browserless","playwright"].includes(cleanText(value.provider, 30))) return { action: "browser_fetch", url: cleanText(value.url, 500), provider: cleanText(value.provider, 30) as "scrapfly" | "zenrows" | "browserless" | "playwright", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") { const findings: AgenticFinding[] = []; for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) { if (!rawFinding || typeof rawFinding !== "object") continue; const f = rawFinding as Record<string, unknown>; const vector = cleanText(f.vectorType, 30).toLowerCase(); const valueText = cleanText(f.value, 500); const sourceUrls = filterClaimUrls(Array.isArray(f.sourceUrls) ? f.sourceUrls.filter((u): u is string => typeof u === "string") : []).map(normalizedUrl).filter((u): u is string => Boolean(u)); if (!valueText || !["email", "phone", "linkedin", "website", "social", "other"].includes(vector) || (vector !== "other" && sourceUrls.length === 0)) continue; let finalValue = valueText; if (vector === "email") { const e = sanitizePublicEmail(valueText); if (!e || isTrashContactValue("email", e)) continue; finalValue = e; } if (vector === "phone") { const p = sanitizePublicPhone(valueText); if (!p || isTrashContactValue("phone", p)) continue; finalValue = p; } if (vector === "website" && !isSafeHttpUrl(finalValue)) continue; findings.push({ vectorType: vector as AgenticFinding["vectorType"], value: finalValue, personName: typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null, role: typeof f.role === "string" ? f.role.trim().slice(0, 120) : null, scope: f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown", sourceUrls, note: cleanText(f.note, 400) || "Investigator-authored finding", promotionDecision: f.promotionDecision === "promote" || f.promotionDecision === "reject" ? f.promotionDecision : undefined, promotionReason: cleanText(f.promotionReason, 500) || undefined }); } return { action: "done", findings, thought: cleanText(value.thought, 500) || undefined, ...meta }; } } catch { return null; } return null; }
-export function parseAgentAction(raw: string): AgentAction | null { return parseAction(raw); }
+export function parseAgentAction(raw: string, actionAllowlist?: readonly string[]): AgentAction | null { return parseAction(raw, actionAllowlist); }
 
 export function buildAgenticActionParseFailureRecord(input: {
   turn: number;
@@ -1393,8 +1393,8 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
 }
 
 
-export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask }): Record<string, unknown> {
-  const { model, prompt, cognitiveTask } = input;
+export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[] }): Record<string, unknown> {
+  const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - systemPrompt.length));
   const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
@@ -1403,7 +1403,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
     model,
     max_completion_tokens: groqInvestigatorCompletionBudget(cognitiveTask),
     ...(reasoningSupported ? { reasoning_effort: groqInvestigatorReasoningEffort(model, cognitiveTask), include_reasoning: false } : {}),
-    response_format: structuredActionResponseFormat(model),
+    response_format: structuredActionResponseFormat(model, actionAllowlist),
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: boundedPrompt },
@@ -1568,6 +1568,7 @@ async function callGroqJson(
   onLocalProviderGateFailure?: (kind: "local_provider_cooldown" | "local_provider_budget_exhausted", model: string) => void,
   jobId?: string | null,
   caseId?: number | null,
+  actionAllowlist?: readonly string[],
 ): Promise<{ model: string; raw: string; error?: string } | null> {
   const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
   const key = keyName ? (process.env[keyName] || "").trim() : "";
@@ -1604,9 +1605,9 @@ async function callGroqJson(
           lastProviderError = "upstream_token_window_wait_exceeded";
           return { model, raw: "", error: lastProviderError };
         }
-        const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model);
+        const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model, actionAllowlist);
         const requestBody = {
-          ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask }),
+          ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask, actionAllowlist }),
           max_completion_tokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
           response_format: responseFormat,
         };
@@ -1779,7 +1780,7 @@ async function callGroqJson(
           if (
             recovery.action === "retry_json_object" &&
             !jsonObjectFallbackUsed &&
-            structuredActionResponseFormat(model).type === "json_schema"
+            structuredActionResponseFormat(model, actionAllowlist).type === "json_schema"
           ) {
             // Compatibility fallback only. Local action parsing and authorization remain mandatory.
             jsonObjectFallbackUsed = true;
@@ -1900,7 +1901,7 @@ function investigatorKeyConfiguredForCapability(capability: InvestigatorCapabili
   return Boolean(keyName && process.env[keyName]?.trim());
 }
 
-async function llmStepImpl(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+async function llmStepImpl(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[]): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   try {
     await acquireProviderSlot(parentSignal);
   } catch (error) {
@@ -1916,7 +1917,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
     let localProviderGateFailure: "local_provider_cooldown" | "local_provider_budget_exhausted" | null = null;
     let localProviderGateModel: string | null = null;
-    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId)) : null;
+    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist)) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
     if (parentSignal.aborted) throw new Error("cancelled");
     const controller = new AbortController();
@@ -1935,8 +1936,8 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); }
   } finally { releaseProviderSlot(); }
 }
-async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
-  return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId));
+async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[]): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+  return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist));
 }
 function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.length) return "(none yet)"; return findings.map((f) => `- ${f.vectorType}: ${f.value} (${f.scope})${f.personName ? ` person=${f.personName}` : ""}${f.role ? ` role=${f.role}` : ""}${f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : ""}`).join("\n"); }
 const AGENTIC_STRUCTURED_SCHEMA = {
@@ -2007,11 +2008,11 @@ const AGENTIC_ACTION_SCHEMA = {
   },
 } as const;
 
-export function structuredActionResponseFormat(model: string): Record<string, unknown> {
+export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> {
   const strictSupported = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"].includes(model);
   const browserProviders = getAvailableBrowserFetchProviders();
-  const selectableActions = getModelSelectableAgentActions();
-  const availableActions = browserProviders.length
+  const selectableActions = actionAllowlist ? [...actionAllowlist] : getModelSelectableAgentActions();
+  const availableActions = actionAllowlist ? selectableActions : browserProviders.length
     ? selectableActions
     : selectableActions.filter((action) => action !== "browser_fetch");
   const providerEnum = [...new Set(["serper", "tavily", "exa", "rdap", "whoisjson", ...browserProviders]), null];
@@ -3085,7 +3086,7 @@ export function partitionParallelRegistrySearchesByPivotScope<T extends {
   return { allowed, rejected };
 }
 
-export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; intelligenceContext?: string; mode?: "target" | "discovery" }): string {
+export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; intelligenceContext?: string; mode?: "target" | "discovery"; actionAllowlist?: readonly string[] }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
     : "ASSIGNMENT TARGET: " + input.targetName;
@@ -3108,18 +3109,19 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
     1_200,
   );
-  const availablePythonActions = new Set(getAvailablePythonOsintActions());
+  const availableBrowserProviders = getAvailableBrowserFetchProviders();
+  const selectableActions = input.actionAllowlist ? [...input.actionAllowlist] : getModelSelectableAgentActions();
+  const availableActions = input.actionAllowlist ? [...input.actionAllowlist] : availableBrowserProviders.length
+    ? selectableActions
+    : selectableActions.filter((action) => action !== "browser_fetch");
+  const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
+  const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
   const promptCapabilities = ATLAS_CAPABILITIES.map((capability) =>
     capability.investigatorSelectable === false && availablePythonActions.has(capability.action)
       ? { ...capability, investigatorSelectable: true }
       : capability,
   );
   const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), availablePythonActions.size > 0 ? 2_200 : 1_000);
-  const availableBrowserProviders = getAvailableBrowserFetchProviders();
-  const selectableActions = getModelSelectableAgentActions();
-  const availableActions = availableBrowserProviders.length
-    ? selectableActions
-    : selectableActions.filter((action) => action !== "browser_fetch");
   const discoveryLivenessAdvisory = input.mode === "discovery" ? discoverySearchLivenessAdvisory(input.trajectoryRecords) : null;
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
   const terminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): done only when contract passes: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; allowOpenQuestions=" + terminalContract.allowOpenQuestions + "; allowHighSeverityContradictions=" + terminalContract.allowHighSeverityContradictions + ". " + (terminalContract.requireFalsification ? "Falsification requirement: at least one successful external action must explicitly attempt to disprove, refute, find counter-evidence, rule out the leading claim, or test an alternative hypothesis via hypothesis/purpose/query; repeated corroboration alone does not count. " : "") + "This states the stopping condition, not a prescribed action sequence.";
@@ -3855,8 +3857,8 @@ export async function runAgenticWebResearch(input: { targetName: string; company
   if (input.priorIntelligenceContext) intelligence.restoreContext(sanitizeObservableValue(input.priorIntelligenceContext));
   let intelligenceRecordedTurn = priorTurnOffset;
   const syncIntelligence = () => { const latest = records[records.length - 1]; if (!latest || latest.turn <= intelligenceRecordedTurn) return; intelligence.recordAction({ turn: latest.turn, action: latest.action, args: sanitizeObservableValue(latest.args), execution: latest.execution, observation: sanitizeUrlsInText(latest.observation ?? ""), urls: latest.observedUrls.map((url) => sanitizeUrlForEvidence(url)).filter((url) => !url.startsWith("[")), findings: sanitizeObservableValue(latest.findings), predictedInformationGain: typeof latest.args.expectedInformationGain === "number" ? latest.args.expectedInformationGain : undefined }); intelligenceRecordedTurn = latest.turn; };
-  const resultBase = (status: AgenticWebResearchResult["status"], iterations: number, stopReason: AgenticWebResearchResult["stopReason"], error?: string): AgenticWebResearchResult => { runtimeStage = "result_projection"; syncIntelligence(); const intelligenceState = intelligence.buildContext(); const failureSignals = classifyTrajectorySignals({ records, evidenceCount: intelligenceState.evidenceCount, sourceFamilyDiversity: intelligenceState.sourceFamilyDiversity, unresolvedQuestions: intelligenceState.openQuestions.length, stopReason }); return sanitizeObservableValue({ status, model: modelUsed, iterations, searches, visits, findings, modelFindings: [], stopReason, trajectory: history, trajectoryRecords: records, failureSignals, consecutiveActionParseFailures, ...(error ? { error } : {}) }); }; try { for (let i = 0; i < maxIter; i++) { runtimeStage = "turn_preparation"; runtimePhase = "loop_guards"; iterationsAttempted = i + 1; if (runController.signal.aborted) return resultBase(input.signal?.aborted || cancellationRequestedByJob ? "cancelled" : "timeout", i, input.signal?.aborted || cancellationRequestedByJob ? "CANCELLED" : "HARD_TIMEOUT", input.signal?.aborted || cancellationRequestedByJob ? "cancelled by operator" : `hard timeout ${hardTimeoutMs}ms`); if (Date.now() - startedAt >= hardTimeoutMs) return resultBase("timeout", i, "HARD_TIMEOUT", `hard timeout ${hardTimeoutMs}ms`); runtimePhase = "cancellation_check"; if (await cancellationSupervisor?.checkNow()) return resultBase("cancelled", i, "CANCELLED", "cancelled by operator"); runtimePhase = "worker_availability_refresh"; await refreshPythonOsintToolAvailability(runController.signal); if (runController.signal.aborted) return resultBase(input.signal?.aborted || cancellationRequestedByJob ? "cancelled" : "timeout", i, input.signal?.aborted || cancellationRequestedByJob ? "CANCELLED" : "HARD_TIMEOUT", input.signal?.aborted || cancellationRequestedByJob ? "cancelled by operator" : `hard timeout ${hardTimeoutMs}ms`); runtimePhase = "intelligence_sync"; syncIntelligence(); runtimePhase = "intelligence_context"; const intelligenceState = intelligence.buildContext(); const lastAction = records.at(-1)?.action; const nextMovePriority = intelligenceState.openQuestions.some((question) => /resolve contradiction|disproof|falsif/i.test(question)) || (intelligenceState.providerDisagreements.length > 0 && intelligenceState.openQuestions.length > 0) ? "falsify" : intelligenceState.openQuestions.some((question) => /contact|email|phone|linkedin|website/i.test(question)) ? "contact" : intelligenceState.openQuestions.length > 0 ? "verify" : undefined; runtimePhase = "cognitive_task"; const cognitiveTask = input.cognitiveTask ?? inferResearchCognitiveTask({ nextMovePriority, action: input.mode === "discovery" ? "web_search" : lastAction, terminal: false }); runtimePhase = "prompt_composition"; const prompt = buildStepPrompt({ targetName: name || "", companyName: input.companyName, objective, history, trajectoryRecords: sanitizeObservableValue([...priorTrajectoryRecords, ...records].slice(-MAX_TRAJECTORY_RECORDS)), lastObservation: sanitizeUrlsInText(lastObservation), findings: sanitizeObservableValue(findings), priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined, intelligenceContext: renderIntelligenceContext(intelligenceState), mode: input.mode }); runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: "error", summary: lastObservation }); return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw); if (!action) {
-      const parseFailure = describeAgentActionParseFailure(llm.raw);
+  const resultBase = (status: AgenticWebResearchResult["status"], iterations: number, stopReason: AgenticWebResearchResult["stopReason"], error?: string): AgenticWebResearchResult => { runtimeStage = "result_projection"; syncIntelligence(); const intelligenceState = intelligence.buildContext(); const failureSignals = classifyTrajectorySignals({ records, evidenceCount: intelligenceState.evidenceCount, sourceFamilyDiversity: intelligenceState.sourceFamilyDiversity, unresolvedQuestions: intelligenceState.openQuestions.length, stopReason }); return sanitizeObservableValue({ status, model: modelUsed, iterations, searches, visits, findings, modelFindings: [], stopReason, trajectory: history, trajectoryRecords: records, failureSignals, consecutiveActionParseFailures, ...(error ? { error } : {}) }); }; try { for (let i = 0; i < maxIter; i++) { runtimeStage = "turn_preparation"; runtimePhase = "loop_guards"; iterationsAttempted = i + 1; if (runController.signal.aborted) return resultBase(input.signal?.aborted || cancellationRequestedByJob ? "cancelled" : "timeout", i, input.signal?.aborted || cancellationRequestedByJob ? "CANCELLED" : "HARD_TIMEOUT", input.signal?.aborted || cancellationRequestedByJob ? "cancelled by operator" : `hard timeout ${hardTimeoutMs}ms`); if (Date.now() - startedAt >= hardTimeoutMs) return resultBase("timeout", i, "HARD_TIMEOUT", `hard timeout ${hardTimeoutMs}ms`); runtimePhase = "cancellation_check"; if (await cancellationSupervisor?.checkNow()) return resultBase("cancelled", i, "CANCELLED", "cancelled by operator"); runtimePhase = "worker_availability_refresh"; await refreshPythonOsintToolAvailability(runController.signal); if (runController.signal.aborted) return resultBase(input.signal?.aborted || cancellationRequestedByJob ? "cancelled" : "timeout", i, input.signal?.aborted || cancellationRequestedByJob ? "CANCELLED" : "HARD_TIMEOUT", input.signal?.aborted || cancellationRequestedByJob ? "cancelled by operator" : `hard timeout ${hardTimeoutMs}ms`); const turnBrowserProviders = getAvailableBrowserFetchProviders(); const actionAllowlistForTurn = getModelSelectableAgentActions().filter((action) => action !== "browser_fetch" || turnBrowserProviders.length > 0); runtimePhase = "intelligence_sync"; syncIntelligence(); runtimePhase = "intelligence_context"; const intelligenceState = intelligence.buildContext(); const lastAction = records.at(-1)?.action; const nextMovePriority = intelligenceState.openQuestions.some((question) => /resolve contradiction|disproof|falsif/i.test(question)) || (intelligenceState.providerDisagreements.length > 0 && intelligenceState.openQuestions.length > 0) ? "falsify" : intelligenceState.openQuestions.some((question) => /contact|email|phone|linkedin|website/i.test(question)) ? "contact" : intelligenceState.openQuestions.length > 0 ? "verify" : undefined; runtimePhase = "cognitive_task"; const cognitiveTask = input.cognitiveTask ?? inferResearchCognitiveTask({ nextMovePriority, action: input.mode === "discovery" ? "web_search" : lastAction, terminal: false }); runtimePhase = "prompt_composition"; const prompt = buildStepPrompt({ targetName: name || "", companyName: input.companyName, objective, history, trajectoryRecords: sanitizeObservableValue([...priorTrajectoryRecords, ...records].slice(-MAX_TRAJECTORY_RECORDS)), lastObservation: sanitizeUrlsInText(lastObservation), findings: sanitizeObservableValue(findings), priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined, intelligenceContext: renderIntelligenceContext(intelligenceState), mode: input.mode, actionAllowlist: actionAllowlistForTurn }); runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: "error", summary: lastObservation }); return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
+      const parseFailure = describeAgentActionParseFailure(llm.raw, actionAllowlistForTurn);
       pushHistory(`step${i + 1}: parse_failure execution=error`);
       const nextParseFailureCount = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, false);
       const terminalParseFailure = shouldTerminateActionParseFailure(nextParseFailureCount, i + 1, maxIter);
