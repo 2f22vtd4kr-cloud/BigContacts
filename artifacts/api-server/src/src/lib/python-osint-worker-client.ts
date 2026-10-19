@@ -82,16 +82,39 @@ function signatureMatches(secret: string, value: unknown, signature: unknown): b
 
 async function readJsonCapped(response: Response, maxBytes: number): Promise<unknown> {
   const contentLength = Number(response.headers.get("content-length") ?? "");
-  if (Number.isFinite(contentLength) && contentLength > maxBytes) throw new Error("Sandbox worker response exceeded its size limit.");
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (bytes.byteLength > maxBytes) throw new Error("Sandbox worker response exceeded its size limit.");
-  let parsed: unknown;
+  if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new Error("Sandbox worker response exceeded its size limit.");
+  }
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("Sandbox worker response did not contain a readable body.");
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
   try {
-    parsed = JSON.parse(new TextDecoder().decode(bytes));
+    for (;;) {
+      const next = await reader.read();
+      if (next.done) break;
+      totalBytes += next.value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error("Sandbox worker response exceeded its size limit.");
+      }
+      chunks.push(next.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
   } catch {
     throw new Error("Sandbox worker returned a non-JSON response.");
   }
-  return parsed;
 }
 
 async function fetchWorkerJson(
