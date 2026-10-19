@@ -3114,7 +3114,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ? { ...capability, investigatorSelectable: true }
       : capability,
   );
-  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), 1_000);
+  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), availablePythonActions.size > 0 ? 2_200 : 1_000);
   const availableBrowserProviders = getAvailableBrowserFetchProviders();
   const selectableActions = getModelSelectableAgentActions();
   const availableActions = availableBrowserProviders.length
