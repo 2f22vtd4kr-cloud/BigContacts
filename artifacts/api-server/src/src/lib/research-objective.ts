@@ -203,7 +203,7 @@ export function validateBossDiscoveryPivotContinuity(input: {
     record.pivotScopeKey === currentScopeKey
       && record.execution === "success"
       && (record.action === "visit" || record.action === "browser_fetch")
-      && (record.observedUrls ?? []).some((url) => typeof url === "string" && /^https?:\\/\\//i.test(url))
+      && (record.observedUrls ?? []).some((url) => typeof url === "string" && /^https?:\/\//i.test(url))
       && Boolean(String(record.observation ?? "").trim())
       && !/failureDomain=|failureKind=|request failure|timed out|timeout/i.test(String(record.observation ?? "")),
   );
