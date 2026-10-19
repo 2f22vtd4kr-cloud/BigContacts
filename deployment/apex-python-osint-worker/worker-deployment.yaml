@@ -107,8 +107,7 @@ spec:
             capabilities:
               drop: ["ALL"]
           startupProbe:
-            httpGet:
-              path: /healthz
+            tcpSocket:
               port: api
             periodSeconds: 5
             failureThreshold: 18
@@ -132,6 +131,7 @@ spec:
         - name: isolation-attestation
           secret:
             secretName: apex-python-isolation-attestation
+            optional: true
             items:
               - key: isolation-attestation.json
                 path: isolation-attestation.json
