@@ -5,7 +5,8 @@
 **Updated:** 2026-10-19 (UTC)  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Canonical branch:** `main`  
-**Last verified application-code SHA:** `4c09192d0b747635ad7fa830018d1e3d7831f47f`  
+**Last verified live-runtime source SHA for launch 8237e1a8:** `4c2ea0ab0d11a5903458882dabffd7f35f19984f` (P009 boot evidence only; it does not establish the runtime’s present SHA).  
+**Current GitHub `main` SHA after PR #709:** `f4c534130889c9c86a5a9559cfd7d3d25a311637` (post-merge CI is still running; this does not establish that Replit has deployed this SHA).  
 **Release state:** **NOT LIVE-ACCEPTED — model-led execution is demonstrated; evidence-backed candidate admission and card creation are not.**
 
 This file is the current operational status and replaces the stale snapshot retained under the historical `CURRENT_STATUS_2026-10-15.md` filename. Before the next code change or live run, refresh actual `main`, the newest audit files, GitHub Actions for the exact current SHA, and durable runtime state.
