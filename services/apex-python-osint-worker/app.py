@@ -764,6 +764,11 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Apex Python OSINT Worker", version="1.0.0", lifespan=lifespan)
 
 
+@app.get("/livez")
+async def livez() -> dict[str, str]:
+    return {"status": "alive"}
+
+
 @app.get("/healthz")
 async def healthz() -> JSONResponse:
     tools, versions = resolve_worker_tools()
