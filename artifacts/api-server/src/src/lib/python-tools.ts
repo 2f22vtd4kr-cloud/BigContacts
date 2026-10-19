@@ -96,8 +96,9 @@ function executionMetadata(response: {
     finishedAt: response.finishedAt,
   };
 }
-function workerError(response: { status: string; error: string | null }): string | undefined {
-  if (RESULT_STATUSES.has(response.status)) return undefined;
+function workerError(response: { status: string; error: string | null }, usablePartial: boolean): string | undefined {
+  if (response.status === "completed") return undefined;
+  if (response.status === "partial" && usablePartial) return response.error ?? undefined;
   return response.error ?? `OSINT worker operation ended with status ${response.status}.`;
 }
 async function executeTool(tool: PythonOsintTool, args: Record<string, unknown>, signal?: AbortSignal, timeoutMs = 30_000) {
@@ -123,9 +124,9 @@ export async function runHolehe(email: string, options: SubprocessOptions = {}):
     email: normalizedEmail, found,
     totalChecked: asNonNegativeInteger(data.totalChecked),
     totalFound: asNonNegativeInteger(data.totalFound) || found.filter((item) => item.exists).length,
-    available: RESULT_STATUSES.has(response.status),
+    available: response.status === "completed" || (response.status === "partial" && found.length > 0),
     execution: executionMetadata(response),
-    ...(workerError(response) ? { error: workerError(response) } : {}),
+    ...(workerError(response, found.length > 0) ? { error: workerError(response, found.length > 0) } : {}),
   };
 }
 
@@ -154,10 +155,10 @@ export async function runMaigret(username: string, options: SubprocessOptions = 
   return {
     username: sanitized, found,
     totalSitesChecked: asNonNegativeInteger(data.totalSitesChecked),
-    available: RESULT_STATUSES.has(response.status),
+    available: response.status === "completed" || (response.status === "partial" && found.length > 0),
     execution: executionMetadata(response),
     ...(text(data.reportUrl, 500) ? { reportUrl: text(data.reportUrl, 500) } : {}),
-    ...(workerError(response) ? { error: workerError(response) } : {}),
+    ...(workerError(response, found.length > 0) ? { error: workerError(response, found.length > 0) } : {}),
   };
 }
 
@@ -176,10 +177,10 @@ export async function runSherlock(username: string, options: SubprocessOptions =
   return {
     username: sanitized, found,
     totalSitesChecked: asNonNegativeInteger(data.totalSitesChecked),
-    available: RESULT_STATUSES.has(response.status),
+    available: response.status === "completed" || (response.status === "partial" && found.length > 0),
     execution: executionMetadata(response),
     reviewOnly: true,
-    ...(workerError(response) ? { error: workerError(response) } : {}),
+    ...(workerError(response, found.length > 0) ? { error: workerError(response, found.length > 0) } : {}),
   };
 }
 
@@ -200,9 +201,9 @@ export async function runTheHarvester(domain: string, sources = DEFAULT_HARVESTE
   return {
     domain: cleanDomain, emails, subdomains, ips, hosts,
     totalFound: asNonNegativeInteger(data.totalFound) || emails.length + subdomains.length + ips.length + hosts.length,
-    available: RESULT_STATUSES.has(response.status),
+    available: response.status === "completed" || (response.status === "partial" && (emails.length + subdomains.length + ips.length + hosts.length > 0)),
     execution: executionMetadata(response),
-    ...(workerError(response) ? { error: workerError(response) } : {}),
+    ...(workerError(response, emails.length + subdomains.length + ips.length + hosts.length > 0) ? { error: workerError(response, emails.length + subdomains.length + ips.length + hosts.length > 0) } : {}),
   };
 }
 
@@ -241,11 +242,11 @@ export async function runSpiderFoot(
   return {
     target: cleanTarget, targetType, profile, observations,
     eventsReceived: asNonNegativeInteger(data.eventsReceived) || observations.length,
-    available: RESULT_STATUSES.has(response.status),
+    available: response.status === "completed" || (response.status === "partial" && observations.length > 0),
     partial: response.status === "partial" || data.partial === true,
     reviewOnly: true,
     execution: executionMetadata(response),
-    ...(workerError(response) ? { error: workerError(response) } : {}),
+    ...(workerError(response, observations.length > 0) ? { error: workerError(response, observations.length > 0) } : {}),
   };
 }
 
