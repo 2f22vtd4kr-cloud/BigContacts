@@ -145,6 +145,19 @@ No application code has been changed and no Apex job has been launched at this p
 - Read-only final database counts: 30 case events; 1 discovery case; 0 research evidence, contact evidence, admissions/identity candidates, identity bundles, entities, assets, or relationships. Redis active pointer is idle. The run stopped before target-scoped research and card creation.
 - Confirmed run failure cause: the architecture exhausted its global Investigator iteration budget with no source-backed candidate, in large part because registry adapters returned request failures and later geographic scope pivots consumed remaining actions. This was not a provider-key exhaustion event. The audit-configuration mismatch is a separate setup defect and is being corrected before another attempt.
 
+## P018 — Correct the actual development audit environment
+
+- After the prior job was terminal and the active pointer was idle, set the six non-secret development flags through Replit's environment flow: explicit development mode, prompt capture on, visible-file opt-in on, public-contact capture on, test capture off, and this root audit path. No API key or other secret was read or changed.
+- Re-read only those six non-secret values; all match the intended visible audit settings. This fixes the mismatch between the workspace development environment and the temporary artifact-service block.
+- The environment update left the API workflow stopped. The job was already terminal and Redis idle, so there was no active research to interrupt; database/event data and this visible audit remain intact. The API will be restarted after the registry adapter failure is diagnosed.
+
+## P019 — Registry adapter source inspection
+
+- KVK's adapter calls `https://api.openkvk.nl/api/v2/companies` without credentials. The German adapter calls the OpenRegister Datasette SQL endpoint at `https://db.offeneregister.de/openregister.json` with a bound query parameter.
+- Both routes use Apex's SSRF-safe outbound fetch and registry provider gate. The generic error digest in the run does not reveal whether DNS, connection, HTTP, or provider gating failed.
+- A separate route comment says KVK (along with several other community/HTML portals) is unavailable or blocked from server-side containers and excludes it from default registry fan-out; the model-owned Investigator can nevertheless explicitly select the registered KVK adapter. This is a possible availability-contract mismatch, not yet confirmed as the direct cause.
+- No application source has been changed. Next I will reproduce one bounded, public read-only lookup per failed endpoint through Apex's existing registry-search route and compare its error with a direct endpoint check. This does not launch a research job or invoke a model.
+
 
 ## P016 — Durable case-event snapshot (case 1)
 
