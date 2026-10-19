@@ -19,7 +19,15 @@ function hasExactTokenBoundary(text: string, index: number, value: string): bool
   const before = text[index - 1] ?? "";
   const afterIndex = index + value.length;
   const after = text[afterIndex] ?? "";
-  const continuesToken = (character: string) => Boolean(character) && /[\p{L}\p{M}\p{N}_@+-]/u.test(character);
+  // Chinese/Japanese/Korean/Thai/Lao/Khmer/Myanmar text does not consistently
+  // delimit words with spaces. For a value already written in one of these
+  // scripts, adjacent characters from the same script are not treated as a
+  // malformed partial token; Latin/Arabic identifiers still require boundaries.
+  const unspacedTokenScript = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
+  const containsUnspacedTokenScript = unspacedTokenScript.test(value);
+  const continuesToken = (character: string) => Boolean(character)
+    && /[\p{L}\p{M}\p{N}_@+-]/u.test(character)
+    && !(containsUnspacedTokenScript && unspacedTokenScript.test(character));
   const endsWithSelfDelimitedNumericSymbol = /[%‰$€£¥₩₹]$/u.test(value);
   if (continuesToken(before) || (continuesToken(after) && !endsWithSelfDelimitedNumericSymbol)) return false;
   // Dots are valid punctuation after a complete value, but not when they extend
