@@ -66,6 +66,10 @@ describe("registry adapter circuit breaker", () => {
     expect(summarizeRegistryAdapterFailure("offeneregister-germany", dnsFailure)).toMatch(
       /REGISTRY_ADAPTER_TRANSPORT_ERROR.*ENOTFOUND.*not a no-hit/i,
     );
+    const numericErrnoFailure = Object.assign(new Error("fetch failed"), { errno: -3008 });
+    expect(summarizeRegistryAdapterFailure("offeneregister-germany", numericErrnoFailure)).toMatch(
+      /REGISTRY_ADAPTER_TRANSPORT_ERROR.*-3008.*not a no-hit/i,
+    );
     expect(summarizeRegistryAdapterFailure("kvk-netherlands", unavailable)).not.toContain(
       "sensitive provider detail",
     );
