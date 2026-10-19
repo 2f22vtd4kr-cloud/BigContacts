@@ -432,6 +432,31 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((status, error), ("completed", None))
         self.assertEqual(result["found"], [])
 
+    async def test_maigret_invokes_csv_mode_for_per_site_statuses(self) -> None:
+        call_args: list[str] | None = None
+
+        async def fake_run_process(executable, args, **kwargs):
+            nonlocal call_args
+            call_args = [executable, *args]
+            reports = Path(kwargs["tool_home"]) / "reports"
+            reports.mkdir()
+            (reports / "report_testuser.csv").write_text(
+                "username,name,url_main,url_user,exists,http_status,error_reason\n",
+                encoding="utf-8",
+            )
+            return 0, b"", b"", None
+
+        with patch.object(app, "run_process", side_effect=fake_run_process):
+            status, result, _error, _version = await app.run_cli_tool(
+                "maigret", {"username": "testuser"}, timeout_ms=5_000, max_output_bytes=100_000,
+            )
+
+        self.assertIsNotNone(call_args)
+        self.assertIn("--csv", call_args or [])
+        self.assertNotIn("--json", call_args or [])
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+
     async def test_maigret_v066_csv_report_preserves_claimed_profiles(self) -> None:
         header = "username,name,url_main,url_user,exists,http_status,error_reason\n"
         row = "testuser,GitHub,https://github.com,https://github.com/testuser,Claimed,200,\n"
