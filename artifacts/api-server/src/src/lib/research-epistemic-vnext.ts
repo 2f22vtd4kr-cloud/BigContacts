@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 
 export type ThinkingLevel = "minimal" | "low" | "medium" | "high";
-export type SourceSpan = { text: string; start: number; end: number; subjectMatched: boolean; valueMatched: boolean; exact: boolean };
+export type SourceSpan = { text: string; start: number; end: number; subjectMatched: boolean; valueMatched: boolean; exact: boolean; pageNumber?: number };
 export type SourceLineageNode = { sourceId: string; canonicalUrl: string; host: string; originSourceId: string | null; publisher: string | null; citedSourceIds: string[]; contentFingerprint: string | null };
 export type EvidenceBinding = { claimId: string; sourceUrl: string; subject: string | null; value: string; span: SourceSpan | null; attributionBound: boolean; sourceLineageId: string };
 export type ResearchQuestion = { id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" };
@@ -48,6 +48,12 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
   const lower = text.toLowerCase();
   const valueIndex = findExactTokenIndex(lower, needle);
   if (valueIndex < 0) return null;
+  // PDF observations include explicit page markers. Store the marker separately
+  // from the excerpt because sentence-bounded excerpts may start mid-page and
+  // omit the marker even though the full observation retains it in the ledger.
+  const pageMarkers = [...text.slice(0, valueIndex).matchAll(/\\[Page\\s+(\\d+)\\]/gi)];
+  const parsedPageNumber = Number(pageMarkers.at(-1)?.[1]);
+  const pageNumber = Number.isSafeInteger(parsedPageNumber) && parsedPageNumber > 0 ? parsedPageNumber : undefined;
 
   const subjectNeedle = subject?.trim().toLowerCase() || "";
   let subjectIndex = -1;
@@ -92,6 +98,7 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
     subjectMatched: Boolean(subjectNeedle) ? subjectMatched : false,
     valueMatched,
     exact: valueMatched && subjectMatched,
+    ...(pageNumber === undefined ? {} : { pageNumber }),
   };
 }
 function canonicalPublisher(host: string): string { return publisherDomain(host); }
