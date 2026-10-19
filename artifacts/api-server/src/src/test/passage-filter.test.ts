@@ -26,6 +26,19 @@ describe("passage-filter", () => {
       .toBeGreaterThan(scorePassage("今日は晴れています。", new Set(["主要株主", "投資家"])));
   });
 
+  it("preserves meaningful marks while scoring Thai and accented Latin variants", () => {
+    expect(scorePassage("เจ้าของคาสิโนเป็นนักลงทุนท้องถิ่น", new Set(["คาสิโน", "นักลงทุน"])))
+      .toBeGreaterThan(scorePassage("วันนี้อากาศดี", new Set(["คาสิโน", "นักลงทุน"])));
+    expect(scorePassage("El dueño del casino es un inversor local.", new Set(["dueño", "inversor"])))
+      .toBeGreaterThan(scorePassage("El clima es agradable.", new Set(["dueño", "inversor"])));
+    expect(scorePassage("Café Portorož ownership", new Set(["Cafe", "ownership"])))
+      .toBeGreaterThan(0);
+    // Hindi spaces are preserved as word boundaries; native-script query terms
+    // must match without an English transliteration.
+    expect(scorePassage("कैसिनो का मालिक स्थानीय निवेशक है", new Set(["कैसिनो", "मालिक"])))
+      .toBeGreaterThan(scorePassage("आज मौसम अच्छा है", new Set(["कैसिनो", "मालिक"])));
+  });
+
   it("preserves complete observed text instead of clipping or dropping low-score sentences", () => {
     const text = [
       "Irrelevant sports scores from last night filled the page.",
