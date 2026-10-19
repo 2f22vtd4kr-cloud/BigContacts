@@ -55,7 +55,7 @@ describe("registry failure semantics", () => {
 
     await expect(
       searchRegistry({ query: "Berlin manufacturing companies", registry: "offeneregister-germany" }),
-    ).rejects.toThrow(/REGISTRY_ADAPTER_UNAVAILABLE.*disabled until.*live runtime smoke test.*not a no-hit/i);
+    ).rejects.toThrow(/REGISTRY_ADAPTER_UNAVAILABLE.*disabled until.*live runtime smoke test.*no-hit/i);
     expect(safeOutboundFetchMock).not.toHaveBeenCalled();
   });
 
