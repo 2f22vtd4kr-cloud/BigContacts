@@ -94,6 +94,8 @@ class IsolationProofTests(unittest.TestCase):
             "proxyConfigSha256": "f" * 64,
             "workerImageDigest": "sha256:" + "a" * 64,
             "egressProxyImageDigest": "sha256:" + "b" * 64,
+            "verifiedPodCIDRs": ["10.244.0.0/16"],
+            "verifiedServiceCIDRs": ["10.96.0.0/12"],
             "namespace": "apex-system",
             "publicWorkerHostname": "osint-worker.test.example.com",
             "issuedAt": now_iso(),
@@ -115,6 +117,12 @@ class IsolationProofTests(unittest.TestCase):
 
     def test_valid_deployment_signed_proof_is_accepted(self) -> None:
         self.assertEqual(app.load_isolation_proof(), self.payload)
+
+    def test_missing_cluster_cidr_proof_is_rejected(self) -> None:
+        missing = dict(self.payload)
+        missing.pop("verifiedPodCIDRs")
+        self.proof_path.write_text(json.dumps(isolation_envelope(self.private_key, missing)), encoding="utf-8")
+        self.assertIsNone(app.load_isolation_proof())
 
     def test_tampered_or_expired_proof_is_rejected(self) -> None:
         envelope = isolation_envelope(self.private_key, self.payload)

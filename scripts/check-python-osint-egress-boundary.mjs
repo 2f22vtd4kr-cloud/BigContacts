@@ -25,6 +25,8 @@ const checks = [
   ["proxy policy blocks private/reserved destinations on IPv4 and IPv6", policies.includes("0.0.0.0/0") && policies.includes("::/0") && policies.includes("169.254.0.0/16") && policies.includes("fc00::/7")],
   ["live deployment attestor checks network policies and direct-egress denial", attestor.includes("verify_network_policies") && attestor.includes("DIRECT_BLOCKED") && attestor.includes("METADATA_BLOCKED")],
   ["live attestor probes private and IPv6 direct-egress destinations", attestor.includes("INTERNAL_AND_IPV6_DIRECT_BLOCKED") && attestor.includes("fd00:ec2::254")],
+  ["attestor cross-checks live Pod/Service CIDRs against policy exceptions", attestor.includes("APEX_K8S_POD_CIDRS") && attestor.includes("APEX_K8S_SERVICE_CIDRS") && attestor.includes("verify_cluster_cidr_configuration") && attestor.includes("must explicitly exclude live cluster CIDR")],
+  ["attestor probes actual cluster destinations through Squid", attestor.includes("PROXY_CLUSTER_DESTINATIONS_BLOCKED") && attestor.includes("cluster_proxy_probe")],
   ["private keys and worker credentials are not baked into the image", dockerfile.includes("USER 10001:10001") && !dockerfile.includes("APEX_PYTHON_SANDBOX_TOKEN=")],
   ["theHarvester cancellation is threaded through canonical ReAct", pythonSource.includes("runTheHarvester") && fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8").includes('runTheHarvester(action.domain, undefined, { signal: runController.signal, correlation:')],
 ];

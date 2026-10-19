@@ -46,8 +46,9 @@ RUN uv venv --python /usr/local/bin/python /opt/venvs/worker-api \
 COPY services/apex-python-osint-worker/app.py /app/app.py
 COPY services/apex-python-osint-worker/tool_runner.py /app/tool_runner.py
 WORKDIR /app
-ENV PATH=/opt/venvs/worker-api/bin:/usr/bin:/bin PYTHONPATH=/app PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
-RUN /opt/venvs/holehe/bin/python -c "import holehe.core, trio, httpx" \
+ENV HOME=/tmp/apex-harvester-build-home PATH=/opt/venvs/worker-api/bin:/usr/bin:/bin PYTHONPATH=/app PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+RUN mkdir -p /tmp/apex-harvester-build-home && chmod 0755 /tmp/apex-harvester-build-home \
+    && /opt/venvs/holehe/bin/python -c "import holehe.core, trio, httpx" \
     && /opt/venvs/maigret/bin/maigret --help >/dev/null \
     && /opt/venvs/sherlock/bin/sherlock --help >/dev/null \
     && /opt/venvs/theharvester/bin/theHarvester --help >/dev/null \

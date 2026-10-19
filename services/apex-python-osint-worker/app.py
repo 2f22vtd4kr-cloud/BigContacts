@@ -6,6 +6,7 @@ import ctypes
 import hashlib
 import hmac
 import ipaddress
+import ipaddress
 import json
 import os
 import re
@@ -31,7 +32,7 @@ TOKEN = os.getenv("APEX_PYTHON_SANDBOX_TOKEN", "").strip()
 ISOLATION_PUBLIC_KEY_B64 = os.getenv("APEX_PYTHON_ISOLATION_ATTESTATION_PUBLIC_KEY", "").strip()
 ISOLATION_PROOF_PATH = Path(os.getenv("APEX_PYTHON_ISOLATION_PROOF_PATH", "/run/apex/isolation-attestation.json"))
 SPIDERFOOT_BASE_URL = "http://127.0.0.1:5001"
-REQUIRED_NETWORK_NAMESPACE = "kubernetes-egress-policy-apex-osint-v1"
+REQUIRED_NETWORK_NAMESPACE = "kubernetes-egress-policy-apex-osint-v2"
 REQUIRED_EGRESS_BROKER = "apex-public-egress-proxy-v1"
 MAX_ATTESTATION_PROOF_AGE_MS = 7 * 24 * 60 * 60 * 1000
 MAX_OUTPUT_BYTES_CAP = 1_000_000
@@ -144,6 +145,16 @@ def load_isolation_proof() -> dict[str, Any] | None:
             return None
         if payload.get("networkNamespace") != REQUIRED_NETWORK_NAMESPACE or payload.get("egressBroker") != REQUIRED_EGRESS_BROKER:
             return None
+        for field in ("verifiedPodCIDRs", "verifiedServiceCIDRs"):
+            values = payload.get(field)
+            if not isinstance(values, list) or not values or len(values) > 100 or any(not isinstance(value, str) for value in values):
+                return None
+            try:
+                networks = [ipaddress.ip_network(value, strict=True) for value in values]
+            except ValueError:
+                return None
+            if any(network.prefixlen == 0 for network in networks):
+                return None
         required_policies = {
             "apex-osint-worker-ingress",
             "apex-osint-worker-egress",

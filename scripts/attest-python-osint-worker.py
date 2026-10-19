@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import ipaddress
 import json
 import os
 import subprocess
@@ -30,7 +31,7 @@ REQUIRED_POLICIES = {
     "apex-osint-proxy-ingress",
     "apex-osint-proxy-egress",
 }
-NETWORK_NAMESPACE = "kubernetes-egress-policy-apex-osint-v1"
+NETWORK_NAMESPACE = "kubernetes-egress-policy-apex-osint-v2"
 EGRESS_BROKER = "apex-public-egress-proxy-v1"
 V4_REQUIRED_EXCEPTIONS = {
     "0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8",
@@ -130,7 +131,87 @@ def verify_worker_egress(spec: dict[str, Any], namespace: str) -> None:
         raise RuntimeError("Worker is not restricted to the dedicated egress proxy.")
 
 
-def verify_proxy_egress(spec: dict[str, Any]) -> None:
+def parse_cluster_cidrs(variable: str) -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+    raw = os.environ.get(variable, "").strip()
+    values = [item.strip() for item in raw.split(",") if item.strip()]
+    if not values:
+        raise RuntimeError(variable + " must declare actual cluster CIDRs before a proof can be issued.")
+    networks: list[ipaddress.IPv4Network | ipaddress.IPv6Network] = []
+    for value in values:
+        try:
+            network = ipaddress.ip_network(value, strict=True)
+        except ValueError as error:
+            raise RuntimeError(variable + " contains an invalid CIDR.") from error
+        if network.prefixlen == 0:
+            raise RuntimeError(variable + " cannot contain a default-route CIDR.")
+        networks.append(network)
+    return networks
+
+
+def verify_cluster_cidr_configuration() -> tuple[set[str], set[str], list[str]]:
+    """Cross-check operator-provided ranges against live Node, Pod and Service addresses."""
+    configured_pods = parse_cluster_cidrs("APEX_K8S_POD_CIDRS")
+    configured_services = parse_cluster_cidrs("APEX_K8S_SERVICE_CIDRS")
+
+    node_items = kubectl_json("get", "nodes").get("items", [])
+    live_node_cidrs: set[ipaddress.IPv4Network | ipaddress.IPv6Network] = set()
+    for node in node_items:
+        spec = node.get("spec", {}) if isinstance(node, dict) else {}
+        values = spec.get("podCIDRs") or ([spec.get("podCIDR")] if spec.get("podCIDR") else [])
+        for value in values:
+            live_node_cidrs.add(ipaddress.ip_network(str(value), strict=True))
+    if not live_node_cidrs:
+        raise RuntimeError("Live Node PodCIDRs could not be established.")
+    if any(not any(actual.version == declared.version and actual.subnet_of(declared) for declared in configured_pods) for actual in live_node_cidrs):
+        raise RuntimeError("APEX_K8S_POD_CIDRS does not cover every live Node PodCIDR.")
+
+    pod_items = kubectl_json("get", "pods", "--all-namespaces").get("items", [])
+    live_pod_ips: set[ipaddress.IPv4Address | ipaddress.IPv6Address] = set()
+    required_probe_ips: set[str] = set()
+    for pod in pod_items:
+        if not isinstance(pod, dict):
+            continue
+        metadata = pod.get("metadata", {})
+        spec = pod.get("spec", {})
+        status = pod.get("status", {})
+        values = status.get("podIPs") or ([status.get("podIP")] if status.get("podIP") else [])
+        for value in values:
+            try:
+                address = ipaddress.ip_address(str(value))
+            except ValueError as error:
+                raise RuntimeError("A live Pod reported an invalid IP address.") from error
+            live_pod_ips.add(address)
+            if not spec.get("hostNetwork", False) and not any(address.version == declared.version and address in declared for declared in configured_pods):
+                raise RuntimeError("APEX_K8S_POD_CIDRS does not cover every live Pod IP.")
+            labels = metadata.get("labels", {}) if isinstance(metadata, dict) else {}
+            if labels.get("app") in {"apex-python-osint-worker", "apex-osint-egress-proxy"}:
+                required_probe_ips.add(str(address))
+    if not live_pod_ips:
+        raise RuntimeError("Live Pod IP addresses could not be established.")
+
+    service_items = kubectl_json("get", "services", "--all-namespaces").get("items", [])
+    live_service_ips: set[ipaddress.IPv4Address | ipaddress.IPv6Address] = set()
+    for service in service_items:
+        spec = service.get("spec", {}) if isinstance(service, dict) else {}
+        values = spec.get("clusterIPs") or ([spec.get("clusterIP")] if spec.get("clusterIP") else [])
+        for value in values:
+            if not value or str(value).lower() == "none":
+                continue
+            try:
+                address = ipaddress.ip_address(str(value))
+            except ValueError as error:
+                raise RuntimeError("A live Service reported an invalid ClusterIP.") from error
+            live_service_ips.add(address)
+            if not any(address.version == declared.version and address in declared for declared in configured_services):
+                raise RuntimeError("APEX_K8S_SERVICE_CIDRS does not cover every live Service ClusterIP.")
+    if not live_service_ips:
+        raise RuntimeError("Live Service ClusterIPs could not be established.")
+
+    probe_ips = required_probe_ips | {str(item) for item in sorted(live_pod_ips, key=str)[:8]} | {str(item) for item in sorted(live_service_ips, key=str)[:8]}
+    return ({str(item) for item in configured_pods}, {str(item) for item in configured_services}, sorted(probe_ips)[:24])
+
+
+def verify_proxy_egress(spec: dict[str, Any], required_cluster_cidrs: set[str]) -> None:
     if not matches_labels(spec.get("podSelector", {}).get("matchLabels"), {"app": "apex-osint-egress-proxy"}):
         raise RuntimeError("Proxy egress policy selector mismatch.")
     if set(spec.get("policyTypes", [])) != {"Egress"}:
@@ -150,9 +231,14 @@ def verify_proxy_egress(spec: dict[str, Any]) -> None:
         raise RuntimeError("Proxy must explicitly constrain IPv4 and IPv6 egress.")
     if not V4_REQUIRED_EXCEPTIONS.issubset(blocks["0.0.0.0/0"]) or not V6_REQUIRED_EXCEPTIONS.issubset(blocks["::/0"]):
         raise RuntimeError("Proxy network policy is missing reserved/private destinations from its deny list.")
+    for cidr in required_cluster_cidrs:
+        network = ipaddress.ip_network(cidr, strict=True)
+        parent = "0.0.0.0/0" if network.version == 4 else "::/0"
+        if cidr not in blocks[parent]:
+            raise RuntimeError("Proxy NetworkPolicy must explicitly exclude live cluster CIDR " + cidr + ".")
 
 
-def verify_network_policies(namespace: str) -> None:
+def verify_network_policies(namespace: str, cluster_cidrs: set[str]) -> None:
     policies = {
         name: kubectl_json("get", "networkpolicy", name, "-n", namespace)["spec"]
         for name in REQUIRED_POLICIES
@@ -168,10 +254,10 @@ def verify_network_policies(namespace: str) -> None:
         pod_labels={"app": "apex-osint-egress-proxy"}, peer_namespace=namespace,
         peer_labels={"app": "apex-python-osint-worker"}, ports={("TCP", 3128)},
     )
-    verify_proxy_egress(policies["apex-osint-proxy-egress"])
+    verify_proxy_egress(policies["apex-osint-proxy-egress"], cluster_cidrs)
 
 
-def verify_live_egress(namespace: str) -> None:
+def verify_live_egress(namespace: str, cluster_probe_ips: list[str]) -> None:
     # Each test runs inside an actual worker replica with its real NetworkPolicies
     # and environment. Never attest based only on resource existence.
     direct_probe = (
@@ -216,6 +302,26 @@ sys.exit(0 if not reachable else 45)
         "sys.exit(0 if blocked else 44)"
     )
     run_probe(namespace, metadata_probe, "METADATA_BLOCKED")
+    if not cluster_probe_ips:
+        raise RuntimeError("No live cluster Pod/Service IPs were collected for proxy-path egress verification.")
+    target_json = json.dumps(cluster_probe_ips[:24])
+    cluster_proxy_probe = (
+        "import concurrent.futures,httpx,json,sys\n"
+        f"targets=json.loads({target_json!r})\n"
+        "def blocked(ip):\n"
+        "    authority = '[' + ip + ']' if ':' in ip else ip\n"
+        "    try:\n"
+        "        response = httpx.get('http://' + authority + '/', timeout=4, follow_redirects=False)\n"
+        "        return ip, response.status_code in (403, 502, 503, 504)\n"
+        "    except httpx.HTTPError:\n"
+        "        return ip, True\n"
+        "with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:\n"
+        "    results = list(pool.map(blocked, targets))\n"
+        "allowed = [ip for ip, denied in results if not denied]\n"
+        "print('PROXY_CLUSTER_DESTINATIONS_BLOCKED' if not allowed else 'PROXY_CLUSTER_DESTINATIONS_ALLOWED ' + ','.join(allowed))\n"
+        "sys.exit(0 if targets and not allowed else 46)\n"
+    )
+    run_probe(namespace, cluster_proxy_probe, "PROXY_CLUSTER_DESTINATIONS_BLOCKED")
 
 
 def run_probe(namespace: str, code: str, expected: str) -> None:
@@ -330,9 +436,10 @@ def main() -> int:
     if env_values.get("APEX_PYTHON_EGRESS_PROXY_IMAGE_DIGEST") != proxy_digest:
         raise RuntimeError("Worker environment proxy digest does not match the immutable running proxy image.")
     published_host = verify_published_ingress(args.namespace)
-    verify_network_policies(args.namespace)
+    pod_cidrs, service_cidrs, cluster_probe_ips = verify_cluster_cidr_configuration()
+    verify_network_policies(args.namespace, pod_cidrs | service_cidrs)
     if not args.skip_live_egress_tests:
-        verify_live_egress(args.namespace)
+        verify_live_egress(args.namespace, cluster_probe_ips)
     now = datetime.now(timezone.utc)
     payload = {
         "executorId": "k8s/" + args.namespace + "/apex-python-osint-worker",
@@ -343,6 +450,8 @@ def main() -> int:
         "proxyConfigSha256": proxy_hash,
         "workerImageDigest": worker_digest,
         "egressProxyImageDigest": proxy_digest,
+        "verifiedPodCIDRs": sorted(pod_cidrs),
+        "verifiedServiceCIDRs": sorted(service_cidrs),
         "publicWorkerHostname": published_host,
         "namespace": args.namespace,
         "issuedAt": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
