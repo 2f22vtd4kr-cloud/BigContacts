@@ -227,10 +227,9 @@ describe("page visit response classification", () => {
 
   it("routes PDF visits through bounded text extraction while retaining browser-fetch PDF preflight", () => {
     const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {');
-    const domainLookupStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {', visitStart);
-    const visitDispatch = agenticCoreSource.slice(visitStart, domainLookupStart);
     const browserStart = agenticCoreSource.indexOf('if (action.action === "browser_fetch") {', visitStart);
     const registryStart = agenticCoreSource.indexOf('if (action.action === "registry_search") {', browserStart);
+    const visitDispatch = agenticCoreSource.slice(visitStart, browserStart);
     const browserDispatch = agenticCoreSource.slice(browserStart, registryStart);
     expect(visitStart).toBeGreaterThan(-1);
     expect(domainLookupStart).toBeGreaterThan(visitStart);
