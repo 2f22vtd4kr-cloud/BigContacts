@@ -6,13 +6,13 @@
  * to revisit the complete observation rather than inherit a lossy summary.
  */
 
-const SENTENCE_SPLIT = /(?<=[.!?])\\s+(?=[\\p{L}\\p{N}\\\"'(])|\\n+/u;
-const CJK_SCRIPT = /[\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}]/u;
+const SENTENCE_SPLIT = /(?<=[.!?])\s+(?=[\p{L}\p{N}"'(])|\n+/u;
+const CJK_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 
 /** Tokenization is for relevance scoring only; observed source text is never changed. */
 function tokenize(text: string): string[] {
-  const normalized = text.normalize("NFKC").toLowerCase().normalize("NFD").replace(/\\p{M}/gu, "").normalize("NFC");
-  const words = normalized.match(/[\\p{L}\\p{N}@.+_\\-]+/gu) ?? [];
+  const normalized = text.normalize("NFKC").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").normalize("NFC");
+  const words = normalized.match(/[\p{L}\p{N}@.+_-]+/gu) ?? [];
   const tokens: string[] = [];
   for (const word of words) {
     tokens.push(word);
@@ -38,11 +38,10 @@ export function scorePassage(passage: string, queryTokens: Set<string>): number 
   }
   const density = hits / Math.sqrt(tokens.length);
   let boost = 0;
-  if (/@|linkedin\\.com|tel:|\\+\\d|\\bemail\\b|\\bphone\\b|\\bcontact\\b/i.test(passage)) boost += 0.35;
-  if (/https?:\\/\\//i.test(passage)) boost += 0.15;
+  if (/@|linkedin\.com|tel:|\+\d|\bemail\b|\bphone\b|\bcontact\b/i.test(passage)) boost += 0.35;
+  if (/https?:\/\/\i.test(passage)) boost += 0.15;
   return density + boost;
 }
-
 /**
  * Return the complete supplied material. `maxChars`, `minScore`, and
  * `maxPassages` remain accepted for source compatibility but are deliberately
