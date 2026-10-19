@@ -662,7 +662,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             # not serialize booleans; treating this field as true lost every hit.
             result_path = home / (args["username"] + ".csv")
             if not result_path.is_file():
-                return "failed", None, "Sherlock exited without its expected CSV report.", "sherlock"
+                return "failed", None, "Sherlock exited without its expected CSV report.", TOOL_VERSIONS["sherlock"]
             import csv
             found: list[dict[str, Any]] = []
             total_sites_checked = 0
@@ -673,7 +673,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 with result_path.open("r", encoding="utf-8", newline="") as stream:
                     reader = csv.DictReader(stream)
                     if not reader.fieldnames or not required_headers.issubset(set(reader.fieldnames)):
-                        return "failed", None, "Sherlock returned a malformed CSV report.", "sherlock"
+                        return "failed", None, "Sherlock returned a malformed CSV report.", TOOL_VERSIONS["sherlock"]
                     for row in reader:
                         site_rows_seen += 1
                         if not isinstance(row, dict) or None in row:
@@ -702,11 +702,11 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                         else:
                             incomplete_records += 1
             except (OSError, UnicodeError, csv.Error):
-                return "failed", None, "Sherlock CSV report could not be read.", "sherlock"
+                return "failed", None, "Sherlock CSV report could not be read.", TOOL_VERSIONS["sherlock"]
             if site_rows_seen == 0:
-                return "failed", None, "Sherlock CSV report contained no site results.", "sherlock"
+                return "failed", None, "Sherlock CSV report contained no site results.", TOOL_VERSIONS["sherlock"]
             if code != 0 and total_sites_checked == 0:
-                return "failed", None, "Sherlock exited unsuccessfully without usable site results.", "sherlock"
+                return "failed", None, "Sherlock exited unsuccessfully without usable site results.", TOOL_VERSIONS["sherlock"]
             if code != 0:
                 status = "partial"
                 error = "Sherlock ended with a non-zero code after producing bounded site results."
@@ -720,7 +720,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 "found": found[:300],
                 "totalSitesChecked": total_sites_checked,
                 "incompleteSites": incomplete_records,
-            }, error, "sherlock"
+            }, error, TOOL_VERSIONS["sherlock"]
         if tool == "theharvester":
             report_base = home / "harvest"
             code, stdout, stderr, failure = await run_process(
