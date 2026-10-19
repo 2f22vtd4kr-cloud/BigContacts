@@ -1,12 +1,12 @@
 # Apex Atlas — Current Verified Status
 
-> **Latest operational override — 2026-10-19.** The 17 October pre-launch trace described below is historical. The latest recorded launch is [Main Refresh Relaunch 01](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-19_MAIN_REFRESH_RELAUNCH_01.md), job `8237e1a8-192a-480e-b415-78f24eb94407`. The tracked report records HTTP 202 acceptance but no later model-request checkpoint, final terminal status, durable evidence/admission/card counts, or post-run active-lock state. This is an evidence gap, not proof the job is still active or idle. Before any next launch, reconcile this job and the active Atlas lock read-only in the actual runtime; confirm terminal state, no active pointers, and final durable counts. Never launch while the state is active or unclear. The current acceptance state remains **NOT LIVE-ACCEPTED** until a real job-bound run demonstrates source-backed admission and durable cards. Read [the current successor handoff](apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md) and its 19 October override before another code change or launch.
+> **Latest operational override — 2026-10-19.** The newest tracked run is [Fresh Replit Import Run 01](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-19_FRESH_REPLIT_IMPORT_RUN_01.md), job `0bc6087d-4070-4420-a645-ca2606549052`, last captured at P018. The Replit audit agent then exhausted its credits. Its observation ending is not proof that Apex's backend job stopped or completed; final terminal status, durable candidate/evidence/card counts, and active-job lock remain unknown. Read-only reconcile this job and the actual runtime's active Atlas pointer/lock before any new launch. The older Main Refresh Relaunch job `8237e1a8-192a-480e-b415-78f24eb94407` is recorded as failed/incomplete in P002 of the newer audit and is no longer the latest outstanding run.
 
 **Updated:** 2026-10-19 (UTC)  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Canonical branch:** `main`  
 **Last verified live-runtime source SHA for launch 8237e1a8:** `4c2ea0ab0d11a5903458882dabffd7f35f19984f` (P009 boot evidence only; it does not establish the runtime’s present SHA).  
-**Current GitHub `main` SHA after PR #709:** `f4c534130889c9c86a5a9559cfd7d3d25a311637` (post-merge CI is still running; this does not establish that Replit has deployed this SHA).  
+**Source revision note:** SHA values below are historical run-specific checkpoints, not current `main` or runtime deployment proof. Refresh the actual `main` HEAD and runtime build identity before every run.
 **Release state:** **NOT LIVE-ACCEPTED — model-led execution is demonstrated; evidence-backed candidate admission and card creation are not.**
 
 This file is the current operational status and replaces the stale snapshot retained under the historical `CURRENT_STATUS_2026-10-15.md` filename. Before the next code change or live run, refresh actual `main`, the newest audit files, GitHub Actions for the exact current SHA, and durable runtime state.
@@ -87,12 +87,12 @@ Those results apply to the cited SHA. Documentation changes advance `main`; re-c
 
 ## Required next actions
 
-1. **Reconcile the latest launch first:** query job `8237e1a8-192a-480e-b415-78f24eb94407`, active-job state, terminal events and final durable counts. Record timestamp and evidence. No new launch until state is clear. Run 05 remains historical evidence, not the latest outstanding launch.
+1. **Reconcile the latest launch first:** query job `0bc6087d-4070-4420-a645-ca2606549052`, active-job state, terminal events, case 2 and final durable candidate/evidence/card counts. Record timestamp and evidence. Do not launch until the job has a truthful terminal state and the active lock is idle. The prior job `8237e1a8-192a-480e-b415-78f24eb94407` is historical and recorded as failed/incomplete in the newer audit.
 2. Add a mocked-request regression covering the full `callGroqJson` retry sequence, including strict-schema failure → JSON-object fallback, explicit truncation → bounded budget increase, repeated failure → bounded stop, and non-output failures that must not enter recovery.
 3. Improve scope-guard diagnostics to name the exact failed dimension(s). Add tests for the observed Pacific Northwest / water-transportation query formulations, filing-source synonyms, registry IDs and URL provenance. Keep guard rejection fail-closed and no outbound request on a block.
 4. Trace accepted action → outbound request → fetched page → source-bound finding → admission → persistence → card projection. Investigate card projection only if a valid candidate is shown to have crossed admission and was not projected.
 5. Run focused tests, then complete release workflows on the exact current `main` SHA. No skipped, cancelled or incomplete audit job counts as a pass.
-6. Conduct the next live investigation only after job `8237e1a8-192a-480e-b415-78f24eb94407` and the active lane are reconciled, the relevant source fixes are present on the process actually booted in Replit, and the audit-capture configuration is verified to be off by default with a unique private per-run path only when explicitly enabled.
+6. Conduct the next live investigation only after job `0bc6087d-4070-4420-a645-ca2606549052` and the active lane are reconciled, the relevant source fixes are present on the process actually booted in Replit, and the audit-capture configuration is verified to be off by default with a unique private per-run path only when explicitly enabled.
 
 ## Non-negotiable architecture law
 
