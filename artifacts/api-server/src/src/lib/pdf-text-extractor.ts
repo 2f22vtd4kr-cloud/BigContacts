@@ -95,12 +95,12 @@ export async function extractPdfText(
           .map((item) => item && typeof item === "object" && "str" in item && typeof item.str === "string" ? item.str : "")
           .filter(Boolean)
           .join(" ")
-          .replace(/\\s+/g, " ")
+          .replace(/\s+/g, " ")
           .trim();
         if (!pageText) continue;
 
         const prefix = `[Page ${pageNumber}] `;
-        const separator = text ? "\\n" : "";
+        const separator = text ? "\n" : "";
         const remaining = maxChars - text.length - separator.length - prefix.length;
         if (remaining <= 0) {
           truncated = true;
