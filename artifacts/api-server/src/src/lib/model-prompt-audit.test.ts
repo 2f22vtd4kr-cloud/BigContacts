@@ -46,7 +46,7 @@ describe("model prompt audit", () => {
       resolve(workspaceRoot, "artifacts/api-server/.replit-artifact/artifact.toml"),
       "utf8",
     );
-    const serviceRun = artifactConfig.match(/^\\[services\\.development\\]\\s*\\nrun\\s*=\\s*"([^"]+)"/m)?.[1];
+    const serviceRun = artifactConfig.match(/^\[services\.development\]\s*\nrun\s*=\s*"([^"]+)"/m)?.[1];
 
     expect(serviceRun).toBe("cd ../.. && bash scripts/replit-boot.sh");
     expect(artifactConfig).toContain('APEX_CAPTURE_MODEL_PROMPTS = "false"');
