@@ -174,11 +174,9 @@ def verify_live_egress(namespace: str) -> None:
     # and environment. Never attest based only on resource existence.
     direct_probe = (
         "import socket,sys; s=socket.socket(); s.settimeout(2); "
-        "try_connect=None; "
-        "exec('try:\\n s.connect((\'1.1.1.1\',443)); try_connect=True\\n"
-        "except OSError:\\n try_connect=False'); "
-        "print('DIRECT_ALLOWED' if try_connect else 'DIRECT_BLOCKED'); "
-        "sys.exit(42 if try_connect else 0)"
+        "rc=s.connect_ex(('1.1.1.1',443)); "
+        "print('DIRECT_BLOCKED' if rc != 0 else 'DIRECT_ALLOWED'); "
+        "sys.exit(0 if rc != 0 else 42)"
     )
     run_probe(namespace, direct_probe, "DIRECT_BLOCKED")
     proxy_probe = (
@@ -188,9 +186,8 @@ def verify_live_egress(namespace: str) -> None:
     )
     run_probe(namespace, proxy_probe, "PUBLIC_PROXY_OK")
     metadata_probe = (
-        "import httpx,sys; "
-        "exec('try:\\n r=httpx.get(\'http://169.254.169.254/latest/meta-data/\',timeout=4); "
-        "blocked=(r.status_code >= 400)\\nexcept Exception:\\n blocked=True'); "
+        "import httpx,sys; r=httpx.get('http://169.254.169.254/latest/meta-data/',timeout=4); "
+        "blocked=r.status_code >= 400; "
         "print('METADATA_BLOCKED' if blocked else 'METADATA_ALLOWED'); "
         "sys.exit(0 if blocked else 44)"
     )
