@@ -32,6 +32,14 @@ export type AtlasFailureKind =
   | "pdf_extraction_failed"
   | "pdf_ocr_required"
   | "pdf_no_text"
+  | "registry_unavailable"
+  | "registry_auth_required"
+  | "registry_malformed_response"
+  | "registry_http_error"
+  | "registry_transport_error"
+  | "registry_timeout"
+  | "registry_request_failure"
+  | "registry_partial_failure"
   | "response_size_limit"
   | "http_error"
   | "provider_unavailable"
@@ -92,6 +100,22 @@ function safeErrorShape(error: unknown): { name: string; message: string; code: 
   const rawStatus = value.status ?? value.statusCode ?? cause.status ?? cause.statusCode;
   const status = typeof rawStatus === "number" && Number.isInteger(rawStatus) ? rawStatus : typeof rawStatus === "string" && /^\d{3}$/.test(rawStatus) ? Number(rawStatus) : null;
   return { name, message, code, status };
+}
+
+/** Classify registry failures separately from legitimate successful no-hit results. */
+export function classifyRegistryAdapterFailure(error: unknown): AtlasFailureKind {
+  const value = safeErrorShape(error);
+  const code = value.code.trim().toUpperCase();
+  const message = value.message;
+  if (code === "REGISTRY_ADAPTER_UNAVAILABLE" || /REGISTRY_ADAPTER_UNAVAILABLE/i.test(message)) return "registry_unavailable";
+  if (code === "REGISTRY_AUTH_REQUIRED" || /^(?:HTTP_401|HTTP_403)$/.test(code) || value.status === 401 || value.status === 403
+    || /unauthori[sz]ed|forbidden|authentication required|API (?:key|token) is not configured|credentials? required/i.test(message)) return "registry_auth_required";
+  if (/timeout|timed out|deadline exceeded/i.test(message) || /^(?:ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT)$/.test(code)) return "registry_timeout";
+  if (value.status !== null || /\bHTTP\s+[45]\d{2}\b/i.test(message)) return "registry_http_error";
+  if (/malformed response|invalid JSON|invalid json|missing success, rows, or columns|expected company columns|expected object-shaped rows|row has no valid company name/i.test(message)) return "registry_malformed_response";
+  if (/^(?:EAI_AGAIN|ENOTFOUND|ECONNRESET|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|EHOSTDOWN|EPIPE|ECONNABORTED|EPROTO|UND_ERR_[A-Z_]+|ERR_SOCKET_[A-Z_]+)$/.test(code)
+    || (value.name === "TypeError" && /fetch failed|network error/i.test(message))) return "registry_transport_error";
+  return "registry_request_failure";
 }
 
 export function isRecoverableRightHandOpeningFailure(stage: AtlasFailureStage, error: unknown): boolean {
