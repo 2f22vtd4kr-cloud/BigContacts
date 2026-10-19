@@ -1263,14 +1263,18 @@ Choose each next action yourself from the available capabilities and observed ev
     for (const placeholder of [
       "casino owners site:example.com",
       '"Chief Public Relations Officer" site:example.com',
-      'site:companywebsite.com "public relations" "Chief" "CompanyName"',
-      'public relations director site:companywebsite.com "CompanyName"',
+      'search [CompanyName] owner',
+      'search {{companyName}} owner',
     ]) {
       expect(validateDiscoverySearchQuery(placeholder, [])).toMatchObject({
         allowed: false,
         reason: expect.stringContaining("placeholder"),
       });
     }
+    // English-looking strings are not placeholders merely because they contain
+    // old template variable names; the real subject may use any name/domain.
+    expect(validateDiscoverySearchQuery("CompanyName Ltd beneficial owner", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery('site:companywebsite.com "public relations" "Chief"', [])).toMatchObject({ allowed: true });
 
     const multilingualQueries = [
       "власник казино Порторож акціонери",
@@ -1366,7 +1370,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(validateDiscoveryDomainLookup("coca-colacompany.com")).toMatchObject({ allowed: true });
     expect(validateDiscoveryDomainLookup("cocacolaunited.com")).toMatchObject({ allowed: true });
     expect(validateDiscoveryDomainLookup("例え.テスト")).toMatchObject({ allowed: true });
-    expect(validateDiscoveryDomainLookup("companyname.com")).toMatchObject({ allowed: false });
+    expect(validateDiscoveryDomainLookup("companyname.com")).toMatchObject({ allowed: true });
+    expect(validateDiscoveryDomainLookup("example.com")).toMatchObject({ allowed: false });
     expect(validateDiscoveryDomainLookup("https://casino-portoroz.si/ownership")).toMatchObject({ allowed: false });
     expect(validateDiscoveryDomainLookup("casino-portoroz.si/path")).toMatchObject({ allowed: false });
     expect(validateDiscoveryDomainLookup("not a hostname")).toMatchObject({ allowed: false });
