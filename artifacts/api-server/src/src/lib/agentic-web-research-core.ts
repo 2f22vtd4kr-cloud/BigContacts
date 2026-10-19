@@ -525,7 +525,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   }
 
   // Block literal templates so they cannot waste provider quota.
-  const placeholderQuery = /(?:\[\s*(?:company(?:\s+name)?|domain|company\s+website)\s*\]|\{\{\s*(?:companyname|company(?:\s+name)?|domain)\s*\}\}|\bexample\.(?:com|org|net|co\.[a-z]{2})\b)/i;
+  const placeholderQuery = /(?:\[\s*(?:company(?:\s+name)?|domain|company\s+website)\s*\]|\{\{\s*(?:companyname|company(?:\s+name)?|domain)\s*\}\}|(?:^|[^\p{L}\p{N}.-])example\.(?:com|org|net|co\.[a-z]{2})(?![\p{L}\p{N}.-]))/iu;
   if (placeholderQuery.test(query)) {
     return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with the actual entity/source anchor; no provider request was made." };
   }
