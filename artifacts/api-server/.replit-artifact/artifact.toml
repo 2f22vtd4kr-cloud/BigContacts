@@ -10,7 +10,7 @@ name = "API Server"
 paths = ["/"]
 
 [services.development]
-run = "cd ../.. && bash scripts/replit-boot.sh"
+run = "cd ../.. && APEX_CAPTURE_MODEL_PROMPTS=true APEX_CAPTURE_MODEL_PROMPTS_IN_TEST=false APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA=false APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE=false APEX_MODEL_AUDIT_FILE=.local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-19_MAIN_REFRESH_RELAUNCH_01.md bash scripts/replit-boot.sh"
 
 [services.development.env]
 APEX_CAPTURE_MODEL_PROMPTS = "false"
