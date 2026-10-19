@@ -74,6 +74,10 @@ spec:
                   key: APEX_PYTHON_ISOLATION_ATTESTATION_PUBLIC_KEY
             - name: APEX_PYTHON_ISOLATION_PROOF_PATH
               value: /run/apex/isolation-attestation.json
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: APEX_PYTHON_WORKER_IMAGE_DIGEST
               value: "sha256:replace-before-apply"
             - name: APEX_PYTHON_EGRESS_PROXY_IMAGE_DIGEST
