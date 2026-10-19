@@ -7,6 +7,7 @@ on:
       - "services/apex-python-osint-worker/**"
       - "deployment/apex-python-osint-worker/**"
       - "scripts/attest-python-osint-worker.py"
+      - "scripts/generate-python-osint-attestation-keys.py"
       - "scripts/check-agentic-osint-capability-boundary.mjs"
       - "scripts/check-python-osint-egress-boundary.mjs"
       - ".github/workflows/apex-python-osint-worker.yml"
@@ -42,6 +43,7 @@ jobs:
           python -m py_compile services/apex-python-osint-worker/app.py
           python -m py_compile services/apex-python-osint-worker/tool_runner.py
           python -m py_compile scripts/attest-python-osint-worker.py
+          python -m py_compile scripts/generate-python-osint-attestation-keys.py
       - name: Test worker argument, isolation proof, and process contracts
         run: python -m unittest discover -s services/apex-python-osint-worker/tests -v
       - name: Validate Kubernetes manifests
@@ -95,5 +97,5 @@ jobs:
             /opt/venvs/maigret/bin/maigret --help >/dev/null
             /opt/venvs/sherlock/bin/sherlock --help >/dev/null
             /opt/venvs/theharvester/bin/theHarvester --help >/dev/null
-            /opt/venvs/spiderfoot/bin/python -c "import sf"
+            cd /opt/tools/spiderfoot && /opt/venvs/spiderfoot/bin/python -c "import sf"
           '
