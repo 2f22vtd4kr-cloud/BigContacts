@@ -514,9 +514,41 @@ export function isTransientInvestigatorCapacityError(result: { error?: string; t
   if (result.error === "upstream_token_window_wait_exceeded") return true;
   return (result.trajectoryRecords ?? []).some((record) => /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""));
 }
+const DISCOVERY_UNTARGETABLE_PERSON_NAMES = /\b(?:elon musk|jeff bezos|mark zuckerberg|bill gates|warren buffett|larry ellison|larry page|sergey brin|jensen huang|bernard arnault|richard branson|oprah winfrey|kim kardashian|taylor swift|cristiano ronaldo|lionel messi)\b/i;
+const DISCOVERY_PRESS_PUBLISHER_DOMAINS = [
+  "cnbc.com", "reuters.com", "bloomberg.com", "forbes.com", "ft.com", "wsj.com",
+  "nytimes.com", "theguardian.com", "bbc.com", "bbc.co.uk", "apnews.com", "fortune.com",
+  "businessinsider.com", "marketwatch.com", "axios.com", "techcrunch.com", "sifted.eu", "theinformation.com",
+] as const;
+
+function hasPressPublisherSiteFilter(query: string): boolean {
+  for (const match of query.matchAll(/\bsite:\s*([^\s]+)/gi)) {
+    const token = (match[1] ?? "")
+      .replace(/[),;]+$/g, "")
+      .replace(/^https?:\/\//i, "")
+      .replace(/^\*\./, "")
+      .split(/[/?#]/, 1)[0]
+      ?.toLowerCase()
+      .replace(/^www\./, "")
+      .replace(/\.+$/, "");
+    if (!token) continue;
+    if (DISCOVERY_PRESS_PUBLISHER_DOMAINS.some((domain) => token === domain || token.endsWith("." + domain))) return true;
+  }
+  return false;
+}
+export function isUntargetableDiscoveryPersonName(value: string): boolean {
+  return DISCOVERY_UNTARGETABLE_PERSON_NAMES.test(normalizeDiscoverySearchQuery(value));
+}
+
 export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
+  if (hasPressPublisherSiteFilter(query) && !/["“][^"”]*\p{Lu}[\p{L}\p{M}\p{N}&'.’\-]{2,}[^"”]*["”]/u.test(query)) {
+    return {
+      allowed: false,
+      reason: "Discovery rejected a broad press-publisher-only search without an exact named person/business anchor. News stories can support a source-grounded lead, but the publisher or its broad topic is not the target or a reachability route; remove the outlet filter or quote the exact named entity. No provider request was made.",
+    };
+  }
 
   // Structural/provider-syntax checks only. Query content is intentionally not
   // classified by English keywords, entity lists, role lists, or sector vocabularies.
@@ -2401,6 +2433,8 @@ const PIVOT_GEOGRAPHIC_NAME_ALIASES: Array<{
   { pattern: /\blatvia\b/i, alternatives: [["latvia"], ["latvian"], ["latvija"]] },
   { pattern: /\blithuania\b/i, alternatives: [["lithuania"], ["lithuanian"], ["lietuva"]] },
   { pattern: /\bgermany\b/i, alternatives: [["germany"], ["german"], ["deutschland"]] },
+  { pattern: /\bportorož\b/i, alternatives: [["portoroz"], ["порторож"], ["бортуроз"], ["бортурош"], ["بورتوروز"], ["波尔托罗什"], ["ポルトロシュ"]] },
+  { pattern: /\b(?:slovenia|slovenija|slovenian|slovene)\b/i, alternatives: [["slovenia"], ["slovenija"], ["slovenian"], ["slovene"], ["slowenien"]] },
 ];
 
 function pivotGeographicAlternatives(phrase: string): string[][] {
@@ -2431,7 +2465,7 @@ function pivotGeographicAlternatives(phrase: string): string[][] {
 function pivotScopeGeographyOptions(direction: string): string[][] {
   const options: string[][] = [];
   const locationClause = new RegExp(
-    `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
+    `\\b(?:in|across|throughout|within|near|from|between|around|associated\\s+with|located\\s+in|based\\s+in|operating\\s+in)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
     "gu",
   );
   for (const match of direction.matchAll(locationClause)) {
@@ -2464,7 +2498,7 @@ function pivotScopeGeographyOptions(direction: string): string[][] {
 
 function removePivotGeographyPhrases(direction: string): string {
   const locationClause = new RegExp(
-    `\\b(?:in|across|throughout|within|near|from|between)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
+    `\\b(?:in|across|throughout|within|near|from|between|around|associated\\s+with|located\\s+in|based\\s+in|operating\\s+in)\\s+(?:the\\s+)?(${PIVOT_GEOGRAPHIC_NAME}(?:(?:\\s*(?:,\\s*(?:(?:and|or)\\s+)?|\\/|\\bor\\b|\\band\\b)\\s*)(?:the\\s+)?${PIVOT_GEOGRAPHIC_NAME})*)`,
     "gu",
   );
   const jurisdictionList = new RegExp(PIVOT_GEOGRAPHIC_JURISDICTION_LIST, "gu");
@@ -2667,7 +2701,13 @@ function pivotTextMatchesGeography(value: string, options: readonly string[][]):
   // normalizer turns names such as Illinois, Kansas, Indianapolis and Sioux Falls
   // into different tokens, which rejects valid member-state/city queries.
   const tokens = new Set((value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").match(/[\p{L}]{3,}/gu) ?? []));
-  return options.some((option) => option.every((token) => tokens.has(token.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, ""))));
+  return options.some((option) => option.every((token) => {
+    const normalizedToken = token.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "");
+    return tokens.has(normalizedToken)
+      || (/[ \t]/u.test(normalizedToken) === false
+        && /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(normalizedToken)
+        && value.toLowerCase().includes(normalizedToken));
+  }));
 }
 
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
@@ -2698,6 +2738,23 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   // Accept common native-language equivalents when the model localizes a query.
   // These aliases establish topical equivalence only; evidence and admission remain separate.
   const normalizedValue = value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "");
+  // Localize topic/role matching only; never bypass geography, exclusions,
+  // source-class requirements, or explicit staged-source dependencies.
+  if (
+    anchors.some((anchor) => ["casino", "gaming", "gambling"].includes(anchor))
+    && /(?:\bcasino\w*|\bkasino\w*|\bkazino\w*|\bkaszin[oó]\w*|\bkumarhane\w*|казино|كازино|كازينو|赌场|カジノ|카지노)/iu.test(normalizedValue)
+  ) {
+    for (const anchor of anchors) {
+      if (["casino", "gaming", "gambling"].includes(anchor)) matched.add(anchor);
+    }
+  }
+  const localizedControlSignal = /(?:\b(?:owner|owners|ownership|shareholders?|beneficial|operators?|concessions?|holders?)\b|власник\p{L}*|акціонер\p{L}*|акционер\p{L}*|مالك|ملاك|استثمار|股东|株主|所有者|持分|lastnik\p{L}*|koncesionar\p{L}*|tulajdonos\p{L}*|koncesszi\p{L}*|sahibi|imtiyaz|isletmeci\p{L}*|vlasnik\p{L}*|vlasnistv\p{L}*|osnivac\p{L}*|proprietari[oa]\p{L}*|azionista\p{L}*)/iu.test(normalizedValue);
+  if (
+    localizedControlSignal
+    && anchors.some((anchor) => /(?:owner|ownership|shareholder|beneficial|operator|concession|holder)/.test(anchor))
+  ) {
+    matched.add("localized_control_signal");
+  }
   if (
     anchors.includes("renewable") && anchors.includes("energy")
     && /\b(?:renewable\s+energy|odnawialn\w*\s+energi\w*|energi\w*\s+odnawialn\w*|erneuerbar\w*\s+energi\w*|obnoviteln\w*\s+zdroj\w*|atjaunojam\w*\s+energij\w*|atsinaujinant\w*\s+energetik\w*|taastuvenergi\w*)\b/iu.test(normalizedValue)
@@ -3010,7 +3067,38 @@ export function discoveryPivotAlignmentReason(
   const direction = extractBossPivotDirectionForCompactPrompt(objective);
   const activePivotScopeKey = discoveryPivotScopeKey(objective);
   if (!direction || !activePivotScopeKey) return null;
-  return explicitSourceStageOrderReason(direction, activePivotScopeKey, action, args, priorRecords);
+  const anchors = pivotScopeAnchors(objective);
+  const excludedSubjects = pivotScopeExclusions(direction);
+  const geographyOptions = pivotScopeGeographyOptions(direction);
+  const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
+  // Keep a subject-open pivot model-led while still enforcing every explicit
+  // source class, geography, and exclusion found in the direction.
+  if (anchors.length === 0 && excludedSubjects.length === 0 && geographyOptions.length === 0 && requiredSourceAnchors.length === 0) return null;
+  // Provenance grows only through successful actions already grounded in the active
+  // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
+  const sourceStageReason = explicitSourceStageOrderReason(direction, activePivotScopeKey, action, args, priorRecords);
+  if (sourceStageReason) return sourceStageReason;
+  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, activePivotScopeKey);
+  if (pivotActionIsAligned(action, args, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText)) return null;
+
+  const failureDetails = pivotActionAlignmentFailureDetails(
+    action,
+    args,
+    anchors,
+    excludedSubjects,
+    geographyOptions,
+    requiredSourceAnchors,
+    evidence.sourceUrls,
+    evidence.evidenceText,
+  );
+  const mismatch = failureDetails.length > 0
+    ? failureDetails.join("; ")
+    : "required scope dimensions could not be classified";
+  return "pivot_alignment_guard blocked this outbound action before execution. Scope mismatch dimensions: "
+    + mismatch
+    + ". The active Boss-accepted pivot is: "
+    + direction.slice(0, 420)
+    + ". Web discovery queries must remain on the substantive topic and active geography, but do not need to repeat source-class wording; official registry discovery may precede named-company searches. Native-language equivalents are valid when they express the same topic. Registry searches must use an adapter matching the active jurisdiction/source class. Follow-up URLs must be observed leads or grounded in successful aligned evidence. Revise the actually mismatched dimension or ask Boss/Right-hand for new scope. No outbound request was made.";
 }
 /**
  * Split a model-selected parallel web-search batch at the active-pivot boundary.
