@@ -4,7 +4,7 @@
 **Status:** ATTEMPT 1 FAILED; ATTEMPT 2 OBSERVATION INTERRUPTED — Apex job terminal state and card outcome unverified  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Reviewed upstream application revision:** `main` at `88ca5dee30e7976ef28e2afb20bec30b5f0bd8d6`  
-**Current local revision:** `main` at `9d3862051a0e621979bc843c0b3e0fe472b586c7` (differs from upstream only by this audit file)
+**Local revision at the first audit checkpoint:** `main` at `9d3862051a0e621979bc843c0b3e0fe472b586c7` (at that checkpoint it differed from the reviewed upstream revision only by this audit file; subsequent tracked audit updates advanced GitHub `main`, and the current Replit runtime SHA remains unverified)
 **Latest recorded run before this audit:** `8237e1a8-192a-480e-b415-78f24eb94407`, documented in `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-19_MAIN_REFRESH_RELAUNCH_01.md`
 
 ## Audit handling
