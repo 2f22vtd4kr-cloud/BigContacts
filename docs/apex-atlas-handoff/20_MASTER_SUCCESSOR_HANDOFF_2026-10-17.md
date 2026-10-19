@@ -1,5 +1,10 @@
 # Apex Atlas — Master Successor Handoff (17 October 2026)
 
+
+
+## Current successor handoff — 2026-10-19
+
+For the latest chronological ownership transfer, read [Successor Handoff 21 — 19 October / PR #715](./21_SUCCESSOR_HANDOFF_2026-10-19_PR715.md) first. It records the Attempt 1 vs Attempt 2 distinction, the supplemental registry/PDF failure notes, PR #715 state and validation gates, the PDF.js Node import regression uncovered by CI, and the mandatory next steps. This file remains the broad historical master handoff; do not let its older incident instructions override newer source, this addendum, or the latest tracked run audit.
 > **Current run-preparation override — 2026-10-19 (takes precedence over older audit-path instructions below).** Read the actual GitHub `main` HEAD and current PR/CI state before operating; do not assume any SHA below is current. The checked-in `.replit` and API artifact config now leave raw prompt capture, contact-value capture, and visible-file opt-in **disabled by default**. The configured private destination is `.local/audits/APEX_ATLAS_MODEL_AUDIT.md`; `.local/` is Git-ignored and the runtime path guard explicitly permits `.local/audits/` without enabling visible `audits/` writes.
 >
 > For one controlled canonical development run that needs a detailed diagnostic trace, explicitly enable `APEX_CAPTURE_MODEL_PROMPTS=true` and set `APEX_MODEL_AUDIT_FILE=.local/audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-19_CANONICAL_RUN_01.md` (use a new run-specific filename for every run). Keep `APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE=false` and `APEX_CAPTURE_MODEL_PROMPTS_IN_TEST=false`. Enable `APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA=true` only for that authorized run when exact public professional-contact attribution must be inspected; otherwise keep it false. Credentials must still be redacted, provider-private reasoning must remain excluded, and the raw trace must never be committed or copied into a tracked audit. Record a separate sanitized chronological report in the active tracked audit.
