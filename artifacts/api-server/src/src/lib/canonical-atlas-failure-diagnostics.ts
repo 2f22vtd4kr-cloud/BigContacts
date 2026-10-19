@@ -27,6 +27,8 @@ export type AtlasFailureKind =
   | "invalid_contract"
   | "out_of_scope_action"
   | "pdf_unsupported"
+  | "pdf_extraction_failed"
+  | "pdf_no_text"
   | "response_size_limit"
   | "http_error"
   | "provider_unavailable"
