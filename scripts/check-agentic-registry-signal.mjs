@@ -29,6 +29,8 @@ assert(registry.includes("REGISTRY_ADAPTER_UNAVAILABLE: kvk-netherlands"), "disa
 assert(core.includes("function summarizeRegistryAdapterFailure"), "registry failures must have a structured safe summary for the Investigator");
 assert(core.includes("summarizeRegistryAdapterFailure(action.registry, error)"), "single registry failures must preserve actionable safe diagnostics");
 assert(core.includes("summarizeRegistryAdapterFailure(search.registry, error)"), "parallel registry failures must preserve actionable safe diagnostics");
+assert(core.includes("classifyRegistryBatchExecution(outcomes)"), "parallel registry execution must preserve partial failures");
+assert(core.includes('return "partial"'), "mixed parallel registry outcomes must not be recorded as full success");
 if (failures.length) {
   console.error("AGENTIC REGISTRY SIGNAL: FAIL");
   for (const failure of failures) console.error(`- ${failure}`);
