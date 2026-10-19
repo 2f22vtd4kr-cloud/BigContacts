@@ -302,6 +302,161 @@ class ProcessLimitsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(stdout, b"")
         self.assertLess(elapsed, 3.0)
 
+class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
+    async def invoke(
+        self,
+        tool: str,
+        args: dict,
+        *,
+        artifact=None,
+        code: int = 0,
+        stdout: bytes = b"",
+    ):
+        async def fake_run_process(*_args, **kwargs):
+            if artifact is not None:
+                artifact(Path(kwargs["tool_home"]))
+            return code, stdout, b"", None
+
+        with patch.object(app, "run_process", side_effect=fake_run_process):
+            return await app.run_cli_tool(
+                tool, args, timeout_ms=5_000, max_output_bytes=1_000_000,
+            )
+
+    async def test_holehe_malformed_stdout_is_not_an_empty_success(self) -> None:
+        status, result, _error, _version = await self.invoke(
+            "holehe", {"email": "person@example.org"}, stdout=b"not-json",
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+
+    async def test_holehe_structured_empty_result_can_complete(self) -> None:
+        status, result, error, _version = await self.invoke(
+            "holehe",
+            {"email": "person@example.org"},
+            stdout=b'{"found":[],"totalChecked":0,"totalFound":0}',
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"], [])
+
+    async def test_maigret_v066_report_path_and_nested_status_are_normalized(self) -> None:
+        record = {
+            "sitename": "GitHub",
+            "status": {
+                "username": "testuser",
+                "site_name": "GitHub",
+                "url": "https://github.com/testuser",
+                "status": "Claimed",
+                "ids": {},
+                "tags": ["social"],
+            },
+            "url_user": "https://github.com/testuser",
+            "tags": ["social"],
+            "ids_data": {"bio": "Public profile"},
+        }
+
+        def artifact(home: Path) -> None:
+            reports = home / "reports"
+            reports.mkdir()
+            (reports / "report_testuser_ndjson.json").write_text(
+                json.dumps(record) + "\n", encoding="utf-8",
+            )
+
+        status, result, error, _version = await self.invoke(
+            "maigret", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"][0]["siteName"], "GitHub")
+        self.assertEqual(result["found"][0]["url"], "https://github.com/testuser")
+        self.assertEqual(result["found"][0]["status"], "found")
+        self.assertEqual(result["found"][0]["profileData"], {"bio": "Public profile"})
+
+    async def test_maigret_existing_empty_report_is_a_valid_zero_hit_result(self) -> None:
+        def artifact(home: Path) -> None:
+            reports = home / "reports"
+            reports.mkdir()
+            (reports / "report_testuser_ndjson.json").write_text("", encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "maigret", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"], [])
+
+    async def test_maigret_missing_or_malformed_report_is_failure_even_with_exit_zero(self) -> None:
+        status, result, _error, _version = await self.invoke(
+            "maigret", {"username": "testuser"},
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+
+        def malformed(home: Path) -> None:
+            reports = home / "reports"
+            reports.mkdir()
+            (reports / "report_testuser_ndjson.json").write_text(
+                "{definitely-not-json}\n", encoding="utf-8",
+            )
+
+        status, result, _error, _version = await self.invoke(
+            "maigret", {"username": "testuser"}, artifact=malformed,
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+
+    async def test_sherlock_missing_csv_is_failure_even_with_exit_zero(self) -> None:
+        status, result, _error, _version = await self.invoke(
+            "sherlock", {"username": "testuser"},
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+
+    async def test_sherlock_header_only_csv_is_a_valid_zero_hit_result(self) -> None:
+        def artifact(home: Path) -> None:
+            (home / "testuser.csv").write_text(
+                "username,name,url_main,url_user,exists,http_status,response_time_s\n",
+                encoding="utf-8",
+            )
+
+        status, result, error, _version = await self.invoke(
+            "sherlock", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"], [])
+
+    async def test_theharvester_missing_or_malformed_report_is_failure_even_with_exit_zero(self) -> None:
+        status, result, _error, _version = await self.invoke(
+            "theharvester", {"domain": "example.org", "sources": "bing"},
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+
+        def malformed(home: Path) -> None:
+            (home / "harvest.json").write_text("{bad-json", encoding="utf-8")
+
+        status, result, _error, _version = await self.invoke(
+            "theharvester",
+            {"domain": "example.org", "sources": "bing"},
+            artifact=malformed,
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+
+    async def test_theharvester_structured_empty_report_can_complete(self) -> None:
+        def artifact(home: Path) -> None:
+            (home / "harvest.json").write_text(
+                json.dumps({"hosts": [], "shodan": []}), encoding="utf-8",
+            )
+
+        status, result, error, _version = await self.invoke(
+            "theharvester",
+            {"domain": "example.org", "sources": "bing"},
+            artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["hosts"], [])
+        self.assertEqual(result["emails"], [])
+        self.assertEqual(result["ips"], [])
+
+
 class ToolResultStatusTests(unittest.TestCase):
     def test_holehe_partial_errors_are_not_promoted_to_completed(self) -> None:
         status, error = app.classify_holehe_result([
