@@ -114,11 +114,12 @@ describe("signed Python OSINT worker client", () => {
     vi.stubEnv("APEX_PYTHON_SANDBOX_TOKEN", TOKEN);
     vi.stubEnv("APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST", "sha256:" + "a".repeat(64));
     vi.stubEnv("APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST", "sha256:" + "b".repeat(64));
+    const attestation = validAttestation();
     const requests: Array<{ url: string; init?: RequestInit }> = [];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       requests.push({ url, init });
-      if (url.endsWith("/v1/attestation")) return response(validAttestation());
+      if (url.endsWith("/v1/attestation")) return response(attestation);
       const body = JSON.parse(String(init?.body)) as { requestId: string; tool: string; args: Record<string, unknown>; correlation?: Record<string, unknown> };
       const signature = String(new Headers(init?.headers).get("X-Apex-Request-Signature"));
       const expected = createHmac("sha256", TOKEN).update(stableJson(body)).digest("hex");
@@ -132,10 +133,10 @@ describe("signed Python OSINT worker client", () => {
         error: null,
         startedAt: new Date(Date.now() - 1_000).toISOString(),
         finishedAt: new Date().toISOString(),
-        executorId: "unit-test-worker", workerImageDigest: "sha256:" + "a".repeat(64),
-        egressProxyImageDigest: "sha256:" + "b".repeat(64),
-        isolationProofIssuedAt: new Date(Date.now() - 60_000).toISOString(),
-        isolationProofExpiresAt: new Date(Date.now() + 4 * 60 * 60_000).toISOString(),
+        executorId: attestation.executorId, workerImageDigest: attestation.workerImageDigest,
+        egressProxyImageDigest: attestation.egressProxyImageDigest,
+        isolationProofIssuedAt: attestation.isolationProofIssuedAt,
+        isolationProofExpiresAt: attestation.isolationProofExpiresAt,
         correlation: body.correlation ?? {},
       });
     });
