@@ -131,41 +131,8 @@ function cleanText(value: unknown, max = 500): string { const limit = Number.isF
 function isSafeHttpUrl(value: string): boolean { return /^https?:\/\//i.test(value); }
 function normalizedUrl(value: string): string | null { try { const u = new URL(value); return /^https?:$/i.test(u.protocol) ? sanitizeUrlForEvidence(u.href) : null; } catch { return null; } }
 
-const DISCOVERY_FAME_TERMS = /\b(?:billionaire|billionaires|richest|wealthiest|celebrity|celebrities|famous|forbes|bloomberg|net[ -]?worth|top[ -]?richest)\b/i;
-const DISCOVERY_GLOBAL_BRAND_TERMS = /\b(?:coca[ -]?cola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonald'?s|disney|netflix|oracle|berkshire hathaway|jpmorgan|goldman sachs)\b/i;
-const DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS = /\b(?:independent bottler|independent distributor|regional distributor|local distributor|franchisee|franchise owner|licensed operator|license holder|concession holder|independent operator|regional operator|local operator|locally owned (?:operator|company|business|subsidiary)|regional subsidiary|local subsidiary|privately held (?:bottler|distributor|operator|company)|local business owner|regional business owner)\b/i;
-const DISCOVERY_RANKING_TERMS = /\b(?:fortune[ -]?500|fortune500|top[ -]?richest|celebrity list|billionaire list|net[ -]?worth ranking)\b/i;
-const DISCOVERY_UNTARGETABLE_PERSON_NAMES = /\b(?:elon musk|jeff bezos|mark zuckerberg|bill gates|warren buffett|larry ellison|larry page|sergey brin|jensen huang|bernard arnault|richard branson|oprah winfrey|kim kardashian|taylor swift|cristiano ronaldo|lionel messi)\b/i;
-const DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS = /\b(?:leadership|executive|executives|ceo|chief executive|senior management|management team|board of directors|corporate officers|leadership team|staff directory)\b/i;
 const DISCOVERY_BARE_TLD_SITE_FILTER = /\bsite:\.(?:com|org|net|edu|gov|io|co|si|eu)\b/i;
-const DISCOVERY_PRESS_PUBLISHER_DOMAINS = [
-  "cnbc.com", "reuters.com", "bloomberg.com", "forbes.com", "ft.com", "wsj.com",
-  "nytimes.com", "theguardian.com", "bbc.com", "bbc.co.uk", "apnews.com", "fortune.com",
-  "businessinsider.com", "marketwatch.com", "axios.com", "techcrunch.com", "sifted.eu", "theinformation.com",
-] as const;
 
-function hasPressPublisherSiteFilter(query: string): boolean {
-  for (const match of query.matchAll(/\bsite:\s*([^\s]+)/gi)) {
-    const token = (match[1] ?? "")
-      .replace(/[),;]+$/g, "")
-      .replace(/^https?:\/\//i, "")
-      .replace(/^\*\./, "")
-      .split(/[/?#]/, 1)[0]
-      ?.toLowerCase()
-      .replace(/^www\./, "")
-      .replace(/\.+$/, "");
-    if (!token) continue;
-    if (DISCOVERY_PRESS_PUBLISHER_DOMAINS.some((domain) => token === domain || token.endsWith("." + domain))) return true;
-  }
-  return false;
-}
-const DISCOVERY_GENERIC_CONTACT_TERMS = /\b(?:public relations|media relations|press contact|media contact|communications contact|pr contact|press office|media office)\b/i;
-const DISCOVERY_TARGETABILITY_TERMS = /\b(?:ownership|owner|owner-operator|founder|co-?founder|shareholder|beneficial owner|controlling owner|investor|investment|private equity|venture capital|family office|principal|partner|concession|franchise|license holder|licensed operator|casino|gaming|hotel|resort|hospitality|real estate|property|asset|holding company|business owner|acquisition|business exit|portfolio)\b/i;
-const DISCOVERY_OWNERSHIP_ROUTE_TERMS = /\b(?:owner|owners|ownership|owner-operator|founder|co-?founder|shareholder|beneficial owner|controlling owner|investor|investment|private equity|venture capital|family office|principal|partner|operator|concession|concessionaire|franchisee?|license holder|licensed operator|business owner|acquisition|business exit|holding company|proprietor|lastnik|lastniki|lastništvo|solastnik|družbenik|ustanovitelj|investitor|koncesionar|upravljavec|franšizojemalec|imetnik licence|vlasnik|vlasništvo|osnivač|koncesionar|operater|proprietario|proprietà|azionista|socio|fondatore|investitore|concessionario|gestore|eigentümer|eigentum|gesellschafter|gründer|investor|konzessionär|betreiber)\b/i;
-const DISCOVERY_ROLE_TERMS = /\b(?:founder|co[ -]?founder|owner|operator|ceo|chief executive|director|managing director|chairman|chairwoman|chair|principal|partner|managing partner|general partner|president|shareholder|beneficial owner|officer|board)\b/i;
-const DISCOVERY_SECTOR_TERMS = /\b(?:casino|gaming|gambling|hotel|resort|hospitality|restaurant|construction|manufacturing|software|technology|saas|ai|artificial intelligence|fintech|healthcare|pharma|biotech|logistics|shipping|aviation|real estate|property|energy|industrial|automotive|retail|food|beverage|media|telecom|mining|metals|resources|legal|law|education|consulting|investment|private equity|venture capital|family office|asset management|insurance|banking|agriculture|tourism|travel)\b/i;
-const DISCOVERY_SOURCE_TERMS = /(?:\b(?:site:|registry|registr(?:y|ies)|filing|filings|annual report|press release|trade publication|business journal|interview|company profile|team page|official)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i;
-const DISCOVERY_ORG_TERMS = /\b(?:company|corp(?:oration)?|ltd|limited|llc|inc|group|holdings|partners|capital|ventures|bank|university|hospital|club|association)\b/i;
 export function normalizeDiscoverySearchQuery(query: string): string { return query.trim().normalize("NFC").toLowerCase().replace(/[\s\u00a0]+/g, " ").replace(/[“”‘’]/g, '"' ); }
 
 function normalizedActionResourceUrl(value: unknown): string | null {
@@ -548,10 +515,6 @@ export function isTransientInvestigatorCapacityError(result: { error?: string; t
   if (result.error === "upstream_token_window_wait_exceeded") return true;
   return (result.trajectoryRecords ?? []).some((record) => /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""));
 }
-export function isUntargetableDiscoveryPersonName(value: string): boolean {
-  return DISCOVERY_UNTARGETABLE_PERSON_NAMES.test(normalizeDiscoverySearchQuery(value));
-}
-
 export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
