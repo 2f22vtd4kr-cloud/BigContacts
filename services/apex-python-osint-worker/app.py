@@ -528,11 +528,11 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             if code != 0:
                 return "failed", None, "Holehe runner returned a non-zero exit code.", "holehe"
             result = parse_json_from_stdout(stdout)
-            found = result.get("found", [])
-            if not isinstance(found, list):
-                found = []
+            found = result.get("found") if isinstance(result, dict) else None
+            if not isinstance(found, list) or any(not isinstance(item, dict) for item in found):
+                return "failed", None, "Holehe runner returned an invalid structured result.", "holehe"
             checked = len(found)
-            positives = sum(1 for item in found if isinstance(item, dict) and item.get("exists") is True)
+            positives = sum(1 for item in found if item.get("exists") is True)
             status, error = classify_holehe_result(found)
             return status, {"found": found[:250], "totalChecked": checked, "totalFound": positives}, error, "holehe"
         if tool == "maigret":
@@ -544,45 +544,90 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             )
             if failure:
                 return failure, None, "Maigret runner " + failure, "maigret"
-            report_path = report_dir / (args["username"] + "_ndjson.json")
-            if not report_path.is_file() and code != 0:
-                return "failed", None, "Maigret exited without a structured report.", "maigret"
-            raw_report = report_path.read_text("utf-8", errors="replace") if report_path.is_file() else ""
-            records: list[dict[str, Any]] = []
+            # Maigret v0.6.6 writes claimed profiles to
+            # reports/report_<username>_ndjson.json. Its valid zero-hit report is
+            # an existing empty file; absence or malformed non-empty output is failure.
+            report_path = report_dir / ("report_" + args["username"] + "_ndjson.json")
+            if not report_path.is_file():
+                return "failed", None, "Maigret exited without its expected structured report.", "maigret"
             try:
-                decoded = json.loads(raw_report)
-                if isinstance(decoded, list):
-                    records = [item for item in decoded if isinstance(item, dict)]
-                elif isinstance(decoded, dict):
-                    records = [decoded]
-            except json.JSONDecodeError:
-                for line in raw_report.splitlines():
-                    try:
-                        item = json.loads(line)
-                        if isinstance(item, dict):
-                            records.append(item)
-                    except json.JSONDecodeError:
-                        continue
+                raw_report = report_path.read_text("utf-8", errors="replace")
+            except OSError:
+                return "failed", None, "Maigret structured report could not be read.", "maigret"
+            records: list[dict[str, Any]] = []
+            malformed_lines = 0
+            if raw_report.strip():
+                try:
+                    decoded = json.loads(raw_report)
+                    if isinstance(decoded, list):
+                        records = [item for item in decoded if isinstance(item, dict)]
+                        malformed_lines = sum(1 for item in decoded if not isinstance(item, dict))
+                    elif isinstance(decoded, dict):
+                        records = [decoded]
+                    else:
+                        malformed_lines = 1
+                except json.JSONDecodeError:
+                    for line in raw_report.splitlines():
+                        if not line.strip():
+                            continue
+                        try:
+                            item = json.loads(line)
+                            if isinstance(item, dict):
+                                records.append(item)
+                            else:
+                                malformed_lines += 1
+                        except json.JSONDecodeError:
+                            malformed_lines += 1
+                if not records:
+                    return "failed", None, "Maigret returned a malformed non-empty structured report.", "maigret"
             found = []
+            unknown_statuses = 0
+            malformed_records = malformed_lines
             for item in records[:300]:
-                raw_status = str(item.get("status") or item.get("status_value") or "").lower()
+                status_object = item.get("status") if isinstance(item.get("status"), dict) else {}
+                status_source = status_object.get("status") if status_object else item.get("status", item.get("status_value", ""))
+                raw_status = str(status_source or "").strip().lower()
                 status_value = (
                     "found" if raw_status in ("claimed", "found", "true")
                     else "not_found" if raw_status in ("available", "not_found", "false")
-                    else "error" if raw_status in ("error", "unknown_error")
+                    else "error" if raw_status in ("error", "unknown_error", "unknown")
                     else "unknown"
                 )
-                profile_url = str(item.get("url") or item.get("profile_url") or "")
+                site_value = item.get("sitename") or item.get("site_name") or item.get("name")
+                if not isinstance(site_value, str) and isinstance(item.get("site"), str):
+                    site_value = item["site"]
+                if not isinstance(site_value, str):
+                    site_value = status_object.get("site_name", "")
+                profile_url_value = (
+                    item.get("url_user") or item.get("url") or item.get("profile_url")
+                    or status_object.get("url") or ""
+                )
+                site_name = str(site_value or "").strip()
+                profile_url = str(profile_url_value or "").strip()
+                if not site_name or not profile_url or not raw_status:
+                    malformed_records += 1
+                    continue
+                if status_value == "unknown":
+                    unknown_statuses += 1
+                profile_data = item.get("ids_data") if isinstance(item.get("ids_data"), dict) else item.get("metadata")
                 found.append({
-                    "siteName": str(item.get("site") or item.get("site_name") or item.get("name") or "")[:160],
+                    "siteName": site_name[:160],
                     "url": profile_url[:500],
                     "status": status_value,
-                    "profileData": item.get("metadata") if isinstance(item.get("metadata"), dict) else {},
+                    "profileData": profile_data if isinstance(profile_data, dict) else {},
                     "tags": item.get("tags") if isinstance(item.get("tags"), list) else [],
                 })
             site_errors = sum(1 for item in found if item.get("status") == "error")
-            status = "completed" if code == 0 and site_errors == 0 else "partial" if found else "failed"
-            error = ("Maigret returned " + str(site_errors) + " site-level errors; results are partial.") if site_errors else (None if code == 0 else "Maigret ended with a non-zero code after producing bounded results.")
+            incomplete = malformed_records > 0 or unknown_statuses > 0
+            if code != 0:
+                status = "partial" if found else "failed"
+                error = "Maigret ended with a non-zero code after producing bounded results." if found else "Maigret exited unsuccessfully without usable profile results."
+            elif incomplete or site_errors:
+                status = "partial" if found else "failed"
+                error = "Maigret returned incomplete or unclassified profile records."
+            else:
+                status = "completed"
+                error = None
             return status, {"found": found, "totalSitesChecked": len(found)}, error, "maigret"
         if tool == "sherlock":
             output_file = home / "sherlock.csv"
@@ -593,28 +638,27 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             )
             if failure:
                 return failure, None, "Sherlock runner " + failure, "sherlock"
+            # Sherlock v0.16.2 writes <username>.csv in the working directory
+            # whenever --csv is selected, including for a legitimate zero-hit run.
             result_path = home / (args["username"] + ".csv")
-            if not result_path.exists():
-                result_path = output_file
+            if not result_path.is_file():
+                return "failed", None, "Sherlock exited without its expected CSV report.", "sherlock"
+            import csv
             found: list[dict[str, Any]] = []
-            # --csv writes a local CSV file. Read only the fields the adapter owns.
-            if result_path.exists():
-                import csv
-                try:
-                    with result_path.open("r", encoding="utf-8", newline="") as stream:
-                        for row in csv.DictReader(stream):
-                            exists = str(row.get("exists", "")).lower() == "true"
-                            if exists and row.get("url_user"):
-                                found.append({"siteName": str(row.get("name", ""))[:160], "url": str(row["url_user"])[:500]})
-                except (OSError, csv.Error):
-                    pass
-            if not found:
-                for line in stdout.decode("utf-8", errors="replace").splitlines():
-                    match = re.match(r"^\s*\[\+\]\s+(.+?):\s+(https?://\S+)\s*$", line)
-                    if match:
-                        found.append({"siteName": match.group(1)[:160], "url": match.group(2)[:500]})
+            required_headers = {"name", "url_user", "exists"}
+            try:
+                with result_path.open("r", encoding="utf-8", newline="") as stream:
+                    reader = csv.DictReader(stream)
+                    if not reader.fieldnames or not required_headers.issubset(set(reader.fieldnames)):
+                        return "failed", None, "Sherlock returned a malformed CSV report.", "sherlock"
+                    for row in reader:
+                        exists = str(row.get("exists", "")).strip().lower() == "true"
+                        if exists and row.get("url_user"):
+                            found.append({"siteName": str(row.get("name", ""))[:160], "url": str(row["url_user"])[:500]})
+            except (OSError, UnicodeError, csv.Error):
+                return "failed", None, "Sherlock CSV report could not be read.", "sherlock"
             if code != 0 and not found:
-                return "failed", None, "Sherlock exited without a verified profile output.", "sherlock"
+                return "failed", None, "Sherlock exited unsuccessfully without usable profile results.", "sherlock"
             return ("completed" if code == 0 else "partial"), {"found": found[:300], "totalSitesChecked": max(len(found), len(stdout.decode("utf-8", errors="ignore").splitlines()))}, None if code == 0 else "Sherlock ended with a non-zero code after producing bounded results.", "sherlock"
         if tool == "theharvester":
             report_base = home / "harvest"
@@ -626,21 +670,30 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             if failure:
                 return failure, None, "theHarvester runner " + failure, "theharvester"
             report_path = Path(str(report_base) + ".json")
+            if not report_path.is_file():
+                return "failed", None, "theHarvester exited without its expected JSON report.", "theharvester"
             try:
-                data = json.loads(report_path.read_text("utf-8")) if report_path.exists() else {}
-            except (OSError, json.JSONDecodeError):
-                data = {}
-            emails = data.get("emails", []) if isinstance(data, dict) else []
-            hosts = data.get("hosts", []) if isinstance(data, dict) else []
-            ips = data.get("ips", []) if isinstance(data, dict) else []
-            if code != 0 and not any((emails, hosts, ips)):
-                return "failed", None, "theHarvester exited without structured result output.", "theharvester"
+                data = json.loads(report_path.read_text("utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                return "failed", None, "theHarvester returned an unreadable or malformed JSON report.", "theharvester"
+            if not isinstance(data, dict) or not isinstance(data.get("hosts"), list):
+                return "failed", None, "theHarvester report did not contain its required hosts array.", "theharvester"
+            emails = data.get("emails", [])
+            hosts = data["hosts"]
+            ips = data.get("ips", [])
+            if not isinstance(emails, list) or not isinstance(ips, list):
+                return "failed", None, "theHarvester report contained invalid email or IP arrays.", "theharvester"
+            if any(not isinstance(item, str) for values in (emails, hosts, ips) for item in values):
+                return "failed", None, "theHarvester report contained non-string observations.", "theharvester"
+            has_observations = bool(emails or hosts or ips)
+            if code != 0 and not has_observations:
+                return "failed", None, "theHarvester exited unsuccessfully without structured result output.", "theharvester"
             return ("completed" if code == 0 else "partial"), {
-                "emails": emails[:100] if isinstance(emails, list) else [],
-                "subdomains": hosts[:200] if isinstance(hosts, list) else [],
-                "hosts": hosts[:200] if isinstance(hosts, list) else [],
-                "ips": ips[:200] if isinstance(ips, list) else [],
-                "totalFound": sum(len(value) for value in (emails, hosts, ips) if isinstance(value, list)),
+                "emails": emails[:100],
+                "subdomains": hosts[:200],
+                "hosts": hosts[:200],
+                "ips": ips[:200],
+                "totalFound": len(emails) + len(hosts) + len(ips),
             }, None if code == 0 else "theHarvester ended with a non-zero code after producing bounded results.", "theharvester"
     return "unavailable", None, "No CLI executor was registered for the requested tool.", tool
 
