@@ -291,6 +291,17 @@ describe("registry capability availability", () => {
     expect(dutch?.freshness).toBe("Unavailable");
   });
 
+  it("keeps German Open Register gated until runtime verification and labels coverage honestly", () => {
+    vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "");
+    expect(getAvailableRegistryIds()).not.toContain("offeneregister-germany");
+    expect(getRandomDiscoveryRegistries()).not.toContain("offeneregister-germany");
+    expect(isRegistryProviderAvailable("offeneregister-germany")).toBe(false);
+    const germany = REGISTRY_COVERAGE_MATRIX.find((source) => source.id === "offeneregister-germany");
+    expect(germany?.runtimeAdapterImplemented).toBe(true);
+    expect(germany?.accessMethod).toMatch(/disabled by default.*live runtime smoke test/i);
+    expect(germany?.freshness).toMatch(/unverified/i);
+  });
+
   it("advertises OpenCorporates only when a token is configured", () => {
     vi.stubEnv("OPENCORPORATES_API_TOKEN", "test-token");
     vi.stubEnv("OPENCORPORATES_API_KEY", "");
