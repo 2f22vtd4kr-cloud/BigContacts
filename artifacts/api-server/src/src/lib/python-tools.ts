@@ -155,7 +155,7 @@ export async function runHolehe(email: string, options: SubprocessOptions = {}):
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) return { ...base, error: "Invalid email." };
   const response = await executeTool("holehe", { email: normalizedEmail }, options.signal, 30_000, options.correlation);
   const data = resultPayload(response);
-  const found = (Array.isArray(data.found) ? data.found : []).filter(isRecord).slice(0, 100).map((item) => ({
+  const found = (Array.isArray(data.found) ? data.found : []).filter(isRecord).slice(0, 250).map((item) => ({
     name: text(item.name, 120) || text(item.service, 120) || "public service",
     ...(safeSourceUrl(item.url) ? { url: safeSourceUrl(item.url)! } : {}),
     exists: item.exists === true,
