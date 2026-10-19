@@ -612,11 +612,11 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                                 incomplete_records += 1
             except (OSError, UnicodeError, csv.Error):
                 return "failed", None, "Maigret CSV report could not be read.", "maigret"
-            if code != 0 and not found:
-                return "failed", None, "Maigret exited unsuccessfully without usable profile results.", "maigret"
+            if code != 0 and total_sites_checked == 0:
+                return "failed", None, "Maigret exited unsuccessfully without usable site results.", "maigret"
             if code != 0:
                 status = "partial"
-                error = "Maigret ended with a non-zero code after producing bounded results."
+                error = "Maigret ended with a non-zero code after producing bounded site results."
             elif incomplete_records:
                 status = "partial" if found or total_sites_checked else "failed"
                 error = "Maigret returned incomplete, skipped, or unclassified site results."
