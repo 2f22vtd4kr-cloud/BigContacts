@@ -53,7 +53,7 @@ describe("bounded PDF text extraction", () => {
     expect(runtime.DOMMatrix).toBe(previousDomMatrix);
   });
 
-  it("returns no text for an image-only/empty-text PDF instead of manufacturing content", async () => {
+  it("returns no text for a blank PDF instead of manufacturing content", async () => {
     const result = await extractPdfText(minimalPdf(""));
     expect(result.text).toBe("");
     expect(result).toMatchObject({ pagesRead: 1, totalPages: 1, ocrRequired: false });
