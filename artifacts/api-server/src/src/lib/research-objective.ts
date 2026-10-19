@@ -97,6 +97,134 @@ export function resolveBossDirectedDiscoveryObjective(input: {
 }
 
 
+type PivotEvidenceRecord = {
+  action: string;
+  execution: string;
+  observation?: string;
+  observedUrls?: readonly string[];
+  pivotScopeKey?: string;
+};
+
+type ScopeAliasFamily = { id: string; aliases: readonly string[] };
+
+// These are classifiers for detecting material scope changes, not a search plan.
+// Unknown geographies/industries remain model-led; known changed dimensions need evidence.
+const PIVOT_GEOGRAPHY_FAMILIES: readonly ScopeAliasFamily[] = [
+  { id: "france", aliases: ["France", "French", "Français", "Française", "Auvergne-Rhône-Alpes", "Auvergne Rhone Alpes"] },
+  { id: "germany", aliases: ["Germany", "German", "Deutschland", "Deutsch", "Deutsche", "Mittelstand", "Bavaria", "Bayern"] },
+  { id: "latvia", aliases: ["Latvia", "Latvian", "Latvija", "Latvijas", "Riga", "Rīga"] },
+  { id: "estonia", aliases: ["Estonia", "Estonian", "Eesti", "Tallinn"] },
+  { id: "lithuania", aliases: ["Lithuania", "Lithuanian", "Lietuva", "Vilnius"] },
+  { id: "czechia", aliases: ["Czechia", "Czech", "Czech Republic", "Česko", "Praha", "Prague"] },
+  { id: "slovakia", aliases: ["Slovakia", "Slovak", "Slovensko", "Bratislava"] },
+  { id: "slovenia", aliases: ["Slovenia", "Slovenian", "Slovenija", "Ljubljana", "Portorož", "Portoroz"] },
+  { id: "austria", aliases: ["Austria", "Austrian", "Österreich", "Wien", "Vienna"] },
+  { id: "poland", aliases: ["Poland", "Polish", "Polska", "Warsaw", "Warszawa"] },
+  { id: "italy", aliases: ["Italy", "Italian", "Italia", "Italiano", "Roma", "Rome"] },
+  { id: "spain", aliases: ["Spain", "Spanish", "España", "Espana", "Madrid"] },
+  { id: "netherlands", aliases: ["Netherlands", "Dutch", "Nederland", "Nederlands", "Amsterdam"] },
+  { id: "belgium", aliases: ["Belgium", "Belgian", "België", "Belgique", "Brussels"] },
+  { id: "sweden", aliases: ["Sweden", "Swedish", "Sverige", "Stockholm"] },
+  { id: "finland", aliases: ["Finland", "Finnish", "Suomi", "Helsinki"] },
+  { id: "denmark", aliases: ["Denmark", "Danish", "Danmark", "Copenhagen"] },
+  { id: "norway", aliases: ["Norway", "Norwegian", "Norge", "Oslo"] },
+  { id: "switzerland", aliases: ["Switzerland", "Swiss", "Schweiz", "Suisse", "Zürich", "Zurich"] },
+  { id: "united-kingdom", aliases: ["United Kingdom", "UK", "Britain", "British", "England", "Scotland", "Wales"] },
+  { id: "united-states", aliases: ["United States", "USA", "American", "Midwest", "Illinois", "Indiana", "Michigan", "Ohio", "Wisconsin", "Minnesota"] },
+];
+
+const PIVOT_SECTOR_FAMILIES: readonly ScopeAliasFamily[] = [
+  { id: "manufacturing", aliases: ["manufacturing", "manufacturer", "manufacturers", "manufacture", "industrial", "industry", "factory", "factories", "fabrication", "fabricant", "fabricants", "manufacturier", "manufacturiers", "industrie", "industriel", "industrielle", "Hersteller", "Herstellung", "Fertigung", "Produktionsbetrieb", "Produktionsunternehmen", "Produktion", "Industrieunternehmen", "Maschinenbau"] },
+  { id: "logistics", aliases: ["logistics", "logistic", "freight", "haulage", "shipping", "transportation", "Logistik", "Logistikunternehmen", "Güterverkehr", "Guterverkehr"] },
+  { id: "renewable-energy", aliases: ["renewable energy", "renewables", "solar energy", "wind energy", "Erneuerbare Energie", "Erneuerbare Energien", "energie renouvelable", "énergies renouvelables", "energies renouvelables", "energia rinnovabile", "energia renovável", "energia renovavel", "atjaunojamā enerģija", "atjaunojama energija", "taastuvenergia"] },
+  { id: "agriculture", aliases: ["agriculture", "agribusiness", "agricultural", "farming", "Landwirtschaft", "Agrarwirtschaft", "agriculture", "agricole", "agricultura", "zemniecība", "lauksaimniecība", "lauksaimnieciba"] },
+  { id: "real-estate", aliases: ["real estate", "property development", "realty", "Immobilien", "Immobilienwirtschaft", "immobilier", "immobilier d'entreprise", "bienes raíces", "bienes raices"] },
+  { id: "construction", aliases: ["construction", "contractor", "building", "Bauwesen", "Bauunternehmen", "construction", "bâtiment", "batiment"] },
+  { id: "hospitality-gaming", aliases: ["casino", "casinos", "gaming", "gambling", "hospitality", "hotel", "hotels", "tourism", "Spielbank", "Spielbanken", "glücksspiel", "glucksspiel", "kasino", "casinò", "jeu"] },
+  { id: "technology", aliases: ["technology", "software", "semiconductor", "artificial intelligence", "IT services", "Technologie", "Software", "technologie", "logiciel"] },
+  { id: "healthcare", aliases: ["healthcare", "medical", "pharmaceutical", "biotech", "Gesundheitswesen", "Medizintechnik", "santé", "pharmaceutique"] },
+  { id: "energy", aliases: ["energy", "electricity", "oil and gas", "utilities", "Energie", "énergie", "energia"] },
+];
+
+function normalizeScopeEvidenceText(value: string): string {
+  return value.toLowerCase().normalize("NFKD").replace(/\\p{M}/gu, "").replace(/[^\\p{L}\\p{N}]+/gu, " ").trim().replace(/\\s+/g, " ");
+}
+
+function scopeFamilyMatches(value: string, family: ScopeAliasFamily): boolean {
+  const normalized = ` ${normalizeScopeEvidenceText(value)} `;
+  return family.aliases.some((alias) => {
+    const normalizedAlias = normalizeScopeEvidenceText(alias);
+    return normalizedAlias.length > 0 && normalized.includes(` ${normalizedAlias} `);
+  });
+}
+
+function scopeFamiliesIn(value: string, families: readonly ScopeAliasFamily[]): ScopeAliasFamily[] {
+  return families.filter((family) => scopeFamilyMatches(value, family));
+}
+
+function objectiveDirection(value: string): string {
+  const marker = "\\n\\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\\n";
+  const index = value.lastIndexOf(marker);
+  return (index >= 0 ? value.slice(index + marker.length) : value).trim();
+}
+
+function normalizedPivotScopeKey(value: string): string {
+  return value.trim().toLowerCase().replace(/[\\s\\u00a0]+/g, " ").replace(/[“”‘’]/g, '"').slice(0, 1_800);
+}
+
+/**
+ * Prevent control-plane scope drift after rejected actions or transport failures.
+ * A pivot may change geography/industry only when a successful fetched page under
+ * the currently accepted scope actually mentions the proposed new dimensions.
+ * Search snippets, blocked requests, failed fetches, and pages from old pivots do
+ * not authorize the change. Same-scope source-route recovery remains model-led.
+ */
+export function validateBossDiscoveryPivotContinuity(input: {
+  currentObjective: string;
+  proposedDirection: string | null | undefined;
+  priorTrajectoryRecords: readonly PivotEvidenceRecord[];
+}): { valid: true } | { valid: false; reason: string } {
+  const currentDirection = objectiveDirection(input.currentObjective);
+  const proposedDirection = typeof input.proposedDirection === "string" ? input.proposedDirection.trim() : "";
+  if (!currentDirection || !proposedDirection) return { valid: true };
+
+  const currentGeographies = scopeFamiliesIn(currentDirection, PIVOT_GEOGRAPHY_FAMILIES);
+  const proposedGeographies = scopeFamiliesIn(proposedDirection, PIVOT_GEOGRAPHY_FAMILIES);
+  const currentSectors = scopeFamiliesIn(currentDirection, PIVOT_SECTOR_FAMILIES);
+  const proposedSectors = scopeFamiliesIn(proposedDirection, PIVOT_SECTOR_FAMILIES);
+  const geographyChanged = currentGeographies.length > 0 && proposedGeographies.length > 0
+    && !currentGeographies.some((current) => proposedGeographies.some((proposed) => proposed.id === current.id));
+  const sectorChanged = currentSectors.length > 0 && proposedSectors.length > 0
+    && !currentSectors.some((current) => proposedSectors.some((proposed) => proposed.id === current.id));
+  if (!geographyChanged && !sectorChanged) return { valid: true };
+
+  const currentScopeKey = normalizedPivotScopeKey(currentDirection);
+  const fetchedEvidence = input.priorTrajectoryRecords.filter((record) =>
+    record.pivotScopeKey === currentScopeKey
+      && record.execution === "success"
+      && (record.action === "visit" || record.action === "browser_fetch")
+      && (record.observedUrls ?? []).some((url) => typeof url === "string" && /^https?:\\/\\//i.test(url))
+      && Boolean(String(record.observation ?? "").trim())
+      && !/failureDomain=|failureKind=|request failure|timed out|timeout/i.test(String(record.observation ?? "")),
+  );
+  const evidenceText = fetchedEvidence.map((record) => String(record.observation ?? "")).join(" ");
+  const geographySupported = !geographyChanged
+    || proposedGeographies.some((family) => scopeFamilyMatches(evidenceText, family));
+  const sectorSupported = !sectorChanged
+    || proposedSectors.some((family) => scopeFamilyMatches(evidenceText, family));
+
+  if (fetchedEvidence.length > 0 && geographySupported && sectorSupported) return { valid: true };
+  const changedDimensions = [
+    geographyChanged ? `geography (${currentGeographies.map((item) => item.id).join("/") } → ${proposedGeographies.map((item) => item.id).join("/")})` : "",
+    sectorChanged ? `sector (${currentSectors.map((item) => item.id).join("/") } → ${proposedSectors.map((item) => item.id).join("/")})` : "",
+  ].filter(Boolean).join(" and ");
+  return {
+    valid: false,
+    reason: `Scope-changing pivot rejected: ${changedDimensions} is not supported by a successfully fetched page in the currently accepted objective. Search snippets, preflight blocks, transport failures, and pages from earlier objectives do not justify changing geography/sector. Continue with a materially different source/question inside the accepted scope, or stop/park; do not jump to a new jurisdiction/industry without fetched evidence.`,
+  };
+}
+
+
 export type RestoredDiscoveryObjective = {
   baseObjective: string;
   activeObjective: string;
