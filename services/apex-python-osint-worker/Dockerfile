@@ -34,7 +34,7 @@ RUN uv venv --python 3.12 /opt/venvs/maigret \
     && uv venv --python 3.12 /opt/venvs/sherlock \
     && uv pip install --python /opt/venvs/sherlock/bin/python sherlock-project==0.16.2
 
-# theHarvester 4.11.1 is installed separately on Python 3.14.
+# theHarvester 4.11.1 is isolated on Python 3.13 to avoid conflicts with other tool environments.
 RUN git clone --depth 1 --branch 4.11.1 https://github.com/laramies/theHarvester.git /opt/tools/theharvester \
     && uv venv --python 3.13 /opt/venvs/theharvester \
     && uv pip install --python /opt/venvs/theharvester/bin/python /opt/tools/theharvester
