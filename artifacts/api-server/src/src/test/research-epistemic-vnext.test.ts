@@ -37,7 +37,7 @@ describe("research epistemic vNext", () => {
   });
 
   it("preserves PDF page provenance and offsets into the original observation", () => {
-    const observation = "  PDF PAGE https://example.gov/report.pdf\\nExtracted text:\\n[Page 12] Executive summary. Example Holdings owns 25 percent of Example Company.";
+    const observation = "  PDF PAGE https://example.gov/report.pdf\nExtracted text:\n[Page 12] Executive summary. Example Holdings owns 25 percent of Example Company.";
     const span = bindExactSourceSpan(observation, "25 percent", "Example Holdings");
     expect(span?.exact).toBe(true);
     expect(span?.text).not.toContain("[Page 12]");
