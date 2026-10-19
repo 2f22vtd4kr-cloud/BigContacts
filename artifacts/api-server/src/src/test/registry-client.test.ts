@@ -1,3 +1,38 @@
+describe("language-neutral registry query construction", () => {
+  it("passes native-script Atoka queries unchanged and does not force English", () => {
+    const queries = [
+      "власник казино Порторож акціонери",
+      "مالك كازينو بورتوروز استثمار",
+      "赌场波尔托罗什主要股东",
+      "カジノ ポルトロシュ 主要株主",
+      "Portorož kaszinó tulajdonos koncesszió",
+    ];
+    for (const query of queries) {
+      const url = new URL(buildAtokaStartupSearchUrl(query, 99));
+      expect(url.searchParams.get("text")).toBe(query);
+      expect(url.searchParams.get("lang")).toBeNull();
+      expect(url.searchParams.get("size")).toBe("10");
+    }
+  });
+
+  it("passes native-script BORME queries unchanged without forcing an API response language", () => {
+    const queries = [
+      "власник казино Порторож акціонери",
+      "مالك كازينو بورتوروز استثمار",
+      "赌场波尔托罗什主要股东",
+      "カジノ ポルトロシュ 主要株主",
+      "propietario de la empresa y concesionario",
+    ];
+    for (const query of queries) {
+      const url = new URL(buildBormeSearchUrl(query, 99));
+      expect(url.searchParams.get("q")).toBe(query);
+      expect(url.searchParams.get("lang")).toBeNull();
+      expect(url.searchParams.get("collection")).toBe("BORME");
+      expect(url.searchParams.get("hits")).toBe("20");
+    }
+  });
+});
+
 describe("OffeneRegister SQL API request contract", () => {
   it("uses Datasette's custom-SQL JSON route, object rows and bound query parameter", () => {
     const url = new URL(buildOffeneregisterSearchUrl("GmbH' OR 1=1 --", 999));
@@ -37,6 +72,8 @@ import {
   normalizeCompaniesHouseOfficer,
   normalizeSecEdgarHit,
   buildOffeneregisterSearchUrl,
+  buildAtokaStartupSearchUrl,
+  buildBormeSearchUrl,
 } from "../lib/registry-client";
 import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
 import { afterEach, describe, expect, it, vi } from "vitest";
