@@ -6,17 +6,28 @@
  * to revisit the complete observation rather than inherit a lossy summary.
  */
 
-const SENTENCE_SPLIT = /(?<=[.!?])\s+(?=[\p{L}\p{N}"'(])|\n+/u;
-const CJK_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+const SENTENCE_SPLIT = /(?<=[.!?。！？؟؛։।॥])\s*(?=[\p{L}\p{N}"'(])|\n+/u;
+const NO_SPACE_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}\p{Script=Tibetan}]/u;
 
-/** Tokenization is for relevance scoring only; observed source text is never changed. */
+/** Unicode-aware relevance tokens only; observed source text is never rewritten. */
 function tokenize(text: string): string[] {
-  const normalized = text.normalize("NFKC").toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").normalize("NFC");
-  const words = normalized.match(/[\p{L}\p{N}@.+_-]+/gu) ?? [];
+  const normalized = text.normalize("NFKC").toLowerCase().normalize("NFC");
+  const words = normalized.match(/[\p{L}\p{M}\p{N}@.+_-]+/gu) ?? [];
   const tokens: string[] = [];
   for (const word of words) {
     tokens.push(word);
-    if (CJK_SCRIPT.test(word)) {
+    // Add an accent-insensitive alternate for wholly Latin words without removing
+    // marks from the primary token. This keeps Unicode names intact while helping
+    // common OCR/typing variants such as cafe/café retrieve the same passage.
+    const letters = Array.from(word).filter((char) => /\p{L}/u.test(char));
+    if (letters.length > 0 && letters.every((char) => /\p{Script=Latin}/u.test(char))) {
+      const folded = word.normalize("NFD").replace(/\p{M}/gu, "").normalize("NFC");
+      if (folded !== word) tokens.push(folded);
+    }
+    // Chinese/Japanese/Korean and several scripts commonly omit spaces between
+    // words. Index overlapping bigrams in addition to the whole token so a short
+    // query phrase can match inside a longer source string.
+    if (NO_SPACE_SCRIPT.test(word)) {
       const chars = Array.from(word);
       for (let index = 0; index + 1 < chars.length; index += 1) {
         tokens.push(chars[index]! + chars[index + 1]!);
@@ -24,8 +35,9 @@ function tokenize(text: string): string[] {
       if (chars.length === 1) tokens.push(chars[0]!);
     }
   }
-  return [...new Set(tokens)].filter((token) => token.length >= 2 || CJK_SCRIPT.test(token));
+  return [...new Set(tokens)].filter((token) => token.length >= 2 || NO_SPACE_SCRIPT.test(token));
 }
+
 
 export function scorePassage(passage: string, queryTokens: Set<string>): number {
   if (!passage.trim() || queryTokens.size === 0) return 0;
