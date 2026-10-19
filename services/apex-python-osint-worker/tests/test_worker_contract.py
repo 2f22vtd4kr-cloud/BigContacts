@@ -12,7 +12,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import app  # noqa: E402
@@ -476,6 +476,48 @@ class ToolResultStatusTests(unittest.TestCase):
         self.assertEqual(app.classify_spiderfoot_export("FINISHED", 10, 10, True)[0], "partial")
         self.assertEqual(app.classify_spiderfoot_export("RUNNING", 10, 10, False)[0], "partial")
         self.assertEqual(app.classify_spiderfoot_export("FINISHED", 10, 10, False), ("completed", None))
+
+
+class ExecutionAttestationBoundaryTests(unittest.IsolatedAsyncioTestCase):
+    def make_request(self) -> app.ExecuteRequest:
+        return app.ExecuteRequest.model_validate({
+            "requestId": "request-proof-boundary-0001",
+            "tool": "sherlock",
+            "args": {"username": "testuser"},
+            "timeoutMs": 5_000,
+            "maxOutputBytes": 16_384,
+            "requestedAt": now_iso(),
+        })
+
+    async def test_perform_tool_fails_closed_without_a_valid_isolation_proof(self) -> None:
+        with patch.object(app, "load_isolation_proof", return_value=None), patch.object(
+            app, "run_cli_tool", new_callable=AsyncMock,
+        ) as run_tool:
+            result = await app.perform_tool(self.make_request())
+
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIsNone(result["result"])
+        self.assertIn("isolation attestation", result["error"])
+        run_tool.assert_not_awaited()
+
+    async def test_proof_change_while_waiting_for_capacity_prevents_execution(self) -> None:
+        proof = {
+            "executorId": "test-worker",
+            "workerImageDigest": "sha256:" + "a" * 64,
+            "egressProxyImageDigest": "sha256:" + "b" * 64,
+            "issuedAt": now_iso(),
+            "expiresAt": now_iso(timedelta(hours=1)),
+        }
+        # The caller had a verified snapshot, but the proof no longer verifies
+        # at the actual execution boundary.
+        with patch.object(app, "load_isolation_proof", return_value=None), patch.object(
+            app, "run_cli_tool", new_callable=AsyncMock,
+        ) as run_tool:
+            result = await app.perform_tool(self.make_request(), isolation_proof=proof)
+
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIsNone(result["result"])
+        run_tool.assert_not_awaited()
 
 
 class RequestLifecycleTests(unittest.IsolatedAsyncioTestCase):
