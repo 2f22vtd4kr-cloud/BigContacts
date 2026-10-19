@@ -578,11 +578,12 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result)
 
     async def test_sherlock_missing_csv_is_failure_even_with_exit_zero(self) -> None:
-        status, result, _error, _version = await self.invoke(
+        status, result, _error, version = await self.invoke(
             "sherlock", {"username": "testuser"},
         )
         self.assertEqual(status, "failed")
         self.assertIsNone(result)
+        self.assertEqual(version, app.TOOL_VERSIONS["sherlock"])
 
     async def test_sherlock_claimed_status_is_normalized_to_profile_candidate(self) -> None:
         header = "username,name,url_main,url_user,exists,http_status,response_time_s\n"
