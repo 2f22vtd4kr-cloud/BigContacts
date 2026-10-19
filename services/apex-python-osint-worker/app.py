@@ -531,10 +531,22 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             found = result.get("found") if isinstance(result, dict) else None
             if not isinstance(found, list) or any(not isinstance(item, dict) for item in found):
                 return "failed", None, "Holehe runner returned an invalid structured result.", "holehe"
-            checked = len(found)
+            checked = result.get("totalChecked")
+            truncated = result.get("truncated", False)
+            if isinstance(checked, bool) or not isinstance(checked, int) or checked < len(found):
+                return "failed", None, "Holehe runner returned an invalid checked-count value.", "holehe"
+            if not isinstance(truncated, bool):
+                return "failed", None, "Holehe runner returned an invalid truncation flag.", "holehe"
             positives = sum(1 for item in found if item.get("exists") is True)
             status, error = classify_holehe_result(found)
-            return status, {"found": found[:250], "totalChecked": checked, "totalFound": positives}, error, "holehe"
+            if truncated:
+                status = "partial"
+                truncation_error = "Holehe reached its bounded module/output limit; results are partial."
+                error = (error + " " + truncation_error) if error else truncation_error
+            return status, {
+                "found": found[:250], "totalChecked": checked, "totalFound": positives,
+                "truncated": truncated,
+            }, error, "holehe"
         if tool == "maigret":
             report_dir = home / "reports"
             code, stdout, stderr, failure = await run_process(
