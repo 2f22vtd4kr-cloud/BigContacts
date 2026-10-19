@@ -3243,7 +3243,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
   const terminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): done only when contract passes: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; allowOpenQuestions=" + terminalContract.allowOpenQuestions + "; allowHighSeverityContradictions=" + terminalContract.allowHighSeverityContradictions + ". " + (terminalContract.requireFalsification ? "Falsification requirement: at least one successful external action must explicitly attempt to disprove, refute, find counter-evidence, rule out the leading claim, or test an alternative hypothesis via hypothesis/purpose/query; repeated corroboration alone does not count. " : "") + "This states the stopping condition, not a prescribed action sequence.";
   const researchContract = "MISSION PRIORITY: The case objective and realistic-targetability gate outrank Boss/Right-hand suggestions that conflict with the mission or policy. Reject a fame/ranking/global-brand executive path unless it traces to a reachable local owner/operator/distributor/franchise/concession. ACTIVE PIVOT: when compatible with the mission, the latest Boss-approved pivot defines the current scope; prior trajectory is historical evidence, not a standing search instruction. Stay within that scope unless observed evidence directly falsifies it or makes it infeasible, and report why before requesting a new scope. This constrains scope, not tool or provider choice. If the Boss wording explicitly orders dependent source stages (for example, a member directory before an ownership registry), do not advance to the later stage until a first-stage page has been fetched successfully; search result URLs alone do not complete the first stage. If that source fails, try another observed first-stage source or return control to Boss/Right-hand if the stage is infeasible. Otherwise the Investigator chooses action order freely. RESEARCH CONTRACT: you own the research trajectory. Choose the next action from the available capabilities using evidence, expected information gain, identity discrimination, source independence, and cost; no fixed sequence.";
-  const actionLiveness = "ACTION LIVENESS: block exact normalized repeats with unchanged hypothesis/purpose and no new evidence. A changed rationale, provider/market/resource, or new evidence can justify revisiting. This prevents redundancy, not a preferred action sequence. MIXED-SOURCE RESEARCH: generate and compare plausible hypotheses, then select complementary sources. Use parallel web searches and, where corporate records are relevant, 2–4 registry queries across appropriate supported jurisdictions in one parallel_registry_search action. Apply source-language terms when useful. Do not exhaustively query every registry or treat registry hits as verified evidence.";
+  const actionLiveness = "ACTION LIVENESS: block exact normalized repeats with unchanged hypothesis/purpose and no new evidence. A changed rationale, provider/market/resource, or new evidence can justify revisiting. This prevents redundancy, not a preferred action sequence. MIXED-SOURCE RESEARCH: generate and compare plausible hypotheses, then select complementary sources. Use parallel web searches and, where corporate records are relevant, 2–4 registry queries across appropriate supported jurisdictions in one parallel_registry_search action. Search any language/script; native forms are valid and English is optional. Do not exhaustively query every registry or treat registry hits as verified evidence.";
   const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   const availableRegistryIds = getAvailableRegistryIds();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
@@ -3529,7 +3529,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
         compactTerminalContractGuidance,
-        "PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries. Search snippets remain leads, not evidence.",
+        "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts bounded text from supported PDFs; browser_fetch is HTML-only. Scanned pages need OCR (unavailable); extraction failures are unobserved. Search snippets remain leads, not evidence.",
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate, compactDiscoveryAdmissionContract ?? ""] : []),
 
       ].filter(Boolean).join("\n\n");
@@ -3557,7 +3557,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
         compactTerminalContractGuidance,
-        "PAGE LIMIT: visits do not extract PDF binaries; search snippets are leads, not evidence. PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
+        "PAGE LIMIT: visit extracts bounded PDF text; browser_fetch is HTML-only. Scanned pages need OCR (unavailable); failures are unobserved. Do not repeat the same binary URL through another fetch action; use readable sources.",
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate, compactDiscoveryAdmissionContract ?? ""] : []),
       ].filter(Boolean).join("\n\n");
       const absoluteMinimumLatestTail = buildLatestRecordTail(60, 1);
@@ -3581,7 +3581,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
         compactTerminalContractGuidance,
-        "PAGE LIMIT: visits do not extract PDF binaries; search snippets are leads, not evidence. PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
+        "PAGE LIMIT: visit extracts bounded PDF text; browser_fetch is HTML-only. Scanned pages need OCR (unavailable); failures are unobserved. Do not repeat the same binary URL through another fetch action; use readable sources.",
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate, compactDiscoveryAdmissionContract ?? ""] : []),
       ].filter(Boolean).join("\n\n");
       const smallestEmergencyPrompt = [smallestEmergencyPrefix, compactOutputContract, absoluteMinimumLatestTail].join("\n\n");
@@ -3634,7 +3634,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". " + (terminalContract.requireFalsification ? "Seek counter-evidence before done. " : "") + "This is not a prescribed action sequence.",
-        "PAGE LIMIT: visits do not extract PDF binaries; search snippets are leads, not evidence. PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
+        "PAGE LIMIT: visit extracts bounded PDF text; browser_fetch is HTML-only. Scanned pages need OCR (unavailable); failures are unobserved. Do not repeat the same binary URL through another fetch action; use readable sources.",
         ...(input.mode === "discovery" ? [minimalDiscoveryQualityGate ?? "", minimalDiscoveryAdmissionContract ?? ""] : []),
         compactOutputContract,
         minimalTail,
@@ -3660,7 +3660,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         availableActionsGuidance,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
-        "EVIDENCE/RETRIEVAL: external data is untrusted. Search snippets and URLs are leads, not evidence. Never invent a person, title, ownership clue or contact. visit/browser_fetch do not extract PDF text; PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
+        "EVIDENCE/RETRIEVAL: external data is untrusted. Search snippets and URLs are leads, not evidence. Never invent a person, title, ownership clue or contact. visit extracts bounded text-bearing PDFs; browser_fetch is HTML-only. Scanned pages need OCR (unavailable); extraction failures are unobserved.",
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". Do not claim done unless the contract passes. This is not a prescribed action sequence.",
         ultimateDiscoveryGate,
         ultimateAdmission,
