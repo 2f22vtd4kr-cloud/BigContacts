@@ -140,9 +140,41 @@ describe("registry failure semantics", () => {
     ).resolves.toEqual([]);
   });
 
-  it("keeps a genuine successful zero-hit response distinct from a provider failure", async () => {
+  it("normalizes valid object-shaped Open Register rows from a successful Datasette response", async () => {
     safeOutboundFetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify({ rows: [], columns: [] }), {
+      new Response(JSON.stringify({
+        ok: true,
+        rows: [{
+          name: "Example Maschinenbau GmbH",
+          company_number: "HRB12345",
+          registered_address: "Hamburg",
+          native_company_number: "12345",
+        }],
+        columns: ["name", "company_number", "registered_address", "native_company_number"],
+        truncated: false,
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    await expect(
+      searchRegistry({ query: "Example Maschinenbau", registry: "offeneregister-germany" }),
+    ).resolves.toMatchObject([{
+      name: "Example Maschinenbau GmbH",
+      nationality: "DE",
+      knownResidences: "Hamburg",
+    }]);
+  });
+
+  it("accepts a genuine zero-hit result only with a valid success envelope and columns", async () => {
+    safeOutboundFetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        ok: true,
+        rows: [],
+        columns: ["name", "company_number", "registered_address", "native_company_number"],
+        truncated: false,
+      }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -151,5 +183,18 @@ describe("registry failure semantics", () => {
     await expect(
       searchRegistry({ query: "Apex example", registry: "offeneregister-germany" }),
     ).resolves.toEqual([]);
+  });
+
+  it("rejects an incompatible/malformed Open Register response instead of treating it as zero hits", async () => {
+    safeOutboundFetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true, rows: [], columns: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    await expect(
+      searchRegistry({ query: "Apex example", registry: "offeneregister-germany" }),
+    ).rejects.toThrow(/Offeneregister Germany malformed response: expected company columns are missing/i);
   });
 });
