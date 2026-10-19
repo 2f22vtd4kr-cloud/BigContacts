@@ -98,7 +98,7 @@ describe("Groq Investigator provider boundary", () => {
 
     expect(bindings).toHaveLength(1);
     expect(bindings[0]?.sourceUrl).toBe("https://example.com/about");
-    expect(bindings[0]?.passage.toLowerCase()).toContain("jane@example.com");
+    expect(bindings[0]?.span.text.toLowerCase()).toContain("jane@example.com");
   });
 
   it("does not bind a terminal finding to a search-result URL or an unobserved source", () => {

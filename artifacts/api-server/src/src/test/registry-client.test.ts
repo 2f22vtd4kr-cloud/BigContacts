@@ -1,11 +1,67 @@
+describe("language-neutral registry query construction", () => {
+  it("passes native-script Atoka queries unchanged and does not force English", () => {
+    const queries = [
+      "власник казино Порторож акціонери",
+      "مالك كازينو بورتوروز استثمار",
+      "赌场波尔托罗什主要股东",
+      "カジノ ポルトロシュ 主要株主",
+      "Portorož kaszinó tulajdonos koncesszió",
+    ];
+    for (const query of queries) {
+      const url = new URL(buildAtokaStartupSearchUrl(query, 99));
+      expect(url.searchParams.get("text")).toBe(query);
+      expect(url.searchParams.get("lang")).toBeNull();
+      expect(url.searchParams.get("size")).toBe("10");
+    }
+  });
+
+  it("passes native-script BORME queries unchanged without forcing an API response language", () => {
+    const queries = [
+      "власник казино Порторож акціонери",
+      "مالك كازينو بورتوروز استثمار",
+      "赌场波尔托罗什主要股东",
+      "カジノ ポルトロシュ 主要株主",
+      "propietario de la empresa y concesionario",
+    ];
+    for (const query of queries) {
+      const url = new URL(buildBormeSearchUrl(query, 99));
+      expect(url.searchParams.get("q")).toBe(query);
+      expect(url.searchParams.get("lang")).toBeNull();
+      expect(url.searchParams.get("collection")).toBe("BORME");
+      expect(url.searchParams.get("hits")).toBe("20");
+    }
+  });
+});
+
+describe("language-neutral KBO query construction", () => {
+  it("preserves query text in every script and leaves the endpoint locale unforced", () => {
+    const queries = [
+      "власник казино Порторож акціонери",
+      "مالك كازينو بورتوروز استثمار",
+      "赌场波尔托罗什主要股东",
+      "カジノ ポルトロシュ 主要株主",
+      "카지노 소유주 및 운영자",
+    ];
+    for (const query of queries) {
+      const url = new URL(buildKboBelgiumSearchUrl(query, 99));
+      expect(url.searchParams.get("searchWord")).toBe(query);
+      expect(url.searchParams.get("lang")).toBeNull();
+      expect(url.searchParams.get("numberOfResults")).toBe("10");
+    }
+  });
+});
+
 describe("OffeneRegister SQL API request contract", () => {
-  it("uses the documented JSON SQL endpoint, singular company table and bound query parameter", () => {
+  it("uses Datasette's custom-SQL JSON route, object rows and bound query parameter", () => {
     const url = new URL(buildOffeneregisterSearchUrl("GmbH' OR 1=1 --", 999));
-    expect(url.origin + url.pathname).toBe("https://db.offeneregister.de/openregister-ef9e802.json");
+    expect(url.origin + url.pathname).toBe("https://db.offeneregister.de/openregister-ef9e802/-/query.json");
     expect(url.searchParams.get("sql")).toContain("FROM company");
     expect(url.searchParams.get("sql")).toContain("company.name LIKE :p0");
     expect(url.searchParams.get("sql")).not.toContain("GmbH");
+    expect(url.searchParams.get("sql")).toContain("company.name AS name");
     expect(url.searchParams.get("p0")).toBe("%GmbH' OR 1=1 --%");
+    expect(url.searchParams.get("_shape")).toBe("objects");
+    expect(url.searchParams.get("_extra")).toBe("columns");
     expect(url.searchParams.get("sql")).toContain("LIMIT 20");
   });
 
@@ -34,6 +90,9 @@ import {
   normalizeCompaniesHouseOfficer,
   normalizeSecEdgarHit,
   buildOffeneregisterSearchUrl,
+  buildAtokaStartupSearchUrl,
+  buildBormeSearchUrl,
+  buildKboBelgiumSearchUrl,
 } from "../lib/registry-client";
 import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -286,6 +345,17 @@ describe("registry capability availability", () => {
     expect(dutch?.runtimeAdapterImplemented).toBe(false);
     expect(dutch?.accessMethod).toMatch(/unavailable|official KVK API/i);
     expect(dutch?.freshness).toBe("Unavailable");
+  });
+
+  it("keeps German Open Register gated until runtime verification and labels coverage honestly", () => {
+    vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "");
+    expect(getAvailableRegistryIds()).not.toContain("offeneregister-germany");
+    expect(getRandomDiscoveryRegistries()).not.toContain("offeneregister-germany");
+    expect(isRegistryProviderAvailable("offeneregister-germany")).toBe(false);
+    const germany = REGISTRY_COVERAGE_MATRIX.find((source) => source.id === "offeneregister-germany");
+    expect(germany?.runtimeAdapterImplemented).toBe(true);
+    expect(germany?.accessMethod).toMatch(/disabled by default.*live runtime smoke test/i);
+    expect(germany?.freshness).toMatch(/unverified/i);
   });
 
   it("advertises OpenCorporates only when a token is configured", () => {

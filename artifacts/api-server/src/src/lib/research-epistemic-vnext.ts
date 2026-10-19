@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { isAggregatorHost, publisherDomain } from "./source-corroboration";
 
 export type ThinkingLevel = "minimal" | "low" | "medium" | "high";
-export type SourceSpan = { text: string; start: number; end: number; subjectMatched: boolean; valueMatched: boolean; exact: boolean };
+export type SourceSpan = { text: string; start: number; end: number; subjectMatched: boolean; valueMatched: boolean; exact: boolean; pageNumber?: number };
 export type SourceLineageNode = { sourceId: string; canonicalUrl: string; host: string; originSourceId: string | null; publisher: string | null; citedSourceIds: string[]; contentFingerprint: string | null };
 export type EvidenceBinding = { claimId: string; sourceUrl: string; subject: string | null; value: string; span: SourceSpan | null; attributionBound: boolean; sourceLineageId: string };
 export type ResearchQuestion = { id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" };
@@ -19,8 +19,9 @@ function hasExactTokenBoundary(text: string, index: number, value: string): bool
   const before = text[index - 1] ?? "";
   const afterIndex = index + value.length;
   const after = text[afterIndex] ?? "";
-  const continuesToken = (character: string) => Boolean(character) && /[\p{L}\p{N}_@+-]/u.test(character);
-  if (continuesToken(before) || continuesToken(after)) return false;
+  const continuesToken = (character: string) => Boolean(character) && /[\p{L}\p{M}\p{N}_@+-]/u.test(character);
+  const endsWithSelfDelimitedNumericSymbol = /[%‰$€£¥₩₹]$/u.test(value);
+  if (continuesToken(before) || (continuesToken(after) && !endsWithSelfDelimitedNumericSymbol)) return false;
   // Dots are valid punctuation after a complete value, but not when they extend
   // an email/domain/name token (for example jane@example.com.extra or Jane.Doe).
   if (after === "." && /[\p{L}\p{N}]/u.test(text[afterIndex + 1] ?? "")) return false;
@@ -42,12 +43,19 @@ function findExactTokenIndex(text: string, value: string, fromIndex = 0): number
 }
 
 export function bindExactSourceSpan(observation: string, value: string, subject?: string | null, maxChars = 900): SourceSpan | null {
+  const leadingTrimOffset = observation.length - observation.trimStart().length;
   const text = observation.trim();
   const needle = value.trim().toLowerCase();
   if (!text || !needle) return null;
   const lower = text.toLowerCase();
   const valueIndex = findExactTokenIndex(lower, needle);
   if (valueIndex < 0) return null;
+  // PDF observations include explicit page markers. Store the marker separately
+  // from the excerpt because sentence-bounded excerpts may start mid-page and
+  // omit the marker even though the full observation retains it in the ledger.
+  const pageMarkers = [...text.slice(0, valueIndex).matchAll(/\[Page\s+(\d+)\]/gi)];
+  const parsedPageNumber = Number(pageMarkers.at(-1)?.[1]);
+  const pageNumber = Number.isSafeInteger(parsedPageNumber) && parsedPageNumber > 0 ? parsedPageNumber : undefined;
 
   const subjectNeedle = subject?.trim().toLowerCase() || "";
   let subjectIndex = -1;
@@ -81,17 +89,22 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
     start = Math.max(0, Math.min(relevantStart, relevantEnd - maxChars));
     end = Math.min(text.length, start + maxChars);
   }
-  const spanText = text.slice(start, end).trim();
+  const rawSpanText = text.slice(start, end);
+  const spanLeadingTrimOffset = rawSpanText.length - rawSpanText.trimStart().length;
+  const spanEndTrimmedLength = rawSpanText.trimEnd().length;
+  const spanText = rawSpanText.trim();
   const localSubjectIndex = subjectNeedle ? findExactTokenIndex(spanText.toLowerCase(), subjectNeedle) : -1;
   const valueMatched = findExactTokenIndex(spanText.toLowerCase(), needle) >= 0;
   const subjectMatched = !subjectNeedle || localSubjectIndex >= 0;
   return {
     text: spanText,
-    start,
-    end,
+    // Offsets address the original durable observation, not its trimmed view.
+    start: leadingTrimOffset + start + spanLeadingTrimOffset,
+    end: leadingTrimOffset + start + spanEndTrimmedLength,
     subjectMatched: Boolean(subjectNeedle) ? subjectMatched : false,
     valueMatched,
     exact: valueMatched && subjectMatched,
+    ...(pageNumber === undefined ? {} : { pageNumber }),
   };
 }
 function canonicalPublisher(host: string): string { return publisherDomain(host); }

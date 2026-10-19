@@ -3,11 +3,48 @@ export const PDF_TEXT_MAX_BYTES = 8_000_000;
 export const PDF_TEXT_MAX_PAGES = 50;
 export const PDF_TEXT_MAX_CHARS = 16_000;
 
+export type PdfTextExtractionFailureReason =
+  | "pdf_encrypted"
+  | "pdf_malformed"
+  | "pdf_unsupported"
+  | "pdf_extraction_failed";
+
+export class PdfTextExtractionError extends Error {
+  readonly reason: PdfTextExtractionFailureReason;
+
+  constructor(reason: PdfTextExtractionFailureReason) {
+    const message = reason === "pdf_encrypted"
+      ? "PDF is encrypted or password protected"
+      : reason === "pdf_malformed"
+        ? "PDF is malformed or unreadable"
+        : reason === "pdf_unsupported"
+          ? "PDF uses an unsupported document feature"
+          : "PDF text extraction failed";
+    super(message);
+    this.name = "PdfTextExtractionError";
+    this.reason = reason;
+  }
+}
+
+export function classifyPdfTextExtractionFailure(error: unknown): PdfTextExtractionFailureReason {
+  const value = error && typeof error === "object" ? error as { name?: unknown; message?: unknown } : {};
+  const name = typeof value.name === "string" ? value.name : "";
+  const message = typeof value.message === "string" ? value.message : "";
+  if (name === "PasswordException" || /password (?:required|incorrect)|encrypted pdf/i.test(message)) return "pdf_encrypted";
+  if (name === "UnsupportedFeatureException" || /unsupported pdf feature/i.test(message)) return "pdf_unsupported";
+  if (name === "InvalidPDFException" || /invalid pdf structure|missing pdf header|invalid xref|malformed pdf/i.test(message)) return "pdf_malformed";
+  return "pdf_extraction_failed";
+}
+
 export interface PdfTextExtraction {
   text: string;
   pagesRead: number;
   totalPages: number;
   truncated: boolean;
+  /** True when any inspected page has image content with no extractable text. */
+  ocrRequired: boolean;
+  /** One-based pages that need OCR because image content was detected without text. */
+  ocrRequiredPages: number[];
 }
 
 type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -81,10 +118,16 @@ export async function extractPdfText(
   });
 
   try {
-    const document = await loadingTask.promise;
+    let document: Awaited<typeof loadingTask.promise>;
+    try {
+      document = await loadingTask.promise;
+    } catch (error) {
+      throw new PdfTextExtractionError(classifyPdfTextExtractionFailure(error));
+    }
     const pagesToRead = Math.min(document.numPages, maxPages);
     let text = "";
     let pagesRead = 0;
+    const ocrRequiredPages: number[] = [];
     let truncated = document.numPages > pagesToRead;
     for (let pageNumber = 1; pageNumber <= pagesToRead; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
@@ -97,7 +140,23 @@ export async function extractPdfText(
           .join(" ")
           .replace(/\s+/g, " ")
           .trim();
-        if (!pageText) continue;
+        if (!pageText) {
+          // Inspect parsed operators without rendering. This separates image-only/scanned
+          // content that needs OCR from a genuinely blank/textless PDF where OCR is not implied.
+          const operators = await page.getOperatorList();
+          const pdfOps = (await loadPdfJsForTextOnlyUse()).OPS as unknown as Record<string, number>;
+          const imageOperatorNames = [
+            "paintImageXObject",
+            "paintInlineImageXObject",
+            "paintImageMaskXObject",
+            "paintImageMaskXObjectGroup",
+            "paintImageXObjectRepeat",
+            "paintSolidColorImageMask",
+          ];
+          const imageOperatorIds = new Set(imageOperatorNames.map((name) => pdfOps[name]).filter((id): id is number => typeof id === "number"));
+          if (operators.fnArray.some((operator) => imageOperatorIds.has(operator))) ocrRequiredPages.push(pageNumber);
+          continue;
+        }
 
         const prefix = `[Page ${pageNumber}] `;
         const separator = text ? "\n" : "";
@@ -122,7 +181,12 @@ export async function extractPdfText(
       pagesRead,
       totalPages: document.numPages,
       truncated,
+      ocrRequired: ocrRequiredPages.length > 0,
+      ocrRequiredPages,
     };
+  } catch (error) {
+    if (error instanceof PdfTextExtractionError) throw error;
+    throw new PdfTextExtractionError(classifyPdfTextExtractionFailure(error));
   } finally {
     // Text extraction doesn't need the parser to retain document buffers after the result is built.
     await loadingTask.destroy().catch(() => undefined);

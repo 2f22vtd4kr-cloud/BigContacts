@@ -40,18 +40,23 @@ const input = {
 };
 
 describe("model prompt audit", () => {
-  it("keeps capture opt-in in the active Replit development service config", () => {
+  it("makes the named model-audit capture an explicit development-only opt-in", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const artifactConfig = readFileSync(
       resolve(workspaceRoot, "artifacts/api-server/.replit-artifact/artifact.toml"),
       "utf8",
     );
     const serviceRun = artifactConfig.match(/^\[services\.development\]\s*\nrun\s*=\s*"([^"]+)"/m)?.[1];
+    const productionConfig = artifactConfig.split("[services.production]")[1] ?? "";
 
     expect(serviceRun).toBe("cd ../.. && bash scripts/replit-boot.sh");
-    expect(artifactConfig).toContain('APEX_CAPTURE_MODEL_PROMPTS = "false"');
-    expect(artifactConfig).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
-    expect(artifactConfig).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
+    expect(artifactConfig).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
+    expect(artifactConfig).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
+    expect(artifactConfig).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
+    expect(artifactConfig).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "true"');
+    expect(artifactConfig).toMatch(/APEX_MODEL_AUDIT_FILE = "audits\/APEX_ATLAS_SEQUENTIAL_AUDIT_[^"]+\.md"/);
+    expect(productionConfig).not.toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
+    expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
     expect(serviceRun).not.toContain("APEX_CAPTURE_MODEL_PROMPTS=true");
     expect(serviceRun).not.toContain("MAIN_REFRESH_RELAUNCH_01");
   });

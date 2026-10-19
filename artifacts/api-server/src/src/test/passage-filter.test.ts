@@ -15,6 +15,30 @@ describe("passage-filter", () => {
     expect(scorePassage(contact, q)).toBeGreaterThan(scorePassage(noise, q));
   });
 
+  it("scores relevant source text across Cyrillic, Arabic, Chinese and Japanese scripts", () => {
+    expect(scorePassage("Власник казино в Порторожі — місцевий інвестор.", new Set(["власник", "казино"])))
+      .toBeGreaterThan(scorePassage("Погода сьогодні сонячна.", new Set(["власник", "казино"])));
+    expect(scorePassage("مالك الكازينو مستثمر محلي.", new Set(["مالك", "الكازينو"])))
+      .toBeGreaterThan(scorePassage("الطقس اليوم مشمس.", new Set(["مالك", "الكازينو"])));
+    expect(scorePassage("赌场的主要股东是当地投资者。", new Set(["主要股东", "投资者"])))
+      .toBeGreaterThan(scorePassage("今天的天气很好。", new Set(["主要股东", "投资者"])));
+    expect(scorePassage("同社の主要株主は地元の投資家です。", new Set(["主要株主", "投資家"])))
+      .toBeGreaterThan(scorePassage("今日は晴れています。", new Set(["主要株主", "投資家"])));
+  });
+
+  it("preserves meaningful marks while scoring Thai and accented Latin variants", () => {
+    expect(scorePassage("เจ้าของคาสิโนเป็นนักลงทุนท้องถิ่น", new Set(["คาสิโน", "นักลงทุน"])))
+      .toBeGreaterThan(scorePassage("วันนี้อากาศดี", new Set(["คาสิโน", "นักลงทุน"])));
+    expect(scorePassage("El dueño del casino es un inversor local.", new Set(["dueño", "inversor"])))
+      .toBeGreaterThan(scorePassage("El clima es agradable.", new Set(["dueño", "inversor"])));
+    expect(scorePassage("Café Portorož ownership", new Set(["Cafe", "ownership"])))
+      .toBeGreaterThan(0);
+    // Hindi spaces are preserved as word boundaries; native-script query terms
+    // must match without an English transliteration.
+    expect(scorePassage("कैसिनो का मालिक स्थानीय निवेशक है", new Set(["कैसिनो", "मालिक"])))
+      .toBeGreaterThan(scorePassage("आज मौसम अच्छा है", new Set(["कैसिनो", "मालिक"])));
+  });
+
   it("preserves complete observed text instead of clipping or dropping low-score sentences", () => {
     const text = [
       "Irrelevant sports scores from last night filled the page.",

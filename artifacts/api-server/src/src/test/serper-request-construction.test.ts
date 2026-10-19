@@ -37,6 +37,26 @@ describe("Serper request construction", () => {
     });
   });
 
+  it("passes native-script queries unchanged with multilingual locale hints", async () => {
+    const cases = [
+      { query: "власник казино Порторож акціонери", locale: "uk-UA", market: "SI", hl: "uk", gl: "si" },
+      { query: "مالك كازينو بورتوروز استثمار", locale: "ar-SA", market: "SA", hl: "ar", gl: "sa" },
+      { query: "赌场波尔托罗什主要股东", locale: "zh-Hant-TW", market: "TW", hl: "zh", gl: "tw" },
+      { query: "カジノ ポルトロシュ 主要株主", locale: "ja-JP", market: "JP", hl: "ja", gl: "jp" },
+      { query: "Casino Portorož lastnik koncesionar", locale: "sl-SI", market: "SI", hl: "sl", gl: "si" },
+    ];
+
+    for (const request of cases) {
+      await webSearchSerper(request.query, request.locale, request.market);
+      const [, init] = vi.mocked(safeOutboundFetch).mock.calls.at(-1)!;
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        q: request.query,
+        hl: request.hl,
+        gl: request.gl,
+      });
+    }
+  });
+
   it("omits malformed locale and market values instead of sending invalid Serper fields", async () => {
     await webSearchSerper("Alex Example", "english", "United States");
 

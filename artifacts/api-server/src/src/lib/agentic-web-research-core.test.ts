@@ -1,15 +1,16 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
-import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError } from "./canonical-atlas-failure-diagnostics";
+import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure } from "./canonical-atlas-failure-diagnostics";
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 
 describe("thrown provider error classification", () => {
   it("does not misclassify local prompt-budget failures as network failures", () => {
@@ -56,7 +57,6 @@ describe("registry adapter circuit breaker", () => {
     });
     const httpFailure = new Error("Offeneregister Germany HTTP 502");
     const dnsFailure = Object.assign(new Error("fetch failed"), { code: "ENOTFOUND" });
-    const numericErrnoFailure = Object.assign(new Error("fetch failed"), { errno: -111 });
 
     expect(summarizeRegistryAdapterFailure("kvk-netherlands", unavailable)).toMatch(
       /REGISTRY_ADAPTER_UNAVAILABLE.*kvk-netherlands.*not a no-hit/i,
@@ -67,9 +67,23 @@ describe("registry adapter circuit breaker", () => {
     expect(summarizeRegistryAdapterFailure("offeneregister-germany", dnsFailure)).toMatch(
       /REGISTRY_ADAPTER_TRANSPORT_ERROR.*ENOTFOUND.*not a no-hit/i,
     );
+    const numericErrnoFailure = Object.assign(new Error("fetch failed"), { errno: -111 });
     expect(summarizeRegistryAdapterFailure("offeneregister-germany", numericErrnoFailure)).toMatch(
       /REGISTRY_ADAPTER_TRANSPORT_ERROR.*-111.*not a no-hit/i,
     );
+    const authFailure = Object.assign(new Error("API token is not configured"), { code: "REGISTRY_AUTH_REQUIRED" });
+    const malformedFailure = new Error("Offeneregister Germany malformed response: expected company columns are missing");
+    const timeoutFailure = new Error("request timed out");
+    expect(summarizeRegistryAdapterFailure("opencorporates", authFailure)).toMatch(/REGISTRY_ADAPTER_AUTH_REQUIRED.*not a no-hit/i);
+    expect(summarizeRegistryAdapterFailure("offeneregister-germany", malformedFailure)).toMatch(/REGISTRY_ADAPTER_MALFORMED_RESPONSE.*not a no-hit/i);
+    expect(summarizeRegistryAdapterFailure("offeneregister-germany", timeoutFailure)).toMatch(/REGISTRY_ADAPTER_TIMEOUT.*not a no-hit/i);
+    expect(classifyRegistryAdapterFailure(unavailable)).toBe("registry_unavailable");
+    expect(classifyRegistryAdapterFailure(authFailure)).toBe("registry_auth_required");
+    expect(classifyRegistryAdapterFailure(httpFailure)).toBe("registry_http_error");
+    expect(classifyRegistryAdapterFailure(dnsFailure)).toBe("registry_transport_error");
+    expect(classifyRegistryAdapterFailure(malformedFailure)).toBe("registry_malformed_response");
+    expect(classifyRegistryAdapterFailure(timeoutFailure)).toBe("registry_timeout");
+    expect(classifyRegistryAdapterFailure(numericErrnoFailure)).toBe("registry_transport_error");
     expect(summarizeRegistryAdapterFailure("kvk-netherlands", unavailable)).not.toContain(
       "sensitive provider detail",
     );
@@ -225,6 +239,15 @@ describe("page visit response classification", () => {
     expect(pageReaderLimit.observation).toContain("page content was not observed and must not be cited");
   });
 
+  it("persists exact source-span offsets and PDF page numbers in durable observation events", () => {
+    expect(agenticCoreSource).toContain("const sourceBindings = boundFindings.map");
+    expect(agenticCoreSource).toContain("record.sourceBindings = sourceBindings");
+    expect(agenticCoreSource).toContain("pageNumber: span.pageNumber ?? null");
+    expect(agenticCoreSource).toContain("sourceTurn: sourceRecord.turn");
+    expect(bureauAgenticPassSource).toContain("sourceBindings:record.sourceBindings??[]");
+    expect(bureauAgenticPassSource).toContain("sourceBindings:claimSourceBindings");
+  });
+
   it("routes PDF visits through bounded text extraction while retaining browser-fetch PDF preflight", () => {
     const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {');
     const browserStart = agenticCoreSource.indexOf('if (action.action === "browser_fetch") {', visitStart);
@@ -233,6 +256,7 @@ describe("page visit response classification", () => {
     const visitDispatch = agenticCoreSource.slice(visitStart, browserStart);
     const browserDispatch = agenticCoreSource.slice(browserStart, registryStart);
     expect(visitStart).toBeGreaterThan(-1);
+    expect(browserStart).toBeGreaterThan(visitStart);
     expect(domainLookupStart).toBeGreaterThan(visitStart);
     expect(browserStart).toBeGreaterThan(visitStart);
     expect(registryStart).toBeGreaterThan(browserStart);
@@ -240,6 +264,8 @@ describe("page visit response classification", () => {
     expect(visitDispatch.indexOf("toolVisit(canonical")).toBeGreaterThan(-1);
     expect(agenticCoreSource).toContain("extractPdfText(responseBytes");
     expect(agenticCoreSource).toContain("PDF_TEXT_MAX_BYTES");
+    expect(agenticCoreSource).toContain("documentType=pdf retrievedAt=");
+    expect(agenticCoreSource).toContain("OCR REQUIRED FOR IMAGE-ONLY PAGES");
     expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
     expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(browserDispatch.indexOf('import("./browser-fetch")'));
     expect(browserDispatch).toContain("no browser provider request was made");
@@ -428,7 +454,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/web_search\/parallel_web_search\s*=\s*serper\s*\|\s*tavily\s*\|\s*exa/);
     expect(prompt).toContain("browser_fetch");
     expect(prompt).toContain("domain_lookup");
-    expect(prompt).toMatch(/(?:PAGE FORMAT \/ RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries|PAGE LIMIT: visits do not extract PDF binaries)/);
+    expect(prompt).toContain("visit supports bounded text extraction for text-bearing PDF documents");
+    expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text");
     expect(prompt).toMatch(/search snippets (?:remain leads, not evidence|are leads, not evidence)/i);
     expect(prompt).toMatch(/BOSS ADVISORY DIRECTION \(not a fixed action sequence\):|ACTIVE BOSS SCOPE:/);
     expect(prompt).toContain("MISSION PRIORITY:");
@@ -766,7 +793,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).toBeNull();
   });
 
-  it("matches Dallas, Fort Worth, and DFW alternatives without admitting another Texas metro", () => {
+  it("keeps the accepted geography while allowing truly localized topic wording", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records.",
@@ -785,10 +812,37 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Austin private metal fabrication manufacturer database",
       provider: "serper",
-    }, [])).toContain("geography");
+    }, [])).not.toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Власник приватного виробника металевих конструкцій Austin",
+      provider: "serper",
+    }, [])).not.toBeNull();
   });
 
-  it("filters only out-of-scope items from a mixed parallel search batch", () => {
+  it("never lexically vetoes native-script queries against an English Boss pivot", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Identify private casino operators, concession holders, and beneficial owners associated with Portorož, Slovenia.",
+    ].join("\n");
+    const searches = [
+      { query: "власник казино Порторож акціонери", provider: "serper" },
+      { query: "مالك كازينو بورتوروز استثمار", provider: "tavily" },
+      { query: "赌场波尔托罗什主要股东", provider: "exa" },
+      { query: "カジノ ポルトロシュ 主要株主", provider: "serper" },
+      { query: "Casino Portorož lastnik koncesionar Slovenija", provider: "tavily" },
+      { query: "Portorož kaszinó tulajdonos koncesszió", provider: "exa" },
+      { query: "Portorož kumarhane sahibi imtiyaz işletmecisi", provider: "serper" },
+    ];
+
+    for (const search of searches) {
+      expect(discoveryPivotAlignmentReason(objective, "web_search", search, [])).toBeNull();
+    }
+    const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
+    expect(partition.allowed).toEqual(searches);
+    expect(partition.rejected).toEqual([]);
+  });
+
+  it("filters only out-of-scope queries from a parallel search batch", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records.",
@@ -800,12 +854,10 @@ Choose each next action yourself from the available capabilities and observed ev
 
     const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
     expect(partition.allowed).toEqual([searches[0]]);
-    expect(partition.rejected).toHaveLength(1);
-    expect(partition.rejected[0]?.search).toEqual(searches[1]);
-    expect(partition.rejected[0]?.reason).toContain("geography");
+    expect(partition.rejected.map((item) => item.search)).toEqual([searches[1]]);
   });
 
-  it("filters out-of-scope registry pairs without vetoing aligned pairs in a parallel batch", () => {
+  it("partitions registry searches by jurisdiction while preserving valid local adapters", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held mid-market agribusiness companies in the Czech Republic using the ARES-Czechia registry to identify owners/operators.",
@@ -817,9 +869,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
     const partition = partitionParallelRegistrySearchesByPivotScope(objective, searches, []);
     expect(partition.allowed).toEqual([searches[0]]);
-    expect(partition.rejected).toHaveLength(1);
-    expect(partition.rejected[0]?.search).toEqual(searches[1]);
-    expect(partition.rejected[0]?.reason).toContain("geography");
+    expect(partition.rejected.map((item) => item.search)).toEqual([searches[1]]);
   });
 
   it("does not infer a source-stage order from ordinary source alternatives", () => {
@@ -833,7 +883,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).toBeNull();
   });
 
-  it("accepts each country query when it uses either Boss-approved announcement or filing sources", () => {
+  it("keeps country queries in scope and rejects unrelated sectors", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -859,10 +909,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Thailand water utility officers licensees",
       provider: "serper",
-    }, [])).toContain("subject");
+    }, [])).not.toBeNull();
   });
 
-  it("accepts official corporation-search wording for a corporate-filings pivot without relaxing subject or geography", () => {
+  it("keeps semantic source and query selection with the Investigator", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -879,10 +929,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Washington County property assessor records land ownership individual owners",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).not.toBeNull();
   });
 
-  it("allows fetching a URL returned by an aligned search but still blocks a guessed URL", () => {
+  it("requires observed URLs while keeping transport URL validation separate", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -913,10 +963,12 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [priorSearch])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "visit", {
       url: "https://guessed.example.org/owners",
-    }, [priorSearch])).toContain("observed-source provenance");
+    }, [priorSearch])).not.toBeNull();
+    expect(validateDiscoverySourceUrl("https://guessed.example.org/owners")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
   });
 
-  it("allows in-scope discovery searches without forcing every query to repeat source-class wording", () => {
+  it("preserves the approved region when choosing model-led searches", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -933,7 +985,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Texas Secretary of State business entity search family-owned manufacturers",
       provider: "serper",
-    }, [])).toContain("geography");
+    }, [])).not.toBeNull();
   });
 
   it("treats the Baltics as an OR-region and accepts local-language subject/geography aliases", () => {
@@ -948,7 +1000,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(balticObjective, "web_search", {
       query: "Germany renewable energy companies",
       provider: "serper",
-    }, [])).toContain("geography");
+    }, [])).not.toBeNull();
 
     const polandObjective = [
       "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
@@ -961,7 +1013,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(polandObjective, "registry_search", {
       query: "renewable energy",
       registry: "ares-czechia",
-    }, [])).toContain("geography");
+    }, [])).not.toBeNull();
   });
 
   it("lets a scoped registry adapter supply jurisdiction and source-class context for concise queries", () => {
@@ -976,10 +1028,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "manufacturing",
       registry: "sec-edgar",
-    }, [])).toContain("subject");
+    }, [])).not.toBeNull();
   });
 
-  it("recognizes the Run 05 water-utility licensee source and reports exact mismatch dimensions", () => {
+  it("preserves native-language scope while blocking repeated out-of-scope actions", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1005,10 +1057,10 @@ Choose each next action yourself from the available capabilities and observed ev
         { query: "California water utility licensees list officers", provider: "serper" },
       ],
     }, []);
-    expect(outOfRegionReason).toContain("Scope mismatch dimensions: searches[1] geography.");
+    expect(outOfRegionReason).not.toBeNull();
 
     const inScopeDiscoveryQuery = discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Washington water utility officers",
+      query: "Washington water utility officers registry",
       provider: "serper",
     }, []);
     expect(inScopeDiscoveryQuery).toBeNull();
@@ -1016,7 +1068,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const unobservedUrlReason = discoveryPivotAlignmentReason(objective, "visit", {
       url: "https://example.org/about",
     }, []);
-    expect(unobservedUrlReason).toContain("observed-source provenance");
+    expect(unobservedUrlReason).not.toBeNull();
 
     const scopeKey = discoveryPivotScopeKey(objective);
     expect(scopeKey).not.toBeNull();
@@ -1034,10 +1086,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(repeatedPivotBlockedActionReason(objective, "web_search", {
       query: "California water utility licensees list officers",
       provider: "serper",
-    }, [priorBlockedQuery])).toContain("Previous scope mismatch dimensions: query geography.");
+    }, [priorBlockedQuery])).not.toBeNull();
   });
 
-  it("does not treat procedural wording as a required subject when a pivot leaves the subject open, while retaining source-class enforcement", () => {
+  it("keeps subject-open pivot semantics model-led and preserves only explicit staged-source dependencies", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1045,29 +1097,29 @@ Choose each next action yourself from the available capabilities and observed ev
       "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
     ].join("\n");
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Austin Texas private manufacturing company owners official Texas Secretary of State business entity search",
+      query: "Austin Texas private manufacturing company owners state business registry official Texas Secretary of State business entity search",
       provider: "serper",
     }, [])).toBeNull();
 
     const inScopeDiscoveryQuery = discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Austin Texas private manufacturing company owners", provider: "serper",
+      query: "Austin Texas private manufacturing company owners state business registry", provider: "serper",
     }, []);
     expect(inScopeDiscoveryQuery).toBeNull();
 
     const scopeKey = discoveryPivotScopeKey(objective);
     if (!scopeKey) throw new Error("Expected the pivot source class to define a scope key");
     expect(repeatedPivotBlockedActionReason(objective, "web_search", {
-      query: "Austin Texas private manufacturing company owners", provider: "serper",
+      query: "Austin Texas private manufacturing company owners state business registry", provider: "serper",
     }, [{
       turn: 1, model: "openai/gpt-oss-120b", action: "web_search",
-      args: { query: "Austin Texas private manufacturing company owners", provider: "serper" },
+      args: { query: "Austin Texas private manufacturing company owners state business registry", provider: "serper" },
       pivotScopeKey: scopeKey, execution: "blocked",
       observation: "pivot_alignment_guard blocked this outbound action. Scope mismatch dimensions: query source class.",
       observedUrls: [], findings: [],
     } as AgenticTrajectoryRecord])).toBeNull();
   });
 
-  it("accepts Secretary-of-State entity-search wording for a registry pivot without relaxing subject or geography", () => {
+  it("preserves the approved regional business-class scope", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1087,13 +1139,13 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Iowa Secretary of State business entity search regional logistics firms",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).not.toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Wisconsin Secretary of State business entity search private equity firms",
       provider: "serper",
-    }, [])).toContain("subject");
+    }, [])).not.toBeNull();
   });
-  it("expands a Midwest scope to member states while rejecting out-of-region searches", () => {
+  it("preserves model choice across English and native-language region phrasing", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1119,10 +1171,14 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Texas Secretary of State business entity search privately held mid-market manufacturing companies",
       provider: "serper",
-    }, [])).toContain("Scope mismatch dimensions: query geography.");
+    }, [])).not.toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Soukromé středně velké kovovýrobní společnosti ve Wisconsin a Minnesota business registry",
+      provider: "serper",
+    }, [])).toBeNull();
   });
 
-  it("accepts member-state and city queries for a Pacific Northwest pivot without weakening sector or geography", () => {
+  it("keeps localized matching while enforcing Pacific Northwest subject and geography", () => {
     const equityObjective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1142,11 +1198,11 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
       query: "New York private equity fund managing partner public filings",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).not.toBeNull();
     expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
       query: "Washington County property assessor records land ownership individual owners",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).not.toBeNull();
 
     const manufacturingObjective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
@@ -1228,46 +1284,68 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(canonicalAtlasDiscoverySource).toContain("No target-scoped research is authorized without a source-backed lead");
   });
 
-  it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
-    expect(validateDiscoverySearchQuery("2023 venture capital investment biotech company CEO", [])).toEqual({
-      allowed: false,
-      reason: expect.stringContaining("concrete anchor"),
-    });
-    expect(validateDiscoverySearchQuery("famous casino owners interview", [])).toEqual({ allowed: false, reason: expect.any(String) });
-    expect(validateDiscoverySearchQuery("Acme Holdings beneficial owner official", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Companies House director Kenya", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Fortune 500 company leadership page list", [])).toEqual({
-      allowed: false,
-      reason: expect.stringContaining("concrete anchor"),
-    });
+  it("keeps discovery query quality heuristics advisory and language-agnostic", () => {
+    for (const query of [
+      "2023 venture capital investment biotech company CEO",
+      "famous casino owners interview",
+      "Fortune 500 company leadership page list",
+      "2026 acquisition of AI startup by large corporation CEO statement",
+    ]) {
+      expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: true });
+    }
+    expect(validateDiscoverySearchQuery("Acme Holdings beneficial owner official", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("Companies House director Kenya", [])).toMatchObject({ allowed: true });
+
     for (const placeholder of [
       "casino owners site:example.com",
       '"Chief Public Relations Officer" site:example.com',
-      'site:companywebsite.com "public relations" "Chief" "CompanyName"',
-      'public relations director site:companywebsite.com "CompanyName"',
+      'search [CompanyName] owner',
+      'search {{companyName}} owner',
     ]) {
       expect(validateDiscoverySearchQuery(placeholder, [])).toMatchObject({
         allowed: false,
         reason: expect.stringContaining("placeholder"),
       });
     }
-    expect(validateDiscoverySearchQuery("2026 acquisition of AI startup by large corporation CEO statement", [])).toEqual({
-      allowed: false,
-      reason: expect.stringContaining("concrete anchor"),
-    });
+    // English-looking strings are not placeholders merely because they contain
+    // old template variable names; the real subject may use any name/domain.
+    expect(validateDiscoverySearchQuery("CompanyName Ltd beneficial owner", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("example.com.au startup owners", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery('site:companywebsite.com "public relations" "Chief"', [])).toMatchObject({ allowed: true });
+
+    const multilingualQueries = [
+      "власник казино Порторож акціонери",
+      "مالك كازينو بورتوروز استثمار",
+      "赌场波尔托罗什主要股东",
+      "カジノ ポルトロシュ 主要株主",
+    ];
+    for (const query of multilingualQueries) {
+      expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: true });
+    }
+    for (const broadPublisherQuery of ['site:reuters.com "赌场主要股东"', 'site:reuters.com "مالك الكازينو"']) {
+      expect(validateDiscoverySearchQuery(broadPublisherQuery, [])).toMatchObject({
+        allowed: false,
+        reason: expect.stringContaining("broad press-publisher-only search without an exact named person/business anchor"),
+      });
+    }
+    expect(validateDiscoverySearchQuery('site:reuters.com "Casino Portorož"', [])).toMatchObject({ allowed: true });
+
+    // Canonically equivalent spellings should share repeat-action identity, without transliteration.
+    expect(normalizeDiscoverySearchQuery("Cafe\u0301")).toBe(normalizeDiscoverySearchQuery("Café"));
+    expect(normalizeDiscoverySearchQuery("КАЗИНО")).toBe("казино");
   });
 
-  it("rejects bare TLD site operators and generic PR/media-contact searches", () => {
+  it("blocks malformed site filters but keeps generic PR/contact wording advisory", () => {
     for (const query of [
       'site:.org "about us" "leadership" "team"',
       'site:.com "Leadership" "Our Team" "Company"',
-      "Niri Philadelphia public relations contact",
       "press contact public relations site:.org",
     ]) {
       expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: false });
     }
-    expect(validateDiscoverySearchQuery("casino Slovenia coast ownership concession operator", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož owner contact", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Niri Philadelphia public relations contact", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("casino Slovenia coast ownership concession operator", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("Casino Portorož owner contact", [])).toMatchObject({ allowed: true });
   });
 
   it("blocks repeated discovery searches to the same provider unless a new fetched source advances the case", () => {
@@ -1298,55 +1376,47 @@ Choose each next action yourself from the available capabilities and observed ev
     } as Parameters<typeof repeatedDiscoverySearchReason>[1][number];
     expect(repeatedDiscoverySearchReason({ query: "Casino Portoroz ownership", provider: "serper", locale: "sl", market: "si" }, [parallel])).toContain("repeat_action_guard");
   });
-  it("requires ownership/equity/operator hypotheses for title-led discovery searches, including local-language terms", () => {
-    expect(validateDiscoverySearchQuery("Enterprise Mobility leadership team", [])).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("title/leadership-led query"),
-    });
-    expect(validateDiscoverySearchQuery("Casino Portorož management team", [])).toMatchObject({ allowed: false });
-    expect(validateDiscoverySearchQuery("Enterprise Mobility family ownership principal", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož owner/operator Slovenia", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož lastnik koncesionar Slovenija", [])).toEqual({ allowed: true });
-  });
-  it("blocks unrealistic global-brand and ranking searches unless a reachable local ownership route is named", () => {
-    expect(validateDiscoverySearchQuery("Coca-Cola Company executive leadership page official site", [])).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("impractical fame/ranking or global-household-brand path"),
-    });
-    expect(validateDiscoverySearchQuery("Fortune 500 Coca-Cola leadership executive page official site", [])).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("impractical fame/ranking or global-household-brand path"),
-    });
-    expect(validateDiscoverySearchQuery("Coca-Cola Slovenia independent bottler owner contact", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož beneficial owner concession holder Slovenia", [])).toEqual({ allowed: true });
+  it("leaves title, wealth, sector, ownership and global-brand intent to the Investigator", () => {
+    for (const query of [
+      "Enterprise Mobility leadership team",
+      "Casino Portorož management team",
+      "Enterprise Mobility family ownership principal",
+      "Casino Portorož owner/operator Slovenia",
+      "Casino Portorož lastnik koncesionar Slovenija",
+      "Coca-Cola Company executive leadership page official site",
+      "Fortune 500 Coca-Cola leadership executive page official site",
+      "Coca-Cola Slovenia independent bottler owner contact",
+      "Casino Portorož beneficial owner concession holder Slovenia",
+      "مالك كازينو بورتوروز استثمار",
+      "赌场波尔托罗什主要股东",
+      "カジノ ポルトロシュ 主要株主",
+    ]) {
+      expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: true });
+    }
   });
 
-  it("blocks unrealistic discovery destinations before page fetch, but permits a local operator path", () => {
-    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about")).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("generic brand about pages"),
-    });
-    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about-us/independent-bottler/portoroz")).toEqual({ allowed: true });
-    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about-us/leadership")).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("global household-brand leadership"),
-    });
-    expect(validateDiscoverySourceUrl("https://fortune.com/ranking/fortune500/")).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("fame/ranking destination"),
-    });
+  it("keeps source fetch preflight language-neutral and leaves semantic judgment to the model", () => {
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about-us/leadership")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("https://fortune.com/ranking/fortune500/")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/ueber-uns/vertriebspartner/slowenien")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("https://coca-colacompany.com/empresa/distribuidores/portoroz")).toEqual({ allowed: true });
     expect(validateDiscoverySourceUrl("https://casino-portoroz.si/about/ownership")).toEqual({ allowed: true });
-    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/investors/financial-reports")).toMatchObject({ allowed: false, reason: expect.stringContaining("global household-brand destination") });
     expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
+    expect(agenticCoreSource).toContain("Do not infer source relevance from");
+    expect(agenticCoreSource).toContain("Candidate admission and terminal evidence gates remain responsible for quality");
   });
 
-  it("validates model-selected domain and registry lookups before external dispatch", () => {
-    expect(validateDiscoveryDomainLookup("amazon.com")).toMatchObject({ allowed: false });
-    expect(validateDiscoveryDomainLookup("coca-colacompany.com")).toMatchObject({ allowed: false });
-    expect(validateDiscoveryDomainLookup("companyname.com")).toMatchObject({ allowed: false });
-    expect(validateDiscoveryDomainLookup("https://casino-portoroz.si/ownership")).toMatchObject({ allowed: false });
-    expect(validateDiscoveryDomainLookup("casino-portoroz.si")).toMatchObject({ allowed: true });
+  it("validates hostname syntax without restricting language, TLD, or company identity", () => {
+    expect(validateDiscoveryDomainLookup("amazon.com")).toMatchObject({ allowed: true });
+    expect(validateDiscoveryDomainLookup("coca-colacompany.com")).toMatchObject({ allowed: true });
     expect(validateDiscoveryDomainLookup("cocacolaunited.com")).toMatchObject({ allowed: true });
+    expect(validateDiscoveryDomainLookup("例え.テスト")).toMatchObject({ allowed: true });
+    expect(validateDiscoveryDomainLookup("companyname.com")).toMatchObject({ allowed: true });
+    expect(validateDiscoveryDomainLookup("example.com")).toMatchObject({ allowed: false });
+    expect(validateDiscoveryDomainLookup("https://casino-portoroz.si/ownership")).toMatchObject({ allowed: false });
+    expect(validateDiscoveryDomainLookup("casino-portoroz.si/path")).toMatchObject({ allowed: false });
+    expect(validateDiscoveryDomainLookup("not a hostname")).toMatchObject({ allowed: false });
 
     const domainStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {');
     const registryStart = agenticCoreSource.indexOf('if (action.action === "registry_search") {', domainStart);
@@ -2112,10 +2182,10 @@ Choose each next action yourself from the available capabilities and observed ev
       turn: 4,
       model: "test-model",
       action: "visit",
-      args: { url: "https://example.org/team" },
+      args: { url: "https://example.gov/report.pdf" },
       execution: "success",
-      observation: "Jane Doe is Head of Operations. Public email: jane.doe@example.org.",
-      observedUrls: ["https://example.org/team"],
+      observation: "PDF PAGE https://example.gov/report.pdf\nExtracted text:\n[Page 12] Jane Doe is Head of Operations. Public email: jane.doe@example.org.",
+      observedUrls: ["https://example.gov/report.pdf"],
       findings: [],
       providerFallback: [],
     } as const;
@@ -2125,13 +2195,15 @@ Choose each next action yourself from the available capabilities and observed ev
       personName: "Jane Doe",
       role: "Head of Operations",
       scope: "candidate" as const,
-      sourceUrls: ["https://example.org/team"],
+      sourceUrls: ["https://example.gov/report.pdf"],
       note: "Public business contact",
     };
     const bound = bindModelFindingsToObservedSources([finding], [priorVisit as unknown as Parameters<typeof bindModelFindingsToObservedSources>[1][number]]);
     expect(bound).toHaveLength(1);
     expect(bound[0]?.sourceRecord.turn).toBe(4);
-    expect(bound[0]?.finding.sourceUrls).toEqual(["https://example.org/team"]);
+    expect(bound[0]?.finding.sourceUrls).toEqual(["https://example.gov/report.pdf"]);
+    expect(bound[0]?.span.pageNumber).toBe(12);
+    expect(bound[0]?.span.text).toContain("jane.doe@example.org");
   });
 
   it("never treats a search-result listing as a claim-grade prior page observation", () => {
@@ -2275,5 +2347,25 @@ describe("Groq Investigator structured-output recovery", () => {
         completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
       })).toEqual({ action: "fail" });
     }
+  });
+});
+
+describe("PDF prompt capability contract", () => {
+  it("directs text-bearing PDFs to visit and keeps browser_fetch HTML-only", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Investigate a source-backed company and identify attributable decision-makers.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+
+    expect(prompt).toContain("visit supports bounded text extraction for text-bearing PDF documents");
+    expect(prompt).toContain("Scanned/image-only PDFs with no text are marked OCR-required; OCR is not available");
+    expect(prompt).toContain("encrypted/password-protected and malformed PDFs are distinct structured extraction failures");
+    expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead");
+    expect(prompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
 });

@@ -154,6 +154,11 @@ function openCorporatesApiToken(): string {
 export function isRegistryProviderAvailable(registry: string): boolean {
   const normalized = normalizeRegistryId(registry);
   if (!normalized) return false;
+  // The Germany adapter stays hidden until its endpoint and live response schema are verified in the deployed runtime.
+  // Set the explicit opt-in only after that smoke test; absence/false must not look like a successful empty search.
+  if (normalized === "offeneregister-germany") {
+    return process.env["APEX_ENABLE_OFFENEREGISTER_GERMANY"]?.trim().toLowerCase() === "true";
+  }
   // The previous Sweden adapter called an undocumented Allabolag endpoint and mislabeled its output as Bolagsverket data.
   // Keep the ID in the action schema for compatibility, but do not advertise it as callable until a supported source exists.
   if (normalized === "bolagsverket-sweden" || normalized === "kvk-netherlands") return false;
@@ -436,19 +441,60 @@ export function normalizeBodaccRecord(record: any): RegistryResult | null { cons
 async function searchBodacc(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const params = new URLSearchParams({ where: `search("${query.replace(/"/g, '\\"')}")`, limit: String(Math.min(limit * 3, 60)), order_by: "dateparution DESC" }); const resp = await registryFetch("registry", `https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?${params.toString()}`, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research" }, signal: createRegistryRequestSignal(signal, 12_000) }); if (!resp.ok) { const body = await resp.text().catch(() => ""); throw new Error(`BODACC ${resp.status}: ${body.slice(0, 200) || resp.statusText}`); } const data = (await resp.json()) as any; const seen = new Set<string>(); const results: RegistryResult[] = []; for (const record of data?.results ?? []) { const result = normalizeBodaccRecord(record); if (!result) continue; const key = `${result.name.toLowerCase()}|${result.metadata}`; if (seen.has(key)) continue; seen.add(key); results.push(result); if (results.length >= limit) break; } return results; }
 async function searchCvrDenmark(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; const queries = [query, ...query.split(/\s+/).filter(w => w.length > 3)].slice(0, 3); const seen = new Set<string>(); let hadRequestFailure = false; for (const q of queries) { try { const url = `https://cvrapi.dk/api?search=${encodeURIComponent(q)}&country=dk`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 10_000) }); if (resp.status === 404) continue; if (!resp.ok) { hadRequestFailure = true; continue; } const data = (await resp.json()) as any; const name: string = data?.name ?? ""; if (!name || seen.has(name.toLowerCase())) continue; seen.add(name.toLowerCase()); const vat: string = data?.vat ? String(data.vat) : ""; const city: string = data?.city ?? ""; const zipcode: string = data?.zipcode ?? ""; const address: string = [data?.address, zipcode, city, "Denmark"].filter(Boolean).join(", "); results.push({ name, type: "Corporation", nationality: "DK", knownResidences: address || undefined, sourceRegistries: JSON.stringify(["CVR Denmark"]), notes: [vat ? `CVR: ${vat}` : null, data?.phone ? `Phone: ${data.phone}` : null, data?.email ? `Email: ${data.email}` : null, data?.startdate ? `Founded: ${data.startdate}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "cvr-denmark", vat, phone: data?.phone ?? null, email: data?.email ?? null, address, city, startdate: data?.startdate ?? null, industrydesc: data?.industrydesc ?? null }) }); if (results.length >= limit) break; } catch (error) { if (signal?.aborted) throw new Error("cancelled"); hadRequestFailure = true; logger.debug({ provider: "cvr-denmark", error: error instanceof Error ? error.name : "unknown" }, "CVR query variant failed"); } } if (hadRequestFailure) throw new Error("CVR Denmark lookup incomplete: one or more query variants failed."); return results; }
 async function searchZefixSwitzerland(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const resp = await registryFetch("registry", "https://www.zefix.ch/ZefixREST/api/v1/firm/search.json", { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, body: JSON.stringify({ name: query, maxEntries: Math.min(limit, 20), searchType: "0" }), signal: createRegistryRequestSignal(signal, 12_000) }); if (!resp.ok) { const body = await resp.text().catch(() => ""); throw new Error(`Zefix ${resp.status}: ${body.slice(0, 200) || resp.statusText}`); } const data = (await resp.json()) as any; const firms: any[] = Array.isArray(data) ? data : (data?.list ?? []); const results: RegistryResult[] = []; for (const firm of firms.slice(0, limit)) { const name: string = firm?.name ?? ""; if (!name) continue; const uid: string = firm?.uid ?? firm?.ehraid ?? ""; const canton: string = firm?.cantonAbbreviation ?? firm?.legalSeat ?? ""; const municipality: string = firm?.legalSeat ?? ""; const address = [municipality, canton, "Switzerland"].filter(Boolean).join(", "); results.push({ name, type: "Corporation", nationality: "CH", knownResidences: address || undefined, sourceRegistries: JSON.stringify(["Zefix Switzerland"]), notes: [uid ? `UID: ${uid}` : null, firm?.status ? `Status: ${firm.status}` : null, canton ? `Canton: ${canton}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "zefix-switzerland", uid, ehraid: firm?.ehraid ?? null, canton, legalSeat: firm?.legalSeat ?? null, status: firm?.status ?? null, chid: firm?.chid ?? null }) }); } return results; }
+/** Keep user/model query text intact; endpoint response language is not a query restriction. */
+export function buildAtokaStartupSearchUrl(query: string, limit = 10): string {
+  const boundedLimit = Number.isFinite(limit) ? Math.max(1, Math.min(10, Math.floor(limit))) : 10;
+  const url = new URL("https://startup.registroimprese.it/isin/api/v1/startup/search");
+  url.searchParams.set("text", query);
+  url.searchParams.set("page", "0");
+  url.searchParams.set("size", String(boundedLimit));
+  return url.toString();
+}
+
+export function buildKboBelgiumSearchUrl(query: string, limit = 10): string {
+  const boundedLimit = Number.isFinite(limit) ? Math.max(1, Math.min(10, Math.floor(limit))) : 10;
+  const url = new URL("https://kbopub.economie.fgov.be/kbopub/zoeknaamfonetischform.html");
+  // The search text is passed verbatim; do not force the Dutch UI locale as a
+  // language restriction for a multilingual query.
+  url.searchParams.set("searchWord", query);
+  url.searchParams.set("pstcdeNummer", "");
+  url.searchParams.set("postgemeente", "");
+  url.searchParams.set("gemeente", "");
+  url.searchParams.set("typeVennootschap", "");
+  url.searchParams.set("status", "");
+  url.searchParams.set("startdatum", "");
+  url.searchParams.set("einddatum", "");
+  url.searchParams.set("numberOfResults", String(boundedLimit));
+  url.searchParams.set("resultaat", "");
+  return url.toString();
+}
+
+export function buildBormeSearchUrl(query: string, limit = 10): string {
+  const boundedHits = Number.isFinite(limit) ? Math.max(1, Math.min(20, Math.floor(limit) * 2)) : 20;
+  const url = new URL("https://boe.es/buscar/api.php");
+  url.searchParams.set("collection", "BORME");
+  url.searchParams.set("q", query);
+  url.searchParams.set("hits", String(boundedHits));
+  return url.toString();
+}
+
 export function buildOffeneregisterSearchUrl(query: string, limit = 10): string {
   const normalizedQuery = query.trim().slice(0, 180);
   const boundedLimit = Number.isFinite(limit) ? Math.max(1, Math.min(20, Math.floor(limit))) : 10;
   const sql = [
-    "SELECT company.name, company.company_number, company.registered_address, company.native_company_number",
+    "SELECT company.name AS name, company.company_number AS company_number, company.registered_address AS registered_address, company.native_company_number AS native_company_number",
     "FROM company",
     "WHERE company.name LIKE :p0",
     `LIMIT ${boundedLimit}`,
   ].join(" ");
-  // Use the documented bound SQL parameter rather than interpolating model text.
-  const url = new URL("https://db.offeneregister.de/openregister-ef9e802.json");
+  // Use Datasette's documented custom-SQL route and bound parameter; never interpolate model text.
+  const url = new URL("https://db.offeneregister.de/openregister-ef9e802/-/query.json");
   url.searchParams.set("sql", sql);
   url.searchParams.set("p0", `%${normalizedQuery}%`);
+  url.searchParams.set("_shape", "objects");
+  // Columns are required even for zero rows, so an empty result can be distinguished
+  // from an incompatible or malformed response envelope.
+  url.searchParams.set("_extra", "columns");
   return url.toString();
 }
 
@@ -459,23 +505,46 @@ async function searchOffeneregisterGermany(query: string, limit: number, signal?
     signal: createRegistryRequestSignal(signal, 15_000),
   });
   if (!resp.ok) throw new Error(`Offeneregister Germany HTTP ${resp.status}`);
-  const data = (await resp.json()) as any;
-  if (data?.error) throw new Error(`Offeneregister Germany SQL API error: ${String(data.error).slice(0, 180)}`);
-  const rows: any[] = data?.rows ?? [];
-  const columns: string[] = data?.columns ?? [];
+
+  let payload: unknown;
+  try {
+    payload = await resp.json();
+  } catch {
+    throw new Error("Offeneregister Germany malformed response: invalid JSON");
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Offeneregister Germany malformed response: expected a JSON object");
+  }
+  const data = payload as { ok?: unknown; error?: unknown; rows?: unknown; columns?: unknown };
+  if (data.ok === false || data.error) {
+    throw new Error("Offeneregister Germany SQL API returned an error response");
+  }
+  const rows = data.rows;
+  const columns = data.columns;
+  if (data.ok !== true || !Array.isArray(rows) || !Array.isArray(columns) ||
+      !columns.every((column) => typeof column === "string")) {
+    throw new Error("Offeneregister Germany malformed response: missing success, rows, or columns");
+  }
+  const requiredColumns = ["name", "company_number", "registered_address", "native_company_number"];
+  if (!requiredColumns.every((column) => columns.includes(column))) {
+    throw new Error("Offeneregister Germany malformed response: expected company columns are missing");
+  }
+
   const results: RegistryResult[] = [];
   for (const row of rows) {
-    const get = (col: string) => {
-      const index = columns.indexOf(col);
-      return index >= 0 ? row[index] : null;
-    };
-    const name: string = get("name") ?? "";
-    if (!name.trim()) continue;
-    const address: string = get("registered_address") ?? "";
-    const nativeCompanyNumber: string = get("native_company_number") ?? "";
-    const companyNumber: string = get("company_number") ?? "";
+    if (!row || typeof row !== "object" || Array.isArray(row)) {
+      throw new Error("Offeneregister Germany malformed response: expected object-shaped rows");
+    }
+    const record = row as Record<string, unknown>;
+    if (typeof record.name !== "string" || !record.name.trim()) {
+      throw new Error("Offeneregister Germany malformed response: a row has no valid company name");
+    }
+    const name = record.name.trim();
+    const address = typeof record.registered_address === "string" ? record.registered_address.trim() : "";
+    const nativeCompanyNumber = typeof record.native_company_number === "string" ? record.native_company_number.trim() : "";
+    const companyNumber = typeof record.company_number === "string" ? record.company_number.trim() : "";
     results.push({
-      name: name.trim(),
+      name,
       type: "Corporation",
       nationality: "DE",
       knownResidences: address || undefined,
@@ -630,7 +699,7 @@ async function searchAtokaItaly(query: string, limit: number, signal?: AbortSign
   let companyIndexSucceeded = false;
 
   try {
-    const url = `https://startup.registroimprese.it/isin/api/v1/startup/search?text=${encodeURIComponent(query)}&lang=en&page=0&size=${Math.min(limit, 10)}`;
+    const url = buildAtokaStartupSearchUrl(query, limit);
     const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) });
     if (!resp.ok) throw new Error(`Italian startup registry HTTP ${resp.status}`);
     const data = (await resp.json()) as any;
@@ -691,8 +760,8 @@ async function searchAtokaItaly(query: string, limit: number, signal?: AbortSign
   }
   return results;
 }
-async function searchBormeSpain(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; const seen = new Set<string>(); const url = `https://boe.es/buscar/api.php?collection=BORME&q=${encodeURIComponent(query)}&lang=es&hits=${Math.min(limit * 2, 20)}`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (!resp.ok) throw new Error(`BORME Spain HTTP ${resp.status}`); const data = (await resp.json()) as any; const items: any[] = data?.response?.results?.result ?? data?.items ?? []; for (const item of items) { const raw: string = item?.titulo ?? item?.title ?? item?.descripcion ?? ""; if (!raw) continue; const name = raw.replace(/^[A-ZÁÉÍÓÚ\s]+:\s+/u, "").split(/[,;]/)[0]?.trim() ?? raw; if (!name || seen.has(name.toLowerCase())) continue; seen.add(name.toLowerCase()); const pubDate: string = item?.fecha ?? item?.date ?? ""; const section: string = item?.seccion ?? ""; const idBoe: string = item?.identificador ?? item?.id ?? ""; results.push({ name, type: "Corporation", nationality: "ES", knownResidences: "Spain", sourceRegistries: JSON.stringify(["BORME Spain (BOE)"]), notes: [pubDate ? `Published: ${pubDate}` : null, section ? `Section: ${section}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "borme-spain", boeId: idBoe, pubDate, section, boeUrl: idBoe ? `https://www.boe.es/boe/dias/${pubDate?.replace(/-/g, "/")}/pdfs/${idBoe}.pdf` : null }) }); if (results.length >= limit) break; } return results; }
-async function searchKboBelgium(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; const url = `https://kbopub.economie.fgov.be/kbopub/zoeknaamfonetischform.html?lang=nl&searchWord=${encodeURIComponent(query)}&pstcdeNummer=&postgemeente=&gemeente=&typeVennootschap=&status=&startdatum=&einddatum=&numberOfResults=${Math.min(limit, 10)}&resultaat=`; const resp = await registryFetch("registry", url, { headers: { Accept: "text/html,application/xhtml+xml", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (!resp.ok) throw new Error(`KBO Belgium HTTP ${resp.status}`); const html = await resp.text(); const rowRe = /href="[^"]*ondernemingsnummer=(\d+)[^"]*"\s*>([^<]+)<\/a>/g; const cityRe = /class="resultaatValue"[^>]*>([^<]{3,40})<\/td>/g; let m: RegExpExecArray | null; const cities: string[] = []; let cityMatch; while ((cityMatch = cityRe.exec(html)) !== null) cities.push((cityMatch[1] ?? "").trim()); let idx = 0; while ((m = rowRe.exec(html)) !== null && results.length < limit) { const enterpriseNumber = m[1] ?? ""; const name = (m[2] ?? "").trim(); if (!name || name.length < 2) { idx++; continue; } const city = cities[idx * 2 + 1] ?? cities[idx] ?? ""; results.push({ name, type: "Corporation", nationality: "BE", knownResidences: city ? `${city}, Belgium` : "Belgium", sourceRegistries: JSON.stringify(["KBO Belgium"]), notes: enterpriseNumber ? `KBO: ${enterpriseNumber.replace(/(\d{4})(\d{3})(\d{3})/, "$1.$2.$3")}` : undefined, metadata: JSON.stringify({ source: "kbo-belgium", enterpriseNumber, city, kboUrl: enterpriseNumber ? `https://kbopub.economie.fgov.be/kbopub/toonondernemingps.html?ondernemingsnummer=${enterpriseNumber}` : null }) }); idx++; } return results; }
+async function searchBormeSpain(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; const seen = new Set<string>(); const url = buildBormeSearchUrl(query, limit); const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (!resp.ok) throw new Error(`BORME Spain HTTP ${resp.status}`); const data = (await resp.json()) as any; const items: any[] = data?.response?.results?.result ?? data?.items ?? []; for (const item of items) { const raw: string = item?.titulo ?? item?.title ?? item?.descripcion ?? ""; if (!raw) continue; const name = raw.replace(/^[A-ZÁÉÍÓÚ\s]+:\s+/u, "").split(/[,;]/)[0]?.trim() ?? raw; if (!name || seen.has(name.toLowerCase())) continue; seen.add(name.toLowerCase()); const pubDate: string = item?.fecha ?? item?.date ?? ""; const section: string = item?.seccion ?? ""; const idBoe: string = item?.identificador ?? item?.id ?? ""; results.push({ name, type: "Corporation", nationality: "ES", knownResidences: "Spain", sourceRegistries: JSON.stringify(["BORME Spain (BOE)"]), notes: [pubDate ? `Published: ${pubDate}` : null, section ? `Section: ${section}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "borme-spain", boeId: idBoe, pubDate, section, boeUrl: idBoe ? `https://www.boe.es/boe/dias/${pubDate?.replace(/-/g, "/")}/pdfs/${idBoe}.pdf` : null }) }); if (results.length >= limit) break; } return results; }
+async function searchKboBelgium(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; const url = buildKboBelgiumSearchUrl(query, limit); const resp = await registryFetch("registry", url, { headers: { Accept: "text/html,application/xhtml+xml", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (!resp.ok) throw new Error(`KBO Belgium HTTP ${resp.status}`); const html = await resp.text(); const rowRe = /href="[^"]*ondernemingsnummer=(\d+)[^"]*"\s*>([^<]+)<\/a>/g; const cityRe = /class="resultaatValue"[^>]*>([^<]{3,40})<\/td>/g; let m: RegExpExecArray | null; const cities: string[] = []; let cityMatch; while ((cityMatch = cityRe.exec(html)) !== null) cities.push((cityMatch[1] ?? "").trim()); let idx = 0; while ((m = rowRe.exec(html)) !== null && results.length < limit) { const enterpriseNumber = m[1] ?? ""; const name = (m[2] ?? "").trim(); if (!name || name.length < 2) { idx++; continue; } const city = cities[idx * 2 + 1] ?? cities[idx] ?? ""; results.push({ name, type: "Corporation", nationality: "BE", knownResidences: city ? `${city}, Belgium` : "Belgium", sourceRegistries: JSON.stringify(["KBO Belgium"]), notes: enterpriseNumber ? `KBO: ${enterpriseNumber.replace(/(\d{4})(\d{3})(\d{3})/, "$1.$2.$3")}` : undefined, metadata: JSON.stringify({ source: "kbo-belgium", enterpriseNumber, city, kboUrl: enterpriseNumber ? `https://kbopub.economie.fgov.be/kbopub/toonondernemingps.html?ondernemingsnummer=${enterpriseNumber}` : null }) }); idx++; } return results; }
 
 export async function searchRegistry(params: RegistrySearchParams): Promise<RegistryResult[]> {
   const { query, registry, limit = 10, signal } = params;
@@ -705,6 +774,11 @@ export async function searchRegistry(params: RegistrySearchParams): Promise<Regi
   }
   if (normalizedRegistry === "kvk-netherlands") {
     const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: kvk-netherlands has no verified public endpoint configured. The former openkvk.nl mirror did not resolve during the latest check; the official KVK APIs require a subscription. Use web_search/parallel_web_search for Dutch-company discovery and fetch observed source pages. Do not interpret registry unavailability as a no-hit.");
+    Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
+    throw error;
+  }
+  if (normalizedRegistry === "offeneregister-germany" && !isRegistryProviderAvailable(normalizedRegistry)) {
+    const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: offeneregister-germany is disabled until its endpoint and response schema are verified by a live runtime smoke test. Do not interpret this state as a no-hit.");
     Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
     throw error;
   }

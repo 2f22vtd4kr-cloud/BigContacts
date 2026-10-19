@@ -36,6 +36,35 @@ describe("research epistemic vNext", () => {
     expect(bindExactSourceSpan("Jane Doe works at Example Ltd.", "john@example.org", "Jane Doe")).toBeNull();
   });
 
+  it("preserves PDF page provenance and offsets into the original observation", () => {
+    const observation = "  PDF PAGE https://example.gov/report.pdf\nExtracted text:\n[Page 12] Executive summary. Example Holdings owns 25 percent of Example Company.";
+    const span = bindExactSourceSpan(observation, "25 percent", "Example Holdings");
+    expect(span?.exact).toBe(true);
+    expect(span?.text).not.toContain("[Page 12]");
+    expect(span?.pageNumber).toBe(12);
+    expect(observation.slice(span!.start, span!.end)).toBe(span?.text);
+  });
+
+  it("binds names and values with native-script token boundaries intact", () => {
+    const Arabic = bindExactSourceSpan(
+      "السجل الرسمي: يملك مالك كازينو بورتوروز حصة 25 بالمئة في الشركة.",
+      "25 بالمئة",
+      "مالك كازينو بورتوروز",
+    );
+    expect(Arabic?.exact).toBe(true);
+
+    const Chinese = bindExactSourceSpan(
+      "公开登记：波尔托罗什赌场主要股东持有公司25%的股份。",
+      "25%",
+      "波尔托罗什赌场主要股东",
+    );
+    expect(Chinese?.exact).toBe(true);
+
+    // A source token followed by a combining mark is not an exact whole-token
+    // match to the base spelling alone.
+    expect(bindExactSourceSpan("Cafe\u0301 owner owns 25%", "Cafe", "owner")).toBeNull();
+  });
+
   it("stores the subject and value together in a claim-grade span", () => {
     const span = bindExactSourceSpan(
       "Jane Doe — Director at Example Ltd. Public email: jane@example.org.",
