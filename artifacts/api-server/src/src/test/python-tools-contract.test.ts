@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { checkPythonToolsAvailability, runHolehe, runMaigret, runSherlock, runTheHarvester, runOpenDeepResearch, runSpiderFoot } from "../lib/python-tools";
 import { ATLAS_CAPABILITIES, renderAtlasCapabilityGuidanceCompact } from "../lib/atlas-capability-registry";
 
-const QUARANTINE_ERROR =
-  "No trusted Apex Python sandbox attestation is installed; network-capable Python remains fail-closed.";
+const trustedWorkerUnavailable = (tool: string) =>
+  `No trusted, healthy Apex Python OSINT worker is available for ${tool}.`;
 
 describe("Investigator-visible capability truth", () => {
   it("documents planned Python OSINT tools without presenting non-executors as selectable capabilities", () => {
@@ -27,12 +27,13 @@ describe("Investigator-visible capability truth", () => {
 });
 
 describe("Python OSINT availability diagnostics", () => {
-  it("does not advertise wrappers with no installed executor as available", async () => {
+  it("does not advertise tools without a trusted, attested worker", async () => {
     await expect(checkPythonToolsAvailability()).resolves.toEqual({
       holehe: false,
       maigret: false,
       sherlock: false,
       theHarvester: false,
+      spiderfoot: false,
       openDeepResearch: false,
     });
   });
@@ -43,14 +44,14 @@ describe("Python OSINT source boundary", () => {
     const result = await runHolehe("person@example.com");
     expect(result.available).toBe(false);
     expect(result.found).toEqual([]);
-    expect(result.error).toBe(QUARANTINE_ERROR);
+    expect(result.error).toBe(trustedWorkerUnavailable("holehe"));
   });
 
   it("fails closed before Maigret can start a network-capable subprocess", async () => {
     const result = await runMaigret("alice");
     expect(result.available).toBe(false);
     expect(result.found).toEqual([]);
-    expect(result.error).toBe(QUARANTINE_ERROR);
+    expect(result.error).toBe(trustedWorkerUnavailable("maigret"));
   });
 
   it("fails closed before Sherlock can start a network-capable subprocess", async () => {
@@ -58,14 +59,14 @@ describe("Python OSINT source boundary", () => {
     expect(result.available).toBe(false);
     expect(result.reviewOnly).toBe(true);
     expect(result.found).toEqual([]);
-    expect(result.error).toBe(QUARANTINE_ERROR);
+    expect(result.error).toBe(trustedWorkerUnavailable("sherlock"));
   });
 
   it("fails closed before theHarvester can start a network-capable subprocess", async () => {
     const result = await runTheHarvester("example.com");
     expect(result.available).toBe(false);
     expect(result.emails).toEqual([]);
-    expect(result.error).toBe(QUARANTINE_ERROR);
+    expect(result.error).toBe(trustedWorkerUnavailable("theharvester"));
   });
 
 
@@ -76,7 +77,7 @@ describe("Python OSINT source boundary", () => {
     expect(result.observations).toEqual([]);
     expect(result.eventsReceived).toBe(0);
     expect(result.partial).toBe(false);
-    expect(result.error).toBe(QUARANTINE_ERROR);
+    expect(result.error).toBe(trustedWorkerUnavailable("spiderfoot"));
   });
 
   it("fails closed for the Python-backed deep-research adapter as well", async () => {
@@ -84,6 +85,6 @@ describe("Python OSINT source boundary", () => {
     expect(result.available).toBe(false);
     expect(result.reviewOnly).toBe(true);
     expect(result.report).toBeNull();
-    expect(result.error).toBe(QUARANTINE_ERROR);
+    expect(result.error).toBe("No canonical non-AI execution adapter exists for the model-backed deep-research capability.");
   });
 });
