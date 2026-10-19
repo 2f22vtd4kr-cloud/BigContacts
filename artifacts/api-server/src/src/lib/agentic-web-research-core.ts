@@ -3594,7 +3594,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const finalScope = activeScope
         ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 360)
         : "CASE OBJECTIVE: discover real people with credible wealth potential and a realistic person-level public/professional/intermediary route.";
-      const finalEvidenceRules = "MISSION PRIORITY: case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice. SCOPE RECOVERY: keep web discovery searches aligned to the active subject and geography; do not require every discovery query to repeat the chosen source class. Native-language equivalents are valid when they match the same subject. Registry searches must select an in-scope adapter; the adapter may supply jurisdiction and source-class context. After a block, revise the failed dimension or request new scope; fetch only observed leads. A blocked request is not negative evidence. Search-result URLs and snippets are leads, not evidence. Never invent identities, ownership clues, wealth or contacts.";
+      const finalEvidenceRules = "MISSION PRIORITY: case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice. SCOPE RECOVERY: keep web discovery searches aligned to the active subject and geography; do not require every discovery query to repeat the chosen source class. Any language/script is valid; English is optional. Use native forms, aliases and transliterations when useful. Registry searches must select an in-scope adapter; the adapter may supply jurisdiction and source-class context. After a block, revise the failed dimension or request new scope; fetch only observed leads. A blocked request is not negative evidence. Search-result URLs and snippets are leads, not evidence. Never invent identities, ownership clues, wealth or contacts.";
       const finalDiscoveryGate = input.mode === "discovery" ? (compactDiscoveryAdmissionContract ?? "") : "";
       // Keep schema, the scope-recovery rule, discovery admission law, latest
       // blocked action, and any same-pivot unfetched leads even in the last tier.
@@ -3610,7 +3610,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
         compactTerminalContractGuidance,
-        "PAGE FORMAT / RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries. Search snippets and result URLs are leads, not evidence. PDF or response_size_limit_exceeded is unobserved; do not retry the same binary URL through the other fetch action; use a readable source.",
+        "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts bounded text from supported PDFs; browser_fetch is HTML-only. Scanned pages need OCR (unavailable); extraction failure is unobserved. Search snippets and result URLs are leads, not evidence.",
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate ?? ""] : []),
         finalDiscoveryGate,
         compactOutputContract,
