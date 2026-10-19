@@ -6,7 +6,7 @@ FROM python:3.12-slim-bookworm AS worker-build
 ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 UV_PYTHON_INSTALL_DIR=/opt/python UV_CACHE_DIR=/opt/uv-cache
 COPY --from=uvbin /uv /uvx /usr/local/bin/
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates git build-essential libffi-dev libssl-dev libxml2-dev libxslt1-dev \
+      ca-certificates git build-essential util-linux libffi-dev libssl-dev libxml2-dev libxslt1-dev \
       libpcap-dev libmagic1 libjpeg62-turbo-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/* \
     && uv python install 3.10 3.12 3.14 \
