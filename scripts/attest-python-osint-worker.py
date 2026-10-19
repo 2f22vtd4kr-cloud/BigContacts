@@ -157,8 +157,8 @@ def verify_network_policies(namespace: str) -> None:
     }
     verify_peer_policy(
         policies["apex-osint-worker-ingress"], direction="Ingress",
-        pod_labels={"app": "apex-python-osint-worker"}, peer_namespace=namespace,
-        peer_labels={"app": "apex-api-server"}, ports={("TCP", 8080)},
+        pod_labels={"app": "apex-python-osint-worker"}, peer_namespace="ingress-nginx",
+        peer_labels={"app.kubernetes.io/name": "ingress-nginx"}, ports={("TCP", 8080)},
     )
     verify_worker_egress(policies["apex-osint-worker-egress"], namespace)
     verify_peer_policy(
@@ -232,7 +232,7 @@ def main() -> int:
     if "@sha256:" not in image:
         raise RuntimeError("Worker image must be deployed by immutable sha256 digest before attestation.")
     if args.namespace != "apex-system":
-        raise RuntimeError("The checked-in peer selectors target apex-system; edit and review selectors before attesting another namespace.")
+        raise RuntimeError("The checked-in worker/proxy selectors target apex-system; review selectors before attesting another namespace.")
 
     verify_network_policies(args.namespace)
     if not args.skip_live_egress_tests:
