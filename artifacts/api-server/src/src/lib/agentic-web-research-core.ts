@@ -2394,7 +2394,7 @@ const PIVOT_SCOPE_SOURCE_CLASS_TERMS = new Set([
 ]);
 
 function pivotScopeToken(value: string): string {
-  const token = value.toLowerCase();
+  const token = value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "");
   // Preserve common words and jurisdiction names that happen to end in s.
   const singularExceptions = new Set(["texas", "business", "status", "news", "analysis", "basis", "series", "species", "address", "process", "access", "success", "class"]);
   if (singularExceptions.has(token)) return token;
@@ -2411,10 +2411,36 @@ function pivotScopeToken(value: string): string {
   const subjectAliases: Record<string, string> = {
     manufacture: "manufacturing",
     manufacturer: "manufacturing",
+    manufacturers: "manufacturing",
     fabrication: "manufacturing",
     fabricator: "manufacturing",
     fabricating: "manufacturing",
+    fabricant: "manufacturing",
+    fabricants: "manufacturing",
+    manufacturier: "manufacturing",
+    manufacturiers: "manufacturing",
+    industriel: "manufacturing",
+    industriels: "manufacturing",
+    industrielle: "manufacturing",
+    industrielles: "manufacturing",
+    industrie: "manufacturing",
+    hersteller: "manufacturing",
+    herstellung: "manufacturing",
+    fertigung: "manufacturing",
+    produktionsbetrieb: "manufacturing",
+    produktionsunternehmen: "manufacturing",
+    produktion: "manufacturing",
+    industrieunternehmen: "manufacturing",
+    maschinenbau: "manufacturing",
+    logistik: "logistics",
+    logistikunternehmen: "logistics",
+    logistics: "logistics",
     privately: "private",
+    familial: "family_owned",
+    familiale: "family_owned",
+    familiaux: "family_owned",
+    familienunternehmen: "family_owned",
+    familienbetrieb: "family_owned",
   };
   return subjectAliases[singular] ?? singular;
 }
@@ -2596,7 +2622,7 @@ function removePivotSourceSystemClauses(direction: string): string {
   return direction.replace(
     /\b(?:using|via|through|from|at|on|against|querying|searching)\s+(?:the\s+)?[^.;\n]{1,180}?\b(?:registr(?:y|ies)|registers?|databases?|filings?|records?|directories?|portals?|indexes?|lists?)\b[^.;\n]*/giu,
     " ",
-  );
+  ).replace(/\b(?:infogreffe|bodacc|handelsregister|offeneregister|krs|ceidg|ares|registre\s+(?:national\s+)?du\s+commerce|registre\s+national\s+des\s+entreprises)\b/giu, " ");
 }
 
 export function pivotScopeAnchors(objective: string): string[] {
@@ -2632,7 +2658,7 @@ function pivotScopeRequiredSourceAnchors(direction: string): string[] {
 }
 
 const PIVOT_SOURCE_CLASS_SYNONYMS: Record<string, readonly string[]> = {
-  registry: ["registry", "registries", "register", "database", "filing", "registration", "registrations", "business registration", "company registration", "state registration", "secretary of state", "business entity", "business registry", "state registry", "company register", "commercial register", "handelsregister", "offeneregister", "krs", "ceidg", "ares", "business entity search", "corporate entity search", "corporation search", "licensee list", "licensee directory"],
+  registry: ["registry", "registries", "register", "database", "filing", "registration", "registrations", "business registration", "company registration", "state registration", "secretary of state", "business entity", "business registry", "state registry", "company register", "commercial register", "handelsregister", "offeneregister", "infogreffe", "bodacc", "registre du commerce", "registre national des entreprises", "greffe", "krs", "ceidg", "ares", "business entity search", "corporate entity search", "corporation search", "licensee list", "licensee directory"],
   filing: ["filing", "registry", "register", "database", "corporate", "corporation", "corporations", "secretary of state", "business entity search", "corporate entity search", "certificate of formation", "certificate of incorporation", "articles of organization", "articles of incorporation", "annual report", "formation documents", "formation certificate", "public filing", "public filings"],
   database: ["database", "registry", "registries", "register", "filing", "registration", "registrations", "business registration", "company registration", "state registration", "secretary of state", "business entity search", "corporate entity search", "licensee list", "licensee database"],
   directory: ["directory", "catalog", "listing", "list"],
@@ -2646,7 +2672,7 @@ const PIVOT_SOURCE_CLASS_SYNONYMS: Record<string, readonly string[]> = {
 
 function pivotTextMatchesAnyAnchor(value: string, anchors: readonly string[]): boolean {
   if (!value.trim() || anchors.length === 0) return false;
-  const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
+  const tokens = (value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
   return anchors.some((anchor) => {
     // Public source classes have familiar lexical variants: a state corporate
     // database/register can satisfy a registry pivot, and a chamber can satisfy
@@ -2775,7 +2801,8 @@ function pivotTextMatchesGeography(value: string, options: readonly string[][]):
 
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
   if (!value.trim() || anchors.length === 0) return false;
-  const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
+  const normalizedValue = value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "");
+  const tokens = (normalizedValue.match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
   const matched = new Set(anchors.filter((anchor) => anchor === "family_owned"
     ? /\bfamily[\s-]+owned\b/iu.test(value)
     : anchor === "private_equity"
@@ -2800,7 +2827,6 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   }
   // Accept common native-language equivalents when the model localizes a query.
   // These aliases establish topical equivalence only; evidence and admission remain separate.
-  const normalizedValue = value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "");
   if (
     anchors.includes("renewable") && anchors.includes("energy")
     && /\b(?:renewable\s+energy|odnawialn\w*\s+energi\w*|energi\w*\s+odnawialn\w*|erneuerbar\w*\s+energi\w*|obnoviteln\w*\s+zdroj\w*|atjaunojam\w*\s+energij\w*|atsinaujinant\w*\s+energetik\w*|taastuvenergi\w*)\b/iu.test(normalizedValue)
@@ -2909,7 +2935,7 @@ function pivotActionIsAligned(
       && matchesGeographyInQuery
       && requiredSourceAnchors.length > 0
       && pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
-      && /\b(?:\.gov\b|official|secretary of state|business entity|corporate entity|company register|company registry|state registry|handelsregister|krs|ceidg)\b/i.test(text);
+      && /\b(?:\.gov\b|official|secretary of state|business entity|corporate entity|company register|company registry|state registry|handelsregister|offeneregister|infogreffe|bodacc|registre\s+(?:national\s+)?du\s+commerce|registre\s+national\s+des\s+entreprises|greffe|krs|ceidg)\b/i.test(text);
     const evidenceGrounded = pivotResourceIsGroundedInAlignedEvidence(value, evidenceText);
     return !pivotTextContainsExcludedSubject(text, excludedSubjects)
       && (matchesCoreScope || officialSourceDiscovery || evidenceGrounded);
