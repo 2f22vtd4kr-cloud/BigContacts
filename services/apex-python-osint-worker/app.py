@@ -874,12 +874,36 @@ async def run_spiderfoot(target: str, target_type: str, profile: str, timeout_ms
         return "failed", None, "SpiderFoot execution failed before a complete result could be normalized."
 
 
-async def perform_tool(request: ExecuteRequest) -> dict[str, Any]:
+async def perform_tool(
+    request: ExecuteRequest,
+    *,
+    isolation_proof: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     args = validate_args(request.tool, request.args)
-    proof = load_isolation_proof()
+    initial_proof = isolation_proof if isolation_proof is not None else load_isolation_proof()
     correlation = request.correlation.model_dump(exclude_none=True) if request.correlation else {}
+
+    def unavailable_result() -> dict[str, Any]:
+        now = utc_iso()
+        return {
+            "requestId": request.requestId, "tool": request.tool, "status": "unavailable",
+            "toolVersion": None, "result": None,
+            "error": "Trusted network-isolation attestation is unavailable or changed before execution.",
+            "startedAt": now, "finishedAt": now, "correlation": correlation,
+            "executorId": None, "workerImageDigest": None, "egressProxyImageDigest": None,
+            "isolationProofIssuedAt": None, "isolationProofExpiresAt": None,
+        }
+
+    if not initial_proof:
+        return unavailable_result()
     timeout_ms = min(request.timeoutMs, TOOL_TIMEOUT_DEFAULTS[request.tool], MAX_RUNTIME_MS_CAP)
     async with semaphore:
+        # Availability can expire or the operator can replace/revoke the signed
+        # isolation proof while a request waits for capacity. Revalidate at the
+        # actual execution boundary and require the same attested deployment.
+        proof = load_isolation_proof()
+        if not proof or proof != initial_proof:
+            return unavailable_result()
         started_at = utc_iso()
         if request.tool == "spiderfoot":
             status, result, error = await run_spiderfoot(
@@ -1073,6 +1097,9 @@ async def execute(request: Request, authorization: str | None = Header(default=N
     raw_body = await _verify_signed_body(request, max_bytes=64_000)
     try:
         request_data = ExecuteRequest.model_validate(json.loads(raw_body))
+        proof = load_isolation_proof()
+        if not proof:
+            raise HTTPException(status_code=503, detail="Trusted network-isolation attestation is unavailable.")
         tools, _ = resolve_worker_tools()
         if request_data.tool not in tools:
             raise HTTPException(status_code=503, detail="Requested tool is not healthy and available.")
@@ -1083,7 +1110,6 @@ async def execute(request: Request, authorization: str | None = Header(default=N
             raise HTTPException(status_code=409, detail="Duplicate or replayed worker request ID.")
         if consume_cancel_request(request_data.requestId):
             now = utc_iso()
-            proof = load_isolation_proof() or {}
             return JSONResponse(signed_envelope({
                 "requestId": request_data.requestId, "tool": request_data.tool, "status": "cancelled",
                 "toolVersion": None, "result": None, "error": "Request was cancelled before execution.",
@@ -1097,10 +1123,9 @@ async def execute(request: Request, authorization: str | None = Header(default=N
             raise HTTPException(status_code=500, detail="Worker task context is unavailable.")
         active_requests[request_data.requestId] = task
         try:
-            result = await perform_tool(request_data)
+            result = await perform_tool(request_data, isolation_proof=proof)
         except asyncio.CancelledError:
             now = utc_iso()
-            proof = load_isolation_proof() or {}
             result = {
                 "requestId": request_data.requestId, "tool": request_data.tool, "status": "cancelled",
                 "toolVersion": None, "result": None, "error": "Execution was cancelled and worker cleanup completed.",
