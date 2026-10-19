@@ -6,28 +6,40 @@
  * to revisit the complete observation rather than inherit a lossy summary.
  */
 
-const SENTENCE_SPLIT = /(?<=[.!?])\s+(?=[A-Z0-9\"'(])|\n+/;
+const SENTENCE_SPLIT = /(?<=[.!?])\\s+(?=[\\p{L}\\p{N}\\\"'(])|\\n+/u;
+const CJK_SCRIPT = /[\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}]/u;
 
+/** Tokenization is for relevance scoring only; observed source text is never changed. */
 function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9@.+_\-\s]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length >= 2);
+  const normalized = text.normalize("NFKC").toLowerCase().normalize("NFD").replace(/\\p{M}/gu, "").normalize("NFC");
+  const words = normalized.match(/[\\p{L}\\p{N}@.+_\\-]+/gu) ?? [];
+  const tokens: string[] = [];
+  for (const word of words) {
+    tokens.push(word);
+    if (CJK_SCRIPT.test(word)) {
+      const chars = Array.from(word);
+      for (let index = 0; index + 1 < chars.length; index += 1) {
+        tokens.push(chars[index]! + chars[index + 1]!);
+      }
+      if (chars.length === 1) tokens.push(chars[0]!);
+    }
+  }
+  return [...new Set(tokens)].filter((token) => token.length >= 2 || CJK_SCRIPT.test(token));
 }
 
 export function scorePassage(passage: string, queryTokens: Set<string>): number {
   if (!passage.trim() || queryTokens.size === 0) return 0;
   const tokens = tokenize(passage);
-  if (tokens.length === 0) return 0;
+  const normalizedQueryTokens = new Set([...queryTokens].flatMap((token) => tokenize(token)));
+  if (tokens.length === 0 || normalizedQueryTokens.size === 0) return 0;
   let hits = 0;
-  for (const t of tokens) {
-    if (queryTokens.has(t)) hits += 1;
+  for (const token of tokens) {
+    if (normalizedQueryTokens.has(token)) hits += 1;
   }
   const density = hits / Math.sqrt(tokens.length);
   let boost = 0;
-  if (/@|linkedin\.com|tel:|\+\d|\bemail\b|\bphone\b|\bcontact\b/i.test(passage)) boost += 0.35;
-  if (/https?:\/\//i.test(passage)) boost += 0.15;
+  if (/@|linkedin\\.com|tel:|\\+\\d|\\bemail\\b|\\bphone\\b|\\bcontact\\b/i.test(passage)) boost += 0.35;
+  if (/https?:\\/\\//i.test(passage)) boost += 0.15;
   return density + boost;
 }
 
