@@ -547,17 +547,17 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             if failure:
                 return process_failure_result("holehe", failure, code)
             if code != 0:
-                return "failed", None, "Holehe runner returned a non-zero exit code.", "holehe"
+                return "failed", None, "Holehe runner returned a non-zero exit code.", TOOL_VERSIONS["holehe"]
             result = parse_json_from_stdout(stdout)
             found = result.get("found") if isinstance(result, dict) else None
             if not isinstance(found, list) or any(not isinstance(item, dict) for item in found):
-                return "failed", None, "Holehe runner returned an invalid structured result.", "holehe"
+                return "failed", None, "Holehe runner returned an invalid structured result.", TOOL_VERSIONS["holehe"]
             checked = result.get("totalChecked")
             truncated = result.get("truncated", False)
             if isinstance(checked, bool) or not isinstance(checked, int) or checked < len(found):
-                return "failed", None, "Holehe runner returned an invalid checked-count value.", "holehe"
+                return "failed", None, "Holehe runner returned an invalid checked-count value.", TOOL_VERSIONS["holehe"]
             if not isinstance(truncated, bool):
-                return "failed", None, "Holehe runner returned an invalid truncation flag.", "holehe"
+                return "failed", None, "Holehe runner returned an invalid truncation flag.", TOOL_VERSIONS["holehe"]
             positives = sum(1 for item in found if item.get("exists") is True)
             status, error = classify_holehe_result(found)
             if truncated:
@@ -567,7 +567,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             return status, {
                 "found": found[:250], "totalChecked": checked, "totalFound": positives,
                 "truncated": truncated,
-            }, error, "holehe"
+            }, error, TOOL_VERSIONS["holehe"]
         if tool == "maigret":
             report_dir = home / "reports"
             code, stdout, stderr, failure = await run_process(
@@ -582,7 +582,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             # which every site failed. Its CSV report retains each site's status.
             report_path = report_dir / ("report_" + args["username"] + ".csv")
             if not report_path.is_file():
-                return "failed", None, "Maigret exited without its expected CSV report.", "maigret"
+                return "failed", None, "Maigret exited without its expected CSV report.", TOOL_VERSIONS["maigret"]
             import csv
             found: list[dict[str, Any]] = []
             total_sites_checked = 0
@@ -593,7 +593,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 with report_path.open("r", encoding="utf-8", newline="") as stream:
                     reader = csv.DictReader(stream)
                     if not reader.fieldnames or not required_headers.issubset(set(reader.fieldnames)):
-                        return "failed", None, "Maigret returned a malformed CSV report.", "maigret"
+                        return "failed", None, "Maigret returned a malformed CSV report.", TOOL_VERSIONS["maigret"]
                     for row in reader:
                         site_rows_seen += 1
                         if not isinstance(row, dict) or None in row:
@@ -634,11 +634,11 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                             else:
                                 incomplete_records += 1
             except (OSError, UnicodeError, csv.Error):
-                return "failed", None, "Maigret CSV report could not be read.", "maigret"
+                return "failed", None, "Maigret CSV report could not be read.", TOOL_VERSIONS["maigret"]
             if site_rows_seen == 0:
-                return "failed", None, "Maigret CSV report contained no site results.", "maigret"
+                return "failed", None, "Maigret CSV report contained no site results.", TOOL_VERSIONS["maigret"]
             if code != 0 and total_sites_checked == 0:
-                return "failed", None, "Maigret exited unsuccessfully without usable site results.", "maigret"
+                return "failed", None, "Maigret exited unsuccessfully without usable site results.", TOOL_VERSIONS["maigret"]
             if code != 0:
                 status = "partial"
                 error = "Maigret ended with a non-zero code after producing bounded site results."
@@ -648,7 +648,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             else:
                 status = "completed"
                 error = None
-            return status, {"found": found[:300], "totalSitesChecked": total_sites_checked}, error, "maigret"
+            return status, {"found": found[:300], "totalSitesChecked": total_sites_checked}, error, TOOL_VERSIONS["maigret"]
         if tool == "sherlock":
             code, stdout, stderr, failure = await run_process(
                 "/opt/venvs/sherlock/bin/sherlock",
@@ -732,21 +732,21 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 return process_failure_result("theharvester", failure, code)
             report_path = Path(str(report_base) + ".json")
             if not report_path.is_file():
-                return "failed", None, "theHarvester exited without its expected JSON report.", "theharvester"
+                return "failed", None, "theHarvester exited without its expected JSON report.", TOOL_VERSIONS["theharvester"]
             try:
                 data = json.loads(report_path.read_text("utf-8"))
             except (OSError, UnicodeError, json.JSONDecodeError):
-                return "failed", None, "theHarvester returned an unreadable or malformed JSON report.", "theharvester"
+                return "failed", None, "theHarvester returned an unreadable or malformed JSON report.", TOOL_VERSIONS["theharvester"]
             if not isinstance(data, dict) or not isinstance(data.get("hosts"), list):
-                return "failed", None, "theHarvester report did not contain its required hosts array.", "theharvester"
+                return "failed", None, "theHarvester report did not contain its required hosts array.", TOOL_VERSIONS["theharvester"]
             emails = data.get("emails", [])
             hosts = data["hosts"]
             ips = data.get("ips", [])
             vhosts = data.get("vhosts", [])
             if not isinstance(emails, list) or not isinstance(ips, list) or not isinstance(vhosts, list):
-                return "failed", None, "theHarvester report contained invalid email, IP, or virtual-host arrays.", "theharvester"
+                return "failed", None, "theHarvester report contained invalid email, IP, or virtual-host arrays.", TOOL_VERSIONS["theharvester"]
             if any(not isinstance(item, str) for values in (emails, hosts, ips, vhosts) for item in values):
-                return "failed", None, "theHarvester report contained non-string observations.", "theharvester"
+                return "failed", None, "theHarvester report contained non-string observations.", TOOL_VERSIONS["theharvester"]
             combined_hosts = list(dict.fromkeys([*hosts, *vhosts]))
             has_observations = bool(emails or combined_hosts or ips)
             payload = {
@@ -757,7 +757,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 "totalFound": len(emails) + len(combined_hosts) + len(ips),
             }
             if code != 0 and not has_observations:
-                return "failed", None, "theHarvester exited unsuccessfully without structured result output.", "theharvester"
+                return "failed", None, "theHarvester exited unsuccessfully without structured result output.", TOOL_VERSIONS["theharvester"]
             source_error = re.search(
                 r"Failed to process .+ search for word:|Unexpected error occurred in .+ module:",
                 (stdout + b"\\n" + stderr).decode("utf-8", errors="replace"),
@@ -767,7 +767,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 # The pinned JSON format records leads, not per-source query
                 # outcomes. A zero-hit report alone cannot prove the passive
                 # engines completed successfully instead of swallowing errors.
-                return "partial", payload, "theHarvester produced an empty report without source-completion evidence; no negative finding is established.", "theharvester"
+                return "partial", payload, "theHarvester produced an empty report without source-completion evidence; no negative finding is established.", TOOL_VERSIONS["theharvester"]
             if code != 0 or source_error:
                 return "partial", payload, "theHarvester produced bounded results but reported an execution/source error.", TOOL_VERSIONS["theharvester"]
             return "completed", payload, None, TOOL_VERSIONS["theharvester"]
