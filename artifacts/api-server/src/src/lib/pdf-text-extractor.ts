@@ -37,9 +37,11 @@ export async function extractPdfText(
     const document = await loadingTask.promise;
     const pagesToRead = Math.min(document.numPages, maxPages);
     let text = "";
+    let pagesRead = 0;
     let truncated = document.numPages > pagesToRead;
     for (let pageNumber = 1; pageNumber <= pagesToRead; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
+      pagesRead = pageNumber;
       try {
         const content = await page.getTextContent();
         const pageText = content.items
@@ -70,7 +72,7 @@ export async function extractPdfText(
 
     return {
       text: text.trim(),
-      pagesRead: pagesToRead,
+      pagesRead,
       totalPages: document.numPages,
       truncated,
     };
