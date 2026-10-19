@@ -3,7 +3,9 @@ import { extractPdfText, PDF_TEXT_MAX_BYTES } from "./pdf-text-extractor";
 
 function minimalPdf(text: string): Uint8Array {
   const escapedText = text.replace(/[\\()]/g, "\\$&");
-  const stream = `BT\n/F1 12 Tf\n72 720 Td\n(${escapedText}) Tj\nET`;
+  const chunks = Array.from({ length: Math.max(1, Math.ceil(escapedText.length / 100)) }, (_, index) => escapedText.slice(index * 100, (index + 1) * 100));
+  const textOperators = chunks.map((chunk, index) => `(${chunk}) Tj${index + 1 < chunks.length ? "\n0 -15 Td" : ""}`).join("\n");
+  const stream = `BT\n/F1 12 Tf\n72 720 Td\n${textOperators}\nET`;
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
