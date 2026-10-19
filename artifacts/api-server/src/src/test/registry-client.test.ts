@@ -33,6 +33,24 @@ describe("language-neutral registry query construction", () => {
   });
 });
 
+describe("language-neutral KBO query construction", () => {
+  it("preserves query text in every script and leaves the endpoint locale unforced", () => {
+    const queries = [
+      "власник казино Порторож акціонери",
+      "مالك كازينو بورتوروز استثمار",
+      "赌场波尔托罗什主要股东",
+      "カジノ ポルトロシュ 主要株主",
+      "카지노 소유주 및 운영자",
+    ];
+    for (const query of queries) {
+      const url = new URL(buildKboBelgiumSearchUrl(query, 99));
+      expect(url.searchParams.get("searchWord")).toBe(query);
+      expect(url.searchParams.get("lang")).toBeNull();
+      expect(url.searchParams.get("numberOfResults")).toBe("10");
+    }
+  });
+});
+
 describe("OffeneRegister SQL API request contract", () => {
   it("uses Datasette's custom-SQL JSON route, object rows and bound query parameter", () => {
     const url = new URL(buildOffeneregisterSearchUrl("GmbH' OR 1=1 --", 999));
@@ -74,6 +92,7 @@ import {
   buildOffeneregisterSearchUrl,
   buildAtokaStartupSearchUrl,
   buildBormeSearchUrl,
+  buildKboBelgiumSearchUrl,
 } from "../lib/registry-client";
 import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
 import { afterEach, describe, expect, it, vi } from "vitest";
