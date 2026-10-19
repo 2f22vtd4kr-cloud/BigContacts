@@ -193,7 +193,7 @@ describe("page visit response classification", () => {
     expect(pageReaderLimit.observation).toContain("page content was not observed and must not be cited");
   });
 
-  it("blocks obvious PDF URLs before either HTML-only page fetcher can issue a request", () => {
+  it("routes PDF visits through bounded text extraction while retaining browser-fetch PDF preflight", () => {
     const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {');
     const domainLookupStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {', visitStart);
     const visitDispatch = agenticCoreSource.slice(visitStart, domainLookupStart);
@@ -204,8 +204,10 @@ describe("page visit response classification", () => {
     expect(domainLookupStart).toBeGreaterThan(visitStart);
     expect(browserStart).toBeGreaterThan(visitStart);
     expect(registryStart).toBeGreaterThan(browserStart);
-    expect(visitDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
-    expect(visitDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(visitDispatch.indexOf("toolVisit(canonical"));
+    expect(visitDispatch).not.toContain("if (isPdfPageResponse(action.url, null))");
+    expect(visitDispatch.indexOf("toolVisit(canonical")).toBeGreaterThan(-1);
+    expect(agenticCoreSource).toContain("extractPdfText(responseBytes");
+    expect(agenticCoreSource).toContain("PDF_TEXT_MAX_BYTES");
     expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
     expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(browserDispatch.indexOf('import("./browser-fetch")'));
     expect(browserDispatch).toContain("no browser provider request was made");
@@ -214,6 +216,7 @@ describe("page visit response classification", () => {
   it("does not treat PDF bytes as an observed HTML/text page", () => {
     expect(isPdfPageResponse("https://example.test/report.pdf", "application/octet-stream")).toBe(true);
     expect(isPdfPageResponse("https://example.test/report", "application/pdf; charset=binary")).toBe(true);
+    expect(isPdfPageResponse("https://example.test/download", "application/octet-stream", 'attachment; filename="filing.pdf"')).toBe(true);
     expect(isPdfPageResponse("https://example.test/officers", "text/html; charset=utf-8")).toBe(false);
   });
 
