@@ -2287,7 +2287,8 @@ describe("PDF prompt capability contract", () => {
     });
 
     expect(prompt).toContain("visit supports bounded text extraction for text-bearing PDF documents");
-    expect(prompt).toContain("Scanned/image-only, encrypted, malformed or empty-text PDFs remain unobserved");
+    expect(prompt).toContain("Scanned/image-only PDFs with no text are marked OCR-required; OCR is not available");
+    expect(prompt).toContain("encrypted/password-protected and malformed PDFs are distinct structured extraction failures");
     expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead");
     expect(prompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
