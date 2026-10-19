@@ -131,7 +131,6 @@ function cleanText(value: unknown, max = 500): string { const limit = Number.isF
 function isSafeHttpUrl(value: string): boolean { return /^https?:\/\//i.test(value); }
 function normalizedUrl(value: string): string | null { try { const u = new URL(value); return /^https?:$/i.test(u.protocol) ? sanitizeUrlForEvidence(u.href) : null; } catch { return null; } }
 
-const DISCOVERY_BARE_TLD_SITE_FILTER = /\bsite:\.(?:com|org|net|edu|gov|io|co|si|eu)\b/i;
 
 export function normalizeDiscoverySearchQuery(query: string): string { return query.trim().normalize("NFC").toLowerCase().replace(/[\s\u00a0]+/g, " ").replace(/[“”‘’]/g, '"' ); }
 
@@ -521,12 +520,12 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
 
   // Structural/provider-syntax checks only. Query content is intentionally not
   // classified by English keywords, entity lists, role lists, or sector vocabularies.
-  if (/(?:^|\\s)site:\\s*\\.[a-z0-9-]+(?:\\s|$)/i.test(normalized)) {
+  if (/(?:^|\s)site:\s*\.[a-z0-9-]+(?:\s|$)/i.test(normalized)) {
     return { allowed: false, reason: "Discovery query contains a malformed bare site filter. Use a concrete hostname or remove the site operator; no provider request was made." };
   }
 
   // Block literal templates so they cannot waste provider quota.
-  const placeholderQuery = /(?:\\bcompanyname\\b|\\bcompanywebsite(?:\\.[a-z]{2,})?\\b|\\byourcompany(?:\\.[a-z]{2,})?\\b|\\bexample\\.(?:com|org|net|co\\.[a-z]{2})\\b|\\[\\s*(?:companyname|company(?:\\s+name)?|domain|company\\s+website)\\s*\\]|\\{\\{\\s*(?:companyname|company(?:\\s+name)?|domain)\\s*\\}\\})/i;
+  const placeholderQuery = /(?:\bcompanyname\b|\bcompanywebsite(?:\.[a-z]{2,})?\b|\byourcompany(?:\.[a-z]{2,})?\b|\bexample\.(?:com|org|net|co\.[a-z]{2})\b|\[\s*(?:companyname|company(?:\s+name)?|domain|company\s+website)\s*\]|\{\{\s*(?:companyname|company(?:\s+name)?|domain)\s*\}\})/i;
   if (placeholderQuery.test(query)) {
     return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with the actual entity/source anchor; no provider request was made." };
   }
@@ -542,14 +541,14 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
 /** Apply discovery quality/targetability to domain lookups before any provider call. */
 export function validateDiscoveryDomainLookup(domain: string, _priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
   const raw = typeof domain === "string" ? domain.trim() : "";
-  if (!raw || /[\\s\\/:?#@\\\\]/u.test(raw)) {
+  if (!raw || /[\s\/:?#@\\]/u.test(raw)) {
     return { allowed: false, reason: "Domain lookup requires a bare hostname without a URL, path, port, query, or free-form search text; no provider request was made." };
   }
   let hostname: string;
   try {
     // URL parsing accepts internationalized domain names and canonicalizes them
     // to IDNA/Punycode for the network boundary without modifying query text.
-    hostname = new URL("https://" + raw).hostname.toLowerCase().replace(/\\.+$/, "");
+    hostname = new URL("https://" + raw).hostname.toLowerCase().replace(/\.+$/, "");
   } catch {
     return { allowed: false, reason: "Domain lookup requires a valid hostname; no provider request was made." };
   }
@@ -558,7 +557,7 @@ export function validateDiscoveryDomainLookup(domain: string, _priorQueries: rea
     !label || label.length > 63 || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)$/i.test(label))) {
     return { allowed: false, reason: "Domain lookup requires a valid hostname; no provider request was made." };
   }
-  const placeholderDomain = /(?:^|\\.)(?:companyname|companywebsite|yourcompany|example)(?:\\.(?:com|org|net|co\\.[a-z]{2}))?$/i;
+  const placeholderDomain = /(?:^|\.)(?:companyname|companywebsite|yourcompany|example)(?:\.(?:com|org|net|co\.[a-z]{2}))?$/i;
   if (placeholderDomain.test(hostname)) {
     return { allowed: false, reason: "Domain lookup contains a template placeholder or reserved example domain; no provider request was made." };
   }
