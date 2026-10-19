@@ -2111,10 +2111,10 @@ Choose each next action yourself from the available capabilities and observed ev
       turn: 4,
       model: "test-model",
       action: "visit",
-      args: { url: "https://example.org/team" },
+      args: { url: "https://example.gov/report.pdf" },
       execution: "success",
-      observation: "Jane Doe is Head of Operations. Public email: jane.doe@example.org.",
-      observedUrls: ["https://example.org/team"],
+      observation: "PDF PAGE https://example.gov/report.pdf\\nExtracted text:\\n[Page 12] Jane Doe is Head of Operations. Public email: jane.doe@example.org.",
+      observedUrls: ["https://example.gov/report.pdf"],
       findings: [],
       providerFallback: [],
     } as const;
@@ -2124,13 +2124,15 @@ Choose each next action yourself from the available capabilities and observed ev
       personName: "Jane Doe",
       role: "Head of Operations",
       scope: "candidate" as const,
-      sourceUrls: ["https://example.org/team"],
+      sourceUrls: ["https://example.gov/report.pdf"],
       note: "Public business contact",
     };
     const bound = bindModelFindingsToObservedSources([finding], [priorVisit as unknown as Parameters<typeof bindModelFindingsToObservedSources>[1][number]]);
     expect(bound).toHaveLength(1);
     expect(bound[0]?.sourceRecord.turn).toBe(4);
-    expect(bound[0]?.finding.sourceUrls).toEqual(["https://example.org/team"]);
+    expect(bound[0]?.finding.sourceUrls).toEqual(["https://example.gov/report.pdf"]);
+    expect(bound[0]?.span.pageNumber).toBe(12);
+    expect(bound[0]?.span.text).toContain("jane.doe@example.org");
   });
 
   it("never treats a search-result listing as a claim-grade prior page observation", () => {
