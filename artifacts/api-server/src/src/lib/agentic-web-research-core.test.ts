@@ -67,9 +67,9 @@ describe("registry adapter circuit breaker", () => {
     expect(summarizeRegistryAdapterFailure("offeneregister-germany", dnsFailure)).toMatch(
       /REGISTRY_ADAPTER_TRANSPORT_ERROR.*ENOTFOUND.*not a no-hit/i,
     );
-    const numericErrnoFailure = Object.assign(new Error("fetch failed"), { errno: -3008 });
+    const numericErrnoFailure = Object.assign(new Error("fetch failed"), { errno: -111 });
     expect(summarizeRegistryAdapterFailure("offeneregister-germany", numericErrnoFailure)).toMatch(
-      /REGISTRY_ADAPTER_TRANSPORT_ERROR.*-3008.*not a no-hit/i,
+      /REGISTRY_ADAPTER_TRANSPORT_ERROR.*-111.*not a no-hit/i,
     );
     expect(summarizeRegistryAdapterFailure("kvk-netherlands", unavailable)).not.toContain(
       "sensitive provider detail",
@@ -239,10 +239,12 @@ describe("page visit response classification", () => {
     const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {');
     const browserStart = agenticCoreSource.indexOf('if (action.action === "browser_fetch") {', visitStart);
     const registryStart = agenticCoreSource.indexOf('if (action.action === "registry_search") {', browserStart);
+    const domainLookupStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {', browserStart);
     const visitDispatch = agenticCoreSource.slice(visitStart, browserStart);
     const browserDispatch = agenticCoreSource.slice(browserStart, registryStart);
     expect(visitStart).toBeGreaterThan(-1);
     expect(browserStart).toBeGreaterThan(visitStart);
+    expect(domainLookupStart).toBeGreaterThan(visitStart);
     expect(browserStart).toBeGreaterThan(visitStart);
     expect(registryStart).toBeGreaterThan(browserStart);
     expect(visitDispatch).not.toContain("if (isPdfPageResponse(action.url, null))");
