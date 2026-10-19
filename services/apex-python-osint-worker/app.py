@@ -453,31 +453,51 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             positives = sum(1 for item in found if isinstance(item, dict) and item.get("exists") is True)
             return "completed", {"found": found[:250], "totalChecked": checked, "totalFound": positives}, None, "holehe"
         if tool == "maigret":
+            report_dir = home / "reports"
             code, stdout, stderr, failure = await run_process(
                 "/opt/venvs/maigret/bin/maigret",
-                [args["username"], "--json", "ndjson", "--no-progressbar", "--top-sites", "150"],
+                [args["username"], "--json", "ndjson", "--folderoutput", str(report_dir), "--timeout", "8", "--no-progressbar", "--top-sites", "150", "--no-color"],
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
                 return failure, None, "Maigret runner " + failure, "maigret"
-            if code != 0 and not stdout.strip():
-                return "failed", None, "Maigret exited without a result document.", "maigret"
-            found = []
-            for line in stdout.decode("utf-8", errors="replace").splitlines():
-                try:
-                    item = json.loads(line)
-                    if not isinstance(item, dict):
+            report_path = report_dir / (args["username"] + "_ndjson.json")
+            if not report_path.is_file() and code != 0:
+                return "failed", None, "Maigret exited without a structured report.", "maigret"
+            raw_report = report_path.read_text("utf-8", errors="replace") if report_path.is_file() else ""
+            records: list[dict[str, Any]] = []
+            try:
+                decoded = json.loads(raw_report)
+                if isinstance(decoded, list):
+                    records = [item for item in decoded if isinstance(item, dict)]
+                elif isinstance(decoded, dict):
+                    records = [decoded]
+            except json.JSONDecodeError:
+                for line in raw_report.splitlines():
+                    try:
+                        item = json.loads(line)
+                        if isinstance(item, dict):
+                            records.append(item)
+                    except json.JSONDecodeError:
                         continue
-                    found.append({
-                        "siteName": str(item.get("site") or item.get("site_name") or item.get("name") or "")[:160],
-                        "url": str(item.get("url") or item.get("profile_url") or "")[:500],
-                        "status": "found" if item.get("status") in ("claimed", "found", True) else "not_found" if item.get("status") in ("available", "not_found", False) else "error" if item.get("status") == "error" else "unknown",
-                        "profileData": item.get("metadata") if isinstance(item.get("metadata"), dict) else {},
-                        "tags": item.get("tags") if isinstance(item.get("tags"), list) else [],
-                    })
-                except json.JSONDecodeError:
-                    continue
-            return ("completed" if code == 0 else "partial"), {"found": found[:300], "totalSitesChecked": len(found)}, None if code == 0 else "Maigret ended with a non-zero code after producing bounded results.", "maigret"
+            found = []
+            for item in records[:300]:
+                raw_status = str(item.get("status") or item.get("status_value") or "").lower()
+                status_value = (
+                    "found" if raw_status in ("claimed", "found", "true")
+                    else "not_found" if raw_status in ("available", "not_found", "false")
+                    else "error" if raw_status in ("error", "unknown_error")
+                    else "unknown"
+                )
+                profile_url = str(item.get("url") or item.get("profile_url") or "")
+                found.append({
+                    "siteName": str(item.get("site") or item.get("site_name") or item.get("name") or "")[:160],
+                    "url": profile_url[:500],
+                    "status": status_value,
+                    "profileData": item.get("metadata") if isinstance(item.get("metadata"), dict) else {},
+                    "tags": item.get("tags") if isinstance(item.get("tags"), list) else [],
+                })
+            return ("completed" if code == 0 else "partial"), {"found": found, "totalSitesChecked": len(found)}, None if code == 0 else "Maigret ended with a non-zero code after producing bounded results.", "maigret"
         if tool == "sherlock":
             output_file = home / "sherlock.csv"
             code, stdout, stderr, failure = await run_process(
