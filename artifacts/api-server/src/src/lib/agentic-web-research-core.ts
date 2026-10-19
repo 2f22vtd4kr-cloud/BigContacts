@@ -17,7 +17,7 @@ import { ATLAS_CAPABILITIES, renderAtlasCapabilityGuidanceCompact } from "./atla
 import { getAvailablePythonOsintActions, refreshPythonOsintToolAvailability } from "./python-osint-worker-client";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
 import { ResearchIntelligenceEngine, renderIntelligenceContext, type IntelligenceContext } from "./research-intelligence-engine";
-import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { bindExactSourceSpan, type SourceSpan } from "./research-epistemic-vnext";
 import { candidateIdentityObserved } from "./identity-text-match";
 import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import { getAvailableRegistryIds, normalizeRegistryId } from "./registry-client";
@@ -37,7 +37,7 @@ import {
 } from "./provider-error-diagnostics";
 export { getAgenticLlmHealth };
 export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject"; promotionReason?: string };
-export type AgenticTrajectoryRecord = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; pivotScopeKey?: string; leadUrls?: string[]; execution: "selected" | "success" | "partial" | "http_error" | "blocked" | "timeout" | "error" | "cancelled"; observation?: string; observedUrls: string[]; findings: AgenticFinding[]; providerFallback?: string[]; stopReason?: AgenticWebResearchResult["stopReason"]; durableEventId?: number; failureDomain?: AtlasFailureDomain; failureKind?: AtlasFailureKind };
+export type AgenticTrajectoryRecord = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; pivotScopeKey?: string; leadUrls?: string[]; execution: "selected" | "success" | "partial" | "http_error" | "blocked" | "timeout" | "error" | "cancelled"; observation?: string; observedUrls: string[]; findings: AgenticFinding[]; providerFallback?: string[]; stopReason?: AgenticWebResearchResult["stopReason"]; durableEventId?: number; failureDomain?: AtlasFailureDomain; failureKind?: AtlasFailureKind; sourceBindings?: Array<{ findingValue: string; sourceUrl: string; spanStart: number; spanEnd: number; pageNumber: number | null }> };
 /**
  * Search-result URLs are actionable leads, not fetched source observations.
  * Keep them separate so control agents can see unresolved leads without treating
@@ -706,7 +706,7 @@ export function validateDiscoverySourceUrl(rawUrl: string): { allowed: true } | 
   return { allowed: true };
 }
 
-export type BoundModelFinding = { finding: AgenticFinding; sourceUrl: string; sourceRecord: AgenticTrajectoryRecord; passage: string };
+export type BoundModelFinding = { finding: AgenticFinding; sourceUrl: string; sourceRecord: AgenticTrajectoryRecord; span: SourceSpan };
 
 /**
  * Terminal findings are model-authored summaries. They may enter the epistemic
@@ -739,7 +739,7 @@ export function bindModelFindingsToObservedSources(
     for (const { sourceUrl, record } of sourceRecords) {
       const span = bindExactSourceSpan(record.observation ?? "", finding.value);
       if (!span?.exact) continue;
-      bindings.push({ finding: { ...finding, sourceUrls: [sourceUrl] }, sourceUrl, sourceRecord: record, passage: span.text });
+      bindings.push({ finding: { ...finding, sourceUrls: [sourceUrl] }, sourceUrl, sourceRecord: record, span });
     }
   }
   return bindings;
@@ -4045,6 +4045,16 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       }
     } const repeatedPivotBlockReason = input.mode === "discovery" && action.action !== "done" ? repeatedPivotBlockedActionReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (repeatedPivotBlockReason) { record.execution = "blocked"; record.observation = repeatedPivotBlockReason; lastObservation = repeatedPivotBlockReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_pivot_alignment_guard blocked an identical rejected action without new fetched evidence" }); continue; } const pivotAlignmentReason = input.mode === "discovery" && action.action !== "done" ? discoveryPivotAlignmentReason(input.objective ?? "", action.action, selectedArgs, previousResearchRecords) : null; if (pivotAlignmentReason) { record.execution = "blocked"; record.observation = pivotAlignmentReason; lastObservation = pivotAlignmentReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=pivot_alignment_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "pivot_alignment_guard blocked an out-of-scope action before outbound execution" }); continue; } const repeatActionReason = redundantResearchActionReason(action.action, selectedArgs, previousResearchRecords); if (repeatActionReason) { record.execution = "blocked"; record.observation = repeatActionReason; lastObservation = repeatActionReason; pushHistory("step" + (i + 1) + ": " + action.action + " execution=blocked reason=repeat_action_guard"); await emitSanitizedTrajectoryRecord(record); emit(action.action, { status: "blocked", summary: "repeat_action_guard blocked an exact duplicate before outbound execution" }); continue; } runtimeStage = action.action === "done" ? "terminal_validation" : "tool_execution"; if (action.action === "done") {
       const boundFindings = bindModelFindingsToObservedSources(action.findings, [...priorTrajectoryRecords, ...records.slice(0, -1)]);
+      // Persist the exact evidence binding independently of model-authored args.
+      // Original observation text (including [Page N]) remains on its source event;
+      // these bounded offsets/page numbers make the claim-to-passage link explicit.
+      record.sourceBindings = boundFindings.map(({ finding, sourceUrl, span }) => ({
+        findingValue: finding.value,
+        sourceUrl,
+        spanStart: span.start,
+        spanEnd: span.end,
+        pageNumber: span.pageNumber ?? null,
+      }));
       for (const binding of boundFindings) {
         intelligence.recordAction({
           turn: binding.sourceRecord.turn,
