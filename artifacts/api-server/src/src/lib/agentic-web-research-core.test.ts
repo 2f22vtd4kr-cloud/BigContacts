@@ -780,7 +780,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).toBeNull();
   });
 
-  it("matches Dallas, Fort Worth, and DFW alternatives without admitting another Texas metro", () => {
+  it("keeps query language and geographic wording model-led at the outbound boundary", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records.",
@@ -799,10 +799,14 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Austin private metal fabrication manufacturer database",
       provider: "serper",
-    }, [])).toContain("geography");
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Власник приватного виробника металевих конструкцій Austin",
+      provider: "serper",
+    }, [])).toBeNull();
   });
 
-  it("filters only out-of-scope items from a mixed parallel search batch", () => {
+  it("preserves all model-selected parallel queries instead of lexically scope-filtering them", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records.",
@@ -813,13 +817,11 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
 
     const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
-    expect(partition.allowed).toEqual([searches[0]]);
-    expect(partition.rejected).toHaveLength(1);
-    expect(partition.rejected[0]?.search).toEqual(searches[1]);
-    expect(partition.rejected[0]?.reason).toContain("geography");
+    expect(partition.allowed).toEqual(searches);
+    expect(partition.rejected).toEqual([]);
   });
 
-  it("filters out-of-scope registry pairs without vetoing aligned pairs in a parallel batch", () => {
+  it("preserves model-selected registry/query pairs across language and jurisdiction wording", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held mid-market agribusiness companies in the Czech Republic using the ARES-Czechia registry to identify owners/operators.",
@@ -830,10 +832,8 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
 
     const partition = partitionParallelRegistrySearchesByPivotScope(objective, searches, []);
-    expect(partition.allowed).toEqual([searches[0]]);
-    expect(partition.rejected).toHaveLength(1);
-    expect(partition.rejected[0]?.search).toEqual(searches[1]);
-    expect(partition.rejected[0]?.reason).toContain("geography");
+    expect(partition.allowed).toEqual(searches);
+    expect(partition.rejected).toEqual([]);
   });
 
   it("does not infer a source-stage order from ordinary source alternatives", () => {
@@ -873,10 +873,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Thailand water utility officers licensees",
       provider: "serper",
-    }, [])).toContain("subject");
+    }, [])).toBeNull();
   });
 
-  it("accepts official corporation-search wording for a corporate-filings pivot without relaxing subject or geography", () => {
+  it("keeps semantic source and query selection with the Investigator", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -893,10 +893,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Washington County property assessor records land ownership individual owners",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toBeNull();
   });
 
-  it("allows fetching a URL returned by an aligned search but still blocks a guessed URL", () => {
+  it("leaves source relevance to the Investigator while keeping transport URL validation separate", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -927,10 +927,12 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [priorSearch])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "visit", {
       url: "https://guessed.example.org/owners",
-    }, [priorSearch])).toContain("observed-source provenance");
+    }, [priorSearch])).toBeNull();
+    expect(validateDiscoverySourceUrl("https://guessed.example.org/owners")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
   });
 
-  it("allows in-scope discovery searches without forcing every query to repeat source-class wording", () => {
+  it("does not use English topic or geography tokens to veto model-selected searches", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -947,7 +949,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Texas Secretary of State business entity search family-owned manufacturers",
       provider: "serper",
-    }, [])).toContain("geography");
+    }, [])).toBeNull();
   });
 
   it("treats the Baltics as an OR-region and accepts local-language subject/geography aliases", () => {
@@ -962,7 +964,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(balticObjective, "web_search", {
       query: "Germany renewable energy companies",
       provider: "serper",
-    }, [])).toContain("geography");
+    }, [])).toBeNull();
 
     const polandObjective = [
       "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
@@ -975,7 +977,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(polandObjective, "registry_search", {
       query: "renewable energy",
       registry: "ares-czechia",
-    }, [])).toContain("geography");
+    }, [])).toBeNull();
   });
 
   it("lets a scoped registry adapter supply jurisdiction and source-class context for concise queries", () => {
@@ -990,10 +992,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "manufacturing",
       registry: "sec-edgar",
-    }, [])).toContain("subject");
+    }, [])).toBeNull();
   });
 
-  it("recognizes the Run 05 water-utility licensee source and reports exact mismatch dimensions", () => {
+  it("preserves mixed native-language scope candidates and leaves evidence-quality decisions downstream", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1019,7 +1021,7 @@ Choose each next action yourself from the available capabilities and observed ev
         { query: "California water utility licensees list officers", provider: "serper" },
       ],
     }, []);
-    expect(outOfRegionReason).toContain("Scope mismatch dimensions: searches[1] geography.");
+    expect(outOfRegionReason).toBeNull();
 
     const inScopeDiscoveryQuery = discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Washington water utility officers",
@@ -1030,7 +1032,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const unobservedUrlReason = discoveryPivotAlignmentReason(objective, "visit", {
       url: "https://example.org/about",
     }, []);
-    expect(unobservedUrlReason).toContain("observed-source provenance");
+    expect(unobservedUrlReason).toBeNull();
 
     const scopeKey = discoveryPivotScopeKey(objective);
     expect(scopeKey).not.toBeNull();
@@ -1048,10 +1050,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(repeatedPivotBlockedActionReason(objective, "web_search", {
       query: "California water utility licensees list officers",
       provider: "serper",
-    }, [priorBlockedQuery])).toContain("Previous scope mismatch dimensions: query geography.");
+    }, [priorBlockedQuery])).toBeNull();
   });
 
-  it("does not treat procedural wording as a required subject when a pivot leaves the subject open, while retaining source-class enforcement", () => {
+  it("keeps subject-open pivot semantics model-led and preserves only explicit staged-source dependencies", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1081,7 +1083,7 @@ Choose each next action yourself from the available capabilities and observed ev
     } as AgenticTrajectoryRecord])).toBeNull();
   });
 
-  it("accepts Secretary-of-State entity-search wording for a registry pivot without relaxing subject or geography", () => {
+  it("accepts model-selected queries without English-only subject and jurisdiction vetoes", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1101,13 +1103,13 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Iowa Secretary of State business entity search regional logistics firms",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Wisconsin Secretary of State business entity search private equity firms",
       provider: "serper",
-    }, [])).toContain("subject");
+    }, [])).toBeNull();
   });
-  it("expands a Midwest scope to member states while rejecting out-of-region searches", () => {
+  it("preserves model choice across English and native-language region phrasing", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1133,10 +1135,14 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Texas Secretary of State business entity search privately held mid-market manufacturing companies",
       provider: "serper",
-    }, [])).toContain("Scope mismatch dimensions: query geography.");
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Údržba větrných elektráren ve Wisconsinu a Minnesotě — soukromí vlastníci",
+      provider: "serper",
+    }, [])).toBeNull();
   });
 
-  it("accepts member-state and city queries for a Pacific Northwest pivot without weakening sector or geography", () => {
+  it("keeps regional query-language matching model-led until evidence is evaluated", () => {
     const equityObjective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1156,11 +1162,11 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
       query: "New York private equity fund managing partner public filings",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
       query: "Washington County property assessor records land ownership individual owners",
       provider: "serper",
-    }, [])).toContain("pivot_alignment_guard");
+    }, [])).toBeNull();
 
     const manufacturingObjective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
