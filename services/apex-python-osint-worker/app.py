@@ -407,7 +407,9 @@ async def run_process(
     process: asyncio.subprocess.Process | None = None
     try:
         process = await asyncio.create_subprocess_exec(
-            executable, *args, cwd=str(tool_home), env=env,
+            "/usr/bin/prlimit", "--core=0", "--fsize=" + str(max_output_bytes),
+            "--nofile=128", "--nproc=64", "--", executable, *args,
+            cwd=str(tool_home), env=env,
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             start_new_session=True,
