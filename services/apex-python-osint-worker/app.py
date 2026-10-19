@@ -630,7 +630,6 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 error = None
             return status, {"found": found, "totalSitesChecked": len(found)}, error, "maigret"
         if tool == "sherlock":
-            output_file = home / "sherlock.csv"
             code, stdout, stderr, failure = await run_process(
                 "/opt/venvs/sherlock/bin/sherlock",
                 [args["username"], "--csv", "--timeout", "12", "--no-color", "--local", "--output", str(home / "sherlock.txt")],
