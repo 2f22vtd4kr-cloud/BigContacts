@@ -806,6 +806,29 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).toBeNull();
   });
 
+  it("never lexically vetoes native-script queries against an English Boss pivot", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Identify private casino operators, concession holders, and beneficial owners associated with Portorož, Slovenia.",
+    ].join("\n");
+    const searches = [
+      { query: "власник казино Порторож акціонери", provider: "serper" },
+      { query: "مالك كازينو بورتوروز استثمار", provider: "tavily" },
+      { query: "赌场波尔托罗什主要股东", provider: "exa" },
+      { query: "カジノ ポルトロシュ 主要株主", provider: "serper" },
+      { query: "Casino Portorož lastnik koncesionar Slovenija", provider: "tavily" },
+      { query: "Portorož kaszinó tulajdonos koncesszió", provider: "exa" },
+      { query: "Portorož kumarhane sahibi imtiyaz işletmecisi", provider: "serper" },
+    ];
+
+    for (const search of searches) {
+      expect(discoveryPivotAlignmentReason(objective, "web_search", search, [])).toBeNull();
+    }
+    const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
+    expect(partition.allowed).toEqual(searches);
+    expect(partition.rejected).toEqual([]);
+  });
+
   it("preserves all model-selected parallel queries instead of lexically scope-filtering them", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
