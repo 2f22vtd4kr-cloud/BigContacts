@@ -482,6 +482,7 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIsNotNone(call_args)
         self.assertIn("--csv", call_args or [])
+        self.assertIn("--no-autoupdate", call_args or [])
         self.assertNotIn("--json", call_args or [])
         self.assertEqual(status, "failed")
         self.assertIsNone(result)
