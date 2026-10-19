@@ -73,6 +73,8 @@ spec:
               value: /run/apex/isolation-attestation.json
             - name: APEX_PYTHON_WORKER_IMAGE_DIGEST
               value: "sha256:replace-before-apply"
+            - name: APEX_PYTHON_EGRESS_PROXY_IMAGE_DIGEST
+              value: "sha256:replace-before-apply"
             - name: HTTP_PROXY
               value: http://apex-osint-egress-proxy.apex-system.svc.cluster.local:3128
             - name: HTTPS_PROXY
