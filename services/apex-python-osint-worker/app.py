@@ -73,6 +73,7 @@ semaphore = asyncio.Semaphore(MAX_TOOL_CONCURRENCY)
 spiderfoot_process: asyncio.subprocess.Process | None = None
 spiderfoot_start_error: str | None = None
 spiderfoot_http: httpx.AsyncClient | None = None
+cli_tool_ready: dict[str, bool] = {"holehe": False, "maigret": False, "sherlock": False, "theharvester": False}
 
 
 def canonical_json(value: Any) -> bytes:
@@ -167,16 +168,39 @@ def resolve_worker_tools() -> tuple[list[str], dict[str, str]]:
         "spiderfoot": Path("/opt/venvs/spiderfoot/bin/python"),
     }
     for tool, executable in executables.items():
-        if executable.is_file():
-            if tool == "spiderfoot" and not spiderfoot_is_healthy():
+        if not executable.is_file():
+            continue
+        if tool == "spiderfoot":
+            if not spiderfoot_is_healthy():
                 continue
-            tools.append(tool)
-            versions[tool] = TOOL_VERSIONS[tool]
+        elif not cli_tool_ready.get(tool, False):
+            continue
+        tools.append(tool)
+        versions[tool] = TOOL_VERSIONS[tool]
     return tools, versions
 
 
 def spiderfoot_is_healthy() -> bool:
     return spiderfoot_process is not None and spiderfoot_process.returncode is None and spiderfoot_start_error is None
+
+
+async def initialize_cli_tool_readiness() -> None:
+    probes = {
+        "holehe": ("/opt/venvs/holehe/bin/python", "-c", "import holehe.core, trio, httpx"),
+        "maigret": ("/opt/venvs/maigret/bin/python", "-c", "import maigret.maigret"),
+        "sherlock": ("/opt/venvs/sherlock/bin/python", "-c", "import sherlock_project.sherlock"),
+        "theharvester": ("/opt/venvs/theharvester/bin/python", "-c", "import theHarvester.__main__"),
+    }
+    for tool, command in probes.items():
+        try:
+            with tempfile.TemporaryDirectory(prefix="apex-probe-") as temp:
+                code, _stdout, _stderr, failure = await run_process(
+                    command[0], list(command[1:]), timeout_ms=10_000,
+                    max_output_bytes=16_384, tool_home=Path(temp),
+                )
+            cli_tool_ready[tool] = failure is None and code == 0
+        except Exception:
+            cli_tool_ready[tool] = False
 
 
 async def start_spiderfoot() -> None:
@@ -729,6 +753,7 @@ async def lifespan(_app: FastAPI):
     if libc.prctl(4, 0, 0, 0, 0) != 0:  # PR_SET_DUMPABLE=4
         raise RuntimeError("Could not protect worker process from same-UID inspection.")
     os.umask(0o077)
+    await initialize_cli_tool_readiness()
     await start_spiderfoot()
     yield
     await stop_spiderfoot()
@@ -738,15 +763,17 @@ app = FastAPI(title="Apex Python OSINT Worker", version="1.0.0", lifespan=lifesp
 
 
 @app.get("/healthz")
-async def healthz() -> dict[str, Any]:
+async def healthz() -> JSONResponse:
     tools, versions = resolve_worker_tools()
     isolation = load_isolation_proof()
-    return {
-        "status": "ok" if isolation and TOKEN else "unavailable",
+    healthy = bool(isolation and TOKEN and tools)
+    body = {
+        "status": "ok" if healthy else "unavailable",
         "isolationProofValid": isolation is not None,
         "availableTools": tools if isolation else [],
         "toolVersions": versions if isolation else {},
     }
+    return JSONResponse(body, status_code=200 if healthy else 503, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/v1/attestation")
