@@ -10,6 +10,7 @@ import { classifyThrownProviderError } from "./provider-error-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 
 describe("thrown provider error classification", () => {
   it("does not misclassify local prompt-budget failures as network failures", () => {
@@ -223,6 +224,12 @@ describe("page visit response classification", () => {
     expect(pageReaderLimit.failureKind).toBe("response_size_limit");
     expect(pageReaderLimit.observation).toContain("response_size_limit_exceeded max_bytes=1500000");
     expect(pageReaderLimit.observation).toContain("page content was not observed and must not be cited");
+  });
+
+  it("persists exact source-span offsets and PDF page numbers in durable observation events", () => {
+    expect(agenticCoreSource).toContain("record.sourceBindings = boundFindings.map");
+    expect(agenticCoreSource).toContain("pageNumber: span.pageNumber ?? null");
+    expect(bureauAgenticPassSource).toContain("sourceBindings:record.sourceBindings??[]");
   });
 
   it("routes PDF visits through bounded text extraction while retaining browser-fetch PDF preflight", () => {
