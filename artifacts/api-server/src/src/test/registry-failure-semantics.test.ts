@@ -40,11 +40,23 @@ describe("registry failure semantics", () => {
   });
 
   it.each(registries)("surfaces an upstream failure for $registry instead of reporting an empty search", async ({ registry, error }) => {
+    if (registry === "offeneregister-germany") vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "true");
     safeOutboundFetchMock.mockResolvedValueOnce(
       new Response("upstream unavailable", { status: 503, statusText: "Service Unavailable" }),
     );
 
     await expect(searchRegistry({ query: "Apex example", registry })).rejects.toThrow(error);
+  });
+
+  it("does not advertise or call German Open Register before its endpoint contract is live-verified", async () => {
+    vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "");
+    expect(isRegistryProviderAvailable("offeneregister-germany")).toBe(false);
+    expect(getAvailableRegistryIds()).not.toContain("offeneregister-germany");
+
+    await expect(
+      searchRegistry({ query: "Berlin manufacturing companies", registry: "offeneregister-germany" }),
+    ).rejects.toThrow(/REGISTRY_ADAPTER_UNAVAILABLE.*disabled until.*live runtime smoke test.*no-hit/i);
+    expect(safeOutboundFetchMock).not.toHaveBeenCalled();
   });
 
 
@@ -140,9 +152,43 @@ describe("registry failure semantics", () => {
     ).resolves.toEqual([]);
   });
 
-  it("keeps a genuine successful zero-hit response distinct from a provider failure", async () => {
+  it("normalizes valid object-shaped Open Register rows from a successful Datasette response", async () => {
+    vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "true");
     safeOutboundFetchMock.mockResolvedValueOnce(
-      new Response(JSON.stringify({ rows: [], columns: [] }), {
+      new Response(JSON.stringify({
+        ok: true,
+        rows: [{
+          name: "Example Maschinenbau GmbH",
+          company_number: "HRB12345",
+          registered_address: "Hamburg",
+          native_company_number: "12345",
+        }],
+        columns: ["name", "company_number", "registered_address", "native_company_number"],
+        truncated: false,
+      }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    await expect(
+      searchRegistry({ query: "Example Maschinenbau", registry: "offeneregister-germany" }),
+    ).resolves.toMatchObject([{
+      name: "Example Maschinenbau GmbH",
+      nationality: "DE",
+      knownResidences: "Hamburg",
+    }]);
+  });
+
+  it("accepts a genuine zero-hit result only with a valid success envelope and columns", async () => {
+    vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "true");
+    safeOutboundFetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({
+        ok: true,
+        rows: [],
+        columns: ["name", "company_number", "registered_address", "native_company_number"],
+        truncated: false,
+      }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -151,5 +197,19 @@ describe("registry failure semantics", () => {
     await expect(
       searchRegistry({ query: "Apex example", registry: "offeneregister-germany" }),
     ).resolves.toEqual([]);
+  });
+
+  it("rejects an incompatible/malformed Open Register response instead of treating it as zero hits", async () => {
+    vi.stubEnv("APEX_ENABLE_OFFENEREGISTER_GERMANY", "true");
+    safeOutboundFetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true, rows: [], columns: [] }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    await expect(
+      searchRegistry({ query: "Apex example", registry: "offeneregister-germany" }),
+    ).rejects.toThrow(/Offeneregister Germany malformed response: expected company columns are missing/i);
   });
 });
