@@ -39,7 +39,7 @@ export function scorePassage(passage: string, queryTokens: Set<string>): number 
   const density = hits / Math.sqrt(tokens.length);
   let boost = 0;
   if (/@|linkedin\.com|tel:|\+\d|\bemail\b|\bphone\b|\bcontact\b/i.test(passage)) boost += 0.35;
-  if (/https?:\/\/\i.test(passage)) boost += 0.15;
+  if (/https?:\/\//i.test(passage)) boost += 0.15;
   return density + boost;
 }
 /**
