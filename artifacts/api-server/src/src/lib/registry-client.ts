@@ -154,6 +154,11 @@ function openCorporatesApiToken(): string {
 export function isRegistryProviderAvailable(registry: string): boolean {
   const normalized = normalizeRegistryId(registry);
   if (!normalized) return false;
+  // The Germany adapter stays hidden until its endpoint and live response schema are verified in the deployed runtime.
+  // Set the explicit opt-in only after that smoke test; absence/false must not look like a successful empty search.
+  if (normalized === "offeneregister-germany") {
+    return process.env["APEX_ENABLE_OFFENEREGISTER_GERMANY"]?.trim().toLowerCase() === "true";
+  }
   // The previous Sweden adapter called an undocumented Allabolag endpoint and mislabeled its output as Bolagsverket data.
   // Keep the ID in the action schema for compatibility, but do not advertise it as callable until a supported source exists.
   if (normalized === "bolagsverket-sweden" || normalized === "kvk-netherlands") return false;
@@ -732,6 +737,11 @@ export async function searchRegistry(params: RegistrySearchParams): Promise<Regi
   }
   if (normalizedRegistry === "kvk-netherlands") {
     const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: kvk-netherlands has no verified public endpoint configured. The former openkvk.nl mirror did not resolve during the latest check; the official KVK APIs require a subscription. Use web_search/parallel_web_search for Dutch-company discovery and fetch observed source pages. Do not interpret registry unavailability as a no-hit.");
+    Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
+    throw error;
+  }
+  if (normalizedRegistry === "offeneregister-germany" && !isRegistryProviderAvailable(normalizedRegistry)) {
+    const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: offeneregister-germany is disabled until its endpoint and response schema are verified by a live runtime smoke test. Do not interpret this state as a no-hit.");
     Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
     throw error;
   }
