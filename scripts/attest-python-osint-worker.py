@@ -20,7 +20,7 @@ from typing import Any
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[1]
 DEPLOYMENT = ROOT / "deployment" / "apex-python-osint-worker"
 REQUIRED_POLICIES = {
     "apex-osint-worker-ingress",
