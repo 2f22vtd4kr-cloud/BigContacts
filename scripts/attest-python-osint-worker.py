@@ -443,8 +443,10 @@ def main() -> int:
     parser.add_argument("--namespace", default="apex-system")
     parser.add_argument("--secret-name", default="apex-python-isolation-attestation")
     parser.add_argument("--proof-hours", type=int, default=6, choices=range(1, 7))
-    parser.add_argument("--skip-live-egress-tests", action="store_true", help="Only for offline manifest/unit tests; NEVER use for a production attestation.")
+    parser.add_argument("--skip-live-egress-tests", action="store_true", help="Refuse to issue a signed proof when live egress tests are skipped.")
     args = parser.parse_args()
+    if args.skip_live_egress_tests:
+        parser.error("--skip-live-egress-tests cannot issue or print a signed worker attestation; live egress checks are mandatory.")
 
     private_key_b64 = os.environ.get("APEX_PYTHON_ISOLATION_ATTESTATION_PRIVATE_KEY_B64", "").strip()
     if not private_key_b64:
@@ -480,8 +482,7 @@ def main() -> int:
     published_host = verify_published_ingress(args.namespace)
     pod_cidrs, service_cidrs, cluster_probe_ips = verify_cluster_cidr_configuration()
     verify_network_policies(args.namespace, pod_cidrs | service_cidrs)
-    if not args.skip_live_egress_tests:
-        verify_live_egress(args.namespace, cluster_probe_ips)
+    verify_live_egress(args.namespace, cluster_probe_ips)
     now = datetime.now(timezone.utc)
     payload = {
         "executorId": "k8s/" + args.namespace + "/apex-python-osint-worker",
@@ -505,15 +506,12 @@ def main() -> int:
         path = Path(tmp) / "isolation-attestation.json"
         path.write_text(encoded, encoding="utf-8")
         path.chmod(0o600)
-        if not args.skip_live_egress_tests:
-            applied = subprocess.run(
-                ["kubectl", "create", "secret", "generic", args.secret_name, "-n", args.namespace,
-                 "--from-file=isolation-attestation.json=" + str(path), "--dry-run=client", "-o", "yaml"],
-                check=True, capture_output=True, text=True, timeout=30,
-            )
-            subprocess.run(["kubectl", "apply", "-f", "-"], input=applied.stdout, check=True, capture_output=True, text=True, timeout=30)
-        else:
-            sys.stdout.write(encoded)
+        applied = subprocess.run(
+            ["kubectl", "create", "secret", "generic", args.secret_name, "-n", args.namespace,
+             "--from-file=isolation-attestation.json=" + str(path), "--dry-run=client", "-o", "yaml"],
+            check=True, capture_output=True, text=True, timeout=30,
+        )
+        subprocess.run(["kubectl", "apply", "-f", "-"], input=applied.stdout, check=True, capture_output=True, text=True, timeout=30)
     print("OSINT isolation proof created; expires at " + payload["expiresAt"] + ".")
     print("Private signing key and worker token were not printed.")
     return 0
