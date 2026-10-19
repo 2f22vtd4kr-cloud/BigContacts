@@ -93,7 +93,7 @@ function safeSourceUrl(value: unknown): string | undefined {
   if (!raw) return undefined;
   try {
     const parsed = new URL(raw);
-    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || parsed.username || parsed.password) return undefined;
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return undefined;
     const safe = sanitizeUrlForEvidence(parsed.href);
     if (!safe || safe.startsWith("[")) return undefined;
     const normalized = new URL(safe);
