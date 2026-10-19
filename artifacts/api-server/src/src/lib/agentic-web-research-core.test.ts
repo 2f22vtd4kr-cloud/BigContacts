@@ -56,6 +56,7 @@ describe("registry adapter circuit breaker", () => {
     });
     const httpFailure = new Error("Offeneregister Germany HTTP 502");
     const dnsFailure = Object.assign(new Error("fetch failed"), { code: "ENOTFOUND" });
+    const numericErrnoFailure = Object.assign(new Error("fetch failed"), { errno: -111 });
 
     expect(summarizeRegistryAdapterFailure("kvk-netherlands", unavailable)).toMatch(
       /REGISTRY_ADAPTER_UNAVAILABLE.*kvk-netherlands.*not a no-hit/i,
@@ -65,6 +66,9 @@ describe("registry adapter circuit breaker", () => {
     );
     expect(summarizeRegistryAdapterFailure("offeneregister-germany", dnsFailure)).toMatch(
       /REGISTRY_ADAPTER_TRANSPORT_ERROR.*ENOTFOUND.*not a no-hit/i,
+    );
+    expect(summarizeRegistryAdapterFailure("offeneregister-germany", numericErrnoFailure)).toMatch(
+      /REGISTRY_ADAPTER_TRANSPORT_ERROR.*-111.*not a no-hit/i,
     );
     expect(summarizeRegistryAdapterFailure("kvk-netherlands", unavailable)).not.toContain(
       "sensitive provider detail",
@@ -223,10 +227,10 @@ describe("page visit response classification", () => {
 
   it("routes PDF visits through bounded text extraction while retaining browser-fetch PDF preflight", () => {
     const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {');
-    const domainLookupStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {', visitStart);
-    const visitDispatch = agenticCoreSource.slice(visitStart, domainLookupStart);
     const browserStart = agenticCoreSource.indexOf('if (action.action === "browser_fetch") {', visitStart);
     const registryStart = agenticCoreSource.indexOf('if (action.action === "registry_search") {', browserStart);
+    const domainLookupStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {', browserStart);
+    const visitDispatch = agenticCoreSource.slice(visitStart, browserStart);
     const browserDispatch = agenticCoreSource.slice(browserStart, registryStart);
     expect(visitStart).toBeGreaterThan(-1);
     expect(domainLookupStart).toBeGreaterThan(visitStart);

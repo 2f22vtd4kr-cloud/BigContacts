@@ -860,8 +860,9 @@ export function summarizeRegistryAdapterFailure(registry: string, error: unknown
 
   const diagnostic = describeThrownProviderError(error);
   const transportCode = diagnostic.errorCode ?? diagnostic.causeCode ?? diagnostic.errorErrno ?? diagnostic.causeErrno;
-  if (transportCode && /^[A-Za-z0-9_.-]{1,64}$/.test(transportCode)) {
-    return `REGISTRY_ADAPTER_TRANSPORT_ERROR: ${normalized} failed with ${transportCode}; no usable records were observed. Do not retry this adapter during this trajectory. Use web_search/parallel_web_search and fetch an observed public source. This is not a no-hit.`;
+  const transportCodeText = transportCode == null ? "" : String(transportCode);
+  if (transportCodeText && /^[A-Za-z0-9_.-]{1,64}$/.test(transportCodeText)) {
+    return `REGISTRY_ADAPTER_TRANSPORT_ERROR: ${normalized} failed with ${transportCodeText}; no usable records were observed. Do not retry this adapter during this trajectory. Use web_search/parallel_web_search and fetch an observed public source. This is not a no-hit.`;
   }
   const errorName = /^[A-Za-z][A-Za-z0-9_.-]{0,63}$/.test(diagnostic.errorName) ? diagnostic.errorName : "Error";
   return `REGISTRY_ADAPTER_REQUEST_ERROR: ${normalized} failed (${errorName}; detail_digest=${diagnostic.messageDigest ?? "none"}). No usable records were observed. Do not retry this adapter during this trajectory. Use web_search/parallel_web_search and fetch an observed public source. This is not a no-hit.`;
