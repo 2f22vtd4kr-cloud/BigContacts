@@ -469,6 +469,23 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["found"], [])
         self.assertEqual(result["totalSitesChecked"], 2)
 
+    async def test_maigret_nonzero_exit_preserves_valid_partial_site_results(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,error_reason\n"
+        rows = "testuser,Example,https://example.test,https://example.test/testuser,Available,404,\n"
+
+        def artifact(home: Path) -> None:
+            reports = home / "reports"
+            reports.mkdir()
+            (reports / "report_testuser.csv").write_text(header + rows, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "maigret", {"username": "testuser"}, artifact=artifact, code=1,
+        )
+        self.assertEqual(status, "partial")
+        self.assertEqual(result["found"], [])
+        self.assertEqual(result["totalSitesChecked"], 1)
+        self.assertIn("non-zero code", error or "")
+
     async def test_maigret_unknown_site_rows_are_partial_not_a_negative_result(self) -> None:
         header = "username,name,url_main,url_user,exists,http_status,error_reason\n"
         rows = "testuser,Example,https://example.test,https://example.test/testuser,Unknown,0,Connection timed out\n"
