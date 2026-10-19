@@ -44,6 +44,22 @@ function imageOnlyPdf(): Uint8Array {
   ]);
 }
 
+function mixedPdfWithImageOnlyFirstPage(): Uint8Array {
+  const imageContent = "q 100 0 0 100 0 0 cm /Im1 Do Q";
+  const textContent = "BT\\n/F1 12 Tf\\n72 720 Td\\n(Readable second page) Tj\\nET";
+  const pixel = "\\u0000\\u0000\\u0000";
+  return encodePdf([
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /XObject << /Im1 7 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 8 0 R >> >> /Contents 6 0 R >>",
+    `<< /Length ${Buffer.byteLength(imageContent, "latin1")} >>\\nstream\\n${imageContent}\\nendstream`,
+    `<< /Length ${Buffer.byteLength(textContent, "latin1")} >>\\nstream\\n${textContent}\\nendstream`,
+    `<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Length 3 >>\\nstream\\n${pixel}\\nendstream`,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+  ]);
+}
+
 describe("bounded PDF text extraction", () => {
   it("extracts text from a valid one-page PDF without leaking its Node-only import bootstrap", async () => {
     const runtime = globalThis as unknown as { DOMMatrix?: unknown };
@@ -76,7 +92,13 @@ describe("bounded PDF text extraction", () => {
   it("marks image-only PDFs as requiring OCR without manufacturing text", async () => {
     const result = await extractPdfText(imageOnlyPdf());
     expect(result.text).toBe("");
-    expect(result).toMatchObject({ pagesRead: 1, totalPages: 1, ocrRequired: true });
+    expect(result).toMatchObject({ pagesRead: 1, totalPages: 1, ocrRequired: true, ocrRequiredPages: [1] });
+  });
+
+  it("marks scanned pages OCR-required even when another page has readable text", async () => {
+    const result = await extractPdfText(mixedPdfWithImageOnlyFirstPage());
+    expect(result.text).toContain("[Page 2] Readable second page");
+    expect(result).toMatchObject({ pagesRead: 2, totalPages: 2, ocrRequired: true, ocrRequiredPages: [1] });
   });
 
   it("caps extracted text and refuses oversized input before parsing", async () => {
