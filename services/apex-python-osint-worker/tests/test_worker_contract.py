@@ -367,7 +367,7 @@ class HoleheRunnerBoundsTests(unittest.TestCase):
         fake_trio = ModuleType("trio")
         fake_trio.Semaphore = FakeSemaphore
         fake_trio.open_nursery = FakeNursery
-        fake_trio.run = lambda coroutine: asyncio.run(coroutine)
+        fake_trio.run = lambda function: asyncio.run(function())
 
         with patch.dict(sys.modules, {
             "trio": fake_trio,
