@@ -565,6 +565,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             import csv
             found: list[dict[str, Any]] = []
             total_sites_checked = 0
+            site_rows_seen = 0
             incomplete_records = 0
             required_headers = {"username", "name", "url_main", "url_user", "exists", "http_status", "error_reason"}
             try:
@@ -573,6 +574,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                     if not reader.fieldnames or not required_headers.issubset(set(reader.fieldnames)):
                         return "failed", None, "Maigret returned a malformed CSV report.", "maigret"
                     for row in reader:
+                        site_rows_seen += 1
                         if not isinstance(row, dict) or None in row:
                             incomplete_records += 1
                             continue
@@ -612,6 +614,8 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                                 incomplete_records += 1
             except (OSError, UnicodeError, csv.Error):
                 return "failed", None, "Maigret CSV report could not be read.", "maigret"
+            if site_rows_seen == 0:
+                return "failed", None, "Maigret CSV report contained no site results.", "maigret"
             if code != 0 and total_sites_checked == 0:
                 return "failed", None, "Maigret exited unsuccessfully without usable site results.", "maigret"
             if code != 0:
