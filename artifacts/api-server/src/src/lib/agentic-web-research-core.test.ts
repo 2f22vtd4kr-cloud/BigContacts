@@ -5,7 +5,7 @@ import { bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buil
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
-import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError } from "./canonical-atlas-failure-diagnostics";
+import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure } from "./canonical-atlas-failure-diagnostics";
 import { classifyThrownProviderError } from "./provider-error-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
@@ -71,6 +71,19 @@ describe("registry adapter circuit breaker", () => {
     expect(summarizeRegistryAdapterFailure("offeneregister-germany", numericErrnoFailure)).toMatch(
       /REGISTRY_ADAPTER_TRANSPORT_ERROR.*-111.*not a no-hit/i,
     );
+    const authFailure = Object.assign(new Error("API token is not configured"), { code: "REGISTRY_AUTH_REQUIRED" });
+    const malformedFailure = new Error("Offeneregister Germany malformed response: expected company columns are missing");
+    const timeoutFailure = new Error("request timed out");
+    expect(summarizeRegistryAdapterFailure("opencorporates", authFailure)).toMatch(/REGISTRY_ADAPTER_AUTH_REQUIRED.*not a no-hit/i);
+    expect(summarizeRegistryAdapterFailure("offeneregister-germany", malformedFailure)).toMatch(/REGISTRY_ADAPTER_MALFORMED_RESPONSE.*not a no-hit/i);
+    expect(summarizeRegistryAdapterFailure("offeneregister-germany", timeoutFailure)).toMatch(/REGISTRY_ADAPTER_TIMEOUT.*not a no-hit/i);
+    expect(classifyRegistryAdapterFailure(unavailable)).toBe("registry_unavailable");
+    expect(classifyRegistryAdapterFailure(authFailure)).toBe("registry_auth_required");
+    expect(classifyRegistryAdapterFailure(httpFailure)).toBe("registry_http_error");
+    expect(classifyRegistryAdapterFailure(dnsFailure)).toBe("registry_transport_error");
+    expect(classifyRegistryAdapterFailure(malformedFailure)).toBe("registry_malformed_response");
+    expect(classifyRegistryAdapterFailure(timeoutFailure)).toBe("registry_timeout");
+    expect(classifyRegistryAdapterFailure(numericErrnoFailure)).toBe("registry_transport_error");
     expect(summarizeRegistryAdapterFailure("kvk-netherlands", unavailable)).not.toContain(
       "sensitive provider detail",
     );
