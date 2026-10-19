@@ -29,7 +29,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 TOKEN = os.getenv("APEX_PYTHON_SANDBOX_TOKEN", "").strip()
 ISOLATION_PUBLIC_KEY_B64 = os.getenv("APEX_PYTHON_ISOLATION_ATTESTATION_PUBLIC_KEY", "").strip()
-POD_NAMESPACE = os.getenv("POD_NAMESPACE", "").strip()
 ISOLATION_PROOF_PATH = Path(os.getenv("APEX_PYTHON_ISOLATION_PROOF_PATH", "/run/apex/isolation-attestation.json"))
 SPIDERFOOT_BASE_URL = "http://127.0.0.1:5001"
 REQUIRED_NETWORK_NAMESPACE = "kubernetes-egress-policy-apex-osint-v2"
@@ -132,7 +131,7 @@ def load_isolation_proof() -> dict[str, Any] | None:
         if not isinstance(envelope, dict) or not isinstance(envelope.get("payload"), dict):
             return None
         payload = envelope["payload"]
-        actual_namespace = POD_NAMESPACE or os.getenv("POD_NAMESPACE", "").strip()
+        actual_namespace = os.getenv("POD_NAMESPACE", "").strip()
         if not actual_namespace or payload.get("namespace") != actual_namespace:
             return None
         if payload.get("executorId") != "k8s/" + actual_namespace + "/apex-python-osint-worker":
