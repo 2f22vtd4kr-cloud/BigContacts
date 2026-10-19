@@ -13,6 +13,14 @@ import {
 } from "./python-osint-worker-client";
 
 export interface SubprocessOptions { signal?: AbortSignal }
+export interface PythonToolExecution {
+  requestId: string;
+  tool: PythonOsintTool;
+  status: "completed" | "partial" | "failed" | "unavailable" | "timeout" | "cancelled";
+  toolVersion: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
 export interface HolehePlatform {
   name: string;
   url?: string;
@@ -21,12 +29,12 @@ export interface HolehePlatform {
   phonenumber?: boolean | string;
   others?: Record<string, unknown>;
 }
-export interface HoleheResult { email: string; found: HolehePlatform[]; totalChecked: number; totalFound: number; available: boolean; error?: string; }
+export interface HoleheResult { email: string; found: HolehePlatform[]; totalChecked: number; totalFound: number; available: boolean; execution?: PythonToolExecution; error?: string; }
 export interface MaigretProfile { siteName: string; url?: string; status: "found" | "not_found" | "error" | "unknown"; profileData?: Record<string, string>; tags?: string[]; }
-export interface MaigretResult { username: string; found: MaigretProfile[]; totalSitesChecked: number; available: boolean; reportUrl?: string; error?: string; }
+export interface MaigretResult { username: string; found: MaigretProfile[]; totalSitesChecked: number; available: boolean; execution?: PythonToolExecution; reportUrl?: string; error?: string; }
 export interface SherlockProfile { siteName: string; url: string; status: "found"; }
-export interface SherlockResult { username: string; found: SherlockProfile[]; totalSitesChecked: number; available: boolean; reviewOnly: true; error?: string; }
-export interface HarvesterResult { domain: string; emails: string[]; subdomains: string[]; ips: string[]; hosts: string[]; totalFound: number; available: boolean; error?: string; }
+export interface SherlockResult { username: string; found: SherlockProfile[]; totalSitesChecked: number; available: boolean; execution?: PythonToolExecution; reviewOnly: true; error?: string; }
+export interface HarvesterResult { domain: string; emails: string[]; subdomains: string[]; ips: string[]; hosts: string[]; totalFound: number; available: boolean; execution?: PythonToolExecution; error?: string; }
 export interface OpenDeepResearchResult { status: "completed" | "failed" | "timeout" | "unavailable"; report: string | null; citations: string[]; searches: number; pages: number; model: string | null; available: boolean; reviewOnly: true; error?: string; }
 
 export type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "username" | "person" | "asn";
@@ -53,6 +61,7 @@ export interface SpiderFootResult {
   partial: boolean;
   error?: string;
   reviewOnly: true;
+  execution?: PythonToolExecution;
 }
 
 const DEFAULT_HARVESTER_SOURCES = "bing,duckduckgo,yahoo,certspotter,crtsh";
@@ -73,6 +82,19 @@ function asNonNegativeInteger(value: unknown): number {
 }
 function resultPayload(response: { status: string; result: Record<string, unknown> | null }): Record<string, unknown> {
   return response.result ?? {};
+}
+function executionMetadata(response: {
+  requestId: string; tool: PythonOsintTool; status: PythonToolExecution["status"];
+  toolVersion: string | null; startedAt: string | null; finishedAt: string | null;
+}): PythonToolExecution {
+  return {
+    requestId: response.requestId,
+    tool: response.tool,
+    status: response.status,
+    toolVersion: response.toolVersion,
+    startedAt: response.startedAt,
+    finishedAt: response.finishedAt,
+  };
 }
 function workerError(response: { status: string; error: string | null }): string | undefined {
   if (RESULT_STATUSES.has(response.status)) return undefined;
@@ -102,6 +124,7 @@ export async function runHolehe(email: string, options: SubprocessOptions = {}):
     totalChecked: asNonNegativeInteger(data.totalChecked),
     totalFound: asNonNegativeInteger(data.totalFound) || found.filter((item) => item.exists).length,
     available: RESULT_STATUSES.has(response.status),
+    execution: executionMetadata(response),
     ...(workerError(response) ? { error: workerError(response) } : {}),
   };
 }
@@ -132,6 +155,7 @@ export async function runMaigret(username: string, options: SubprocessOptions = 
     username: sanitized, found,
     totalSitesChecked: asNonNegativeInteger(data.totalSitesChecked),
     available: RESULT_STATUSES.has(response.status),
+    execution: executionMetadata(response),
     ...(text(data.reportUrl, 500) ? { reportUrl: text(data.reportUrl, 500) } : {}),
     ...(workerError(response) ? { error: workerError(response) } : {}),
   };
@@ -153,6 +177,7 @@ export async function runSherlock(username: string, options: SubprocessOptions =
     username: sanitized, found,
     totalSitesChecked: asNonNegativeInteger(data.totalSitesChecked),
     available: RESULT_STATUSES.has(response.status),
+    execution: executionMetadata(response),
     reviewOnly: true,
     ...(workerError(response) ? { error: workerError(response) } : {}),
   };
@@ -176,6 +201,7 @@ export async function runTheHarvester(domain: string, sources = DEFAULT_HARVESTE
     domain: cleanDomain, emails, subdomains, ips, hosts,
     totalFound: asNonNegativeInteger(data.totalFound) || emails.length + subdomains.length + ips.length + hosts.length,
     available: RESULT_STATUSES.has(response.status),
+    execution: executionMetadata(response),
     ...(workerError(response) ? { error: workerError(response) } : {}),
   };
 }
@@ -218,6 +244,7 @@ export async function runSpiderFoot(
     available: RESULT_STATUSES.has(response.status),
     partial: response.status === "partial" || data.partial === true,
     reviewOnly: true,
+    execution: executionMetadata(response),
     ...(workerError(response) ? { error: workerError(response) } : {}),
   };
 }
