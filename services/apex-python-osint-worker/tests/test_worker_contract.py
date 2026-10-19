@@ -616,7 +616,7 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(status, "failed")
         self.assertIsNone(result)
 
-    async def test_theharvester_structured_empty_report_can_complete(self) -> None:
+    async def test_theharvester_empty_structured_report_is_inconclusive_not_success(self) -> None:
         def artifact(home: Path) -> None:
             (home / "harvest.json").write_text(
                 json.dumps({"hosts": [], "shodan": []}), encoding="utf-8",
@@ -627,10 +627,12 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
             {"domain": "example.org", "sources": "bing"},
             artifact=artifact,
         )
-        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(status, "partial")
+        self.assertIn("without source-completion evidence", error or "")
         self.assertEqual(result["hosts"], [])
         self.assertEqual(result["emails"], [])
         self.assertEqual(result["ips"], [])
+        self.assertEqual(result["totalFound"], 0)
 
 
     async def test_cancelling_run_process_terminates_the_real_child_process(self) -> None:
