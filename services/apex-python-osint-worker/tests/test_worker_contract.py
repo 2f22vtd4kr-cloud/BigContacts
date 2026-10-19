@@ -11,6 +11,8 @@ import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -134,6 +136,18 @@ class WorkerArgumentValidationTests(unittest.TestCase):
             lowered = " ".join(modules).lower()
             self.assertNotRegex(lowered, r"darkweb|tor|breach|credential|password|pastebin")
         self.assertIn("sfp_dnsresolve", app.PROFILE_MODULES["domain-infrastructure"])
+
+
+class AttestationIssuanceTests(unittest.TestCase):
+    def test_skipping_live_egress_never_emits_a_signed_proof(self) -> None:
+        output = StringIO()
+        with redirect_stdout(output), patch.object(
+            sys, "argv", ["attest-python-osint-worker.py", "--skip-live-egress-tests"],
+        ):
+            with self.assertRaises(SystemExit) as raised:
+                attestor.main()
+        self.assertEqual(raised.exception.code, 2)
+        self.assertEqual(output.getvalue(), "")
 
 
 class IsolationProofTests(unittest.TestCase):
@@ -456,6 +470,30 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["emails"], [])
         self.assertEqual(result["ips"], [])
 
+
+    async def test_cancelling_run_process_terminates_the_real_child_process(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="apex-cancel-test-") as temp:
+            tool_home = Path(temp)
+            pid_file = tool_home / "child.pid"
+            code = (
+                "import os,time; "
+                f"open({str(pid_file)!r}, 'w', encoding='utf-8').write(str(os.getpid())); "
+                "time.sleep(30)"
+            )
+            task = asyncio.create_task(app.run_process(
+                sys.executable, ["-c", code], timeout_ms=20_000,
+                max_output_bytes=1_024, tool_home=tool_home,
+            ))
+            deadline = asyncio.get_running_loop().time() + 3.0
+            while not pid_file.exists() and not task.done() and asyncio.get_running_loop().time() < deadline:
+                await asyncio.sleep(0.02)
+            self.assertTrue(pid_file.exists(), "child process did not start before the test deadline")
+            child_pid = int(pid_file.read_text(encoding="utf-8"))
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+            with self.assertRaises(ProcessLookupError):
+                os.kill(child_pid, 0)
 
 class ToolResultStatusTests(unittest.TestCase):
     def test_holehe_partial_errors_are_not_promoted_to_completed(self) -> None:
