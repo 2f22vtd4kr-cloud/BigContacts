@@ -540,21 +540,30 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   return { allowed: true };
 }
 /** Apply discovery quality/targetability to domain lookups before any provider call. */
-export function validateDiscoveryDomainLookup(domain: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
-  const candidate = typeof domain === "string" ? domain.trim().toLowerCase().replace(/\.$/, "") : "";
-  if (!/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(candidate)) {
-    return { allowed: false, reason: "Discovery domain lookup requires a concrete hostname, not a URL, path, placeholder or free-form query; no provider request was made." };
+export function validateDiscoveryDomainLookup(domain: string, _priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
+  const raw = typeof domain === "string" ? domain.trim() : "";
+  if (!raw || /[\\s\\/:?#@\\\\]/u.test(raw)) {
+    return { allowed: false, reason: "Domain lookup requires a bare hostname without a URL, path, port, query, or free-form search text; no provider request was made." };
   }
-  const host = candidate.replace(/^www\./i, "");
-  const globalBrandDomain = /(?:^|\.)(?:coca-colacompany|coca-cola|cocacola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonalds|disney|netflix|oracle|berkshirehathaway|jpmorganchase|goldmansachs)(?:\.[a-z0-9-]+)+$/i.test(host);
-  if (globalBrandDomain) {
-    return { allowed: false, reason: "DISCOVERY TARGETABILITY GATE blocked domain lookup for a global household-brand domain. Search a realistic local owner/operator/distributor/franchise/concession or private-business route instead; no provider request was made." };
+  let hostname: string;
+  try {
+    // URL parsing accepts internationalized domain names and canonicalizes them
+    // to IDNA/Punycode for the network boundary without modifying query text.
+    hostname = new URL("https://" + raw).hostname.toLowerCase().replace(/\\.+$/, "");
+  } catch {
+    return { allowed: false, reason: "Domain lookup requires a valid hostname; no provider request was made." };
   }
-  const queryValidation = validateDiscoverySearchQuery(host, priorQueries);
-  if (!queryValidation.allowed) return queryValidation;
-  return { allowed: true, ...(queryValidation.warning ? { warning: queryValidation.warning } : {}) };
+  const labels = hostname.split(".");
+  if (hostname.length > 253 || labels.length < 2 || labels.some((label) =>
+    !label || label.length > 63 || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)$/i.test(label))) {
+    return { allowed: false, reason: "Domain lookup requires a valid hostname; no provider request was made." };
+  }
+  const placeholderDomain = /(?:^|\\.)(?:companyname|companywebsite|yourcompany|example)(?:\\.(?:com|org|net|co\\.[a-z]{2}))?$/i;
+  if (placeholderDomain.test(hostname)) {
+    return { allowed: false, reason: "Domain lookup contains a template placeholder or reserved example domain; no provider request was made." };
+  }
+  return { allowed: true };
 }
-
 /**
  * Discovery fetch preflight is transport-only. Do not infer source relevance from
  * English path words, TLD lists, or known-brand lists: those guesses can exclude
