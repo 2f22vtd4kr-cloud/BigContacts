@@ -150,7 +150,11 @@ def load_isolation_proof() -> dict[str, Any] | None:
         proxy_config_hash = sha256_file(Path("/etc/apex/egress-proxy/squid.conf"))
         if not proxy_config_hash or payload.get("proxyConfigSha256") != proxy_config_hash:
             return None
-        if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(payload.get("workerImageDigest", ""))):
+        expected_image_digest = os.getenv("APEX_PYTHON_WORKER_IMAGE_DIGEST", "").strip()
+        observed_image_digest = str(payload.get("workerImageDigest", ""))
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", expected_image_digest):
+            return None
+        if observed_image_digest != expected_image_digest:
             return None
         return payload
     except Exception:
