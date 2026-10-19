@@ -870,7 +870,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).toBeNull();
   });
 
-  it("accepts each country query when it uses either Boss-approved announcement or filing sources", () => {
+  it("keeps country queries in scope and rejects unrelated sectors", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -896,7 +896,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Thailand water utility officers licensees",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
   });
 
   it("keeps semantic source and query selection with the Investigator", () => {
@@ -916,10 +916,10 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Washington County property assessor records land ownership individual owners",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
   });
 
-  it("leaves source relevance to the Investigator while keeping transport URL validation separate", () => {
+  it("requires observed URLs while keeping transport URL validation separate", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -950,7 +950,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [priorSearch])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "visit", {
       url: "https://guessed.example.org/owners",
-    }, [priorSearch])).toBeNull();
+    }, [priorSearch])).not.toBeNull();
     expect(validateDiscoverySourceUrl("https://guessed.example.org/owners")).toEqual({ allowed: true });
     expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
   });
@@ -1018,7 +1018,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).not.toBeNull();
   });
 
-  it("preserves mixed native-language scope candidates and leaves evidence-quality decisions downstream", () => {
+  it("preserves native-language scope while blocking repeated out-of-scope actions", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1073,7 +1073,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(repeatedPivotBlockedActionReason(objective, "web_search", {
       query: "California water utility licensees list officers",
       provider: "serper",
-    }, [priorBlockedQuery])).toBeNull();
+    }, [priorBlockedQuery])).not.toBeNull();
   });
 
   it("keeps subject-open pivot semantics model-led and preserves only explicit staged-source dependencies", () => {
@@ -1165,7 +1165,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).toBeNull();
   });
 
-  it("keeps regional query-language matching model-led until evidence is evaluated", () => {
+  it("keeps localized matching while enforcing Pacific Northwest subject and geography", () => {
     const equityObjective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1185,11 +1185,11 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
       query: "New York private equity fund managing partner public filings",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
     expect(discoveryPivotAlignmentReason(equityObjective, "web_search", {
       query: "Washington County property assessor records land ownership individual owners",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
 
     const manufacturingObjective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
