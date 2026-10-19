@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -48,6 +48,34 @@ describe("registry adapter circuit breaker", () => {
     );
     expect(registryAdapterRetryBlockedReason("BRREG", failedAdapters)).toBeNull();
     expect(registryAdapterRetryBlockedReason("BRREG", new Set(["brreg"]))).toMatch(/already failed/i);
+  });
+
+  it("surfaces safe registry failure classes instead of opaque exception digests", () => {
+    const unavailable = Object.assign(new Error("sensitive provider detail must not be forwarded"), {
+      code: "REGISTRY_ADAPTER_UNAVAILABLE",
+    });
+    const httpFailure = new Error("Offeneregister Germany HTTP 502");
+    const dnsFailure = Object.assign(new Error("fetch failed"), { code: "ENOTFOUND" });
+
+    expect(summarizeRegistryAdapterFailure("kvk-netherlands", unavailable)).toMatch(
+      /REGISTRY_ADAPTER_UNAVAILABLE.*kvk-netherlands.*not a no-hit/i,
+    );
+    expect(summarizeRegistryAdapterFailure("offeneregister-germany", httpFailure)).toMatch(
+      /REGISTRY_ADAPTER_HTTP_ERROR.*offeneregister-germany.*HTTP 502.*not a no-hit/i,
+    );
+    expect(summarizeRegistryAdapterFailure("offeneregister-germany", dnsFailure)).toMatch(
+      /REGISTRY_ADAPTER_TRANSPORT_ERROR.*ENOTFOUND.*not a no-hit/i,
+    );
+    expect(summarizeRegistryAdapterFailure("kvk-netherlands", unavailable)).not.toContain(
+      "sensitive provider detail",
+    );
+  });
+
+  it("marks mixed parallel registry outcomes as partial instead of success", () => {
+    expect(classifyRegistryBatchExecution([{ error: null }, { error: "HTTP 502" }])).toBe("partial");
+    expect(classifyRegistryBatchExecution([{ error: null }, { error: null }])).toBe("success");
+    expect(classifyRegistryBatchExecution([{ error: "HTTP 502" }, { error: "ENOTFOUND" }])).toBe("error");
+    expect(classifyRegistryBatchExecution([])).toBe("error");
   });
 });
 
@@ -193,7 +221,7 @@ describe("page visit response classification", () => {
     expect(pageReaderLimit.observation).toContain("page content was not observed and must not be cited");
   });
 
-  it("blocks obvious PDF URLs before either HTML-only page fetcher can issue a request", () => {
+  it("routes PDF visits through bounded text extraction while retaining browser-fetch PDF preflight", () => {
     const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {');
     const domainLookupStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {', visitStart);
     const visitDispatch = agenticCoreSource.slice(visitStart, domainLookupStart);
@@ -204,8 +232,10 @@ describe("page visit response classification", () => {
     expect(domainLookupStart).toBeGreaterThan(visitStart);
     expect(browserStart).toBeGreaterThan(visitStart);
     expect(registryStart).toBeGreaterThan(browserStart);
-    expect(visitDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
-    expect(visitDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(visitDispatch.indexOf("toolVisit(canonical"));
+    expect(visitDispatch).not.toContain("if (isPdfPageResponse(action.url, null))");
+    expect(visitDispatch.indexOf("toolVisit(canonical")).toBeGreaterThan(-1);
+    expect(agenticCoreSource).toContain("extractPdfText(responseBytes");
+    expect(agenticCoreSource).toContain("PDF_TEXT_MAX_BYTES");
     expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
     expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(browserDispatch.indexOf('import("./browser-fetch")'));
     expect(browserDispatch).toContain("no browser provider request was made");
@@ -214,6 +244,7 @@ describe("page visit response classification", () => {
   it("does not treat PDF bytes as an observed HTML/text page", () => {
     expect(isPdfPageResponse("https://example.test/report.pdf", "application/octet-stream")).toBe(true);
     expect(isPdfPageResponse("https://example.test/report", "application/pdf; charset=binary")).toBe(true);
+    expect(isPdfPageResponse("https://example.test/download", "application/octet-stream", 'attachment; filename="filing.pdf"')).toBe(true);
     expect(isPdfPageResponse("https://example.test/officers", "text/html; charset=utf-8")).toBe(false);
   });
 

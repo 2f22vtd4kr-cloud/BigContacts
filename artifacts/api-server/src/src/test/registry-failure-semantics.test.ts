@@ -16,7 +16,6 @@ const registries = [
   { registry: "offeneregister-germany", error: "Offeneregister Germany HTTP 503" },
   { registry: "ytj-finland", error: "YTJ Finland HTTP 503" },
   { registry: "borme-spain", error: "BORME Spain HTTP 503" },
-  { registry: "kvk-netherlands", error: "KvK Netherlands HTTP 503" },
   { registry: "kbo-belgium", error: "KBO Belgium HTTP 503" },
 ] as const;
 
@@ -48,6 +47,16 @@ describe("registry failure semantics", () => {
     await expect(searchRegistry({ query: "Apex example", registry })).rejects.toThrow(error);
   });
 
+
+  it("does not advertise or call the stale Dutch mirror and provides a truthful fallback", async () => {
+    expect(isRegistryProviderAvailable("kvk-netherlands")).toBe(false);
+    expect(getAvailableRegistryIds()).not.toContain("kvk-netherlands");
+
+    await expect(
+      searchRegistry({ query: "Amsterdam logistics companies", registry: "kvk-netherlands" }),
+    ).rejects.toThrow(/REGISTRY_ADAPTER_UNAVAILABLE.*openkvk\.nl.*subscription.*web_search/i);
+    expect(safeOutboundFetchMock).not.toHaveBeenCalled();
+  });
 
   it("does not attempt a keyless OpenCorporates request and returns a safe registry-auth code", async () => {
     vi.stubEnv("OPENCORPORATES_API_TOKEN", "");

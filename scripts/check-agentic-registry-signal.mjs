@@ -13,7 +13,7 @@ assert(registry.includes("AbortSignal.any([signal, timeoutSignal])"), "registry 
 assert(registry.includes("searchSecEdgar(query.trim(), limit, signal)"), "SEC registry call does not receive AbortSignal");
 assert(registry.includes("searchCompaniesHouse(query.trim(), apiKey, limit, signal)"), "Companies House registry call does not receive AbortSignal");
 assert(registry.includes("searchGleif(query.trim(), limit, signal)"), "GLEIF registry call does not receive AbortSignal");
-for (const name of ["searchOpenCorporates", "searchCompaniesHouse", "searchSecEdgar", "searchBrreg", "searchAres", "searchBodacc", "searchCvrDenmark", "searchZefixSwitzerland", "searchOffeneregisterGermany", "searchBolagsverketSweden", "searchYtjFinland", "searchAtokaItaly", "searchBormeSpain", "searchKvkNetherlands", "searchKboBelgium"]) {
+for (const name of ["searchOpenCorporates", "searchCompaniesHouse", "searchSecEdgar", "searchBrreg", "searchAres", "searchBodacc", "searchCvrDenmark", "searchZefixSwitzerland", "searchOffeneregisterGermany", "searchBolagsverketSweden", "searchYtjFinland", "searchAtokaItaly", "searchBormeSpain", "searchKboBelgium"]) {
   assert(new RegExp(`async function ${name}\\([\\s\\S]*signal\\?: AbortSignal`).test(registry), `${name} lacks AbortSignal parameter`);
 }
 assert(gleif.includes("signal?: AbortSignal"), "GLEIF client lacks AbortSignal contract");
@@ -23,6 +23,14 @@ assert(registry.includes("signal: createRegistryRequestSignal(signal,"), "regist
 assert(!/signal:\s*AbortSignal\.timeout\(/.test(registry), "registry contains timeout-only HTTP transport that ignores caller cancellation");
 assert(registry.includes('if (signal?.aborted) throw new Error("cancelled");\n  return results;'), "registry can swallow caller cancellation and return an ordinary empty/partial result");
 assert(core.includes("limit: 8, signal: runController.signal"), "canonical ReAct registry action does not pass run cancellation");
+assert(!/async function searchKvkNetherlands/.test(registry), "stale Dutch OpenKvK adapter must remain disabled until a supported endpoint is verified");
+assert(registry.includes('normalized === "bolagsverket-sweden" || normalized === "kvk-netherlands"'), "unsupported Swedish and Dutch registry adapters must not be advertised");
+assert(registry.includes("REGISTRY_ADAPTER_UNAVAILABLE: kvk-netherlands"), "disabled Dutch registry must fail explicitly rather than masquerade as a no-hit");
+assert(core.includes("function summarizeRegistryAdapterFailure"), "registry failures must have a structured safe summary for the Investigator");
+assert(core.includes("summarizeRegistryAdapterFailure(action.registry, error)"), "single registry failures must preserve actionable safe diagnostics");
+assert(core.includes("summarizeRegistryAdapterFailure(search.registry, error)"), "parallel registry failures must preserve actionable safe diagnostics");
+assert(core.includes("classifyRegistryBatchExecution(outcomes)"), "parallel registry execution must preserve partial failures");
+assert(core.includes('return "partial"'), "mixed parallel registry outcomes must not be recorded as full success");
 if (failures.length) {
   console.error("AGENTIC REGISTRY SIGNAL: FAIL");
   for (const failure of failures) console.error(`- ${failure}`);
