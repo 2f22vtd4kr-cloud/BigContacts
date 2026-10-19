@@ -24,7 +24,7 @@ function validAttestation(overrides: Record<string, unknown> = {}) {
   return {
     state: "attested",
     executorId: "unit-test-worker",
-    networkNamespace: "kubernetes-egress-policy-apex-osint-v1",
+    networkNamespace: "kubernetes-egress-policy-apex-osint-v2",
     egressBroker: "apex-public-egress-proxy-v1",
     filesystemMode: "ephemeral-isolated",
     maxOutputBytes: 1_000_000,
@@ -208,6 +208,15 @@ describe("signed Python OSINT worker client", () => {
     vi.stubEnv("APEX_PYTHON_SANDBOX_URL", "https://worker.example.test");
     vi.stubEnv("APEX_PYTHON_SANDBOX_TOKEN", TOKEN);
     vi.stubGlobal("fetch", vi.fn(async () => response(validAttestation())));
+    expect(Object.values(await refreshPythonOsintToolAvailability()).some(Boolean)).toBe(false);
+  });
+
+  it("fails closed for proofs minted under the prior network-policy contract", async () => {
+    vi.stubEnv("APEX_PYTHON_SANDBOX_URL", "https://worker.example.test");
+    vi.stubEnv("APEX_PYTHON_SANDBOX_TOKEN", TOKEN);
+    vi.stubEnv("APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST", "sha256:" + "a".repeat(64));
+    vi.stubEnv("APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST", "sha256:" + "b".repeat(64));
+    vi.stubGlobal("fetch", vi.fn(async () => response(validAttestation({ networkNamespace: "kubernetes-egress-policy-apex-osint-v1" }))));
     expect(Object.values(await refreshPythonOsintToolAvailability()).some(Boolean)).toBe(false);
   });
 

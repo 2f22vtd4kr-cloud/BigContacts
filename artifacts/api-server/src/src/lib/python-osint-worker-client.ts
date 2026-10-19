@@ -45,7 +45,7 @@ type PythonOsintWorkerAttestation = PythonSandboxAttestation & {
   isolationProofExpiresAt: string;
 };
 
-const REQUIRED_NETWORK_NAMESPACE = "kubernetes-egress-policy-apex-osint-v1";
+const REQUIRED_NETWORK_NAMESPACE = "kubernetes-egress-policy-apex-osint-v2";
 const REQUIRED_EGRESS_BROKER = "apex-public-egress-proxy-v1";
 const MAX_ATTESTATION_LIFETIME_MS = 15 * 60_000;
 const MAX_ATTESTATION_RESPONSE_BYTES = 32_000;
