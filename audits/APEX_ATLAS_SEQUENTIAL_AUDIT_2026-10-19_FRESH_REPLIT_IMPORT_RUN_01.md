@@ -185,3 +185,39 @@ This tracked report records observable setup, request/status metadata, decisions
 - PR #715 was updated to lazy-load PDF.js and supply a tightly scoped bootstrap only around the import when `DOMMatrix` is absent, then restore the global. This is intended solely to permit text extraction; it is not a DOMMatrix implementation and does not enable page rendering. The valid-PDF extraction test must confirm the parser works after bootstrap; if not, replace the workaround with a better-supported parser/dependency choice rather than weakening tests.
 - Validation status at this report update: the earlier head's API build and Node OSINT contract tests failed for this same import defect. The updated head's CI was not yet observed in this report. Do not claim the issue is fixed until the exact updated PR SHA passes the PDF tests, API suite/typecheck, worker contract tests and all required gates.
 - No live Replit PDF or registry verification was performed by this GitHub review. A green unit test and a corrected constructed URL still do not prove that remote PDFs or the German Open Register service are reachable in the actual runtime.
+
+## P022 — Post-merge PDF capability contract review
+
+- Current reviewed `main` at the start of this follow-up was `3c2474e5d7986e50b5cbdfd2dc1575aacf88b0d8` (PR #715 merge).
+- The merged retrieval implementation has a bounded text-only PDF path through `visit` (8 MB acquisition limit, 50-page inspection limit, 16,000 extracted-character limit), with page markers in extracted text. OCR is not provided; empty-text/extraction failures remain non-observations.
+- A downstream model-contract contradiction remained: the Investigator prompt still said both `visit` and `browser_fetch` do not extract PDF text, even though only `browser_fetch` is HTML-oriented. This could steer the model away from the supported PDF reader and into a guaranteed rejection path.
+- Follow-up PR #716 updates the model-facing capability guidance and adds a generated-prompt regression test. At this checkpoint its exact head `a160f596cca4b8106e6448ff0b4a2f804486429b` has CI workflows queued, not completed. The prompt fix is not yet merged or live-runtime validated.
+
+## P023 — German Open Register response contract and availability gate
+
+- Source review found that the German adapter's constructed URL used the legacy-style `/openregister-ef9e802.json` path and its parser assumed array-shaped rows. The zero-hit regression test accepted `rows=[]` and `columns=[]` without a complete success/column contract; a malformed or incompatible payload could therefore look like a valid no-hit.
+- Current Datasette documentation specifies the custom SQL JSON route `/<database>/-/query.json`, supports object-shaped rows, and documents `_extra=columns`. The direct Open Register endpoint could not be obtained through the available runtime/web access in this review, so live endpoint health remains unverified.
+- Follow-up PR #717 uses the documented route, requests object-shaped rows and column metadata, validates the success envelope and required company columns, and adds positive, valid-zero-hit, malformed-response, upstream-failure, and default-gating tests.
+- To keep product semantics truthful before a live runtime smoke test, `offeneregister-germany` is now unadvertised and fails with `REGISTRY_ADAPTER_UNAVAILABLE` unless explicitly enabled with `APEX_ENABLE_OFFENEREGISTER_GERMANY=true`. That opt-in must only be set after the deployed endpoint and schema are observed to work. The default unavailable state is not a negative registry finding.
+- PR #717 exact head at this report update: `1e1fa07c1b366749f89479f90280786296c03269`; required workflows were queued, not completed. No live successful/no-hit German registry response is claimed.
+
+## P024 — Attempt 2 runtime reconciliation remains blocked
+
+- A read-only reconciliation request was issued to the connected Replit app for job `0bc6087d-4070-4420-a645-ca2606549052`, case 2, durable evidence/admission/card state, active Atlas pointer and deployed SHA. The connected tool returned no runtime response.
+- Therefore Attempt 2 remains **unreconciled** beyond P018. Its terminal status, final durable state, active lock and deployed revision remain unknown in this follow-up; no new job was launched. The operator must restore access to the actual running workspace/API/database and verify those fields before any next launch.
+- The two follow-up PRs and their queued CI are repository work only; they do not validate the Replit deployment or change the status of either prior run.
+
+## P025 — Registry diagnostic typecheck failure and correction
+
+- While validating PR #717, the Research Quality Contracts workflow reached its TypeScript step and failed in the currently merged base source at `agentic-web-research-core.ts`: a transport diagnostic value was inferred as `string | number` and passed directly to `RegExp.test(string)`.
+- This is not a registry endpoint response and does not establish anything about runtime availability. It is a real code-quality defect in the transport-failure formatter, which is directly exercised by the registry failure diagnostics.
+- PR #717 now normalizes a known string-or-number transport code to a string before allowlist validation and adds a regression using numeric `errno`. The original failed workflow run is retained; a fresh run on the new head is required to verify the fix.
+- PR #716 adds separate PDF changes and has its own exact-head workflow set. Neither PR is merged; runtime access remains unavailable, and the Attempt 2 status/active lock are still unknown.
+
+## P026 — Capability prompt budget and registry availability review
+
+- Official KVK documentation indicates the name-based search API requires a subscription/API key; the published public high-value dataset is limited to BV/NV statistics and does not supply company names or KVK numbers. No safe free API replacement for the disabled KVK adapter was verified in this review. Keep it unadvertised and use source-backed web search until a valid transport/credential configuration exists.
+- The first full-code audit runs on prior PR heads exposed two contract failures: model-selectable capability guidance measured 1,127 characters against the 1,000-character budget, and the PDF dispatch regression test's `visit` slice accidentally included the subsequent `browser_fetch` branch.
+- Both branches now shorten capability guidance without dropping the required snippets/answer/JS/legal-role/privacy caveats. The rendered selectable guidance was checked from the updated source at 995 characters. The PDF dispatch test now bounds `visitDispatch` at the start of `browser_fetch`, matching the actual dispatch architecture instead of a stale assumed order.
+- Exact follow-up heads: PR #716 `c712251f1569469a480d2e536cb25c5c6f329943`; PR #717 `bdcb7a055a711e65d6771c5ff8b1036bf93fd751`. Fresh CI is queued/in progress on these heads. The prior full-code audit failures remain historical failures; do not call either branch green until its new exact-head gates complete.
+- The endpoint and runtime are still not live-verified. Attempt 2 remains unresolved, and no Atlas launch was attempted.
