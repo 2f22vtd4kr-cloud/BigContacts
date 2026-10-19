@@ -1291,8 +1291,7 @@ Choose each next action yourself from the available capabilities and observed ev
     ]) {
       expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: false });
     }
-    expect(validateDiscoverySearchQuery("Niri Philadelphia public relations contact", []))
-      .toMatchObject({ allowed: true, warning: expect.stringContaining("advisory only") });
+    expect(validateDiscoverySearchQuery("Niri Philadelphia public relations contact", [])).toMatchObject({ allowed: true });
     expect(validateDiscoverySearchQuery("casino Slovenia coast ownership concession operator", [])).toMatchObject({ allowed: true });
     expect(validateDiscoverySearchQuery("Casino Portorož owner contact", [])).toMatchObject({ allowed: true });
   });
@@ -1325,21 +1324,23 @@ Choose each next action yourself from the available capabilities and observed ev
     } as Parameters<typeof repeatedDiscoverySearchReason>[1][number];
     expect(repeatedDiscoverySearchReason({ query: "Casino Portoroz ownership", provider: "serper", locale: "sl", market: "si" }, [parallel])).toContain("repeat_action_guard");
   });
-  it("keeps title-led and global-brand query warnings advisory regardless of language", () => {
-    expect(validateDiscoverySearchQuery("Enterprise Mobility leadership team", []))
-      .toMatchObject({ allowed: true, warning: expect.stringContaining("advisory only") });
-    expect(validateDiscoverySearchQuery("Casino Portorož management team", []))
-      .toMatchObject({ allowed: true });
-    expect(validateDiscoverySearchQuery("Enterprise Mobility family ownership principal", [])).toMatchObject({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož owner/operator Slovenia", [])).toMatchObject({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož lastnik koncesionar Slovenija", [])).toMatchObject({ allowed: true });
-
-    expect(validateDiscoverySearchQuery("Coca-Cola Company executive leadership page official site", []))
-      .toMatchObject({ allowed: true, warning: expect.stringContaining("Treat it as a lead only") });
-    expect(validateDiscoverySearchQuery("Fortune 500 Coca-Cola leadership executive page official site", []))
-      .toMatchObject({ allowed: true });
-    expect(validateDiscoverySearchQuery("Coca-Cola Slovenia independent bottler owner contact", [])).toMatchObject({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož beneficial owner concession holder Slovenia", [])).toMatchObject({ allowed: true });
+  it("leaves title, wealth, sector, ownership and global-brand intent to the Investigator", () => {
+    for (const query of [
+      "Enterprise Mobility leadership team",
+      "Casino Portorož management team",
+      "Enterprise Mobility family ownership principal",
+      "Casino Portorož owner/operator Slovenia",
+      "Casino Portorož lastnik koncesionar Slovenija",
+      "Coca-Cola Company executive leadership page official site",
+      "Fortune 500 Coca-Cola leadership executive page official site",
+      "Coca-Cola Slovenia independent bottler owner contact",
+      "Casino Portorož beneficial owner concession holder Slovenia",
+      "مالك كازينو بورتوروز استثمار",
+      "赌场波尔托罗什主要股东",
+      "カジノ ポルトロシュ 主要株主",
+    ]) {
+      expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: true });
+    }
   });
 
   it("keeps source fetch preflight language-neutral and leaves semantic judgment to the model", () => {
@@ -1354,13 +1355,15 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(agenticCoreSource).toContain("Candidate admission and terminal evidence gates remain responsible for quality");
   });
 
-  it("validates model-selected domain and registry lookups before external dispatch", () => {
-    expect(validateDiscoveryDomainLookup("amazon.com")).toMatchObject({ allowed: false });
-    expect(validateDiscoveryDomainLookup("coca-colacompany.com")).toMatchObject({ allowed: false });
+  it("validates hostname syntax without restricting language, TLD, or company identity", () => {
+    expect(validateDiscoveryDomainLookup("amazon.com")).toMatchObject({ allowed: true });
+    expect(validateDiscoveryDomainLookup("coca-colacompany.com")).toMatchObject({ allowed: true });
+    expect(validateDiscoveryDomainLookup("cocacolaunited.com")).toMatchObject({ allowed: true });
+    expect(validateDiscoveryDomainLookup("例え.テスト")).toMatchObject({ allowed: true });
     expect(validateDiscoveryDomainLookup("companyname.com")).toMatchObject({ allowed: false });
     expect(validateDiscoveryDomainLookup("https://casino-portoroz.si/ownership")).toMatchObject({ allowed: false });
-    expect(validateDiscoveryDomainLookup("casino-portoroz.si")).toMatchObject({ allowed: true });
-    expect(validateDiscoveryDomainLookup("cocacolaunited.com")).toMatchObject({ allowed: true });
+    expect(validateDiscoveryDomainLookup("casino-portoroz.si/path")).toMatchObject({ allowed: false });
+    expect(validateDiscoveryDomainLookup("not a hostname")).toMatchObject({ allowed: false });
 
     const domainStart = agenticCoreSource.indexOf('if (action.action === "domain_lookup") {');
     const registryStart = agenticCoreSource.indexOf('if (action.action === "registry_search") {', domainStart);
