@@ -1342,23 +1342,16 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(validateDiscoverySearchQuery("Casino Portorož beneficial owner concession holder Slovenia", [])).toMatchObject({ allowed: true });
   });
 
-  it("blocks unrealistic discovery destinations before page fetch, but permits a local operator path", () => {
-    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about")).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("generic brand about pages"),
-    });
-    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about-us/independent-bottler/portoroz")).toEqual({ allowed: true });
-    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about-us/leadership")).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("global household-brand leadership"),
-    });
-    expect(validateDiscoverySourceUrl("https://fortune.com/ranking/fortune500/")).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("fame/ranking destination"),
-    });
+  it("keeps source fetch preflight language-neutral and leaves semantic judgment to the model", () => {
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/about-us/leadership")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("https://fortune.com/ranking/fortune500/")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/ueber-uns/vertriebspartner/slowenien")).toEqual({ allowed: true });
+    expect(validateDiscoverySourceUrl("https://coca-colacompany.com/empresa/distribuidores/portoroz")).toEqual({ allowed: true });
     expect(validateDiscoverySourceUrl("https://casino-portoroz.si/about/ownership")).toEqual({ allowed: true });
-    expect(validateDiscoverySourceUrl("https://www.coca-colacompany.com/investors/financial-reports")).toMatchObject({ allowed: false, reason: expect.stringContaining("global household-brand destination") });
     expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
+    expect(agenticCoreSource).toContain("Do not infer source relevance from");
+    expect(agenticCoreSource).toContain("Candidate admission and terminal evidence gates remain responsible for quality");
   });
 
   it("validates model-selected domain and registry lookups before external dispatch", () => {
