@@ -1061,12 +1061,14 @@ describe("registry catalogue honesty", () => {
     const { REGISTRY_COVERAGE_MATRIX } = await import("../lib/registry-matrix");
     const { REGISTRY_IDS } = await import("../lib/registry-client");
     const implemented = REGISTRY_COVERAGE_MATRIX.filter((entry) => entry.runtimeAdapterImplemented).map((entry) => entry.id).sort();
-    // Sweden stays in the legacy registry ID catalogue for compatibility, but
-    // its unsupported adapter is deliberately unavailable and is not callable.
-    const callableIds = REGISTRY_IDS.filter((id) => id !== "bolagsverket-sweden").slice().sort();
+    // Legacy identifiers stay in the catalogue even when no callable adapter
+    // exists. KVK and Sweden have no verified callable implementation; Germany
+    // has code but is separately hidden until its live contract is verified.
+    const nonCallableLegacyIds = ["bolagsverket-sweden", "kvk-netherlands"];
+    const callableIds = REGISTRY_IDS.filter((id) => !nonCallableLegacyIds.includes(id)).slice().sort();
     expect(implemented).toEqual(callableIds);
     expect(REGISTRY_COVERAGE_MATRIX.filter((entry) => !entry.runtimeAdapterImplemented).map((entry) => entry.id).sort())
-      .toEqual(["bolagsverket-sweden", "faa", "hmlr-ppd"]);
+      .toEqual(["bolagsverket-sweden", "faa", "hmlr-ppd", "kvk-netherlands"]);
   });
 });
 
