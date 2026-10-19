@@ -51,7 +51,7 @@ export async function extractPdfText(
         if (!pageText) continue;
 
         const prefix = `[Page ${pageNumber}] `;
-        const separator = text ? "\\n" : "";
+        const separator = text ? "\n" : "";
         const remaining = maxChars - text.length - separator.length - prefix.length;
         if (remaining <= 0) {
           truncated = true;
