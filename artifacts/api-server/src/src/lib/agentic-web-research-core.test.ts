@@ -1279,7 +1279,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }
 
     // Canonically equivalent spellings should share repeat-action identity, without transliteration.
-    expect(normalizeDiscoverySearchQuery("Cafe\\u0301")).toBe(normalizeDiscoverySearchQuery("Café"));
+    expect(normalizeDiscoverySearchQuery("Cafe\u0301")).toBe(normalizeDiscoverySearchQuery("Café"));
     expect(normalizeDiscoverySearchQuery("КАЗИНО")).toBe("казино");
   });
 
