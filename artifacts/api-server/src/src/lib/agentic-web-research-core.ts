@@ -658,7 +658,12 @@ export function validateDiscoveryDomainLookup(domain: string, priorQueries: read
   return { allowed: true, ...(queryValidation.warning ? { warning: queryValidation.warning } : {}) };
 }
 
-/** Prevent obvious low-yield discovery destinations from consuming page-fetch budget. */
+/**
+ * Discovery fetch preflight is transport-only. Do not infer source relevance from
+ * English path words, TLD lists, or known-brand lists: those guesses can exclude
+ * localized routes and useful cross-language evidence before the model sees it.
+ * Candidate admission and terminal evidence gates remain responsible for quality.
+ */
 export function validateDiscoverySourceUrl(rawUrl: string): { allowed: true } | { allowed: false; reason: string } {
   let url: URL;
   try { url = new URL(rawUrl); } catch {
@@ -666,26 +671,6 @@ export function validateDiscoverySourceUrl(rawUrl: string): { allowed: true } | 
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     return { allowed: false, reason: "Discovery blocked a non-web URL before outbound fetch." };
-  }
-  const host = url.hostname.toLowerCase().replace(/^www\./, "");
-  const path = (url.pathname + " " + url.search).toLowerCase();
-  const rankingHost = /(?:^|\.)fortune\.com$/.test(host) || /(?:^|\.)forbes\.com$/.test(host) || /(?:^|\.)bloomberg\.com$/.test(host);
-  const rankingPath = /(?:fortune[/-]?500|rankings?|billionaires?|richest|net-worth)/i.test(path);
-  if (rankingHost && rankingPath) {
-    return { allowed: false, reason: "DISCOVERY TARGETABILITY GATE blocked an impractical fame/ranking destination before fetch. Choose a specific private/regional business, ownership/control, investment, asset, or local operator route instead." };
-  }
-  const globalBrandHost = /(?:^|\.)(?:coca-colacompany|coca-cola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonalds|disney|netflix|oracle|berkshirehathaway|jpmorganchase|goldmansachs)(?:\.|$)/i.test(host);
-  const corporatePrestigePath = /(?:^|[\/_-])(?:leadership|executives?|management|board(?:-of-directors)?|corporate-officers|our-people|people-culture|leadership-team|executive-team|about(?:-us)?|who-we-are|our-company|company-profile|investor(?:s|-relations?)?|financial-reports?|annual-reports?)(?:[\/_-]|$)/i.test(url.pathname);
-  const explicitLocalOperatorRoute = /(?:bottler|distributor|franchisee?|concession|licensee|licensed-operator|regional-partner|local-operator|independent-operator)/i.test(url.pathname);
-  // Only block destinations that are explicitly recognizable as generic global
-  // corporate/prestige pages. Unknown/localized path terms must be fetched and
-  // interpreted by the model, not classified as irrelevant because an English
-  // route word was absent.
-  if (globalBrandHost && corporatePrestigePath && !explicitLocalOperatorRoute) {
-    const reason = corporatePrestigePath
-      ? "DISCOVERY TARGETABILITY GATE blocked a global household-brand leadership/about page before fetch. A reachable local owner/operator/distributor/franchisee/licensee/concession holder must be the actual path; generic brand about pages are not a substitute."
-      : "DISCOVERY TARGETABILITY GATE blocked a global household-brand destination before fetch. Corporate pages alone do not establish a realistic local owner/operator/distributor/franchise/concession route; no outbound request was made.";
-    return { allowed: false, reason };
   }
   return { allowed: true };
 }
