@@ -42,6 +42,7 @@ function findExactTokenIndex(text: string, value: string, fromIndex = 0): number
 }
 
 export function bindExactSourceSpan(observation: string, value: string, subject?: string | null, maxChars = 900): SourceSpan | null {
+  const leadingTrimOffset = observation.length - observation.trimStart().length;
   const text = observation.trim();
   const needle = value.trim().toLowerCase();
   if (!text || !needle) return null;
@@ -93,8 +94,9 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
   const subjectMatched = !subjectNeedle || localSubjectIndex >= 0;
   return {
     text: spanText,
-    start,
-    end,
+    // Offsets address the original durable observation, not its trimmed view.
+    start: leadingTrimOffset + start,
+    end: leadingTrimOffset + end,
     subjectMatched: Boolean(subjectNeedle) ? subjectMatched : false,
     valueMatched,
     exact: valueMatched && subjectMatched,
