@@ -726,15 +726,21 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             if any(not isinstance(item, str) for values in (emails, hosts, ips) for item in values):
                 return "failed", None, "theHarvester report contained non-string observations.", "theharvester"
             has_observations = bool(emails or hosts or ips)
-            if code != 0 and not has_observations:
-                return "failed", None, "theHarvester exited unsuccessfully without structured result output.", "theharvester"
-            return ("completed" if code == 0 else "partial"), {
+            payload = {
                 "emails": emails[:100],
                 "subdomains": hosts[:200],
                 "hosts": hosts[:200],
                 "ips": ips[:200],
                 "totalFound": len(emails) + len(hosts) + len(ips),
-            }, None if code == 0 else "theHarvester ended with a non-zero code after producing bounded results.", "theharvester"
+            }
+            if code != 0 and not has_observations:
+                return "failed", None, "theHarvester exited unsuccessfully without structured result output.", "theharvester"
+            if not has_observations:
+                # The pinned JSON format records leads, not per-source query
+                # outcomes. A zero-hit report alone cannot prove the passive
+                # engines completed successfully instead of swallowing errors.
+                return "partial", payload, "theHarvester produced an empty report without source-completion evidence; no negative finding is established.", "theharvester"
+            return ("completed" if code == 0 else "partial"), payload, None if code == 0 else "theHarvester ended with a non-zero code after producing bounded results.", "theharvester"
     return "unavailable", None, "No CLI executor was registered for the requested tool.", tool
 
 
