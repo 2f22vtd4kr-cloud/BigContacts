@@ -14,6 +14,8 @@ import os
 import subprocess
 import sys
 import tempfile
+import urllib.error
+import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -196,11 +198,74 @@ def verify_live_egress(namespace: str) -> None:
 
 def run_probe(namespace: str, code: str, expected: str) -> None:
     completed = subprocess.run(
-        ["kubectl", "exec", "-n", namespace, "deploy/apex-python-osint-worker", "-c", "worker", "--", "/usr/local/bin/python", "-c", code],
+        ["kubectl", "exec", "-n", namespace, "deploy/apex-python-osint-worker", "-c", "worker", "--", "/opt/venvs/worker-api/bin/python", "-c", code],
         capture_output=True, text=True, timeout=20,
     )
     if completed.returncode != 0 or expected not in completed.stdout.splitlines():
         raise RuntimeError("Live egress probe failed: expected " + expected + ".")
+
+
+def verify_running_image(namespace: str, deployment_name: str, pod_selector: str, container_name: str) -> str:
+    deployment = kubectl_json("get", "deployment", deployment_name, "-n", namespace)
+    spec = deployment.get("spec", {})
+    template_spec = spec.get("template", {}).get("spec", {})
+    containers = template_spec.get("containers", [])
+    container = next((item for item in containers if item.get("name") == container_name), None)
+    image = str(container.get("image", "")) if isinstance(container, dict) else ""
+    if "@sha256:" not in image:
+        raise RuntimeError(deployment_name + " must use an immutable sha256-pinned image.")
+    digest = image.split("@", 1)[1]
+    desired = int(spec.get("replicas", 1))
+    status = deployment.get("status", {})
+    if int(status.get("readyReplicas", 0)) < desired or int(status.get("updatedReplicas", 0)) < desired:
+        raise RuntimeError(deployment_name + " does not have all desired replicas ready.")
+    pods = kubectl_json("get", "pods", "-n", namespace, "-l", pod_selector)
+    items = pods.get("items", [])
+    ready_image_ids = []
+    for pod in items:
+        pod_status = pod.get("status", {})
+        containers_status = pod_status.get("containerStatuses", [])
+        entry = next((item for item in containers_status if item.get("name") == container_name), None)
+        if entry and entry.get("ready") is True:
+            ready_image_ids.append(str(entry.get("imageID", "")))
+    if len(ready_image_ids) < desired:
+        raise RuntimeError(deployment_name + " ready Pod image identities could not be established.")
+    if any(digest not in image_id for image_id in ready_image_ids):
+        raise RuntimeError(deployment_name + " is running a Pod image digest different from its immutable Deployment template.")
+    return digest
+
+
+def verify_published_ingress(namespace: str) -> str:
+    ingress = kubectl_json("get", "ingress", "apex-python-osint-worker", "-n", namespace)
+    spec = ingress.get("spec", {})
+    if spec.get("ingressClassName") != "nginx":
+        raise RuntimeError("Worker ingress does not use the reviewed NGINX ingress class.")
+    rules = spec.get("rules", [])
+    hosts = {str(rule.get("host", "")).strip().lower() for rule in rules if isinstance(rule, dict)}
+    hosts.discard("")
+    if len(hosts) != 1:
+        raise RuntimeError("Worker ingress must publish exactly one HTTPS hostname.")
+    host = next(iter(hosts))
+    if host.endswith(".example.com") or host == "example.com" or "." not in host:
+        raise RuntimeError("Replace the worker Ingress example hostname with the actual worker DNS name.")
+    tls = spec.get("tls", [])
+    matches = [item for item in tls if isinstance(item, dict) and host in item.get("hosts", [])]
+    if len(matches) != 1 or not matches[0].get("secretName"):
+        raise RuntimeError("Worker Ingress must have one TLS secret covering the published hostname.")
+    tls_secret = str(matches[0]["secretName"])
+    completed = subprocess.run(
+        ["kubectl", "get", "secret", tls_secret, "-n", namespace, "-o", "name"],
+        check=True, capture_output=True, text=True, timeout=20,
+    )
+    if completed.stdout.strip() != "secret/" + tls_secret:
+        raise RuntimeError("The worker TLS secret could not be confirmed without reading its contents.")
+    try:
+        with urllib.request.urlopen("https://" + host + "/livez", timeout=8) as response:
+            if response.status != 200 or response.read(1_024).strip() != b'{"status":"alive"}':
+                raise RuntimeError("Worker TLS endpoint /livez did not return the expected healthy response.")
+    except (urllib.error.URLError, TimeoutError) as error:
+        raise RuntimeError("Worker TLS endpoint /livez could not be verified over HTTPS.") from error
+    return host
 
 
 def main() -> int:
@@ -223,14 +288,24 @@ def main() -> int:
     if live_config != expected_config:
         raise RuntimeError("Live squid ConfigMap does not exactly match the reviewed source file.")
     proxy_hash = hashlib.sha256(expected_config.encode("utf-8")).hexdigest()
-    worker_deployment = kubectl_json("get", "deployment", "apex-python-osint-worker", "-n", args.namespace)
-    containers = worker_deployment.get("spec", {}).get("template", {}).get("spec", {}).get("containers", [])
-    image = next((c.get("image", "") for c in containers if c.get("name") == "worker"), "")
-    if "@sha256:" not in image:
-        raise RuntimeError("Worker image must be deployed by immutable sha256 digest before attestation.")
     if args.namespace != "apex-system":
         raise RuntimeError("The checked-in worker/proxy selectors target apex-system; review selectors before attesting another namespace.")
 
+    worker_digest = verify_running_image(
+        args.namespace, "apex-python-osint-worker",
+        "app=apex-python-osint-worker", "worker",
+    )
+    proxy_digest = verify_running_image(
+        args.namespace, "apex-osint-egress-proxy",
+        "app=apex-osint-egress-proxy", "squid",
+    )
+    worker_deployment = kubectl_json("get", "deployment", "apex-python-osint-worker", "-n", args.namespace)
+    worker_containers = worker_deployment.get("spec", {}).get("template", {}).get("spec", {}).get("containers", [])
+    worker_container = next((item for item in worker_containers if item.get("name") == "worker"), {})
+    env_values = {item.get("name"): item.get("value") for item in worker_container.get("env", []) if isinstance(item, dict)}
+    if env_values.get("APEX_PYTHON_WORKER_IMAGE_DIGEST") != worker_digest:
+        raise RuntimeError("Worker environment digest does not match the immutable running image.")
+    published_host = verify_published_ingress(args.namespace)
     verify_network_policies(args.namespace)
     if not args.skip_live_egress_tests:
         verify_live_egress(args.namespace)
@@ -242,7 +317,9 @@ def main() -> int:
         "egressBroker": EGRESS_BROKER,
         "verifiedNetworkPolicies": sorted(REQUIRED_POLICIES),
         "proxyConfigSha256": proxy_hash,
-        "workerImageDigest": image.split("@", 1)[1] if image.split("@", 1)[1].startswith("sha256:") else "",
+        "workerImageDigest": worker_digest,
+        "egressProxyImageDigest": proxy_digest,
+        "publicWorkerHostname": published_host,
         "namespace": args.namespace,
         "issuedAt": now.isoformat(timespec="seconds").replace("+00:00", "Z"),
         "expiresAt": (now + timedelta(hours=args.proof_hours)).isoformat(timespec="seconds").replace("+00:00", "Z"),
