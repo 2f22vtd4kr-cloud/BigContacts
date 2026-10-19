@@ -561,6 +561,8 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             truncated = result.get("truncated", False)
             if isinstance(checked, bool) or not isinstance(checked, int) or checked < len(found):
                 return "failed", None, "Holehe runner returned an invalid checked-count value.", TOOL_VERSIONS["holehe"]
+            if checked == 0:
+                return "failed", None, "Holehe completed without checking any service; an empty zero-check result is not a valid negative finding.", TOOL_VERSIONS["holehe"]
             if not isinstance(truncated, bool):
                 return "failed", None, "Holehe runner returned an invalid truncation flag.", TOOL_VERSIONS["holehe"]
             positives = sum(1 for item in found if item.get("exists") is True)

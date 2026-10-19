@@ -465,14 +465,15 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result["truncated"])
         self.assertIn("bounded module/output limit", error or "")
 
-    async def test_holehe_structured_empty_result_can_complete(self) -> None:
+    async def test_holehe_zero_service_checks_are_failure_not_negative_evidence(self) -> None:
         status, result, error, _version = await self.invoke(
             "holehe",
             {"email": "person@example.org"},
             stdout=b'{"found":[],"totalChecked":0,"totalFound":0}',
         )
-        self.assertEqual((status, error), ("completed", None))
-        self.assertEqual(result["found"], [])
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+        self.assertIn("without checking any service", error or "")
 
     async def test_maigret_invokes_csv_mode_for_per_site_statuses(self) -> None:
         call_args: list[str] | None = None
