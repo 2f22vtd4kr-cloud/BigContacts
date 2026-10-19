@@ -1,8 +1,8 @@
 # Apex Atlas — Current Verified Status
 
-> **Latest operational override — 2026-10-17.** This file's detailed run history below reflects earlier audits and must not be mistaken for the current 17 October pre-launch sequence. The 17 October Fresh Run 05 report recorded 65 model request/response pairs with `jobId=null` and `caseId=null` during local validation. Its own chronology classifies them as non-run telemetry and ends at the final pre-launch gate; it does not prove a live research result. Replit's declared next steps were to restart the rebuilt API, recheck the effective audit destination and Atlas lock state, then launch via the UI's default request. Preserve that full trace in the ignored `private-audits/` path and continue it rather than starting from a blank report. Do not conflate this 17 October Fresh Run 05 preflight trace with the separate 16 October Run 05 job documented below. The current acceptance state remains **NOT LIVE-ACCEPTED** until a real job-bound run reaches terminal state and its source-backed findings/admission/persistence are verified. Read [the current successor handoff](apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md) before another code change or launch.
+> **Latest operational override — 2026-10-19.** The 17 October pre-launch trace described below is historical. The latest recorded launch is [Main Refresh Relaunch 01](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-19_MAIN_REFRESH_RELAUNCH_01.md), job `8237e1a8-192a-480e-b415-78f24eb94407`. The tracked report records HTTP 202 acceptance but no later model-request checkpoint, final terminal status, durable evidence/admission/card counts, or post-run active-lock state. This is an evidence gap, not proof the job is still active or idle. Before any next launch, reconcile this job and the active Atlas lock read-only in the actual runtime; confirm terminal state, no active pointers, and final durable counts. Never launch while the state is active or unclear. The current acceptance state remains **NOT LIVE-ACCEPTED** until a real job-bound run demonstrates source-backed admission and durable cards. Read [the current successor handoff](apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md) and its 19 October override before another code change or launch.
 
-**Updated:** 2026-10-16 (UTC)  
+**Updated:** 2026-10-19 (UTC)  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Canonical branch:** `main`  
 **Last verified application-code SHA:** `4c09192d0b747635ad7fa830018d1e3d7831f47f`  
@@ -86,12 +86,12 @@ Those results apply to the cited SHA. Documentation changes advance `main`; re-c
 
 ## Required next actions
 
-1. **Reconcile Run 05 first:** query job `4b85fc7c-a239-478c-a455-94baf02ffdee`, active-job state, terminal events and final durable counts. Record timestamp and evidence. No new launch until state is clear.
+1. **Reconcile the latest launch first:** query job `8237e1a8-192a-480e-b415-78f24eb94407`, active-job state, terminal events and final durable counts. Record timestamp and evidence. No new launch until state is clear. Run 05 remains historical evidence, not the latest outstanding launch.
 2. Add a mocked-request regression covering the full `callGroqJson` retry sequence, including strict-schema failure → JSON-object fallback, explicit truncation → bounded budget increase, repeated failure → bounded stop, and non-output failures that must not enter recovery.
 3. Improve scope-guard diagnostics to name the exact failed dimension(s). Add tests for the observed Pacific Northwest / water-transportation query formulations, filing-source synonyms, registry IDs and URL provenance. Keep guard rejection fail-closed and no outbound request on a block.
 4. Trace accepted action → outbound request → fetched page → source-bound finding → admission → persistence → card projection. Investigate card projection only if a valid candidate is shown to have crossed admission and was not projected.
 5. Run focused tests, then complete release workflows on the exact current `main` SHA. No skipped, cancelled or incomplete audit job counts as a pass.
-6. Conduct the next live investigation only after the unresolved Run 05 state is reconciled and the relevant source fixes are on the process actually booted in Replit.
+6. Conduct the next live investigation only after job `8237e1a8-192a-480e-b415-78f24eb94407` and the active lane are reconciled, the relevant source fixes are present on the process actually booted in Replit, and the audit-capture configuration is verified to be off by default with a unique private per-run path only when explicitly enabled.
 
 ## Non-negotiable architecture law
 
