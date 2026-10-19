@@ -1297,6 +1297,7 @@ Choose each next action yourself from the available capabilities and observed ev
     // English-looking strings are not placeholders merely because they contain
     // old template variable names; the real subject may use any name/domain.
     expect(validateDiscoverySearchQuery("CompanyName Ltd beneficial owner", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("example.com.au startup owners", [])).toMatchObject({ allowed: true });
     expect(validateDiscoverySearchQuery('site:companywebsite.com "public relations" "Chief"', [])).toMatchObject({ allowed: true });
 
     const multilingualQueries = [
