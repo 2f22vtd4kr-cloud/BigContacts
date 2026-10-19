@@ -163,7 +163,7 @@ class IsolationProofTests(unittest.TestCase):
             format=serialization.PublicFormat.Raw,
         )
         self.payload = {
-            "executorId": "test/k8s/apex-worker",
+            "executorId": "k8s/apex-system/apex-python-osint-worker",
             "policyContractVersion": app.REQUIRED_NETWORK_NAMESPACE,
             "networkNamespace": app.REQUIRED_NETWORK_NAMESPACE,
             "egressBroker": app.REQUIRED_EGRESS_BROKER,
@@ -187,7 +187,7 @@ class IsolationProofTests(unittest.TestCase):
         self.key_patch = patch.object(app, "ISOLATION_PUBLIC_KEY_B64", base64.b64encode(public_key).decode("ascii"))
         self.path_patch = patch.object(app, "ISOLATION_PROOF_PATH", self.proof_path)
         self.hash_patch = patch.object(app, "sha256_file", return_value="f" * 64)
-        self.env_patch = patch.dict(os.environ, {"APEX_PYTHON_WORKER_IMAGE_DIGEST": "sha256:" + "a" * 64, "APEX_PYTHON_EGRESS_PROXY_IMAGE_DIGEST": "sha256:" + "b" * 64})
+        self.env_patch = patch.dict(os.environ, {"APEX_PYTHON_WORKER_IMAGE_DIGEST": "sha256:" + "a" * 64, "APEX_PYTHON_EGRESS_PROXY_IMAGE_DIGEST": "sha256:" + "b" * 64, "POD_NAMESPACE": "apex-system"})
         self.env_patch.start()
         self.addCleanup(self.env_patch.stop)
         self.key_patch.start()
@@ -205,6 +205,18 @@ class IsolationProofTests(unittest.TestCase):
         missing.pop("verifiedPodCIDRs")
         self.proof_path.write_text(json.dumps(isolation_envelope(self.private_key, missing)), encoding="utf-8")
         self.assertIsNone(app.load_isolation_proof())
+
+    def test_proof_for_a_different_namespace_or_executor_is_rejected(self) -> None:
+        for modified in (
+            {**self.payload, "namespace": "other-system"},
+            {**self.payload, "executorId": "k8s/apex-system/another-worker"},
+        ):
+            self.proof_path.write_text(json.dumps(isolation_envelope(self.private_key, modified)), encoding="utf-8")
+            self.assertIsNone(app.load_isolation_proof())
+
+    def test_missing_runtime_namespace_fails_closed(self) -> None:
+        with patch.dict(os.environ, {"POD_NAMESPACE": ""}):
+            self.assertIsNone(app.load_isolation_proof())
 
     def test_tampered_or_expired_proof_is_rejected(self) -> None:
         envelope = isolation_envelope(self.private_key, self.payload)
