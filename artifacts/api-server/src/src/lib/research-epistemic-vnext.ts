@@ -19,7 +19,7 @@ function hasExactTokenBoundary(text: string, index: number, value: string): bool
   const before = text[index - 1] ?? "";
   const afterIndex = index + value.length;
   const after = text[afterIndex] ?? "";
-  const continuesToken = (character: string) => Boolean(character) && /[\p{L}\p{N}_@+-]/u.test(character);
+  const continuesToken = (character: string) => Boolean(character) && /[\p{L}\p{M}\p{N}_@+-]/u.test(character);
   if (continuesToken(before) || continuesToken(after)) return false;
   // Dots are valid punctuation after a complete value, but not when they extend
   // an email/domain/name token (for example jane@example.com.extra or Jane.Doe).
