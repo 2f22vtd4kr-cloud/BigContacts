@@ -63,31 +63,49 @@ describe("Groq Investigator runtime contract", () => {
     expect(identity).not.toContain(sharedCredential);
     expect(identity).toMatch(/^groq-credential:[a-f0-9]{16}$/);
   });
-  it("enforces concrete, non-duplicate discovery search quality before provider calls", async () => {
+  it("keeps discovery query semantics model-led while rejecting structurally unsafe publisher searches", async () => {
     const { validateDiscoverySearchQuery } = await import("../lib/agentic-web-research-core");
-    expect(validateDiscoverySearchQuery("billionaires richest people Forbes", [])).toMatchObject({ allowed: false });
-    const untargetableIdentity = validateDiscoverySearchQuery("Elon Musk", []);
-    expect(untargetableIdentity.allowed).toBe(false);
-    expect(untargetableIdentity.allowed ? "" : untargetableIdentity.reason).toMatch(/globally prominent person/i);
-    expect(validateDiscoverySearchQuery("Coca-Cola Slovenia independent bottler owner contact", []).allowed).toBe(true);
-    expect(validateDiscoverySearchQuery("Slovenia casino", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Brazil mining", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("famous casino owners", [])).toMatchObject({ allowed: false });
-    expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: true, warning: expect.stringContaining("attempted before") });
-    expect(validateDiscoverySearchQuery("Slovenia casino owners", ["Slovenia casino"])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Example Corp founder", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("family office sustainability startup founder site:cnbc.com", [])).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("broad press-publisher-only search"),
+
+    // Target quality (fame, wealth, sector, ownership, and intermediary routes)
+    // belongs to the Investigator's evidence-led reasoning and target-stage gate,
+    // not English-only lexical blocking in the query-input boundary.
+    for (const query of [
+      "billionaires richest people Forbes",
+      "Elon Musk",
+      "Coca-Cola Slovenia independent bottler owner contact",
+      "Slovenia casino",
+      "Brazil mining",
+      "famous casino owners",
+      "Slovenia casino owners",
+      "Example Corp founder",
+      "власник казино Порторож акціонери",
+      "مالك كازينو بورتوروز استثمار",
+    ]) {
+      expect(validateDiscoverySearchQuery(query, []), query).toEqual({ allowed: true });
+    }
+
+    const deliberateRepeat = validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"]);
+    expect(deliberateRepeat).toMatchObject({
+      allowed: true,
+      warning: expect.stringMatching(/attempted before.*repeat remains a valid research choice/i),
     });
-    expect(validateDiscoverySearchQuery("family office sustainability startup founder site:markets.businessinsider.com", [])).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("broad press-publisher-only search"),
-    });
+
+    for (const query of [
+      "family office sustainability startup founder site:cnbc.com",
+      "family office sustainability startup founder site:markets.businessinsider.com",
+    ]) {
+      expect(validateDiscoverySearchQuery(query, []), query).toMatchObject({
+        allowed: false,
+        reason: expect.stringContaining("broad press-publisher-only search"),
+      });
+    }
+
     expect(validateDiscoverySearchQuery('site:investing.cnbc.com "SolarEdge" founder acquisition', [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery('site:ft.com "Žiga Debeljak" owner', [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("family offices site:cnbc.com.attacker.example", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery('site:cnbc.com "SolarEdge" founder acquisition', [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("company owners site:.org", [])).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("search [CompanyName] owner", [])).toMatchObject({ allowed: false });
   });
 
   it("allows one corrective parse retry, then stops repeated invalid action contracts", () => {
