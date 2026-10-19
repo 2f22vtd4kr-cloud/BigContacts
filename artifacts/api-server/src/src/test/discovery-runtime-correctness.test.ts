@@ -105,7 +105,16 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("rightHand.decision");
     expect(canonicalSource).toContain("rightHand.reason");
     expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
-    expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective");
+    const openingCallStart = canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery(");
+    const openingCallEnd = canonicalSource.indexOf("let consecutiveInvestigatorProviderUnavailable", openingCallStart);
+    expect(openingCallStart).toBeGreaterThan(-1);
+    expect(openingCallEnd).toBeGreaterThan(openingCallStart);
+    const openingCall = canonicalSource.slice(openingCallStart, openingCallEnd);
+    expect(openingCall).toContain("discovery");
+    expect(openingCall).toContain("openingInvestigatorObjective");
+    expect(openingCall).toContain("openingDiscoveryBudget");
+    expect(openingCall).toContain("openingInvestigatorIterations");
+    expect(openingCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");
     expect(canonicalSource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
     expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
     expect(canonicalSource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
@@ -466,7 +475,12 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling)");
     expect(canonicalSource).toContain("Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations)");
     expect(canonicalSource).toContain("maxIterations: openingInvestigatorIterations");
-    expect(canonicalSource).toContain("runDiscoveryWithQuotaRecovery(discovery, openingInvestigatorObjective, openingDiscoveryBudget, openingInvestigatorIterations)");
+    const openingRecoveryCall = canonicalSource.slice(
+      canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery("),
+      canonicalSource.indexOf("let consecutiveInvestigatorProviderUnavailable"),
+    );
+    expect(openingRecoveryCall).toMatch(/runDiscoveryWithQuotaRecovery\s*\(\s*discovery\s*,\s*openingInvestigatorObjective\s*,\s*openingDiscoveryBudget\s*,\s*openingInvestigatorIterations/s);
+    expect(openingRecoveryCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");
     expect(canonicalSource).toContain("let discoveryIterationsUsed = discovery.iterations");
     expect(canonicalSource).toContain("const remainingInvestigatorIterations = resolveRemainingDiscoveryIterations({");
     expect(canonicalSource).toContain("hasAdmittedCandidates: admittedCandidateSources.length > 0");
@@ -482,6 +496,65 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("No candidate has been admitted, so the unused target-stage reserve is released for additional discovery");
     expect(canonicalSource).toContain("Discovery reached the global ${depth.agenticMaxIterations}-action ceiling without an admitted candidate; target research remains unauthorized without a qualifying lead.");
   });
+  it("exposes global mission budget separately from local episode exhaustion and preserves actionable leads", () => {
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    const controlSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
+    expect(canonicalSource).toContain("missionActionBudget: buildMissionActionBudget({");
+    expect(canonicalSource).toContain("actionsUsed: investigatorIterationsUsed");
+    expect(canonicalSource).toContain("maximumActions: depth.agenticMaxIterations");
+    expect(canonicalSource).toContain("maximumActionsPerEpisode: discoveryIterationsPerAct");
+    expect(canonicalSource).toContain("episodeStopReason: discovery.stopReason ?? null");
+    const depthSource = fs.readFileSync(path.join(libDir, "research-depth.ts"), "utf8");
+    expect(depthSource).toContain('episodeLimitReached: episodeStopReason === "ITERATION_BUDGET"');
+    expect(depthSource).toContain("missionLimitReached: actionsUsed >= maximumActions");
+    expect(controlSource).toContain("missionActionBudget: parsed.missionActionBudget");
+    expect(controlSource).toContain("parsed.openQuestions.slice(-12)");
+    expect(controlSource).toContain("question.unfetchedLeadUrls.filter");
+    expect(controlSource).toContain(".slice(0, 6).map((url) => url.slice(0, 220))");
+  });
+
+  it("keeps search-result URLs as unresolved leads instead of fetched observations", async () => {
+    const { assignSearchResultLeads } = await import("../lib/agentic-web-research-core");
+    const record: { leadUrls?: string[]; observedUrls: string[] } = {
+      leadUrls: [],
+      observedUrls: [],
+    };
+
+    assignSearchResultLeads(record, [
+      "https://registry.example.test/search?id=42",
+      "https://registry.example.test/search?id=42",
+      "https://company.example.test/about",
+      "javascript:alert(1)",
+      "not a URL",
+    ]);
+
+    expect(record.leadUrls).toEqual([
+      "https://registry.example.test/search?id=42",
+      "https://company.example.test/about",
+    ]);
+    expect(record.observedUrls).toEqual([]);
+    expect(researchCoreSource).toContain("assignSearchResultLeads(record, successful.flatMap((result) => result.urls))");
+    expect(researchCoreSource).toContain('assignSearchResultLeads(record, record.execution === "success" ? result.urls : [])');
+  });
+
+  it("warns control models against repeating a failed source class by changing jurisdiction only", async () => {
+    const {
+      atlasSourceRouteRecoveryLaw,
+      buildAtlasRightHandControlPrompt,
+      buildAtlasBossControlPrompt,
+    } = await import("../lib/atlas-control-decision");
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport: "No candidates yet.", compactState: "Source route A returned HTTP 403; source route B was a generic landing page." });
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: "No candidates yet.",
+      compactState: "Several state registry routes were inaccessible; no entity-level ownership evidence was observed.",
+      rightHand: { status: "completed", decision: "pivot", reason: "Same source class repeatedly failed.", direction: "Evaluate a materially different public-source family.", confidence: 0.8, model: "test", error: null },
+    });
+    expect(atlasSourceRouteRecoveryLaw()).toContain("Do not pivot only from one jurisdiction to another");
+    expect(rightHandPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
+    expect(bossPrompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
+    expect(rightHandPrompt).toContain("Never evade access controls");
+  });
+
   it("preserves cumulative discovery accounting across Boss-directed episodes", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const episodeMerge = canonicalSource.indexOf("discovery = mergeDiscoveryResults(discovery, nextDiscovery)");

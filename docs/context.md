@@ -1,8 +1,11 @@
 # Apex Atlas / BigContacts — Living Context
 
-> **Updated:** 2026-10-16  
+> **Updated:** 2026-10-19  
 > **Canonical branch:** `main`  
 > **Status:** model-led ReAct control loop demonstrated in live execution; end-to-end research/card creation is not yet live-accepted.
+
+
+> **Current run-preparation override — 2026-10-19:** the code may be considered ready for an operator-controlled canonical run only after the current fixes are confirmed on the runtime's exact GitHub `main` SHA and all required workflows pass on that SHA. Apex itself remains not live-accepted until a job-bound run produces justified source-backed admission and durable card state. Raw prompt capture, contact-value capture, and visible tracked-file opt-in are disabled by default. If a detailed trace is needed for a single authorized development run, explicitly enable capture and use a unique ignored destination such as `.local/audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-19_CANONICAL_RUN_01.md`; keep `APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE=false`, keep test capture disabled, and enable contact-value retention only when necessary and authorized. The logger guard permits `.local/audits/`; never write raw model prompts or contact data to a tracked audit path. Keep a separate sanitized chronological audit in the tracked report. The newest saved actual launch is recorded in `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_FRESH_PROJECT_RUN_03.md` as job `718ed715-aa6d-43c9-916f-463371485ad8`; its visible discovery trace has zero findings/admissions, but terminal job state, final durable counts, and post-run active-lock status are not recorded. The operator must reconcile that job and confirm the Atlas lock is idle before starting a new canonical run. This review does not access or operate Replit.
 
 > **Run 04:** [full append-only audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md). The first workflow restart timed out before boot, but a later restart succeeded and the dashboard launch ran. Run 04 terminal state: failed/incomplete at 20 Investigator iterations, zero findings/admissions/cards.
 > **Run 05:** [separate reconstructed audit](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md). Job `4b85fc7c-a239-478c-a455-94baf02ffdee`; 30 Investigator turns in the available trace, no candidate/card evidenced, terminal state and final database counts unverified after Replit credits ran out.

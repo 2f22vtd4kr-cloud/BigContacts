@@ -72,7 +72,7 @@ type AuditWriter = (path: string, contents: string) => unknown;
 
 /**
  * Resolve relative audit destinations from the workspace root, not the API
- * package's process.cwd(). Replit sets APEX_MODEL_AUDIT_FILE to "audits/…",
+ * package's process.cwd(). Replit may set APEX_MODEL_AUDIT_FILE to a relative private path such as ".local/audits/…",
  * while its API process may run with artifacts/api-server as its working
  * directory. Anchoring to the workspace root avoids relying on a temporary
  * symlink inside that package.
@@ -115,14 +115,13 @@ function resolveSafeModelAuditFilePath(
   const isInsideWorkspace = relativePath !== "" && !isOutsideWorkspace;
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
   // Model-visible prompts/pages can contain personal data and exact source trails.
-  // Visible captures require a per-run development opt-in and must stay in audits/.
+  // Private captures may use the ignored private-audits/ or .local/audits/ trees.
+  // Visible captures require a separate per-run development opt-in and must stay in audits/.
+  const isAllowedPrivateAudit = normalizedRelativePath.startsWith("private-audits/")
+    || normalizedRelativePath.startsWith(".local/audits/");
   const isAllowedVisibleAudit = allowVisibleWorkspaceFile
     && normalizedRelativePath.startsWith("audits/");
-  if (
-    isInsideWorkspace
-    && !normalizedRelativePath.startsWith("private-audits/")
-    && !isAllowedVisibleAudit
-  ) return null;
+  if (isInsideWorkspace && !isAllowedPrivateAudit && !isAllowedVisibleAudit) return null;
   return resolved;
 }
 
@@ -388,7 +387,7 @@ export function emitModelPromptAudit(
       env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
     );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused visible model-audit path; enable the development-only opt-in for an audits/ destination or use private-audits/.\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\n");
       return null;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
@@ -529,7 +528,7 @@ export function emitModelPromptAuditResponse(
       env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
     );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused visible model-audit path; enable the development-only opt-in for an audits/ destination or use private-audits/.\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\n");
       return;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });

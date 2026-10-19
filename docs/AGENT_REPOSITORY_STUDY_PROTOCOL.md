@@ -323,6 +323,12 @@ This protocol is intentionally strict.
 Apex is a research system where a plausible answer can be more dangerous than an obvious error. The engineering process must therefore prefer verified truth over speed.
 
 
+## Current empirical-state addendum — 2026-10-19
+
+The 16 October Run 05 details below are historical. The newest saved actual launch currently recorded in the tracked repository is `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_FRESH_PROJECT_RUN_03.md`, job `718ed715-aa6d-43c9-916f-463371485ad8`. Its visible discovery trace has zero findings/admissions and does not contain the final durable terminal status, post-run case/evidence/admission/card counts, or the active-lock reconciliation. Before any subsequent canonical run, the user/operator must inspect this job and the live active-job lock in the actual runtime, read-only, and confirm it is terminal and idle. This ChatGPT code review must not access or run Replit.
+
+GitHub CI must be rechecked at the actual current `main` HEAD after integration; past green checks are revision-specific. Passing CI only makes the code a candidate for operator-controlled live validation. It does not establish productive research or end-to-end acceptance.
+
 ## Empirical-state guard — 2026-10-16
 
 The live control loop is demonstrated, but the bureau is not live-accepted end-to-end. Run 04 executed and stopped at its 20-iteration ceiling with zero findings/admissions/cards. Run 05 executed to at least 30 recorded Investigator turns; its final job state and durable counts have not been reconciled. Read `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-16_LIVE_RUN_05.md` and the complete `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-15_LIVE_RUN_04.md` before drawing conclusions.
