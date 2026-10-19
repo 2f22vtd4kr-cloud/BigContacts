@@ -107,13 +107,17 @@ export function classifyRegistryAdapterFailure(error: unknown): AtlasFailureKind
   const value = safeErrorShape(error);
   const code = value.code.trim().toUpperCase();
   const message = value.message;
+  const raw = error && typeof error === "object" ? error as Record<string, unknown> : {};
+  const cause = raw.cause && typeof raw.cause === "object" ? raw.cause as Record<string, unknown> : {};
+  const errno = raw.errno ?? cause.errno;
+  const hasErrno = typeof errno === "string" || (typeof errno === "number" && Number.isFinite(errno));
   if (code === "REGISTRY_ADAPTER_UNAVAILABLE" || /REGISTRY_ADAPTER_UNAVAILABLE/i.test(message)) return "registry_unavailable";
   if (code === "REGISTRY_AUTH_REQUIRED" || /^(?:HTTP_401|HTTP_403)$/.test(code) || value.status === 401 || value.status === 403
     || /unauthori[sz]ed|forbidden|authentication required|API (?:key|token) is not configured|credentials? required/i.test(message)) return "registry_auth_required";
   if (/timeout|timed out|deadline exceeded/i.test(message) || /^(?:ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT)$/.test(code)) return "registry_timeout";
-  if (value.status !== null || /\bHTTP\s+[45]\d{2}\b/i.test(message)) return "registry_http_error";
+  if (value.status !== null || /^HTTP_[45]\\d{2}$/.test(code) || /\\bHTTP\\s+[45]\\d{2}\\b/i.test(message)) return "registry_http_error";
   if (/malformed response|invalid JSON|invalid json|missing success, rows, or columns|expected company columns|expected object-shaped rows|row has no valid company name/i.test(message)) return "registry_malformed_response";
-  if (/^(?:EAI_AGAIN|ENOTFOUND|ECONNRESET|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|EHOSTDOWN|EPIPE|ECONNABORTED|EPROTO|UND_ERR_[A-Z_]+|ERR_SOCKET_[A-Z_]+)$/.test(code)
+  if (hasErrno || /^(?:EAI_AGAIN|ENOTFOUND|ECONNRESET|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|EHOSTDOWN|EPIPE|ECONNABORTED|EPROTO|UND_ERR_[A-Z_]+|ERR_SOCKET_[A-Z_]+)$/.test(code)
     || (value.name === "TypeError" && /fetch failed|network error/i.test(message))) return "registry_transport_error";
   return "registry_request_failure";
 }
