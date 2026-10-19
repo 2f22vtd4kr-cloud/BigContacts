@@ -742,26 +742,35 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             emails = data.get("emails", [])
             hosts = data["hosts"]
             ips = data.get("ips", [])
-            if not isinstance(emails, list) or not isinstance(ips, list):
-                return "failed", None, "theHarvester report contained invalid email or IP arrays.", "theharvester"
-            if any(not isinstance(item, str) for values in (emails, hosts, ips) for item in values):
+            vhosts = data.get("vhosts", [])
+            if not isinstance(emails, list) or not isinstance(ips, list) or not isinstance(vhosts, list):
+                return "failed", None, "theHarvester report contained invalid email, IP, or virtual-host arrays.", "theharvester"
+            if any(not isinstance(item, str) for values in (emails, hosts, ips, vhosts) for item in values):
                 return "failed", None, "theHarvester report contained non-string observations.", "theharvester"
-            has_observations = bool(emails or hosts or ips)
+            combined_hosts = list(dict.fromkeys([*hosts, *vhosts]))
+            has_observations = bool(emails or combined_hosts or ips)
             payload = {
                 "emails": emails[:100],
-                "subdomains": hosts[:200],
-                "hosts": hosts[:200],
+                "subdomains": combined_hosts[:200],
+                "hosts": combined_hosts[:200],
                 "ips": ips[:200],
-                "totalFound": len(emails) + len(hosts) + len(ips),
+                "totalFound": len(emails) + len(combined_hosts) + len(ips),
             }
             if code != 0 and not has_observations:
                 return "failed", None, "theHarvester exited unsuccessfully without structured result output.", "theharvester"
+            source_error = re.search(
+                r"Failed to process .+ search for word:|Unexpected error occurred in .+ module:",
+                (stdout + b"\\n" + stderr).decode("utf-8", errors="replace"),
+                re.IGNORECASE,
+            ) is not None
             if not has_observations:
                 # The pinned JSON format records leads, not per-source query
                 # outcomes. A zero-hit report alone cannot prove the passive
                 # engines completed successfully instead of swallowing errors.
                 return "partial", payload, "theHarvester produced an empty report without source-completion evidence; no negative finding is established.", "theharvester"
-            return ("completed" if code == 0 else "partial"), payload, None if code == 0 else "theHarvester ended with a non-zero code after producing bounded results.", "theharvester"
+            if code != 0 or source_error:
+                return "partial", payload, "theHarvester produced bounded results but reported an execution/source error.", TOOL_VERSIONS["theharvester"]
+            return "completed", payload, None, TOOL_VERSIONS["theharvester"]
     return "unavailable", None, "No CLI executor was registered for the requested tool.", None
 
 
