@@ -206,3 +206,10 @@ This tracked report records observable setup, request/status metadata, decisions
 - A read-only reconciliation request was issued to the connected Replit app for job `0bc6087d-4070-4420-a645-ca2606549052`, case 2, durable evidence/admission/card state, active Atlas pointer and deployed SHA. The connected tool returned no runtime response.
 - Therefore Attempt 2 remains **unreconciled** beyond P018. Its terminal status, final durable state, active lock and deployed revision remain unknown in this follow-up; no new job was launched. The operator must restore access to the actual running workspace/API/database and verify those fields before any next launch.
 - The two follow-up PRs and their queued CI are repository work only; they do not validate the Replit deployment or change the status of either prior run.
+
+## P025 — Registry diagnostic typecheck failure and correction
+
+- While validating PR #717, the Research Quality Contracts workflow reached its TypeScript step and failed in the currently merged base source at `agentic-web-research-core.ts`: a transport diagnostic value was inferred as `string | number` and passed directly to `RegExp.test(string)`.
+- This is not a registry endpoint response and does not establish anything about runtime availability. It is a real code-quality defect in the transport-failure formatter, which is directly exercised by the registry failure diagnostics.
+- PR #717 now normalizes a known string-or-number transport code to a string before allowlist validation and adds a regression using numeric `errno`. The original failed workflow run is retained; a fresh run on the new head is required to verify the fix.
+- PR #716 adds separate PDF changes and has its own exact-head workflow set. Neither PR is merged; runtime access remains unavailable, and the Attempt 2 status/active lock are still unknown.
