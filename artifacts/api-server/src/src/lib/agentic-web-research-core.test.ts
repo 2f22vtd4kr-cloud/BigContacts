@@ -10,6 +10,7 @@ import { classifyThrownProviderError } from "./provider-error-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 
 describe("thrown provider error classification", () => {
   it("does not misclassify local prompt-budget failures as network failures", () => {
@@ -56,7 +57,6 @@ describe("registry adapter circuit breaker", () => {
     });
     const httpFailure = new Error("Offeneregister Germany HTTP 502");
     const dnsFailure = Object.assign(new Error("fetch failed"), { code: "ENOTFOUND" });
-    const numericErrnoFailure = Object.assign(new Error("fetch failed"), { errno: -111 });
 
     expect(summarizeRegistryAdapterFailure("kvk-netherlands", unavailable)).toMatch(
       /REGISTRY_ADAPTER_UNAVAILABLE.*kvk-netherlands.*not a no-hit/i,
@@ -67,6 +67,7 @@ describe("registry adapter circuit breaker", () => {
     expect(summarizeRegistryAdapterFailure("offeneregister-germany", dnsFailure)).toMatch(
       /REGISTRY_ADAPTER_TRANSPORT_ERROR.*ENOTFOUND.*not a no-hit/i,
     );
+    const numericErrnoFailure = Object.assign(new Error("fetch failed"), { errno: -111 });
     expect(summarizeRegistryAdapterFailure("offeneregister-germany", numericErrnoFailure)).toMatch(
       /REGISTRY_ADAPTER_TRANSPORT_ERROR.*-111.*not a no-hit/i,
     );
@@ -225,6 +226,15 @@ describe("page visit response classification", () => {
     expect(pageReaderLimit.observation).toContain("page content was not observed and must not be cited");
   });
 
+  it("persists exact source-span offsets and PDF page numbers in durable observation events", () => {
+    expect(agenticCoreSource).toContain("const sourceBindings = boundFindings.map");
+    expect(agenticCoreSource).toContain("record.sourceBindings = sourceBindings");
+    expect(agenticCoreSource).toContain("pageNumber: span.pageNumber ?? null");
+    expect(agenticCoreSource).toContain("sourceTurn: sourceRecord.turn");
+    expect(bureauAgenticPassSource).toContain("sourceBindings:record.sourceBindings??[]");
+    expect(bureauAgenticPassSource).toContain("sourceBindings:claimSourceBindings");
+  });
+
   it("routes PDF visits through bounded text extraction while retaining browser-fetch PDF preflight", () => {
     const visitStart = agenticCoreSource.indexOf('if (action.action === "visit") {');
     const browserStart = agenticCoreSource.indexOf('if (action.action === "browser_fetch") {', visitStart);
@@ -233,6 +243,7 @@ describe("page visit response classification", () => {
     const visitDispatch = agenticCoreSource.slice(visitStart, browserStart);
     const browserDispatch = agenticCoreSource.slice(browserStart, registryStart);
     expect(visitStart).toBeGreaterThan(-1);
+    expect(browserStart).toBeGreaterThan(visitStart);
     expect(domainLookupStart).toBeGreaterThan(visitStart);
     expect(browserStart).toBeGreaterThan(visitStart);
     expect(registryStart).toBeGreaterThan(browserStart);
@@ -240,6 +251,8 @@ describe("page visit response classification", () => {
     expect(visitDispatch.indexOf("toolVisit(canonical")).toBeGreaterThan(-1);
     expect(agenticCoreSource).toContain("extractPdfText(responseBytes");
     expect(agenticCoreSource).toContain("PDF_TEXT_MAX_BYTES");
+    expect(agenticCoreSource).toContain("documentType=pdf retrievedAt=");
+    expect(agenticCoreSource).toContain("OCR REQUIRED FOR IMAGE-ONLY PAGES");
     expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
     expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(browserDispatch.indexOf('import("./browser-fetch")'));
     expect(browserDispatch).toContain("no browser provider request was made");
@@ -428,7 +441,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/web_search\/parallel_web_search\s*=\s*serper\s*\|\s*tavily\s*\|\s*exa/);
     expect(prompt).toContain("browser_fetch");
     expect(prompt).toContain("domain_lookup");
-    expect(prompt).toMatch(/(?:PAGE FORMAT \/ RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries|PAGE LIMIT: visits do not extract PDF binaries)/);
+    expect(prompt).toContain("visit supports bounded text extraction for text-bearing PDF documents");
+    expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text");
     expect(prompt).toMatch(/search snippets (?:remain leads, not evidence|are leads, not evidence)/i);
     expect(prompt).toMatch(/BOSS ADVISORY DIRECTION \(not a fixed action sequence\):|ACTIVE BOSS SCOPE:/);
     expect(prompt).toContain("MISSION PRIORITY:");
@@ -2112,10 +2126,10 @@ Choose each next action yourself from the available capabilities and observed ev
       turn: 4,
       model: "test-model",
       action: "visit",
-      args: { url: "https://example.org/team" },
+      args: { url: "https://example.gov/report.pdf" },
       execution: "success",
-      observation: "Jane Doe is Head of Operations. Public email: jane.doe@example.org.",
-      observedUrls: ["https://example.org/team"],
+      observation: "PDF PAGE https://example.gov/report.pdf\nExtracted text:\n[Page 12] Jane Doe is Head of Operations. Public email: jane.doe@example.org.",
+      observedUrls: ["https://example.gov/report.pdf"],
       findings: [],
       providerFallback: [],
     } as const;
@@ -2125,13 +2139,15 @@ Choose each next action yourself from the available capabilities and observed ev
       personName: "Jane Doe",
       role: "Head of Operations",
       scope: "candidate" as const,
-      sourceUrls: ["https://example.org/team"],
+      sourceUrls: ["https://example.gov/report.pdf"],
       note: "Public business contact",
     };
     const bound = bindModelFindingsToObservedSources([finding], [priorVisit as unknown as Parameters<typeof bindModelFindingsToObservedSources>[1][number]]);
     expect(bound).toHaveLength(1);
     expect(bound[0]?.sourceRecord.turn).toBe(4);
-    expect(bound[0]?.finding.sourceUrls).toEqual(["https://example.org/team"]);
+    expect(bound[0]?.finding.sourceUrls).toEqual(["https://example.gov/report.pdf"]);
+    expect(bound[0]?.span.pageNumber).toBe(12);
+    expect(bound[0]?.span.text).toContain("jane.doe@example.org");
   });
 
   it("never treats a search-result listing as a claim-grade prior page observation", () => {
@@ -2275,5 +2291,25 @@ describe("Groq Investigator structured-output recovery", () => {
         completionBudgetRetryUsed: false, currentMaxCompletionTokens: 1024,
       })).toEqual({ action: "fail" });
     }
+  });
+});
+
+describe("PDF prompt capability contract", () => {
+  it("directs text-bearing PDFs to visit and keeps browser_fetch HTML-only", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Investigate a source-backed company and identify attributable decision-makers.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+
+    expect(prompt).toContain("visit supports bounded text extraction for text-bearing PDF documents");
+    expect(prompt).toContain("Scanned/image-only PDFs with no text are marked OCR-required; OCR is not available");
+    expect(prompt).toContain("encrypted/password-protected and malformed PDFs are distinct structured extraction failures");
+    expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead");
+    expect(prompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
 });
