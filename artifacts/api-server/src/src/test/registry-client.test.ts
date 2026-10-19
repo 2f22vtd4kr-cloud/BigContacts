@@ -1,7 +1,7 @@
 describe("OffeneRegister SQL API request contract", () => {
   it("uses the documented JSON SQL endpoint, singular company table and bound query parameter", () => {
     const url = new URL(buildOffeneregisterSearchUrl("GmbH' OR 1=1 --", 999));
-    expect(url.origin + url.pathname).toBe("https://db.offeneregister.de/openregister.json");
+    expect(url.origin + url.pathname).toBe("https://db.offeneregister.de/openregister-ef9e802.json");
     expect(url.searchParams.get("sql")).toContain("FROM company");
     expect(url.searchParams.get("sql")).toContain("company.name LIKE :p0");
     expect(url.searchParams.get("sql")).not.toContain("GmbH");
@@ -234,7 +234,6 @@ describe("Phase J2 registry normalization", () => {
       "bodacc-france",
       "atoka-italy",
       "borme-spain",
-      "kvk-netherlands",
       "kbo-belgium",
     ]));
     expect(randomSources).not.toContain("faa");
@@ -277,6 +276,16 @@ describe("registry capability availability", () => {
     expect(sweden?.runtimeAdapterImplemented).toBe(false);
     expect(sweden?.accessMethod).toMatch(/unavailable|no supported direct-search/i);
     expect(sweden?.freshness).toBe("Unavailable");
+  });
+
+  it("does not advertise the unverified Dutch OpenKvK mirror and labels coverage honestly", () => {
+    expect(getAvailableRegistryIds()).not.toContain("kvk-netherlands");
+    expect(getRandomDiscoveryRegistries()).not.toContain("kvk-netherlands");
+    expect(isRegistryProviderAvailable("kvk-netherlands")).toBe(false);
+    const dutch = REGISTRY_COVERAGE_MATRIX.find((source) => source.id === "kvk-netherlands");
+    expect(dutch?.runtimeAdapterImplemented).toBe(false);
+    expect(dutch?.accessMethod).toMatch(/unavailable|official KVK API/i);
+    expect(dutch?.freshness).toBe("Unavailable");
   });
 
   it("advertises OpenCorporates only when a token is configured", () => {
