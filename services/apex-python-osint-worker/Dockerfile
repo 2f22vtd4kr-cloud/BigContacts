@@ -9,7 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates git build-essential util-linux libffi-dev libssl-dev libxml2-dev libxslt1-dev \
       libpcap-dev libmagic1 libjpeg62-turbo-dev zlib1g-dev \
     && rm -rf /var/lib/apt/lists/* \
-    && uv python install 3.10 3.12 3.14 \
+    && uv python install 3.10 3.12 3.13 \
     && mkdir -p /opt/tools /opt/venvs /app /tmp/apex-spiderfoot-home \
     && chmod 0777 /tmp/apex-spiderfoot-home
 
@@ -32,7 +32,7 @@ RUN uv venv --python 3.12 /opt/venvs/maigret \
 
 # theHarvester 4.11.1 is installed separately on Python 3.14.
 RUN git clone --depth 1 --branch 4.11.1 https://github.com/laramies/theHarvester.git /opt/tools/theharvester \
-    && uv venv --python 3.14 /opt/venvs/theharvester \
+    && uv venv --python 3.13 /opt/venvs/theharvester \
     && uv pip install --python /opt/venvs/theharvester/bin/python /opt/tools/theharvester
 
 COPY services/apex-python-osint-worker/requirements.txt /app/requirements.txt
