@@ -34,6 +34,7 @@ assert(!/orderedProviders\s*=/.test(source), "Investigator has no alternate-prov
 assert(/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(source) && /callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm(?:,|\))/.test(source), "selected Investigator capability remains a direct provider boundary argument");
 assert(/investigatorLlm\?: InvestigatorCapability/.test(source), "selected Investigator capability is explicit in ReAct input");
 assert(/executePythonOsintTool/.test(python) && /refreshPythonOsintToolAvailability/.test(python), "Python capability adapters route through the canonical worker client");
+assert(/worker_availability_refresh/.test(source) && /await refreshPythonOsintToolAvailability\(runController\.signal\)/.test(source), "Investigator refreshes worker availability before every model action");
 assert(/function getWorkerConfig\(\)/.test(workerClient) && /validateAttestation/.test(workerClient) && /availableTools/.test(workerClient), "canonical Python worker requires an attested available-tool contract");
 assert(/APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST/.test(workerClient) && /APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST/.test(workerClient), "canonical Python worker independently pins immutable worker and proxy identities");
 assert(/capability: "network_osint"/.test(workerClient) && /destinationPolicy: "approved-public-web-only"/.test(workerClient), "Python OSINT egress policy is constrained");

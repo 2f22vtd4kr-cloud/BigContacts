@@ -267,7 +267,12 @@ async function fetchAttestation(signal?: AbortSignal, forceRefresh = false): Pro
 }
 
 export function getAvailablePythonOsintTools(): PythonOsintTool[] {
-  if (cachedAttestation && Date.parse(cachedAttestation.value.expiresAt) > Date.now()) return [...cachedAvailableTools];
+  const now = Date.now();
+  if (
+    cachedAttestation
+    && now - cachedAttestation.verifiedAt < ATTESTATION_CACHE_MS
+    && Date.parse(cachedAttestation.value.expiresAt) > now
+  ) return [...cachedAvailableTools];
   return [];
 }
 

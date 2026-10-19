@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   executePythonOsintTool,
   getAvailablePythonOsintActions,
+  getAvailablePythonOsintTools,
   refreshPythonOsintToolAvailability,
   resetPythonOsintWorkerCacheForTests,
 } from "./python-osint-worker-client";
@@ -76,6 +77,24 @@ describe("signed Python OSINT worker client", () => {
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://worker.example.test/v1/attestation");
+  });
+
+  it("stops advertising cached tools after the freshness window until a new attestation is verified", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubEnv("APEX_PYTHON_SANDBOX_URL", "https://worker.example.test");
+      vi.stubEnv("APEX_PYTHON_SANDBOX_TOKEN", TOKEN);
+      vi.stubEnv("APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST", "sha256:" + "a".repeat(64));
+      vi.stubEnv("APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST", "sha256:" + "b".repeat(64));
+      vi.stubGlobal("fetch", vi.fn(async () => response(validAttestation())));
+      await refreshPythonOsintToolAvailability();
+      expect(getAvailablePythonOsintTools()).toEqual(["maigret", "sherlock"]);
+      await vi.advanceTimersByTimeAsync(15_001);
+      expect(getAvailablePythonOsintTools()).toEqual([]);
+      expect(getAvailablePythonOsintActions()).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not expose any tool when the signed attestation is invalid", async () => {
