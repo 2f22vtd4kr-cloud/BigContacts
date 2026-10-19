@@ -1,7 +1,7 @@
 # ⭐ Apex Atlas Sequential Audit — Fresh Replit Import Run 01
 
 **Date:** 2026-10-19  
-**Status:** ATTEMPT 1 FAILED; ATTEMPT 2 RUNNING — no success claim until durable terminal/card reconciliation  
+**Status:** ATTEMPT 1 FAILED; ATTEMPT 2 OBSERVATION INTERRUPTED — Apex job terminal state and card outcome unverified  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Reviewed upstream application revision:** `main` at `88ca5dee30e7976ef28e2afb20bec30b5f0bd8d6`  
 **Current local revision:** `main` at `9d3862051a0e621979bc843c0b3e0fe472b586c7` (differs from upstream only by this audit file)
@@ -154,3 +154,13 @@ This tracked report records observable setup, request/status metadata, decisions
 - New sequence: Investigator turn 5 returned `model_action/invalid_contract` (`parse_failure`); turn 6 `web_search` succeeded; Groq Boss issued a discovery pivot; the turn-8 `web_search` and `registry_search` were both blocked as `model_action/out_of_scope_action`.
 - Cumulative tool observations now total four successes, two blocked actions, and two tool/model-action errors. No provider quota/rate-limit signal or capability fallback is present; the Investigator remains `groq-investigator-1`.
 - No evidence-backed candidate, admission, entity, or card is established at this checkpoint. The runtime has recovered from the parse failure and continued, so allow model-owned control and discovery to proceed within the existing action ceiling.
+
+
+## P019 — Audit interruption and unresolved backend state
+
+- The operator reports that the Replit agent exhausted its credits after P018. The audit observer therefore could not capture subsequent job progress or perform final reconciliation.
+- This interruption describes the audit agent's resource limit, not a confirmed termination, cancellation, timeout, or success of Apex job `0bc6087d-4070-4420-a645-ca2606549052`.
+- The last captured checkpoint remains P018: discovery phase 1/4, Investigator iteration 8, 13 durable case-ledger events, four successful tool observations, two blocked actions, two tool/model-action errors, and no established candidate admission or card.
+- Final job status, case status, latest terminal/control events, durable candidate and evidence rows, card/UI projection, and post-run active-job pointer/lock are **not observed** in this audit. Do not infer their values.
+- Required operator-side recovery before any new launch: read-only query the named job, case 2, final evidence/admission/card state, and active Atlas pointer/lock in the actual runtime; record the observed terminal status and timestamp. If the job is still running, let it finish or use the documented cancellation path; do not start a concurrent launch. If state cannot be reconciled, treat runtime readiness as blocked.
+- This sanitized tracked report intentionally excludes raw prompts, model reasoning, source-page text, exact search strings, and personal contact values.
