@@ -26,6 +26,9 @@ assert(core.includes("limit: 8, signal: runController.signal"), "canonical ReAct
 assert(!/async function searchKvkNetherlands/.test(registry), "stale Dutch OpenKvK adapter must remain disabled until a supported endpoint is verified");
 assert(registry.includes('normalized === "bolagsverket-sweden" || normalized === "kvk-netherlands"'), "unsupported Swedish and Dutch registry adapters must not be advertised");
 assert(registry.includes("REGISTRY_ADAPTER_UNAVAILABLE: kvk-netherlands"), "disabled Dutch registry must fail explicitly rather than masquerade as a no-hit");
+assert(core.includes("function summarizeRegistryAdapterFailure"), "registry failures must have a structured safe summary for the Investigator");
+assert(core.includes("summarizeRegistryAdapterFailure(action.registry, error)"), "single registry failures must preserve actionable safe diagnostics");
+assert(core.includes("summarizeRegistryAdapterFailure(search.registry, error)"), "parallel registry failures must preserve actionable safe diagnostics");
 if (failures.length) {
   console.error("AGENTIC REGISTRY SIGNAL: FAIL");
   for (const failure of failures) console.error(`- ${failure}`);
