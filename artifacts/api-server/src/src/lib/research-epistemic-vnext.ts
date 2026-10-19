@@ -51,7 +51,7 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
   // PDF observations include explicit page markers. Store the marker separately
   // from the excerpt because sentence-bounded excerpts may start mid-page and
   // omit the marker even though the full observation retains it in the ledger.
-  const pageMarkers = [...text.slice(0, valueIndex).matchAll(/\\[Page\\s+(\\d+)\\]/gi)];
+  const pageMarkers = [...text.slice(0, valueIndex).matchAll(/\[Page\s+(\d+)\]/gi)];
   const parsedPageNumber = Number(pageMarkers.at(-1)?.[1]);
   const pageNumber = Number.isSafeInteger(parsedPageNumber) && parsedPageNumber > 0 ? parsedPageNumber : undefined;
 
