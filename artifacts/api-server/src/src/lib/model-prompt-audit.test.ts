@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
 
@@ -39,6 +40,22 @@ const input = {
 };
 
 describe("model prompt audit", () => {
+  it("keeps capture opt-in in the active Replit development service config", () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const artifactConfig = readFileSync(
+      resolve(workspaceRoot, "artifacts/api-server/.replit-artifact/artifact.toml"),
+      "utf8",
+    );
+    const serviceRun = artifactConfig.match(/^\\[services\\.development\\]\\s*\\nrun\\s*=\\s*"([^"]+)"/m)?.[1];
+
+    expect(serviceRun).toBe("cd ../.. && bash scripts/replit-boot.sh");
+    expect(artifactConfig).toContain('APEX_CAPTURE_MODEL_PROMPTS = "false"');
+    expect(artifactConfig).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
+    expect(artifactConfig).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
+    expect(serviceRun).not.toContain("APEX_CAPTURE_MODEL_PROMPTS=true");
+    expect(serviceRun).not.toContain("MAIN_REFRESH_RELAUNCH_01");
+  });
+
   it("does not capture test-runner telemetry from a development environment without the separate test opt-in", () => {
     const writes: Array<{ path: string; contents: string }> = [];
     const testRunnerEnvironment = {
