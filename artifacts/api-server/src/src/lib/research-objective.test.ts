@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBossDirectedObjective, resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "./research-objective";
+import { formatBossDirectedObjective, resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateBossDiscoveryPivotContinuity, validateResearchObjective } from "./research-objective";
 
 describe("research objective validation", () => {
   it("accepts an epistemic research question without prescribing a tool or provider", () => {
@@ -104,6 +104,91 @@ describe("research objective validation", () => {
     ]) {
       expect(resolveApprovedOpeningDirection({ rightHandDecision: decision, firstDirection: direction }).status).toBe("not_approved");
     }
+  });
+
+  it("blocks geography and sector jumps when recent actions were blocked or failed", () => {
+    const baseObjective = "Find under-the-radar people with credible wealth potential and a realistic professional contact route.";
+    const currentDirection = "Search French Auvergne-Rhône-Alpes family-owned manufacturing firms via public commercial-register filings.";
+    const currentObjective = formatBossDirectedObjective(baseObjective, currentDirection);
+    const blockedAndFailed = [
+      { action: "visit", execution: "error", observation: "ECONNRESET", observedUrls: [], pivotScopeKey: currentDirection.toLowerCase() },
+      { action: "web_search", execution: "blocked", observation: "pivot_alignment_guard blocked before outbound request", observedUrls: [], pivotScopeKey: currentDirection.toLowerCase() },
+      { action: "browser_fetch", execution: "error", observation: "failureDomain=external_page_fetch failureKind=request_failure", observedUrls: [], pivotScopeKey: currentDirection.toLowerCase() },
+    ];
+    expect(validateBossDiscoveryPivotContinuity({
+      currentObjective,
+      proposedDirection: "Search German private mid-market manufacturing firms via commercial-register filings.",
+      priorTrajectoryRecords: blockedAndFailed,
+    })).toMatchObject({ valid: false });
+    expect(validateBossDiscoveryPivotContinuity({
+      currentObjective,
+      proposedDirection: "Search Latvian renewable-energy companies for registered owners and public contact routes.",
+      priorTrajectoryRecords: blockedAndFailed,
+    })).toMatchObject({ valid: false });
+  });
+
+  it("does not let a successful generic registry homepage authorize an unsupported sector pivot", () => {
+    const baseObjective = "Find under-the-radar people with credible wealth potential.";
+    const currentDirection = "Search French Auvergne-Rhône-Alpes family-owned manufacturing firms via commercial-register filings.";
+    const currentObjective = formatBossDirectedObjective(baseObjective, currentDirection);
+    const genericRegistryHomepage = [{
+      action: "visit",
+      execution: "success",
+      observation: "French commercial registry homepage. Search company records and filings. No renewable energy or Latvian company information is shown.",
+      observedUrls: ["https://example.fr/registre"],
+      pivotScopeKey: currentDirection.toLowerCase(),
+    }];
+    expect(validateBossDiscoveryPivotContinuity({
+      currentObjective,
+      proposedDirection: "Search Latvian renewable-energy companies via official business registers.",
+      priorTrajectoryRecords: genericRegistryHomepage,
+    })).toMatchObject({ valid: false });
+  });
+
+  it("allows a geography and sector change only when current-scope fetched evidence supports both", () => {
+    const baseObjective = "Find under-the-radar people with credible wealth potential.";
+    const currentDirection = "Search German private mid-market manufacturing firms via commercial-register filings.";
+    const currentObjective = formatBossDirectedObjective(baseObjective, currentDirection);
+    const supportedEvidence = [{
+      action: "visit",
+      execution: "success",
+      observation: "Company filing describes a Latvian renewable-energy subsidiary and its registered shareholders.",
+      observedUrls: ["https://example.de/filing"],
+      pivotScopeKey: currentDirection.toLowerCase(),
+    }];
+    expect(validateBossDiscoveryPivotContinuity({
+      currentObjective,
+      proposedDirection: "Investigate Latvian renewable-energy firms and registered owners.",
+      priorTrajectoryRecords: supportedEvidence,
+    })).toEqual({ valid: true });
+  });
+
+  it("does not reuse a source fetched under an earlier objective to authorize a new scope", () => {
+    const baseObjective = "Find under-the-radar people with credible wealth potential.";
+    const currentDirection = "Search German private mid-market manufacturing firms via commercial-register filings.";
+    const currentObjective = formatBossDirectedObjective(baseObjective, currentDirection);
+    const oldScopeEvidence = [{
+      action: "visit",
+      execution: "success",
+      observation: "Latvian renewable-energy company filing with named owners.",
+      observedUrls: ["https://example.lv/company"],
+      pivotScopeKey: "older accepted scope",
+    }];
+    expect(validateBossDiscoveryPivotContinuity({
+      currentObjective,
+      proposedDirection: "Investigate Latvian renewable-energy firms and registered owners.",
+      priorTrajectoryRecords: oldScopeEvidence,
+    })).toMatchObject({ valid: false });
+  });
+
+  it("keeps same-scope source-route recovery model-led instead of requiring a cross-scope proof", () => {
+    const baseObjective = "Find under-the-radar people with credible wealth potential.";
+    const currentDirection = "Search French Auvergne-Rhône-Alpes family-owned manufacturing firms via commercial-register filings.";
+    expect(validateBossDiscoveryPivotContinuity({
+      currentObjective: formatBossDirectedObjective(baseObjective, currentDirection),
+      proposedDirection: "Find named family-owned manufacturers through trade and supplier directories in the same region.",
+      priorTrajectoryRecords: [],
+    })).toEqual({ valid: true });
   });
 
   it("rejects an empty redirect", () => {
