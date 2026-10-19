@@ -230,9 +230,11 @@ async def start_spiderfoot() -> None:
     Path(env["HOME"]).mkdir(mode=0o700, parents=True, exist_ok=True)
     try:
         spiderfoot_process = await asyncio.create_subprocess_exec(
-            str(binary), str(source), "-l", "127.0.0.1:5001", "-q",
+            "/usr/bin/prlimit", "--core=0", "--fsize=536870912",
+            "--nofile=256", "--nproc=128", "--", str(binary), str(source),
+            "-l", "127.0.0.1:5001", "-q",
             stdin=asyncio.subprocess.DEVNULL, stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL, env=env, cwd="/opt/tools/spiderfoot",
+            stderr=asyncio.subprocess.DEVNULL, env=env, cwd=env["HOME"],
             start_new_session=True,
         )
         spiderfoot_http = httpx.AsyncClient(timeout=3.0, trust_env=True, follow_redirects=False)
