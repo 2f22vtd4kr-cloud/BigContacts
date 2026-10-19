@@ -3,26 +3,26 @@ import { extractPdfText, PDF_TEXT_MAX_BYTES } from "./pdf-text-extractor";
 
 function minimalPdf(text: string): Uint8Array {
   const escapedText = text.replace(/[\\()]/g, "\\$&");
-  const stream = `BT\\n/F1 12 Tf\\n72 720 Td\\n(${escapedText}) Tj\\nET`;
+  const stream = `BT\n/F1 12 Tf\n72 720 Td\n(${escapedText}) Tj\nET`;
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
     "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    `<< /Length ${Buffer.byteLength(stream, "latin1")} >>\\nstream\\n${stream}\\nendstream`,
+    `<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream`,
   ];
-  let pdf = "%PDF-1.4\\n";
+  let pdf = "%PDF-1.4\n";
   const offsets = [0];
   for (let index = 0; index < objects.length; index += 1) {
     offsets.push(Buffer.byteLength(pdf, "latin1"));
-    pdf += `${index + 1} 0 obj\\n${objects[index]}\\nendobj\\n`;
+    pdf += `${index + 1} 0 obj\n${objects[index]}\nendobj\n`;
   }
   const xrefOffset = Buffer.byteLength(pdf, "latin1");
-  pdf += `xref\\n0 ${objects.length + 1}\\n0000000000 65535 f \\n`;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
   for (let index = 1; index < offsets.length; index += 1) {
-    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \\n`;
+    pdf += `${String(offsets[index]).padStart(10, "0")} 00000 n \n`;
   }
-  pdf += `trailer\\n<< /Root 1 0 R /Size ${objects.length + 1} >>\\nstartxref\\n${xrefOffset}\\n%%EOF\\n`;
+  pdf += `trailer\n<< /Root 1 0 R /Size ${objects.length + 1} >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
   return new TextEncoder().encode(pdf);
 }
 
