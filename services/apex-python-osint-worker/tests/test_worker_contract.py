@@ -155,6 +155,21 @@ class ProcessLimitsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(failure, "timeout")
         self.assertEqual(stdout, b"")
 
+    async def test_process_output_drain_deadline_kills_descendants_after_parent_exits(self) -> None:
+        import sys
+        import time
+        with tempfile.TemporaryDirectory(prefix="apex-pipe-drain-test-") as temp:
+            started = time.monotonic()
+            _code, stdout, _stderr, failure = await app.run_process(
+                sys.executable,
+                ["-c", "import subprocess,sys; subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)']); print('done')"],
+                timeout_ms=700, max_output_bytes=1_024, tool_home=Path(temp),
+            )
+            elapsed = time.monotonic() - started
+        self.assertEqual(failure, "timeout")
+        self.assertEqual(stdout, b"")
+        self.assertLess(elapsed, 3.0)
+
 class ToolResultStatusTests(unittest.TestCase):
     def test_holehe_partial_errors_are_not_promoted_to_completed(self) -> None:
         status, error = app.classify_holehe_result([

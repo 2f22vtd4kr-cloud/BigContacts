@@ -393,17 +393,18 @@ async def read_limited(stream: asyncio.StreamReader, limit: int, overflow: async
 
 
 async def kill_process_tree(process: asyncio.subprocess.Process) -> None:
-    if process.returncode is not None:
-        return
+    # Kill the process group even if the direct child already exited: its
+    # descendants can keep stdout/stderr pipes open after the parent returns.
     try:
         os.killpg(process.pid, signal.SIGKILL)
     except ProcessLookupError:
         pass
-    try:
-        await asyncio.wait_for(process.wait(), timeout=3)
-    except asyncio.TimeoutError:
-        process.kill()
-        await process.wait()
+    if process.returncode is None:
+        try:
+            await asyncio.wait_for(process.wait(), timeout=3)
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.wait()
 
 
 async def run_process(
@@ -431,6 +432,7 @@ async def run_process(
         "PYTHONUNBUFFERED": "1",
     }
     overflow = asyncio.Event()
+    deadline = time.monotonic() + timeout_ms / 1000
     process: asyncio.subprocess.Process | None = None
     try:
         process = await asyncio.create_subprocess_exec(
@@ -447,7 +449,7 @@ async def run_process(
         wait_task = asyncio.create_task(process.wait())
         overflow_task = asyncio.create_task(overflow.wait())
         done, _pending = await asyncio.wait(
-            {wait_task, overflow_task}, timeout=timeout_ms / 1000,
+            {wait_task, overflow_task}, timeout=max(0.0, deadline - time.monotonic()),
             return_when=asyncio.FIRST_COMPLETED,
         )
         if wait_task not in done:
@@ -458,7 +460,22 @@ async def run_process(
             await kill_process_tree(process)
             await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
             return process.returncode, b"", b"", "output_limit"
-        stdout, stderr = await asyncio.gather(stdout_task, stderr_task)
+        try:
+            remaining = max(0.001, deadline - time.monotonic())
+            stdout, stderr = await asyncio.wait_for(
+                asyncio.gather(stdout_task, stderr_task), timeout=remaining,
+            )
+        except asyncio.TimeoutError:
+            await kill_process_tree(process)
+            for reader in (stdout_task, stderr_task):
+                reader.cancel()
+            await asyncio.gather(stdout_task, stderr_task, return_exceptions=True)
+            return process.returncode, b"", b"", "timeout"
+        # Readers can discover overflow after the process-exit wait has already
+        # completed. Check again after both pipes drain before accepting output.
+        if overflow.is_set():
+            await kill_process_tree(process)
+            return process.returncode, b"", b"", "output_limit"
         return process.returncode, stdout, stderr, None
     except asyncio.CancelledError:
         if process:

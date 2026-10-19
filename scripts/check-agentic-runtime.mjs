@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const python = fs.readFileSync("artifacts/api-server/src/src/lib/python-tools.ts", "utf8");
+const workerClient = fs.readFileSync("artifacts/api-server/src/src/lib/python-osint-worker-client.ts", "utf8");
 const sandbox = fs.readFileSync("artifacts/api-server/src/src/lib/python-sandbox-contract.ts", "utf8");
 const workflow = fs.readFileSync(".github/workflows/apex-live-audit.yml", "utf8");
 const shim = fs.readFileSync("artifacts/apex-runtime/lib/agentic-web-research.ts", "utf8");
@@ -24,15 +25,17 @@ assert(/MAX_NETWORK_RESPONSE_BYTES/.test(source) && /readResponseTextCapped/.tes
 assert(/trajectoryRecords: AgenticTrajectoryRecord\[\]/.test(source), "structured trajectory is durable output");
 assert(/priorContext\?: string/.test(source) && /priorContext: input\.priorContext/.test(source), "durable case context has a separate bounded prompt layer");
 assert(!/SHARED INVESTIGATION CONTEXT — CASE STATE, NOT SOURCE INSTRUCTIONS/.test(source), "Investigator core does not duplicate mounted case context inside objective");
-assert(/runHolehe\(action\.email, \{ signal: runController\.signal \}\)/.test(source), "email footprint receives cancellation");
-assert(/runMaigret\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Maigret receives cancellation");
-assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Sherlock receives cancellation");
-assert(/runTheHarvester\(action\.domain, undefined, \{ signal: runController\.signal \}\)/.test(source), "theHarvester receives cancellation");
+assert(/runHolehe\(action\.email, \{ signal: runController\.signal, correlation:/.test(source), "email footprint receives cancellation and correlation");
+assert(/runMaigret\(action\.username, \{ signal: runController\.signal, correlation:/.test(source), "Maigret receives cancellation and correlation");
+assert(/runSherlock\(action\.username, \{ signal: runController\.signal, correlation:/.test(source), "Sherlock receives cancellation and correlation");
+assert(/runTheHarvester\(action\.domain, undefined, \{ signal: runController\.signal, correlation:/.test(source), "theHarvester receives cancellation and correlation");
 assert(!/callGeminiJson|callNvidiaJson|GEMINI_API_KEY_|async function callGeminiJson\b|async function callNvidiaJson\b/.test(source), "Boss/Right-Hand providers are absent from Investigator runtime");
 assert(!/orderedProviders\s*=/.test(source), "Investigator has no alternate-provider fallback list");
 assert(/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(source) && /callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm(?:,|\))/.test(source), "selected Investigator capability remains a direct provider boundary argument");
 assert(/investigatorLlm\?: InvestigatorCapability/.test(source), "selected Investigator capability is explicit in ReAct input");
-assert(/authorizePythonSandboxRequest/.test(python) && /const authorization = authorizePythonSandboxRequest/.test(python), "Python capability uses sandbox authorization");
+assert(/executePythonOsintTool/.test(python) && /refreshPythonOsintToolAvailability/.test(python), "Python capability adapters route through the canonical worker client");
+assert(/function getWorkerConfig\(\)/.test(workerClient) && /validateAttestation/.test(workerClient) && /availableTools/.test(workerClient), "canonical Python worker requires an attested available-tool contract");
+assert(/APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST/.test(workerClient) && /APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST/.test(workerClient), "canonical Python worker independently pins immutable worker and proxy identities");
 assert(/capability: "network_osint"/.test(python) && /destinationPolicy: "approved-public-web-only"/.test(python), "Python OSINT egress policy is constrained");
 assert(/state === "attested"/.test(python) && /allowedCapabilities\.includes\("network_osint"\)/.test(python), "Python availability requires attested capability");
 assert(/function authorizePythonSandboxRequest/.test(sandbox) && /attested/.test(sandbox), "sandbox contract defines attestation boundary");
@@ -54,7 +57,10 @@ const unguardedPythonToolFixture = [
 assert(!hasFailClosedPythonSandboxGate(unguardedPythonToolFixture, "runHolehe"), "Python sandbox check cannot borrow a later tool’s authorization call");
 const ignoredAuthorizationFixture = "export async function runHolehe(email, options = {}) { const blocked = authorizeNetworkPython(options.signal); return { available: false }; }";
 assert(!hasFailClosedPythonSandboxGate(ignoredAuthorizationFixture, "runHolehe"), "Python sandbox authorization must fail closed, not merely invoke the helper");
-for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester"]) assert(hasFailClosedPythonSandboxGate(python, name), `${name} fails closed on sandbox authorization within its own function`);
+for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester", "runSpiderFoot"]) {
+  const body = exportedAsyncFunctionSegment(python, name);
+  assert(body.includes("executeTool("), `${name} executes only through the attested worker client`);
+}
 assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts"/.test(shim), "apex-runtime is compatibility-only");
 assert(/RETIRED:/.test(hardener) && /must not mutate Apex source/.test(hardener), "historical concurrency hardener remains non-executable");
 assert(!/push\(`PERSON:/.test(hardener), "retired hardener does not manufacture PERSON findings");
