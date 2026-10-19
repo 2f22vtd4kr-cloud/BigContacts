@@ -1054,8 +1054,9 @@ export function describeToolVisitFailure(error: unknown): { status: "timeout" | 
 async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null; failureKind?: AtlasFailureKind }> {
   const displayUrl = sanitizeUrlForEvidence(url);
   try {
+    const requestSignal = signal ?? AbortSignal.timeout(15_000);
     const response = await gatedSafeOutboundFetch(url, {
-      signal: signal ?? AbortSignal.timeout(15_000),
+      signal: requestSignal,
       headers: {
         "User-Agent": "Apex-Atlas/1.0",
         Accept: "text/html,application/xhtml+xml,application/pdf,application/x-pdf,text/plain,application/json;q=0.9,*/*;q=0.6",
@@ -1073,7 +1074,16 @@ async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observati
     }
     const contentType = response.headers.get("content-type");
     const pdfByMetadata = isPdfPageResponse(url, contentType, response.headers.get("content-disposition"));
-    const responseBytes = await readResponseBytesCapped(response, signal, pdfByMetadata ? PDF_TEXT_MAX_BYTES : MAX_NETWORK_RESPONSE_BYTES);
+    // Binary and absent content types may conceal a PDF whose URL also lacks a .pdf suffix.
+    // Give those responses the PDF-specific cap so signature sniffing can work, while still
+    // refusing any body larger than the hard 8 MB bound.
+    const mayBePdfBytes = !contentType?.trim()
+      || /^(?:application|binary)\/octet-stream(?:\s*;|$)/i.test(contentType.trim());
+    const responseBytes = await readResponseBytesCapped(
+      response,
+      requestSignal,
+      pdfByMetadata || mayBePdfBytes ? PDF_TEXT_MAX_BYTES : MAX_NETWORK_RESPONSE_BYTES,
+    );
     if (pdfByMetadata || hasPdfHeader(responseBytes)) {
       let extracted: Awaited<ReturnType<typeof extractPdfText>>;
       try {
