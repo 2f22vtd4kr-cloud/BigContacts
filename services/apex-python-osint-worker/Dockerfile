@@ -36,12 +36,18 @@ RUN git clone --depth 1 --branch 4.11.1 https://github.com/laramies/theHarvester
     && uv pip install --python /opt/venvs/theharvester/bin/python /opt/tools/theharvester
 
 COPY services/apex-python-osint-worker/requirements.txt /app/requirements.txt
-RUN uv pip install --python /usr/local/bin/python /app/requirements.txt
+RUN uv venv --python /usr/local/bin/python /opt/venvs/worker-api \
+    && uv pip install --python /opt/venvs/worker-api/bin/python /app/requirements.txt
 
 COPY services/apex-python-osint-worker/app.py /app/app.py
 COPY services/apex-python-osint-worker/tool_runner.py /app/tool_runner.py
 WORKDIR /app
-ENV PYTHONPATH=/app PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ENV PATH=/opt/venvs/worker-api/bin:/usr/bin:/bin PYTHONPATH=/app PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+RUN /opt/venvs/holehe/bin/python -c "import holehe.core, trio, httpx" \
+    && /opt/venvs/maigret/bin/maigret --help >/dev/null \
+    && /opt/venvs/sherlock/bin/sherlock --help >/dev/null \
+    && /opt/venvs/theharvester/bin/theHarvester --help >/dev/null \
+    && cd /opt/tools/spiderfoot && /opt/venvs/spiderfoot/bin/python -c "import sf"
 EXPOSE 8080
 USER 10001:10001
-ENTRYPOINT ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1", "--no-access-log"]
+ENTRYPOINT ["/opt/venvs/worker-api/bin/uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "1", "--no-access-log"]
