@@ -554,18 +554,49 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(status, "failed")
         self.assertIsNone(result)
 
-    async def test_sherlock_header_only_csv_is_a_valid_zero_hit_result(self) -> None:
+    async def test_sherlock_claimed_status_is_normalized_to_profile_candidate(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,response_time_s\n"
+        row = "testuser,GitHub,https://github.com,https://github.com/testuser,Claimed,200,0.1\n"
+
         def artifact(home: Path) -> None:
-            (home / "testuser.csv").write_text(
-                "username,name,url_main,url_user,exists,http_status,response_time_s\n",
-                encoding="utf-8",
-            )
+            (home / "testuser.csv").write_text(header + row, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "sherlock", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"][0]["siteName"], "GitHub")
+        self.assertEqual(result["found"][0]["url"], "https://github.com/testuser")
+        self.assertEqual(result["found"][0]["status"], "found")
+        self.assertEqual(result["totalSitesChecked"], 1)
+
+    async def test_sherlock_available_rows_are_a_valid_zero_hit_result(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,response_time_s\n"
+        row = "testuser,Example,https://example.test,https://example.test/testuser,Available,404,0.1\n"
+
+        def artifact(home: Path) -> None:
+            (home / "testuser.csv").write_text(header + row, encoding="utf-8")
 
         status, result, error, _version = await self.invoke(
             "sherlock", {"username": "testuser"}, artifact=artifact,
         )
         self.assertEqual((status, error), ("completed", None))
         self.assertEqual(result["found"], [])
+        self.assertEqual(result["totalSitesChecked"], 1)
+
+    async def test_sherlock_unknown_rows_are_partial_not_a_negative_result(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,response_time_s\n"
+        row = "testuser,Example,https://example.test,https://example.test/testuser,Unknown,0,\n"
+
+        def artifact(home: Path) -> None:
+            (home / "testuser.csv").write_text(header + row, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "sherlock", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual(status, "partial")
+        self.assertEqual(result["found"], [])
+        self.assertIn("incomplete", error or "")
 
     async def test_theharvester_missing_or_malformed_report_is_failure_even_with_exit_zero(self) -> None:
         status, result, _error, _version = await self.invoke(
