@@ -35,7 +35,8 @@ describe("discovery runtime architecture", () => {
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {\n  if (!value || !validateExactObjectFields(value, ["decision", "reason", "focusLanes", "confidence"])) return false;');
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandApprovalReview(value: Record<string, unknown> | null): boolean {');
     expect(canonicalDiscoverySource).toContain('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
-    expect(canonicalDiscoverySource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
+    expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = openingObjective.objective");
+    expect(canonicalDiscoverySource).toContain("controlTurn: 0");
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
     expect(canonicalDiscoverySource).toContain("No active opening direction was authorized");
     expect(researchCoreSource).toContain("If the Boss wording explicitly orders dependent source stages");
