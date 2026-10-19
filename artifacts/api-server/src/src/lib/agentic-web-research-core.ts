@@ -2755,6 +2755,17 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   ) {
     matched.add("localized_control_signal");
   }
+  // Czech and other localized wording for metal manufacturing. This is a
+  // bounded subject alias; the normal geographic/source checks still apply.
+  if (
+    anchors.some((anchor) => ["manufacturing", "manufacturer", "fabrication", "factory", "industrial", "metal"].includes(anchor))
+    && /(?:\bmanufactur\w*|\bmetal\s+fabricat\w*|\bkovovyr\w*|\bvyrob\w*|\bfabrik\w*|виробництв\p{L}*|производств\p{L}*|تصنيع|مصنع|制造|製造|제조)/iu.test(normalizedValue)
+  ) {
+    for (const anchor of anchors) {
+      if (["manufacturing", "manufacturer", "fabrication", "factory", "industrial"].includes(anchor)) matched.add(anchor);
+    }
+    if (/\b(?:metal\s+fabricat\w*|kovovyr\w*)\b/iu.test(normalizedValue) && anchors.includes("metal")) matched.add("metal");
+  }
   if (
     anchors.includes("renewable") && anchors.includes("energy")
     && /\b(?:renewable\s+energy|odnawialn\w*\s+energi\w*|energi\w*\s+odnawialn\w*|erneuerbar\w*\s+energi\w*|obnoviteln\w*\s+zdroj\w*|atjaunojam\w*\s+energij\w*|atsinaujinant\w*\s+energetik\w*|taastuvenergi\w*)\b/iu.test(normalizedValue)
