@@ -1,7 +1,7 @@
 # ⭐ Apex Atlas Sequential Audit — Fresh Replit Import Run 01
 
 **Date:** 2026-10-19  
-**Status:** ATTEMPT 1 FAILED — no cards admitted; investigating control stop and action-scope failures before retry  
+**Status:** ATTEMPT 1 FAILED; ATTEMPT 2 RUNNING — no success claim until durable terminal/card reconciliation  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Reviewed upstream application revision:** `main` at `88ca5dee30e7976ef28e2afb20bec30b5f0bd8d6`  
 **Current local revision:** `main` at `9d3862051a0e621979bc843c0b3e0fe472b586c7` (differs from upstream only by this audit file)
@@ -114,3 +114,43 @@ This tracked report records observable setup, request/status metadata, decisions
 - The last ledger event at iteration 20 was a Groq Boss `control_decision` with action `stop`. The active pointer cleared (`active=false`); no concurrent run remains.
 - The run did not produce a durable admitted finding/card. It is not a successful run. The investigator remained `groq-investigator-1`; recent `providerFallback` arrays were empty, and no provider-key quota error was observed. No manual key switch was made.
 - Continue by reconciling the persisted case and event ledger, identifying why the Boss stopped without a valid terminal, and separating recoverable tool-scope/HTTP failures from model-provider failures. Do not force a search sequence or promote unverified leads.
+
+## P013 — Durable reconciliation and control summary
+
+- Read-only durable reconciliation confirms case `1` is in `review` with `currentAction=canonical-evidence-terminal-incomplete` and no target-entity binding. The event ledger contains 30 events.
+- Durable table totals for this run: `research_evidence=0`, `contact_evidence=0`, `entities=0`, `assets=0`, `relationships=0`; the job reports zero inserted/skipped/errors. Therefore there is no card or evidence-backed candidate to continue into target research.
+- The job result reports 5 accepted Boss control turns, final action `stop`, no final candidate, 18 Investigator actions against a ceiling of 20, and `investigatorResourceLimited=false`. Discovery completed with 0 findings, 5 searches, 4 visits, and 36 trajectory entries.
+- A separate invalid-contract control response and several `model_action/out_of_scope_action` rejections are present in the ledger; one page visit was classified as `external_page_fetch/http_error`. These are not provider quota errors. The Investigator model remained `groq-investigator-1`; the recorded fallback arrays were empty.
+- The persisted result is incomplete because the Boss's `stop` had no evidence-backed terminal candidate. No research or contact data is copied into this audit. Continue with structured-field diagnosis before another launch.
+
+## P014 — Failure diagnosis and retry gate
+
+- The persisted discovery-health summary reports 18 structured Investigator turns, 10 blocked actions, six scope-guard blocks, three successfully fetched pages, 24 unfetched search leads, and zero admitted candidates. Ledger classifications reconcile to six `model_action/out_of_scope_action` blocks, four repeat-action blocks, and one `external_page_fetch/http_error`; no provider rate-limit event occurred.
+- The Boss control sequence was two accepted discovery pivots, one rejected continuation direction because it prescribed a concrete URL/tool destination, one accepted corrected continuation, and a final `stop`. The deterministic guard prevented the rejected direction from executing. No exact query, URL, prompt, reasoning trace, page text, or personal value is copied here.
+- Diagnosis: this attempt failed on research quality/control behavior, not an exhausted Investigator key or a confirmed runtime defect. No code change or scripted search sequence is justified by this evidence; a new UI-default attempt is the least invasive recovery.
+- Workflow manager currently reports the API workflow as failed, but the existing API process is still alive and its local `/api/healthz` and `/api/healthz/details` both return HTTP 200, Redis `ok`, `bureauIntegrity=ok`, and `autoPipeline=false`. The active Atlas pointer is idle. Do not restart into the live port; use the healthy process and verify the active pointer immediately before retry.
+
+## P015 — Attempt 2 UI-default launch accepted
+
+- Freshly checked `GET /api/ingest/job/active/atlas-run`: `active=false`, `jobId=null`.
+- Sent one UI-default request to `POST /api/ingest/atlas-run`: `{targetCount:3,researchDepth:"standard",targetTimeoutMs:420000}`; no single-target override or scripted discovery direction.
+- API returned HTTP 202 with job `0bc6087d-4070-4420-a645-ca2606549052` and confirmed the accepted options match the UI defaults. This is launch acceptance only; continue frequent live checks and reconcile the durable outcome before claiming success.
+
+## P016 — Attempt 2 initial persisted actions
+
+- At `2026-10-19T12:08:12.119Z`, job `0bc6087d-4070-4420-a645-ca2606549052` was `running` in discovery phase 1/4; the active pointer correctly referenced it.
+- Durable case `2` was active at Investigator iteration 2 with five ledger events: Groq Boss assignment (`openai/gpt-oss-120b`), independent Right-hand observation (`approval=reject`), Investigator assignment, then successful Investigator `web_search` and successful `visit` actions using `groq-investigator-1`.
+- The job still reported zero inserted records and no errors at this checkpoint. No provider fallback or quota marker was recorded. The successful search/visit actions are not evidence of admission or card creation; continue monitoring the case ledger.
+
+## P017 — Attempt 2 fetch failure and recovery action
+
+- The live job remained `running` in discovery phase 1/4; its active pointer remained owned by job `0bc6087d-4070-4420-a645-ca2606549052`.
+- The ledger advanced through Investigator turn 4: after successful `web_search` (turn 1) and `visit` (turn 2), `browser_fetch` (turn 3) returned structured `external_page_fetch/request_failure`; `web_search` (turn 4) then succeeded.
+- The fetch error is not classified as an Investigator provider/quota failure. The recorded `providerFallback` count remains zero. The job still reports zero inserted, skipped, and errors at the job-summary level; no admission or card is claimed.
+
+## P018 — Attempt 2 model/action recovery checkpoint
+
+- The job remained `running` in discovery phase 1/4 with the active pointer intact and zero job-level inserts/errors. Durable case `2` advanced to Investigator iteration 8 with 13 total events.
+- New sequence: Investigator turn 5 returned `model_action/invalid_contract` (`parse_failure`); turn 6 `web_search` succeeded; Groq Boss issued a discovery pivot; the turn-8 `web_search` and `registry_search` were both blocked as `model_action/out_of_scope_action`.
+- Cumulative tool observations now total four successes, two blocked actions, and two tool/model-action errors. No provider quota/rate-limit signal or capability fallback is present; the Investigator remains `groq-investigator-1`.
+- No evidence-backed candidate, admission, entity, or card is established at this checkpoint. The runtime has recovered from the parse failure and continued, so allow model-owned control and discovery to proceed within the existing action ceiling.
