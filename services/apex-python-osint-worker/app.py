@@ -131,6 +131,11 @@ def load_isolation_proof() -> dict[str, Any] | None:
         if not isinstance(envelope, dict) or not isinstance(envelope.get("payload"), dict):
             return None
         payload = envelope["payload"]
+        actual_namespace = os.getenv("POD_NAMESPACE", "").strip()
+        if not actual_namespace or payload.get("namespace") != actual_namespace:
+            return None
+        if payload.get("executorId") != "k8s/" + actual_namespace + "/apex-python-osint-worker":
+            return None
         signature = base64.b64decode(envelope.get("signature", ""), validate=True)
         pub.verify(signature, canonical_json(payload))
         issued = datetime.fromisoformat(str(payload["issuedAt"]).replace("Z", "+00:00"))
@@ -514,7 +519,28 @@ def parse_json_from_stdout(stdout: bytes) -> dict[str, Any]:
         return {}
 
 
-async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_output_bytes: int) -> tuple[str, dict[str, Any] | None, str | None, str]:
+def process_failure_result(
+    tool: str,
+    failure: str,
+    exit_code: int | None,
+) -> tuple[str, None, str, str | None]:
+    if failure == "timeout":
+        status = "timeout"
+        message = tool + " exceeded its execution deadline."
+    elif failure == "unavailable":
+        status = "unavailable"
+        message = tool + " executable was unavailable."
+    elif failure == "output_limit":
+        status = "failed"
+        message = tool + " exceeded its bounded output or file-size limit."
+    else:
+        status = "failed"
+        message = tool + " process failed before a valid result was produced."
+    version = TOOL_VERSIONS.get(tool) if exit_code is not None else None
+    return status, None, message, version
+
+
+async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_output_bytes: int) -> tuple[str, dict[str, Any] | None, str | None, str | None]:
     with tempfile.TemporaryDirectory(prefix="apex-osint-") as temp:
         home = Path(temp)
         if tool == "holehe":
@@ -524,98 +550,184 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
-                return failure, None, "Holehe runner " + failure, "holehe"
+                return process_failure_result("holehe", failure, code)
             if code != 0:
-                return "failed", None, "Holehe runner returned a non-zero exit code.", "holehe"
+                return "failed", None, "Holehe runner returned a non-zero exit code.", TOOL_VERSIONS["holehe"]
             result = parse_json_from_stdout(stdout)
-            found = result.get("found", [])
-            if not isinstance(found, list):
-                found = []
-            checked = len(found)
-            positives = sum(1 for item in found if isinstance(item, dict) and item.get("exists") is True)
+            found = result.get("found") if isinstance(result, dict) else None
+            if not isinstance(found, list) or any(not isinstance(item, dict) for item in found):
+                return "failed", None, "Holehe runner returned an invalid structured result.", TOOL_VERSIONS["holehe"]
+            checked = result.get("totalChecked")
+            truncated = result.get("truncated", False)
+            if isinstance(checked, bool) or not isinstance(checked, int) or checked < len(found):
+                return "failed", None, "Holehe runner returned an invalid checked-count value.", TOOL_VERSIONS["holehe"]
+            if checked == 0:
+                return "failed", None, "Holehe completed without checking any service; an empty zero-check result is not a valid negative finding.", TOOL_VERSIONS["holehe"]
+            if not isinstance(truncated, bool):
+                return "failed", None, "Holehe runner returned an invalid truncation flag.", TOOL_VERSIONS["holehe"]
+            positives = sum(1 for item in found if item.get("exists") is True)
             status, error = classify_holehe_result(found)
-            return status, {"found": found[:250], "totalChecked": checked, "totalFound": positives}, error, "holehe"
+            if truncated:
+                status = "partial"
+                truncation_error = "Holehe reached its bounded module/output limit; results are partial."
+                error = (error + " " + truncation_error) if error else truncation_error
+            return status, {
+                "found": found[:250], "totalChecked": checked, "totalFound": positives,
+                "truncated": truncated,
+            }, error, TOOL_VERSIONS["holehe"]
         if tool == "maigret":
             report_dir = home / "reports"
             code, stdout, stderr, failure = await run_process(
                 "/opt/venvs/maigret/bin/maigret",
-                [args["username"], "--json", "ndjson", "--folderoutput", str(report_dir), "--timeout", "8", "--no-progressbar", "--top-sites", "150", "--no-color"],
+                [args["username"], "--csv", "--no-autoupdate", "--folderoutput", str(report_dir), "--timeout", "8", "--no-progressbar", "--top-sites", "150", "--no-color"],
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
-                return failure, None, "Maigret runner " + failure, "maigret"
-            report_path = report_dir / (args["username"] + "_ndjson.json")
-            if not report_path.is_file() and code != 0:
-                return "failed", None, "Maigret exited without a structured report.", "maigret"
-            raw_report = report_path.read_text("utf-8", errors="replace") if report_path.is_file() else ""
-            records: list[dict[str, Any]] = []
+                return process_failure_result("maigret", failure, code)
+            # Maigret v0.6.6's NDJSON exporter contains CLAIMED profiles only;
+            # that output cannot distinguish a clean zero-hit run from a run in
+            # which every site failed. Its CSV report retains each site's status.
+            report_path = report_dir / ("report_" + args["username"] + ".csv")
+            if not report_path.is_file():
+                return "failed", None, "Maigret exited without its expected CSV report.", TOOL_VERSIONS["maigret"]
+            import csv
+            found: list[dict[str, Any]] = []
+            total_sites_checked = 0
+            site_rows_seen = 0
+            incomplete_records = 0
+            required_headers = {"username", "name", "url_main", "url_user", "exists", "http_status", "error_reason"}
             try:
-                decoded = json.loads(raw_report)
-                if isinstance(decoded, list):
-                    records = [item for item in decoded if isinstance(item, dict)]
-                elif isinstance(decoded, dict):
-                    records = [decoded]
-            except json.JSONDecodeError:
-                for line in raw_report.splitlines():
-                    try:
-                        item = json.loads(line)
-                        if isinstance(item, dict):
-                            records.append(item)
-                    except json.JSONDecodeError:
-                        continue
-            found = []
-            for item in records[:300]:
-                raw_status = str(item.get("status") or item.get("status_value") or "").lower()
-                status_value = (
-                    "found" if raw_status in ("claimed", "found", "true")
-                    else "not_found" if raw_status in ("available", "not_found", "false")
-                    else "error" if raw_status in ("error", "unknown_error")
-                    else "unknown"
-                )
-                profile_url = str(item.get("url") or item.get("profile_url") or "")
-                found.append({
-                    "siteName": str(item.get("site") or item.get("site_name") or item.get("name") or "")[:160],
-                    "url": profile_url[:500],
-                    "status": status_value,
-                    "profileData": item.get("metadata") if isinstance(item.get("metadata"), dict) else {},
-                    "tags": item.get("tags") if isinstance(item.get("tags"), list) else [],
-                })
-            site_errors = sum(1 for item in found if item.get("status") == "error")
-            status = "completed" if code == 0 and site_errors == 0 else "partial" if found else "failed"
-            error = ("Maigret returned " + str(site_errors) + " site-level errors; results are partial.") if site_errors else (None if code == 0 else "Maigret ended with a non-zero code after producing bounded results.")
-            return status, {"found": found, "totalSitesChecked": len(found)}, error, "maigret"
+                with report_path.open("r", encoding="utf-8", newline="") as stream:
+                    reader = csv.DictReader(stream)
+                    if not reader.fieldnames or not required_headers.issubset(set(reader.fieldnames)):
+                        return "failed", None, "Maigret returned a malformed CSV report.", TOOL_VERSIONS["maigret"]
+                    for row in reader:
+                        site_rows_seen += 1
+                        if not isinstance(row, dict) or None in row:
+                            incomplete_records += 1
+                            continue
+                        raw_status = str(row.get("exists") or "").strip().lower()
+                        site_name = str(row.get("name") or "").strip()
+                        profile_url = str(row.get("url_user") or "").strip()
+                        if not site_name or not raw_status:
+                            incomplete_records += 1
+                            continue
+                        if raw_status == "illegal":
+                            # Maigret explicitly skipped this site's request.
+                            incomplete_records += 1
+                            continue
+                        if raw_status in ("claimed", "found", "true"):
+                            status_value = "found"
+                        elif raw_status in ("available", "not_found", "false"):
+                            status_value = "not_found"
+                            total_sites_checked += 1
+                        elif raw_status in ("unknown", "error", "unknown_error"):
+                            status_value = "error"
+                            total_sites_checked += 1
+                            incomplete_records += 1
+                        else:
+                            incomplete_records += 1
+                            continue
+                        if raw_status in ("claimed", "found", "true"):
+                            total_sites_checked += 1
+                            if profile_url:
+                                found.append({
+                                    "siteName": site_name[:160],
+                                    "url": profile_url[:500],
+                                    "status": status_value,
+                                    "profileData": {},
+                                    "tags": [],
+                                })
+                            else:
+                                incomplete_records += 1
+            except (OSError, UnicodeError, csv.Error):
+                return "failed", None, "Maigret CSV report could not be read.", TOOL_VERSIONS["maigret"]
+            if site_rows_seen == 0:
+                return "failed", None, "Maigret CSV report contained no site results.", TOOL_VERSIONS["maigret"]
+            if code != 0 and total_sites_checked == 0:
+                return "failed", None, "Maigret exited unsuccessfully without usable site results.", TOOL_VERSIONS["maigret"]
+            if code != 0:
+                status = "partial"
+                error = "Maigret ended with a non-zero code after producing bounded site results."
+            elif incomplete_records:
+                status = "partial" if found or total_sites_checked else "failed"
+                error = "Maigret returned incomplete, skipped, or unclassified site results."
+            else:
+                status = "completed"
+                error = None
+            return status, {"found": found[:300], "totalSitesChecked": total_sites_checked}, error, TOOL_VERSIONS["maigret"]
         if tool == "sherlock":
-            output_file = home / "sherlock.csv"
             code, stdout, stderr, failure = await run_process(
                 "/opt/venvs/sherlock/bin/sherlock",
-                [args["username"], "--csv", "--timeout", "12", "--no-color", "--local", "--output", str(home / "sherlock.txt")],
+                [args["username"], "--csv", "--print-all", "--timeout", "12", "--no-color", "--local", "--output", str(home / "sherlock.txt")],
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
-                return failure, None, "Sherlock runner " + failure, "sherlock"
+                return process_failure_result("sherlock", failure, code)
+            # Sherlock v0.16.2 serializes QueryStatus values such as Claimed,
+            # Available, Unknown, and WAF into its CSV exists column. It does
+            # not serialize booleans; treating this field as true lost every hit.
             result_path = home / (args["username"] + ".csv")
-            if not result_path.exists():
-                result_path = output_file
+            if not result_path.is_file():
+                return "failed", None, "Sherlock exited without its expected CSV report.", TOOL_VERSIONS["sherlock"]
+            import csv
             found: list[dict[str, Any]] = []
-            # --csv writes a local CSV file. Read only the fields the adapter owns.
-            if result_path.exists():
-                import csv
-                try:
-                    with result_path.open("r", encoding="utf-8", newline="") as stream:
-                        for row in csv.DictReader(stream):
-                            exists = str(row.get("exists", "")).lower() == "true"
-                            if exists and row.get("url_user"):
-                                found.append({"siteName": str(row.get("name", ""))[:160], "url": str(row["url_user"])[:500]})
-                except (OSError, csv.Error):
-                    pass
-            if not found:
-                for line in stdout.decode("utf-8", errors="replace").splitlines():
-                    match = re.match(r"^\s*\[\+\]\s+(.+?):\s+(https?://\S+)\s*$", line)
-                    if match:
-                        found.append({"siteName": match.group(1)[:160], "url": match.group(2)[:500]})
-            if code != 0 and not found:
-                return "failed", None, "Sherlock exited without a verified profile output.", "sherlock"
-            return ("completed" if code == 0 else "partial"), {"found": found[:300], "totalSitesChecked": max(len(found), len(stdout.decode("utf-8", errors="ignore").splitlines()))}, None if code == 0 else "Sherlock ended with a non-zero code after producing bounded results.", "sherlock"
+            total_sites_checked = 0
+            site_rows_seen = 0
+            incomplete_records = 0
+            required_headers = {"username", "name", "url_main", "url_user", "exists", "http_status", "response_time_s"}
+            try:
+                with result_path.open("r", encoding="utf-8", newline="") as stream:
+                    reader = csv.DictReader(stream)
+                    if not reader.fieldnames or not required_headers.issubset(set(reader.fieldnames)):
+                        return "failed", None, "Sherlock returned a malformed CSV report.", TOOL_VERSIONS["sherlock"]
+                    for row in reader:
+                        site_rows_seen += 1
+                        if not isinstance(row, dict) or None in row:
+                            incomplete_records += 1
+                            continue
+                        raw_status = str(row.get("exists") or "").strip().lower()
+                        site_name = str(row.get("name") or "").strip()
+                        profile_url = str(row.get("url_user") or "").strip()
+                        if not site_name or not raw_status:
+                            incomplete_records += 1
+                            continue
+                        if raw_status == "illegal":
+                            incomplete_records += 1
+                            continue
+                        if raw_status in ("claimed", "found", "true"):
+                            total_sites_checked += 1
+                            if profile_url:
+                                found.append({"siteName": site_name[:160], "url": profile_url[:500], "status": "found"})
+                            else:
+                                incomplete_records += 1
+                        elif raw_status in ("available", "not_found", "false"):
+                            total_sites_checked += 1
+                        elif raw_status in ("unknown", "waf", "error", "unknown_error"):
+                            total_sites_checked += 1
+                            incomplete_records += 1
+                        else:
+                            incomplete_records += 1
+            except (OSError, UnicodeError, csv.Error):
+                return "failed", None, "Sherlock CSV report could not be read.", TOOL_VERSIONS["sherlock"]
+            if site_rows_seen == 0:
+                return "failed", None, "Sherlock CSV report contained no site results.", TOOL_VERSIONS["sherlock"]
+            if code != 0 and total_sites_checked == 0:
+                return "failed", None, "Sherlock exited unsuccessfully without usable site results.", TOOL_VERSIONS["sherlock"]
+            if code != 0:
+                status = "partial"
+                error = "Sherlock ended with a non-zero code after producing bounded site results."
+            elif incomplete_records:
+                status = "partial" if found or total_sites_checked else "failed"
+                error = "Sherlock returned incomplete, skipped, or unclassified site results."
+            else:
+                status = "completed"
+                error = None
+            return status, {
+                "found": found[:300],
+                "totalSitesChecked": total_sites_checked,
+                "incompleteSites": incomplete_records,
+            }, error, TOOL_VERSIONS["sherlock"]
         if tool == "theharvester":
             report_base = home / "harvest"
             code, stdout, stderr, failure = await run_process(
@@ -624,25 +736,49 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
-                return failure, None, "theHarvester runner " + failure, "theharvester"
+                return process_failure_result("theharvester", failure, code)
             report_path = Path(str(report_base) + ".json")
+            if not report_path.is_file():
+                return "failed", None, "theHarvester exited without its expected JSON report.", TOOL_VERSIONS["theharvester"]
             try:
-                data = json.loads(report_path.read_text("utf-8")) if report_path.exists() else {}
-            except (OSError, json.JSONDecodeError):
-                data = {}
-            emails = data.get("emails", []) if isinstance(data, dict) else []
-            hosts = data.get("hosts", []) if isinstance(data, dict) else []
-            ips = data.get("ips", []) if isinstance(data, dict) else []
-            if code != 0 and not any((emails, hosts, ips)):
-                return "failed", None, "theHarvester exited without structured result output.", "theharvester"
-            return ("completed" if code == 0 else "partial"), {
-                "emails": emails[:100] if isinstance(emails, list) else [],
-                "subdomains": hosts[:200] if isinstance(hosts, list) else [],
-                "hosts": hosts[:200] if isinstance(hosts, list) else [],
-                "ips": ips[:200] if isinstance(ips, list) else [],
-                "totalFound": sum(len(value) for value in (emails, hosts, ips) if isinstance(value, list)),
-            }, None if code == 0 else "theHarvester ended with a non-zero code after producing bounded results.", "theharvester"
-    return "unavailable", None, "No CLI executor was registered for the requested tool.", tool
+                data = json.loads(report_path.read_text("utf-8"))
+            except (OSError, UnicodeError, json.JSONDecodeError):
+                return "failed", None, "theHarvester returned an unreadable or malformed JSON report.", TOOL_VERSIONS["theharvester"]
+            if not isinstance(data, dict) or not isinstance(data.get("hosts"), list):
+                return "failed", None, "theHarvester report did not contain its required hosts array.", TOOL_VERSIONS["theharvester"]
+            emails = data.get("emails", [])
+            hosts = data["hosts"]
+            ips = data.get("ips", [])
+            vhosts = data.get("vhosts", [])
+            if not isinstance(emails, list) or not isinstance(ips, list) or not isinstance(vhosts, list):
+                return "failed", None, "theHarvester report contained invalid email, IP, or virtual-host arrays.", TOOL_VERSIONS["theharvester"]
+            if any(not isinstance(item, str) for values in (emails, hosts, ips, vhosts) for item in values):
+                return "failed", None, "theHarvester report contained non-string observations.", TOOL_VERSIONS["theharvester"]
+            combined_hosts = list(dict.fromkeys([*hosts, *vhosts]))
+            has_observations = bool(emails or combined_hosts or ips)
+            payload = {
+                "emails": emails[:100],
+                "subdomains": combined_hosts[:200],
+                "hosts": combined_hosts[:200],
+                "ips": ips[:200],
+                "totalFound": len(emails) + len(combined_hosts) + len(ips),
+            }
+            if code != 0 and not has_observations:
+                return "failed", None, "theHarvester exited unsuccessfully without structured result output.", TOOL_VERSIONS["theharvester"]
+            source_error = re.search(
+                r"Failed to process .+ search for word:|Unexpected error occurred in .+ module:",
+                (stdout + b"\\n" + stderr).decode("utf-8", errors="replace"),
+                re.IGNORECASE,
+            ) is not None
+            if not has_observations:
+                # The pinned JSON format records leads, not per-source query
+                # outcomes. A zero-hit report alone cannot prove the passive
+                # engines completed successfully instead of swallowing errors.
+                return "partial", payload, "theHarvester produced an empty report without source-completion evidence; no negative finding is established.", TOOL_VERSIONS["theharvester"]
+            if code != 0 or source_error:
+                return "partial", payload, "theHarvester produced bounded results but reported an execution/source error.", TOOL_VERSIONS["theharvester"]
+            return "completed", payload, None, TOOL_VERSIONS["theharvester"]
+    return "unavailable", None, "No CLI executor was registered for the requested tool.", None
 
 
 def classify_holehe_result(found: list[Any]) -> tuple[str, str | None]:
@@ -822,12 +958,36 @@ async def run_spiderfoot(target: str, target_type: str, profile: str, timeout_ms
         return "failed", None, "SpiderFoot execution failed before a complete result could be normalized."
 
 
-async def perform_tool(request: ExecuteRequest) -> dict[str, Any]:
+async def perform_tool(
+    request: ExecuteRequest,
+    *,
+    isolation_proof: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     args = validate_args(request.tool, request.args)
-    proof = load_isolation_proof()
+    initial_proof = isolation_proof if isolation_proof is not None else load_isolation_proof()
     correlation = request.correlation.model_dump(exclude_none=True) if request.correlation else {}
+
+    def unavailable_result() -> dict[str, Any]:
+        now = utc_iso()
+        return {
+            "requestId": request.requestId, "tool": request.tool, "status": "unavailable",
+            "toolVersion": None, "result": None,
+            "error": "Trusted network-isolation attestation is unavailable or changed before execution.",
+            "startedAt": now, "finishedAt": now, "correlation": correlation,
+            "executorId": None, "workerImageDigest": None, "egressProxyImageDigest": None,
+            "isolationProofIssuedAt": None, "isolationProofExpiresAt": None,
+        }
+
+    if not initial_proof:
+        return unavailable_result()
     timeout_ms = min(request.timeoutMs, TOOL_TIMEOUT_DEFAULTS[request.tool], MAX_RUNTIME_MS_CAP)
     async with semaphore:
+        # Availability can expire or the operator can replace/revoke the signed
+        # isolation proof while a request waits for capacity. Revalidate at the
+        # actual execution boundary and require the same attested deployment.
+        proof = load_isolation_proof()
+        if not proof or proof != initial_proof:
+            return unavailable_result()
         started_at = utc_iso()
         if request.tool == "spiderfoot":
             status, result, error = await run_spiderfoot(
@@ -1021,6 +1181,9 @@ async def execute(request: Request, authorization: str | None = Header(default=N
     raw_body = await _verify_signed_body(request, max_bytes=64_000)
     try:
         request_data = ExecuteRequest.model_validate(json.loads(raw_body))
+        proof = load_isolation_proof()
+        if not proof:
+            raise HTTPException(status_code=503, detail="Trusted network-isolation attestation is unavailable.")
         tools, _ = resolve_worker_tools()
         if request_data.tool not in tools:
             raise HTTPException(status_code=503, detail="Requested tool is not healthy and available.")
@@ -1031,7 +1194,6 @@ async def execute(request: Request, authorization: str | None = Header(default=N
             raise HTTPException(status_code=409, detail="Duplicate or replayed worker request ID.")
         if consume_cancel_request(request_data.requestId):
             now = utc_iso()
-            proof = load_isolation_proof() or {}
             return JSONResponse(signed_envelope({
                 "requestId": request_data.requestId, "tool": request_data.tool, "status": "cancelled",
                 "toolVersion": None, "result": None, "error": "Request was cancelled before execution.",
@@ -1045,10 +1207,9 @@ async def execute(request: Request, authorization: str | None = Header(default=N
             raise HTTPException(status_code=500, detail="Worker task context is unavailable.")
         active_requests[request_data.requestId] = task
         try:
-            result = await perform_tool(request_data)
+            result = await perform_tool(request_data, isolation_proof=proof)
         except asyncio.CancelledError:
             now = utc_iso()
-            proof = load_isolation_proof() or {}
             result = {
                 "requestId": request_data.requestId, "tool": request_data.tool, "status": "cancelled",
                 "toolVersion": None, "result": None, "error": "Execution was cancelled and worker cleanup completed.",

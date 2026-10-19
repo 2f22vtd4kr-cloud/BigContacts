@@ -11,11 +11,15 @@ import sys
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
-from unittest.mock import patch
+from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import app  # noqa: E402
+import tool_runner  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 _ATTESTOR_SPEC = importlib.util.spec_from_file_location("apex_worker_attestor", REPO_ROOT / "scripts" / "attest-python-osint-worker.py")
@@ -136,6 +140,18 @@ class WorkerArgumentValidationTests(unittest.TestCase):
         self.assertIn("sfp_dnsresolve", app.PROFILE_MODULES["domain-infrastructure"])
 
 
+class AttestationIssuanceTests(unittest.TestCase):
+    def test_skipping_live_egress_never_emits_a_signed_proof(self) -> None:
+        output = StringIO()
+        with redirect_stdout(output), patch.object(
+            sys, "argv", ["attest-python-osint-worker.py", "--skip-live-egress-tests"],
+        ):
+            with self.assertRaises(SystemExit) as raised:
+                attestor.main()
+        self.assertEqual(raised.exception.code, 2)
+        self.assertEqual(output.getvalue(), "")
+
+
 class IsolationProofTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp = tempfile.TemporaryDirectory(prefix="apex-worker-test-")
@@ -147,7 +163,7 @@ class IsolationProofTests(unittest.TestCase):
             format=serialization.PublicFormat.Raw,
         )
         self.payload = {
-            "executorId": "test/k8s/apex-worker",
+            "executorId": "k8s/apex-system/apex-python-osint-worker",
             "policyContractVersion": app.REQUIRED_NETWORK_NAMESPACE,
             "networkNamespace": app.REQUIRED_NETWORK_NAMESPACE,
             "egressBroker": app.REQUIRED_EGRESS_BROKER,
@@ -171,7 +187,7 @@ class IsolationProofTests(unittest.TestCase):
         self.key_patch = patch.object(app, "ISOLATION_PUBLIC_KEY_B64", base64.b64encode(public_key).decode("ascii"))
         self.path_patch = patch.object(app, "ISOLATION_PROOF_PATH", self.proof_path)
         self.hash_patch = patch.object(app, "sha256_file", return_value="f" * 64)
-        self.env_patch = patch.dict(os.environ, {"APEX_PYTHON_WORKER_IMAGE_DIGEST": "sha256:" + "a" * 64, "APEX_PYTHON_EGRESS_PROXY_IMAGE_DIGEST": "sha256:" + "b" * 64})
+        self.env_patch = patch.dict(os.environ, {"APEX_PYTHON_WORKER_IMAGE_DIGEST": "sha256:" + "a" * 64, "APEX_PYTHON_EGRESS_PROXY_IMAGE_DIGEST": "sha256:" + "b" * 64, "POD_NAMESPACE": "apex-system"})
         self.env_patch.start()
         self.addCleanup(self.env_patch.stop)
         self.key_patch.start()
@@ -189,6 +205,18 @@ class IsolationProofTests(unittest.TestCase):
         missing.pop("verifiedPodCIDRs")
         self.proof_path.write_text(json.dumps(isolation_envelope(self.private_key, missing)), encoding="utf-8")
         self.assertIsNone(app.load_isolation_proof())
+
+    def test_proof_for_a_different_namespace_or_executor_is_rejected(self) -> None:
+        for modified in (
+            {**self.payload, "namespace": "other-system"},
+            {**self.payload, "executorId": "k8s/apex-system/another-worker"},
+        ):
+            self.proof_path.write_text(json.dumps(isolation_envelope(self.private_key, modified)), encoding="utf-8")
+            self.assertIsNone(app.load_isolation_proof())
+
+    def test_missing_runtime_namespace_fails_closed(self) -> None:
+        with patch.dict(os.environ, {"POD_NAMESPACE": ""}):
+            self.assertIsNone(app.load_isolation_proof())
 
     def test_tampered_or_expired_proof_is_rejected(self) -> None:
         envelope = isolation_envelope(self.private_key, self.payload)
@@ -302,6 +330,461 @@ class ProcessLimitsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(stdout, b"")
         self.assertLess(elapsed, 3.0)
 
+class HoleheRunnerBoundsTests(unittest.TestCase):
+    def test_module_fanout_is_limited_and_scan_truncation_is_reported(self) -> None:
+        active = 0
+        peak_active = 0
+        websites = [f"site-{index}" for index in range(tool_runner.HOLEHE_MAX_MODULES + 1)]
+
+        class FakeSemaphore:
+            def __init__(self, capacity: int):
+                self.semaphore = asyncio.Semaphore(capacity)
+
+            async def __aenter__(self):
+                await self.semaphore.acquire()
+
+            async def __aexit__(self, _exc_type, _exc, _traceback):
+                self.semaphore.release()
+
+        class FakeNursery:
+            def __init__(self):
+                self.tasks = []
+
+            async def __aenter__(self):
+                return self
+
+            def start_soon(self, function, *args):
+                self.tasks.append(asyncio.create_task(function(*args)))
+
+            async def __aexit__(self, _exc_type, _exc, _traceback):
+                if self.tasks:
+                    await asyncio.gather(*self.tasks)
+
+        async def launch_module(website, _email, _client, output):
+            nonlocal active, peak_active
+            active += 1
+            peak_active = max(peak_active, active)
+            try:
+                await asyncio.sleep(0.002)
+                output.append({"name": str(website), "domain": "example.org", "exists": False})
+            finally:
+                active -= 1
+
+        core = ModuleType("holehe.core")
+        core.get_functions = lambda _modules, _settings: websites
+        core.import_submodules = lambda _path: object()
+        core.launch_module = launch_module
+        package = ModuleType("holehe")
+        package.__path__ = []
+        fake_trio = ModuleType("trio")
+        fake_trio.Semaphore = FakeSemaphore
+        fake_trio.open_nursery = FakeNursery
+        fake_trio.run = lambda function: asyncio.run(function())
+
+        with patch.dict(sys.modules, {
+            "trio": fake_trio,
+            "holehe": package,
+            "holehe.core": core,
+        }):
+            result = tool_runner.run_holehe({"email": "person@example.org"})
+
+        self.assertLessEqual(peak_active, tool_runner.HOLEHE_MAX_CONCURRENCY)
+        self.assertEqual(result["totalChecked"], tool_runner.HOLEHE_MAX_MODULES)
+        self.assertEqual(len(result["found"]), tool_runner.HOLEHE_MAX_MODULES)
+        self.assertTrue(result["truncated"])
+
+
+class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
+    async def invoke(
+        self,
+        tool: str,
+        args: dict,
+        *,
+        artifact=None,
+        code: int = 0,
+        stdout: bytes = b"",
+    ):
+        async def fake_run_process(*_args, **kwargs):
+            if artifact is not None:
+                artifact(Path(kwargs["tool_home"]))
+            return code, stdout, b"", None
+
+        with patch.object(app, "run_process", side_effect=fake_run_process):
+            return await app.run_cli_tool(
+                tool, args, timeout_ms=5_000, max_output_bytes=1_000_000,
+            )
+
+    async def test_output_limit_uses_canonical_failed_status_and_pinned_version(self) -> None:
+        with patch.object(
+            app, "run_process",
+            new_callable=AsyncMock,
+            return_value=(-9, b"", b"", "output_limit"),
+        ):
+            status, result, error, version = await app.run_cli_tool(
+                "holehe", {"email": "person@example.org"},
+                timeout_ms=5_000, max_output_bytes=1_024,
+            )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+        self.assertIn("bounded output", error or "")
+        self.assertEqual(version, app.TOOL_VERSIONS["holehe"])
+
+    async def test_unavailable_process_does_not_claim_a_tool_version(self) -> None:
+        with patch.object(
+            app, "run_process",
+            new_callable=AsyncMock,
+            return_value=(None, b"", b"", "unavailable"),
+        ):
+            status, result, _error, version = await app.run_cli_tool(
+                "holehe", {"email": "person@example.org"},
+                timeout_ms=5_000, max_output_bytes=1_024,
+            )
+        self.assertEqual(status, "unavailable")
+        self.assertIsNone(result)
+        self.assertIsNone(version)
+
+    async def test_holehe_invokes_runner_with_allowlisted_tool_name(self) -> None:
+        captured: dict[str, Any] = {}
+        stdout = json.dumps({
+            "found": [{"name": "service", "domain": "service.example", "exists": True, "error": False, "rateLimit": False}],
+            "totalChecked": 1,
+            "totalFound": 1,
+            "truncated": False,
+        }).encode("utf-8")
+
+        async def fake_run_process(executable, args, **kwargs):
+            captured["executable"] = executable
+            captured["args"] = args
+            return 0, stdout, b"", None
+
+        with patch.object(app, "run_process", side_effect=fake_run_process):
+            status, result, error, _version = await app.run_cli_tool(
+                "holehe", {"email": "person@example.org"}, timeout_ms=5_000, max_output_bytes=1_000_000,
+            )
+
+        self.assertEqual(captured["executable"], "/opt/venvs/holehe/bin/python")
+        self.assertEqual(captured["args"][0], "/app/tool_runner.py")
+        self.assertEqual(captured["args"][1], "holehe")
+        self.assertEqual(json.loads(captured["args"][2]), {"email": "person@example.org"})
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["totalChecked"], 1)
+
+    async def test_holehe_malformed_stdout_is_not_an_empty_success(self) -> None:
+        status, result, _error, version = await self.invoke(
+            "holehe", {"email": "person@example.org"}, stdout=b"not-json",
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+        self.assertEqual(version, app.TOOL_VERSIONS["holehe"])
+
+    async def test_holehe_truncated_structured_result_is_partial(self) -> None:
+        stdout = json.dumps({
+            "found": [{"name": "service", "exists": True}],
+            "totalChecked": 250,
+            "totalFound": 1,
+            "truncated": True,
+        }).encode("utf-8")
+        status, result, error, _version = await self.invoke(
+            "holehe", {"email": "person@example.org"}, stdout=stdout,
+        )
+        self.assertEqual(status, "partial")
+        self.assertTrue(result["truncated"])
+        self.assertIn("bounded module/output limit", error or "")
+
+    async def test_holehe_zero_service_checks_are_failure_not_negative_evidence(self) -> None:
+        status, result, error, _version = await self.invoke(
+            "holehe",
+            {"email": "person@example.org"},
+            stdout=b'{"found":[],"totalChecked":0,"totalFound":0}',
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+        self.assertIn("without checking any service", error or "")
+
+    async def test_maigret_invokes_csv_mode_for_per_site_statuses(self) -> None:
+        call_args: list[str] | None = None
+
+        async def fake_run_process(executable, args, **kwargs):
+            nonlocal call_args
+            call_args = [executable, *args]
+            reports = Path(kwargs["tool_home"]) / "reports"
+            reports.mkdir()
+            (reports / "report_testuser.csv").write_text(
+                "username,name,url_main,url_user,exists,http_status,error_reason\n",
+                encoding="utf-8",
+            )
+            return 0, b"", b"", None
+
+        with patch.object(app, "run_process", side_effect=fake_run_process):
+            status, result, _error, _version = await app.run_cli_tool(
+                "maigret", {"username": "testuser"}, timeout_ms=5_000, max_output_bytes=100_000,
+            )
+
+        self.assertIsNotNone(call_args)
+        self.assertIn("--csv", call_args or [])
+        self.assertIn("--no-autoupdate", call_args or [])
+        self.assertNotIn("--json", call_args or [])
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+
+    async def test_maigret_v066_csv_report_preserves_claimed_profiles(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,error_reason\n"
+        row = "testuser,GitHub,https://github.com,https://github.com/testuser,Claimed,200,\n"
+
+        def artifact(home: Path) -> None:
+            reports = home / "reports"
+            reports.mkdir()
+            (reports / "report_testuser.csv").write_text(header + row, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "maigret", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"][0]["siteName"], "GitHub")
+        self.assertEqual(result["found"][0]["url"], "https://github.com/testuser")
+        self.assertEqual(result["found"][0]["status"], "found")
+        self.assertEqual(result["totalSitesChecked"], 1)
+
+    async def test_maigret_available_site_rows_prove_a_valid_zero_hit_search(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,error_reason\n"
+        rows = (
+            "testuser,Example A,https://a.example,https://a.example/testuser,Available,404,\n"
+            "testuser,Example B,https://b.example,https://b.example/testuser,Available,404,\n"
+        )
+
+        def artifact(home: Path) -> None:
+            reports = home / "reports"
+            reports.mkdir()
+            (reports / "report_testuser.csv").write_text(header + rows, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "maigret", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"], [])
+        self.assertEqual(result["totalSitesChecked"], 2)
+
+    async def test_maigret_nonzero_exit_preserves_valid_partial_site_results(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,error_reason\n"
+        rows = "testuser,Example,https://example.test,https://example.test/testuser,Available,404,\n"
+
+        def artifact(home: Path) -> None:
+            reports = home / "reports"
+            reports.mkdir()
+            (reports / "report_testuser.csv").write_text(header + rows, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "maigret", {"username": "testuser"}, artifact=artifact, code=1,
+        )
+        self.assertEqual(status, "partial")
+        self.assertEqual(result["found"], [])
+        self.assertEqual(result["totalSitesChecked"], 1)
+        self.assertIn("non-zero code", error or "")
+
+    async def test_maigret_unknown_site_rows_are_partial_not_a_negative_result(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,error_reason\n"
+        rows = "testuser,Example,https://example.test,https://example.test/testuser,Unknown,0,Connection timed out\n"
+
+        def artifact(home: Path) -> None:
+            reports = home / "reports"
+            reports.mkdir()
+            (reports / "report_testuser.csv").write_text(header + rows, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "maigret", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual(status, "partial")
+        self.assertEqual(result["found"], [])
+        self.assertIn("incomplete", error or "")
+
+    async def test_maigret_missing_or_malformed_report_is_failure_even_with_exit_zero(self) -> None:
+        status, result, _error, version = await self.invoke(
+            "maigret", {"username": "testuser"},
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+        self.assertEqual(version, app.TOOL_VERSIONS["maigret"])
+
+        def malformed(home: Path) -> None:
+            reports = home / "reports"
+            reports.mkdir()
+            (reports / "report_testuser.csv").write_text(
+                "{definitely-not-a-csv-report}\n", encoding="utf-8",
+            )
+
+        status, result, _error, _version = await self.invoke(
+            "maigret", {"username": "testuser"}, artifact=malformed,
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+
+    async def test_sherlock_missing_csv_is_failure_even_with_exit_zero(self) -> None:
+        status, result, _error, version = await self.invoke(
+            "sherlock", {"username": "testuser"},
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+        self.assertEqual(version, app.TOOL_VERSIONS["sherlock"])
+
+    async def test_sherlock_claimed_status_is_normalized_to_profile_candidate(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,response_time_s\n"
+        row = "testuser,GitHub,https://github.com,https://github.com/testuser,Claimed,200,0.1\n"
+
+        def artifact(home: Path) -> None:
+            (home / "testuser.csv").write_text(header + row, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "sherlock", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"][0]["siteName"], "GitHub")
+        self.assertEqual(result["found"][0]["url"], "https://github.com/testuser")
+        self.assertEqual(result["found"][0]["status"], "found")
+        self.assertEqual(result["totalSitesChecked"], 1)
+
+    async def test_sherlock_available_rows_are_a_valid_zero_hit_result(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,response_time_s\n"
+        row = "testuser,Example,https://example.test,https://example.test/testuser,Available,404,0.1\n"
+
+        def artifact(home: Path) -> None:
+            (home / "testuser.csv").write_text(header + row, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "sherlock", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"], [])
+        self.assertEqual(result["totalSitesChecked"], 1)
+
+    async def test_sherlock_requests_all_status_rows_for_truthful_zero_hit_result(self) -> None:
+        command_args: list[str] = []
+        header = "username,name,url_main,url_user,exists,http_status,response_time_s\n"
+        row = "testuser,Example,https://example.test,https://example.test/testuser,Available,404,0.1\n"
+
+        async def fake_run_process(_executable, args, **kwargs):
+            command_args.extend(args)
+            (Path(kwargs["tool_home"]) / "testuser.csv").write_text(header + row, encoding="utf-8")
+            return 0, b"", b"", None
+
+        with patch.object(app, "run_process", side_effect=fake_run_process):
+            status, result, error, _version = await app.run_cli_tool(
+                "sherlock", {"username": "testuser"}, timeout_ms=5_000, max_output_bytes=1_000_000,
+            )
+
+        self.assertIn("--csv", command_args)
+        self.assertIn("--print-all", command_args)
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"], [])
+        self.assertEqual(result["totalSitesChecked"], 1)
+
+    async def test_sherlock_unknown_rows_are_partial_not_a_negative_result(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,response_time_s\n"
+        row = "testuser,Example,https://example.test,https://example.test/testuser,Unknown,0,\n"
+
+        def artifact(home: Path) -> None:
+            (home / "testuser.csv").write_text(header + row, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "sherlock", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual(status, "partial")
+        self.assertEqual(result["found"], [])
+        self.assertIn("incomplete", error or "")
+
+    async def test_theharvester_missing_or_malformed_report_is_failure_even_with_exit_zero(self) -> None:
+        status, result, _error, version = await self.invoke(
+            "theharvester", {"domain": "example.org", "sources": "bing"},
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+        self.assertEqual(version, app.TOOL_VERSIONS["theharvester"])
+
+        def malformed(home: Path) -> None:
+            (home / "harvest.json").write_text("{bad-json", encoding="utf-8")
+
+        status, result, _error, _version = await self.invoke(
+            "theharvester",
+            {"domain": "example.org", "sources": "bing"},
+            artifact=malformed,
+        )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+
+    async def test_theharvester_virtual_hosts_are_preserved_as_host_observations(self) -> None:
+        def artifact(home: Path) -> None:
+            (home / "harvest.json").write_text(
+                json.dumps({"hosts": [], "vhosts": ["vhost.example.org"]}), encoding="utf-8",
+            )
+
+        status, result, error, _version = await self.invoke(
+            "theharvester",
+            {"domain": "example.org", "sources": "bing"},
+            artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["hosts"], ["vhost.example.org"])
+        self.assertEqual(result["subdomains"], ["vhost.example.org"])
+        self.assertEqual(result["totalFound"], 1)
+
+    async def test_theharvester_source_errors_make_nonempty_result_partial(self) -> None:
+        def artifact(home: Path) -> None:
+            (home / "harvest.json").write_text(
+                json.dumps({"hosts": ["mail.example.org"]}), encoding="utf-8",
+            )
+
+        status, result, error, _version = await self.invoke(
+            "theharvester",
+            {"domain": "example.org", "sources": "bing"},
+            artifact=artifact,
+            stdout=b"Failed to process bing search for word: example.org\\nError Message: timeout",
+        )
+        self.assertEqual(status, "partial")
+        self.assertEqual(result["hosts"], ["mail.example.org"])
+        self.assertIn("source error", error or "")
+
+    async def test_theharvester_empty_structured_report_is_inconclusive_not_success(self) -> None:
+        def artifact(home: Path) -> None:
+            (home / "harvest.json").write_text(
+                json.dumps({"hosts": [], "shodan": []}), encoding="utf-8",
+            )
+
+        status, result, error, _version = await self.invoke(
+            "theharvester",
+            {"domain": "example.org", "sources": "bing"},
+            artifact=artifact,
+        )
+        self.assertEqual(status, "partial")
+        self.assertIn("without source-completion evidence", error or "")
+        self.assertEqual(result["hosts"], [])
+        self.assertEqual(result["emails"], [])
+        self.assertEqual(result["ips"], [])
+        self.assertEqual(result["totalFound"], 0)
+
+
+    async def test_cancelling_run_process_terminates_the_real_child_process(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="apex-cancel-test-") as temp:
+            tool_home = Path(temp)
+            pid_file = tool_home / "child.pid"
+            code = (
+                "import os,time; "
+                f"open({str(pid_file)!r}, 'w', encoding='utf-8').write(str(os.getpid())); "
+                "time.sleep(30)"
+            )
+            task = asyncio.create_task(app.run_process(
+                sys.executable, ["-c", code], timeout_ms=20_000,
+                max_output_bytes=1_024, tool_home=tool_home,
+            ))
+            deadline = asyncio.get_running_loop().time() + 3.0
+            while not pid_file.exists() and not task.done() and asyncio.get_running_loop().time() < deadline:
+                await asyncio.sleep(0.02)
+            self.assertTrue(pid_file.exists(), "child process did not start before the test deadline")
+            child_pid = int(pid_file.read_text(encoding="utf-8"))
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+            with self.assertRaises(ProcessLookupError):
+                os.kill(child_pid, 0)
+
 class ToolResultStatusTests(unittest.TestCase):
     def test_holehe_partial_errors_are_not_promoted_to_completed(self) -> None:
         status, error = app.classify_holehe_result([
@@ -321,6 +804,48 @@ class ToolResultStatusTests(unittest.TestCase):
         self.assertEqual(app.classify_spiderfoot_export("FINISHED", 10, 10, True)[0], "partial")
         self.assertEqual(app.classify_spiderfoot_export("RUNNING", 10, 10, False)[0], "partial")
         self.assertEqual(app.classify_spiderfoot_export("FINISHED", 10, 10, False), ("completed", None))
+
+
+class ExecutionAttestationBoundaryTests(unittest.IsolatedAsyncioTestCase):
+    def make_request(self) -> app.ExecuteRequest:
+        return app.ExecuteRequest.model_validate({
+            "requestId": "request-proof-boundary-0001",
+            "tool": "sherlock",
+            "args": {"username": "testuser"},
+            "timeoutMs": 5_000,
+            "maxOutputBytes": 16_384,
+            "requestedAt": now_iso(),
+        })
+
+    async def test_perform_tool_fails_closed_without_a_valid_isolation_proof(self) -> None:
+        with patch.object(app, "load_isolation_proof", return_value=None), patch.object(
+            app, "run_cli_tool", new_callable=AsyncMock,
+        ) as run_tool:
+            result = await app.perform_tool(self.make_request())
+
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIsNone(result["result"])
+        self.assertIn("isolation attestation", result["error"])
+        run_tool.assert_not_awaited()
+
+    async def test_proof_change_while_waiting_for_capacity_prevents_execution(self) -> None:
+        proof = {
+            "executorId": "test-worker",
+            "workerImageDigest": "sha256:" + "a" * 64,
+            "egressProxyImageDigest": "sha256:" + "b" * 64,
+            "issuedAt": now_iso(),
+            "expiresAt": now_iso(timedelta(hours=1)),
+        }
+        # The caller had a verified snapshot, but the proof no longer verifies
+        # at the actual execution boundary.
+        with patch.object(app, "load_isolation_proof", return_value=None), patch.object(
+            app, "run_cli_tool", new_callable=AsyncMock,
+        ) as run_tool:
+            result = await app.perform_tool(self.make_request(), isolation_proof=proof)
+
+        self.assertEqual(result["status"], "unavailable")
+        self.assertIsNone(result["result"])
+        run_tool.assert_not_awaited()
 
 
 class RequestLifecycleTests(unittest.IsolatedAsyncioTestCase):

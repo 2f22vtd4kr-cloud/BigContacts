@@ -5,6 +5,10 @@ import json
 import sys
 from typing import Any
 
+HOLEHE_MAX_CONCURRENCY = 16
+HOLEHE_MAX_MODULES = 250
+HOLEHE_MAX_OUTPUT_RECORDS = 250
+
 
 def run_holehe(args: dict[str, Any]) -> dict[str, Any]:
     """Use Holehe's programmatic module API; avoid the CLI update-check/network side channel."""
@@ -23,19 +27,29 @@ def run_holehe(args: dict[str, Any]) -> dict[str, Any]:
     )
     modules = import_submodules("holehe.modules")
     websites = get_functions(modules, settings)
+    bounded_websites = websites[:HOLEHE_MAX_MODULES]
+    module_set_truncated = len(websites) > len(bounded_websites)
     output: list[dict[str, Any]] = []
 
     async def run() -> None:
         async with httpx.AsyncClient(timeout=10, follow_redirects=True, trust_env=True) as client:
+            limiter = trio.Semaphore(HOLEHE_MAX_CONCURRENCY)
+
+            async def launch_bounded(website: Any) -> None:
+                async with limiter:
+                    await launch_module(website, email, client, output)
+
             async with trio.open_nursery() as nursery:
-                for website in websites:
-                    nursery.start_soon(launch_module, website, email, client, output)
+                for website in bounded_websites:
+                    nursery.start_soon(launch_bounded, website)
 
     trio.run(run)
     # Preserve returned per-service status, but remove arbitrary nested objects.
+    malformed_records = 0
     found = []
-    for item in output[:250]:
+    for item in output[:HOLEHE_MAX_OUTPUT_RECORDS]:
         if not isinstance(item, dict):
+            malformed_records += 1
             continue
         found.append({
             "name": str(item.get("name") or "")[:120],
@@ -48,8 +62,9 @@ def run_holehe(args: dict[str, Any]) -> dict[str, Any]:
         })
     return {
         "found": found,
-        "totalChecked": len(found),
+        "totalChecked": len(output),
         "totalFound": sum(1 for item in found if item["exists"]),
+        "truncated": module_set_truncated or len(output) > HOLEHE_MAX_OUTPUT_RECORDS or malformed_records > 0,
     }
 
 
