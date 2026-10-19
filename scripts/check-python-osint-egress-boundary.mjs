@@ -27,6 +27,8 @@ const checks = [
   ["live attestor probes private and IPv6 direct-egress destinations", attestor.includes("INTERNAL_AND_IPV6_DIRECT_BLOCKED") && attestor.includes("fd00:ec2::254")],
   ["attestor cross-checks live Pod/Service CIDRs against policy exceptions", attestor.includes("APEX_K8S_POD_CIDRS") && attestor.includes("APEX_K8S_SERVICE_CIDRS") && attestor.includes("verify_cluster_cidr_configuration") && attestor.includes("must explicitly exclude live cluster CIDR")],
   ["attestor probes actual cluster destinations through Squid", attestor.includes("PROXY_CLUSTER_DESTINATIONS_BLOCKED") && attestor.includes("cluster_proxy_probe")],
+  ["attestor tests redirects to metadata through configured egress", attestor.includes("REDIRECT_TO_METADATA_BLOCKED") && attestor.includes("follow_redirects=True")],
+  ["cluster proxy test requires a live listener and explicit CONNECT denial", attestor.includes("default/kubernetes Service on port 443") && attestor.includes("CONNECT ") && attestor.includes("int(fields[1]) in (403, 502, 503, 504)")],
   ["private keys and worker credentials are not baked into the image", dockerfile.includes("USER 10001:10001") && !dockerfile.includes("APEX_PYTHON_SANDBOX_TOKEN=")],
   ["theHarvester cancellation is threaded through canonical ReAct", pythonSource.includes("runTheHarvester") && fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8").includes('runTheHarvester(action.domain, undefined, { signal: runController.signal, correlation:')],
 ];

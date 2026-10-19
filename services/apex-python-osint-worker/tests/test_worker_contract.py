@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import base64
 import hashlib
 import os
@@ -15,6 +16,14 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import app  # noqa: E402
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+_ATTESTOR_SPEC = importlib.util.spec_from_file_location("apex_worker_attestor", REPO_ROOT / "scripts" / "attest-python-osint-worker.py")
+if _ATTESTOR_SPEC is None or _ATTESTOR_SPEC.loader is None:
+    raise RuntimeError("Could not load the deployment attestor for contract tests.")
+attestor = importlib.util.module_from_spec(_ATTESTOR_SPEC)
+sys.modules[_ATTESTOR_SPEC.name] = attestor
+_ATTESTOR_SPEC.loader.exec_module(attestor)
+
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -28,6 +37,62 @@ def isolation_envelope(private_key: Ed25519PrivateKey, payload: dict) -> dict:
         "payload": payload,
         "signature": base64.b64encode(private_key.sign(app.canonical_json(payload))).decode("ascii"),
     }
+
+
+class AttestorCIDRTests(unittest.TestCase):
+    def _cluster_resources(self) -> dict[tuple[str, ...], dict]:
+        return {
+            ("get", "nodes"): {"items": [{"spec": {"podCIDR": "10.244.1.0/24"}}]},
+            ("get", "pods", "--all-namespaces"): {"items": [
+                {"metadata": {"labels": {"app": "apex-python-osint-worker"}}, "spec": {"hostNetwork": False}, "status": {"podIP": "10.244.1.10"}},
+                {"metadata": {"labels": {"app": "apex-osint-egress-proxy"}}, "spec": {"hostNetwork": False}, "status": {"podIP": "10.244.1.11"}},
+                {"metadata": {"labels": {"app": "kube-dns"}}, "spec": {"hostNetwork": False}, "status": {"podIP": "10.244.1.12"}},
+            ]},
+            ("get", "services", "--all-namespaces"): {"items": [
+                {"metadata": {"namespace": "default", "name": "kubernetes"}, "spec": {"clusterIP": "10.96.0.1", "clusterIPs": ["10.96.0.1"], "ports": [{"port": 443}]}},
+                {"metadata": {"namespace": "kube-system", "name": "kube-dns"}, "spec": {"clusterIP": "10.96.0.10", "clusterIPs": ["10.96.0.10"], "ports": [{"port": 53}]}},
+            ]},
+        }
+
+    def test_live_node_pod_service_ranges_are_cross_checked_and_known_listener_is_probed(self) -> None:
+        with patch.dict(os.environ, {"APEX_K8S_POD_CIDRS": "10.244.0.0/16", "APEX_K8S_SERVICE_CIDRS": "10.96.0.0/12"}):
+            with patch.object(attestor, "kubectl_json", side_effect=lambda *args: self._cluster_resources()[tuple(args)]):
+                pod_cidrs, service_cidrs, probe_ips = attestor.verify_cluster_cidr_configuration()
+        self.assertEqual(pod_cidrs, {"10.244.0.0/16"})
+        self.assertEqual(service_cidrs, {"10.96.0.0/12"})
+        self.assertEqual(probe_ips, ["10.96.0.1"])
+
+    def test_missing_or_mismatched_pod_ranges_fail_closed(self) -> None:
+        with patch.dict(os.environ, {"APEX_K8S_POD_CIDRS": "", "APEX_K8S_SERVICE_CIDRS": "10.96.0.0/12"}):
+            with self.assertRaises(RuntimeError):
+                attestor.verify_cluster_cidr_configuration()
+        with patch.dict(os.environ, {"APEX_K8S_POD_CIDRS": "10.245.0.0/16", "APEX_K8S_SERVICE_CIDRS": "10.96.0.0/12"}):
+            with patch.object(attestor, "kubectl_json", side_effect=lambda *args: self._cluster_resources()[tuple(args)]):
+                with self.assertRaises(RuntimeError):
+                    attestor.verify_cluster_cidr_configuration()
+
+    def test_proxy_policy_requires_exact_cluster_cidr_exceptions(self) -> None:
+        policy = {
+            "podSelector": {"matchLabels": {"app": "apex-osint-egress-proxy"}},
+            "policyTypes": ["Egress"],
+            "egress": [
+                {
+                    "to": [{"namespaceSelector": {"matchLabels": {"kubernetes.io/metadata.name": "kube-system"}}, "podSelector": {"matchLabels": {"k8s-app": "kube-dns"}}}],
+                    "ports": [{"protocol": "UDP", "port": 53}, {"protocol": "TCP", "port": 53}],
+                },
+                {
+                    "to": [
+                        {"ipBlock": {"cidr": "0.0.0.0/0", "except": sorted(attestor.V4_REQUIRED_EXCEPTIONS)}},
+                        {"ipBlock": {"cidr": "::/0", "except": sorted(attestor.V6_REQUIRED_EXCEPTIONS)}},
+                    ],
+                    "ports": [{"protocol": "TCP", "port": 80}, {"protocol": "TCP", "port": 443}],
+                },
+            ],
+        }
+        with self.assertRaises(RuntimeError):
+            attestor.verify_proxy_egress(policy, {"100.120.0.0/16"})
+        policy["egress"][1]["to"][0]["ipBlock"]["except"].append("100.120.0.0/16")
+        attestor.verify_proxy_egress(policy, {"100.120.0.0/16"})
 
 
 class WorkerArgumentValidationTests(unittest.TestCase):

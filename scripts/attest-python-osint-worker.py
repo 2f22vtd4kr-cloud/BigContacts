@@ -167,7 +167,6 @@ def verify_cluster_cidr_configuration() -> tuple[set[str], set[str], list[str]]:
 
     pod_items = kubectl_json("get", "pods", "--all-namespaces").get("items", [])
     live_pod_ips: set[ipaddress.IPv4Address | ipaddress.IPv6Address] = set()
-    required_probe_ips: set[str] = set()
     for pod in pod_items:
         if not isinstance(pod, dict):
             continue
@@ -183,17 +182,17 @@ def verify_cluster_cidr_configuration() -> tuple[set[str], set[str], list[str]]:
             live_pod_ips.add(address)
             if not spec.get("hostNetwork", False) and not any(address.version == declared.version and address in declared for declared in configured_pods):
                 raise RuntimeError("APEX_K8S_POD_CIDRS does not cover every live Pod IP.")
-            labels = metadata.get("labels", {}) if isinstance(metadata, dict) else {}
-            if labels.get("app") in {"apex-python-osint-worker", "apex-osint-egress-proxy"}:
-                required_probe_ips.add(str(address))
     if not live_pod_ips:
         raise RuntimeError("Live Pod IP addresses could not be established.")
 
     service_items = kubectl_json("get", "services", "--all-namespaces").get("items", [])
     live_service_ips: set[ipaddress.IPv4Address | ipaddress.IPv6Address] = set()
+    kubernetes_api_ips: set[str] = set()
     for service in service_items:
+        metadata = service.get("metadata", {}) if isinstance(service, dict) else {}
         spec = service.get("spec", {}) if isinstance(service, dict) else {}
         values = spec.get("clusterIPs") or ([spec.get("clusterIP")] if spec.get("clusterIP") else [])
+        service_ips: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
         for value in values:
             if not value or str(value).lower() == "none":
                 continue
@@ -201,14 +200,27 @@ def verify_cluster_cidr_configuration() -> tuple[set[str], set[str], list[str]]:
                 address = ipaddress.ip_address(str(value))
             except ValueError as error:
                 raise RuntimeError("A live Service reported an invalid ClusterIP.") from error
+            service_ips.append(address)
             live_service_ips.add(address)
             if not any(address.version == declared.version and address in declared for declared in configured_services):
                 raise RuntimeError("APEX_K8S_SERVICE_CIDRS does not cover every live Service ClusterIP.")
+        if (
+            isinstance(metadata, dict)
+            and metadata.get("namespace") == "default"
+            and metadata.get("name") == "kubernetes"
+            and any(isinstance(port, dict) and port.get("port") == 443 for port in spec.get("ports", []))
+        ):
+            kubernetes_api_ips.update(str(address) for address in service_ips)
     if not live_service_ips:
         raise RuntimeError("Live Service ClusterIPs could not be established.")
+    if not kubernetes_api_ips:
+        raise RuntimeError("The live default/kubernetes Service on port 443 could not be found for an active proxy-path egress probe.")
 
-    probe_ips = required_probe_ips | {str(item) for item in sorted(live_pod_ips, key=str)[:8]} | {str(item) for item in sorted(live_service_ips, key=str)[:8]}
-    return ({str(item) for item in configured_pods}, {str(item) for item in configured_services}, sorted(probe_ips)[:24])
+    # Port 443 on the live Kubernetes API Service is known to be listening.
+    # A failed CONNECT to an arbitrary Pod IP would be a false positive if that Pod
+    # simply had no listener; this probe distinguishes deny/error from a successful tunnel.
+    probe_ips = sorted(kubernetes_api_ips)[:2]
+    return ({str(item) for item in configured_pods}, {str(item) for item in configured_services}, probe_ips)
 
 
 def verify_proxy_egress(spec: dict[str, Any], required_cluster_cidrs: set[str]) -> None:
@@ -302,23 +314,53 @@ sys.exit(0 if not reachable else 45)
         "sys.exit(0 if blocked else 44)"
     )
     run_probe(namespace, metadata_probe, "METADATA_BLOCKED")
+    redirect_probe = (
+        "import http.server,httpx,sys,threading\n"
+        "class Handler(http.server.BaseHTTPRequestHandler):\n"
+        "    def do_GET(self):\n"
+        "        self.send_response(302)\n"
+        "        self.send_header('Location','http://169.254.169.254/latest/meta-data/')\n"
+        "        self.end_headers()\n"
+        "    def log_message(self,*args): pass\n"
+        "server=http.server.HTTPServer(('127.0.0.1',0),Handler)\n"
+        "thread=threading.Thread(target=server.serve_forever,daemon=True)\n"
+        "thread.start()\n"
+        "try:\n"
+        "    try:\n"
+        "        response=httpx.get('http://127.0.0.1:' + str(server.server_port) + '/redirect',timeout=8,follow_redirects=True)\n"
+        "        blocked=response.status_code >= 400\n"
+        "    except httpx.HTTPError:\n"
+        "        blocked=True\n"
+        "    print('REDIRECT_TO_METADATA_BLOCKED' if blocked else 'REDIRECT_TO_METADATA_ALLOWED')\n"
+        "    sys.exit(0 if blocked else 48)\n"
+        "finally:\n"
+        "    server.shutdown()\n"
+    )
+    run_probe(namespace, redirect_probe, "REDIRECT_TO_METADATA_BLOCKED")
     if not cluster_probe_ips:
         raise RuntimeError("No live cluster Pod/Service IPs were collected for proxy-path egress verification.")
-    target_json = json.dumps(cluster_probe_ips[:24])
+    target_json = json.dumps(cluster_probe_ips[:2])
     cluster_proxy_probe = (
-        "import concurrent.futures,httpx,json,sys\n"
+        "import concurrent.futures,json,os,socket,sys,urllib.parse\n"
         f"targets=json.loads({target_json!r})\n"
+        "raw_proxy=os.getenv('HTTPS_PROXY') or os.getenv('https_proxy') or os.getenv('HTTP_PROXY') or os.getenv('http_proxy') or ''\n"
+        "proxy=urllib.parse.urlparse(raw_proxy)\n"
+        "if proxy.scheme != 'http' or not proxy.hostname or not proxy.port: sys.exit(47)\n"
         "def blocked(ip):\n"
-        "    authority = '[' + ip + ']' if ':' in ip else ip\n"
+        "    authority = '[' + ip + ']:443' if ':' in ip else ip + ':443'\n"
         "    try:\n"
-        "        response = httpx.get('http://' + authority + '/', timeout=4, follow_redirects=False)\n"
-        "        return ip, response.status_code in (403, 502, 503, 504)\n"
-        "    except httpx.HTTPError:\n"
-        "        return ip, True\n"
-        "with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:\n"
+        "        with socket.create_connection((proxy.hostname, proxy.port), timeout=4) as conn:\n"
+        "            conn.settimeout(17)\n"
+        "            conn.sendall(('CONNECT ' + authority + ' HTTP/1.1\\r\\nHost: ' + authority + '\\r\\nProxy-Connection: close\\r\\n\\r\\n').encode())\n"
+        "            line = conn.recv(512).split(b'\\r\\n', 1)[0].decode('latin-1', errors='replace')\n"
+        "            fields = line.split()\n"
+        "            return ip, len(fields) >= 2 and fields[1].isdigit() and int(fields[1]) in (403, 502, 503, 504)\n"
+        "    except OSError:\n"
+        "        return ip, False\n"
+        "with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:\n"
         "    results = list(pool.map(blocked, targets))\n"
         "allowed = [ip for ip, denied in results if not denied]\n"
-        "print('PROXY_CLUSTER_DESTINATIONS_BLOCKED' if not allowed else 'PROXY_CLUSTER_DESTINATIONS_ALLOWED ' + ','.join(allowed))\n"
+        "print('PROXY_CLUSTER_DESTINATIONS_BLOCKED' if targets and not allowed else 'PROXY_CLUSTER_DESTINATIONS_ALLOWED ' + ','.join(allowed))\n"
         "sys.exit(0 if targets and not allowed else 46)\n"
     )
     run_probe(namespace, cluster_proxy_probe, "PROXY_CLUSTER_DESTINATIONS_BLOCKED")
