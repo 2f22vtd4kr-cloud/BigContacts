@@ -41,8 +41,10 @@ export interface PdfTextExtraction {
   pagesRead: number;
   totalPages: number;
   truncated: boolean;
-  /** True only when page operators identify image content but no text was extracted. */
+  /** True when any inspected page has image content with no extractable text. */
   ocrRequired: boolean;
+  /** One-based pages that need OCR because image content was detected without text. */
+  ocrRequiredPages: number[];
 }
 
 type PdfJsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
@@ -125,7 +127,7 @@ export async function extractPdfText(
     const pagesToRead = Math.min(document.numPages, maxPages);
     let text = "";
     let pagesRead = 0;
-    let imageOnlyPages = 0;
+    const ocrRequiredPages: number[] = [];
     let truncated = document.numPages > pagesToRead;
     for (let pageNumber = 1; pageNumber <= pagesToRead; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
@@ -152,7 +154,7 @@ export async function extractPdfText(
             "paintSolidColorImageMask",
           ];
           const imageOperatorIds = new Set(imageOperatorNames.map((name) => pdfOps[name]).filter((id): id is number => typeof id === "number"));
-          if (operators.fnArray.some((operator) => imageOperatorIds.has(operator))) imageOnlyPages += 1;
+          if (operators.fnArray.some((operator) => imageOperatorIds.has(operator))) ocrRequiredPages.push(pageNumber);
           continue;
         }
 
@@ -179,7 +181,8 @@ export async function extractPdfText(
       pagesRead,
       totalPages: document.numPages,
       truncated,
-      ocrRequired: !text.trim() && imageOnlyPages > 0,
+      ocrRequired: ocrRequiredPages.length > 0,
+      ocrRequiredPages,
     };
   } catch (error) {
     if (error instanceof PdfTextExtractionError) throw error;
