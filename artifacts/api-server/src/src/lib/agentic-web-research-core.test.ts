@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -1242,18 +1242,18 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(canonicalAtlasDiscoverySource).toContain("No target-scoped research is authorized without a source-backed lead");
   });
 
-  it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
-    expect(validateDiscoverySearchQuery("2023 venture capital investment biotech company CEO", [])).toEqual({
-      allowed: false,
-      reason: expect.stringContaining("concrete anchor"),
-    });
-    expect(validateDiscoverySearchQuery("famous casino owners interview", [])).toEqual({ allowed: false, reason: expect.any(String) });
-    expect(validateDiscoverySearchQuery("Acme Holdings beneficial owner official", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Companies House director Kenya", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Fortune 500 company leadership page list", [])).toEqual({
-      allowed: false,
-      reason: expect.stringContaining("concrete anchor"),
-    });
+  it("keeps discovery query quality heuristics advisory and language-agnostic", () => {
+    for (const query of [
+      "2023 venture capital investment biotech company CEO",
+      "famous casino owners interview",
+      "Fortune 500 company leadership page list",
+      "2026 acquisition of AI startup by large corporation CEO statement",
+    ]) {
+      expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: true });
+    }
+    expect(validateDiscoverySearchQuery("Acme Holdings beneficial owner official", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("Companies House director Kenya", [])).toMatchObject({ allowed: true });
+
     for (const placeholder of [
       "casino owners site:example.com",
       '"Chief Public Relations Officer" site:example.com',
@@ -1265,23 +1265,36 @@ Choose each next action yourself from the available capabilities and observed ev
         reason: expect.stringContaining("placeholder"),
       });
     }
-    expect(validateDiscoverySearchQuery("2026 acquisition of AI startup by large corporation CEO statement", [])).toEqual({
-      allowed: false,
-      reason: expect.stringContaining("concrete anchor"),
-    });
+
+    const multilingualQueries = [
+      "власник казино Порторож акціонери",
+      "مالك كازينو بورتوروز استثمار",
+      "赌场波尔托罗什主要股东",
+      "カジノ ポルトロシュ 主要株主",
+      'site:reuters.com "赌场主要股东"',
+      'site:reuters.com "مالك الكازينو"',
+    ];
+    for (const query of multilingualQueries) {
+      expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: true });
+    }
+
+    // Canonically equivalent spellings should share repeat-action identity, without transliteration.
+    expect(normalizeDiscoverySearchQuery("Cafe\\u0301")).toBe(normalizeDiscoverySearchQuery("Café"));
+    expect(normalizeDiscoverySearchQuery("КАЗИНО")).toBe("казино");
   });
 
-  it("rejects bare TLD site operators and generic PR/media-contact searches", () => {
+  it("blocks malformed site filters but keeps generic PR/contact wording advisory", () => {
     for (const query of [
       'site:.org "about us" "leadership" "team"',
       'site:.com "Leadership" "Our Team" "Company"',
-      "Niri Philadelphia public relations contact",
       "press contact public relations site:.org",
     ]) {
       expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: false });
     }
-    expect(validateDiscoverySearchQuery("casino Slovenia coast ownership concession operator", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož owner contact", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Niri Philadelphia public relations contact", []))
+      .toMatchObject({ allowed: true, warning: expect.stringContaining("advisory only") });
+    expect(validateDiscoverySearchQuery("casino Slovenia coast ownership concession operator", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("Casino Portorož owner contact", [])).toMatchObject({ allowed: true });
   });
 
   it("blocks repeated discovery searches to the same provider unless a new fetched source advances the case", () => {
@@ -1312,27 +1325,21 @@ Choose each next action yourself from the available capabilities and observed ev
     } as Parameters<typeof repeatedDiscoverySearchReason>[1][number];
     expect(repeatedDiscoverySearchReason({ query: "Casino Portoroz ownership", provider: "serper", locale: "sl", market: "si" }, [parallel])).toContain("repeat_action_guard");
   });
-  it("requires ownership/equity/operator hypotheses for title-led discovery searches, including local-language terms", () => {
-    expect(validateDiscoverySearchQuery("Enterprise Mobility leadership team", [])).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("title/leadership-led query"),
-    });
-    expect(validateDiscoverySearchQuery("Casino Portorož management team", [])).toMatchObject({ allowed: false });
-    expect(validateDiscoverySearchQuery("Enterprise Mobility family ownership principal", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož owner/operator Slovenia", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož lastnik koncesionar Slovenija", [])).toEqual({ allowed: true });
-  });
-  it("blocks unrealistic global-brand and ranking searches unless a reachable local ownership route is named", () => {
-    expect(validateDiscoverySearchQuery("Coca-Cola Company executive leadership page official site", [])).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("impractical fame/ranking or global-household-brand path"),
-    });
-    expect(validateDiscoverySearchQuery("Fortune 500 Coca-Cola leadership executive page official site", [])).toMatchObject({
-      allowed: false,
-      reason: expect.stringContaining("impractical fame/ranking or global-household-brand path"),
-    });
-    expect(validateDiscoverySearchQuery("Coca-Cola Slovenia independent bottler owner contact", [])).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Casino Portorož beneficial owner concession holder Slovenia", [])).toEqual({ allowed: true });
+  it("keeps title-led and global-brand query warnings advisory regardless of language", () => {
+    expect(validateDiscoverySearchQuery("Enterprise Mobility leadership team", []))
+      .toMatchObject({ allowed: true, warning: expect.stringContaining("advisory only") });
+    expect(validateDiscoverySearchQuery("Casino Portorož management team", []))
+      .toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("Enterprise Mobility family ownership principal", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("Casino Portorož owner/operator Slovenia", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("Casino Portorož lastnik koncesionar Slovenija", [])).toMatchObject({ allowed: true });
+
+    expect(validateDiscoverySearchQuery("Coca-Cola Company executive leadership page official site", []))
+      .toMatchObject({ allowed: true, warning: expect.stringContaining("Treat it as a lead only") });
+    expect(validateDiscoverySearchQuery("Fortune 500 Coca-Cola leadership executive page official site", []))
+      .toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("Coca-Cola Slovenia independent bottler owner contact", [])).toMatchObject({ allowed: true });
+    expect(validateDiscoverySearchQuery("Casino Portorož beneficial owner concession holder Slovenia", [])).toMatchObject({ allowed: true });
   });
 
   it("blocks unrealistic discovery destinations before page fetch, but permits a local operator path", () => {
