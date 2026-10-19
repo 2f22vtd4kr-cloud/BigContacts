@@ -629,6 +629,27 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["found"], [])
         self.assertEqual(result["totalSitesChecked"], 1)
 
+    async def test_sherlock_requests_all_status_rows_for_truthful_zero_hit_result(self) -> None:
+        command_args: list[str] = []
+        header = "username,name,url_main,url_user,exists,http_status,response_time_s\n"
+        row = "testuser,Example,https://example.test,https://example.test/testuser,Available,404,0.1\n"
+
+        async def fake_run_process(_executable, args, **kwargs):
+            command_args.extend(args)
+            (Path(kwargs["tool_home"]) / "testuser.csv").write_text(header + row, encoding="utf-8")
+            return 0, b"", b"", None
+
+        with patch.object(app, "run_process", side_effect=fake_run_process):
+            status, result, error, _version = await app.run_cli_tool(
+                "sherlock", {"username": "testuser"}, timeout_ms=5_000, max_output_bytes=1_000_000,
+            )
+
+        self.assertIn("--csv", command_args)
+        self.assertIn("--print-all", command_args)
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["found"], [])
+        self.assertEqual(result["totalSitesChecked"], 1)
+
     async def test_sherlock_unknown_rows_are_partial_not_a_negative_result(self) -> None:
         header = "username,name,url_main,url_user,exists,http_status,response_time_s\n"
         row = "testuser,Example,https://example.test,https://example.test/testuser,Unknown,0,\n"
