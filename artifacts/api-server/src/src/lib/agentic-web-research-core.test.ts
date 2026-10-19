@@ -48,7 +48,9 @@ describe("registry adapter circuit breaker", () => {
     );
     expect(registryAdapterRetryBlockedReason("BRREG", failedAdapters)).toBeNull();
     expect(registryAdapterRetryBlockedReason("BRREG", new Set(["brreg"]))).toMatch(/already failed/i);
-    it("surfaces safe registry failure classes instead of opaque exception digests", () => {
+  });
+
+  it("surfaces safe registry failure classes instead of opaque exception digests", () => {
     const unavailable = Object.assign(new Error("sensitive provider detail must not be forwarded"), {
       code: "REGISTRY_ADAPTER_UNAVAILABLE",
     });
