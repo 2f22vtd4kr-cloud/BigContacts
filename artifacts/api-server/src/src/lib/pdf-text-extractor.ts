@@ -24,7 +24,7 @@ let pdfJsModulePromise: Promise<PdfJsModule> | null = null;
 async function loadPdfJsForTextOnlyUse(): Promise<PdfJsModule> {
   if (!pdfJsModulePromise) {
     pdfJsModulePromise = (async () => {
-      const runtime = globalThis as typeof globalThis & { DOMMatrix?: unknown };
+      const runtime = globalThis as unknown as { DOMMatrix?: unknown };
       const previousDomMatrix = runtime.DOMMatrix;
       const installTextOnlyBootstrap = typeof previousDomMatrix !== "function";
 
