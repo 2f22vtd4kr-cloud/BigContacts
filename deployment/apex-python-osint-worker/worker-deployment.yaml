@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: apex-system
+  labels:
+    app.kubernetes.io/part-of: apex-atlas
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: apex-python-osint-worker
+  namespace: apex-system
+  labels:
+    app.kubernetes.io/name: apex-python-osint-worker
+spec:
+  type: ClusterIP
+  selector:
+    app: apex-python-osint-worker
+  ports:
+    - name: api
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: apex-python-osint-worker
+  namespace: apex-system
+  labels:
+    app: apex-python-osint-worker
+    app.kubernetes.io/part-of: apex-atlas
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: apex-python-osint-worker
+  template:
+    metadata:
+      labels:
+        app: apex-python-osint-worker
+        app.kubernetes.io/part-of: apex-atlas
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: worker
+          image: ghcr.io/2f22vtd4kr-cloud/apex-python-osint-worker:replace-before-apply
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: api
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: APEX_PYTHON_SANDBOX_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: apex-python-osint-worker-secrets
+                  key: APEX_PYTHON_SANDBOX_TOKEN
+            - name: APEX_PYTHON_ISOLATION_ATTESTATION_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: apex-python-osint-worker-secrets
+                  key: APEX_PYTHON_ISOLATION_ATTESTATION_PUBLIC_KEY
+            - name: APEX_PYTHON_ISOLATION_PROOF_PATH
+              value: /run/apex/isolation-attestation.json
+            - name: HTTP_PROXY
+              value: http://apex-osint-egress-proxy.apex-system.svc.cluster.local:3128
+            - name: HTTPS_PROXY
+              value: http://apex-osint-egress-proxy.apex-system.svc.cluster.local:3128
+            - name: http_proxy
+              value: http://apex-osint-egress-proxy.apex-system.svc.cluster.local:3128
+            - name: https_proxy
+              value: http://apex-osint-egress-proxy.apex-system.svc.cluster.local:3128
+            - name: NO_PROXY
+              value: 127.0.0.1,localhost,.svc,.cluster.local,apex-python-osint-worker.apex-system.svc.cluster.local
+            - name: no_proxy
+              value: 127.0.0.1,localhost,.svc,.cluster.local,apex-python-osint-worker.apex-system.svc.cluster.local
+            - name: APEX_OSINT_MAX_CONCURRENCY
+              value: "2"
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: isolation-attestation
+              mountPath: /run/apex
+              readOnly: true
+            - name: egress-proxy-config
+              mountPath: /etc/apex/egress-proxy
+              readOnly: true
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "3Gi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            periodSeconds: 5
+            failureThreshold: 18
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            periodSeconds: 15
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: api
+            periodSeconds: 30
+            timeoutSeconds: 3
+      volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+        - name: isolation-attestation
+          secret:
+            secretName: apex-python-isolation-attestation
+            items:
+              - key: isolation-attestation.json
+                path: isolation-attestation.json
+        - name: egress-proxy-config
+          configMap:
+            name: apex-osint-egress-proxy-config
+            items:
+              - key: squid.conf
+                path: squid.conf
