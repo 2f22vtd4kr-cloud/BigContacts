@@ -556,91 +556,74 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             )
             if failure:
                 return failure, None, "Maigret runner " + failure, "maigret"
-            # Maigret v0.6.6 writes claimed profiles to
-            # reports/report_<username>_ndjson.json. Its valid zero-hit report is
-            # an existing empty file; absence or malformed non-empty output is failure.
-            report_path = report_dir / ("report_" + args["username"] + "_ndjson.json")
+            # Maigret v0.6.6's NDJSON exporter contains CLAIMED profiles only;
+            # that output cannot distinguish a clean zero-hit run from a run in
+            # which every site failed. Its CSV report retains each site's status.
+            report_path = report_dir / ("report_" + args["username"] + ".csv")
             if not report_path.is_file():
-                return "failed", None, "Maigret exited without its expected structured report.", "maigret"
+                return "failed", None, "Maigret exited without its expected CSV report.", "maigret"
+            import csv
+            found: list[dict[str, Any]] = []
+            total_sites_checked = 0
+            incomplete_records = 0
+            required_headers = {"username", "name", "url_main", "url_user", "exists", "http_status", "error_reason"}
             try:
-                raw_report = report_path.read_text("utf-8", errors="replace")
-            except OSError:
-                return "failed", None, "Maigret structured report could not be read.", "maigret"
-            records: list[dict[str, Any]] = []
-            malformed_lines = 0
-            if raw_report.strip():
-                try:
-                    decoded = json.loads(raw_report)
-                    if isinstance(decoded, list):
-                        records = [item for item in decoded if isinstance(item, dict)]
-                        malformed_lines = sum(1 for item in decoded if not isinstance(item, dict))
-                    elif isinstance(decoded, dict):
-                        records = [decoded]
-                    else:
-                        malformed_lines = 1
-                except json.JSONDecodeError:
-                    for line in raw_report.splitlines():
-                        if not line.strip():
+                with report_path.open("r", encoding="utf-8", newline="") as stream:
+                    reader = csv.DictReader(stream)
+                    if not reader.fieldnames or not required_headers.issubset(set(reader.fieldnames)):
+                        return "failed", None, "Maigret returned a malformed CSV report.", "maigret"
+                    for row in reader:
+                        if not isinstance(row, dict) or None in row:
+                            incomplete_records += 1
                             continue
-                        try:
-                            item = json.loads(line)
-                            if isinstance(item, dict):
-                                records.append(item)
+                        raw_status = str(row.get("exists") or "").strip().lower()
+                        site_name = str(row.get("name") or "").strip()
+                        profile_url = str(row.get("url_user") or "").strip()
+                        if not site_name or not raw_status:
+                            incomplete_records += 1
+                            continue
+                        if raw_status == "illegal":
+                            # Maigret explicitly skipped this site's request.
+                            incomplete_records += 1
+                            continue
+                        if raw_status in ("claimed", "found", "true"):
+                            status_value = "found"
+                        elif raw_status in ("available", "not_found", "false"):
+                            status_value = "not_found"
+                            total_sites_checked += 1
+                        elif raw_status in ("unknown", "error", "unknown_error"):
+                            status_value = "error"
+                            total_sites_checked += 1
+                            incomplete_records += 1
+                        else:
+                            incomplete_records += 1
+                            continue
+                        if raw_status in ("claimed", "found", "true"):
+                            total_sites_checked += 1
+                            if profile_url:
+                                found.append({
+                                    "siteName": site_name[:160],
+                                    "url": profile_url[:500],
+                                    "status": status_value,
+                                    "profileData": {},
+                                    "tags": [],
+                                })
                             else:
-                                malformed_lines += 1
-                        except json.JSONDecodeError:
-                            malformed_lines += 1
-                if not records:
-                    return "failed", None, "Maigret returned a malformed non-empty structured report.", "maigret"
-            found = []
-            unknown_statuses = 0
-            malformed_records = malformed_lines
-            for item in records[:300]:
-                status_object = item.get("status") if isinstance(item.get("status"), dict) else {}
-                status_source = status_object.get("status") if status_object else item.get("status", item.get("status_value", ""))
-                raw_status = str(status_source or "").strip().lower()
-                status_value = (
-                    "found" if raw_status in ("claimed", "found", "true")
-                    else "not_found" if raw_status in ("available", "not_found", "false")
-                    else "error" if raw_status in ("error", "unknown_error", "unknown")
-                    else "unknown"
-                )
-                site_value = item.get("sitename") or item.get("site_name") or item.get("name")
-                if not isinstance(site_value, str) and isinstance(item.get("site"), str):
-                    site_value = item["site"]
-                if not isinstance(site_value, str):
-                    site_value = status_object.get("site_name", "")
-                profile_url_value = (
-                    item.get("url_user") or item.get("url") or item.get("profile_url")
-                    or status_object.get("url") or ""
-                )
-                site_name = str(site_value or "").strip()
-                profile_url = str(profile_url_value or "").strip()
-                if not site_name or not profile_url or not raw_status:
-                    malformed_records += 1
-                    continue
-                if status_value == "unknown":
-                    unknown_statuses += 1
-                profile_data = item.get("ids_data") if isinstance(item.get("ids_data"), dict) else item.get("metadata")
-                found.append({
-                    "siteName": site_name[:160],
-                    "url": profile_url[:500],
-                    "status": status_value,
-                    "profileData": profile_data if isinstance(profile_data, dict) else {},
-                    "tags": item.get("tags") if isinstance(item.get("tags"), list) else [],
-                })
-            site_errors = sum(1 for item in found if item.get("status") == "error")
-            incomplete = malformed_records > 0 or unknown_statuses > 0
+                                incomplete_records += 1
+            except (OSError, UnicodeError, csv.Error):
+                return "failed", None, "Maigret CSV report could not be read.", "maigret"
+            if code != 0 and not found:
+                return "failed", None, "Maigret exited unsuccessfully without usable profile results.", "maigret"
             if code != 0:
-                status = "partial" if found else "failed"
-                error = "Maigret ended with a non-zero code after producing bounded results." if found else "Maigret exited unsuccessfully without usable profile results."
-            elif incomplete or site_errors:
-                status = "partial" if found else "failed"
-                error = "Maigret returned incomplete or unclassified profile records."
+                status = "partial"
+                error = "Maigret ended with a non-zero code after producing bounded results."
+            elif incomplete_records:
+                status = "partial" if found or total_sites_checked else "failed"
+                error = "Maigret returned incomplete, skipped, or unclassified site results."
             else:
                 status = "completed"
                 error = None
-            return status, {"found": found, "totalSitesChecked": len(found)}, error, "maigret"
+            return status, {"found": found[:300], "totalSitesChecked": total_sites_checked}, error, "maigret"
         if tool == "sherlock":
             code, stdout, stderr, failure = await run_process(
                 "/opt/venvs/sherlock/bin/sherlock",
