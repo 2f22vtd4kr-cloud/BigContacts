@@ -4,3 +4,9 @@ resources:
   - worker-deployment.yaml
   - proxy-deployment.yaml
   - network-policies.yaml
+configMapGenerator:
+  - name: apex-osint-egress-proxy-config
+    files:
+      - squid.conf
+generatorOptions:
+  disableNameSuffixHash: true
