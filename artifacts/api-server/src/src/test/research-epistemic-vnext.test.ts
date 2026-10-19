@@ -62,7 +62,7 @@ describe("research epistemic vNext", () => {
 
     // A source token followed by a combining mark is not an exact whole-token
     // match to the base spelling alone.
-    expect(bindExactSourceSpan("Café owner owns 25%", "Cafe", "owner")?.exact).toBe(false);
+    expect(bindExactSourceSpan("Cafe\u0301 owner owns 25%", "Cafe", "owner")).toBeNull();
   });
 
   it("stores the subject and value together in a claim-grade span", () => {
