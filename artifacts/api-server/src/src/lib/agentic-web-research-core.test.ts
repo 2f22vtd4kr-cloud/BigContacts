@@ -2113,7 +2113,7 @@ Choose each next action yourself from the available capabilities and observed ev
       action: "visit",
       args: { url: "https://example.gov/report.pdf" },
       execution: "success",
-      observation: "PDF PAGE https://example.gov/report.pdf\\nExtracted text:\\n[Page 12] Jane Doe is Head of Operations. Public email: jane.doe@example.org.",
+      observation: "PDF PAGE https://example.gov/report.pdf\nExtracted text:\n[Page 12] Jane Doe is Head of Operations. Public email: jane.doe@example.org.",
       observedUrls: ["https://example.gov/report.pdf"],
       findings: [],
       providerFallback: [],
