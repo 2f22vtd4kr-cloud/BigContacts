@@ -1133,9 +1133,7 @@ async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observati
       const mimeCandidate = contentType?.split(";")[0]?.trim().toLowerCase() || "missing";
       const mimeParts = mimeCandidate.split("/");
       const declaredMime = mimeCandidate === "missing" ? "missing"
-        : mimeParts.length === 2 && mimeParts.every((part) => /^[a-z0-9!#      const declaredMime = (contentType?.split(";")[0]?.trim().toLowerCase() || "missing")
-        .replace(/[^a-z0-9!#$&^_.+\\/-]/g, "")
-        .slice(0, 100) || "unrecognized";^_.+-]{1,64}$/.test(part))
+        : mimeParts.length === 2 && mimeParts.every((part) => /^[a-z0-9!#$&^_.+-]{1,64}$/.test(part))
           ? mimeCandidate
           : "unrecognized";
       const documentSha256 = createHash("sha256").update(responseBytes).digest("hex");
