@@ -27,10 +27,13 @@ function minimalPdf(text: string): Uint8Array {
 }
 
 describe("bounded PDF text extraction", () => {
-  it("extracts text from a valid one-page PDF", async () => {
+  it("extracts text from a valid one-page PDF without leaking its Node-only import bootstrap", async () => {
+    const runtime = globalThis as unknown as { DOMMatrix?: unknown };
+    const previousDomMatrix = runtime.DOMMatrix;
     const result = await extractPdfText(minimalPdf("Official filing: Apex Example GmbH"));
     expect(result.text).toContain("Official filing: Apex Example GmbH");
     expect(result).toMatchObject({ pagesRead: 1, totalPages: 1, truncated: false });
+    expect(runtime.DOMMatrix).toBe(previousDomMatrix);
   });
 
   it("returns no text for an image-only/empty-text PDF instead of manufacturing content", async () => {
