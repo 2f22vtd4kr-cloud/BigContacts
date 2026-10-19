@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && uv python install 3.10 3.12 3.13 \
     && mkdir -p /opt/tools /opt/venvs /app /tmp/apex-spiderfoot-home \
-    && chmod 0777 /tmp/apex-spiderfoot-home
+    && chmod 0700 /tmp/apex-spiderfoot-home
 
 # SpiderFoot is pinned to upstream packaged release v4.0.
 RUN git clone --depth 1 --branch v4.0 https://github.com/smicallef/spiderfoot.git /opt/tools/spiderfoot \
