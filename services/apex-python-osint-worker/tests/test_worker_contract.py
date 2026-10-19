@@ -443,6 +443,32 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(result)
         self.assertIsNone(version)
 
+    async def test_holehe_invokes_runner_with_allowlisted_tool_name(self) -> None:
+        captured: dict[str, Any] = {}
+        stdout = json.dumps({
+            "found": [{"name": "service", "domain": "service.example", "exists": True, "error": False, "rateLimit": False}],
+            "totalChecked": 1,
+            "totalFound": 1,
+            "truncated": False,
+        }).encode("utf-8")
+
+        async def fake_run_process(executable, args, **kwargs):
+            captured["executable"] = executable
+            captured["args"] = args
+            return 0, stdout, b"", None
+
+        with patch.object(app, "run_process", side_effect=fake_run_process):
+            status, result, error, _version = await app.run_cli_tool(
+                "holehe", {"email": "person@example.org"}, timeout_ms=5_000, max_output_bytes=1_000_000,
+            )
+
+        self.assertEqual(captured["executable"], "/opt/venvs/holehe/bin/python")
+        self.assertEqual(captured["args"][0], "/app/tool_runner.py")
+        self.assertEqual(captured["args"][1], "holehe")
+        self.assertEqual(json.loads(captured["args"][2]), {"email": "person@example.org"})
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["totalChecked"], 1)
+
     async def test_holehe_malformed_stdout_is_not_an_empty_success(self) -> None:
         status, result, _error, version = await self.invoke(
             "holehe", {"email": "person@example.org"}, stdout=b"not-json",

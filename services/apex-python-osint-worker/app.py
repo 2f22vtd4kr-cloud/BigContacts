@@ -546,7 +546,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
         if tool == "holehe":
             code, stdout, stderr, failure = await run_process(
                 "/opt/venvs/holehe/bin/python",
-                ["/app/tool_runner.py", TOOL_VERSIONS["holehe"], json.dumps(args, separators=(",", ":"))],
+                ["/app/tool_runner.py", "holehe", json.dumps(args, separators=(",", ":"))],
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
