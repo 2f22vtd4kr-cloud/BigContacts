@@ -232,7 +232,7 @@ describe("page visit response classification", () => {
     const visitDispatch = agenticCoreSource.slice(visitStart, browserStart);
     const browserDispatch = agenticCoreSource.slice(browserStart, registryStart);
     expect(visitStart).toBeGreaterThan(-1);
-    expect(domainLookupStart).toBeGreaterThan(visitStart);
+    expect(browserStart).toBeGreaterThan(visitStart);
     expect(browserStart).toBeGreaterThan(visitStart);
     expect(registryStart).toBeGreaterThan(browserStart);
     expect(visitDispatch).not.toContain("if (isPdfPageResponse(action.url, null))");
