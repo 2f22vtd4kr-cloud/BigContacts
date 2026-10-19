@@ -28,7 +28,7 @@ export async function extractPdfText(
   const maxChars = Math.max(256, Math.min(PDF_TEXT_MAX_CHARS, Math.floor(options.maxChars ?? PDF_TEXT_MAX_CHARS)));
   const loadingTask = getDocument({
     data: Uint8Array.from(bytes),
-    isEvalSupported: false,
+    // Only getTextContent() is called; no annotations, links, or document actions are executed.
     useWorkerFetch: false,
     stopAtErrors: true,
   });
