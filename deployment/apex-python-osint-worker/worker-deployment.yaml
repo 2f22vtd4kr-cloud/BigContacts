@@ -119,7 +119,7 @@ spec:
             timeoutSeconds: 3
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /livez
               port: api
             periodSeconds: 30
             timeoutSeconds: 3
