@@ -25,7 +25,7 @@ import { nextResearchCaseEventIteration } from "./research-case-event-iteration"
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
-import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
+import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateBossDiscoveryPivotContinuity } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateRoleCorroborationSources, hasDiscoveryOwnershipLeadSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
@@ -1311,12 +1311,23 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         await assertAtlasJobActive(atlasJobId);
         failureStage = "model_action_validation";
-        const resolvedObjective = resolveBossDirectedDiscoveryObjective({
-          action: decision.action,
-          baseObjective: discoveryObjective,
+        // Syntax validation alone allowed the Boss to replace the research
+        // geography/sector after blocked actions and failed fetches. Scope-changing
+        // pivots now need fetched page evidence from the currently accepted scope
+        // that actually supports the proposed new geography/sector.
+        const pivotContinuity = validateBossDiscoveryPivotContinuity({
           currentObjective: activeDiscoveryObjective,
-          direction: decision.direction,
+          proposedDirection: decision.direction,
+          priorTrajectoryRecords: discovery.trajectoryRecords ?? [],
         });
+        const resolvedObjective = pivotContinuity.valid
+          ? resolveBossDirectedDiscoveryObjective({
+            action: decision.action,
+            baseObjective: discoveryObjective,
+            currentObjective: activeDiscoveryObjective,
+            direction: decision.direction,
+          })
+          : pivotContinuity;
         if (!resolvedObjective.valid) {
           // A malformed Boss pivot is a rejected control decision, not a reason to
           // terminate the whole Atlas job. Preserve the rejection and ask the model
