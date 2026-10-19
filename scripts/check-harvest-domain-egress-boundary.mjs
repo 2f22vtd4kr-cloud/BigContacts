@@ -2,13 +2,14 @@ import fs from "node:fs";
 
 const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const python = fs.readFileSync("artifacts/api-server/src/src/lib/python-tools.ts", "utf8");
+const client = fs.readFileSync("artifacts/api-server/src/src/lib/python-osint-worker-client.ts", "utf8");
 const checks = [
   ["harvest capability remains model-visible", core.includes('"harvest_domain"')],
-  ["harvest action delegates to the governed Python capability", /action\.action === "harvest_domain"[\s\S]{0,800}runTheHarvester\(action\.domain, undefined, \{ signal: runController\.signal \}\)/.test(core)],
-  ["theHarvester is behind the common Python authorization gate", python.includes("runTheHarvester") && python.includes("authorizeNetworkPython(options.signal)")],
-  ["theHarvester requires the network OSINT sandbox capability", python.includes('capability: "network_osint"') && python.includes('destinationPolicy: "approved-public-web-only"')],
-  ["blocked harvest remains unavailable rather than producing findings", python.includes('available: false') && /if \(blocked\) return \{ \.\.\.base, error: blocked \}/.test(python)],
-  ["canonical harvest receives cancellation", core.includes("runTheHarvester(action.domain, undefined, { signal: runController.signal })")],
+  ["harvest action delegates to the governed Python capability", /action\.action === "harvest_domain"[\s\S]{0,900}runTheHarvester\(action\.domain, undefined, \{ signal: runController\.signal, correlation:/.test(core)],
+  ["theHarvester adapter executes only through the canonical worker client", python.includes('executeTool("theharvester"') && python.includes("options.correlation")],
+  ["theHarvester worker call requires verified network OSINT authorization", client.includes("authorizePythonSandboxRequest") && client.includes('capability: "network_osint"') && client.includes('destinationPolicy: "approved-public-web-only"')],
+  ["blocked or unavailable harvest remains unavailable rather than producing findings", /available: response\.status === "completed" \|\| \(response\.status === "partial" && \(emails\.length \+ subdomains\.length \+ ips\.length \+ hosts\.length > 0\)\)/.test(python)],
+  ["canonical harvest receives cancellation and durable correlation", core.includes("runTheHarvester(action.domain, undefined, { signal: runController.signal, correlation:")],
 ];
 let failed = false;
 for (const [name, ok] of checks) {
