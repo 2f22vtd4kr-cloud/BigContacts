@@ -841,8 +841,7 @@ export function registryAdapterRetryBlockedReason(registry: string, failedAdapte
  */
 export function summarizeRegistryAdapterFailure(registry: string, error: unknown): string {
   const normalized = normalizeRegistryId(registry)
-    ?? registry.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64)
-    || "unknown-registry";
+    ?? (registry.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 64) || "unknown-registry");
   const typed = error instanceof Error ? error as Error & { code?: unknown; status?: unknown } : null;
 
   if (typed?.code === "REGISTRY_ADAPTER_UNAVAILABLE") {
