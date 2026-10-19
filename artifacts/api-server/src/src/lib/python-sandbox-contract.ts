@@ -1,25 +1,40 @@
 /**
- * Python OSINT sandbox contract.
+ * Apex Python network-tool authorization contract.
  *
- * This module deliberately contains no sandbox implementation. It defines the
- * minimum attestation a future executor must provide before network-capable
- * Python tools may run. Environment variables are not accepted as proof of
- * isolation because a compromised child process can inherit and rewrite them.
+ * The API process deliberately has no local subprocess sandbox. Network-capable
+ * tools may execute only through the separately deployed, signed Apex OSINT worker.
+ * The worker must be deployed behind the required egress NetworkPolicies/proxy;
+ * a local environment flag or an installed package is not an attestation.
  */
 
 export type PythonSandboxCapability = "network_osint" | "local_analysis";
 export type PythonSandboxState = "unavailable" | "attested";
+export type PythonOsintTool =
+  | "holehe"
+  | "maigret"
+  | "sherlock"
+  | "theharvester"
+  | "spiderfoot";
 
 export interface PythonSandboxAttestation {
   state: "attested";
   executorId: string;
+  /** Must identify the enforced NetworkPolicy profile, not an arbitrary label. */
   networkNamespace: string;
+  /** Must identify the public-only egress proxy protected by separate network policy. */
   egressBroker: string;
   filesystemMode: "ephemeral-readonly-input" | "ephemeral-isolated";
   maxOutputBytes: number;
   maxRuntimeMs: number;
   allowedCapabilities: readonly PythonSandboxCapability[];
+  availableTools: readonly PythonOsintTool[];
+  toolVersions: Partial<Record<PythonOsintTool, string>>;
   expiresAt: string;
+  issuedAt?: string;
+  workerImageDigest?: string;
+  egressProxyImageDigest?: string;
+  isolationProofIssuedAt?: string;
+  isolationProofExpiresAt?: string;
 }
 
 export interface PythonSandboxRequest {
@@ -38,24 +53,39 @@ export function getPythonSandboxState(): {
   reason: string | null;
   attestation: PythonSandboxAttestation | null;
 } {
-  // Deliberately no env-var opt-in. The eventual deployment executor must
-  // supply a trusted attestation through an explicit process boundary.
+  // No local assertion or environment variable may convert this process into
+  // an attested sandbox. A remote worker attestation is passed explicitly to
+  // authorizePythonSandboxRequest only after its signature is verified.
   return { state: "unavailable", reason: UNAVAILABLE_REASON, attestation: null };
 }
 
-export function authorizePythonSandboxRequest(request: PythonSandboxRequest): {
+export function authorizePythonSandboxRequest(
+  request: PythonSandboxRequest,
+  verifiedRemoteAttestation?: PythonSandboxAttestation,
+): {
   allowed: boolean;
   reason: string | null;
   attestation: PythonSandboxAttestation | null;
 } {
-  const state = getPythonSandboxState();
   if (request.signal?.aborted) return { allowed: false, reason: "cancelled", attestation: null };
-  if (state.state !== "attested" || !state.attestation) return { allowed: false, reason: state.reason, attestation: null };
-  if (!state.attestation.allowedCapabilities.includes(request.capability)) return { allowed: false, reason: `Python capability ${request.capability} is not authorized by the sandbox attestation.`, attestation: state.attestation };
-  if (request.timeoutMs <= 0 || request.timeoutMs > state.attestation.maxRuntimeMs) return { allowed: false, reason: "Python runtime exceeds the attested execution budget.", attestation: state.attestation };
-  if (request.maxOutputBytes <= 0 || request.maxOutputBytes > state.attestation.maxOutputBytes) return { allowed: false, reason: "Python output exceeds the attested output budget.", attestation: state.attestation };
-  if (request.destinationPolicy === "approved-public-web-only" && !state.attestation.networkNamespace) return { allowed: false, reason: "Python network namespace is not attested.", attestation: state.attestation };
-  return { allowed: true, reason: null, attestation: state.attestation };
+  const attestation = verifiedRemoteAttestation ?? getPythonSandboxState().attestation;
+  if (!attestation || attestation.state !== "attested") {
+    return { allowed: false, reason: UNAVAILABLE_REASON, attestation: null };
+  }
+  if (!attestation.allowedCapabilities.includes(request.capability)) {
+    return { allowed: false, reason: `Python capability ${request.capability} is not authorized by the sandbox attestation.`, attestation };
+  }
+  if (!Number.isFinite(request.timeoutMs) || request.timeoutMs <= 0 || request.timeoutMs > attestation.maxRuntimeMs) {
+    return { allowed: false, reason: "Python runtime exceeds the attested execution budget.", attestation };
+  }
+  if (!Number.isFinite(request.maxOutputBytes) || request.maxOutputBytes <= 0 || request.maxOutputBytes > attestation.maxOutputBytes) {
+    return { allowed: false, reason: "Python output exceeds the attested output budget.", attestation };
+  }
+  if (request.destinationPolicy === "approved-public-web-only"
+    && (!attestation.networkNamespace.trim() || !attestation.egressBroker.trim())) {
+    return { allowed: false, reason: "Python network namespace or egress broker is not attested.", attestation };
+  }
+  return { allowed: true, reason: null, attestation };
 }
 
 export { UNAVAILABLE_REASON as PYTHON_SANDBOX_UNAVAILABLE_REASON };
