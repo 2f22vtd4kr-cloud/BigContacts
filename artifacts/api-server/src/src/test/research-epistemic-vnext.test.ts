@@ -38,7 +38,7 @@ describe("research epistemic vNext", () => {
 
   it("preserves PDF page provenance even when the bounded claim excerpt begins mid-page", () => {
     const span = bindExactSourceSpan(
-      "PDF PAGE https://example.gov/report.pdf\\nExtracted text:\\n[Page 12] Executive summary. Example Holdings owns 25 percent of Example Company.",
+      "PDF PAGE https://example.gov/report.pdf\nExtracted text:\n[Page 12] Executive summary. Example Holdings owns 25 percent of Example Company.",
       "25 percent",
       "Example Holdings",
     );
