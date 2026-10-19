@@ -232,6 +232,7 @@ describe("page visit response classification", () => {
     expect(agenticCoreSource).toContain("pageNumber: span.pageNumber ?? null");
     expect(agenticCoreSource).toContain("sourceTurn: sourceRecord.turn");
     expect(bureauAgenticPassSource).toContain("sourceBindings:record.sourceBindings??[]");
+    expect(bureauAgenticPassSource).toContain("sourceBindings:claimSourceBindings");
   });
 
   it("routes PDF visits through bounded text extraction while retaining browser-fetch PDF preflight", () => {
