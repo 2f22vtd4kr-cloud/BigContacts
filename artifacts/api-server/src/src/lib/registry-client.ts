@@ -154,6 +154,11 @@ function openCorporatesApiToken(): string {
 export function isRegistryProviderAvailable(registry: string): boolean {
   const normalized = normalizeRegistryId(registry);
   if (!normalized) return false;
+  // The Germany adapter stays hidden until its endpoint and live response schema are verified in the deployed runtime.
+  // Set the explicit opt-in only after that smoke test; absence/false must not look like a successful empty search.
+  if (normalized === "offeneregister-germany") {
+    return process.env["APEX_ENABLE_OFFENEREGISTER_GERMANY"]?.trim().toLowerCase() === "true";
+  }
   // The previous Sweden adapter called an undocumented Allabolag endpoint and mislabeled its output as Bolagsverket data.
   // Keep the ID in the action schema for compatibility, but do not advertise it as callable until a supported source exists.
   if (normalized === "bolagsverket-sweden" || normalized === "kvk-netherlands") return false;
@@ -440,15 +445,19 @@ export function buildOffeneregisterSearchUrl(query: string, limit = 10): string 
   const normalizedQuery = query.trim().slice(0, 180);
   const boundedLimit = Number.isFinite(limit) ? Math.max(1, Math.min(20, Math.floor(limit))) : 10;
   const sql = [
-    "SELECT company.name, company.company_number, company.registered_address, company.native_company_number",
+    "SELECT company.name AS name, company.company_number AS company_number, company.registered_address AS registered_address, company.native_company_number AS native_company_number",
     "FROM company",
     "WHERE company.name LIKE :p0",
     `LIMIT ${boundedLimit}`,
   ].join(" ");
-  // Use the documented bound SQL parameter rather than interpolating model text.
-  const url = new URL("https://db.offeneregister.de/openregister-ef9e802.json");
+  // Use Datasette's documented custom-SQL route and bound parameter; never interpolate model text.
+  const url = new URL("https://db.offeneregister.de/openregister-ef9e802/-/query.json");
   url.searchParams.set("sql", sql);
   url.searchParams.set("p0", `%${normalizedQuery}%`);
+  url.searchParams.set("_shape", "objects");
+  // Columns are required even for zero rows, so an empty result can be distinguished
+  // from an incompatible or malformed response envelope.
+  url.searchParams.set("_extra", "columns");
   return url.toString();
 }
 
@@ -459,23 +468,46 @@ async function searchOffeneregisterGermany(query: string, limit: number, signal?
     signal: createRegistryRequestSignal(signal, 15_000),
   });
   if (!resp.ok) throw new Error(`Offeneregister Germany HTTP ${resp.status}`);
-  const data = (await resp.json()) as any;
-  if (data?.error) throw new Error(`Offeneregister Germany SQL API error: ${String(data.error).slice(0, 180)}`);
-  const rows: any[] = data?.rows ?? [];
-  const columns: string[] = data?.columns ?? [];
+
+  let payload: unknown;
+  try {
+    payload = await resp.json();
+  } catch {
+    throw new Error("Offeneregister Germany malformed response: invalid JSON");
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Offeneregister Germany malformed response: expected a JSON object");
+  }
+  const data = payload as { ok?: unknown; error?: unknown; rows?: unknown; columns?: unknown };
+  if (data.ok === false || data.error) {
+    throw new Error("Offeneregister Germany SQL API returned an error response");
+  }
+  const rows = data.rows;
+  const columns = data.columns;
+  if (data.ok !== true || !Array.isArray(rows) || !Array.isArray(columns) ||
+      !columns.every((column) => typeof column === "string")) {
+    throw new Error("Offeneregister Germany malformed response: missing success, rows, or columns");
+  }
+  const requiredColumns = ["name", "company_number", "registered_address", "native_company_number"];
+  if (!requiredColumns.every((column) => columns.includes(column))) {
+    throw new Error("Offeneregister Germany malformed response: expected company columns are missing");
+  }
+
   const results: RegistryResult[] = [];
   for (const row of rows) {
-    const get = (col: string) => {
-      const index = columns.indexOf(col);
-      return index >= 0 ? row[index] : null;
-    };
-    const name: string = get("name") ?? "";
-    if (!name.trim()) continue;
-    const address: string = get("registered_address") ?? "";
-    const nativeCompanyNumber: string = get("native_company_number") ?? "";
-    const companyNumber: string = get("company_number") ?? "";
+    if (!row || typeof row !== "object" || Array.isArray(row)) {
+      throw new Error("Offeneregister Germany malformed response: expected object-shaped rows");
+    }
+    const record = row as Record<string, unknown>;
+    if (typeof record.name !== "string" || !record.name.trim()) {
+      throw new Error("Offeneregister Germany malformed response: a row has no valid company name");
+    }
+    const name = record.name.trim();
+    const address = typeof record.registered_address === "string" ? record.registered_address.trim() : "";
+    const nativeCompanyNumber = typeof record.native_company_number === "string" ? record.native_company_number.trim() : "";
+    const companyNumber = typeof record.company_number === "string" ? record.company_number.trim() : "";
     results.push({
-      name: name.trim(),
+      name,
       type: "Corporation",
       nationality: "DE",
       knownResidences: address || undefined,
@@ -705,6 +737,11 @@ export async function searchRegistry(params: RegistrySearchParams): Promise<Regi
   }
   if (normalizedRegistry === "kvk-netherlands") {
     const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: kvk-netherlands has no verified public endpoint configured. The former openkvk.nl mirror did not resolve during the latest check; the official KVK APIs require a subscription. Use web_search/parallel_web_search for Dutch-company discovery and fetch observed source pages. Do not interpret registry unavailability as a no-hit.");
+    Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
+    throw error;
+  }
+  if (normalizedRegistry === "offeneregister-germany" && !isRegistryProviderAvailable(normalizedRegistry)) {
+    const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: offeneregister-germany is disabled until its endpoint and response schema are verified by a live runtime smoke test. Do not interpret this state as a no-hit.");
     Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
     throw error;
   }
