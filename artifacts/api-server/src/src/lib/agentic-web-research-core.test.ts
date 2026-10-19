@@ -780,7 +780,7 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).toBeNull();
   });
 
-  it("keeps query language and geographic wording model-led at the outbound boundary", () => {
+  it("keeps the accepted geography while allowing truly localized topic wording", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records.",
@@ -799,11 +799,11 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Austin private metal fabrication manufacturer database",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Власник приватного виробника металевих конструкцій Austin",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
   });
 
   it("never lexically vetoes native-script queries against an English Boss pivot", () => {
@@ -829,7 +829,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(partition.rejected).toEqual([]);
   });
 
-  it("preserves all model-selected parallel queries instead of lexically scope-filtering them", () => {
+  it("filters only out-of-scope queries from a parallel search batch", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Texas Secretary of State business entity database for privately held metal-fabrication manufacturers located in the Dallas-Fort Worth metropolitan area, extracting officer or member names from filing records.",
@@ -840,11 +840,11 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
 
     const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
-    expect(partition.allowed).toEqual(searches);
-    expect(partition.rejected).toEqual([]);
+    expect(partition.allowed).toEqual([searches[0]]);
+    expect(partition.rejected.map((item) => item.search)).toEqual([searches[1]]);
   });
 
-  it("preserves model-selected registry/query pairs across language and jurisdiction wording", () => {
+  it("partitions registry searches by jurisdiction while preserving valid local adapters", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate privately held mid-market agribusiness companies in the Czech Republic using the ARES-Czechia registry to identify owners/operators.",
@@ -855,8 +855,8 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
 
     const partition = partitionParallelRegistrySearchesByPivotScope(objective, searches, []);
-    expect(partition.allowed).toEqual(searches);
-    expect(partition.rejected).toEqual([]);
+    expect(partition.allowed).toEqual([searches[0]]);
+    expect(partition.rejected.map((item) => item.search)).toEqual([searches[1]]);
   });
 
   it("does not infer a source-stage order from ordinary source alternatives", () => {
@@ -955,7 +955,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
   });
 
-  it("does not use English topic or geography tokens to veto model-selected searches", () => {
+  it("preserves the approved region when choosing model-led searches", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -972,7 +972,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Texas Secretary of State business entity search family-owned manufacturers",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
   });
 
   it("treats the Baltics as an OR-region and accepts local-language subject/geography aliases", () => {
@@ -987,7 +987,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(balticObjective, "web_search", {
       query: "Germany renewable energy companies",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
 
     const polandObjective = [
       "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
@@ -1000,7 +1000,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(polandObjective, "registry_search", {
       query: "renewable energy",
       registry: "ares-czechia",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
   });
 
   it("lets a scoped registry adapter supply jurisdiction and source-class context for concise queries", () => {
@@ -1015,7 +1015,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "manufacturing",
       registry: "sec-edgar",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
   });
 
   it("preserves mixed native-language scope candidates and leaves evidence-quality decisions downstream", () => {
@@ -1044,10 +1044,10 @@ Choose each next action yourself from the available capabilities and observed ev
         { query: "California water utility licensees list officers", provider: "serper" },
       ],
     }, []);
-    expect(outOfRegionReason).toBeNull();
+    expect(outOfRegionReason).not.toBeNull();
 
     const inScopeDiscoveryQuery = discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Washington water utility officers",
+      query: "Washington water utility officers registry",
       provider: "serper",
     }, []);
     expect(inScopeDiscoveryQuery).toBeNull();
@@ -1055,7 +1055,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const unobservedUrlReason = discoveryPivotAlignmentReason(objective, "visit", {
       url: "https://example.org/about",
     }, []);
-    expect(unobservedUrlReason).toBeNull();
+    expect(unobservedUrlReason).not.toBeNull();
 
     const scopeKey = discoveryPivotScopeKey(objective);
     expect(scopeKey).not.toBeNull();
@@ -1084,29 +1084,29 @@ Choose each next action yourself from the available capabilities and observed ev
       "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
     ].join("\n");
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Austin Texas private manufacturing company owners official Texas Secretary of State business entity search",
+      query: "Austin Texas private manufacturing company owners state business registry official Texas Secretary of State business entity search",
       provider: "serper",
     }, [])).toBeNull();
 
     const inScopeDiscoveryQuery = discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Austin Texas private manufacturing company owners", provider: "serper",
+      query: "Austin Texas private manufacturing company owners state business registry", provider: "serper",
     }, []);
     expect(inScopeDiscoveryQuery).toBeNull();
 
     const scopeKey = discoveryPivotScopeKey(objective);
     if (!scopeKey) throw new Error("Expected the pivot source class to define a scope key");
     expect(repeatedPivotBlockedActionReason(objective, "web_search", {
-      query: "Austin Texas private manufacturing company owners", provider: "serper",
+      query: "Austin Texas private manufacturing company owners state business registry", provider: "serper",
     }, [{
       turn: 1, model: "openai/gpt-oss-120b", action: "web_search",
-      args: { query: "Austin Texas private manufacturing company owners", provider: "serper" },
+      args: { query: "Austin Texas private manufacturing company owners state business registry", provider: "serper" },
       pivotScopeKey: scopeKey, execution: "blocked",
       observation: "pivot_alignment_guard blocked this outbound action. Scope mismatch dimensions: query source class.",
       observedUrls: [], findings: [],
     } as AgenticTrajectoryRecord])).toBeNull();
   });
 
-  it("accepts model-selected queries without English-only subject and jurisdiction vetoes", () => {
+  it("preserves the approved regional business-class scope", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
@@ -1126,11 +1126,11 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Iowa Secretary of State business entity search regional logistics firms",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Wisconsin Secretary of State business entity search private equity firms",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
   });
   it("preserves model choice across English and native-language region phrasing", () => {
     const objective = [
@@ -1158,9 +1158,9 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Texas Secretary of State business entity search privately held mid-market manufacturing companies",
       provider: "serper",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
-      query: "Údržba větrných elektráren ve Wisconsinu a Minnesotě — soukromí vlastníci",
+      query: "Soukromé středně velké kovovýrobní společnosti ve Wisconsin a Minnesota business registry",
       provider: "serper",
     }, [])).toBeNull();
   });
@@ -1305,12 +1305,17 @@ Choose each next action yourself from the available capabilities and observed ev
       "مالك كازينو بورتوروز استثمار",
       "赌场波尔托罗什主要股东",
       "カジノ ポルトロシュ 主要株主",
-      'site:reuters.com "赌场主要股东"',
-      'site:reuters.com "مالك الكازينو"',
     ];
     for (const query of multilingualQueries) {
       expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: true });
     }
+    for (const broadPublisherQuery of ['site:reuters.com "赌场主要股东"', 'site:reuters.com "مالك الكازينو"']) {
+      expect(validateDiscoverySearchQuery(broadPublisherQuery, [])).toMatchObject({
+        allowed: false,
+        reason: expect.stringContaining("broad press-publisher-only search without an exact named person/business anchor"),
+      });
+    }
+    expect(validateDiscoverySearchQuery('site:reuters.com "Casino Portorož"', [])).toMatchObject({ allowed: true });
 
     // Canonically equivalent spellings should share repeat-action identity, without transliteration.
     expect(normalizeDiscoverySearchQuery("Cafe\u0301")).toBe(normalizeDiscoverySearchQuery("Café"));
