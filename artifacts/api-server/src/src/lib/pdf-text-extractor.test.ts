@@ -31,6 +31,7 @@ describe("bounded PDF text extraction", () => {
     const runtime = globalThis as unknown as { DOMMatrix?: unknown };
     const previousDomMatrix = runtime.DOMMatrix;
     const result = await extractPdfText(minimalPdf("Official filing: Apex Example GmbH"));
+    expect(result.text).toContain("[Page 1]");
     expect(result.text).toContain("Official filing: Apex Example GmbH");
     expect(result).toMatchObject({ pagesRead: 1, totalPages: 1, truncated: false });
     expect(runtime.DOMMatrix).toBe(previousDomMatrix);
@@ -40,6 +41,11 @@ describe("bounded PDF text extraction", () => {
     const result = await extractPdfText(minimalPdf(""));
     expect(result.text).toBe("");
     expect(result).toMatchObject({ pagesRead: 1, totalPages: 1 });
+  });
+
+  it("fails malformed PDF bytes rather than returning a successful empty document", async () => {
+    const malformed = new TextEncoder().encode("%PDF-this-is-not-a-valid-document");
+    await expect(extractPdfText(malformed)).rejects.toThrow();
   });
 
   it("caps extracted text and refuses oversized input before parsing", async () => {
