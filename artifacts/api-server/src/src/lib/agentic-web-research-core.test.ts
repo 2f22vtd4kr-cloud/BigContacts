@@ -2273,3 +2273,22 @@ describe("Groq Investigator structured-output recovery", () => {
     }
   });
 });
+
+describe("PDF prompt capability contract", () => {
+  it("directs text-bearing PDFs to visit and keeps browser_fetch HTML-only", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Investigate a source-backed company and identify attributable decision-makers.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+
+    expect(prompt).toContain("visit supports bounded text extraction for text-bearing PDF documents");
+    expect(prompt).toContain("Scanned/image-only, encrypted, malformed or empty-text PDFs remain unobserved");
+    expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead");
+    expect(prompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
+  });
+});
