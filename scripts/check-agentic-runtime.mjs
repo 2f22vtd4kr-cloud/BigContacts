@@ -37,7 +37,7 @@ assert(/executePythonOsintTool/.test(python) && /refreshPythonOsintToolAvailabil
 assert(/function getWorkerConfig\(\)/.test(workerClient) && /validateAttestation/.test(workerClient) && /availableTools/.test(workerClient), "canonical Python worker requires an attested available-tool contract");
 assert(/APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST/.test(workerClient) && /APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST/.test(workerClient), "canonical Python worker independently pins immutable worker and proxy identities");
 assert(/capability: "network_osint"/.test(workerClient) && /destinationPolicy: "approved-public-web-only"/.test(workerClient), "Python OSINT egress policy is constrained");
-assert(/state === "attested"/.test(workerClient) && /allowedCapabilities\.includes\("network_osint"\)/.test(workerClient), "Python availability requires attested capability");
+assert(/item\.state !== "attested"/.test(workerClient) && /allowedCapabilities\.includes\("network_osint"\)/.test(workerClient), "Python availability requires attested capability");
 assert(/function authorizePythonSandboxRequest/.test(sandbox) && /attested/.test(sandbox), "sandbox contract defines attestation boundary");
 function exportedAsyncFunctionSegment(sourceText, name) {
   const marker = `export async function ${name}(`;
