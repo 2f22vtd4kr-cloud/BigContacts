@@ -213,3 +213,11 @@ This tracked report records observable setup, request/status metadata, decisions
 - This is not a registry endpoint response and does not establish anything about runtime availability. It is a real code-quality defect in the transport-failure formatter, which is directly exercised by the registry failure diagnostics.
 - PR #717 now normalizes a known string-or-number transport code to a string before allowlist validation and adds a regression using numeric `errno`. The original failed workflow run is retained; a fresh run on the new head is required to verify the fix.
 - PR #716 adds separate PDF changes and has its own exact-head workflow set. Neither PR is merged; runtime access remains unavailable, and the Attempt 2 status/active lock are still unknown.
+
+## P026 — Capability prompt budget and registry availability review
+
+- Official KVK documentation indicates the name-based search API requires a subscription/API key; the published public high-value dataset is limited to BV/NV statistics and does not supply company names or KVK numbers. No safe free API replacement for the disabled KVK adapter was verified in this review. Keep it unadvertised and use source-backed web search until a valid transport/credential configuration exists.
+- The first full-code audit runs on prior PR heads exposed two contract failures: model-selectable capability guidance measured 1,127 characters against the 1,000-character budget, and the PDF dispatch regression test's `visit` slice accidentally included the subsequent `browser_fetch` branch.
+- Both branches now shorten capability guidance without dropping the required snippets/answer/JS/legal-role/privacy caveats. The rendered selectable guidance was checked from the updated source at 995 characters. The PDF dispatch test now bounds `visitDispatch` at the start of `browser_fetch`, matching the actual dispatch architecture instead of a stale assumed order.
+- Exact follow-up heads: PR #716 `c712251f1569469a480d2e536cb25c5c6f329943`; PR #717 `bdcb7a055a711e65d6771c5ff8b1036bf93fd751`. Fresh CI is queued/in progress on these heads. The prior full-code audit failures remain historical failures; do not call either branch green until its new exact-head gates complete.
+- The endpoint and runtime are still not live-verified. Attempt 2 remains unresolved, and no Atlas launch was attempted.
