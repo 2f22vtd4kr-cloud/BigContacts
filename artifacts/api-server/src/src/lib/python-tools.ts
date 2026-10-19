@@ -65,7 +65,6 @@ export interface SpiderFootResult {
 }
 
 const DEFAULT_HARVESTER_SOURCES = "bing,duckduckgo,yahoo,certspotter,crtsh";
-const RESULT_STATUSES = new Set(["completed", "partial"]);
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
