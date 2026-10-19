@@ -102,3 +102,10 @@ Passed: fetched `main` is the runtime SHA; typecheck, build, focused source-rout
 ## P012 — Live checkpoints
 
 The monitor will append UTC checkpoints with status, phase/progress and log-entry counts while the job runs. Model-visible prompts/completions are captured only in the run-specific ignored file; this report will record sanitized action/evidence summaries and durable outcomes.
+
+## P013 — Repository evidence checkpoint — 2026-10-19
+
+- Review of the tracked audit at main commit `f84902e79dd0f30ee59749063124ef2407786270` confirms that the last recorded event is the HTTP 202 launch acceptance in P011 and the planned monitoring note in P012. No later checkpoint or terminal reconciliation is present in this committed report.
+- Therefore this repository artifact alone cannot establish whether job `8237e1a8-192a-480e-b415-78f24eb94407` is still active, terminal-successful, or terminal-incomplete; it also cannot establish final durable evidence, candidate admission, card counts, or post-run lock state.
+- Before any further launch, the operator must reconcile that job and the active Atlas lock read-only in the actual runtime. Do not start a second job concurrently or infer an outcome from the missing tracked checkpoints.
+- This is a GitHub-side evidence-gap note only; it does not access, restart, or operate Replit, and it does not add runtime observations that were not captured in the repository.
