@@ -3610,7 +3610,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         activeScope
           ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 240)
           : finalScope,
-        "MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice.",
         "SCOPE: web discovery must match subject/geography; source class need not appear in every discovery query. Registry adapter must match jurisdiction; visit only observed URLs. Blocks are not evidence.",
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactRegistryGuidance,
@@ -3630,7 +3629,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 160)
         : "CASE OBJECTIVE: find real people with credible ownership evidence and a realistic public/professional route.";
       const ultimateDiscoveryGate = input.mode === "discovery"
-        ? "DISCOVERY GATE: people are targets; businesses/articles/profiles/snippets/URLs are leads. Seniority alone is not wealth evidence. Avoid generic fame/ranking/mega-brand leadership without a plausible local owner/operator route. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
+        ? "DISCOVERY GATE: people are targets; companies/articles/profiles/snippets/URLs are leads. Avoid fame/ranking/global-brand paths without a plausible local owner/operator route. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
         : "";
       const ultimateAdmission = input.mode === "discovery"
         ? "DISCOVERY ADMISSION: review-only lead requires exact full name and page-stated role plus an ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Never infer or fabricate."
@@ -3664,13 +3663,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const shortestPrompt = [
         finalEmergencyAssignment,
         shortestScope,
-        "SCOPE: match subject/geography; discovery queries may omit source class. Registry jurisdiction must match. Model chooses actions; blocks are not negative evidence.",
+        "SCOPE: honor topic/geography; source class may vary per query; registry jurisdiction must match; blocks are not evidence.",
         shortestActionsGuidance,
         shortestRegistryGuidance,
-        "PROVIDERS: search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain=rdap|whoisjson.",
-        "EVIDENCE: fetched source text only; snippets/URLs are leads. Never invent people, roles, ownership or contacts.",
+        "PROVIDERS: serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain=rdap|whoisjson.",
+        "EVIDENCE: fetched text only; snippets/URLs are leads; never invent people, roles, ownership or contacts.",
         compactPageFormatGuidance,
-        "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; all gates must pass before done.",
+        "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; pass all gates before done.",
         ultimateDiscoveryGate,
         ultimateAdmission,
         compactOutputContract,
