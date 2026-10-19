@@ -402,6 +402,35 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
                 tool, args, timeout_ms=5_000, max_output_bytes=1_000_000,
             )
 
+    async def test_output_limit_uses_canonical_failed_status_and_pinned_version(self) -> None:
+        with patch.object(
+            app, "run_process",
+            new_callable=AsyncMock,
+            return_value=(-9, b"", b"", "output_limit"),
+        ):
+            status, result, error, version = await app.run_cli_tool(
+                "holehe", {"email": "person@example.org"},
+                timeout_ms=5_000, max_output_bytes=1_024,
+            )
+        self.assertEqual(status, "failed")
+        self.assertIsNone(result)
+        self.assertIn("bounded output", error or "")
+        self.assertEqual(version, app.TOOL_VERSIONS["holehe"])
+
+    async def test_unavailable_process_does_not_claim_a_tool_version(self) -> None:
+        with patch.object(
+            app, "run_process",
+            new_callable=AsyncMock,
+            return_value=(None, b"", b"", "unavailable"),
+        ):
+            status, result, _error, version = await app.run_cli_tool(
+                "holehe", {"email": "person@example.org"},
+                timeout_ms=5_000, max_output_bytes=1_024,
+            )
+        self.assertEqual(status, "unavailable")
+        self.assertIsNone(result)
+        self.assertIsNone(version)
+
     async def test_holehe_malformed_stdout_is_not_an_empty_success(self) -> None:
         status, result, _error, _version = await self.invoke(
             "holehe", {"email": "person@example.org"}, stdout=b"not-json",
