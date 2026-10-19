@@ -17,7 +17,7 @@ function collectTsFiles(dir) {
     if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "test" || entry.name === "__tests__") continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) collectTsFiles(full);
-    else if (/\.tsx?$/.test(entry.name)) writerFiles.push(full);
+    else if (/\.tsx?$/.test(entry.name) && !/\.(?:test|spec)\.tsx?$/.test(entry.name)) writerFiles.push(full);
   }
 }
 collectTsFiles(path.join(root, "artifacts/api-server/src/src"));

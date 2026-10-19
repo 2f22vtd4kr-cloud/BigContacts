@@ -45,7 +45,7 @@ assert(/modelFindings:\s*AgenticFinding\[\]/.test(source), "modelFindings persis
 
 // The live ReAct loop must preserve the same separation after observations: tool results
 // become observations, then the model chooses the next action/finding.
-assert(/const action = parseAction\(llm\.raw\)/.test(loop) || /const action = parseAction\(llm\.raw\)/.test(source), "ReAct loop does not visibly cross the model action parser boundary.");
+assert(/const action = parseAction\(llm\.raw, actionAllowlistForTurn\)/.test(loop) || /const action = parseAction\(llm\.raw, actionAllowlistForTurn\)/.test(source), "ReAct loop does not visibly cross the decision-scoped model action parser boundary.");
 assert(/if \(action\.action === ["']done["']\)/.test(loop), "ReAct loop has no explicit model-controlled done branch.");
 
 if (failures.length) {

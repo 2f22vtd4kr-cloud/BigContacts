@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -235,6 +235,53 @@ describe("model-selectable Investigator capabilities", () => {
     for (const action of ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot", "made_up_tool", "", null]) {
       expect(isModelSelectableAgentAction(action)).toBe(false);
     }
+  });
+});
+
+describe("decision-scoped action allowlists", () => {
+  it("parses against the same allowlist captured for the model decision, not a later worker-cache state", () => {
+    const raw = JSON.stringify({
+      action: "footprint_email",
+      email: "alice@example.test",
+      hypothesis: "The observed email may have a public service footprint.",
+      purpose: "Test whether a targeted service footprint could distinguish the identity hypothesis.",
+      expectedInformationGain: 0.7,
+      thought: "Use the attested email footprint capability.",
+    });
+    expect(describeAgentActionParseFailure(raw, ["footprint_email"])).toBe("");
+    expect(parseAgentAction(raw, ["footprint_email"])).toMatchObject({
+      action: "footprint_email",
+      email: "alice@example.test",
+    });
+    expect(parseAgentAction(raw, ["web_search"])).toBeNull();
+
+    const actionAllowlist = ["footprint_email", "web_search"];
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Investigate the observed email and establish whether it belongs to the intended person.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "No external evidence has been collected yet.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist,
+    });
+    expect(prompt).toContain("AVAILABLE ACTIONS: footprint_email | web_search.");
+
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-20b", actionAllowlist) as {
+      type: string;
+      json_schema: { schema: { properties: { action: { enum: string[] } } } };
+    };
+    expect(responseFormat.type).toBe("json_schema");
+    expect(responseFormat.json_schema.schema.properties.action.enum).toEqual(actionAllowlist);
+
+    const requestBody = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-20b",
+      prompt,
+      cognitiveTask: "identity_resolution",
+      actionAllowlist,
+    }) as { response_format: typeof responseFormat };
+    expect(requestBody.response_format.json_schema.schema.properties.action.enum).toEqual(actionAllowlist);
   });
 });
 

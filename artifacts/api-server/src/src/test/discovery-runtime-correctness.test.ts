@@ -1046,7 +1046,7 @@ describe("Apex research runtime readiness hardening", () => {
     const { checkPythonToolsAvailability, runMaigret, runSherlock, runSpiderFoot, runTheHarvester } = await import("../lib/python-tools");
     expect(getPythonSandboxState().state).toBe("unavailable");
     expect(await checkPythonToolsAvailability()).toEqual({
-      holehe: false, maigret: false, sherlock: false, theHarvester: false, openDeepResearch: false,
+      holehe: false, maigret: false, sherlock: false, theHarvester: false, spiderfoot: false, openDeepResearch: false,
     });
     expect((await runMaigret("observed-username")).available).toBe(false);
     expect((await runSherlock("observed-username")).available).toBe(false);
