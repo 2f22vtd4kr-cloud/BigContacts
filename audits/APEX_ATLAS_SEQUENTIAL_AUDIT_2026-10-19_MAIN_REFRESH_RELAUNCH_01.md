@@ -1,7 +1,7 @@
 # ⭐ Apex Atlas Sequential Audit — Main refresh relaunch 01
 
 **Date:** 2026-10-19  
-**Status:** Setup reconciled; validation and fresh launch still pending  
+**Status:** UI-default launch accepted; tracked post-launch outcome and terminal reconciliation missing  
 **Source:** local `main` tracking `origin/main`, HEAD `4c2ea0ab0d11a5903458882dabffd7f35f19984f`  
 **Previous report:** `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_FRESH_PROJECT_RUN_04.md`
 
@@ -97,8 +97,15 @@ Passed: fetched `main` is the runtime SHA; typecheck, build, focused source-rout
 
 - Rechecked four guards immediately before the request: health/Redis/provider readiness, bureau integrity with automatic pipeline disabled, prior required job terminal, and active Atlas lane idle. All were true.
 - Sent exactly one `POST /api/ingest/atlas-run` using the inspected UI helper’s default body: `targetCount=3`, `researchDepth=standard`, `targetTimeoutMs=420000`; no `singleTargetId`.
-- API returned HTTP 202 and job `8237e1a8-192a-480e-b415-78f24eb94407`, with accepted options matching the UI defaults. The canonical route’s schema gate passed; the model-owned discovery job has started.
+- API returned HTTP 202 and job `8237e1a8-192a-480e-b415-78f24eb94407`, with accepted options matching the UI defaults. The canonical route’s schema gate passed and the request was accepted. The tracked report has no post-launch model request/checkpoint, so this records launch acceptance only—not proof that a model call executed or that research progressed.
 
 ## P012 — Live checkpoints
 
 The monitor will append UTC checkpoints with status, phase/progress and log-entry counts while the job runs. Model-visible prompts/completions are captured only in the run-specific ignored file; this report will record sanitized action/evidence summaries and durable outcomes.
+
+## P013 — Repository evidence checkpoint — 2026-10-19
+
+- Review of the tracked audit at main commit `f84902e79dd0f30ee59749063124ef2407786270` confirms that the last recorded event is the HTTP 202 launch acceptance in P011 and the planned monitoring note in P012. No later checkpoint or terminal reconciliation is present in this committed report.
+- Therefore this repository artifact alone cannot establish whether job `8237e1a8-192a-480e-b415-78f24eb94407` is still active, terminal-successful, or terminal-incomplete; it also cannot establish final durable evidence, candidate admission, card counts, or post-run lock state.
+- Before any further launch, the operator must reconcile that job and the active Atlas lock read-only in the actual runtime. Do not start a second job concurrently or infer an outcome from the missing tracked checkpoints.
+- This is a GitHub-side evidence-gap note only; it does not access, restart, or operate Replit, and it does not add runtime observations that were not captured in the repository.
