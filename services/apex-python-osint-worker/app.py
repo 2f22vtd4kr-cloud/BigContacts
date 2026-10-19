@@ -514,7 +514,28 @@ def parse_json_from_stdout(stdout: bytes) -> dict[str, Any]:
         return {}
 
 
-async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_output_bytes: int) -> tuple[str, dict[str, Any] | None, str | None, str]:
+def process_failure_result(
+    tool: str,
+    failure: str,
+    exit_code: int | None,
+) -> tuple[str, None, str, str | None]:
+    if failure == "timeout":
+        status = "timeout"
+        message = tool + " exceeded its execution deadline."
+    elif failure == "unavailable":
+        status = "unavailable"
+        message = tool + " executable was unavailable."
+    elif failure == "output_limit":
+        status = "failed"
+        message = tool + " exceeded its bounded output or file-size limit."
+    else:
+        status = "failed"
+        message = tool + " process failed before a valid result was produced."
+    version = TOOL_VERSIONS.get(tool) if exit_code is not None else None
+    return status, None, message, version
+
+
+async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_output_bytes: int) -> tuple[str, dict[str, Any] | None, str | None, str | None]:
     with tempfile.TemporaryDirectory(prefix="apex-osint-") as temp:
         home = Path(temp)
         if tool == "holehe":
