@@ -119,6 +119,9 @@ function resultPayload(response: { status: string; result: Record<string, unknow
 function executionMetadata(response: {
   requestId: string; tool: PythonOsintTool; status: PythonToolExecution["status"];
   toolVersion: string | null; startedAt: string | null; finishedAt: string | null;
+  executorId?: string | null; workerImageDigest?: string | null; egressProxyImageDigest?: string | null;
+  isolationProofIssuedAt?: string | null; isolationProofExpiresAt?: string | null;
+  correlation?: Record<string, unknown> | null; remoteCancellationConfirmed?: boolean | null;
 }): PythonToolExecution {
   return {
     requestId: response.requestId,
@@ -251,7 +254,7 @@ export async function runSpiderFoot(
   target: string,
   targetType: SpiderFootTargetType,
   profile: SpiderFootProfile = "identity-expansion",
-  options: { signal?: AbortSignal; timeoutMs?: number; maxOutputBytes?: number } = {},
+  options: { signal?: AbortSignal; timeoutMs?: number; maxOutputBytes?: number; correlation?: import("./python-osint-worker-client").PythonOsintToolCorrelation } = {},
 ): Promise<SpiderFootResult> {
   const base: SpiderFootResult = {
     scanId: null, target, targetType, profile, observations: [], eventsReceived: 0,

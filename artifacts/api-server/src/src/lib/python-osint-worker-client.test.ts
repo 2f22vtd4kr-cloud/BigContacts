@@ -60,7 +60,7 @@ describe("signed Python OSINT worker client", () => {
     vi.stubEnv("APEX_PYTHON_SANDBOX_TOKEN", TOKEN);
     vi.stubEnv("APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST", "sha256:" + "a".repeat(64));
     vi.stubEnv("APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST", "sha256:" + "b".repeat(64));
-    const fetchMock = vi.fn(async () => response(validAttestation()));
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => response(validAttestation()));
     vi.stubGlobal("fetch", fetchMock);
 
     const available = await refreshPythonOsintToolAvailability();
@@ -119,7 +119,7 @@ describe("signed Python OSINT worker client", () => {
       const url = String(input);
       requests.push({ url, init });
       if (url.endsWith("/v1/attestation")) return response(validAttestation());
-      const body = JSON.parse(String(init?.body)) as { requestId: string; tool: string; args: Record<string, unknown> };
+      const body = JSON.parse(String(init?.body)) as { requestId: string; tool: string; args: Record<string, unknown>; correlation?: Record<string, unknown> };
       const signature = String(new Headers(init?.headers).get("X-Apex-Request-Signature"));
       const expected = createHmac("sha256", TOKEN).update(stableJson(body)).digest("hex");
       expect(signature).toBe(expected);

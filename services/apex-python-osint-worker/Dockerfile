@@ -41,7 +41,7 @@ RUN git clone --depth 1 --branch 4.11.1 https://github.com/laramies/theHarvester
 
 COPY services/apex-python-osint-worker/requirements.txt /app/requirements.txt
 RUN uv venv --python /usr/local/bin/python /opt/venvs/worker-api \
-    && uv pip install --python /opt/venvs/worker-api/bin/python /app/requirements.txt
+    && uv pip install --python /opt/venvs/worker-api/bin/python -r /app/requirements.txt
 
 COPY services/apex-python-osint-worker/app.py /app/app.py
 COPY services/apex-python-osint-worker/tool_runner.py /app/tool_runner.py
