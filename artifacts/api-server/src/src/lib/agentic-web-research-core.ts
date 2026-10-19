@@ -21,7 +21,7 @@ import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { candidateIdentityObserved } from "./identity-text-match";
 import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import { getAvailableRegistryIds, normalizeRegistryId } from "./registry-client";
-import { extractPdfText, PDF_TEXT_MAX_BYTES, PDF_TEXT_MAX_PAGES } from "./pdf-text-extractor";
+import { extractPdfText, PdfTextExtractionError, PDF_TEXT_MAX_BYTES, PDF_TEXT_MAX_PAGES } from "./pdf-text-extractor";
 import { inferResearchCognitiveTask, rankGroqModelsForTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, type InvestigatorCapability } from "./investigator-capability-registry";
 import { defaultTerminalContract, evaluateResearchTerminal } from "./research-terminal-gate";
@@ -1129,20 +1129,32 @@ async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observati
       let extracted: Awaited<ReturnType<typeof extractPdfText>>;
       try {
         extracted = await extractPdfText(responseBytes, { maxPages: PDF_TEXT_MAX_PAGES, maxChars: MAX_OBS });
-      } catch {
+      } catch (error) {
+        const failureKind = error instanceof PdfTextExtractionError ? error.reason : "pdf_extraction_failed";
+        const detail = failureKind === "pdf_encrypted"
+          ? "The PDF is encrypted or password protected; no contents were extracted."
+          : failureKind === "pdf_malformed"
+            ? "The PDF is malformed or unreadable; no contents were extracted."
+            : failureKind === "pdf_unsupported"
+              ? "The PDF uses an unsupported document feature; no contents were extracted."
+              : "Bounded PDF text extraction failed.";
         return {
-          observation: `failureDomain=external_page_fetch failureKind=pdf_extraction_failed; PDF at ${displayUrl} was downloaded but bounded text extraction failed. Its contents remain unobserved and must not be cited; try another readable public source.`,
+          observation: `failureDomain=external_page_fetch failureKind=${failureKind}; PDF at ${displayUrl} was downloaded, but ${detail} Its contents remain unobserved and must not be cited; try another readable public source.`,
           status: "error",
           observedUrl: null,
-          failureKind: "pdf_extraction_failed",
+          failureKind,
         };
       }
       if (!extracted.text.trim()) {
+        const failureKind = extracted.ocrRequired ? "pdf_ocr_required" : "pdf_no_text";
+        const detail = extracted.ocrRequired
+          ? `No text was extracted, but image content was detected on ${extracted.pagesRead} inspected page(s); OCR is required to read those images and is not available in this capability.`
+          : `No extractable text was found in ${extracted.pagesRead} inspected page(s); this may be a blank PDF or a document whose text is not accessible to the parser.`;
         return {
-          observation: `failureDomain=external_page_fetch failureKind=pdf_no_text; PDF at ${displayUrl} has no extractable text in ${extracted.pagesRead} inspected page(s). It may be scanned/image-only or encrypted; OCR is not available in this capability, so its contents remain unobserved and must not be cited. Try another readable source.`,
+          observation: `failureDomain=external_page_fetch failureKind=${failureKind}; PDF at ${displayUrl}: ${detail} Its contents remain unobserved and must not be cited. Try another readable source.`,
           status: "error",
           observedUrl: null,
-          failureKind: "pdf_no_text",
+          failureKind,
         };
       }
       const boundedPdfText = sanitizeUrlsInText(extracted.text.slice(0, MAX_OBS));
