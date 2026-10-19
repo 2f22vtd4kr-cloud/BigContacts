@@ -2991,6 +2991,16 @@ export function discoveryPivotScopeKey(objective: string): string | null {
   return normalized ? normalized.slice(0, 1_800) : null;
 }
 
+/**
+ * Outbound semantic relevance stays model-led. The previous lexical alignment
+ * gate parsed an English vocabulary for subject/geography/source-class and could
+ * reject valid queries in other languages before the Investigator saw evidence.
+ *
+ * The only remaining hard pivot constraint is an explicit Boss-authored staged
+ * source dependency ("first ... then ..."). It is a procedural instruction, not
+ * a content-language classifier. All other source/query relevance is judged by
+ * the Investigator and the durable evidence/admission gates.
+ */
 export function discoveryPivotAlignmentReason(
   objective: string,
   action: string,
@@ -3000,38 +3010,7 @@ export function discoveryPivotAlignmentReason(
   const direction = extractBossPivotDirectionForCompactPrompt(objective);
   const activePivotScopeKey = discoveryPivotScopeKey(objective);
   if (!direction || !activePivotScopeKey) return null;
-  const anchors = pivotScopeAnchors(objective);
-  const excludedSubjects = pivotScopeExclusions(direction);
-  const geographyOptions = pivotScopeGeographyOptions(direction);
-  const requiredSourceAnchors = pivotScopeRequiredSourceAnchors(direction);
-  // Keep a subject-open pivot model-led while still enforcing every explicit
-  // source class, geography, and exclusion found in the direction.
-  if (anchors.length === 0 && excludedSubjects.length === 0 && geographyOptions.length === 0 && requiredSourceAnchors.length === 0) return null;
-  // Provenance grows only through successful actions already grounded in the active
-  // pivot. That admits named-company/ownership follow-ups without reopening old lanes.
-  const sourceStageReason = explicitSourceStageOrderReason(direction, activePivotScopeKey, action, args, priorRecords);
-  if (sourceStageReason) return sourceStageReason;
-  const evidence = pivotAlignedEvidenceState(priorRecords, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, activePivotScopeKey);
-  if (pivotActionIsAligned(action, args, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, evidence.sourceUrls, evidence.evidenceText)) return null;
-
-  const failureDetails = pivotActionAlignmentFailureDetails(
-    action,
-    args,
-    anchors,
-    excludedSubjects,
-    geographyOptions,
-    requiredSourceAnchors,
-    evidence.sourceUrls,
-    evidence.evidenceText,
-  );
-  const mismatch = failureDetails.length > 0
-    ? failureDetails.join("; ")
-    : "required scope dimensions could not be classified";
-  return "pivot_alignment_guard blocked this outbound action before execution. Scope mismatch dimensions: "
-    + mismatch
-    + ". The active Boss-accepted pivot is: "
-    + direction.slice(0, 420)
-    + ". Web discovery queries must remain on the substantive topic and active geography, but do not need to repeat source-class wording; official registry discovery may precede named-company searches. Native-language equivalents are valid when they express the same topic. Registry searches must use an adapter matching the active jurisdiction/source class. Follow-up URLs must be observed leads or grounded in successful aligned evidence. Revise the actually mismatched dimension or ask Boss/Right-hand for new scope. No outbound request was made.";
+  return explicitSourceStageOrderReason(direction, activePivotScopeKey, action, args, priorRecords);
 }
 /**
  * Split a model-selected parallel web-search batch at the active-pivot boundary.
