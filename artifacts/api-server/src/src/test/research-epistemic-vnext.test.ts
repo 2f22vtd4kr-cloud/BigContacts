@@ -36,6 +36,17 @@ describe("research epistemic vNext", () => {
     expect(bindExactSourceSpan("Jane Doe works at Example Ltd.", "john@example.org", "Jane Doe")).toBeNull();
   });
 
+  it("preserves PDF page provenance even when the bounded claim excerpt begins mid-page", () => {
+    const span = bindExactSourceSpan(
+      "PDF PAGE https://example.gov/report.pdf\\nExtracted text:\\n[Page 12] Executive summary. Example Holdings owns 25 percent of Example Company.",
+      "25 percent",
+      "Example Holdings",
+    );
+    expect(span?.exact).toBe(true);
+    expect(span?.text).not.toContain("[Page 12]");
+    expect(span?.pageNumber).toBe(12);
+  });
+
   it("stores the subject and value together in a claim-grade span", () => {
     const span = bindExactSourceSpan(
       "Jane Doe — Director at Example Ltd. Public email: jane@example.org.",
