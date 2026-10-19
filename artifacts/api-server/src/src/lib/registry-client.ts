@@ -156,7 +156,7 @@ export function isRegistryProviderAvailable(registry: string): boolean {
   if (!normalized) return false;
   // The previous Sweden adapter called an undocumented Allabolag endpoint and mislabeled its output as Bolagsverket data.
   // Keep the ID in the action schema for compatibility, but do not advertise it as callable until a supported source exists.
-  if (normalized === "bolagsverket-sweden") return false;
+  if (normalized === "bolagsverket-sweden" || normalized === "kvk-netherlands") return false;
   if (normalized === "opencorporates") return Boolean(openCorporatesApiToken());
   if (normalized === "companies-house") return Boolean(process.env["COMPANIES_HOUSE_API_KEY"]?.trim());
   return true;
@@ -446,7 +446,7 @@ export function buildOffeneregisterSearchUrl(query: string, limit = 10): string 
     `LIMIT ${boundedLimit}`,
   ].join(" ");
   // Use the documented bound SQL parameter rather than interpolating model text.
-  const url = new URL("https://db.offeneregister.de/openregister.json");
+  const url = new URL("https://db.offeneregister.de/openregister-ef9e802.json");
   url.searchParams.set("sql", sql);
   url.searchParams.set("p0", `%${normalizedQuery}%`);
   return url.toString();
@@ -692,7 +692,6 @@ async function searchAtokaItaly(query: string, limit: number, signal?: AbortSign
   return results;
 }
 async function searchBormeSpain(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; const seen = new Set<string>(); const url = `https://boe.es/buscar/api.php?collection=BORME&q=${encodeURIComponent(query)}&lang=es&hits=${Math.min(limit * 2, 20)}`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (!resp.ok) throw new Error(`BORME Spain HTTP ${resp.status}`); const data = (await resp.json()) as any; const items: any[] = data?.response?.results?.result ?? data?.items ?? []; for (const item of items) { const raw: string = item?.titulo ?? item?.title ?? item?.descripcion ?? ""; if (!raw) continue; const name = raw.replace(/^[A-ZÁÉÍÓÚ\s]+:\s+/u, "").split(/[,;]/)[0]?.trim() ?? raw; if (!name || seen.has(name.toLowerCase())) continue; seen.add(name.toLowerCase()); const pubDate: string = item?.fecha ?? item?.date ?? ""; const section: string = item?.seccion ?? ""; const idBoe: string = item?.identificador ?? item?.id ?? ""; results.push({ name, type: "Corporation", nationality: "ES", knownResidences: "Spain", sourceRegistries: JSON.stringify(["BORME Spain (BOE)"]), notes: [pubDate ? `Published: ${pubDate}` : null, section ? `Section: ${section}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "borme-spain", boeId: idBoe, pubDate, section, boeUrl: idBoe ? `https://www.boe.es/boe/dias/${pubDate?.replace(/-/g, "/")}/pdfs/${idBoe}.pdf` : null }) }); if (results.length >= limit) break; } return results; }
-async function searchKvkNetherlands(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const url = `https://api.openkvk.nl/api/v2/companies?q=${encodeURIComponent(query)}&limit=${Math.min(limit, 20)}`; const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)", Origin: "https://www.openkvk.nl", Referer: "https://www.openkvk.nl/" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (!resp.ok) throw new Error(`KvK Netherlands HTTP ${resp.status}`); const data = (await resp.json()) as any; const items: any[] = data?.data ?? data?.results ?? data?.companies ?? (Array.isArray(data) ? data : []); const results: RegistryResult[] = []; for (const item of items.slice(0, limit)) { const name: string = item?.naam ?? item?.name ?? item?.company_name ?? ""; if (!name) continue; const kvkNumber: string = item?.kvk ?? item?.kvk_nummer ?? item?.kvknummer ?? item?.id ?? ""; const city: string = item?.stad ?? item?.city ?? item?.vestigingsplaats ?? ""; const address = [item?.adres ?? item?.address, item?.postcode ?? item?.zip, city, "Netherlands"].filter(Boolean).join(", "); const legalForm: string = item?.rechtsvorm ?? item?.legal_form ?? ""; const sbi: string = item?.sbi_code ?? ""; results.push({ name, type: "Corporation", nationality: "NL", knownResidences: address || undefined, sourceRegistries: JSON.stringify(["KvK Netherlands (openkvk.nl)"]), notes: [kvkNumber ? `KvK: ${kvkNumber}` : null, legalForm ? `Form: ${legalForm}` : null, sbi ? `SBI: ${sbi}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "kvk-netherlands", kvkNumber, legalForm, city, sbi }) }); } return results; }
 async function searchKboBelgium(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; const url = `https://kbopub.economie.fgov.be/kbopub/zoeknaamfonetischform.html?lang=nl&searchWord=${encodeURIComponent(query)}&pstcdeNummer=&postgemeente=&gemeente=&typeVennootschap=&status=&startdatum=&einddatum=&numberOfResults=${Math.min(limit, 10)}&resultaat=`; const resp = await registryFetch("registry", url, { headers: { Accept: "text/html,application/xhtml+xml", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (!resp.ok) throw new Error(`KBO Belgium HTTP ${resp.status}`); const html = await resp.text(); const rowRe = /href="[^"]*ondernemingsnummer=(\d+)[^"]*"\s*>([^<]+)<\/a>/g; const cityRe = /class="resultaatValue"[^>]*>([^<]{3,40})<\/td>/g; let m: RegExpExecArray | null; const cities: string[] = []; let cityMatch; while ((cityMatch = cityRe.exec(html)) !== null) cities.push((cityMatch[1] ?? "").trim()); let idx = 0; while ((m = rowRe.exec(html)) !== null && results.length < limit) { const enterpriseNumber = m[1] ?? ""; const name = (m[2] ?? "").trim(); if (!name || name.length < 2) { idx++; continue; } const city = cities[idx * 2 + 1] ?? cities[idx] ?? ""; results.push({ name, type: "Corporation", nationality: "BE", knownResidences: city ? `${city}, Belgium` : "Belgium", sourceRegistries: JSON.stringify(["KBO Belgium"]), notes: enterpriseNumber ? `KBO: ${enterpriseNumber.replace(/(\d{4})(\d{3})(\d{3})/, "$1.$2.$3")}` : undefined, metadata: JSON.stringify({ source: "kbo-belgium", enterpriseNumber, city, kboUrl: enterpriseNumber ? `https://kbopub.economie.fgov.be/kbopub/toonondernemingps.html?ondernemingsnummer=${enterpriseNumber}` : null }) }); idx++; } return results; }
 
 export async function searchRegistry(params: RegistrySearchParams): Promise<RegistryResult[]> {
@@ -703,6 +702,11 @@ export async function searchRegistry(params: RegistrySearchParams): Promise<Regi
   if (!normalizedRegistry) throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
   if (normalizedRegistry === "bolagsverket-sweden") {
     return searchBolagsverketSweden(query.trim(), limit, signal);
+  }
+  if (normalizedRegistry === "kvk-netherlands") {
+    const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: kvk-netherlands has no verified public endpoint configured. The former openkvk.nl mirror did not resolve during the latest check; the official KVK APIs require a subscription. Use web_search/parallel_web_search for Dutch-company discovery and fetch observed source pages. Do not interpret registry unavailability as a no-hit.");
+    Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
+    throw error;
   }
   let results: RegistryResult[];
   if (normalizedRegistry === "opencorporates") {
@@ -729,7 +733,7 @@ export async function searchRegistry(params: RegistrySearchParams): Promise<Regi
   else if (normalizedRegistry === "ytj-finland") results = await searchYtjFinland(query.trim(), limit, signal);
   else if (normalizedRegistry === "atoka-italy") results = await searchAtokaItaly(query.trim(), limit, signal);
   else if (normalizedRegistry === "borme-spain") results = await searchBormeSpain(query.trim(), limit, signal);
-  else if (normalizedRegistry === "kvk-netherlands") results = await searchKvkNetherlands(query.trim(), limit, signal);
+
   else if (normalizedRegistry === "kbo-belgium") results = await searchKboBelgium(query.trim(), limit, signal);
   else throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
   if (signal?.aborted) throw new Error("cancelled");
