@@ -415,7 +415,15 @@ export async function executePythonOsintTool(input: {
     }
     const message = error instanceof Error ? error.message : "Sandbox worker execution failed.";
     const status: PythonOsintToolStatus = /timed out/i.test(message) ? "timeout" : /unavailable|unreachable|configuration/i.test(message) ? "unavailable" : "failed";
-    return { ...base, status, error: message.slice(0, 500), correlation: normalizeCorrelation(input.correlation) };
+    let remoteCancellationConfirmed: boolean | null = false;
+    if (status === "timeout") {
+      const remoteStatus = await requestRemoteCancellation();
+      remoteCancellationConfirmed = remoteStatus === "cancelled" || remoteStatus === "cancel_reserved";
+    }
+    return {
+      ...base, status, error: message.slice(0, 500),
+      correlation: normalizeCorrelation(input.correlation), remoteCancellationConfirmed,
+    };
   } finally {
     input.signal?.removeEventListener("abort", onAbort);
     if (input.signal?.aborted) {

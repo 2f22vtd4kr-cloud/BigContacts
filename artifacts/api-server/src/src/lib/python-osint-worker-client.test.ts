@@ -219,6 +219,41 @@ describe("signed Python OSINT worker client", () => {
     expect(Object.values(await refreshPythonOsintToolAvailability()).some(Boolean)).toBe(false);
   });
 
+  it("requests remote cancellation when the API-side execution deadline expires", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubEnv("APEX_PYTHON_SANDBOX_URL", "https://worker.example.test");
+      vi.stubEnv("APEX_PYTHON_SANDBOX_TOKEN", TOKEN);
+      vi.stubEnv("APEX_PYTHON_OSINT_EXPECTED_WORKER_IMAGE_DIGEST", "sha256:" + "a".repeat(64));
+      vi.stubEnv("APEX_PYTHON_OSINT_EXPECTED_PROXY_IMAGE_DIGEST", "sha256:" + "b".repeat(64));
+      const urls: string[] = [];
+      const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        urls.push(url);
+        if (url.endsWith("/v1/attestation")) return response(validAttestation());
+        if (url.endsWith("/v1/cancel")) {
+          const payload = JSON.parse(String(init?.body)) as { requestId: string };
+          return response({ requestId: payload.requestId, status: "cancelled" });
+        }
+        return await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("Sandbox worker request timed out.")), { once: true });
+        });
+      });
+      vi.stubGlobal("fetch", fetchMock);
+      const pending = executePythonOsintTool({
+        tool: "maigret", args: { username: "alice" }, timeoutMs: 1_000,
+      });
+      await vi.waitFor(() => expect(urls).toContain("https://worker.example.test/v1/execute"));
+      await vi.advanceTimersByTimeAsync(3_000);
+      const outcome = await pending;
+      expect(outcome.status).toBe("timeout");
+      expect(outcome.remoteCancellationConfirmed).toBe(true);
+      expect(urls).toContain("https://worker.example.test/v1/cancel");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("requests and validates remote cancellation when an in-flight action is aborted", async () => {
     vi.stubEnv("APEX_PYTHON_SANDBOX_URL", "https://worker.example.test");
     vi.stubEnv("APEX_PYTHON_SANDBOX_TOKEN", TOKEN);
