@@ -432,28 +432,14 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((status, error), ("completed", None))
         self.assertEqual(result["found"], [])
 
-    async def test_maigret_v066_report_path_and_nested_status_are_normalized(self) -> None:
-        record = {
-            "sitename": "GitHub",
-            "status": {
-                "username": "testuser",
-                "site_name": "GitHub",
-                "url": "https://github.com/testuser",
-                "status": "Claimed",
-                "ids": {},
-                "tags": ["social"],
-            },
-            "url_user": "https://github.com/testuser",
-            "tags": ["social"],
-            "ids_data": {"bio": "Public profile"},
-        }
+    async def test_maigret_v066_csv_report_preserves_claimed_profiles(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,error_reason\n"
+        row = "testuser,GitHub,https://github.com,https://github.com/testuser,Claimed,200,\n"
 
         def artifact(home: Path) -> None:
             reports = home / "reports"
             reports.mkdir()
-            (reports / "report_testuser_ndjson.json").write_text(
-                json.dumps(record) + "\n", encoding="utf-8",
-            )
+            (reports / "report_testuser.csv").write_text(header + row, encoding="utf-8")
 
         status, result, error, _version = await self.invoke(
             "maigret", {"username": "testuser"}, artifact=artifact,
@@ -462,19 +448,42 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["found"][0]["siteName"], "GitHub")
         self.assertEqual(result["found"][0]["url"], "https://github.com/testuser")
         self.assertEqual(result["found"][0]["status"], "found")
-        self.assertEqual(result["found"][0]["profileData"], {"bio": "Public profile"})
+        self.assertEqual(result["totalSitesChecked"], 1)
 
-    async def test_maigret_existing_empty_report_is_a_valid_zero_hit_result(self) -> None:
+    async def test_maigret_available_site_rows_prove_a_valid_zero_hit_search(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,error_reason\n"
+        rows = (
+            "testuser,Example A,https://a.example,https://a.example/testuser,Available,404,\n"
+            "testuser,Example B,https://b.example,https://b.example/testuser,Available,404,\n"
+        )
+
         def artifact(home: Path) -> None:
             reports = home / "reports"
             reports.mkdir()
-            (reports / "report_testuser_ndjson.json").write_text("", encoding="utf-8")
+            (reports / "report_testuser.csv").write_text(header + rows, encoding="utf-8")
 
         status, result, error, _version = await self.invoke(
             "maigret", {"username": "testuser"}, artifact=artifact,
         )
         self.assertEqual((status, error), ("completed", None))
         self.assertEqual(result["found"], [])
+        self.assertEqual(result["totalSitesChecked"], 2)
+
+    async def test_maigret_unknown_site_rows_are_partial_not_a_negative_result(self) -> None:
+        header = "username,name,url_main,url_user,exists,http_status,error_reason\n"
+        rows = "testuser,Example,https://example.test,https://example.test/testuser,Unknown,0,Connection timed out\n"
+
+        def artifact(home: Path) -> None:
+            reports = home / "reports"
+            reports.mkdir()
+            (reports / "report_testuser.csv").write_text(header + rows, encoding="utf-8")
+
+        status, result, error, _version = await self.invoke(
+            "maigret", {"username": "testuser"}, artifact=artifact,
+        )
+        self.assertEqual(status, "partial")
+        self.assertEqual(result["found"], [])
+        self.assertIn("incomplete", error or "")
 
     async def test_maigret_missing_or_malformed_report_is_failure_even_with_exit_zero(self) -> None:
         status, result, _error, _version = await self.invoke(
@@ -486,8 +495,8 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         def malformed(home: Path) -> None:
             reports = home / "reports"
             reports.mkdir()
-            (reports / "report_testuser_ndjson.json").write_text(
-                "{definitely-not-json}\n", encoding="utf-8",
+            (reports / "report_testuser.csv").write_text(
+                "{definitely-not-a-csv-report}\n", encoding="utf-8",
             )
 
         status, result, _error, _version = await self.invoke(
