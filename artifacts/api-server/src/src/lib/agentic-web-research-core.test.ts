@@ -249,6 +249,8 @@ describe("page visit response classification", () => {
     expect(visitDispatch.indexOf("toolVisit(canonical")).toBeGreaterThan(-1);
     expect(agenticCoreSource).toContain("extractPdfText(responseBytes");
     expect(agenticCoreSource).toContain("PDF_TEXT_MAX_BYTES");
+    expect(agenticCoreSource).toContain("documentType=pdf retrievedAt=");
+    expect(agenticCoreSource).toContain("OCR REQUIRED FOR IMAGE-ONLY PAGES");
     expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeGreaterThan(-1);
     expect(browserDispatch.indexOf("if (isPdfPageResponse(action.url, null))")).toBeLessThan(browserDispatch.indexOf('import("./browser-fetch")'));
     expect(browserDispatch).toContain("no browser provider request was made");
@@ -437,7 +439,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/web_search\/parallel_web_search\s*=\s*serper\s*\|\s*tavily\s*\|\s*exa/);
     expect(prompt).toContain("browser_fetch");
     expect(prompt).toContain("domain_lookup");
-    expect(prompt).toMatch(/(?:PAGE FORMAT \/ RETRIEVAL LIMITS: visit and browser_fetch do not extract text from PDF binaries|PAGE LIMIT: visits do not extract PDF binaries)/);
+    expect(prompt).toContain("visit supports bounded text extraction for text-bearing PDF documents");
+    expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text");
     expect(prompt).toMatch(/search snippets (?:remain leads, not evidence|are leads, not evidence)/i);
     expect(prompt).toMatch(/BOSS ADVISORY DIRECTION \(not a fixed action sequence\):|ACTIVE BOSS SCOPE:/);
     expect(prompt).toContain("MISSION PRIORITY:");
