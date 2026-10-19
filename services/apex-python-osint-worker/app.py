@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import ctypes
 import hashlib
 import hmac
 import ipaddress
@@ -145,7 +146,8 @@ def load_isolation_proof() -> dict[str, Any] | None:
         }
         if set(payload.get("verifiedNetworkPolicies", [])) != required_policies:
             return None
-        if payload.get("proxyConfigSha256") != os.getenv("APEX_EGRESS_PROXY_CONFIG_SHA256", ""):
+        proxy_config_hash = sha256_file(Path("/etc/apex/egress-proxy/squid.conf"))
+        if not proxy_config_hash or payload.get("proxyConfigSha256") != proxy_config_hash:
             return None
         if not re.fullmatch(r"sha256:[0-9a-f]{64}", str(payload.get("workerImageDigest", ""))):
             return None
@@ -720,6 +722,13 @@ async def require_authenticated_request(request: Request, authorization: str | N
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    # Tool processes share the container UID but never receive the API HMAC token.
+    # Mark this process non-dumpable so same-UID subprocesses cannot read its
+    # /proc/<pid>/environ or attach via ptrace. Failure means no network tools start.
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.prctl(4, 0, 0, 0, 0) != 0:  # PR_SET_DUMPABLE=4
+        raise RuntimeError("Could not protect worker process from same-UID inspection.")
+    os.umask(0o077)
     await start_spiderfoot()
     yield
     await stop_spiderfoot()
