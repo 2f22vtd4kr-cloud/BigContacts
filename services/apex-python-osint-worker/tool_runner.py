@@ -49,6 +49,7 @@ def run_holehe(args: dict[str, Any]) -> dict[str, Any]:
     found = []
     for item in output[:HOLEHE_MAX_OUTPUT_RECORDS]:
         if not isinstance(item, dict):
+            malformed_records += 1
             continue
         found.append({
             "name": str(item.get("name") or "")[:120],
@@ -59,8 +60,6 @@ def run_holehe(args: dict[str, Any]) -> dict[str, Any]:
             "error": item.get("error") is True,
             "rateLimit": item.get("rateLimit") is True,
         })
-        else:
-            malformed_records += 1
     return {
         "found": found,
         "totalChecked": len(output),
