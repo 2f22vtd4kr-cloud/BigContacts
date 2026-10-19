@@ -91,7 +91,7 @@ jobs:
       - run: npm install -g pnpm@9.15.9
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Typecheck
-        run: pnpm --dir artifacts/api-server run typecheck
+        run: pnpm run typecheck:libs && pnpm --dir artifacts/api-server run typecheck
       - name: Worker client, tool adapters, and sandbox contracts
         run: pnpm --dir artifacts/api-server exec vitest run src/src/lib/python-osint-worker-client.test.ts src/src/lib/python-tools.test.ts src/src/lib/python-osint-execution-metadata.test.ts src/src/test/python-sandbox-contract.test.ts
 

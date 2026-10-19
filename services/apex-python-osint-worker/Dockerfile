@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # SpiderFoot is pinned to upstream packaged release v4.0.
 RUN git clone --depth 1 --branch v4.0 https://github.com/smicallef/spiderfoot.git /opt/tools/spiderfoot \
-    && sed -i 's/^PyYAML==5\.4\.1$/PyYAML==6.0.3/i' /opt/tools/spiderfoot/requirements.txt \
+    && sed -i 's/^pyyaml>=5\.4\.1,<6$/PyYAML==6.0.3/i' /opt/tools/spiderfoot/requirements.txt \
     && grep -qi '^PyYAML==6\.0\.3$' /opt/tools/spiderfoot/requirements.txt \
     && uv venv --python 3.10 /opt/venvs/spiderfoot \
     && uv pip install --python /opt/venvs/spiderfoot/bin/python -r /opt/tools/spiderfoot/requirements.txt
