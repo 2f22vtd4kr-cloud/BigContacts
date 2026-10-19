@@ -551,7 +551,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             report_dir = home / "reports"
             code, stdout, stderr, failure = await run_process(
                 "/opt/venvs/maigret/bin/maigret",
-                [args["username"], "--json", "ndjson", "--folderoutput", str(report_dir), "--timeout", "8", "--no-progressbar", "--top-sites", "150", "--no-color"],
+                [args["username"], "--csv", "--folderoutput", str(report_dir), "--timeout", "8", "--no-progressbar", "--top-sites", "150", "--no-color"],
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
