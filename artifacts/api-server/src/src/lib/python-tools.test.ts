@@ -97,6 +97,23 @@ describe("canonical Python tool adapters", () => {
     expect(outcome.execution?.status).toBe("completed");
   });
 
+  it("preserves the worker's full bounded Holehe result set", async () => {
+    const platforms = Array.from({ length: 150 }, (_, index) => ({
+      name: "Service " + index, domain: "service-" + index + ".test", exists: false, error: false, rateLimit: false,
+    }));
+    mockedExecute.mockResolvedValueOnce(result("holehe", "completed", {
+      found: platforms, totalChecked: 250, totalFound: 0, truncated: false,
+    }));
+
+    const outcome = await runHolehe("research@example.test");
+
+    expect(outcome.found).toHaveLength(150);
+    expect(outcome.found[0]?.name).toBe("Service 0");
+    expect(outcome.found[149]?.name).toBe("Service 149");
+    expect(outcome.totalChecked).toBe(250);
+    expect(outcome.execution?.status).toBe("completed");
+  });
+
   it("normalizes SpiderFoot lineage and strips URL secrets while keeping URLs as leads", async () => {
     mockedExecute.mockResolvedValueOnce(result("spiderfoot", "completed", {
       scanId: "scan-123", target: "example.test", targetType: "domain", profile: "domain-infrastructure",
