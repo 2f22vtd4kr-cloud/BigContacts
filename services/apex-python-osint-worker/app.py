@@ -541,11 +541,11 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
         if tool == "holehe":
             code, stdout, stderr, failure = await run_process(
                 "/opt/venvs/holehe/bin/python",
-                ["/app/tool_runner.py", "holehe", json.dumps(args, separators=(",", ":"))],
+                ["/app/tool_runner.py", TOOL_VERSIONS["holehe"], json.dumps(args, separators=(",", ":"))],
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
-                return failure, None, "Holehe runner " + failure, "holehe"
+                return process_failure_result("holehe", failure, code)
             if code != 0:
                 return "failed", None, "Holehe runner returned a non-zero exit code.", "holehe"
             result = parse_json_from_stdout(stdout)
@@ -576,7 +576,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
-                return failure, None, "Maigret runner " + failure, "maigret"
+                return process_failure_result("maigret", failure, code)
             # Maigret v0.6.6's NDJSON exporter contains CLAIMED profiles only;
             # that output cannot distinguish a clean zero-hit run from a run in
             # which every site failed. Its CSV report retains each site's status.
@@ -656,7 +656,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
-                return failure, None, "Sherlock runner " + failure, "sherlock"
+                return process_failure_result("sherlock", failure, code)
             # Sherlock v0.16.2 serializes QueryStatus values such as Claimed,
             # Available, Unknown, and WAF into its CSV exists column. It does
             # not serialize booleans; treating this field as true lost every hit.
@@ -729,7 +729,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 timeout_ms=timeout_ms, max_output_bytes=max_output_bytes, tool_home=home,
             )
             if failure:
-                return failure, None, "theHarvester runner " + failure, "theharvester"
+                return process_failure_result("theharvester", failure, code)
             report_path = Path(str(report_base) + ".json")
             if not report_path.is_file():
                 return "failed", None, "theHarvester exited without its expected JSON report.", "theharvester"
@@ -762,7 +762,7 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
                 # engines completed successfully instead of swallowing errors.
                 return "partial", payload, "theHarvester produced an empty report without source-completion evidence; no negative finding is established.", "theharvester"
             return ("completed" if code == 0 else "partial"), payload, None if code == 0 else "theHarvester ended with a non-zero code after producing bounded results.", "theharvester"
-    return "unavailable", None, "No CLI executor was registered for the requested tool.", tool
+    return "unavailable", None, "No CLI executor was registered for the requested tool.", None
 
 
 def classify_holehe_result(found: list[Any]) -> tuple[str, str | None]:
