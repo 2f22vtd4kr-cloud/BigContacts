@@ -636,28 +636,70 @@ async def run_cli_tool(tool: str, args: dict[str, Any], timeout_ms: int, max_out
             )
             if failure:
                 return failure, None, "Sherlock runner " + failure, "sherlock"
-            # Sherlock v0.16.2 writes <username>.csv in the working directory
-            # whenever --csv is selected, including for a legitimate zero-hit run.
+            # Sherlock v0.16.2 serializes QueryStatus values such as Claimed,
+            # Available, Unknown, and WAF into its CSV exists column. It does
+            # not serialize booleans; treating this field as true lost every hit.
             result_path = home / (args["username"] + ".csv")
             if not result_path.is_file():
                 return "failed", None, "Sherlock exited without its expected CSV report.", "sherlock"
             import csv
             found: list[dict[str, Any]] = []
-            required_headers = {"name", "url_user", "exists"}
+            total_sites_checked = 0
+            site_rows_seen = 0
+            incomplete_records = 0
+            required_headers = {"username", "name", "url_main", "url_user", "exists", "http_status", "response_time_s"}
             try:
                 with result_path.open("r", encoding="utf-8", newline="") as stream:
                     reader = csv.DictReader(stream)
                     if not reader.fieldnames or not required_headers.issubset(set(reader.fieldnames)):
                         return "failed", None, "Sherlock returned a malformed CSV report.", "sherlock"
                     for row in reader:
-                        exists = str(row.get("exists", "")).strip().lower() == "true"
-                        if exists and row.get("url_user"):
-                            found.append({"siteName": str(row.get("name", ""))[:160], "url": str(row["url_user"])[:500]})
+                        site_rows_seen += 1
+                        if not isinstance(row, dict) or None in row:
+                            incomplete_records += 1
+                            continue
+                        raw_status = str(row.get("exists") or "").strip().lower()
+                        site_name = str(row.get("name") or "").strip()
+                        profile_url = str(row.get("url_user") or "").strip()
+                        if not site_name or not raw_status:
+                            incomplete_records += 1
+                            continue
+                        if raw_status == "illegal":
+                            incomplete_records += 1
+                            continue
+                        if raw_status in ("claimed", "found", "true"):
+                            total_sites_checked += 1
+                            if profile_url:
+                                found.append({"siteName": site_name[:160], "url": profile_url[:500], "status": "found"})
+                            else:
+                                incomplete_records += 1
+                        elif raw_status in ("available", "not_found", "false"):
+                            total_sites_checked += 1
+                        elif raw_status in ("unknown", "waf", "error", "unknown_error"):
+                            total_sites_checked += 1
+                            incomplete_records += 1
+                        else:
+                            incomplete_records += 1
             except (OSError, UnicodeError, csv.Error):
                 return "failed", None, "Sherlock CSV report could not be read.", "sherlock"
-            if code != 0 and not found:
-                return "failed", None, "Sherlock exited unsuccessfully without usable profile results.", "sherlock"
-            return ("completed" if code == 0 else "partial"), {"found": found[:300], "totalSitesChecked": max(len(found), len(stdout.decode("utf-8", errors="ignore").splitlines()))}, None if code == 0 else "Sherlock ended with a non-zero code after producing bounded results.", "sherlock"
+            if site_rows_seen == 0:
+                return "failed", None, "Sherlock CSV report contained no site results.", "sherlock"
+            if code != 0 and total_sites_checked == 0:
+                return "failed", None, "Sherlock exited unsuccessfully without usable site results.", "sherlock"
+            if code != 0:
+                status = "partial"
+                error = "Sherlock ended with a non-zero code after producing bounded site results."
+            elif incomplete_records:
+                status = "partial" if found or total_sites_checked else "failed"
+                error = "Sherlock returned incomplete, skipped, or unclassified site results."
+            else:
+                status = "completed"
+                error = None
+            return status, {
+                "found": found[:300],
+                "totalSitesChecked": total_sites_checked,
+                "incompleteSites": incomplete_records,
+            }, error, "sherlock"
         if tool == "theharvester":
             report_base = home / "harvest"
             code, stdout, stderr, failure = await run_process(
