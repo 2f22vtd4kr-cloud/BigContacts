@@ -555,92 +555,26 @@ export function isUntargetableDiscoveryPersonName(value: string): boolean {
 export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
-  // A quoted anchor may be written in any script and may not have uppercase/lowercase.
-  // Do not infer a language restriction from Unicode casing.
-  const hasQuotedEntityAnchor = [...query.matchAll(/["“]([^"”]+)["”]/gu)].some((match) =>
-    /[\p{L}\p{N}][\p{L}\p{M}\p{N}&'.’\-]{1,}/u.test(match[1] ?? ""),
-  );
-  if (hasPressPublisherSiteFilter(query) && !hasQuotedEntityAnchor) {
-    return { allowed: false, reason: "Discovery rejected a broad press-publisher-only search without a quoted named subject anchor. News stories can support a source-grounded lead, but the publisher or its broad topic is not the target or a reachability route; remove the outlet filter or quote the specific subject in its original writing. No provider request was made." };
+
+  // Structural/provider-syntax checks only. Query content is intentionally not
+  // classified by English keywords, entity lists, role lists, or sector vocabularies.
+  if (/(?:^|\\s)site:\\s*\\.[a-z0-9-]+(?:\\s|$)/i.test(normalized)) {
+    return { allowed: false, reason: "Discovery query contains a malformed bare site filter. Use a concrete hostname or remove the site operator; no provider request was made." };
   }
-  if (DISCOVERY_BARE_TLD_SITE_FILTER.test(normalized)) {
-    return { allowed: false, reason: "Discovery query uses a bare TLD as a site filter, not a concrete source. Name a real domain or business/sector anchor; no provider request was made." };
-  }
-  const placeholderQuery = /(?:\bcompanyname\b|\bcompanywebsite(?:\.[a-z]{2,})?\b|\byourcompany(?:\.[a-z]{2,})?\b|\bexample\.(?:com|org|net|co\.[a-z]{2})\b|\[\s*(?:companyname|company(?:\s+name)?|domain|company\s+website)\s*\]|\{\{\s*(?:companyname|company(?:\s+name)?|domain)\s*\}\})/i;
+
+  // Block literal templates so they cannot waste provider quota.
+  const placeholderQuery = /(?:\\bcompanyname\\b|\\bcompanywebsite(?:\\.[a-z]{2,})?\\b|\\byourcompany(?:\\.[a-z]{2,})?\\b|\\bexample\\.(?:com|org|net|co\\.[a-z]{2})\\b|\\[\\s*(?:companyname|company(?:\\s+name)?|domain|company\\s+website)\\s*\\]|\\{\\{\\s*(?:companyname|company(?:\\s+name)?|domain)\\s*\\}\\})/i;
   if (placeholderQuery.test(query)) {
-    return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with a real entity/source anchor observed in the case; no provider request was made." };
-  }
-  if (isUntargetableDiscoveryPersonName(normalized)) {
-    return { allowed: false, reason: "Discovery rejected a globally prominent person as an untargetable first-choice target. Start from a realistic private/regional business, owner/operator, investor, beneficial owner, or documented local intermediary instead; no provider request was made." };
+    return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with the actual entity/source anchor; no provider request was made." };
   }
 
-  const warnings: string[] = [];
   if (priorQueries.some((prior) => normalizeDiscoverySearchQuery(prior) === normalized)) {
-    warnings.push("This normalized query has been attempted before. The repeat was allowed as advisory guidance; same-provider repeats are blocked unless a newly fetched public source has advanced the case, while provider/locale/market changes remain valid alternatives. A changed rationale alone is not new evidence.");
+    return {
+      allowed: true,
+      warning: "This normalized query has been attempted before. A repeat remains a valid research choice; the repeat-action guard considers provider, locale, market, and newly fetched evidence separately.",
+    };
   }
-
-  // These lexical recognizers are deliberately advisory. Their vocabulary is
-  // incomplete across languages and writing systems; they must never decide that
-  // a query lacks an ownership, role, sector, organization, or source anchor.
-  const role = DISCOVERY_ROLE_TERMS.test(normalized);
-  const sector = DISCOVERY_SECTOR_TERMS.test(normalized);
-  const source = DISCOVERY_SOURCE_TERMS.test(normalized);
-  const organization = DISCOVERY_ORG_TERMS.test(normalized);
-  const fame = DISCOVERY_FAME_TERMS.test(normalized);
-  const concreteSignals = Number(role) + Number(sector) + Number(source) + Number(organization);
-  const tokens = normalized.split(/\s+/).filter(Boolean);
-  const tokenCount = tokens.length;
-  const genericContextTerms = new Set([
-    "people", "person", "list", "lists", "ranking", "rankings", "world", "global", "everyone",
-    "year", "recent", "latest", "announcement", "announcements", "deal", "deals", "transaction", "transactions",
-    "funding", "round", "rounds", "investment", "investments", "acquisition", "acquisitions", "startup", "startups",
-    "executive", "executives", "business", "businesses", "company", "companies", "industry", "industries", "market", "markets",
-    "news", "report", "reports", "article", "articles", "interview", "interviews", "statement", "statements", "profile", "profiles",
-    "page", "pages", "team", "teams", "leadership", "leader", "leaders", "staff", "roster", "rosters", "directory", "directories",
-    "fortune", "fortune500", "large", "small", "major", "leading", "top", "best", "big",
-    "venture", "ventures", "capital", "private", "equity", "tech", "technology", "biotech", "software", "finance", "financial",
-    "founder", "founders", "ceo", "cfo", "coo", "cto", "owner", "owners", "investor", "investors", "what", "who", "whom", "whose", "where", "when", "why", "how", "is", "are", "was", "were", "be", "being", "been", "do", "does", "did", "can", "could", "should", "would", "will", "may", "might", "has", "have", "had", "it", "its", "they", "them", "their", "we", "you", "i", "me", "my", "our", "your", "which", "any", "some", "all", "near", "around", "a", "an", "the", "and", "or", "nor", "but", "if", "then", "than", "of", "in", "on", "to", "as", "at", "by", "for", "from", "with", "without", "into", "over", "under", "after", "before", "about", "against", "among", "between", "through", "during", "using", "via",
-  ]);
-  const nonFameTokens = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token));
-  const hasNamedOrConcreteToken = nonFameTokens.some((token) => {
-    if (/^\d+$/.test(token)) return false;
-    const singular = token.endsWith("s") ? token.slice(0, -1) : token;
-    return !DISCOVERY_SECTOR_TERMS.test(token)
-      && !DISCOVERY_ROLE_TERMS.test(token)
-      && !DISCOVERY_ROLE_TERMS.test(singular)
-      && !DISCOVERY_ORG_TERMS.test(token)
-      && !DISCOVERY_SOURCE_TERMS.test(token);
-  });
-  const hasExplicitSourceAnchor = /(?:\bsite:(?:[a-z0-9-]+\.)+[a-z]{2,}\b|\b(?:edgar|companies\s*house|sec)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i.test(normalized);
-  const hasRegistryOrFilingAnchor = /\b(?:registry|edgar|companies\s*house|sec)\b/i.test(normalized);
-  const hasConcreteAnchor = hasExplicitSourceAnchor || hasRegistryOrFilingAnchor || hasNamedOrConcreteToken;
-  const localOperatorRoute = DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS.test(normalized);
-  const ownershipHypothesis = DISCOVERY_OWNERSHIP_ROUTE_TERMS.test(normalized);
-
-  if (DISCOVERY_GENERIC_CONTACT_TERMS.test(normalized)
-    && !DISCOVERY_TARGETABILITY_TERMS.test(normalized)
-    && !DISCOVERY_SECTOR_TERMS.test(normalized)) {
-    warnings.push("Lexical hint: this may be a generic public-relations/media-contact query without a wealth-relevant business or ownership hypothesis. This is advisory only; use the full case context and any language/script, then judge actual result quality.");
-  }
-  if (fame && !hasConcreteAnchor) {
-    warnings.push("Lexical hint: this may be a fame/list-oriented query without a concrete subject or source anchor. Add context if the model's intent is genuinely broad; this advisory does not block any language or script.");
-  }
-  if (!hasConcreteAnchor) {
-    warnings.push("The English-oriented lexical hints did not identify a concrete anchor. They are incomplete across languages/scripts; the query was not blocked. Use model judgment and the live case context to assess specificity.");
-  }
-  if ((fame || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute && !ownershipHypothesis) {
-    warnings.push("Lexical hint: this may emphasize fame/ranking over a realistic ownership, investment, operator, or intermediary route. Advisory only; preserve the case objective and let observed results determine the next action.");
-  }
-  if ((DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized) || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute) {
-    warnings.push("This query may lead to a global-brand or ranking destination rather than a reachable local operating principal. Treat it as a lead only and let fetched content, not query vocabulary, determine its value.");
-  }
-  if (DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS.test(normalized) && !DISCOVERY_OWNERSHIP_ROUTE_TERMS.test(normalized)) {
-    warnings.push("Lexical hint: a leadership/about query may not expose ownership, equity, investment, or a reachable intermediary. This is advisory only; inspect the actual source and do not infer wealth from seniority.");
-  }
-  if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) {
-    warnings.push("This query is brief or context-light; exact-identity lookups can still be useful. Use observed result quality to decide whether a pivot is justified; the rail does not select the next search or capability.");
-  }
-  return { allowed: true, ...(warnings.length ? { warning: warnings.join(" ") } : {}) };
+  return { allowed: true };
 }
 /** Apply discovery quality/targetability to domain lookups before any provider call. */
 export function validateDiscoveryDomainLookup(domain: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
