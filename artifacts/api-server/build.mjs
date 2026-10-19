@@ -15,6 +15,19 @@ async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
 
+  const rootDir = path.resolve(artifactDir, "../..");
+  let revision = "unknown";
+  let dirty = false;
+  let dirtyState = "unknown";
+  const builtAt = new Date().toISOString();
+  try {
+    revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
+    dirty = Boolean(execFileSync("git", ["status", "--porcelain"], { cwd: rootDir, encoding: "utf8" }).trim());
+    dirtyState = dirty ? "dirty" : "clean";
+  } catch {
+    // Missing Git metadata is explicitly represented as unknown in the job record.
+  }
+
   await esbuild({
     // The imported BigContacts implementation lives under src/src. The
     // top-level src tree is only the minimal scaffold and exposes healthz
@@ -27,6 +40,12 @@ async function buildAll() {
     outdir: distDir,
     outExtension: { ".js": ".mjs" },
     logLevel: "info",
+    // Freeze source provenance into the same bundle that will create durable jobs.
+    define: {
+      "process.env.APEX_BUILD_REVISION": JSON.stringify(revision),
+      "process.env.APEX_BUILD_DIRTY": JSON.stringify(dirtyState),
+      "process.env.APEX_BUILD_TIMESTAMP": JSON.stringify(builtAt),
+    },
     // Some packages may not be bundleable, so we externalize them, we can add more here as needed.
     // Some of the packages below may not be imported or installed, but we're adding them in case they are in the future.
     // Examples of unbundleable packages:
@@ -126,14 +145,7 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     },
   });
 
-  let revision = "unknown";
-  let dirty = false;
-  try {
-    const rootDir = path.resolve(artifactDir, "../..");
-    revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
-    dirty = Boolean(execFileSync("git", ["status", "--porcelain"], { cwd: rootDir, encoding: "utf8" }).trim());
-  } catch {}
-  await writeFile(path.join(distDir, ".atlas-build-stamp.json"), JSON.stringify({ revision, dirty, builtAt: new Date().toISOString() }) + "\n");
+  await writeFile(path.join(distDir, ".atlas-build-stamp.json"), JSON.stringify({ revision, dirty, builtAt }) + "\n");
 }
 
 buildAll().catch((err) => {
