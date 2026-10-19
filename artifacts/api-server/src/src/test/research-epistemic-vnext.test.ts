@@ -60,6 +60,10 @@ describe("research epistemic vNext", () => {
     );
     expect(Chinese?.exact).toBe(true);
 
+    // Numeric values may be adjacent to CJK text, but not to a Latin token.
+    expect(bindExactSourceSpan("公司25%的股份", "25%", "公司")?.exact).toBe(true);
+    expect(bindExactSourceSpan("Apex25% ownership", "25%", "Apex")).toBeNull();
+
     // A source token followed by a combining mark is not an exact whole-token
     // match to the base spelling alone.
     expect(bindExactSourceSpan("Cafe\u0301 owner owns 25%", "Cafe", "owner")).toBeNull();

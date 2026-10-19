@@ -25,9 +25,13 @@ function hasExactTokenBoundary(text: string, index: number, value: string): bool
   // malformed partial token; Latin/Arabic identifiers still require boundaries.
   const unspacedTokenScript = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
   const containsUnspacedTokenScript = unspacedTokenScript.test(value);
+  // A numeric amount can directly follow CJK text (for example, "公司25%股份").
+  // Treat only the adjacent CJK character as a boundary; Latin partial-token
+  // matches and combining-mark suffixes must still be rejected.
+  const numericSymbolValue = /^\p{N}+(?:[.,]\p{N}+)?[%‰$€£¥₩₹]$/u.test(value);
   const continuesToken = (character: string) => Boolean(character)
     && /[\p{L}\p{M}\p{N}_@+-]/u.test(character)
-    && !(containsUnspacedTokenScript && unspacedTokenScript.test(character));
+    && !((containsUnspacedTokenScript || numericSymbolValue) && unspacedTokenScript.test(character));
   const endsWithSelfDelimitedNumericSymbol = /[%‰$€£¥₩₹]$/u.test(value);
   if (continuesToken(before) || (continuesToken(after) && !endsWithSelfDelimitedNumericSymbol)) return false;
   // Dots are valid punctuation after a complete value, but not when they extend
