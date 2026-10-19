@@ -88,15 +88,18 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
     start = Math.max(0, Math.min(relevantStart, relevantEnd - maxChars));
     end = Math.min(text.length, start + maxChars);
   }
-  const spanText = text.slice(start, end).trim();
+  const rawSpanText = text.slice(start, end);
+  const spanLeadingTrimOffset = rawSpanText.length - rawSpanText.trimStart().length;
+  const spanEndTrimmedLength = rawSpanText.trimEnd().length;
+  const spanText = rawSpanText.trim();
   const localSubjectIndex = subjectNeedle ? findExactTokenIndex(spanText.toLowerCase(), subjectNeedle) : -1;
   const valueMatched = findExactTokenIndex(spanText.toLowerCase(), needle) >= 0;
   const subjectMatched = !subjectNeedle || localSubjectIndex >= 0;
   return {
     text: spanText,
     // Offsets address the original durable observation, not its trimmed view.
-    start: leadingTrimOffset + start,
-    end: leadingTrimOffset + end,
+    start: leadingTrimOffset + start + spanLeadingTrimOffset,
+    end: leadingTrimOffset + start + spanEndTrimmedLength,
     subjectMatched: Boolean(subjectNeedle) ? subjectMatched : false,
     valueMatched,
     exact: valueMatched && subjectMatched,
