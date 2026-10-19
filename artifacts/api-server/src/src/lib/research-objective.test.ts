@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBossDirectedObjective, resolveApprovedOpeningDirection, validateResearchObjective } from "./research-objective";
+import { formatBossDirectedObjective, resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "./research-objective";
 
 describe("research objective validation", () => {
   it("accepts an epistemic research question without prescribing a tool or provider", () => {
@@ -47,6 +47,35 @@ describe("research objective validation", () => {
     expect(formatBossDirectedObjective("Base objective", "Resolve the filing discrepancy.")).toBe(
       "Base objective\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\nResolve the filing discrepancy.",
     );
+  });
+
+  it("preserves the approved opening scope across durable resume and directionless continuation", () => {
+    const baseObjective = "Discover credible owners and operators in privately held businesses.";
+    const direction = "Investigate privately held renewable-energy firms in the United Kingdom using public company ownership filings.";
+    const activeObjective = formatBossDirectedObjective(baseObjective, direction);
+
+    const restored = restorePersistedDiscoveryObjective({
+      defaultBaseObjective: baseObjective,
+      persistedBaseObjective: baseObjective,
+      persistedActiveObjective: activeObjective,
+    });
+
+    expect(restored).toEqual({
+      baseObjective,
+      activeObjective,
+      restoredPivot: true,
+    });
+    expect(resolveBossDirectedDiscoveryObjective({
+      action: "continue_discovery",
+      baseObjective,
+      currentObjective: restored.activeObjective,
+      direction: null,
+    })).toEqual({
+      valid: true,
+      objective: activeObjective,
+      direction: activeObjective,
+      reusedCurrentObjective: true,
+    });
   });
 
   it("accepts an explicit natural-language proceed decision from Right-hand", () => {
