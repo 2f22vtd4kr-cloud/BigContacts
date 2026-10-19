@@ -867,6 +867,14 @@ export function summarizeRegistryAdapterFailure(registry: string, error: unknown
   return `REGISTRY_ADAPTER_REQUEST_ERROR: ${normalized} failed (${errorName}; detail_digest=${diagnostic.messageDigest ?? "none"}). No usable records were observed. Do not retry this adapter during this trajectory. Use web_search/parallel_web_search and fetch an observed public source. This is not a no-hit.`;
 }
 
+export function classifyRegistryBatchExecution(
+  outcomes: readonly { error: string | null }[],
+): "success" | "partial" | "error" {
+  if (outcomes.length === 0 || outcomes.every((outcome) => outcome.error !== null)) return "error";
+  if (outcomes.some((outcome) => outcome.error !== null)) return "partial";
+  return "success";
+}
+
 export async function webSearchSerper(query: string, locale?: string, market?: string, signal?: AbortSignal): Promise<ProviderSearchResult> {
   const key = [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].map((x) => (x || "").trim()).find(Boolean);
   if (!key) {
@@ -4066,8 +4074,8 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       }));
       for (const outcome of outcomes) if (outcome.error) { const failedRegistry = normalizeRegistryId(outcome.registry) ?? outcome.registry.trim().toLowerCase(); if (failedRegistry) failedRegistryAdapters.add(failedRegistry); }
       record.args = { ...record.args, registrySearchOutcomes: outcomes.map(({query, registry, rows, error}) => ({ query, registry, resultCount: rows.length, error })) }; record.leadUrls = [...new Set(outcomes.flatMap((outcome) => outcome.error ? [] : outcome.leadUrls))].slice(0, 24);
-      record.execution = outcomes.some((outcome) => !outcome.error) ? "success" : "error";
-      if (record.execution === "error") { record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; }
+      record.execution = classifyRegistryBatchExecution(outcomes);
+      if (record.execution !== "success") { record.failureDomain = "tool_execution"; record.failureKind = "request_failure"; }
       record.observedUrls = [];
       lastObservation = (skippedFailedAdapterSearches ? `Skipped ${skippedFailedAdapterSearches} query/queries for adapters that had already failed in this trajectory; no repeat request was made.\n\n` : "") + (scopeFilterSummary ? scopeFilterSummary + "\\n\\n" : "") + outcomes.map((outcome) => `REGISTRY ${outcome.registry} query=${outcome.query}\n${outcome.error ? `ERROR: ${outcome.error}` : outcome.formatted.join("\n") || "No registry hits."}`).join("\n\n") + "\nRegistry record URLs are unvisited leads, not evidence; fetch relevant records before citing claims.";
       record.observation = lastObservation;
