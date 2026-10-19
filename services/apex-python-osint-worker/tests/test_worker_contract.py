@@ -645,6 +645,38 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(status, "failed")
         self.assertIsNone(result)
 
+    async def test_theharvester_virtual_hosts_are_preserved_as_host_observations(self) -> None:
+        def artifact(home: Path) -> None:
+            (home / "harvest.json").write_text(
+                json.dumps({"hosts": [], "vhosts": ["vhost.example.org"]}), encoding="utf-8",
+            )
+
+        status, result, error, _version = await self.invoke(
+            "theharvester",
+            {"domain": "example.org", "sources": "bing"},
+            artifact=artifact,
+        )
+        self.assertEqual((status, error), ("completed", None))
+        self.assertEqual(result["hosts"], ["vhost.example.org"])
+        self.assertEqual(result["subdomains"], ["vhost.example.org"])
+        self.assertEqual(result["totalFound"], 1)
+
+    async def test_theharvester_source_errors_make_nonempty_result_partial(self) -> None:
+        def artifact(home: Path) -> None:
+            (home / "harvest.json").write_text(
+                json.dumps({"hosts": ["mail.example.org"]}), encoding="utf-8",
+            )
+
+        status, result, error, _version = await self.invoke(
+            "theharvester",
+            {"domain": "example.org", "sources": "bing"},
+            artifact=artifact,
+            stdout=b"Failed to process bing search for word: example.org\\nError Message: timeout",
+        )
+        self.assertEqual(status, "partial")
+        self.assertEqual(result["hosts"], ["mail.example.org"])
+        self.assertIn("source error", error or "")
+
     async def test_theharvester_empty_structured_report_is_inconclusive_not_success(self) -> None:
         def artifact(home: Path) -> None:
             (home / "harvest.json").write_text(
