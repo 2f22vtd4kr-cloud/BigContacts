@@ -1,11 +1,14 @@
 describe("OffeneRegister SQL API request contract", () => {
-  it("uses the documented JSON SQL endpoint, singular company table and bound query parameter", () => {
+  it("uses Datasette's custom-SQL JSON route, object rows and bound query parameter", () => {
     const url = new URL(buildOffeneregisterSearchUrl("GmbH' OR 1=1 --", 999));
-    expect(url.origin + url.pathname).toBe("https://db.offeneregister.de/openregister-ef9e802.json");
+    expect(url.origin + url.pathname).toBe("https://db.offeneregister.de/openregister-ef9e802/-/query.json");
     expect(url.searchParams.get("sql")).toContain("FROM company");
     expect(url.searchParams.get("sql")).toContain("company.name LIKE :p0");
     expect(url.searchParams.get("sql")).not.toContain("GmbH");
+    expect(url.searchParams.get("sql")).toContain("company.name AS name");
     expect(url.searchParams.get("p0")).toBe("%GmbH' OR 1=1 --%");
+    expect(url.searchParams.get("_shape")).toBe("objects");
+    expect(url.searchParams.get("_extra")).toBe("columns");
     expect(url.searchParams.get("sql")).toContain("LIMIT 20");
   });
 
