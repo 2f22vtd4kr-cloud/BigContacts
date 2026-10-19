@@ -1,16 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { extractPdfText, PDF_TEXT_MAX_BYTES } from "./pdf-text-extractor";
+import { classifyPdfTextExtractionFailure, extractPdfText, PDF_TEXT_MAX_BYTES } from "./pdf-text-extractor";
 
-function minimalPdf(text: string): Uint8Array {
-  const escapedText = text.replace(/[\\()]/g, "\\$&");
-  const stream = `BT\n/F1 12 Tf\n72 720 Td\n(${escapedText}) Tj\nET`;
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    `<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream`,
-  ];
+function encodePdf(objects: string[]): Uint8Array {
   let pdf = "%PDF-1.4\n";
   const offsets = [0];
   for (let index = 0; index < objects.length; index += 1) {
@@ -24,6 +15,31 @@ function minimalPdf(text: string): Uint8Array {
   }
   pdf += `trailer\n<< /Root 1 0 R /Size ${objects.length + 1} >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
   return new TextEncoder().encode(pdf);
+}
+
+function minimalPdf(text: string): Uint8Array {
+  const escapedText = text.replace(/[\\()]/g, "\\$&");
+  const stream = `BT\n/F1 12 Tf\n72 720 Td\n(${escapedText}) Tj\nET`;
+  return encodePdf([
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(stream, "latin1")} >>\nstream\n${stream}\nendstream`,
+  ]);
+}
+
+function imageOnlyPdf(): Uint8Array {
+  const content = "q 100 0 0 100 0 0 cm /Im1 Do Q";
+  const pixel = "\u0000\u0000\u0000";
+  return encodePdf([
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /XObject << /Im1 6 0 R >> >> /Contents 5 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Length ${Buffer.byteLength(content, "latin1")} >>\nstream\n${content}\nendstream`,
+    `<< /Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Length 3 >>\nstream\n${pixel}\nendstream`,
+  ]);
 }
 
 describe("bounded PDF text extraction", () => {
@@ -40,12 +56,25 @@ describe("bounded PDF text extraction", () => {
   it("returns no text for an image-only/empty-text PDF instead of manufacturing content", async () => {
     const result = await extractPdfText(minimalPdf(""));
     expect(result.text).toBe("");
-    expect(result).toMatchObject({ pagesRead: 1, totalPages: 1 });
+    expect(result).toMatchObject({ pagesRead: 1, totalPages: 1, ocrRequired: false });
   });
 
-  it("fails malformed PDF bytes rather than returning a successful empty document", async () => {
+  it("fails malformed PDF bytes with a structured parser reason rather than returning an empty document", async () => {
     const malformed = new TextEncoder().encode("%PDF-this-is-not-a-valid-document");
-    await expect(extractPdfText(malformed)).rejects.toThrow();
+    await expect(extractPdfText(malformed)).rejects.toMatchObject({ reason: "pdf_malformed" });
+  });
+
+  it("classifies encrypted and unsupported parser failures explicitly", () => {
+    expect(classifyPdfTextExtractionFailure(Object.assign(new Error("No password provided"), { name: "PasswordException" })))
+      .toBe("pdf_encrypted");
+    expect(classifyPdfTextExtractionFailure(Object.assign(new Error("Unsupported PDF feature"), { name: "UnsupportedFeatureException" })))
+      .toBe("pdf_unsupported");
+  });
+
+  it("marks image-only PDFs as requiring OCR without manufacturing text", async () => {
+    const result = await extractPdfText(imageOnlyPdf());
+    expect(result.text).toBe("");
+    expect(result).toMatchObject({ pagesRead: 1, totalPages: 1, ocrRequired: true });
   });
 
   it("caps extracted text and refuses oversized input before parsing", async () => {
