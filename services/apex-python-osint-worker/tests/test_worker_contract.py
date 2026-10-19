@@ -14,10 +14,12 @@ from datetime import datetime, timedelta, timezone
 from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import app  # noqa: E402
+import tool_runner  # noqa: E402
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 _ATTESTOR_SPEC = importlib.util.spec_from_file_location("apex_worker_attestor", REPO_ROOT / "scripts" / "attest-python-osint-worker.py")
@@ -316,6 +318,70 @@ class ProcessLimitsTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(stdout, b"")
         self.assertLess(elapsed, 3.0)
 
+class HoleheRunnerBoundsTests(unittest.TestCase):
+    def test_module_fanout_is_limited_and_scan_truncation_is_reported(self) -> None:
+        active = 0
+        peak_active = 0
+        websites = [f"site-{index}" for index in range(tool_runner.HOLEHE_MAX_MODULES + 1)]
+
+        class FakeSemaphore:
+            def __init__(self, capacity: int):
+                self.semaphore = asyncio.Semaphore(capacity)
+
+            async def __aenter__(self):
+                await self.semaphore.acquire()
+
+            async def __aexit__(self, _exc_type, _exc, _traceback):
+                self.semaphore.release()
+
+        class FakeNursery:
+            def __init__(self):
+                self.tasks = []
+
+            async def __aenter__(self):
+                return self
+
+            def start_soon(self, function, *args):
+                self.tasks.append(asyncio.create_task(function(*args)))
+
+            async def __aexit__(self, _exc_type, _exc, _traceback):
+                if self.tasks:
+                    await asyncio.gather(*self.tasks)
+
+        async def launch_module(website, _email, _client, output):
+            nonlocal active, peak_active
+            active += 1
+            peak_active = max(peak_active, active)
+            try:
+                await asyncio.sleep(0.002)
+                output.append({"name": str(website), "domain": "example.org", "exists": False})
+            finally:
+                active -= 1
+
+        core = ModuleType("holehe.core")
+        core.get_functions = lambda _modules, _settings: websites
+        core.import_submodules = lambda _path: object()
+        core.launch_module = launch_module
+        package = ModuleType("holehe")
+        package.__path__ = []
+        fake_trio = ModuleType("trio")
+        fake_trio.Semaphore = FakeSemaphore
+        fake_trio.open_nursery = FakeNursery
+        fake_trio.run = lambda coroutine: asyncio.run(coroutine)
+
+        with patch.dict(sys.modules, {
+            "trio": fake_trio,
+            "holehe": package,
+            "holehe.core": core,
+        }):
+            result = tool_runner.run_holehe({"email": "person@example.org"})
+
+        self.assertLessEqual(peak_active, tool_runner.HOLEHE_MAX_CONCURRENCY)
+        self.assertEqual(result["totalChecked"], tool_runner.HOLEHE_MAX_MODULES)
+        self.assertEqual(len(result["found"]), tool_runner.HOLEHE_MAX_MODULES)
+        self.assertTrue(result["truncated"])
+
+
 class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
     async def invoke(
         self,
@@ -342,6 +408,20 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(status, "failed")
         self.assertIsNone(result)
+
+    async def test_holehe_truncated_structured_result_is_partial(self) -> None:
+        stdout = json.dumps({
+            "found": [{"name": "service", "exists": True}],
+            "totalChecked": 250,
+            "totalFound": 1,
+            "truncated": True,
+        }).encode("utf-8")
+        status, result, error, _version = await self.invoke(
+            "holehe", {"email": "person@example.org"}, stdout=stdout,
+        )
+        self.assertEqual(status, "partial")
+        self.assertTrue(result["truncated"])
+        self.assertIn("bounded module/output limit", error or "")
 
     async def test_holehe_structured_empty_result_can_complete(self) -> None:
         status, result, error, _version = await self.invoke(
