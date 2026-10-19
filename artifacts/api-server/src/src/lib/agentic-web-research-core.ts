@@ -166,7 +166,7 @@ const DISCOVERY_ROLE_TERMS = /\b(?:founder|co[ -]?founder|owner|operator|ceo|chi
 const DISCOVERY_SECTOR_TERMS = /\b(?:casino|gaming|gambling|hotel|resort|hospitality|restaurant|construction|manufacturing|software|technology|saas|ai|artificial intelligence|fintech|healthcare|pharma|biotech|logistics|shipping|aviation|real estate|property|energy|industrial|automotive|retail|food|beverage|media|telecom|mining|metals|resources|legal|law|education|consulting|investment|private equity|venture capital|family office|asset management|insurance|banking|agriculture|tourism|travel)\b/i;
 const DISCOVERY_SOURCE_TERMS = /(?:\b(?:site:|registry|registr(?:y|ies)|filing|filings|annual report|press release|trade publication|business journal|interview|company profile|team page|official)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i;
 const DISCOVERY_ORG_TERMS = /\b(?:company|corp(?:oration)?|ltd|limited|llc|inc|group|holdings|partners|capital|ventures|bank|university|hospital|club|association)\b/i;
-export function normalizeDiscoverySearchQuery(query: string): string { return query.trim().toLowerCase().replace(/[\s\u00a0]+/g, " ").replace(/[“”‘’]/g, '"'); }
+export function normalizeDiscoverySearchQuery(query: string): string { return query.trim().normalize("NFC").toLowerCase().replace(/[\s\u00a0]+/g, " ").replace(/[“”‘’]/g, '"' ); }
 
 function normalizedActionResourceUrl(value: unknown): string | null {
   if (typeof value !== "string" || !value.trim()) return null;
@@ -555,8 +555,13 @@ export function isUntargetableDiscoveryPersonName(value: string): boolean {
 export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
-  if (hasPressPublisherSiteFilter(query) && !/["“][^"”]*\p{Lu}[\p{L}\p{M}\p{N}&'.’\-]{2,}[^"”]*["”]/u.test(query)) {
-    return { allowed: false, reason: "Discovery rejected a broad press-publisher-only search without an exact named person/business anchor. News stories can support a source-grounded lead, but the publisher or its broad topic is not the target or a reachability route; remove the outlet filter or quote the exact named entity. No provider request was made." };
+  // A quoted anchor may be written in any script and may not have uppercase/lowercase.
+  // Do not infer a language restriction from Unicode casing.
+  const hasQuotedEntityAnchor = [...query.matchAll(/["“]([^"”]+)["”]/gu)].some((match) =>
+    /[\p{L}\p{N}][\p{L}\p{M}\p{N}&'.’\-]{1,}/u.test(match[1] ?? ""),
+  );
+  if (hasPressPublisherSiteFilter(query) && !hasQuotedEntityAnchor) {
+    return { allowed: false, reason: "Discovery rejected a broad press-publisher-only search without a quoted named subject anchor. News stories can support a source-grounded lead, but the publisher or its broad topic is not the target or a reachability route; remove the outlet filter or quote the specific subject in its original writing. No provider request was made." };
   }
   if (DISCOVERY_BARE_TLD_SITE_FILTER.test(normalized)) {
     return { allowed: false, reason: "Discovery query uses a bare TLD as a site filter, not a concrete source. Name a real domain or business/sector anchor; no provider request was made." };
@@ -565,27 +570,18 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   if (placeholderQuery.test(query)) {
     return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with a real entity/source anchor observed in the case; no provider request was made." };
   }
-
   if (isUntargetableDiscoveryPersonName(normalized)) {
     return { allowed: false, reason: "Discovery rejected a globally prominent person as an untargetable first-choice target. Start from a realistic private/regional business, owner/operator, investor, beneficial owner, or documented local intermediary instead; no provider request was made." };
   }
 
-  // The anchor gate blocks only context-free provider spend. It never prescribes
-  // the anchor, provider, or next capability; exact named identities and justified
-  // repeats remain available to the model.
-  if (DISCOVERY_GENERIC_CONTACT_TERMS.test(normalized)
-    && !DISCOVERY_TARGETABILITY_TERMS.test(normalized)
-    && !DISCOVERY_SECTOR_TERMS.test(normalized)) {
-    return {
-      allowed: false,
-      reason: "Discovery rejected a generic public-relations/media-contact query with no wealth-relevant business, ownership, investment or operating anchor. Search snippets for generic staff contacts are not the person-discovery objective; choose a sector/business/ownership hypothesis instead. No provider request was made.",
-    };
-  }
   const warnings: string[] = [];
   if (priorQueries.some((prior) => normalizeDiscoverySearchQuery(prior) === normalized)) {
     warnings.push("This normalized query has been attempted before. The repeat was allowed as advisory guidance; same-provider repeats are blocked unless a newly fetched public source has advanced the case, while provider/locale/market changes remain valid alternatives. A changed rationale alone is not new evidence.");
   }
 
+  // These lexical recognizers are deliberately advisory. Their vocabulary is
+  // incomplete across languages and writing systems; they must never decide that
+  // a query lacks an ownership, role, sector, organization, or source anchor.
   const role = DISCOVERY_ROLE_TERMS.test(normalized);
   const sector = DISCOVERY_SECTOR_TERMS.test(normalized);
   const source = DISCOVERY_SOURCE_TERMS.test(normalized);
@@ -618,45 +614,28 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const hasExplicitSourceAnchor = /(?:\bsite:(?:[a-z0-9-]+\.)+[a-z]{2,}\b|\b(?:edgar|companies\s*house|sec)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i.test(normalized);
   const hasRegistryOrFilingAnchor = /\b(?:registry|edgar|companies\s*house|sec)\b/i.test(normalized);
   const hasConcreteAnchor = hasExplicitSourceAnchor || hasRegistryOrFilingAnchor || hasNamedOrConcreteToken;
-
-  // Quality gates constrain demonstrably context-free search spend without
-  // choosing a research sequence. The Investigator still selects the anchor,
-  // provider and next capability; repeated queries remain allowed with warning.
-  if (fame && !hasConcreteAnchor) {
-    return {
-      allowed: false,
-      reason: "A fame/list-oriented discovery query needs a concrete organization, person-in-context, geography, domain or source anchor before spending a search call.",
-    };
-  }
-  // Exact named-identity searches are valid anchors even when only two words long.
-  // Broad generic queries remain blocked; the model chooses the concrete anchor and
-  // subsequent capability, so this is a quality/resource boundary rather than a search plan.
-  if (!hasConcreteAnchor) {
-    return {
-      allowed: false,
-      reason: "Discovery search lacks a concrete anchor. Add a named person, organization, geography, registry, domain or source anchor before spending a search call.",
-    };
-  }
   const localOperatorRoute = DISCOVERY_LOCAL_OPERATOR_ROUTE_TERMS.test(normalized);
   const ownershipHypothesis = DISCOVERY_OWNERSHIP_ROUTE_TERMS.test(normalized);
-  if ((fame || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute && !ownershipHypothesis) {
-    return {
-      allowed: false,
-      reason: DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized) ? "Discovery rejected an impractical fame/ranking or global-household-brand path because it lacks an explicit ownership, investment, operator or intermediary hypothesis. A sector or geography keyword alone does not make a public rich-list target realistic; search the business/control route instead. No provider request was made." : "Discovery rejected a fame/ranking-list query that lacks an explicit ownership, investment, operator or intermediary hypothesis. A sector or geography keyword alone does not make a public rich-list target realistic; search the business/control route instead. No provider request was made.",
-    };
+
+  if (DISCOVERY_GENERIC_CONTACT_TERMS.test(normalized)
+    && !DISCOVERY_TARGETABILITY_TERMS.test(normalized)
+    && !DISCOVERY_SECTOR_TERMS.test(normalized)) {
+    warnings.push("Lexical hint: this may be a generic public-relations/media-contact query without a wealth-relevant business or ownership hypothesis. This is advisory only; use the full case context and any language/script, then judge actual result quality.");
   }
-  const globalBrandTarget = DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized);
-  if ((globalBrandTarget || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute) {
-    return {
-      allowed: false,
-      reason: "Discovery rejected an impractical fame/ranking or global-household-brand path. Search a realistically reachable private/regional operating principal or name a concrete local ownership/intermediary route (such as an independent bottler/distributor, franchise owner, license holder or concession holder). No provider request was made.",
-    };
+  if (fame && !hasConcreteAnchor) {
+    warnings.push("Lexical hint: this may be a fame/list-oriented query without a concrete subject or source anchor. Add context if the model's intent is genuinely broad; this advisory does not block any language or script.");
+  }
+  if (!hasConcreteAnchor) {
+    warnings.push("The English-oriented lexical hints did not identify a concrete anchor. They are incomplete across languages/scripts; the query was not blocked. Use model judgment and the live case context to assess specificity.");
+  }
+  if ((fame || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute && !ownershipHypothesis) {
+    warnings.push("Lexical hint: this may emphasize fame/ranking over a realistic ownership, investment, operator, or intermediary route. Advisory only; preserve the case objective and let observed results determine the next action.");
+  }
+  if ((DISCOVERY_GLOBAL_BRAND_TERMS.test(normalized) || DISCOVERY_RANKING_TERMS.test(normalized)) && !localOperatorRoute) {
+    warnings.push("This query may lead to a global-brand or ranking destination rather than a reachable local operating principal. Treat it as a lead only and let fetched content, not query vocabulary, determine its value.");
   }
   if (DISCOVERY_GLOBAL_BRAND_LEADERSHIP_TERMS.test(normalized) && !DISCOVERY_OWNERSHIP_ROUTE_TERMS.test(normalized)) {
-    return {
-      allowed: false,
-      reason: "Discovery rejected a title/leadership-led query without an ownership, equity, investor, operator, concession, franchise or proprietor hypothesis. A company-name anchor alone does not establish a wealthy or realistically targetable person; add a source-grounded owner/control/intermediary route before spending a search call. No provider request was made.",
-    };
+    warnings.push("Lexical hint: a leadership/about query may not expose ownership, equity, investment, or a reachable intermediary. This is advisory only; inspect the actual source and do not infer wealth from seniority.");
   }
   if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) {
     warnings.push("This query is brief or context-light; exact-identity lookups can still be useful. Use observed result quality to decide whether a pivot is justified; the rail does not select the next search or capability.");
@@ -696,9 +675,13 @@ export function validateDiscoverySourceUrl(rawUrl: string): { allowed: true } | 
     return { allowed: false, reason: "DISCOVERY TARGETABILITY GATE blocked an impractical fame/ranking destination before fetch. Choose a specific private/regional business, ownership/control, investment, asset, or local operator route instead." };
   }
   const globalBrandHost = /(?:^|\.)(?:coca-colacompany|coca-cola|pepsico|apple|microsoft|amazon|alphabet|google|meta|facebook|tesla|nvidia|walmart|mcdonalds|disney|netflix|oracle|berkshirehathaway|jpmorganchase|goldmansachs)(?:\.|$)/i.test(host);
-  const corporatePrestigePath = /(?:^|[\/_-])(?:leadership|executives?|management|board(?:-of-directors)?|corporate-officers|our-people|people-culture|leadership-team|executive-team|about(?:-us)?|who-we-are|our-company|company-profile)(?:[\/_-]|$)/i.test(url.pathname);
+  const corporatePrestigePath = /(?:^|[\/_-])(?:leadership|executives?|management|board(?:-of-directors)?|corporate-officers|our-people|people-culture|leadership-team|executive-team|about(?:-us)?|who-we-are|our-company|company-profile|investor(?:s|-relations?)?|financial-reports?|annual-reports?)(?:[\/_-]|$)/i.test(url.pathname);
   const explicitLocalOperatorRoute = /(?:bottler|distributor|franchisee?|concession|licensee|licensed-operator|regional-partner|local-operator|independent-operator)/i.test(url.pathname);
-  if (globalBrandHost && !explicitLocalOperatorRoute) {
+  // Only block destinations that are explicitly recognizable as generic global
+  // corporate/prestige pages. Unknown/localized path terms must be fetched and
+  // interpreted by the model, not classified as irrelevant because an English
+  // route word was absent.
+  if (globalBrandHost && corporatePrestigePath && !explicitLocalOperatorRoute) {
     const reason = corporatePrestigePath
       ? "DISCOVERY TARGETABILITY GATE blocked a global household-brand leadership/about page before fetch. A reachable local owner/operator/distributor/franchisee/licensee/concession holder must be the actual path; generic brand about pages are not a substitute."
       : "DISCOVERY TARGETABILITY GATE blocked a global household-brand destination before fetch. Corporate pages alone do not establish a realistic local owner/operator/distributor/franchise/concession route; no outbound request was made.";
