@@ -432,11 +432,12 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(version)
 
     async def test_holehe_malformed_stdout_is_not_an_empty_success(self) -> None:
-        status, result, _error, _version = await self.invoke(
+        status, result, _error, version = await self.invoke(
             "holehe", {"email": "person@example.org"}, stdout=b"not-json",
         )
         self.assertEqual(status, "failed")
         self.assertIsNone(result)
+        self.assertEqual(version, app.TOOL_VERSIONS["holehe"])
 
     async def test_holehe_truncated_structured_result_is_partial(self) -> None:
         stdout = json.dumps({
@@ -558,11 +559,12 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("incomplete", error or "")
 
     async def test_maigret_missing_or_malformed_report_is_failure_even_with_exit_zero(self) -> None:
-        status, result, _error, _version = await self.invoke(
+        status, result, _error, version = await self.invoke(
             "maigret", {"username": "testuser"},
         )
         self.assertEqual(status, "failed")
         self.assertIsNone(result)
+        self.assertEqual(version, app.TOOL_VERSIONS["maigret"])
 
         def malformed(home: Path) -> None:
             reports = home / "reports"
@@ -630,11 +632,12 @@ class CliResultIntegrityTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("incomplete", error or "")
 
     async def test_theharvester_missing_or_malformed_report_is_failure_even_with_exit_zero(self) -> None:
-        status, result, _error, _version = await self.invoke(
+        status, result, _error, version = await self.invoke(
             "theharvester", {"domain": "example.org", "sources": "bing"},
         )
         self.assertEqual(status, "failed")
         self.assertIsNone(result)
+        self.assertEqual(version, app.TOOL_VERSIONS["theharvester"])
 
         def malformed(home: Path) -> None:
             (home / "harvest.json").write_text("{bad-json", encoding="utf-8")
