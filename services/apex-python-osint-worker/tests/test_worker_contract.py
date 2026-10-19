@@ -95,6 +95,7 @@ class IsolationProofTests(unittest.TestCase):
             "workerImageDigest": "sha256:" + "a" * 64,
             "egressProxyImageDigest": "sha256:" + "b" * 64,
             "namespace": "apex-system",
+            "publicWorkerHostname": "osint-worker.test.example.com",
             "issuedAt": now_iso(),
             "expiresAt": now_iso(timedelta(hours=2)),
         }

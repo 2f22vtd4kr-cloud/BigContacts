@@ -109,7 +109,7 @@ export function applyPythonToolExecutionMetadata(record: AgenticTrajectoryRecord
     isolationProofExpiresAt: execution.isolationProofExpiresAt ?? null,
     correlation: execution.correlation ?? null,
     remoteCancellationConfirmed: execution.remoteCancellationConfirmed ?? null,
-  } : { status: signal.aborted ? "cancelled" : "unavailable" });
+  } : { status: signal.aborted ? "cancelled" : "unavailable" } };
   const status = signal.aborted ? "cancelled" : execution?.status;
   if (status === "completed") { record.execution = "success"; return; }
   if (status === "partial") {
