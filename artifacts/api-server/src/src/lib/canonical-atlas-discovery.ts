@@ -928,9 +928,34 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const approvedOpeningDirection = openingDirectionResolution.status === "approved"
       ? openingDirectionResolution.direction
       : "";
+    // The approved opening scope must become durable active objective state, not
+    // merely extra text on the first Investigator prompt. Otherwise later control
+    // turns and resumed jobs silently fall back to the generic base objective.
+    if (approvedOpeningDirection) {
+      const openingObjective = resolveBossDirectedDiscoveryObjective({
+        action: "pivot_discovery",
+        baseObjective: discoveryObjective,
+        currentObjective: activeDiscoveryObjective,
+        direction: approvedOpeningDirection,
+      });
+      if (!openingObjective.valid) {
+        throw new Error("Right-hand-approved opening direction failed canonical objective validation: " + openingObjective.reason);
+      }
+      failureStage = "control_event_persistence";
+      await persistAcceptedAtlasDiscoveryObjective({
+        caseId: discoveryCaseId,
+        jobId: atlasJobId,
+        controlTurn: 0,
+        action: "pivot_discovery",
+        direction: openingObjective.direction,
+        baseObjective: discoveryObjective,
+        previousObjective: activeDiscoveryObjective,
+        activeObjective: openingObjective.objective,
+      });
+      activeDiscoveryObjective = openingObjective.objective;
+    }
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
-      approvedOpeningDirection ? "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection : "",
       "BOSS OPENING CONTROL DIRECTION:",
       openingDirectionResolution.status === "approved"
         ? "The Right-hand-approved first direction above defines the opening scope only; it remains a research hypothesis, not source evidence. Reports, other directions, and uncertainties are unverified context, not evidence."

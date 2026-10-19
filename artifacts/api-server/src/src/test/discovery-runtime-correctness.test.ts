@@ -35,7 +35,8 @@ describe("discovery runtime architecture", () => {
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {\n  if (!value || !validateExactObjectFields(value, ["decision", "reason", "focusLanes", "confidence"])) return false;');
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandApprovalReview(value: Record<string, unknown> | null): boolean {');
     expect(canonicalDiscoverySource).toContain('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
-    expect(canonicalDiscoverySource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
+    expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = openingObjective.objective");
+    expect(canonicalDiscoverySource).toContain("controlTurn: 0");
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
     expect(canonicalDiscoverySource).toContain("No active opening direction was authorized");
     expect(researchCoreSource).toContain("If the Boss wording explicitly orders dependent source stages");
@@ -117,7 +118,13 @@ describe("discovery runtime architecture", () => {
     expect(openingCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");
     expect(canonicalSource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
     expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
-    expect(canonicalSource).toContain('"BOSS-DIRECTED RESEARCH QUESTION / PIVOT: " + approvedOpeningDirection');
+    const approvedOpeningStart = canonicalSource.indexOf('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
+    const persistedOpeningScope = canonicalSource.indexOf("controlTurn: 0", approvedOpeningStart);
+    const firstInvestigatorAct = canonicalSource.indexOf("let discovery = await runBureauAgenticWebPass", approvedOpeningStart);
+    expect(canonicalSource).toContain("persistAcceptedAtlasDiscoveryObjective({");
+    expect(canonicalSource).toContain("activeDiscoveryObjective = openingObjective.objective");
+    expect(persistedOpeningScope).toBeGreaterThan(approvedOpeningStart);
+    expect(firstInvestigatorAct).toBeGreaterThan(persistedOpeningScope);
   });
 
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
