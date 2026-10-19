@@ -81,6 +81,7 @@ async function buildAll() {
       "protobufjs",
       "onnxruntime-node",
       "@huggingface/transformers",
+      "pdfjs-dist",
       "@tensorflow/*",
       "@prisma/client",
       "@mikro-orm/*",
