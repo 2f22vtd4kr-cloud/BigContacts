@@ -525,7 +525,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   }
 
   // Block literal templates so they cannot waste provider quota.
-  const placeholderQuery = /(?:\bcompanyname\b|\bcompanywebsite(?:\.[a-z]{2,})?\b|\byourcompany(?:\.[a-z]{2,})?\b|\bexample\.(?:com|org|net|co\.[a-z]{2})\b|\[\s*(?:companyname|company(?:\s+name)?|domain|company\s+website)\s*\]|\{\{\s*(?:companyname|company(?:\s+name)?|domain)\s*\}\})/i;
+  const placeholderQuery = /(?:\[\s*(?:company(?:\s+name)?|domain|company\s+website)\s*\]|\{\{\s*(?:companyname|company(?:\s+name)?|domain)\s*\}\}|\bexample\.(?:com|org|net|co\.[a-z]{2})\b)/i;
   if (placeholderQuery.test(query)) {
     return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with the actual entity/source anchor; no provider request was made." };
   }
@@ -557,7 +557,7 @@ export function validateDiscoveryDomainLookup(domain: string, _priorQueries: rea
     !label || label.length > 63 || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)$/i.test(label))) {
     return { allowed: false, reason: "Domain lookup requires a valid hostname; no provider request was made." };
   }
-  const placeholderDomain = /(?:^|\.)(?:companyname|companywebsite|yourcompany|example)(?:\.(?:com|org|net|co\.[a-z]{2}))?$/i;
+  const placeholderDomain = /(?:^|\.)example(?:\.(?:com|org|net|co\.[a-z]{2}))?$/i;
   if (placeholderDomain.test(hostname)) {
     return { allowed: false, reason: "Domain lookup contains a template placeholder or reserved example domain; no provider request was made." };
   }
