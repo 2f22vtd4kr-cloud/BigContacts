@@ -318,9 +318,14 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     // Successfully fetched pages must also remain visible when the model did
     // not extract a structured entity finding from them. The record is explicitly
     // a source artifact, not an inferred company/person entity.
-    for (const record of [...records].reverse()) {
-      if ((record.action !== "visit" && record.action !== "browser_fetch")
-        || (record.execution !== "success" && record.execution !== "partial")) continue;
+    // Prefer any successfully observed copy over a later partial retry of the
+    // same URL, so a transport retry cannot downgrade a valid observed source.
+    const retrievalRecords = [
+      ...records.filter((record) => record.execution === "success").reverse(),
+      ...records.filter((record) => record.execution === "partial").reverse(),
+    ];
+    for (const record of retrievalRecords) {
+      if (record.action !== "visit" && record.action !== "browser_fetch") continue;
       const args = record.args && typeof record.args === "object" ? record.args as Record<string, unknown> : {};
       const candidates = [
         ... (Array.isArray(record.observedUrls) ? record.observedUrls : []),
