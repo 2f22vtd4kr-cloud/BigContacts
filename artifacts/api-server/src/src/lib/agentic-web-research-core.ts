@@ -134,7 +134,8 @@ export function buildDiscoveryLeadUtilizationState(
     }
     if (record.action !== "visit" && record.action !== "browser_fetch") continue;
     const requestedUrl = normalize(record.args?.url);
-    if (record.execution !== "selected" && requestedUrl) {
+    const fetchAttempted = ["success", "partial", "http_error", "timeout", "error"].includes(record.execution);
+    if (fetchAttempted && requestedUrl) {
       const prior = attempts.get(requestedUrl.key);
       if (!prior || record.turn >= prior.turn) attempts.set(requestedUrl.key, record);
       if (record.execution === "success") fetched.add(requestedUrl.key);
