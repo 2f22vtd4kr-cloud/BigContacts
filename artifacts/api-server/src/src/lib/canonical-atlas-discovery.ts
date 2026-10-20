@@ -310,6 +310,9 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     evidenceRows += materializedAdmission.evidenceRows;
   }
 
+  const partialPeople = await materializePartialPersonLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
+  materialized += partialPeople.materialized;
+  evidenceRows += partialPeople.evidenceRows;
   const partialOrganizations = await materializePartialOrganizationLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
   materialized += partialOrganizations.materialized;
   evidenceRows += partialOrganizations.evidenceRows;
@@ -347,6 +350,252 @@ async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number)
     throw new Error("Canonical Atlas job already failed; refusing further discovery control-plane work.");
   }
   if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw new Error("Canonical Atlas lease was lost; refusing further control-plane work.");
+}
+
+async function materializePartialPersonLeadCards(input: {
+  findings: AgenticFinding[];
+  atlasJobId: string;
+  discoveryCaseId: number;
+}): Promise<{ materialized: number; evidenceRows: number }> {
+  // A non-terminal model action can produce a provisional name/role lead,
+  // but it never promotes the person or authorizes target-scoped research.
+  const leadMap = new Map<string, { name: string; role: string; sourceUrls: string[] }>();
+  for (const finding of input.findings) {
+    if (finding.scope !== "candidate" || finding.vectorType !== "other"
+      || finding.promotionDecision === "reject"
+      || !finding.personName?.trim() || !finding.role?.trim()) continue;
+    const name = finding.personName.trim().replace(/\s+/g, " ");
+    const role = finding.role.trim().replace(/\s+/g, " ");
+    if (normalizeCandidateIdentityName(finding.value) !== normalizeCandidateIdentityName(name)) continue;
+    if (name.length < 3 || role.length < 2) continue;
+    const identity = normalizeCandidateIdentityName(name) + "::" + normalizeCandidateIdentityName(role);
+    const current = leadMap.get(identity);
+    const sourceUrls = [...new Set([
+      ...(current?.sourceUrls ?? []),
+      ...finding.sourceUrls.map(normalizeSourceUrl).filter((url): url is string => Boolean(url)),
+    ])];
+    leadMap.set(identity, { name, role, sourceUrls });
+  }
+  if (!leadMap.size) return { materialized: 0, evidenceRows: 0 };
+
+  const caseEvents = await db.select({
+    id: researchCaseEventsTable.id,
+    eventType: researchCaseEventsTable.eventType,
+    payload: researchCaseEventsTable.payload,
+    createdAt: researchCaseEventsTable.createdAt,
+  }).from(researchCaseEventsTable).where(and(
+    eq(researchCaseEventsTable.caseId, input.discoveryCaseId),
+    eq(researchCaseEventsTable.eventType, "tool_observation"),
+  ));
+  const observations = caseEvents.flatMap((event) => {
+    if (typeof event.payload !== "string") return [];
+    try {
+      const payload = JSON.parse(event.payload) as {
+        action?: string; execution?: string; observedUrls?: unknown[]; observation?: string;
+      };
+      if (!Array.isArray(payload.observedUrls)) return [];
+      return payload.observedUrls.filter((url): url is string => typeof url === "string").map((url) => ({
+        action: payload.action ?? "",
+        execution: payload.execution ?? "",
+        sourceUrl: url,
+        observation: typeof payload.observation === "string" ? payload.observation : "",
+        executionStatus: payload.execution ?? "",
+        eventId: event.id,
+        createdAt: event.createdAt,
+      }));
+    } catch {
+      return [];
+    }
+  });
+
+  let materialized = 0;
+  let evidenceRows = 0;
+  let wroteDurableState = false;
+  for (const lead of leadMap.values()) {
+    const claimedUrls = new Set(lead.sourceUrls);
+    const supports = new Map<string, {
+      sourceUrl: string; eventId: number; createdAt: Date;
+      spanText: string; spanStart: number; spanEnd: number;
+    }>();
+    for (const observation of observations) {
+      if (observation.executionStatus !== "success"
+        || (observation.action !== "visit" && observation.action !== "browser_fetch")) continue;
+      const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
+      if (!sourceUrl || !claimedUrls.has(sourceUrl) || !isClaimGradeDiscoverySourceUrl(sourceUrl)) continue;
+      // The exact full name and page-stated role must be co-bound in fetched
+      // material, and the same observation must carry an ownership/control clue.
+      const span = bindExactSourceSpan(observation.observation, lead.name, lead.role, 320);
+      if (!span?.exact || !span.subjectMatched || !span.valueMatched) continue;
+      if (!hasDiscoveryOwnershipLeadSignal({
+        personName: lead.name,
+        role: lead.role,
+        observations: [{
+          action: observation.action,
+          execution: observation.executionStatus === "success" ? "success" : "error",
+          sourceUrl: observation.sourceUrl,
+          observation: observation.observation,
+        }],
+      })) continue;
+      if (!supports.has(sourceUrl)) supports.set(sourceUrl, {
+        sourceUrl,
+        eventId: observation.eventId,
+        createdAt: observation.createdAt,
+        spanText: span.text,
+        spanStart: span.start,
+        spanEnd: span.end,
+      });
+    }
+    if (!supports.size) continue;
+
+    const persisted = await db.transaction(async (tx) => {
+      const [ownedCase] = await tx.select({
+        status: researchCasesTable.status,
+        currentAction: researchCasesTable.currentAction,
+        caseFile: researchCasesTable.caseFile,
+      }).from(researchCasesTable).where(and(
+        eq(researchCasesTable.id, input.discoveryCaseId),
+        eq(researchCasesTable.status, "active"),
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${input.atlasJobId}`,
+        sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+      )).for("update").limit(1);
+      if (!ownedCase) return { created: 0, evidenceRows: 0, changed: false };
+
+      const existingRows = await tx.select({
+        id: entitiesTable.id,
+        metadata: entitiesTable.metadata,
+      }).from(entitiesTable).where(and(
+        sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`,
+        inArray(entitiesTable.type, ["HNWI", "Gatekeeper", "PersonCandidate"]),
+      )).limit(32);
+      const sameCase = existingRows.find((row) => {
+        try {
+          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          return Number(metadata.discoveryCaseId) === input.discoveryCaseId;
+        } catch {
+          return false;
+        }
+      });
+      let priorMetadata: Record<string, unknown> = {};
+      try {
+        const parsed: unknown = sameCase?.metadata ? JSON.parse(sameCase.metadata) : {};
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorMetadata = parsed as Record<string, unknown>;
+      } catch {}
+      // A durably admitted candidate is already a stronger version of this
+      // card; never downgrade its admission or overwrite its provenance.
+      if (sameCase && priorMetadata.admission === "investigator-explicit-promotion") {
+        return { created: 0, evidenceRows: 0, changed: false };
+      }
+
+      let entityId = sameCase?.id ?? null;
+      let created = false;
+      const sourceUrls = [...supports.keys()];
+      const notes = "PARTIAL REVIEW LEAD — a fetched claim-grade source co-binds this exact name and page-stated role with an ownership/control clue. This is not a verified HNWI or wealth conclusion; target-stage research must corroborate identity, test materiality/falsification, and establish a public professional contact route.";
+      const metadata = JSON.stringify({
+        ...priorMetadata,
+        reviewOnly: true,
+        partialPersonLead: true,
+        stage: "partial_review",
+        admission: priorMetadata.admission ?? "source-backed-partial-finding",
+        discoveryCaseId: input.discoveryCaseId,
+        atlasJobId: input.atlasJobId,
+        role: lead.role,
+        sourceUrl: sourceUrls[0],
+        sourceUrls,
+        limitations: ["HNWI/wealth status not established", "materiality and counter-evidence not assessed", "personal contact route not verified"],
+      });
+      if (!entityId) {
+        const [entity] = await tx.insert(entitiesTable).values({
+          name: lead.name,
+          type: "PersonCandidate",
+          bayesianScore: 0.05,
+          contactConfidence: 0,
+          contactOutcome: "evidence_only",
+          isHot: false,
+          isStarred: false,
+          isHidden: false,
+          sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]),
+          notes,
+          metadata,
+        }).returning({ id: entitiesTable.id });
+        entityId = entity?.id ?? null;
+        created = Boolean(entityId);
+      } else if (priorMetadata.partialPersonLead === true) {
+        await tx.update(entitiesTable).set({
+          notes,
+          metadata,
+          updatedAt: new Date(),
+        }).where(eq(entitiesTable.id, entityId));
+      } else {
+        // A same-case entity not marked as partial/admitted belongs to another
+        // materialization path. Do not silently retag it as a partial lead.
+        return { created: 0, evidenceRows: 0, changed: false };
+      }
+      if (!entityId) return { created: 0, evidenceRows: 0, changed: false };
+
+      let addedEvidence = 0;
+      for (const support of supports.values()) {
+        const [existingEvidence] = await tx.select({ id: researchEvidenceTable.id })
+          .from(researchEvidenceTable).where(and(
+            eq(researchEvidenceTable.entityId, entityId),
+            eq(researchEvidenceTable.claimType, "partial_identity_lead"),
+            eq(researchEvidenceTable.sourceUrl, support.sourceUrl),
+          )).limit(1);
+        if (existingEvidence) continue;
+        const [session] = await tx.insert(researchSessionsTable).values({
+          targetEntityId: entityId,
+          winningPath: JSON.stringify([{
+            sourceUrl: support.sourceUrl,
+            discoveryCaseId: input.discoveryCaseId,
+            atlasJobId: input.atlasJobId,
+            stage: "partial_review",
+          }]),
+          notes: "Partial identity/ownership lead only. Do not infer HNWI status or publish contact details; target-scoped research still must corroborate, falsify and verify reachability.",
+          safeUseStatus: "manual_review",
+          crmStatus: "Lead Gen",
+        }).returning({ id: researchSessionsTable.id });
+        if (!session?.id) throw new Error("Partial identity lead evidence session insert returned no durable session ID.");
+        const event = caseEvents.find((row) => row.id === support.eventId);
+        await tx.insert(researchEvidenceTable).values({
+          sessionId: session.id,
+          entityId,
+          claimType: "partial_identity_lead",
+          claim: "Fetched source co-binds the exact person name, page-stated role, and an ownership/control clue; wealth and targetability remain unverified.",
+          value: lead.name,
+          sourceName: "canonical-agentic-discovery",
+          sourceUrl: support.sourceUrl,
+          sourceDomain: new URL(support.sourceUrl).hostname,
+          status: "review",
+          confidence: 0.25,
+          observedAt: event?.createdAt ?? support.createdAt,
+          freshnessScore: 1,
+          metadata: JSON.stringify({
+            partialReview: true,
+            discoveryCaseId: input.discoveryCaseId,
+            atlasJobId: input.atlasJobId,
+            supportingEventId: support.eventId,
+            role: lead.role,
+            sourceSpan: support.spanText,
+            spanStart: support.spanStart,
+            spanEnd: support.spanEnd,
+            noWealthOrContactConclusion: true,
+          }),
+        });
+        addedEvidence++;
+      }
+      return { created: created ? 1 : 0, evidenceRows: addedEvidence, changed: created || addedEvidence > 0 || Boolean(sameCase) };
+    }, { isolationLevel: "serializable" });
+
+    materialized += persisted.created;
+    evidenceRows += persisted.evidenceRows;
+    wroteDurableState ||= persisted.changed;
+  }
+  if (wroteDurableState) {
+    await Promise.all([
+      delCachePattern("entities:list:*").catch(() => undefined),
+      delCachePattern("dashboard:*").catch(() => undefined),
+    ]);
+  }
+  return { materialized, evidenceRows };
 }
 
 async function materializePartialOrganizationLeadCards(input: {
