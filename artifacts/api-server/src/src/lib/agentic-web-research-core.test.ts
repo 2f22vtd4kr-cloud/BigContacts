@@ -330,6 +330,30 @@ describe("partial model findings", () => {
     }]);
   });
 
+  it("does not admit model-authored person identity or candidate scope before the done action", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Example Manufacturing Ltd owner",
+      provider: "serper",
+      hypothesis: "An official source may identify an owner.",
+      purpose: "Test an ownership hypothesis.",
+      expectedInformationGain: 0.6,
+      findings: [{
+        vectorType: "other",
+        value: "Jane Doe",
+        personName: "Jane Doe",
+        role: "Owner",
+        scope: "candidate",
+        sourceUrls: ["https://example.com/leadership"],
+        note: "Candidate claim from a non-terminal action.",
+        promotionDecision: "promote",
+        promotionReason: "The output claims an ownership role.",
+      }],
+    }), ["web_search"]);
+
+    expect(parsed?.partialFindings).toEqual([]);
+  });
+
   it("asks the Investigator to retain useful sourced findings while it continues researching", () => {
     const prompt = buildStepPrompt({
       targetName: "",
