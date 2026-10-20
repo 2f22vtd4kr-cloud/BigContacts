@@ -39,9 +39,17 @@ assert(!/promotionReason\s*:/.test(contact), "deterministic contact-facts observ
 // payload parsed by action=done, never from the observation/tool boundary.
 const doneRegion = parseStart >= 0 ? source.slice(parseStart, source.indexOf("async function callGroqJson(", parseStart)) : "";
 assert(/action === ["']done["']/.test(doneRegion), "action parser has no explicit done boundary for model-authored findings.");
-assert(/personName:\s*typeof f\.personName/.test(doneRegion), "model-authored personName is not confined to the explicit done parser boundary.");
-assert(/scope:\s*f\.scope === ["']candidate["']/.test(doneRegion), "model-authored candidate scope is not confined to the explicit done parser boundary.");
+assert(/personName:\s*typeof f\.personName/.test(doneRegion), "explicit done parser no longer preserves model-authored person identity.");
+assert(/scope:\s*f\.scope === ["']candidate["']/.test(doneRegion), "explicit done parser no longer preserves model-authored candidate scope.");
 assert(/modelFindings:\s*AgenticFinding\[\]/.test(source), "modelFindings persistence boundary is missing from the canonical result type.");
+const partialStart = source.indexOf("function parsePartialFindings(");
+const partialEnd = partialStart >= 0 ? source.indexOf("function parseAction(", partialStart) : -1;
+const partial = partialStart >= 0 && partialEnd > partialStart ? source.slice(partialStart, partialEnd) : "";
+assert(partialStart >= 0 && partialEnd > partialStart, "partial model finding parser boundary is missing.");
+assert(/promotionDecision:\s*undefined/.test(partial) && /promotionReason:\s*undefined/.test(partial), "non-terminal partial findings can assert model promotion.");
+assert(/personLead\s*=\s*f\.scope === ["']candidate["']/.test(partial) && /personName:\s*personLead \? personName : null/.test(partial), "model-authored person leads are not isolated as provisional source-groundable partial findings.");
+assert(!/promotionDecision:\s*f\.promotionDecision/.test(partial), "non-terminal partial findings parse terminal promotion decisions.");
+
 
 // The live ReAct loop must preserve the same separation after observations: tool results
 // become observations, then the model chooses the next action/finding.
