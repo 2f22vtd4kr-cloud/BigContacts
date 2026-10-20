@@ -424,7 +424,7 @@ async function materializePartialPersonLeadCards(input: {
       if (!sourceUrl || !claimedUrls.has(sourceUrl) || !isClaimGradeDiscoverySourceUrl(sourceUrl)) continue;
       // The exact full name and page-stated role must be co-bound in fetched
       // material, and the same observation must carry an ownership/control clue.
-      const span = bindExactSourceSpan(observation.observation, lead.name, lead.role, 320);
+      const span = bindExactSourceSpan(observation.observation, lead.role, lead.name, 320);
       if (!span?.exact || !span.subjectMatched || !span.valueMatched) continue;
       if (!hasDiscoveryOwnershipLeadSignal({
         personName: lead.name,
