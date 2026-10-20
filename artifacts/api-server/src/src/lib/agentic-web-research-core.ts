@@ -74,6 +74,134 @@ export function assignSearchResultLeads(
   record.leadUrls = leads;
   record.observedUrls = [];
 }
+
+export type DiscoveryLeadUtilizationState = {
+  searchResultLeadUrlCount: number;
+  successfullyFetchedLeadUrlCount: number;
+  unfetchedLeadUrlCount: number;
+  failedLeadUrlCount: number;
+  blockedLeadUrlCount: number;
+  /** Case-wide, deduplicated URLs that have not had a fetch action or a preflight block yet. */
+  unfetchedLeadUrls: string[];
+  /** Fetch attempts that ended without a complete successful observation, including partial fetches. */
+  failedLeadUrls: Array<{
+    url: string;
+    action: string;
+    execution: string;
+    failureDomain?: AtlasFailureDomain;
+    failureKind?: AtlasFailureKind;
+  }>;
+  /** A preflight/scope/repeat guard blocked the fetch action before outbound retrieval. */
+  blockedLeadUrls: Array<{
+    url: string;
+    action: string;
+    failureDomain?: AtlasFailureDomain;
+    failureKind?: AtlasFailureKind;
+  }>;
+};
+
+/**
+ * Preserve the full case-wide search-lead inventory across trajectory compaction.
+ * One failed URL is not evidence that other results are unusable, and a failed
+ * retrieval is not a successful observation. This summarizes state only; it
+ * does not choose the next research action.
+ */
+export function buildDiscoveryLeadUtilizationState(
+  records: readonly AgenticTrajectoryRecord[],
+  maxUnfetchedUrls = 20,
+  maxFailedUrls = 8,
+  maxBlockedUrls = 8,
+): DiscoveryLeadUtilizationState {
+  const normalize = (raw: unknown): { key: string; url: string } | null => {
+    if (typeof raw !== "string" || !raw.trim()) return null;
+    const safe = sanitizeUrlForEvidence(raw.trim());
+    if (!safe || safe.startsWith("[")) return null;
+    try {
+      const url = new URL(safe);
+      if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+      url.hash = "";
+      url.hostname = url.hostname.toLowerCase();
+      const normalized = url.href.endsWith("/") ? url.href.slice(0, -1) : url.href;
+      return { key: normalized, url: normalized };
+    } catch {
+      return null;
+    }
+  };
+  const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
+  const leads = new Map<string, { url: string; turn: number }>();
+  const attempts = new Map<string, AgenticTrajectoryRecord>();
+  const blocked = new Map<string, AgenticTrajectoryRecord>();
+  const fetched = new Set<string>();
+
+  for (const record of records) {
+    if (record.execution === "success" && searchActions.has(record.action)) {
+      for (const rawUrl of record.leadUrls ?? []) {
+        const candidate = normalize(rawUrl);
+        if (!candidate) continue;
+        const prior = leads.get(candidate.key);
+        if (!prior || record.turn >= prior.turn) leads.set(candidate.key, { url: candidate.url, turn: record.turn });
+      }
+    }
+    if (record.action !== "visit" && record.action !== "browser_fetch") continue;
+    const requestedUrl = normalize(record.args?.url);
+    if (record.execution === "blocked" && requestedUrl) {
+      const prior = blocked.get(requestedUrl.key);
+      if (!prior || record.turn >= prior.turn) blocked.set(requestedUrl.key, record);
+    }
+    const fetchAttempted = ["success", "partial", "http_error", "timeout", "error"].includes(record.execution);
+    if (fetchAttempted && requestedUrl) {
+      const prior = attempts.get(requestedUrl.key);
+      if (!prior || record.turn >= prior.turn) attempts.set(requestedUrl.key, record);
+      blocked.delete(requestedUrl.key);
+      if (record.execution === "success") fetched.add(requestedUrl.key);
+    }
+    if (record.execution === "success") {
+      for (const rawUrl of record.observedUrls ?? []) {
+        const observedUrl = normalize(rawUrl);
+        if (observedUrl) {
+          fetched.add(observedUrl.key);
+          blocked.delete(observedUrl.key);
+        }
+      }
+    }
+  }
+
+  const newestFirst = [...leads.entries()].sort((a, b) => b[1].turn - a[1].turn);
+  const unfetched = newestFirst.filter(([key]) => !fetched.has(key) && !attempts.has(key) && !blocked.has(key));
+  const failed = newestFirst.flatMap(([key, lead]) => {
+    const attempt = attempts.get(key);
+    if (!attempt || fetched.has(key)) return [];
+    return [{
+      url: lead.url,
+      action: attempt.action,
+      execution: attempt.execution,
+      ...(attempt.failureDomain ? { failureDomain: attempt.failureDomain } : {}),
+      ...(attempt.failureKind ? { failureKind: attempt.failureKind } : {}),
+    }];
+  });
+  const blockedLeads = newestFirst.flatMap(([key, lead]) => {
+    const record = blocked.get(key);
+    if (!record || fetched.has(key) || attempts.has(key)) return [];
+    return [{
+      url: lead.url,
+      action: record.action,
+      ...(record.failureDomain ? { failureDomain: record.failureDomain } : {}),
+      ...(record.failureKind ? { failureKind: record.failureKind } : {}),
+    }];
+  });
+
+  return {
+    searchResultLeadUrlCount: leads.size,
+    successfullyFetchedLeadUrlCount: [...leads.keys()].filter((key) => fetched.has(key)).length,
+    unfetchedLeadUrlCount: unfetched.length,
+    failedLeadUrlCount: failed.length,
+    blockedLeadUrlCount: blockedLeads.length,
+    unfetchedLeadUrls: unfetched.slice(0, Math.max(0, Math.min(40, Math.trunc(maxUnfetchedUrls)))).map(([, lead]) => lead.url),
+    failedLeadUrls: failed.slice(0, Math.max(0, Math.min(20, Math.trunc(maxFailedUrls)))),
+    blockedLeadUrls: blockedLeads.slice(0, Math.max(0, Math.min(20, Math.trunc(maxBlockedUrls)))),
+  };
+}
+
 export type AgenticWebResearchResult = { partialFindings?: AgenticFinding[]; status: "completed" | "unavailable" | "error" | "timeout" | "cancelled"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "OVERSIGHT_STOP" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "PARSE_FAILURE" | "UNEXPECTED_ERROR"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string; consecutiveActionParseFailures?: number };
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
 type AgentAction = { action: "web_search"; query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_registry_search"; searches: Array<{ query: string; registry: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };

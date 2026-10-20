@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -296,6 +296,46 @@ describe("model-selectable Investigator capabilities", () => {
     for (const action of ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot", "made_up_tool", "", null]) {
       expect(isModelSelectableAgentAction(action)).toBe(false);
     }
+  });
+});
+
+describe("discovery lead inventory", () => {
+  it("keeps other search-result URLs available after one URL fails retrieval", () => {
+    const urls = Array.from({ length: 17 }, (_, index) => `https://lead-${index + 1}.example.test/company`);
+    const search = {
+      turn: 1, model: "test-model", action: "parallel_web_search", args: {}, execution: "success",
+      observation: "Search results are leads only.", observedUrls: [], leadUrls: urls, findings: [],
+    } as AgenticTrajectoryRecord;
+    const failedFetch = {
+      turn: 2, model: "test-model", action: "browser_fetch", args: { url: urls[0] }, execution: "error",
+      observation: "fetch failed", observedUrls: [], leadUrls: [], findings: [],
+      failureDomain: "external_page_fetch", failureKind: "request_failure",
+    } as AgenticTrajectoryRecord;
+    const successfulFetch = {
+      turn: 3, model: "test-model", action: "visit", args: { url: urls[1] }, execution: "success",
+      observation: "observed source content", observedUrls: [urls[1]], leadUrls: [], findings: [],
+    } as AgenticTrajectoryRecord;
+    const blockedFetch = {
+      turn: 4, model: "test-model", action: "visit", args: { url: urls[2] }, execution: "blocked",
+      observation: "scope guard blocked before outbound execution", observedUrls: [], leadUrls: [], findings: [],
+    } as AgenticTrajectoryRecord;
+
+    const state = buildDiscoveryLeadUtilizationState([search, failedFetch, successfulFetch, blockedFetch]);
+    expect(state.searchResultLeadUrlCount).toBe(17);
+    expect(state.successfullyFetchedLeadUrlCount).toBe(1);
+    expect(state.failedLeadUrlCount).toBe(1);
+    expect(state.failedLeadUrls[0]).toMatchObject({
+      url: urls[0], action: "browser_fetch", execution: "error",
+      failureDomain: "external_page_fetch", failureKind: "request_failure",
+    });
+    expect(state.unfetchedLeadUrlCount).toBe(14);
+    expect(state.unfetchedLeadUrls).toContain(urls[3]);
+    expect(state.unfetchedLeadUrls).not.toContain(urls[2]);
+    expect(state.failedLeadUrls.some((item) => item.url === urls[2])).toBe(false);
+    expect(state.blockedLeadUrlCount).toBe(1);
+    expect(state.blockedLeadUrls[0]).toMatchObject({ url: urls[2], action: "visit" });
+    expect(state.unfetchedLeadUrls).not.toContain(urls[0]);
+    expect(state.unfetchedLeadUrls).not.toContain(urls[1]);
   });
 });
 

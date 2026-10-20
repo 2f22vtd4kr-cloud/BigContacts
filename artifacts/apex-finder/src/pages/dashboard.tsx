@@ -252,6 +252,63 @@ function normalizeResearchLeads(data: unknown): any[] {
   return Array.isArray(leads) ? leads.filter(Boolean) : [];
 }
 
+
+function SourceLeadCard({ lead, index }: { lead: any; index: number }) {
+  const fetchFailed = lead.retrievalStatus === "fetch_failed";
+  const observed = lead.retrievalStatus === "observed";
+  const partialFetch = lead.retrievalStatus === "partial_fetch";
+  const blocked = lead.retrievalStatus === "blocked_preflight";
+  return (
+    <a
+      href={lead.sourceUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      data-testid={`card-source-lead-${lead.caseId}-${lead.id}`}
+      className="atlas-card atlas-pressable group flex min-w-0 flex-col gap-3 p-4 transition-colors hover:border-[#9CFF1A]/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9CFF1A]/50"
+      style={{ animationDelay: `${index * 25}ms` }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1.5 rounded border border-sky-300/20 bg-sky-300/[0.06] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-sky-200">
+          <FileSearch className="h-3 w-3" /> Search lead
+        </span>
+        <span className={`rounded border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.1em] ${fetchFailed ? "border-amber-300/20 bg-amber-300/[0.06] text-amber-200" : blocked ? "border-violet-300/20 bg-violet-300/[0.06] text-violet-200" : "border-sky-300/20 bg-sky-300/[0.06] text-sky-200"}`}>
+          {observed ? "Observed source" : partialFetch ? "Partial fetch" : blocked ? "Blocked before fetch" : fetchFailed ? "Fetch failed" : "Not fetched"}
+        </span>
+      </div>
+      <div className="min-w-0">
+        <h3 className="break-all text-sm font-semibold text-foreground group-hover:text-primary">{lead.sourceDomain}</h3>
+        <p className="mt-1 break-all font-mono text-xs leading-5 text-muted-foreground">{lead.sourcePath || "/"}</p>
+        <p className="mt-2 text-xs leading-5 text-muted-foreground">
+          {observed
+            ? "The page was fetched, but no structured entity claim was emitted. Review this source; do not infer a person or ownership from the URL."
+            : partialFetch
+              ? "Retrieval returned only partial material. Treat this excerpt as incomplete and do not infer claims not directly supported by observed text."
+              : blocked
+                ? "A preflight/scope/repeat guard blocked retrieval before any request was sent. This is not evidence that the source is absent; do not repeat the action unchanged."
+                : fetchFailed
+                  ? "Retrieval did not yield an observed source. This remains an unverified lead; the failed attempt says nothing about other search results."
+                  : "Returned by a successful search, but the page has not been observed. Its contents are not evidence yet."}
+        </p>
+        {(observed || partialFetch) && lead.excerpt && (
+          <p className="mt-2 border-l border-sky-300/25 pl-2 text-xs leading-5 text-muted-foreground" data-testid={`text-source-excerpt-${lead.caseId}-${lead.id}`}>
+            {lead.excerpt}
+          </p>
+        )}
+      </div>
+      <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+        <span>Case {lead.caseId}</span>
+        <span>Not an entity / not HNWI evidence</span>
+      </div>
+    </a>
+  );
+}
+
+function normalizeResearchSourceLeads(data: unknown): any[] {
+  if (!data || typeof data !== "object") return [];
+  const sourceLeads = (data as Record<string, unknown>).sourceLeads;
+  return Array.isArray(sourceLeads) ? sourceLeads.filter(Boolean) : [];
+}
+
 function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
   const sourceCount = Array.isArray(lead.sourceUrls) ? lead.sourceUrls.length : 0;
   const descriptor = lead.entityType === "PersonCandidate"
@@ -292,13 +349,15 @@ export default function Dashboard() {
         headers: { Accept: "application/json" },
       });
       if (!response.ok) throw new Error(`Research leads request failed (${response.status}).`);
-      return response.json() as Promise<{ leads?: unknown[] }>;
+      return response.json() as Promise<{ leads?: unknown[]; sourceLeads?: unknown[]; activeDiscovery?: boolean }>;
     },
-    staleTime: 15_000,
+    staleTime: 5_000,
+    refetchInterval: 5_000,
   });
   const stats = mock ? mockDashboardStats() : statsQuery.data;
   const leads = mock ? mockHotLeads() : normalizeHotLeads(leadsQuery.data);
   const reviewLeads = mock ? [] : normalizeResearchLeads(reviewLeadsQuery.data);
+  const sourceLeads = mock ? [] : normalizeResearchSourceLeads(reviewLeadsQuery.data);
   const reviewLeadsLoading = mock ? false : reviewLeadsQuery.isLoading;
   const reviewLeadsError = mock ? false : reviewLeadsQuery.isError;
   const isLoading = mock ? false : (statsQuery.isLoading || leadsQuery.isLoading);
@@ -432,13 +491,28 @@ export default function Dashboard() {
           </div>
         ) : reviewLeadsLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div>
-        ) : reviewLeads.length === 0 ? (
-          <div className="atlas-card p-5" data-testid="empty-research-leads">
-            <div className="text-sm font-semibold text-foreground">No source-backed partial leads yet</div>
-            <p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">When Atlas finds an exact company or person lead in a fetched public source, it can save a review-only card here before the overall run is complete. Unsupported names, search snippets and guessed contacts are never turned into cards.</p>
-          </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{reviewLeads.map((lead: any, index: number) => <ReviewLeadCard key={lead.entityId} lead={lead} index={index} />)}</div>
+          <>
+            {reviewLeads.length > 0 ? (
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{reviewLeads.map((lead: any, index: number) => <ReviewLeadCard key={lead.entityId} lead={lead} index={index} />)}</div>
+            ) : sourceLeads.length === 0 ? (
+              <div className="atlas-card p-5" data-testid="empty-research-leads">
+                <div className="text-sm font-semibold text-foreground">No named entity lead is source-backed yet</div>
+                <p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">As soon as search returns URLs, Atlas keeps them visible as unverified source leads below. A person or company entity card still requires a supported name from observed source content; search snippets and guessed contacts are never promoted to facts.</p>
+              </div>
+            ) : (
+              <div className="atlas-card px-4 py-3 text-xs leading-5 text-muted-foreground" data-testid="no-named-research-leads">No named company/person has met the source-backed lead bar yet. The discovered URLs remain visible below and can be pursued within this run.</div>
+            )}
+            {sourceLeads.length > 0 && (
+              <div className="mt-6" data-testid="section-source-leads">
+                <div className="mb-4">
+                  <h3 className="font-display text-sm font-semibold tracking-tight text-foreground">Search-result leads to pursue</h3>
+                  <p className="mt-1 max-w-3xl text-xs leading-5 text-muted-foreground">These cards are backed only by search-result URLs. A failed fetch is a retrieval limitation, not evidence against the source or the entity it may describe.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{sourceLeads.map((lead: any, index: number) => <SourceLeadCard key={lead.id} lead={lead} index={index} />)}</div>
+              </div>
+            )}
+          </>
         )}
       </section>
 
