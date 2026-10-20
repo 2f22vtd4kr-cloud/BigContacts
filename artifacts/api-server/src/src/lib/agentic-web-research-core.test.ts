@@ -318,7 +318,6 @@ describe("discovery lead inventory", () => {
     const blockedFetch = {
       turn: 4, model: "test-model", action: "visit", args: { url: urls[2] }, execution: "blocked",
       observation: "scope guard blocked before outbound execution", observedUrls: [], leadUrls: [], findings: [],
-      failureDomain: "safety_policy", failureKind: "scope_mismatch",
     } as AgenticTrajectoryRecord;
 
     const state = buildDiscoveryLeadUtilizationState([search, failedFetch, successfulFetch, blockedFetch]);
