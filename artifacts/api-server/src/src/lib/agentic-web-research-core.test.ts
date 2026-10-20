@@ -364,6 +364,32 @@ describe("partial model findings", () => {
     }]);
   });
 
+  it("preserves an unpromoted lead when the Investigator stops", () => {
+    const finding = {
+      vectorType: "other",
+      value: "Jane Doe",
+      personName: "Jane Doe",
+      role: "Owner",
+      scope: "candidate",
+      sourceUrls: ["https://example.com/leadership"],
+      note: "The fetched source supports a review lead only.",
+      promotionDecision: null,
+      promotionReason: null,
+    };
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "done",
+      findings: [finding],
+      thought: "The person lead needs target-stage corroboration before any HNWI conclusion.",
+    }), ["done"]);
+
+    expect(parsed?.action).toBe("done");
+    expect(parsed?.partialFindings).toEqual([{
+      ...finding,
+      promotionDecision: undefined,
+      promotionReason: undefined,
+    }]);
+  });
+
   it("asks the Investigator to retain useful sourced findings while it continues researching", () => {
     const prompt = buildStepPrompt({
       targetName: "",
