@@ -263,7 +263,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
   }).from(researchCasesTable)
     .where(eq(researchCasesTable.caseType, "discovery"))
     .orderBy(desc(researchCasesTable.updatedAt))
-    .limit(25);
+    .limit(limit);
 
   const activeDiscovery = sourceCases.some((row) => row.status === "active");
   const sourceLeadByUrl = new Map<string, {
