@@ -299,6 +299,8 @@ export default function Dashboard() {
   const stats = mock ? mockDashboardStats() : statsQuery.data;
   const leads = mock ? mockHotLeads() : normalizeHotLeads(leadsQuery.data);
   const reviewLeads = mock ? [] : normalizeResearchLeads(reviewLeadsQuery.data);
+  const reviewLeadsLoading = mock ? false : reviewLeadsQuery.isLoading;
+  const reviewLeadsError = mock ? false : reviewLeadsQuery.isError;
   const isLoading = mock ? false : (statsQuery.isLoading || leadsQuery.isLoading);
   const hasError = mock ? false : (statsQuery.isError || leadsQuery.isError);
 
@@ -423,12 +425,12 @@ export default function Dashboard() {
           </div>
           <Link href="/entities" data-testid="link-view-all-review-leads" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary">View entity ledger <ChevronRight className="h-3.5 w-3.5" /></Link>
         </div>
-        {reviewLeadsQuery.isError ? (
+        {reviewLeadsError ? (
           <div className="atlas-card p-4 text-xs text-muted-foreground">
             Partial review leads could not be loaded. The entity ledger remains the canonical record.
             <button onClick={() => { void reviewLeadsQuery.refetch(); }} className="ml-2 font-semibold text-primary underline underline-offset-2">Retry</button>
           </div>
-        ) : reviewLeadsQuery.isLoading ? (
+        ) : reviewLeadsLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div>
         ) : reviewLeads.length === 0 ? (
           <div className="atlas-card p-5" data-testid="empty-research-leads">
