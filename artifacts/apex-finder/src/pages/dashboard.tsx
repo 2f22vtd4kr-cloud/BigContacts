@@ -256,6 +256,7 @@ function normalizeResearchLeads(data: unknown): any[] {
 function SourceLeadCard({ lead, index }: { lead: any; index: number }) {
   const fetchFailed = lead.retrievalStatus === "fetch_failed";
   const observed = lead.retrievalStatus === "observed";
+  const partialFetch = lead.retrievalStatus === "partial_fetch";
   return (
     <a
       href={lead.sourceUrl}
@@ -270,7 +271,7 @@ function SourceLeadCard({ lead, index }: { lead: any; index: number }) {
           <FileSearch className="h-3 w-3" /> Search lead
         </span>
         <span className={`rounded border px-2 py-1 font-mono text-[10px] uppercase tracking-[0.1em] ${fetchFailed ? "border-amber-300/20 bg-amber-300/[0.06] text-amber-200" : "border-sky-300/20 bg-sky-300/[0.06] text-sky-200"}`}>
-          {observed ? "Observed source" : fetchFailed ? "Fetch failed" : "Not fetched"}
+          {observed ? "Observed source" : partialFetch ? "Partial fetch" : fetchFailed ? "Fetch failed" : "Not fetched"}
         </span>
       </div>
       <div className="min-w-0">
@@ -279,9 +280,11 @@ function SourceLeadCard({ lead, index }: { lead: any; index: number }) {
         <p className="mt-2 text-xs leading-5 text-muted-foreground">
           {observed
             ? "The page was fetched, but no structured entity claim was emitted. Review this source; do not infer a person or ownership from the URL."
-            : fetchFailed
-              ? "Retrieval did not yield an observed source. This remains an unverified lead; the failed attempt says nothing about other search results."
-              : "Returned by a successful search, but the page has not been observed. Its contents are not evidence yet."}
+            : partialFetch
+              ? "Retrieval returned only partial material. Treat this excerpt as incomplete and do not infer claims not directly supported by observed text."
+              : fetchFailed
+                ? "Retrieval did not yield an observed source. This remains an unverified lead; the failed attempt says nothing about other search results."
+                : "Returned by a successful search, but the page has not been observed. Its contents are not evidence yet."}
         </p>
         {observed && lead.excerpt && (
           <p className="mt-2 border-l border-sky-300/25 pl-2 text-xs leading-5 text-muted-foreground" data-testid={`text-source-excerpt-${lead.caseId}-${lead.id}`}>
