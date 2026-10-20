@@ -289,7 +289,7 @@ function SourceLeadCard({ lead, index }: { lead: any; index: number }) {
                   ? "Retrieval did not yield an observed source. This remains an unverified lead; the failed attempt says nothing about other search results."
                   : "Returned by a successful search, but the page has not been observed. Its contents are not evidence yet."}
         </p>
-        {observed && lead.excerpt && (
+        {(observed || partialFetch) && lead.excerpt && (
           <p className="mt-2 border-l border-sky-300/25 pl-2 text-xs leading-5 text-muted-foreground" data-testid={`text-source-excerpt-${lead.caseId}-${lead.id}`}>
             {lead.excerpt}
           </p>
