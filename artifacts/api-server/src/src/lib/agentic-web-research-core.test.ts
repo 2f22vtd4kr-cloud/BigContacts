@@ -299,6 +299,38 @@ describe("model-selectable Investigator capabilities", () => {
   });
 });
 
+describe("discovery lead inventory", () => {
+  it("keeps other search-result URLs available after one URL fails retrieval", () => {
+    const urls = Array.from({ length: 17 }, (_, index) => `https://lead-${index + 1}.example.test/company`);
+    const search = {
+      turn: 1, model: "test-model", action: "parallel_web_search", args: {}, execution: "success",
+      observation: "Search results are leads only.", observedUrls: [], leadUrls: urls, findings: [],
+    } as AgenticTrajectoryRecord;
+    const failedFetch = {
+      turn: 2, model: "test-model", action: "browser_fetch", args: { url: urls[0] }, execution: "error",
+      observation: "fetch failed", observedUrls: [], leadUrls: [], findings: [],
+      failureDomain: "external_page_fetch", failureKind: "request_failure",
+    } as AgenticTrajectoryRecord;
+    const successfulFetch = {
+      turn: 3, model: "test-model", action: "visit", args: { url: urls[1] }, execution: "success",
+      observation: "observed source content", observedUrls: [urls[1]], leadUrls: [], findings: [],
+    } as AgenticTrajectoryRecord;
+
+    const state = buildDiscoveryLeadUtilizationState([search, failedFetch, successfulFetch]);
+    expect(state.searchResultLeadUrlCount).toBe(17);
+    expect(state.successfullyFetchedLeadUrlCount).toBe(1);
+    expect(state.failedLeadUrlCount).toBe(1);
+    expect(state.failedLeadUrls[0]).toMatchObject({
+      url: urls[0], action: "browser_fetch", execution: "error",
+      failureDomain: "external_page_fetch", failureKind: "request_failure",
+    });
+    expect(state.unfetchedLeadUrlCount).toBe(15);
+    expect(state.unfetchedLeadUrls).toContain(urls[2]);
+    expect(state.unfetchedLeadUrls).not.toContain(urls[0]);
+    expect(state.unfetchedLeadUrls).not.toContain(urls[1]);
+  });
+});
+
 describe("partial model findings", () => {
   it("retains a source-backed organization lead returned with a non-terminal web-search action", () => {
     const finding = {
