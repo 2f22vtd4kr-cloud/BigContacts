@@ -87,7 +87,8 @@ checks.push(["quota reassignment refreshes live job status after the durable Bos
   atlas.includes("selectedInvestigator = replacement;")
   && atlas.includes(quotaReassignmentMessage)
   && atlas.includes("selectedInvestigator: replacement")
-  && atlas.includes("investigatorCapabilityHistory: [...priorCapabilityHistory")]);
+  && atlas.includes("investigatorCapabilityHistory: [...retainedCapabilityHistory")
+  && /priorCapabilityHistory\.slice\(Math\.max\(0, priorCapabilityHistory\.length - 14\)\)/.test(atlas)]);
 
 let failed = false; for (const [label, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (!ok) failed = true; }
 if (failed) { console.error("Atlas control durability guard failed."); process.exit(1); }
