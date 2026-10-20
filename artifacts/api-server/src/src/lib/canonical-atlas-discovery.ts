@@ -10,7 +10,7 @@ import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRema
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
-import { isUntargetableDiscoveryPersonName } from "./agentic-web-research-core";
+import { isUntargetableDiscoveryPersonName, type AgenticFinding } from "./agentic-web-research-core";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
@@ -29,6 +29,8 @@ import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective,
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateRoleCorroborationSources, hasDiscoveryOwnershipLeadSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
+import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { delCachePattern } from "./redis";
 
 export type CanonicalAtlasOptions = {
   targetCount?: number;
@@ -164,7 +166,7 @@ async function persistAcceptedAtlasDiscoveryObjective(input: {
   }, { isolationLevel: "serializable" });
 }
 
-async function materializeAtlasAdmissions(input: { discoveryRunId: string; findings: Array<{ promotionDecision?: "promote" | "reject"; scope: "organization" | "candidate" | "unknown"; personName: string | null; role: string | null; sourceUrls: string[] }>; atlasJobId: string; discoveryCaseId: number }): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[] }>; materialized: number; evidenceRows: number }> {
+async function materializeAtlasAdmissions(input: { discoveryRunId: string; findings: AgenticFinding[]; atlasJobId: string; discoveryCaseId: number }): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[] }>; materialized: number; evidenceRows: number }> {
   const candidates = uniqueNames(input.findings
     .filter((finding) => finding.promotionDecision === "promote" && finding.scope === "candidate")
     .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length >= 3)
@@ -191,7 +193,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return [];
       try {
         const payload = JSON.parse(event.payload) as { action?: string; execution?: string; observedUrls?: unknown[]; runId?: string; observation?: string };
-        if (payload.runId !== input.discoveryRunId || !Array.isArray(payload.observedUrls)) return [];
+        if (!Array.isArray(payload.observedUrls)) return [];
         return payload.observedUrls.filter((url) => typeof url === "string").map((url) => ({
           action: payload.action ?? "", execution: payload.execution ?? "", sourceUrl: String(url),
           observation: typeof payload.observation === "string" ? payload.observation : "", eventId: event.id,
@@ -306,6 +308,9 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     evidenceRows += materializedAdmission.evidenceRows;
   }
 
+  const partialOrganizations = await materializePartialOrganizationLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
+  materialized += partialOrganizations.materialized;
+  evidenceRows += partialOrganizations.evidenceRows;
   const durableCandidates = mergeDurablyAdmittedCandidateSources([durableCandidateSources.map(({ name, sourceUrls }) => ({ name, sourceUrls }))]);
   return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows };
 }
@@ -340,6 +345,208 @@ async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number)
     throw new Error("Canonical Atlas job already failed; refusing further discovery control-plane work.");
   }
   if (!(await isCanonicalJobOwner("atlas-run", jobId))) throw new Error("Canonical Atlas lease was lost; refusing further control-plane work.");
+}
+
+async function materializePartialOrganizationLeadCards(input: {
+  findings: AgenticFinding[];
+  atlasJobId: string;
+  discoveryCaseId: number;
+}): Promise<{ materialized: number; evidenceRows: number }> {
+  // These are source-backed organization leads only. They are distinct from
+  // admitted person candidates and never imply ownership, wealth, or HNWI status.
+  const seenNames = new Set<string>();
+  const leadNames: string[] = [];
+  for (const finding of input.findings) {
+    if (finding.scope !== "organization" || finding.vectorType !== "other"
+      || finding.promotionDecision === "reject" || finding.personName?.trim() || finding.role?.trim()) continue;
+    const name = finding.value.trim().replace(/\s+/g, " ");
+    const identity = normalizeCandidateIdentityName(name);
+    if (name.length < 3 || identity.length < 3 || seenNames.has(identity)) continue;
+    seenNames.add(identity);
+    leadNames.push(name);
+  }
+  if (!leadNames.length) return { materialized: 0, evidenceRows: 0 };
+
+  const caseEvents = await db.select({
+    id: researchCaseEventsTable.id,
+    eventType: researchCaseEventsTable.eventType,
+    payload: researchCaseEventsTable.payload,
+    createdAt: researchCaseEventsTable.createdAt,
+  }).from(researchCaseEventsTable).where(and(
+    eq(researchCaseEventsTable.caseId, input.discoveryCaseId),
+    eq(researchCaseEventsTable.eventType, "tool_observation"),
+  ));
+  const observations = caseEvents.flatMap((event) => {
+    if (typeof event.payload !== "string") return [];
+    try {
+      const payload = JSON.parse(event.payload) as {
+        action?: string; execution?: string; observedUrls?: unknown[];
+        observation?: string; runId?: string;
+      };
+      if (!Array.isArray(payload.observedUrls)) return [];
+      return payload.observedUrls.filter((url): url is string => typeof url === "string").map((url) => ({
+        action: payload.action ?? "",
+        execution: payload.execution ?? "",
+        sourceUrl: url,
+        observation: typeof payload.observation === "string" ? payload.observation : "",
+        eventId: event.id,
+        createdAt: event.createdAt,
+      }));
+    } catch {
+      return [];
+    }
+  });
+
+  let materialized = 0;
+  let evidenceRows = 0;
+  let wroteDurableState = false;
+  for (const name of leadNames) {
+    const claimedUrls = new Set(input.findings
+      .filter((finding) => finding.scope === "organization" && finding.vectorType === "other"
+        && finding.promotionDecision !== "reject"
+        && !finding.personName?.trim() && !finding.role?.trim()
+        && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name))
+      .flatMap((finding) => finding.sourceUrls)
+      .map(normalizeSourceUrl)
+      .filter((url): url is string => Boolean(url)));
+    const supports = new Map<string, { sourceUrl: string; eventId: number; createdAt: Date; spanText: string; spanStart: number; spanEnd: number }>();
+    for (const observation of observations) {
+      if (observation.execution !== "success" || (observation.action !== "visit" && observation.action !== "browser_fetch")) continue;
+      const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
+      if (!sourceUrl || !claimedUrls.has(sourceUrl) || !isClaimGradeDiscoverySourceUrl(sourceUrl)) continue;
+      const span = bindExactSourceSpan(observation.observation, name);
+      if (!span?.exact) continue;
+      if (!supports.has(sourceUrl)) supports.set(sourceUrl, {
+        sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt,
+        spanText: span.text, spanStart: span.start, spanEnd: span.end,
+      });
+    }
+    if (!supports.size) continue;
+
+    const persisted = await db.transaction(async (tx) => {
+      const [ownedCase] = await tx.select({
+        status: researchCasesTable.status,
+        currentAction: researchCasesTable.currentAction,
+        caseFile: researchCasesTable.caseFile,
+      }).from(researchCasesTable).where(and(
+        eq(researchCasesTable.id, input.discoveryCaseId),
+        eq(researchCasesTable.status, "active"),
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${input.atlasJobId}`,
+        sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+      )).for("update").limit(1);
+      if (!ownedCase) return { created: 0, evidenceRows: 0, changed: false };
+
+      const existingRows = await tx.select({
+        id: entitiesTable.id,
+        metadata: entitiesTable.metadata,
+      }).from(entitiesTable).where(and(
+        eq(entitiesTable.type, "Corporation"),
+        sql`LOWER(${entitiesTable.name}) = LOWER(${name})`,
+      )).limit(32);
+      const sameCase = existingRows.find((row) => {
+        try {
+          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          return metadata.partialOrganizationLead === true
+            && Number(metadata.discoveryCaseId) === input.discoveryCaseId;
+        } catch {
+          return false;
+        }
+      });
+
+      let entityId = sameCase?.id ?? null;
+      let created = false;
+      const sourceUrls = [...supports.keys()];
+      const notes = "PARTIAL REVIEW LEAD — the fetched source names this organization. This card is not a verified ownership finding, HNWI conclusion, or targetable-person admission; verify control/ownership, business materiality, and the person hypothesis before acting.";
+      const metadata = JSON.stringify({
+        reviewOnly: true,
+        partialOrganizationLead: true,
+        stage: "partial_review",
+        admission: "source-observed-organization-name",
+        discoveryCaseId: input.discoveryCaseId,
+        atlasJobId: input.atlasJobId,
+        sourceUrls,
+        limitations: ["ownership/control not established", "business materiality not established", "no person or wealth conclusion"],
+      });
+      if (!entityId) {
+        const [entity] = await tx.insert(entitiesTable).values({
+          name,
+          type: "Corporation",
+          bayesianScore: 0.05,
+          contactConfidence: 0,
+          contactOutcome: "evidence_only",
+          isHot: false,
+          isStarred: false,
+          isHidden: false,
+          sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]),
+          notes,
+          metadata,
+        }).returning({ id: entitiesTable.id });
+        entityId = entity?.id ?? null;
+        created = Boolean(entityId);
+      } else {
+        await tx.update(entitiesTable).set({ notes, metadata, updatedAt: new Date() })
+          .where(eq(entitiesTable.id, entityId));
+      }
+      if (!entityId) return { created: 0, evidenceRows: 0, changed: false };
+
+      let addedEvidence = 0;
+      for (const support of supports.values()) {
+        const [existingEvidence] = await tx.select({ id: researchEvidenceTable.id })
+          .from(researchEvidenceTable).where(and(
+            eq(researchEvidenceTable.entityId, entityId),
+            eq(researchEvidenceTable.claimType, "partial_organization_lead"),
+            eq(researchEvidenceTable.sourceUrl, support.sourceUrl),
+          )).limit(1);
+        if (existingEvidence) continue;
+        const [session] = await tx.insert(researchSessionsTable).values({
+          targetEntityId: entityId,
+          winningPath: JSON.stringify([{ sourceUrl: support.sourceUrl, discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, status: "partial_review" }]),
+          notes: "Source-observed organization-name lead only. No ownership, wealth, or targetable-person claim is made.",
+          safeUseStatus: "manual_review",
+          crmStatus: "Lead Gen",
+        }).returning({ id: researchSessionsTable.id });
+        if (!session?.id) throw new Error("Partial organization lead evidence session insert returned no durable session ID.");
+        const event = caseEvents.find((row) => row.id === support.eventId);
+        await tx.insert(researchEvidenceTable).values({
+          sessionId: session.id,
+          entityId,
+          claimType: "partial_organization_lead",
+          claim: "The fetched source contains the exact organization name; ownership, materiality, and a targetable person remain unverified.",
+          value: name,
+          sourceName: "canonical-agentic-discovery",
+          sourceUrl: support.sourceUrl,
+          sourceDomain: new URL(support.sourceUrl).hostname,
+          status: "review",
+          confidence: 0.25,
+          observedAt: event?.createdAt ?? support.createdAt,
+          freshnessScore: 1,
+          metadata: JSON.stringify({
+            partialReview: true,
+            discoveryCaseId: input.discoveryCaseId,
+            atlasJobId: input.atlasJobId,
+            supportingEventId: support.eventId,
+            sourceSpan: support.spanText,
+            spanStart: support.spanStart,
+            spanEnd: support.spanEnd,
+            noOwnershipOrWealthConclusion: true,
+          }),
+        });
+        addedEvidence++;
+      }
+      return { created: created ? 1 : 0, evidenceRows: addedEvidence, changed: created || addedEvidence > 0 || Boolean(sameCase) };
+    }, { isolationLevel: "serializable" });
+
+    materialized += persisted.created;
+    evidenceRows += persisted.evidenceRows;
+    wroteDurableState ||= persisted.changed;
+  }
+  if (wroteDurableState) {
+    await Promise.all([
+      delCachePattern("entities:list:*").catch(() => undefined),
+      delCachePattern("dashboard:*").catch(() => undefined),
+    ]);
+  }
+  return { materialized, evidenceRows };
 }
 
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
@@ -731,7 +938,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         : `${failedCapability} → ${replacement} after repeated upstream_token_window_wait_exceeded; the original capability is excluded for this job.`;
       return replacement;
     };
-    const mergeDiscoveryResults = (failed: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, recovered: Awaited<ReturnType<typeof runBureauAgenticWebPass>>): Awaited<ReturnType<typeof runBureauAgenticWebPass>> => ({ ...recovered, searches: failed.searches + recovered.searches, visits: failed.visits + recovered.visits, iterations: failed.iterations + recovered.iterations, findings: [...(failed.findings ?? []), ...(recovered.findings ?? [])], modelFindings: [...(failed.modelFindings ?? []), ...(recovered.modelFindings ?? [])], trajectory: [...(failed.trajectory ?? []), ...(recovered.trajectory ?? [])], trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])], consecutiveActionParseFailures: recovered.consecutiveActionParseFailures ?? failed.consecutiveActionParseFailures ?? 0 });
+    const mergeDiscoveryResults = (failed: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, recovered: Awaited<ReturnType<typeof runBureauAgenticWebPass>>): Awaited<ReturnType<typeof runBureauAgenticWebPass>> => ({ ...recovered, partialFindings: [...(failed.partialFindings ?? []), ...(recovered.partialFindings ?? [])], searches: failed.searches + recovered.searches, visits: failed.visits + recovered.visits, iterations: failed.iterations + recovered.iterations, findings: [...(failed.findings ?? []), ...(recovered.findings ?? [])], modelFindings: [...(failed.modelFindings ?? []), ...(recovered.modelFindings ?? [])], trajectory: [...(failed.trajectory ?? []), ...(recovered.trajectory ?? [])], trajectoryRecords: [...(failed.trajectoryRecords ?? []), ...(recovered.trajectoryRecords ?? [])], consecutiveActionParseFailures: recovered.consecutiveActionParseFailures ?? failed.consecutiveActionParseFailures ?? 0 });
     const runDiscoveryWithQuotaRecovery = async (initial: Awaited<ReturnType<typeof runBureauAgenticWebPass>>, objective: string, budgetMs: number, maxIterations: number, priorTrajectoryRecords: NonNullable<Awaited<ReturnType<typeof runBureauAgenticWebPass>>["trajectoryRecords"]> = [], tokenDailyQuotaAdditionalIterations = maxIterations): Promise<Awaited<ReturnType<typeof runBureauAgenticWebPass>>> => {
       let result = initial;
       let iterationsConsumed = Math.max(0, result.iterations ?? result.trajectoryRecords?.length ?? 0);
@@ -1035,7 +1242,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let tokenCapacityFailureInvestigator = selectedInvestigator;
     await assertAtlasJobActive(atlasJobId);
     failureStage = "candidate_admission_persistence";
-    let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: discovery.findings, atlasJobId, discoveryCaseId });
+    let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])], atlasJobId, discoveryCaseId });
     let admitted = admission.names; let admittedCandidateSources = admission.candidates; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = allUnavailableInvestigatorCapabilities().length > 0 ? 1 + allUnavailableInvestigatorCapabilities().length : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let discoveryIterationsUsed = discovery.iterations; let discoveryResourceLimited = resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, discoveryIterationCeiling, discoveryIterationsUsed, investigatorIterationsUsed, targetResearchReserveIterations, hasAdmittedCandidates: admittedCandidateSources.length > 0 }) <= 0 && discovery.stopReason !== "MODEL_DECIDED_DONE"; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDecision: { controlTurn: number; reason: string; kind: "candidate_selection" | "pivot_direction" | "discovery_budget" } | null = null;
     const researchedNames = new Set<string>();
     phaseSummary.assignment = `${selectedInvestigator} currently selected by Groq; opening capability=${boss.investigatorLlm}; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
@@ -1671,7 +1878,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // Do not append this episode a second time: that doubles its metrics and
         // trajectory/finding records on every Boss-directed continuation.
         failureStage = "candidate_admission_persistence";
-      admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: nextDiscovery.findings, atlasJobId, discoveryCaseId });
+      admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])], atlasJobId, discoveryCaseId });
         admittedCandidateSources = mergeDurablyAdmittedCandidateSources([admittedCandidateSources, admission.candidates]);
         admitted = admittedCandidateSources.map(({ name }) => name);
         materialized += admission.materialized;
