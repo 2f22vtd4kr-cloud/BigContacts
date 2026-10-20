@@ -475,6 +475,9 @@ async function materializePartialPersonLeadCards(input: {
           return false;
         }
       });
+      // Do not merge a same-name lead into an unrelated existing person, and
+      // do not create a duplicate card just to bypass an identity collision.
+      if (existingRows.length > 0 && !sameCase) return { created: 0, evidenceRows: 0, changed: false };
       let priorMetadata: Record<string, unknown> = {};
       try {
         const parsed: unknown = sameCase?.metadata ? JSON.parse(sameCase.metadata) : {};
@@ -703,6 +706,9 @@ async function materializePartialOrganizationLeadCards(input: {
           return false;
         }
       });
+      // Never merge a new partial lead into another case's corporation or
+      // duplicate an existing corporation on a name-only match.
+      if (existingRows.length > 0 && !sameCase) return { created: 0, evidenceRows: 0, changed: false };
 
       let entityId = sameCase?.id ?? null;
       let created = false;
