@@ -211,7 +211,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     const partialPersonLead = metadata.partialPersonLead === true;
     if (!partialOrganizationLead && !partialPersonLead) return [];
     const rawSources = Array.isArray(metadata.sourceUrls) ? metadata.sourceUrls : metadata.sourceUrl ? [metadata.sourceUrl] : [];
-    const sourceUrls = [...new Set(rawSources.filter((value): value is string => typeof value === "string" && /^https:\/\//i.test(value))];
+    const sourceUrls = [...new Set(rawSources.filter((value): value is string => typeof value === "string" && /^https:\/\//i.test(value)))];
     return [{
       entityId: row.entityId,
       entityName: row.entityName,
