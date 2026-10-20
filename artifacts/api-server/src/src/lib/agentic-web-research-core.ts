@@ -1342,46 +1342,38 @@ export function describeAgentActionParseFailure(raw: string, actionAllowlist: re
   return describeInvalidActionArguments(action, value) ?? "";
 }
 
-function parseModelFindings(rawFindings: unknown): AgenticFinding[] {
+function parsePartialOrganizationFindings(rawFindings: unknown): AgenticFinding[] {
   const findings: AgenticFinding[] = [];
   for (const rawFinding of Array.isArray(rawFindings) ? rawFindings : []) {
     if (!rawFinding || typeof rawFinding !== "object" || Array.isArray(rawFinding)) continue;
     const f = rawFinding as Record<string, unknown>;
     const vector = cleanText(f.vectorType, 30).toLowerCase();
     const valueText = cleanText(f.value, 500);
+    const personName = cleanText(f.personName, 120);
+    const role = cleanText(f.role, 120);
+    // Non-terminal actions may preserve organization-only leads, never model
+    // identity, candidate scope, or promotion decisions.
+    if (f.scope !== "organization" || vector !== "other" || personName || role || !valueText) continue;
     const sourceUrls = filterClaimUrls(
       Array.isArray(f.sourceUrls) ? f.sourceUrls.filter((u): u is string => typeof u === "string") : [],
     ).map(normalizedUrl).filter((u): u is string => Boolean(u));
-    if (!valueText || !["email", "phone", "linkedin", "website", "social", "other"].includes(vector)
-      || (vector !== "other" && sourceUrls.length === 0)) continue;
-    let finalValue = valueText;
-    if (vector === "email") {
-      const email = sanitizePublicEmail(valueText);
-      if (!email || isTrashContactValue("email", email)) continue;
-      finalValue = email;
-    }
-    if (vector === "phone") {
-      const phone = sanitizePublicPhone(valueText);
-      if (!phone || isTrashContactValue("phone", phone)) continue;
-      finalValue = phone;
-    }
-    if (vector === "website" && !isSafeHttpUrl(finalValue)) continue;
+    if (!sourceUrls.length) continue;
     findings.push({
-      vectorType: vector as AgenticFinding["vectorType"],
-      value: finalValue,
-      personName: typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null,
-      role: typeof f.role === "string" ? f.role.trim().slice(0, 120) : null,
-      scope: f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown",
+      vectorType: "other",
+      value: valueText,
+      personName: null,
+      role: null,
+      scope: "organization",
       sourceUrls,
-      note: cleanText(f.note, 400) || "Investigator-authored finding",
-      promotionDecision: f.promotionDecision === "promote" || f.promotionDecision === "reject" ? f.promotionDecision : undefined,
-      promotionReason: cleanText(f.promotionReason, 500) || undefined,
+      note: cleanText(f.note, 400) || "Investigator-authored partial organization lead",
+      promotionDecision: undefined,
+      promotionReason: undefined,
     });
   }
   return findings;
 }
 
-function parseAction(raw: string, actionAllowlist: readonly string[] = getModelSelectableAgentActions()): ParsedAgentAction | null { if (describeAgentActionParseFailure(raw, actionAllowlist)) return null; const json = extractJsonObject(raw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (!actionAllowlist.includes(action)) return null; if (describeActionRationaleFailure(action, value)) return null; const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined, partialFindings: parseModelFindings(value.findings) }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
+function parseAction(raw: string, actionAllowlist: readonly string[] = getModelSelectableAgentActions()): ParsedAgentAction | null { if (describeAgentActionParseFailure(raw, actionAllowlist)) return null; const json = extractJsonObject(raw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (!actionAllowlist.includes(action)) return null; if (describeActionRationaleFailure(action, value)) return null; const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined, partialFindings: action === "done" ? [] : parsePartialOrganizationFindings(value.findings) }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
     const searches = value.searches.map((item) => {
       const entry = item as Record<string, unknown>;
       return {
@@ -1400,7 +1392,42 @@ function parseAction(raw: string, actionAllowlist: readonly string[] = getModelS
       return { query: cleanText(entry.query, 200), registry: normalizeRegistryId(rawRegistry) ?? rawRegistry.toLowerCase(), purpose: cleanText(entry.purpose, 500) || undefined };
     }) as Array<{ query: string; registry: string; purpose?: string }>;
     return { action: "parallel_registry_search", searches, thought: cleanText(value.thought, 500) || undefined, ...meta };
-  } if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: cleanText(value.locale, 16) || undefined, market: cleanText(value.market, 16) || undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".") && ["rdap","whoisjson"].includes(cleanText(value.provider, 30))) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, provider: cleanText(value.provider, 30) as "rdap" | "whoisjson", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) return { action: "registry_search", query: cleanText(value.query, 200), registry: cleanText(value.registry, 60).toLowerCase(), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500)) && ["scrapfly","zenrows","browserless","playwright"].includes(cleanText(value.provider, 30))) return { action: "browser_fetch", url: cleanText(value.url, 500), provider: cleanText(value.provider, 30) as "scrapfly" | "zenrows" | "browserless" | "playwright", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") return { action: "done", findings: meta.partialFindings, thought: cleanText(value.thought, 500) || undefined, ...meta }; } catch { return null; } return null; }
+  } if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: cleanText(value.locale, 16) || undefined, market: cleanText(value.market, 16) || undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".") && ["rdap","whoisjson"].includes(cleanText(value.provider, 30))) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, provider: cleanText(value.provider, 30) as "rdap" | "whoisjson", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) return { action: "registry_search", query: cleanText(value.query, 200), registry: cleanText(value.registry, 60).toLowerCase(), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500)) && ["scrapfly","zenrows","browserless","playwright"].includes(cleanText(value.provider, 30))) return { action: "browser_fetch", url: cleanText(value.url, 500), provider: cleanText(value.provider, 30) as "scrapfly" | "zenrows" | "browserless" | "playwright", thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") {
+    const findings: AgenticFinding[] = [];
+    for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) {
+      if (!rawFinding || typeof rawFinding !== "object") continue;
+      const f = rawFinding as Record<string, unknown>;
+      const vector = cleanText(f.vectorType, 30).toLowerCase();
+      const valueText = cleanText(f.value, 500);
+      const sourceUrls = filterClaimUrls(Array.isArray(f.sourceUrls) ? f.sourceUrls.filter((u): u is string => typeof u === "string") : [])
+        .map(normalizedUrl).filter((u): u is string => Boolean(u));
+      if (!valueText || !["email", "phone", "linkedin", "website", "social", "other"].includes(vector) || (vector !== "other" && sourceUrls.length === 0)) continue;
+      let finalValue = valueText;
+      if (vector === "email") {
+        const email = sanitizePublicEmail(valueText);
+        if (!email || isTrashContactValue("email", email)) continue;
+        finalValue = email;
+      }
+      if (vector === "phone") {
+        const phone = sanitizePublicPhone(valueText);
+        if (!phone || isTrashContactValue("phone", phone)) continue;
+        finalValue = phone;
+      }
+      if (vector === "website" && !isSafeHttpUrl(finalValue)) continue;
+      findings.push({
+        vectorType: vector as AgenticFinding["vectorType"],
+        value: finalValue,
+        personName: typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null,
+        role: typeof f.role === "string" ? f.role.trim().slice(0, 120) : null,
+        scope: f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown",
+        sourceUrls,
+        note: cleanText(f.note, 400) || "Investigator-authored finding",
+        promotionDecision: f.promotionDecision === "promote" || f.promotionDecision === "reject" ? f.promotionDecision : undefined,
+        promotionReason: cleanText(f.promotionReason, 500) || undefined,
+      });
+    }
+    return { action: "done", findings, thought: cleanText(value.thought, 500) || undefined, ...meta };
+  } } catch { return null; } return null; }
 export function parseAgentAction(raw: string, actionAllowlist?: readonly string[]): ParsedAgentAction | null { return parseAction(raw, actionAllowlist); }
 
 export function buildAgenticActionParseFailureRecord(input: {
