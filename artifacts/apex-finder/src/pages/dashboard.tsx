@@ -1,4 +1,5 @@
 import { useGetDashboardStats, useGetHotLeads } from "@workspace/api-client-react";
+import { useQuery } from "@tanstack/react-query";
 import { isMockMode, mockDashboardStats, mockHotLeads } from "@/lib/dev-mock-data";
 import {
   Activity,
@@ -244,12 +245,60 @@ function normalizeHotLeads(data: unknown): any[] {
   return [];
 }
 
+function normalizeResearchLeads(data: unknown): any[] {
+  if (Array.isArray(data)) return data.filter(Boolean);
+  if (!data || typeof data !== "object") return [];
+  const leads = (data as Record<string, unknown>).leads;
+  return Array.isArray(leads) ? leads.filter(Boolean) : [];
+}
+
+function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
+  const sourceCount = Array.isArray(lead.sourceUrls) ? lead.sourceUrls.length : 0;
+  const descriptor = lead.entityType === "PersonCandidate"
+    ? "Identity/ownership lead · wealth not established"
+    : "Organization lead · targetable person not yet established";
+  return (
+    <Link
+      href={`/profile/${lead.entityId}`}
+      data-testid={`card-review-lead-${lead.entityId}`}
+      className="atlas-card atlas-pressable group flex min-w-0 flex-col gap-3 p-4 transition-colors hover:border-[#9CFF1A]/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9CFF1A]/50"
+      style={{ animationDelay: `${index * 35}ms` }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <EntityTypeMark type={lead.entityType} compact />
+        <span className="rounded border border-amber-300/20 bg-amber-300/[0.06] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-amber-200">Partial review</span>
+      </div>
+      <div>
+        <h3 className="line-clamp-2 break-words text-sm font-semibold text-foreground group-hover:text-primary">{lead.entityName}</h3>
+        <p className="mt-1.5 line-clamp-3 text-xs leading-5 text-muted-foreground">{lead.notes || descriptor}</p>
+      </div>
+      <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
+        <span>{sourceCount} fetched source{sourceCount === 1 ? "" : "s"}</span>
+        <span>Not HNWI-verified</span>
+      </div>
+    </Link>
+  );
+}
+
 export default function Dashboard() {
   const mock = isMockMode();
   const statsQuery = useGetDashboardStats();
   const leadsQuery = useGetHotLeads({ limit: 8 });
+  const reviewLeadsQuery = useQuery({
+    queryKey: ["dashboard", "research-leads"],
+    queryFn: async () => {
+      const response = await fetch("/api/dashboard/research-leads?limit=8", {
+        credentials: "include",
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) throw new Error(`Research leads request failed (${response.status}).`);
+      return response.json() as Promise<{ leads?: unknown[] }>;
+    },
+    staleTime: 15_000,
+  });
   const stats = mock ? mockDashboardStats() : statsQuery.data;
   const leads = mock ? mockHotLeads() : normalizeHotLeads(leadsQuery.data);
+  const reviewLeads = mock ? [] : normalizeResearchLeads(reviewLeadsQuery.data);
   const isLoading = mock ? false : (statsQuery.isLoading || leadsQuery.isLoading);
   const hasError = mock ? false : (statsQuery.isError || leadsQuery.isError);
 
@@ -363,6 +412,32 @@ export default function Dashboard() {
           isLoading ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div> :
           leads.length === 0 ? <EmptyLeads /> :
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{leads.map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
+      </section>
+
+      <section className="atlas-enter atlas-dashboard-wide mt-10 border-t border-[#9CFF1A]/10 pt-7" style={{ animationDelay: "180ms" }} data-testid="section-research-leads">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <div className="atlas-section-label flex items-center gap-2"><FileSearch className="h-3 w-3" /> Keep the evidence so far</div>
+            <h2 className="mt-2 font-display text-xl font-semibold tracking-tight text-stone-100 md:text-2xl">Research leads in review</h2>
+            <p className="mt-2 max-w-2xl text-xs leading-5 text-muted-foreground">Useful source-backed leads remain visible while the Investigator continues. These are not verified HNWIs or contact-ready targets.</p>
+          </div>
+          <Link href="/entities" data-testid="link-view-all-review-leads" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary">View entity ledger <ChevronRight className="h-3.5 w-3.5" /></Link>
+        </div>
+        {reviewLeadsQuery.isError ? (
+          <div className="atlas-card p-4 text-xs text-muted-foreground">
+            Partial review leads could not be loaded. The entity ledger remains the canonical record.
+            <button onClick={() => { void reviewLeadsQuery.refetch(); }} className="ml-2 font-semibold text-primary underline underline-offset-2">Retry</button>
+          </div>
+        ) : reviewLeadsQuery.isLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div>
+        ) : reviewLeads.length === 0 ? (
+          <div className="atlas-card p-5" data-testid="empty-research-leads">
+            <div className="text-sm font-semibold text-foreground">No source-backed partial leads yet</div>
+            <p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted-foreground">When Atlas finds an exact company or person lead in a fetched public source, it can save a review-only card here before the overall run is complete. Unsupported names, search snippets and guessed contacts are never turned into cards.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{reviewLeads.map((lead: any, index: number) => <ReviewLeadCard key={lead.entityId} lead={lead} index={index} />)}</div>
+        )}
       </section>
 
       <section className="atlas-enter atlas-dashboard-wide mt-10 grid gap-4 border-t border-[#9CFF1A]/10 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
