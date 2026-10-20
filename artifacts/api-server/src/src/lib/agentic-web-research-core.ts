@@ -1360,7 +1360,7 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
     const personLead = f.scope === "candidate"
       && personName.length >= 3
       && role.length > 0
-      && normalizeCandidateIdentityName(personName) === normalizeCandidateIdentityName(valueText);
+      && normalizeDiscoverySearchQuery(personName) === normalizeDiscoverySearchQuery(valueText);
     const organizationLead = f.scope === "organization" && !personName && !role;
     if (!personLead && !organizationLead) continue;
     // Non-terminal actions may preserve sourced review leads, but cannot
