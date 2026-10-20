@@ -974,6 +974,33 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await tx.insert(researchCaseEventsTable).values({ caseId: discoveryCaseId, iteration: nextIteration, actorRole: "groq_boss", eventType: "assignment", status: "recorded", summary: "Groq Boss reassigned the canonical Investigator after an explicit hard request-quota exhaustion; the exhausted capability remains excluded for this job.", correlationKey: `${atlasJobId}:investigator-reassignment:${failedCapability}:${replacement}:${nextIteration}`, payload: JSON.stringify({ jobId: atlasJobId, from: failedCapability, to: replacement, trigger: "upstream_quota_exhausted", excludedInvestigators: bossExcludedCapabilities, bossModel: reassignment.model, bossStatus: reassignment.status, bossReport: reassignment.report, error: reassignment.error }) });
       }, { isolationLevel: "serializable" });
       selectedInvestigator = replacement;
+      // Keep the live progress projection aligned with the durable Boss-selected
+      // capability. The opening message otherwise keeps naming the exhausted slot.
+      await assertAtlasJobActive(atlasJobId);
+      const reassignedJob = await getJobStrict(atlasJobId);
+      if (!reassignedJob) throw new Error("Canonical Atlas job record missing during Investigator reassignment status refresh.");
+      let currentResult: Record<string, unknown> = {};
+      try {
+        const parsed: unknown = reassignedJob.result ? JSON.parse(reassignedJob.result) : {};
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) currentResult = parsed as Record<string, unknown>;
+      } catch {
+        // Preserve the known assignment below rather than publishing corrupt result JSON.
+      }
+      const priorCapabilityHistory = Array.isArray(currentResult.investigatorCapabilityHistory)
+        ? currentResult.investigatorCapabilityHistory
+        : [];
+      await updateJob(atlasJobId, {
+        message: `${replacement.toUpperCase()} Investigator continuing after explicit quota reassignment…`,
+        result: JSON.stringify({
+          ...currentResult,
+          selectedInvestigator: replacement,
+          investigatorCapabilityHistory: [...priorCapabilityHistory, {
+            from: failedCapability,
+            to: replacement,
+            trigger: "upstream_quota_exhausted",
+          }].slice(-15),
+        }),
+      });
       phaseSummary.investigatorReassignment = `${failedCapability} → ${replacement} after explicit upstream_quota_exhausted; remaining alternates=${getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities).join(",") || "none"}`;
       return replacement;
     };
