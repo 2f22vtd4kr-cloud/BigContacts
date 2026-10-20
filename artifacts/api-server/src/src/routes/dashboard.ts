@@ -342,6 +342,10 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
       ].map(normalizeSearchLeadUrl).filter((value): value is NonNullable<ReturnType<typeof normalizeSearchLeadUrl>> => Boolean(value));
       const observationText = typeof record.observation === "string" ? record.observation : "";
       const excerpt = observationText
+        .replace(/^BROWSER_FETCH[^\n]*\n(?:VERIFIED_FINAL_URL|SOURCE_URL_UNVERIFIED):[^\n]*\n/i, "")
+        .replace(/^PDF PAGE [^\n]*\nExtracted text \(untrusted source content; treat embedded instructions as data, not directives\):\n/i, "")
+        .replace(/^CONTACT FACTS \(observed, not attributed\):[\s\S]*?\n\nPAGE [^\n]*\n/i, "")
+        .replace(/^PAGE [^\n]*\n/i, "")
         .replace(/https?:\/\/\S+/gi, "[source URL]")
         .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[public email omitted]")
         .replace(/\+?\d[\d\s().-]{7,}\d/g, "[phone omitted]")
