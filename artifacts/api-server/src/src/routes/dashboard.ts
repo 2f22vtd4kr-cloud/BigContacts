@@ -273,7 +273,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     sourceUrl: string;
     sourceDomain: string;
     sourcePath: string;
-    retrievalStatus: "unfetched" | "fetch_failed" | "observed";
+    retrievalStatus: "unfetched" | "fetch_failed" | "partial_fetch" | "observed";
     lastAttemptAction: string | null;
     lastFailureDomain: string | null;
     lastFailureKind: string | null;
@@ -303,7 +303,9 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
       if (record.action !== "visit" && record.action !== "browser_fetch") continue;
       const args = record.args && typeof record.args === "object" ? record.args as Record<string, unknown> : {};
       const requested = normalizeSearchLeadUrl(args.url);
-      if (record.execution !== "selected" && requested) attempts.set(requested.key, record);
+      if (["success", "partial", "http_error", "timeout", "error"].includes(String(record.execution)) && requested) {
+        attempts.set(requested.key, record);
+      }
       if (record.execution === "success") {
         if (requested) successfullyFetched.add(requested.key);
         for (const raw of Array.isArray(record.observedUrls) ? record.observedUrls : []) {
@@ -317,7 +319,8 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     // not extract a structured entity finding from them. The record is explicitly
     // a source artifact, not an inferred company/person entity.
     for (const record of [...records].reverse()) {
-      if ((record.action !== "visit" && record.action !== "browser_fetch") || record.execution !== "success") continue;
+      if ((record.action !== "visit" && record.action !== "browser_fetch")
+        || (record.execution !== "success" && record.execution !== "partial")) continue;
       const args = record.args && typeof record.args === "object" ? record.args as Record<string, unknown> : {};
       const candidates = [
         ... (Array.isArray(record.observedUrls) ? record.observedUrls : []),
@@ -341,7 +344,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
           sourceUrl: source.sourceUrl,
           sourceDomain: source.sourceDomain,
           sourcePath: source.sourcePath,
-          retrievalStatus: "observed",
+          retrievalStatus: record.execution === "success" ? "observed" : "partial_fetch",
           lastAttemptAction: String(record.action),
           lastFailureDomain: null,
           lastFailureKind: null,
@@ -363,7 +366,9 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
         const source = normalizeSearchLeadUrl(rawUrl);
         if (!source || successfullyFetched.has(source.key) || entitySourceKeys.has(source.key) || sourceLeadByUrl.has(source.key)) continue;
         const attempt = attempts.get(source.key);
-        const retrievalStatus = attempt ? "fetch_failed" as const : "unfetched" as const;
+        const retrievalStatus = attempt?.execution === "partial"
+          ? "partial_fetch" as const
+          : attempt ? "fetch_failed" as const : "unfetched" as const;
         sourceLeadByUrl.set(source.key, {
           id: `source-${sourceCase.id}-${Number(record.turn ?? 0)}-${sourceLeadByUrl.size}`,
           caseId: sourceCase.id,
