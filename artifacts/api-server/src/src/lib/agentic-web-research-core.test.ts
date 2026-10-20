@@ -299,6 +299,113 @@ describe("model-selectable Investigator capabilities", () => {
   });
 });
 
+describe("partial model findings", () => {
+  it("retains a source-backed organization lead returned with a non-terminal web-search action", () => {
+    const finding = {
+      vectorType: "other",
+      value: "Example Manufacturing Ltd",
+      personName: null,
+      role: null,
+      scope: "organization",
+      sourceUrls: ["https://example.com/ownership"],
+      note: "The fetched source names the company; ownership remains unverified.",
+      promotionDecision: null,
+      promotionReason: null,
+    };
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Example Manufacturing Ltd owners",
+      provider: "serper",
+      hypothesis: "A public registry page may identify company ownership.",
+      purpose: "Find a source that can support or falsify the ownership hypothesis.",
+      expectedInformationGain: 0.7,
+      findings: [finding],
+    }), ["web_search"]);
+
+    expect(parsed?.action).toBe("web_search");
+    expect(parsed?.partialFindings).toEqual([{
+      ...finding,
+      promotionDecision: undefined,
+      promotionReason: undefined,
+    }]);
+  });
+
+  it("keeps non-terminal person leads review-only and drops model promotion decisions", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Example Manufacturing Ltd owner",
+      provider: "serper",
+      hypothesis: "An official source may identify an owner.",
+      purpose: "Test an ownership hypothesis.",
+      expectedInformationGain: 0.6,
+      findings: [{
+        vectorType: "other",
+        value: "Jane Doe",
+        personName: "Jane Doe",
+        role: "Owner",
+        scope: "candidate",
+        sourceUrls: ["https://example.com/leadership"],
+        note: "Candidate claim from a non-terminal action.",
+        promotionDecision: "promote",
+        promotionReason: "The output claims an ownership role.",
+      }],
+    }), ["web_search"]);
+
+    expect(parsed?.partialFindings).toEqual([{
+      vectorType: "other",
+      value: "Jane Doe",
+      personName: "Jane Doe",
+      role: "Owner",
+      scope: "candidate",
+      sourceUrls: ["https://example.com/leadership"],
+      note: "Candidate claim from a non-terminal action.",
+      promotionDecision: undefined,
+      promotionReason: undefined,
+    }]);
+  });
+
+  it("preserves an unpromoted lead when the Investigator stops", () => {
+    const finding = {
+      vectorType: "other",
+      value: "Jane Doe",
+      personName: "Jane Doe",
+      role: "Owner",
+      scope: "candidate",
+      sourceUrls: ["https://example.com/leadership"],
+      note: "The fetched source supports a review lead only.",
+      promotionDecision: null,
+      promotionReason: null,
+    };
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "done",
+      findings: [finding],
+      thought: "The person lead needs target-stage corroboration before any HNWI conclusion.",
+    }), ["done"]);
+
+    expect(parsed?.action).toBe("done");
+    expect(parsed?.partialFindings).toEqual([{
+      ...finding,
+      promotionDecision: undefined,
+      promotionReason: undefined,
+    }]);
+  });
+
+  it("asks the Investigator to retain useful sourced findings while it continues researching", () => {
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find under-the-radar owners with credible wealth potential.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "A fetched official company page names a private manufacturing company.",
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toContain("PARTIAL FINDINGS");
+    expect(prompt).toContain("not terminal-only");
+    expect(prompt).toContain("source-backed leads");
+  });
+});
+
 describe("decision-scoped action allowlists", () => {
   it("parses against the same allowlist captured for the model decision, not a later worker-cache state", () => {
     const raw = JSON.stringify({

@@ -178,6 +178,54 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
   );
 });
 
+// GET /dashboard/research-leads
+// Project explicitly provisional Atlas findings alongside, but separate from,
+// verified HNWI priority profiles. Only real persisted review-only entities appear.
+router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
+  const requestedLimit = Number(req.query.limit ?? 8);
+  const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? Math.trunc(requestedLimit) : 8, 1), 25);
+  const rows = await db.select({
+    entityId: entitiesTable.id,
+    entityName: entitiesTable.name,
+    entityType: entitiesTable.type,
+    notes: entitiesTable.notes,
+    metadata: entitiesTable.metadata,
+    updatedAt: entitiesTable.updatedAt,
+  }).from(entitiesTable).where(and(
+    eq(entitiesTable.isHidden, false),
+    or(
+      sql`${entitiesTable.metadata} LIKE '%"partialOrganizationLead":true%'`,
+      sql`${entitiesTable.metadata} LIKE '%"partialPersonLead":true%'`,
+    ),
+  )).orderBy(desc(entitiesTable.updatedAt)).limit(limit);
+
+  const leads = rows.flatMap((row) => {
+    let metadata: Record<string, unknown> = {};
+    try {
+      const parsed: unknown = row.metadata ? JSON.parse(row.metadata) : {};
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed as Record<string, unknown>;
+    } catch {
+      return [];
+    }
+    const partialOrganizationLead = metadata.partialOrganizationLead === true;
+    const partialPersonLead = metadata.partialPersonLead === true;
+    if (!partialOrganizationLead && !partialPersonLead) return [];
+    const rawSources = Array.isArray(metadata.sourceUrls) ? metadata.sourceUrls : metadata.sourceUrl ? [metadata.sourceUrl] : [];
+    const sourceUrls = [...new Set(rawSources.filter((value): value is string => typeof value === "string" && /^https:\/\//i.test(value)))];
+    return [{
+      entityId: row.entityId,
+      entityName: row.entityName,
+      entityType: row.entityType,
+      notes: row.notes,
+      sourceUrls,
+      stage: "partial_review" as const,
+      updatedAt: row.updatedAt,
+      limitations: Array.isArray(metadata.limitations) ? metadata.limitations.filter((value): value is string => typeof value === "string") : [],
+    }];
+  });
+  res.json({ leads });
+});
+
 // GET /ingest/scoreboard-snapshot
 // Operator scoreboard for the most recently cooked cards. This reuses the
 // canonical entity/contact-evidence data and the existing pure rubric; it does

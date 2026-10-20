@@ -82,6 +82,14 @@ checks.push(["incomplete Atlas terminal preserves truthful reason",/finalCaseAct
 checks.push(["target terminal requires completed oversight status", /isCanonicalTargetEpisodeComplete\(\{[\s\S]{0,650}oversightStatus: lastOversight\?\.status \?\? null[\s\S]{0,200}oversightAction: lastOversight\?\.action/.test(targetRunner)]);
 checks.push(["target terminal authority includes cancellation, resource and deadline fences", /input\.oversightStatus === "completed"[\s\S]*input\.oversightAction === "stop"[\s\S]*!input\.cancelled[\s\S]*!input\.resourceLimited[\s\S]*!input\.deadlineExceeded/.test(terminalAuthority)]);
 
+const quotaReassignmentMessage = "message: " + String.fromCharCode(96) + "${replacement.toUpperCase()} Investigator continuing after explicit quota reassignment…" + String.fromCharCode(96);
+checks.push(["quota reassignment refreshes live job status after the durable Boss decision",
+  atlas.includes("selectedInvestigator = replacement;")
+  && atlas.includes(quotaReassignmentMessage)
+  && atlas.includes("selectedInvestigator: replacement")
+  && atlas.includes("investigatorCapabilityHistory: [...retainedCapabilityHistory")
+  && /priorCapabilityHistory\.slice\(Math\.max\(0, priorCapabilityHistory\.length - 14\)\)/.test(atlas)]);
+
 let failed = false; for (const [label, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (!ok) failed = true; }
 if (failed) { console.error("Atlas control durability guard failed."); process.exit(1); }
 
