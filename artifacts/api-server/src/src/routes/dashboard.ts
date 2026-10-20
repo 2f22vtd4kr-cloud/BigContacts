@@ -273,10 +273,11 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     sourceUrl: string;
     sourceDomain: string;
     sourcePath: string;
-    retrievalStatus: "unfetched" | "fetch_failed";
+    retrievalStatus: "unfetched" | "fetch_failed" | "observed";
     lastAttemptAction: string | null;
     lastFailureDomain: string | null;
     lastFailureKind: string | null;
+    excerpt: string | null;
     turn: number;
     updatedAt: Date;
   }>();
@@ -312,6 +313,45 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
       }
     }
 
+    // Successfully fetched pages must also remain visible when the model did
+    // not extract a structured entity finding from them. The record is explicitly
+    // a source artifact, not an inferred company/person entity.
+    for (const record of [...records].reverse()) {
+      if ((record.action !== "visit" && record.action !== "browser_fetch") || record.execution !== "success") continue;
+      const args = record.args && typeof record.args === "object" ? record.args as Record<string, unknown> : {};
+      const candidates = [
+        ... (Array.isArray(record.observedUrls) ? record.observedUrls : []),
+        args.url,
+      ].map(normalizeSearchLeadUrl).filter((value): value is NonNullable<ReturnType<typeof normalizeSearchLeadUrl>> => Boolean(value));
+      const observationText = typeof record.observation === "string" ? record.observation : "";
+      const excerpt = observationText
+        .replace(/https?:\/\/\S+/gi, "[source URL]")
+        .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[public email omitted]")
+        .replace(/\+?\d[\d\s().-]{7,}\d/g, "[phone omitted]")
+        .replace(/[\u0000-\u001f\u007f]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 280) || null;
+      for (const source of candidates) {
+        if (entitySourceKeys.has(source.key) || sourceLeadByUrl.has(source.key)) continue;
+        sourceLeadByUrl.set(source.key, {
+          id: `source-${sourceCase.id}-${Number(record.turn ?? 0)}-${sourceLeadByUrl.size}`,
+          caseId: sourceCase.id,
+          caseStatus: String(sourceCase.status),
+          sourceUrl: source.sourceUrl,
+          sourceDomain: source.sourceDomain,
+          sourcePath: source.sourcePath,
+          retrievalStatus: "observed",
+          lastAttemptAction: String(record.action),
+          lastFailureDomain: null,
+          lastFailureKind: null,
+          excerpt,
+          turn: Number(record.turn ?? 0),
+          updatedAt: sourceCase.updatedAt,
+        });
+      }
+    }
+
     // Newest search turns are considered first, so recent leads remain visible
     // while a run progresses. This is a projection over the durable case file,
     // not a new research decision or synthetic entity record.
@@ -335,6 +375,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
           lastAttemptAction: attempt ? String(attempt.action) : null,
           lastFailureDomain: typeof attempt?.failureDomain === "string" ? attempt.failureDomain : null,
           lastFailureKind: typeof attempt?.failureKind === "string" ? attempt.failureKind : null,
+          excerpt: null,
           turn: Number(record.turn ?? 0),
           updatedAt: sourceCase.updatedAt,
         });
