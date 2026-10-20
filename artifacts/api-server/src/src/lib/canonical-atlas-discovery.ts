@@ -10,7 +10,7 @@ import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRema
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
-import { isUntargetableDiscoveryPersonName, type AgenticFinding } from "./agentic-web-research-core";
+import { buildDiscoveryLeadUtilizationState, isUntargetableDiscoveryPersonName, type AgenticFinding } from "./agentic-web-research-core";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
@@ -1655,6 +1655,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         visits: discovery.visits,
         findings: discovery.findings,
         modelFindings: discovery.modelFindings,
+        ...buildDiscoveryLeadUtilizationState(discovery.trajectoryRecords ?? []),
         targetInvestigation: latestTargetInvestigation,
         openQuestions: discovery.trajectoryRecords?.map((record) => ({
           turn: record.turn,
@@ -1664,9 +1665,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           observedUrls: record.observedUrls,
           // Make search results visible to Boss/Right-hand without mislabelling
           // them as retrieved evidence. A blocked action is never a source result.
-          unfetchedLeadUrls: record.execution === "success"
+          // This is a bounded per-record excerpt only. The top-level case-wide
+          // unfetchedLeadUrls/failedLeadUrls fields are the authoritative inventory.
+          searchResultLeadUrls: record.execution === "success"
             && ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)
-            ? (record.leadUrls ?? []).slice(0, 2)
+            ? (record.leadUrls ?? []).slice(0, 4)
               .map((url) => sanitizeUrlForEvidence(url))
               .filter((url) => !url.startsWith("["))
             : [],
