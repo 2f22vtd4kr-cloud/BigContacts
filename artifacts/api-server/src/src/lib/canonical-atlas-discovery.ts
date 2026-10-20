@@ -995,16 +995,17 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const priorCapabilityHistory = Array.isArray(currentResult.investigatorCapabilityHistory)
         ? currentResult.investigatorCapabilityHistory
         : [];
+      const retainedCapabilityHistory = priorCapabilityHistory.slice(Math.max(0, priorCapabilityHistory.length - 14));
       await updateJob(atlasJobId, {
         message: `${replacement.toUpperCase()} Investigator continuing after explicit quota reassignment…`,
         result: JSON.stringify({
           ...currentResult,
           selectedInvestigator: replacement,
-          investigatorCapabilityHistory: [...priorCapabilityHistory, {
+          investigatorCapabilityHistory: [...retainedCapabilityHistory, {
             from: failedCapability,
             to: replacement,
             trigger: "upstream_quota_exhausted",
-          }].slice(-15),
+          }],
         }),
       });
       phaseSummary.investigatorReassignment = `${failedCapability} → ${replacement} after explicit upstream_quota_exhausted; remaining alternates=${getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities).join(",") || "none"}`;
