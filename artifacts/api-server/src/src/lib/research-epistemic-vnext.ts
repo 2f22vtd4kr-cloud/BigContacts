@@ -33,7 +33,12 @@ function hasExactTokenBoundary(text: string, index: number, value: string): bool
     && /[\p{L}\p{M}\p{N}_@+-]/u.test(character)
     && !((containsUnspacedTokenScript || numericSymbolValue) && unspacedTokenScript.test(character));
   const endsWithSelfDelimitedNumericSymbol = /[%‰$€£¥₩₹]$/u.test(value);
-  if (continuesToken(before) || (continuesToken(after) && !endsWithSelfDelimitedNumericSymbol)) return false;
+  // A CJK subject may be directly followed by a self-delimited numeric-symbol
+  // claim (for example, "公司25%股份"). Do not treat that percentage as a
+  // continuation of the subject token; still reject Latin partial-token matches.
+  const cjkSubjectBeforeNumericSymbol = containsUnspacedTokenScript
+    && /^\p{N}+(?:[.,]\p{N}+)?[%‰$€£¥₩₹]/u.test(text.slice(afterIndex));
+  if (continuesToken(before) || (continuesToken(after) && !endsWithSelfDelimitedNumericSymbol && !cjkSubjectBeforeNumericSymbol)) return false;
   // Dots are valid punctuation after a complete value, but not when they extend
   // an email/domain/name token (for example jane@example.com.extra or Jane.Doe).
   if (after === "." && /[\p{L}\p{N}]/u.test(text[afterIndex + 1] ?? "")) return false;
