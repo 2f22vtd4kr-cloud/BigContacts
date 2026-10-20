@@ -193,7 +193,9 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return [];
       try {
         const payload = JSON.parse(event.payload) as { action?: string; execution?: string; observedUrls?: unknown[]; runId?: string; observation?: string };
-        if (!Array.isArray(payload.observedUrls)) return [];
+        // Person identity/role admission remains bound to the same model-owned
+        // Investigator run that emitted the promotion finding.
+        if (payload.runId !== input.discoveryRunId || !Array.isArray(payload.observedUrls)) return [];
         return payload.observedUrls.filter((url) => typeof url === "string").map((url) => ({
           action: payload.action ?? "", execution: payload.execution ?? "", sourceUrl: String(url),
           observation: typeof payload.observation === "string" ? payload.observation : "", eventId: event.id,
