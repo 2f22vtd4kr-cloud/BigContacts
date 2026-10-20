@@ -376,7 +376,7 @@ describe("partial model findings", () => {
     });
     expect(prompt).toContain("PARTIAL FINDINGS");
     expect(prompt).toContain("not terminal-only");
-    expect(prompt).toContain("successfully fetched claim-grade page");
+    expect(prompt).toContain("source-backed leads");
   });
 });
 
