@@ -1660,7 +1660,21 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const runtimeFailureStage = typeof runtimeFailureRecord?.args?.stage === "string" ? runtimeFailureRecord.args.stage : null;
           // This branch exits before the success-path merge below; keep the failed episode in the cumulative terminal report.
           discovery = mergeDiscoveryResults(discovery, nextDiscovery);
+          // The episode error path exits before the normal admission refresh.
+          // Preserve qualified candidates and source-backed organization-only
+          // partial cards from every captured action before terminalizing failure.
           await assertAtlasJobActive(atlasJobId);
+          failureStage = "candidate_admission_persistence";
+          admission = await materializeAtlasAdmissions({
+            discoveryRunId: discovery.runId ?? "",
+            findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])],
+            atlasJobId,
+            discoveryCaseId,
+          });
+          admittedCandidateSources = mergeDurablyAdmittedCandidateSources([admittedCandidateSources, admission.candidates]);
+          admitted = admittedCandidateSources.map(({ name }) => name);
+          materialized += admission.materialized;
+          evidenceRows += admission.evidenceRows;
           const underlyingError = new Error(nextDiscovery.error ?? episodeFailure.code);
           const providerDiagnostic = describeThrownProviderError(underlyingError);
           const runtimeFailureDomain = runtimeFailureRecord?.failureDomain;
