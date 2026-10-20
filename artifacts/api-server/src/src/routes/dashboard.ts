@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { desc, isNotNull, isNull, eq, sql, and, or, gte } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
+import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchCasesTable } from "@workspace/db";
+import { sanitizeUrlForEvidence } from "../lib/url-privacy";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
 import { computeAccessScore } from "../lib/access-score";
@@ -178,9 +179,37 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
   );
 });
 
+
+function normalizeSearchLeadUrl(raw: unknown): {
+  key: string;
+  sourceUrl: string;
+  sourceDomain: string;
+  sourcePath: string;
+} | null {
+  if (typeof raw !== "string" || !raw.trim()) return null;
+  const safe = sanitizeUrlForEvidence(raw.trim());
+  if (!safe || safe.startsWith("[")) return null;
+  try {
+    const url = new URL(safe);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    url.hash = "";
+    url.hostname = url.hostname.toLowerCase();
+    const sourceUrl = url.href;
+    const key = sourceUrl.endsWith("/") ? sourceUrl.slice(0, -1) : sourceUrl;
+    return {
+      key,
+      sourceUrl,
+      sourceDomain: url.hostname.replace(/^www\./i, ""),
+      sourcePath: (url.pathname || "/").slice(0, 180),
+    };
+  } catch {
+    return null;
+  }
+}
+
 // GET /dashboard/research-leads
-// Project explicitly provisional Atlas findings alongside, but separate from,
-// verified HNWI priority profiles. Only real persisted review-only entities appear.
+// Real, persisted partial entity cards and search-result source cards remain
+// separate. Search URLs are never treated as claim-grade evidence or entities.
 router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
   const requestedLimit = Number(req.query.limit ?? 8);
   const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? Math.trunc(requestedLimit) : 8, 1), 25);
@@ -223,7 +252,101 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
       limitations: Array.isArray(metadata.limitations) ? metadata.limitations.filter((value): value is string => typeof value === "string") : [],
     }];
   });
-  res.json({ leads });
+  const entitySourceKeys = new Set(leads.flatMap((lead) =>
+    lead.sourceUrls.map((url) => normalizeSearchLeadUrl(url)?.key).filter((key): key is string => Boolean(key)),
+  ));
+  const sourceCases = await db.select({
+    id: researchCasesTable.id,
+    status: researchCasesTable.status,
+    caseFile: researchCasesTable.caseFile,
+    updatedAt: researchCasesTable.updatedAt,
+  }).from(researchCasesTable)
+    .where(eq(researchCasesTable.caseType, "discovery"))
+    .orderBy(desc(researchCasesTable.updatedAt))
+    .limit(25);
+
+  const activeDiscovery = sourceCases.some((row) => row.status === "active");
+  const sourceLeadByUrl = new Map<string, {
+    id: string;
+    caseId: number;
+    caseStatus: string;
+    sourceUrl: string;
+    sourceDomain: string;
+    sourcePath: string;
+    retrievalStatus: "unfetched" | "fetch_failed";
+    lastAttemptAction: string | null;
+    lastFailureDomain: string | null;
+    lastFailureKind: string | null;
+    turn: number;
+    updatedAt: Date;
+  }>();
+
+  for (const sourceCase of sourceCases) {
+    let caseFile: Record<string, unknown> = {};
+    try {
+      const parsed: unknown = sourceCase.caseFile ? JSON.parse(sourceCase.caseFile) : {};
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        caseFile = parsed as Record<string, unknown>;
+      }
+    } catch {
+      continue;
+    }
+    const records = Array.isArray(caseFile.investigatorTrajectoryRecords)
+      ? caseFile.investigatorTrajectoryRecords.filter((value): value is Record<string, any> =>
+          Boolean(value) && typeof value === "object" && !Array.isArray(value))
+      : [];
+    const successfullyFetched = new Set<string>();
+    const attempts = new Map<string, Record<string, any>>();
+
+    for (const record of records) {
+      if (record.action !== "visit" && record.action !== "browser_fetch") continue;
+      const args = record.args && typeof record.args === "object" ? record.args as Record<string, unknown> : {};
+      const requested = normalizeSearchLeadUrl(args.url);
+      if (record.execution !== "selected" && requested) attempts.set(requested.key, record);
+      if (record.execution === "success") {
+        if (requested) successfullyFetched.add(requested.key);
+        for (const raw of Array.isArray(record.observedUrls) ? record.observedUrls : []) {
+          const observed = normalizeSearchLeadUrl(raw);
+          if (observed) successfullyFetched.add(observed.key);
+        }
+      }
+    }
+
+    // Newest search turns are considered first, so recent leads remain visible
+    // while a run progresses. This is a projection over the durable case file,
+    // not a new research decision or synthetic entity record.
+    for (const record of [...records].reverse()) {
+      if (record.execution !== "success"
+        || !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(String(record.action))) continue;
+      const rawLeadUrls = Array.isArray(record.leadUrls) ? record.leadUrls : [];
+      for (const rawUrl of rawLeadUrls) {
+        const source = normalizeSearchLeadUrl(rawUrl);
+        if (!source || successfullyFetched.has(source.key) || entitySourceKeys.has(source.key) || sourceLeadByUrl.has(source.key)) continue;
+        const attempt = attempts.get(source.key);
+        const retrievalStatus = attempt ? "fetch_failed" as const : "unfetched" as const;
+        sourceLeadByUrl.set(source.key, {
+          id: `source-${sourceCase.id}-${Number(record.turn ?? 0)}-${sourceLeadByUrl.size}`,
+          caseId: sourceCase.id,
+          caseStatus: String(sourceCase.status),
+          sourceUrl: source.sourceUrl,
+          sourceDomain: source.sourceDomain,
+          sourcePath: source.sourcePath,
+          retrievalStatus,
+          lastAttemptAction: attempt ? String(attempt.action) : null,
+          lastFailureDomain: typeof attempt?.failureDomain === "string" ? attempt.failureDomain : null,
+          lastFailureKind: typeof attempt?.failureKind === "string" ? attempt.failureKind : null,
+          turn: Number(record.turn ?? 0),
+          updatedAt: sourceCase.updatedAt,
+        });
+      }
+    }
+  }
+
+  res.json({
+    leads,
+    sourceLeads: [...sourceLeadByUrl.values()].slice(0, limit),
+    activeDiscovery,
+  });
 });
 
 // GET /ingest/scoreboard-snapshot
