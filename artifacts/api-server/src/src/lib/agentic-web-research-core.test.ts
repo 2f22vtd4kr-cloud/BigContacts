@@ -315,8 +315,13 @@ describe("discovery lead inventory", () => {
       turn: 3, model: "test-model", action: "visit", args: { url: urls[1] }, execution: "success",
       observation: "observed source content", observedUrls: [urls[1]], leadUrls: [], findings: [],
     } as AgenticTrajectoryRecord;
+    const blockedFetch = {
+      turn: 4, model: "test-model", action: "visit", args: { url: urls[2] }, execution: "blocked",
+      observation: "scope guard blocked before outbound execution", observedUrls: [], leadUrls: [], findings: [],
+      failureDomain: "safety_policy", failureKind: "scope_mismatch",
+    } as AgenticTrajectoryRecord;
 
-    const state = buildDiscoveryLeadUtilizationState([search, failedFetch, successfulFetch]);
+    const state = buildDiscoveryLeadUtilizationState([search, failedFetch, successfulFetch, blockedFetch]);
     expect(state.searchResultLeadUrlCount).toBe(17);
     expect(state.successfullyFetchedLeadUrlCount).toBe(1);
     expect(state.failedLeadUrlCount).toBe(1);
@@ -326,6 +331,7 @@ describe("discovery lead inventory", () => {
     });
     expect(state.unfetchedLeadUrlCount).toBe(15);
     expect(state.unfetchedLeadUrls).toContain(urls[2]);
+    expect(state.failedLeadUrls.some((item) => item.url === urls[2])).toBe(false);
     expect(state.unfetchedLeadUrls).not.toContain(urls[0]);
     expect(state.unfetchedLeadUrls).not.toContain(urls[1]);
   });
