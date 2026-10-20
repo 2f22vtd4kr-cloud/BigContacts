@@ -328,9 +328,12 @@ describe("discovery lead inventory", () => {
       url: urls[0], action: "browser_fetch", execution: "error",
       failureDomain: "external_page_fetch", failureKind: "request_failure",
     });
-    expect(state.unfetchedLeadUrlCount).toBe(15);
-    expect(state.unfetchedLeadUrls).toContain(urls[2]);
+    expect(state.unfetchedLeadUrlCount).toBe(14);
+    expect(state.unfetchedLeadUrls).toContain(urls[3]);
+    expect(state.unfetchedLeadUrls).not.toContain(urls[2]);
     expect(state.failedLeadUrls.some((item) => item.url === urls[2])).toBe(false);
+    expect(state.blockedLeadUrlCount).toBe(1);
+    expect(state.blockedLeadUrls[0]).toMatchObject({ url: urls[2], action: "visit" });
     expect(state.unfetchedLeadUrls).not.toContain(urls[0]);
     expect(state.unfetchedLeadUrls).not.toContain(urls[1]);
   });
