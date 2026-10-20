@@ -273,7 +273,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     sourceUrl: string;
     sourceDomain: string;
     sourcePath: string;
-    retrievalStatus: "unfetched" | "fetch_failed" | "partial_fetch" | "observed";
+    retrievalStatus: "unfetched" | "fetch_failed" | "partial_fetch" | "blocked_preflight" | "observed";
     lastAttemptAction: string | null;
     lastFailureDomain: string | null;
     lastFailureKind: string | null;
@@ -298,19 +298,28 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
       : [];
     const successfullyFetched = new Set<string>();
     const attempts = new Map<string, Record<string, any>>();
+    const blockedAttempts = new Map<string, Record<string, any>>();
 
     for (const record of records) {
       if (record.action !== "visit" && record.action !== "browser_fetch") continue;
       const args = record.args && typeof record.args === "object" ? record.args as Record<string, unknown> : {};
       const requested = normalizeSearchLeadUrl(args.url);
+      if (record.execution === "blocked" && requested) blockedAttempts.set(requested.key, record);
       if (["success", "partial", "http_error", "timeout", "error"].includes(String(record.execution)) && requested) {
         attempts.set(requested.key, record);
+        blockedAttempts.delete(requested.key);
       }
       if (record.execution === "success") {
-        if (requested) successfullyFetched.add(requested.key);
+        if (requested) {
+          successfullyFetched.add(requested.key);
+          blockedAttempts.delete(requested.key);
+        }
         for (const raw of Array.isArray(record.observedUrls) ? record.observedUrls : []) {
           const observed = normalizeSearchLeadUrl(raw);
-          if (observed) successfullyFetched.add(observed.key);
+          if (observed) {
+            successfullyFetched.add(observed.key);
+            blockedAttempts.delete(observed.key);
+          }
         }
       }
     }
@@ -371,9 +380,11 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
         const source = normalizeSearchLeadUrl(rawUrl);
         if (!source || successfullyFetched.has(source.key) || entitySourceKeys.has(source.key) || sourceLeadByUrl.has(source.key)) continue;
         const attempt = attempts.get(source.key);
+        const blockedAttempt = blockedAttempts.get(source.key);
         const retrievalStatus = attempt?.execution === "partial"
           ? "partial_fetch" as const
-          : attempt ? "fetch_failed" as const : "unfetched" as const;
+          : attempt ? "fetch_failed" as const
+            : blockedAttempt ? "blocked_preflight" as const : "unfetched" as const;
         sourceLeadByUrl.set(source.key, {
           id: `source-${sourceCase.id}-${Number(record.turn ?? 0)}-${sourceLeadByUrl.size}`,
           caseId: sourceCase.id,
@@ -382,7 +393,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
           sourceDomain: source.sourceDomain,
           sourcePath: source.sourcePath,
           retrievalStatus,
-          lastAttemptAction: attempt ? String(attempt.action) : null,
+          lastAttemptAction: attempt ? String(attempt.action) : blockedAttempt ? String(blockedAttempt.action) : null,
           lastFailureDomain: typeof attempt?.failureDomain === "string" ? attempt.failureDomain : null,
           lastFailureKind: typeof attempt?.failureKind === "string" ? attempt.failureKind : null,
           excerpt: null,
