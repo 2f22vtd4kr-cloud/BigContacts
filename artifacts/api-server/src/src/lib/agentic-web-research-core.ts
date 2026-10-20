@@ -80,13 +80,21 @@ export type DiscoveryLeadUtilizationState = {
   successfullyFetchedLeadUrlCount: number;
   unfetchedLeadUrlCount: number;
   failedLeadUrlCount: number;
-  /** Case-wide, deduplicated URLs that have not had a fetch attempt yet. */
+  blockedLeadUrlCount: number;
+  /** Case-wide, deduplicated URLs that have not had a fetch action or a preflight block yet. */
   unfetchedLeadUrls: string[];
-  /** Failed retrievals remain visible, but are never mislabeled as unfetched or as evidence. */
+  /** Fetch attempts that ended without a complete successful observation, including partial fetches. */
   failedLeadUrls: Array<{
     url: string;
     action: string;
     execution: string;
+    failureDomain?: AtlasFailureDomain;
+    failureKind?: AtlasFailureKind;
+  }>;
+  /** A preflight/scope/repeat guard blocked the fetch action before outbound retrieval. */
+  blockedLeadUrls: Array<{
+    url: string;
+    action: string;
     failureDomain?: AtlasFailureDomain;
     failureKind?: AtlasFailureKind;
   }>;
@@ -102,6 +110,7 @@ export function buildDiscoveryLeadUtilizationState(
   records: readonly AgenticTrajectoryRecord[],
   maxUnfetchedUrls = 20,
   maxFailedUrls = 8,
+  maxBlockedUrls = 8,
 ): DiscoveryLeadUtilizationState {
   const normalize = (raw: unknown): { key: string; url: string } | null => {
     if (typeof raw !== "string" || !raw.trim()) return null;
@@ -121,6 +130,7 @@ export function buildDiscoveryLeadUtilizationState(
   const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
   const leads = new Map<string, { url: string; turn: number }>();
   const attempts = new Map<string, AgenticTrajectoryRecord>();
+  const blocked = new Map<string, AgenticTrajectoryRecord>();
   const fetched = new Set<string>();
 
   for (const record of records) {
@@ -134,22 +144,30 @@ export function buildDiscoveryLeadUtilizationState(
     }
     if (record.action !== "visit" && record.action !== "browser_fetch") continue;
     const requestedUrl = normalize(record.args?.url);
+    if (record.execution === "blocked" && requestedUrl) {
+      const prior = blocked.get(requestedUrl.key);
+      if (!prior || record.turn >= prior.turn) blocked.set(requestedUrl.key, record);
+    }
     const fetchAttempted = ["success", "partial", "http_error", "timeout", "error"].includes(record.execution);
     if (fetchAttempted && requestedUrl) {
       const prior = attempts.get(requestedUrl.key);
       if (!prior || record.turn >= prior.turn) attempts.set(requestedUrl.key, record);
+      blocked.delete(requestedUrl.key);
       if (record.execution === "success") fetched.add(requestedUrl.key);
     }
     if (record.execution === "success") {
       for (const rawUrl of record.observedUrls ?? []) {
         const observedUrl = normalize(rawUrl);
-        if (observedUrl) fetched.add(observedUrl.key);
+        if (observedUrl) {
+          fetched.add(observedUrl.key);
+          blocked.delete(observedUrl.key);
+        }
       }
     }
   }
 
   const newestFirst = [...leads.entries()].sort((a, b) => b[1].turn - a[1].turn);
-  const unfetched = newestFirst.filter(([key]) => !fetched.has(key) && !attempts.has(key));
+  const unfetched = newestFirst.filter(([key]) => !fetched.has(key) && !attempts.has(key) && !blocked.has(key));
   const failed = newestFirst.flatMap(([key, lead]) => {
     const attempt = attempts.get(key);
     if (!attempt || fetched.has(key)) return [];
@@ -161,14 +179,26 @@ export function buildDiscoveryLeadUtilizationState(
       ...(attempt.failureKind ? { failureKind: attempt.failureKind } : {}),
     }];
   });
+  const blockedLeads = newestFirst.flatMap(([key, lead]) => {
+    const record = blocked.get(key);
+    if (!record || fetched.has(key) || attempts.has(key)) return [];
+    return [{
+      url: lead.url,
+      action: record.action,
+      ...(record.failureDomain ? { failureDomain: record.failureDomain } : {}),
+      ...(record.failureKind ? { failureKind: record.failureKind } : {}),
+    }];
+  });
 
   return {
     searchResultLeadUrlCount: leads.size,
     successfullyFetchedLeadUrlCount: [...leads.keys()].filter((key) => fetched.has(key)).length,
     unfetchedLeadUrlCount: unfetched.length,
     failedLeadUrlCount: failed.length,
+    blockedLeadUrlCount: blockedLeads.length,
     unfetchedLeadUrls: unfetched.slice(0, Math.max(0, Math.min(40, Math.trunc(maxUnfetchedUrls)))).map(([, lead]) => lead.url),
     failedLeadUrls: failed.slice(0, Math.max(0, Math.min(20, Math.trunc(maxFailedUrls)))),
+    blockedLeadUrls: blockedLeads.slice(0, Math.max(0, Math.min(20, Math.trunc(maxBlockedUrls)))),
   };
 }
 
