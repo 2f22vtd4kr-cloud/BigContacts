@@ -34,6 +34,7 @@ export type CanonicalAtlasOptions = {
   targetCount?: number;
   researchDepth?: "fast" | "standard" | "deep";
   targetTimeoutMs?: number;
+  discoveryContext?: string;
   discoveryCaseId?: number;
   discoveryOnly?: boolean;
   discoveryObjective?: string;
@@ -42,6 +43,7 @@ export type CanonicalAtlasOptions = {
   discoveryExclusions?: string[];
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
+export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;
 export type CanonicalAtlasResult = { phase: number; ingested: number; enriched: number; contactsFound: number; hotLeads: number; durationMs: number; phaseSummary: Record<string, string> };
 function uniqueNames(values: string[]): string[] {
   const seen = new Set<string>();
@@ -343,6 +345,13 @@ async function reconcileDiscoveryCaseCancellation(jobId: string, caseId: number)
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
   const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const maxConsecutiveInvestigatorProviderUnavailable = MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE; const isInvestigatorHardQuotaExhausted = isInvestigatorHardRequestQuotaUnavailableEpisode; const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 3) || 3)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   let discoveryObjective = opts.discoveryObjective?.trim() || "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary contact routes for later target-scoped research. People—not companies or executive prestige—are the target; companies are leads. Prefer private, mid-market, regional and family businesses; their owners/operators/founders/shareholders; investors and private-capital principals; beneficial/controlling owners; and concession, franchise or license holders. Look for public evidence of ownership/equity/investment/control, material business/property assets or a business exit, and a plausible way to approach the person through public professional or business channels. Do not infer wealth from seniority alone. Do not default to celebrities, billionaire/richest lists, Fortune 500, or global household-brand leadership. A global brand is relevant only when evidence points to a realistic local owner/operator/distributor/franchisee/concession-holder or similar intermediary. Start from a concrete business/sector/geography, use local-language terms and English when useful, test hypotheses with independent evidence, and pivot after generic or repetitive results. The Investigator chooses each action; no fixed sequence. Promote only exact named people whose role, wealth-potential basis, and realistic approach route are source-supported. Never invent a person, relationship, wealth fact, contact, or URL.";
+  const discoveryContext = opts.discoveryContext?.trim() ?? "";
+  if (discoveryContext.length > MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS) {
+    throw new Error(`Canonical Atlas discovery context exceeds ${MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS} characters.`);
+  }
+  if (discoveryContext) {
+    discoveryObjective += `\n\nPRIOR-ATTEMPT CONTEXT (historical observations, not evidence or a fixed action plan):\n${discoveryContext}\nUse your own judgment to choose each direction, query, source, tool, and stopping point. Do not repeat a failed action unless new evidence gives a reason. All ordinary targetability, identity, provenance, privacy, and admission rules still apply.`;
+  }
   let activeDiscoveryObjective = discoveryObjective;
   let failureStage: AtlasFailureStage = "job_state_or_lease";
   try {

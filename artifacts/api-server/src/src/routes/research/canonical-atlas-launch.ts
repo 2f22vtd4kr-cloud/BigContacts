@@ -4,7 +4,7 @@ import { db, researchCasesTable } from "@workspace/db";
 import { clearJobCancellationRequest, createJob, getActiveJobStrict, getJob, getJobStrict, requestJobCancellation, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, fenceStaleCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
-import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
+import { MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS, runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { checkAtlasSchemaReadiness } from "../../lib/schema-readiness";
 import { describeThrownProviderError } from "../../lib/provider-error-diagnostics";
@@ -105,6 +105,23 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
       return;
     }
     const singleTargetId = parsedTargetId.kind === "single-target" ? parsedTargetId.id : undefined;
+    if (body.discoveryContext !== undefined && typeof body.discoveryContext !== "string") {
+      res.status(400).json({
+        error: "discoveryContext must be a string when supplied.",
+        code: "INVALID_DISCOVERY_CONTEXT",
+      });
+      return;
+    }
+    const discoveryContext = typeof body.discoveryContext === "string"
+      ? body.discoveryContext.trim()
+      : "";
+    if (discoveryContext.length > MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS) {
+      res.status(400).json({
+        error: `discoveryContext must not exceed ${MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS} characters.`,
+        code: "DISCOVERY_CONTEXT_TOO_LONG",
+      });
+      return;
+    }
 
     const schema = await checkAtlasSchemaReadiness();
     if (!schema.ready) {
@@ -179,7 +196,12 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         if (singleTargetId) {
           await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs });
         } else {
-          await runCanonicalAtlasPipeline(atlasJobId!, { targetCount, researchDepth, targetTimeoutMs });
+          await runCanonicalAtlasPipeline(atlasJobId!, {
+            targetCount,
+            researchDepth,
+            targetTimeoutMs,
+            ...(discoveryContext ? { discoveryContext } : {}),
+          });
         }
       });
     } catch (error) {
@@ -210,7 +232,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
     message: singleTargetId ? `Canonical single-target investigation started (job: ${atlasJobId}).` : `Canonical model-owned discovery started (job: ${atlasJobId}).`,
-    options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs },
+    options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs, discoveryContextIncluded: Boolean(discoveryContext) },
   });
   } catch (error) {
     const diagnostic = describeThrownProviderError(error);

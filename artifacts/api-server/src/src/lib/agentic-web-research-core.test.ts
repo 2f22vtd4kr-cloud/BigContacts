@@ -968,6 +968,38 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(validateDiscoverySourceUrl("file:///etc/passwd")).toMatchObject({ allowed: false });
   });
 
+  it("allows a normalized detail URL only when it preserves the identity of an aligned lead", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Search Florida Division of Corporations (Sunbiz) for manufacturing companies founded after 2010 to uncover owners/operators with credible wealth potential and public contact routes.",
+    ].join("\n");
+    const scopeKey = discoveryPivotScopeKey(objective);
+    expect(scopeKey).not.toBeNull();
+    const priorSearch = {
+      turn: 1,
+      model: "openai/gpt-oss-120b",
+      action: "web_search",
+      args: { query: "manufacturing corporation Florida Sunbiz founded after 2010", provider: "serper" },
+      pivotScopeKey: scopeKey ?? undefined,
+      execution: "success",
+      observation: "Search results include a Florida Sunbiz detail URL for ALUPLATEMANUFACTURING.",
+      observedUrls: [],
+      leadUrls: [
+        "https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResultDetail?inquirytype=EntityName&directionType=Initial&searchNameOrder=ALUPLATEMANUFACTURING+L567080&aggregateId=domp-l56708-43680d1e-3b7e-4391-b29a-d6e3a63868f0&searchTerm=ALUPAC+INTERNACIONAL+LLC&listNameOrder=ALUPACINTERNACIONAL+L230004272830",
+      ],
+      findings: [],
+    } as AgenticTrajectoryRecord;
+
+    const normalizedDetailUrl = "https://search.sunbiz.org/Inquiry/CorporationSearch/SearchResultDetail?inquirytype=EntityName&directionType=Initial&searchNameOrder=ALUPLATEMANUFACTURING+L567080&aggregateId=domp-l56708";
+    expect(discoveryPivotAlignmentReason(objective, "visit", {
+      url: normalizedDetailUrl,
+    }, [priorSearch])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "visit", {
+      url: normalizedDetailUrl.replace("ALUPLATEMANUFACTURING+L567080", "UNRELATEDCOMPANY+L999999").replace("domp-l56708", "domp-l999999"),
+    }, [priorSearch])).not.toBeNull();
+  });
+
   it("preserves the approved region when choosing model-led searches", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
@@ -1013,6 +1045,39 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(polandObjective, "registry_search", {
       query: "renewable energy",
       registry: "ares-czechia",
+    }, [])).not.toBeNull();
+  });
+
+  it("accepts Czech and German local-language manufacturing and region names without widening geography", () => {
+    const moraviaObjective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Search the Czech ARES registry for shareholders or managing directors of mid-market private manufacturing companies in the Moravia region.",
+    ].join("\n");
+    for (const query of [
+      "výrobní společnost Morava ares",
+      "výrobní společnost Jihomoravský kraj ares",
+    ]) {
+      expect(discoveryPivotAlignmentReason(moraviaObjective, "registry_search", {
+        query,
+        registry: "ares-czechia",
+      }, [])).toBeNull();
+    }
+    expect(discoveryPivotAlignmentReason(moraviaObjective, "registry_search", {
+      query: "výrobní společnost Praha ares",
+      registry: "ares-czechia",
+    }, [])).not.toBeNull();
+
+    const bavariaObjective = [
+      "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private mid-market manufacturing firms in Bavaria.",
+    ].join("\n");
+    expect(discoveryPivotAlignmentReason(bavariaObjective, "web_search", {
+      query: "Bayern Maschinenbau Firmen",
+      provider: "serper",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(bavariaObjective, "web_search", {
+      query: "Sachsen Maschinenbau Firmen",
+      provider: "serper",
     }, [])).not.toBeNull();
   });
 

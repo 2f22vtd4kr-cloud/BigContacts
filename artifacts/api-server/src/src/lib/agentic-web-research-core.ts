@@ -2441,6 +2441,8 @@ const PIVOT_GEOGRAPHIC_NAME_ALIASES: Array<{
   alternatives: readonly (readonly string[])[];
 }> = [
   { pattern: /\b(?:czech\s+republic|czechia)\b/i, alternatives: [["czech", "republic"], ["czechia"], ["czech"], ["cesko"], ["ceske"], ["cesky"]] },
+  { pattern: /\b(?:moravia|moravian)\b/i, alternatives: [["moravia"], ["moravian"], ["morava"], ["jihomoravsky"], ["jizni", "morava"], ["south", "moravia"], ["south", "moravian"]] },
+  { pattern: /\b(?:bavaria|bavarian)\b/i, alternatives: [["bavaria"], ["bavarian"], ["bayern"], ["bayerisch"], ["bayerische"], ["bayerischer"], ["bayerisches"], ["bayerischen"], ["bayerischem"]] },
   { pattern: /\bpoland\b/i, alternatives: [["poland"], ["polska"], ["polish"]] },
   { pattern: /\bestonia\b/i, alternatives: [["estonia"], ["estonian"], ["eesti"]] },
   { pattern: /\blatvia\b/i, alternatives: [["latvia"], ["latvian"], ["latvija"]] },
@@ -2780,6 +2782,14 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
     if (/\b(?:metal\s+fabricat\w*|kovovyr\w*)\b/iu.test(normalizedValue) && anchors.includes("metal")) matched.add("metal");
   }
   if (
+    anchors.some((anchor) => ["manufacturing", "manufacturer", "fabrication", "factory", "industrial"].includes(anchor))
+    && /(?:\bmaschinenbau\p{L}*|\bfertig\p{L}*|\bherstell\p{L}*|\bproduktions?\p{L}*|\bproduzier\p{L}*|\bindustrie\p{L}*)/iu.test(normalizedValue)
+  ) {
+    for (const anchor of anchors) {
+      if (["manufacturing", "manufacturer", "fabrication", "factory", "industrial"].includes(anchor)) matched.add(anchor);
+    }
+  }
+  if (
     anchors.includes("renewable") && anchors.includes("energy")
     && /\b(?:renewable\s+energy|odnawialn\w*\s+energi\w*|energi\w*\s+odnawialn\w*|erneuerbar\w*\s+energi\w*|obnoviteln\w*\s+zdroj\w*|atjaunojam\w*\s+energij\w*|atsinaujinant\w*\s+energetik\w*|taastuvenergi\w*)\b/iu.test(normalizedValue)
   ) {
@@ -2851,6 +2861,68 @@ function pivotDomainMatchesSourceUrls(value: unknown, sourceUrls: ReadonlySet<st
   }
   return false;
 }
+
+const PIVOT_LEAD_IDENTITY_QUERY_PARAMS = new Set([
+  "aggregateid", "company", "companyname", "documentid", "entity", "entityid",
+  "entityname", "filenumber", "filingid", "id", "listnameorder", "name",
+  "recordid", "registrationnumber", "searchnameorder", "searchterm",
+]);
+const PIVOT_LEAD_PREFIX_ID_QUERY_PARAMS = new Set([
+  "aggregateid", "documentid", "entityid", "filingid", "id", "recordid",
+]);
+
+/**
+ * Search-result URLs are leads, not evidence. Permit a model-normalized version
+ * of a lead only when it stays on the same origin/path and preserves every
+ * identity parameter it supplied. This lets the Investigator remove unrelated
+ * tracking/query fields without authorizing a sibling record on the same page.
+ */
+function pivotUrlMatchesObservedLead(value: unknown, sourceUrls: ReadonlySet<string>): boolean {
+  const requestedUrl = normalizedActionResourceUrl(value);
+  if (!requestedUrl) return false;
+  let requested: URL;
+  try { requested = new URL(requestedUrl); } catch { return false; }
+
+  const requestedIdentityParams = [...requested.searchParams.entries()]
+    .filter(([key, paramValue]) =>
+      PIVOT_LEAD_IDENTITY_QUERY_PARAMS.has(key.toLowerCase())
+      && paramValue.trim().length >= 6,
+    );
+
+  for (const rawLeadUrl of sourceUrls) {
+    const normalizedLeadUrl = normalizedActionResourceUrl(rawLeadUrl);
+    if (!normalizedLeadUrl) continue;
+    let lead: URL;
+    try { lead = new URL(normalizedLeadUrl); } catch { continue; }
+    if (requested.origin !== lead.origin || requested.pathname !== lead.pathname) continue;
+    if (requested.href === lead.href) return true;
+    if (requestedIdentityParams.length === 0) continue;
+
+    const leadParams = new Map<string, string[]>();
+    for (const [key, paramValue] of lead.searchParams.entries()) {
+      const normalizedKey = key.toLowerCase();
+      const values = leadParams.get(normalizedKey) ?? [];
+      values.push(paramValue);
+      leadParams.set(normalizedKey, values);
+    }
+
+    const preservesIdentity = requestedIdentityParams.every(([key, paramValue]) => {
+      const normalizedKey = key.toLowerCase();
+      const requestedValue = normalizeDiscoverySearchQuery(paramValue);
+      const leadValues = leadParams.get(normalizedKey) ?? [];
+      return leadValues.some((leadValue) => {
+        const normalizedLeadValue = normalizeDiscoverySearchQuery(leadValue);
+        if (normalizedLeadValue === requestedValue) return true;
+        return PIVOT_LEAD_PREFIX_ID_QUERY_PARAMS.has(normalizedKey)
+          && requestedValue.length >= 8
+          && normalizedLeadValue.startsWith(requestedValue);
+      });
+    });
+    if (preservesIdentity) return true;
+  }
+  return false;
+}
+
 function pivotActionIsAligned(
   action: string,
   args: Record<string, unknown>,
@@ -2915,7 +2987,8 @@ function pivotActionIsAligned(
     const matchesRequiredSource = requiredSourceAnchors.length === 0
       || pivotTextMatchesAnyAnchor(urlText, requiredSourceAnchors);
     return Boolean(requestedUrl && !pivotTextContainsExcludedSubject(urlText, excludedSubjects)
-      && (sourceUrls.has(requestedUrl) || (matchesSubject && matchesGeography && matchesRequiredSource)));
+      && (pivotUrlMatchesObservedLead(urlText, sourceUrls)
+        || (matchesSubject && matchesGeography && matchesRequiredSource)));
   }
   if (action === "registry_search") {
     return matchesScopeOrEvidence(args.query, typeof args.registry === "string" ? args.registry : "");
@@ -2977,7 +3050,7 @@ function pivotActionAlignmentFailureDetails(
     const text = typeof value === "string" ? value : "";
     const excluded = pivotTextContainsExcludedSubject(text, excludedSubjects);
     const alreadyObserved = kind === "url"
-      ? sourceUrls.has(normalizedActionResourceUrl(text) ?? "")
+      ? pivotUrlMatchesObservedLead(text, sourceUrls)
       : kind === "domain" && !excluded
         ? pivotDomainMatchesSourceUrls(value, sourceUrls)
         : false;
@@ -3041,7 +3114,7 @@ function pivotAlignedEvidenceState(
     const fetchedSourceMatchesSubject = Boolean(requestedUrl
       && !pivotTextContainsExcludedSubject(String(record.args.url ?? ""), excludedSubjects)
       && pivotTextMatchesAnchors(String(record.args.url ?? ""), anchors));
-    const fetchedSourceWasLead = Boolean(requestedUrl && sourceUrls.has(requestedUrl));
+    const fetchedSourceWasLead = Boolean(requestedUrl && pivotUrlMatchesObservedLead(requestedUrl, sourceUrls));
     if (!pivotActionIsAligned(record.action, record.args, anchors, excludedSubjects, geographyOptions, requiredSourceAnchors, sourceUrls, evidenceText)
       && !(isFetchedSource && (fetchedSourceMatchesSubject || fetchedSourceWasLead))) continue;
     if (isFetchedSource) {
@@ -3073,14 +3146,10 @@ export function discoveryPivotScopeKey(objective: string): string | null {
 }
 
 /**
- * Outbound semantic relevance stays model-led. The previous lexical alignment
- * gate parsed an English vocabulary for subject/geography/source-class and could
- * reject valid queries in other languages before the Investigator saw evidence.
- *
- * The only remaining hard pivot constraint is an explicit Boss-authored staged
- * source dependency ("first ... then ..."). It is a procedural instruction, not
- * a content-language classifier. All other source/query relevance is judged by
- * the Investigator and the durable evidence/admission gates.
+ * The Investigator chooses each action. This narrow lexical boundary protects
+ * explicit Boss scope, accepted lead provenance, and any ordered-source dependency;
+ * localized aliases may establish equivalence but never expand the approved scope.
+ * Passing this guard authorizes an action, not a claim or a candidate admission.
  */
 export function discoveryPivotAlignmentReason(
   objective: string,
