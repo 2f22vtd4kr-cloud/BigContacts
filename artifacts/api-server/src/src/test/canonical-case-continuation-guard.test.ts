@@ -53,7 +53,10 @@ describe("canonicalCaseContinuationGuard", () => {
   it("does not label a discovery-only continuation as a complete Atlas outcome", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
     expect(source).toContain('outcome:"incomplete"');
-    expect(source).toContain("candidate admission and card creation were not completed");
+    expect(source).toContain("materializeAtlasContinuationFindings");
+    expect(source).toContain("priorTrajectoryRecords");
+    expect(source).toContain("source-backed finding(s)");
+    expect(source).not.toContain("candidate admission and card creation were not completed");
     expect(source).not.toContain('outcome:"complete",message:`Canonical continuation complete;');
   });
   it("rebuilds continuation control context from the row-locked durable case", () => {

@@ -2291,3 +2291,18 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }
     throw error;
   }}
+
+
+/**
+ * Materialize only source-backed findings returned by a later discovery pass.
+ * This uses the same admission and partial-review gates as the canonical
+ * launch path; search snippets and URL-only leads never become person cards.
+ */
+export async function materializeAtlasContinuationFindings(input: {
+  discoveryRunId: string;
+  findings: AgenticFinding[];
+  atlasJobId: string;
+  discoveryCaseId: number;
+}): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[] }>; materialized: number; evidenceRows: number }> {
+  return materializeAtlasAdmissions(input);
+}
