@@ -3014,7 +3014,9 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   // but cannot substitute for a more specific sector when one was accepted.
   const hasOnlyFamilyOwnedScope = anchors.length === 1 && anchors[0] === "family_owned";
   return matched.size >= 2
-    || [...matched].some((anchor) => anchor !== "family_owned" && anchor !== "localized_control_signal" && anchor.length >= 7)
+    || [...matched].some((anchor) => anchor !== "family_owned"
+      && anchor !== "localized_control_signal"
+      && (anchor.length >= 7 || ["casino", "gaming", "gambling"].includes(anchor)))
     || (hasOnlyFamilyOwnedScope && matched.has("family_owned"));
 }
 /**
