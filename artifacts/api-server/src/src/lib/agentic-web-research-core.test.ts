@@ -982,7 +982,7 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
 
     for (const search of searches) {
-      expect(discoveryPivotAlignmentReason(objective, "web_search", search, [])).toBeNull();
+      expect(discoveryPivotAlignmentReason(objective, "web_search", search, []), search.query).toBeNull();
     }
     const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
     expect(partition.allowed).toEqual(searches);
