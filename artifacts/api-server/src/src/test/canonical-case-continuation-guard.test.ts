@@ -56,6 +56,9 @@ describe("canonicalCaseContinuationGuard", () => {
     expect(source).toContain("checkpointCanonicalDiscoveryFindings");
     expect(source).toContain('"canonical-continuation-incomplete"');
     expect(source).toContain("case remains reviewable and continuable.");
+    expect(source).toContain("did not reach accepted model-decided completion");
+    expect(source).toContain("onDiscoveryCheckpoint:async(checkpoint)");
+    expect(source).toContain("},shouldCancel});");
     expect(source).not.toContain('outcome:"complete",message:`Canonical continuation complete;');
   });
   it("applies an explicitly selected bounded research depth to the same durable case", () => {
