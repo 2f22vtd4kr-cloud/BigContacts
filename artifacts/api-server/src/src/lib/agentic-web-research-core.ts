@@ -2918,13 +2918,25 @@ function pivotTextMatchesGeography(value: string, options: readonly string[][]):
   // Geography labels are proper names, not English plurals. The generic token
   // normalizer turns names such as Illinois, Kansas, Indianapolis and Sioux Falls
   // into different tokens, which rejects valid member-state/city queries.
+  // Localized searches may use the local administrative label (e.g. Stockholm län)
+  // rather than the English label accepted in the Boss-approved scope.
   const tokens = new Set((value.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").match(/[\p{L}]{3,}/gu) ?? []));
+  const administrativeAliases: Record<string, readonly string[]> = {
+    county: ["county", "counties", "lan", "landkreis", "comte", "provincia", "provincie", "powiat", "oblast"],
+    state: ["state", "states", "delstat", "bundesland", "stato", "estado"],
+    province: ["province", "provinces", "provincia", "provincie", "provins", "oblast"],
+    district: ["district", "distrikt", "kommun", "gemeinde", "municipio", "comune"],
+    territory: ["territory", "territories", "territorium"],
+  };
   return options.some((option) => option.every((token) => {
     const normalizedToken = token.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "");
-    return tokens.has(normalizedToken)
-      || (/[ \t]/u.test(normalizedToken) === false
-        && /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(normalizedToken)
-        && value.toLowerCase().includes(normalizedToken));
+    if (tokens.has(normalizedToken)) return true;
+    if (/[a-z]{4,}/u.test(normalizedToken) && tokens.has(normalizedToken + "s")) return true;
+    const localizedLabels = administrativeAliases[normalizedToken];
+    if (localizedLabels && localizedLabels.some((alias) => tokens.has(alias))) return true;
+    return /[ \t]/u.test(normalizedToken) === false
+      && /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(normalizedToken)
+      && value.toLowerCase().includes(normalizedToken);
   }));
 }
 
@@ -2977,7 +2989,7 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   // bounded subject alias; the normal geographic/source checks still apply.
   if (
     anchors.some((anchor) => ["manufacturing", "manufacturer", "fabrication", "factory", "industrial", "metal"].includes(anchor))
-    && /(?:\bmanufactur\w*|\bmetal\s+fabricat\w*|\bkovovyr\w*|\bvyrob\w*|\bfabrik\w*|виробництв\p{L}*|производств\p{L}*|تصنيع|مصنع|制造|製造|제조)/iu.test(normalizedValue)
+    && /(?:\bmanufactur\w*|\bmetal\s+fabricat\w*|\bkovovyr\w*|\bvyrob\w*|\bfabrik\w*|\btillverkn\p{L}*|\bproduktions?\p{L}*|\bindustri\p{L}*|виробництв\p{L}*|производств\p{L}*|تصنيع|مصنع|制造|製造|제조)/iu.test(normalizedValue)
   ) {
     for (const anchor of anchors) {
       if (["manufacturing", "manufacturer", "fabrication", "factory", "industrial"].includes(anchor)) matched.add(anchor);

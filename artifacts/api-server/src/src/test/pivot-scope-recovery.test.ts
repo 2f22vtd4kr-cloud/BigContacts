@@ -47,6 +47,27 @@ describe("Right-hand-approved opening scope", () => {
   });
 });
 
+
+  it("accepts Swedish-language queries that match an English-approved Stockholm manufacturing scope", () => {
+    const swedenObjective = [
+      "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary contact routes.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Identify beneficial owners of private manufacturing companies in Stockholm County via Sweden's Bolagsverket corporate filings",
+    ].join("\n\n");
+
+    for (const query of [
+      "Bolagsverket aktieägare privat tillverkningsbolag Stockholm län",
+      "site:bolagsverket.se tillverkning Stockholms län privat",
+      "Bolagsverket årsredovisning privat tillverkningsföretag Stockholm län",
+    ]) {
+      expect(discoveryPivotAlignmentReason(swedenObjective, "web_search", { query, provider: "serper" }, [])).toBeNull();
+    }
+
+    expect(discoveryPivotAlignmentReason(swedenObjective, "web_search", {
+      query: "Bolagsverket Stockholm län private hospitality business owners",
+      provider: "serper",
+    }, [])).toContain("pivot_alignment_guard");
+  });
+
 describe("repeated pivot-scope recovery", () => {
   it("returns control after distinct out-of-scope query variants are repeatedly blocked", () => {
     const pivotScopeKey = discoveryPivotScopeKey(objective);

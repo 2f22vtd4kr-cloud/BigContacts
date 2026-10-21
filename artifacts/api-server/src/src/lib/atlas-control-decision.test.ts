@@ -104,6 +104,58 @@ describe("Atlas control-plane lead continuity", () => {
     expect(buildAtlasBossControlPrompt(input)).toContain("A generic agency landing page does not prove that a dedicated register exists");
   });
 
+
+  it("preserves global budget and lead inventory outside generic prompt compaction", () => {
+    const report = JSON.stringify({
+      status: "failed",
+      stopReason: "ITERATION_BUDGET",
+      searches: 2,
+      visits: 0,
+      findings: [],
+      missionActionBudget: {
+        actionsUsed: 6,
+        maximumActions: 20,
+        actionsRemaining: 14,
+        maximumActionsPerEpisode: 6,
+        episodeStopReason: "ITERATION_BUDGET",
+        episodeLimitReached: true,
+        missionLimitReached: false,
+      },
+      searchResultLeadUrlCount: 6,
+      successfullyFetchedLeadUrlCount: 0,
+      unfetchedLeadUrlCount: 4,
+      unfetchedLeadUrls: [
+        "https://example.org/unfetched-alpha",
+        "https://example.org/unfetched-beta",
+        "https://example.org/unfetched-gamma",
+        "https://example.org/unfetched-delta",
+      ],
+      failedLeadUrlCount: 2,
+      failedLeadUrls: [{ url: "https://example.org/failed-source", action: "browser_fetch", execution: "error" }],
+      blockedLeadUrlCount: 1,
+      blockedLeadUrls: [{ url: "https://example.org/blocked-source", action: "visit", failureKind: "scope_guard" }],
+      repeatedHistory: "historical detail ".repeat(2_000),
+    });
+    const oversizedState = "long case narrative ".repeat(3_000);
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport: report, compactState: oversizedState });
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: report,
+      compactState: oversizedState,
+      rightHand: { status: "completed", decision: "continue_discovery", reason: "14 global actions remain.", direction: null, confidence: 0.8, model: "test-model", error: null },
+    });
+
+    for (const prompt of [rightHandPrompt, bossPrompt]) {
+      expect(prompt.length).toBeLessThanOrEqual(9_600);
+      expect(prompt).toContain('"actionsRemaining":14');
+      expect(prompt).toContain('"missionLimitReached":false');
+      expect(prompt).toContain('"unfetchedLeadUrlCount":4');
+      expect(prompt).toContain("https://example.org/unfetched-alpha");
+      expect(prompt).toContain('"failedLeadUrlCount":2');
+      expect(prompt).toContain("https://example.org/failed-source");
+      expect(prompt).toContain("https://example.org/blocked-source");
+    }
+  });
+
   it("bounds the post-discovery Right-hand control prompt and rationale contract", () => {
     const prompt = buildAtlasRightHandControlPrompt({
       investigatorReport: JSON.stringify({
