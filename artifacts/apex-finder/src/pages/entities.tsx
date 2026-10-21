@@ -180,9 +180,23 @@ function exportToCsv(entities: any[]) {
   URL.revokeObjectURL(url);
 }
 
-// ─── Re-run Research button ───────────────────────────────────────────────────
+// ─── Continue a discovery case or re-run target research ──────────────────────
 
-function RerunButton({ entityId }: { entityId: number }) {
+function discoveryCaseIdFromMetadata(raw?: string | null): number | null {
+  try {
+    const metadata = raw ? JSON.parse(raw) as Record<string, unknown> : {};
+    const value = Number(metadata.discoveryCaseId);
+    return Number.isSafeInteger(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function RerunButton({ entityId, discoveryCaseId, researchDepth }: {
+  entityId: number;
+  discoveryCaseId: number | null;
+  researchDepth: "fast" | "standard" | "deep";
+}) {
   const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
 
   const handleRerun = async (e: React.MouseEvent) => {
@@ -190,8 +204,18 @@ function RerunButton({ entityId }: { entityId: number }) {
     if (state === "running") return;
     setState("running");
     try {
-      const result = await launchAtlasPipeline({ singleTargetId: entityId, targetCount: 1, researchDepth: "standard" });
-      if (!result.ok) throw new Error(result.message || "failed");
+      if (discoveryCaseId !== null) {
+        const response = await fetch(`/api/research/bureau/cases/${encodeURIComponent(String(discoveryCaseId))}/run-next-pass`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ researchDepth }),
+        });
+        const payload = await readApiJson(response);
+        if (!response.ok) throw new Error(payload?.error || payload?.message || "failed");
+      } else {
+        const result = await launchAtlasPipeline({ singleTargetId: entityId, targetCount: 1, researchDepth });
+        if (!result.ok) throw new Error(result.message || "failed");
+      }
       setState("done");
       setTimeout(() => setState("idle"), 3000);
     } catch {
@@ -204,7 +228,7 @@ function RerunButton({ entityId }: { entityId: number }) {
     : state === "done" ? <CheckCheck className="w-3.5 h-3.5" />
     : state === "error" ? <XCircle className="w-3.5 h-3.5" />
     : <TargetIcon className="w-3.5 h-3.5" />;
-  const label = state === "running" ? "Running" : state === "done" ? "Started" : state === "error" ? "Failed" : "Re-run";
+  const label = state === "running" ? "Running" : state === "done" ? (discoveryCaseId !== null ? "Queued" : "Started") : state === "error" ? "Failed" : discoveryCaseId !== null ? "Continue" : "Re-run";
   const cls = state === "done"
     ? "bg-[#9CFF1A]/10 border-[#9CFF1A]/30 text-[#b8ff4d]"
     : state === "error"
@@ -216,7 +240,8 @@ function RerunButton({ entityId }: { entityId: number }) {
       onClick={handleRerun}
       disabled={state === "running"}
       className={cn("flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors disabled:opacity-60", cls)}
-      title="Start a canonical single-target Atlas investigation"
+      title={discoveryCaseId !== null ? "Continue investigation from this durable discovery case using the selected research depth" : "Start a canonical single-target Atlas investigation"}
+      aria-label={discoveryCaseId !== null ? "Continue investigation from this discovery case" : "Re-run target investigation"}
     >
       {icon}
       <span className="text-[11px] font-mono uppercase">{label}</span>
@@ -227,9 +252,9 @@ function RerunButton({ entityId }: { entityId: number }) {
 // ─── Mobile card ──────────────────────────────────────────────────────────────
 
 function MobileEntityCard({
-  entity, selected, onToggleSelect, isExpanded, onToggleExpand, onToggleStar, onToggleHide, onDelete,
+  entity, selected, onToggleSelect, isExpanded, onToggleExpand, onToggleStar, onToggleHide, onDelete, researchDepth,
 }: {
-  entity: any; selected: boolean; isExpanded: boolean;
+  entity: any; selected: boolean; isExpanded: boolean; researchDepth: "fast" | "standard" | "deep";
   onToggleSelect: (e: React.MouseEvent) => void;
   onToggleExpand: () => void;
   onToggleStar: (entity: any) => void;
@@ -418,7 +443,7 @@ function MobileEntityCard({
               <Network className="w-3.5 h-3.5" />
               <span className="text-[11px] font-mono uppercase">Network</span>
             </Link>
-            <RerunButton entityId={entity.id} />
+            <RerunButton entityId={entity.id} discoveryCaseId={discoveryCaseIdFromMetadata(entity.metadata)} researchDepth={researchDepth} />
             <button
               type="button"
               onClick={(e) => {
@@ -1808,6 +1833,7 @@ export default function EntityLedger() {
             <MobileEntityCard
               key={entity.id}
               entity={entity}
+              researchDepth={digDepth}
               selected={selectedIds.has(entity.id)}
               isExpanded={mobileSelectedEntity?.id === entity.id}
               onToggleExpand={() => setMobileSelectedEntity(mobileSelectedEntity?.id === entity.id ? null : entity)}

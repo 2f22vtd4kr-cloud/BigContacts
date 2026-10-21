@@ -31,6 +31,7 @@ import { candidateRoleCorroborationSources, hasDiscoveryOwnershipLeadSignal, isC
 import { sanitizeUrlForEvidence } from "./url-privacy";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { delCachePattern } from "./redis";
+import { logger } from "./logger";
 
 export type CanonicalAtlasOptions = {
   targetCount?: number;
@@ -297,7 +298,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       if (existing && entityId) {
         let priorEntityMetadata: Record<string, unknown> = {};
         try { const parsed: unknown = JSON.parse(existing.metadata ?? "{}"); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorEntityMetadata = parsed as Record<string, unknown>; } catch {}
-        await tx.update(entitiesTable).set({ metadata: JSON.stringify({ ...priorEntityMetadata, reviewOnly: true, admission: priorEntityMetadata.admission ?? "investigator-explicit-promotion", sourceUrl: primarySupport.sourceUrl, sourceUrls: supportingSources.map((support) => support.sourceUrl), role: selectedRole, discoveryCaseId: input.discoveryCaseId }) }).where(eq(entitiesTable.id, entityId));
+        await tx.update(entitiesTable).set({ notes: "INVESTIGATOR-ADMITTED REVIEW CANDIDATE — a fetched claim-grade source co-binds this exact name and role with an ownership/control clue. This remains review-only; it is not a verified HNWI or wealth conclusion. Target-stage research must corroborate identity, test materiality/falsification, and establish a public professional contact route.", metadata: JSON.stringify({ ...priorEntityMetadata, reviewOnly: true, admission: "investigator-explicit-promotion", partialPersonLead: false, stage: "candidate_review", sourceUrl: primarySupport.sourceUrl, sourceUrls: supportingSources.map((support) => support.sourceUrl), role: selectedRole, discoveryCaseId: input.discoveryCaseId }) }).where(eq(entitiesTable.id, entityId));
       }
       return { materialized: createdEntity ? 1 : 0, evidenceRows: addedEvidence, durableEvidence: durableSourceCount >= 1 };
     }, { isolationLevel: "serializable" });
@@ -318,6 +319,87 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   evidenceRows += partialOrganizations.evidenceRows;
   const durableCandidates = mergeDurablyAdmittedCandidateSources([durableCandidateSources.map(({ name, sourceUrls }) => ({ name, sourceUrls }))]);
   return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows };
+}
+
+export async function checkpointCanonicalDiscoveryFindings(input: {
+  discoveryRunId: string;
+  findings: AgenticFinding[];
+  atlasJobId: string;
+  discoveryCaseId: number;
+  turn?: number;
+  action?: string;
+  execution?: string;
+}): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[] }>; materialized: number; evidenceRows: number }> {
+  const empty = { names: [], candidates: [], materialized: 0, evidenceRows: 0 };
+  if (input.findings.length === 0) return empty;
+  try {
+    return await materializeAtlasAdmissions({
+      discoveryRunId: input.discoveryRunId,
+      findings: input.findings,
+      atlasJobId: input.atlasJobId,
+      discoveryCaseId: input.discoveryCaseId,
+    });
+  } catch (error) {
+    // The event write has already committed. Projection errors are observable and
+    // retried by later action/terminal reconciliation rather than erasing progress.
+    logger.warn({
+      jobId: input.atlasJobId,
+      caseId: input.discoveryCaseId,
+      runId: input.discoveryRunId,
+      turn: input.turn ?? null,
+      action: input.action ?? null,
+      execution: input.execution ?? null,
+      error: error instanceof Error ? error.message : "unknown materialization error",
+    }, "Partial discovery card checkpoint deferred; trajectory remains durable.");
+    return empty;
+  }
+}
+
+export async function reconcileCanonicalDiscoveryCaseReviewCards(input: {
+  atlasJobId: string;
+  discoveryCaseId: number;
+}): Promise<{ materialized: number; evidenceRows: number }> {
+  const empty = { materialized: 0, evidenceRows: 0 };
+  try {
+    const events = await db.select({ eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload })
+      .from(researchCaseEventsTable)
+      .where(and(
+        eq(researchCaseEventsTable.caseId, input.discoveryCaseId),
+        inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"]),
+      ))
+      .orderBy(researchCaseEventsTable.id);
+    let materialized = 0;
+    let evidenceRows = 0;
+    for (const event of events) {
+      if (typeof event.payload !== "string") continue;
+      let payload: Record<string, unknown>;
+      try {
+        const parsed: unknown = JSON.parse(event.payload);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
+        payload = parsed as Record<string, unknown>;
+      } catch { continue; }
+      const runId = typeof payload.runId === "string" ? payload.runId : "";
+      const findings = Array.isArray(payload.findings) ? payload.findings as AgenticFinding[] : [];
+      if (!runId || findings.length === 0) continue;
+      const result = await checkpointCanonicalDiscoveryFindings({
+        discoveryRunId: runId,
+        findings,
+        atlasJobId: input.atlasJobId,
+        discoveryCaseId: input.discoveryCaseId,
+        turn: typeof payload.turn === "number" ? payload.turn : undefined,
+        action: typeof payload.action === "string" ? payload.action : undefined,
+        execution: typeof payload.execution === "string" ? payload.execution : undefined,
+      });
+      materialized += result.materialized;
+      evidenceRows += result.evidenceRows;
+    }
+    return { materialized, evidenceRows };
+  } catch (error) {
+    logger.warn({ jobId: input.atlasJobId, caseId: input.discoveryCaseId,
+      error: error instanceof Error ? error.message : "unknown reconciliation error" },
+      "Discovery case card reconciliation deferred; trajectory remains durable.");
+    return empty;
+  }
 }
 
 async function assertAtlasJobActive(jobId: string): Promise<void> {
@@ -923,6 +1005,23 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       investigatorLlm: boss.investigatorLlm,
       directorModel: boss.model,
     });
+    let materialized = 0;
+    let evidenceRows = 0;
+    const checkpointDiscoveryFindings = async (checkpoint: {
+      runId: string; turn: number; action: string; execution: string; findings: AgenticFinding[];
+    }): Promise<void> => {
+      const result = await checkpointCanonicalDiscoveryFindings({
+        discoveryRunId: checkpoint.runId,
+        findings: checkpoint.findings,
+        atlasJobId,
+        discoveryCaseId,
+        turn: checkpoint.turn,
+        action: checkpoint.action,
+        execution: checkpoint.execution,
+      });
+      materialized += result.materialized;
+      evidenceRows += result.evidenceRows;
+    };
     let selectedInvestigator = boss.investigatorLlm;
     const quotaExhaustedInvestigators = new Set<InvestigatorCapability>();
     const tokenCapacityUnavailableInvestigators = new Set<InvestigatorCapability>();
@@ -1246,7 +1345,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           );
         if (!replacement) break;
         failureStage = "investigator_episode";
-        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0 });
+        const recovered = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective, investigatorLlm: replacement, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: quotaRecoveryIterations, hardTimeoutMs: budgetMs, priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])], initialConsecutiveActionParseFailures: result.stopReason === "PARSE_FAILURE" ? 0 : result.consecutiveActionParseFailures ?? 0, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         iterationsConsumed += Math.max(0, recovered.iterations ?? recovered.trajectoryRecords?.length ?? 0);
         result = mergeDiscoveryResults(result, recovered);
         if (!isInvestigatorHardQuotaExhausted(recovered) && !isInvestigatorTokenDailyQuotaUnavailableEpisode(recovered)) break;
@@ -1257,6 +1356,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // after creation so a stop that won the check-before-create race cannot leave
     // an active orphan discovery case.
     await reconcileDiscoveryCaseCancellation(atlasJobId, discoveryCaseId);
+    const priorCardReconciliation = await reconcileCanonicalDiscoveryCaseReviewCards({ atlasJobId, discoveryCaseId });
+    materialized += priorCardReconciliation.materialized;
+    evidenceRows += priorCardReconciliation.evidenceRows;
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
       // Serialize the opening event against the durable cancellation fence.
@@ -1509,7 +1611,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const discoveryIterationsPerAct = resolveDiscoveryIterationsPerAct(depth, discoveryIterationCeiling);
     const openingInvestigatorIterations = Math.min(discoveryIterationsPerAct, discoveryIterationCeiling);
     failureStage = "investigator_episode";
-    let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget });
+    let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: openingInvestigatorObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: openingInvestigatorIterations, hardTimeoutMs: openingDiscoveryBudget, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
     discovery = await runDiscoveryWithQuotaRecovery(
       discovery,
       openingInvestigatorObjective,
@@ -1528,7 +1630,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     failureStage = "candidate_admission_persistence";
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])], atlasJobId, discoveryCaseId });
-    let admitted = admission.names; let admittedCandidateSources = admission.candidates; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = allUnavailableInvestigatorCapabilities().length > 0 ? 1 + allUnavailableInvestigatorCapabilities().length : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let discoveryIterationsUsed = discovery.iterations; let discoveryResourceLimited = resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, discoveryIterationCeiling, discoveryIterationsUsed, investigatorIterationsUsed, targetResearchReserveIterations, hasAdmittedCandidates: admittedCandidateSources.length > 0 }) <= 0 && discovery.stopReason !== "MODEL_DECIDED_DONE"; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDecision: { controlTurn: number; reason: string; kind: "candidate_selection" | "pivot_direction" | "discovery_budget" } | null = null;
+    let admitted = admission.names; let admittedCandidateSources = admission.candidates; materialized += admission.materialized; evidenceRows += admission.evidenceRows; let researched = 0; let contactsFound = 0; const [latestControlEvent] = await db.select({ iteration: researchCaseEventsTable.iteration, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, discoveryCaseId), eq(researchCaseEventsTable.eventType, "control_decision"))).orderBy(desc(researchCaseEventsTable.id)).limit(1); let controlTurns = 0; if (typeof latestControlEvent?.payload === "string") { try { const priorControl = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; controlTurns = Number(priorControl.controlTurn ?? 0); } catch {} } let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null; if (typeof latestControlEvent?.payload === "string") { try { const prior = JSON.parse(latestControlEvent.payload) as Record<string, unknown>; const action = typeof prior.action === "string" ? prior.action as AtlasControlAction : null; priorAction = action && ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"].includes(action) ? action : null; priorCandidate = typeof prior.candidateName === "string" ? prior.candidateName : null; } catch {} } let discoveryRuns = allUnavailableInvestigatorCapabilities().length > 0 ? 1 + allUnavailableInvestigatorCapabilities().length : 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let latestEvidenceBackedTerminal: "discovery" | "target" | null = discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE" && admitted.length > 0 ? "discovery" : null; let investigatorIterationsUsed = discovery.iterations; let discoveryIterationsUsed = discovery.iterations; let discoveryResourceLimited = resolveRemainingDiscoveryIterations({ totalIterationCeiling: depth.agenticMaxIterations, discoveryIterationCeiling, discoveryIterationsUsed, investigatorIterationsUsed, targetResearchReserveIterations, hasAdmittedCandidates: admittedCandidateSources.length > 0 }) <= 0 && discovery.stopReason !== "MODEL_DECIDED_DONE"; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let finalControlAction: AtlasControlAction | null = null; let rejectedControlDecision: { controlTurn: number; reason: string; kind: "candidate_selection" | "pivot_direction" | "discovery_budget" } | null = null;
     const researchedNames = new Set<string>();
     phaseSummary.assignment = `${selectedInvestigator} currently selected by Groq; opening capability=${boss.investigatorLlm}; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     if (discoveryOnly) {
@@ -1916,7 +2018,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         activeDiscoveryObjective = directedObjective;
         latestEvidenceBackedTerminal = null;
         failureStage = "investigator_episode";
-        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0 });
+        let nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: selectedInvestigator, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(discoveryIterationsPerAct, remainingInvestigatorIterations), hardTimeoutMs: discoveryBudget, priorTrajectoryRecords: discovery.trajectoryRecords ?? [], initialConsecutiveActionParseFailures: discovery.stopReason === "PARSE_FAILURE" ? 0 : discovery.consecutiveActionParseFailures ?? 0, onDiscoveryCheckpoint: checkpointDiscoveryFindings });
         await assertAtlasJobActive(atlasJobId);
         nextDiscovery = await runDiscoveryWithQuotaRecovery(
           nextDiscovery,

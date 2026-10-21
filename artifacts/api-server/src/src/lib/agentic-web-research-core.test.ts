@@ -2623,3 +2623,25 @@ describe("Swedish-language pivot alignment", () => {
     }, [])).not.toBeNull();
   });
 });
+
+
+describe("action-level durable review-card checkpoints", () => {
+  it("invokes the existing card materializers only after the trajectory event is persisted", () => {
+    const durableWrite = bureauAgenticPassSource.indexOf("await persistDiscoveryTrajectory(durableCaseId!,");
+    const checkpoint = bureauAgenticPassSource.indexOf("await input.onDiscoveryCheckpoint?.");
+    expect(durableWrite).toBeGreaterThanOrEqual(0);
+    expect(checkpoint).toBeGreaterThan(durableWrite);
+    expect(bureauAgenticPassSource).toContain("findings:record.findings");
+    expect(canonicalAtlasDiscoverySource).toContain("onDiscoveryCheckpoint: checkpointDiscoveryFindings");
+    expect(canonicalAtlasDiscoverySource).toContain("checkpointCanonicalDiscoveryFindings({");
+    expect(canonicalAtlasDiscoverySource).toContain("return await materializeAtlasAdmissions({");
+  });
+
+  it("keeps partial-card eligibility tied to fetched, claim-grade, same-case source observations", () => {
+    expect(canonicalAtlasDiscoverySource).toContain('observation.executionStatus !== "success"');
+    expect(canonicalAtlasDiscoverySource).toContain("isClaimGradeDiscoverySourceUrl(sourceUrl)");
+    expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
+    expect(canonicalAtlasDiscoverySource).toContain('stage: "partial_review"');
+  });
+});
