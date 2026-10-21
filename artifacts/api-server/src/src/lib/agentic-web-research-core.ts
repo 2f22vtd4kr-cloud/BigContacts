@@ -2652,6 +2652,7 @@ const PIVOT_GEOGRAPHIC_NAME_ALIASES: Array<{
   { pattern: /\blithuania\b/i, alternatives: [["lithuania"], ["lithuanian"], ["lietuva"]] },
   { pattern: /\bgermany\b/i, alternatives: [["germany"], ["german"], ["deutschland"]] },
   { pattern: /(?:^|[^\p{L}\p{N}])portorož(?:$|[^\p{L}\p{N}])/iu, alternatives: [["portoroz"], ["порторож"], ["бортуроз"], ["бортурош"], ["بورتوروز"], ["波尔托罗什"], ["ポルトロシュ"]] },
+  { pattern: /\b(?:stockholm\s+county|stockholms?\s+län)\b/iu, alternatives: [["stockholm", "county"], ["stockholm", "lan"], ["stockholms", "lan"]] },
   { pattern: /\b(?:slovenia|slovenija|slovenian|slovene)\b/i, alternatives: [["slovenia"], ["slovenija"], ["slovenian"], ["slovene"], ["slowenien"]] },
 ];
 
@@ -2966,7 +2967,7 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
       if (["casino", "gaming", "gambling"].includes(anchor)) matched.add(anchor);
     }
   }
-  const localizedControlSignal = /(?:\b(?:owner|owners|ownership|shareholders?|beneficial|operators?|concessions?|holders?)\b|власник\p{L}*|акціонер\p{L}*|акционер\p{L}*|مالك|ملاك|استثمار|股东|株主|所有者|持分|lastnik\p{L}*|koncesionar\p{L}*|tulajdonos\p{L}*|koncesszi\p{L}*|sahibi|imtiyaz|isletmeci\p{L}*|vlasnik\p{L}*|vlasnistv\p{L}*|osnivac\p{L}*|proprietari[oa]\p{L}*|azionista\p{L}*)/iu.test(normalizedValue);
+  const localizedControlSignal = /(?:\b(?:owner|owners|ownership|shareholders?|beneficial|operators?|concessions?|holders?)\b|власник\p{L}*|акціонер\p{L}*|акционер\p{L}*|مالك|ملاك|استثمار|股东|株主|所有者|持分|lastnik\p{L}*|koncesionar\p{L}*|tulajdonos\p{L}*|koncesszi\p{L}*|sahibi|imtiyaz|isletmeci\p{L}*|vlasnik\p{L}*|vlasnistv\p{L}*|osnivac\p{L}*|proprietari[oa]\p{L}*|azionista\p{L}*|agare\p{L}*|aktieagare\p{L}*|delagare\p{L}*|verklig\p{L}*\s+huvudman\p{L}*)/iu.test(normalizedValue);
   if (
     localizedControlSignal
     && anchors.some((anchor) => /(?:owner|ownership|shareholder|beneficial|operator|concession|holder)/.test(anchor))
@@ -2977,7 +2978,7 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   // bounded subject alias; the normal geographic/source checks still apply.
   if (
     anchors.some((anchor) => ["manufacturing", "manufacturer", "fabrication", "factory", "industrial", "metal"].includes(anchor))
-    && /(?:\bmanufactur\w*|\bmetal\s+fabricat\w*|\bkovovyr\w*|\bvyrob\w*|\bfabrik\w*|виробництв\p{L}*|производств\p{L}*|تصنيع|مصنع|制造|製造|제조)/iu.test(normalizedValue)
+    && /(?:\bmanufactur\w*|\bmetal\s+fabricat\w*|\bkovovyr\w*|\bvyrob\w*|\bfabrik\w*|\btillverkn\p{L}*|\btillverk\p{L}*|\bindustri\p{L}*|виробництв\p{L}*|производств\p{L}*|تصنيع|مصنع|制造|製造|제조)/iu.test(normalizedValue)
   ) {
     for (const anchor of anchors) {
       if (["manufacturing", "manufacturer", "fabrication", "factory", "industrial"].includes(anchor)) matched.add(anchor);
@@ -3013,7 +3014,7 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   // but cannot substitute for a more specific sector when one was accepted.
   const hasOnlyFamilyOwnedScope = anchors.length === 1 && anchors[0] === "family_owned";
   return matched.size >= 2
-    || [...matched].some((anchor) => anchor !== "family_owned" && anchor.length >= 7)
+    || [...matched].some((anchor) => anchor !== "family_owned" && anchor !== "localized_control_signal" && anchor.length >= 7)
     || (hasOnlyFamilyOwnedScope && matched.has("family_owned"));
 }
 /**
