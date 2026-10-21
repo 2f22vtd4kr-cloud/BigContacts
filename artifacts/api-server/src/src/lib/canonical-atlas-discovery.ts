@@ -298,7 +298,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       if (existing && entityId) {
         let priorEntityMetadata: Record<string, unknown> = {};
         try { const parsed: unknown = JSON.parse(existing.metadata ?? "{}"); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorEntityMetadata = parsed as Record<string, unknown>; } catch {}
-        await tx.update(entitiesTable).set({ notes: "INVESTIGATOR-ADMITTED REVIEW CANDIDATE — a fetched claim-grade source co-binds this exact name and role with an ownership/control clue. This remains review-only; it is not a verified HNWI or wealth conclusion. Target-stage research must corroborate identity, test materiality/falsification, and establish a public professional contact route.", metadata: JSON.stringify({ ...priorEntityMetadata, reviewOnly: true, admission: "investigator-explicit-promotion", partialPersonLead: false, stage: "candidate_review", sourceUrl: primarySupport.sourceUrl, sourceUrls: supportingSources.map((support) => support.sourceUrl), role: selectedRole, discoveryCaseId: input.discoveryCaseId }) }).where(eq(entitiesTable.id, entityId));
+        await tx.update(entitiesTable).set({ metadata: JSON.stringify({ ...priorEntityMetadata, reviewOnly: true, admission: "investigator-explicit-promotion", partialPersonLead: false, stage: "candidate_review", sourceUrl: primarySupport.sourceUrl, sourceUrls: supportingSources.map((support) => support.sourceUrl), role: selectedRole, discoveryCaseId: input.discoveryCaseId }) }).where(eq(entitiesTable.id, entityId));
       }
       return { materialized: createdEntity ? 1 : 0, evidenceRows: addedEvidence, durableEvidence: durableSourceCount >= 1 };
     }, { isolationLevel: "serializable" });

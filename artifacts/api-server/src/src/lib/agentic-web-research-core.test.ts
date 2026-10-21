@@ -2643,5 +2643,6 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
     expect(canonicalAtlasDiscoverySource).toContain('stage: "partial_review"');
+    expect(canonicalAtlasDiscoverySource).not.toContain('notes: "INVESTIGATOR-ADMITTED REVIEW CANDIDATE');
   });
 });
