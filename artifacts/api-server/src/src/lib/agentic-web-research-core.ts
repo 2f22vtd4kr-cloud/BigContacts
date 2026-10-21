@@ -2956,7 +2956,10 @@ function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boo
   }
   // Accept common native-language equivalents when the model localizes a query.
   // These aliases establish topical equivalence only; evidence and admission remain separate.
-  // Strip diacritics from Latin script only. Removing every Unicode mark also\n  // destroys Japanese kana voicing marks (e.g. ジ), which can falsely reject a\n  // native-script query even when its subject is otherwise in scope.\n  const normalizedValue = value.toLowerCase().normalize("NFD").replace(/([a-z])\p{M}+/gu, "$1").normalize("NFC");
+  // Strip diacritics from Latin script only. Removing every Unicode mark also
+  // destroys Japanese kana voicing marks (e.g. ジ), which can falsely reject a
+  // native-script query even when its subject is otherwise in scope.
+  const normalizedValue = value.toLowerCase().normalize("NFD").replace(/([a-z])\p{M}+/gu, "$1").normalize("NFC");
   // Localize topic/role matching only; never bypass geography, exclusions,
   // source-class requirements, or explicit staged-source dependencies.
   if (
