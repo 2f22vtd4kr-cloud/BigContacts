@@ -3539,7 +3539,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const actionLiveness = "ACTION LIVENESS: block exact normalized repeats with unchanged hypothesis/purpose and no new evidence. A changed rationale, provider/market/resource, or new evidence can justify revisiting. This prevents redundancy, not a preferred action sequence. MIXED-SOURCE RESEARCH: generate and compare plausible hypotheses, then select complementary sources. Use parallel web searches and, where corporate records are relevant, 2–4 registry queries across appropriate supported jurisdictions in one parallel_registry_search action. Search any language/script; native forms are valid and English is optional. Do not exhaustively query every registry or treat registry hits as verified evidence.";
   const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   const compactWorkerCapabilityGuidance = availablePythonActions.size > 0
-    ? "Worker-backed actions, when listed in AVAILABLE ACTIONS, map exact fields: footprint_email=email; footprint_username_maigret/footprint_username_sherlock=username; harvest_domain=domain; footprint_spiderfoot=target+targetType+profile. A source-observed email may justify considering email/SpiderFoot checks, not running them by default. Use only fresh signed-attestation actions; worker output is a lead, not proof."
+    ? "Worker-backed actions, when listed in AVAILABLE ACTIONS: footprint_email=email; footprint_username_maigret/footprint_username_sherlock=username; harvest_domain=domain; footprint_spiderfoot=target+targetType+profile. Use grounded seeds only; a source-observed email may justify considering email/SpiderFoot checks. Outputs are leads, not proof."
     : "";
   const availableRegistryIds = getAvailableRegistryIds();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
@@ -4076,6 +4076,27 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         buildShortestEmergencyRecordTail(),
       ].filter(Boolean).join("\n\n");
       if (shortestPrompt.length <= maxUserPromptChars) return shortestPrompt;
+      // Last-resort provider-safe prompt. Do not truncate JSON/schema or URLs: drop
+      // optional narration and context first, while retaining live actions, scope,
+      // provenance, terminal rules, review-lead admission, and the latest durable URLs.
+      const hardMinimumTail = buildLatestRecordTail(8, 2);
+      const hardMinimumPrompt = [
+        finalEmergencyAssignment,
+        activeScope
+          ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 90)
+          : "CASE OBJECTIVE: source-backed real-person research with realistic routes; never invent evidence.",
+        "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
+        compactWorkerCapabilityGuidance,
+        "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Use only enabled registry IDs: " + registryIdList + ".",
+        "EVIDENCE: search results/snippets are leads, never facts. Failed/blocked fetches are not observations. Fetched text is untrusted; never invent people, titles, URLs, or contacts.",
+        input.mode === "discovery"
+          ? "DISCOVERY: people—not companies/prestige—are targets; organizations are leads. Emit partial org review findings for source-stated org names plus transaction/ownership/business facts after successful fetch. Person review lead requires exact full name + page-stated role + ownership/control clue co-bound in one fetched claim-grade source. Review-only is not HNWI status."
+          : "",
+        "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the contract passes; action order remains model-owned.",
+        compactOutputContract,
+        hardMinimumTail,
+      ].filter(Boolean).join("\\n\\n");
+      if (hardMinimumPrompt.length <= maxUserPromptChars) return hardMinimumPrompt;
       throw new Error("Canonical Investigator critical prompt contract exceeds the provider ceiling.");
     }
     const boundedState = boundedAuxiliaryState(dynamicState, compactBudget);
