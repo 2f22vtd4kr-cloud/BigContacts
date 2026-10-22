@@ -982,7 +982,7 @@ Choose each next action yourself from the available capabilities and observed ev
     ];
 
     for (const search of searches) {
-      expect(discoveryPivotAlignmentReason(objective, "web_search", search, [])).toBeNull();
+      expect(discoveryPivotAlignmentReason(objective, "web_search", search, []), search.query).toBeNull();
     }
     const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
     expect(partition.allowed).toEqual(searches);
@@ -2579,5 +2579,70 @@ describe("PDF prompt capability contract", () => {
     expect(prompt).toContain("encrypted/password-protected and malformed PDFs are distinct structured extraction failures");
     expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead");
     expect(prompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
+  });
+});
+
+
+describe("Swedish-language pivot alignment", () => {
+  const objective = [
+    "PRIMARY CASE OBJECTIVE: Find under-the-radar people with credible wealth potential.",
+    "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+    "Identify beneficial owners of private manufacturing companies in Stockholm County via Sweden's Bolagsverket corporate filings.",
+    "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+    "RECENT PRIOR ACTS (newest last): none.",
+  ].join("\n");
+
+  const searches = [
+    { query: "Bolagsverket privat tillverkningsföretag Stockholm län årsredovisning PDF", provider: "serper", locale: "sv-SE", market: "SE" },
+    { query: 'site:bolagsverket.se "tillverkning" "Stockholms län" "privat"', provider: "tavily", locale: "sv-SE", market: "SE" },
+    { query: "Bolagsverket aktieägare privat tillverkningsbolag Stockholm län", provider: "exa", locale: "sv-SE", market: "SE" },
+  ];
+
+  it("allows native-language manufacturing and Stockholm County equivalents within the accepted scope", () => {
+    for (const search of searches) {
+      expect(discoveryPivotAlignmentReason(objective, "web_search", search, [])).toBeNull();
+    }
+    const partition = partitionParallelWebSearchesByPivotScope(objective, searches, []);
+    expect(partition.allowed).toEqual(searches);
+    expect(partition.rejected).toEqual([]);
+  });
+
+  it("still rejects another sector or an unrelated geography", () => {
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Bolagsverket aktieägare privat vindkraftbolag Stockholm län årsredovisning",
+      provider: "serper",
+      locale: "sv-SE",
+      market: "SE",
+    }, [])).not.toBeNull();
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Bolagsverket privat tillverkningsföretag Göteborg län årsredovisning",
+      provider: "serper",
+      locale: "sv-SE",
+      market: "SE",
+    }, [])).not.toBeNull();
+  });
+});
+
+
+describe("action-level durable review-card checkpoints", () => {
+  it("invokes the existing card materializers only after the trajectory event is persisted", () => {
+    const durableWrite = bureauAgenticPassSource.indexOf("await persistDiscoveryTrajectory(durableCaseId!,");
+    const checkpoint = bureauAgenticPassSource.indexOf("await input.onDiscoveryCheckpoint?.");
+    expect(durableWrite).toBeGreaterThanOrEqual(0);
+    expect(checkpoint).toBeGreaterThan(durableWrite);
+    expect(bureauAgenticPassSource).toContain("findings:record.findings");
+    expect(canonicalAtlasDiscoverySource).toContain("onDiscoveryCheckpoint: checkpointDiscoveryFindings");
+    expect(canonicalAtlasDiscoverySource).toContain("checkpointCanonicalDiscoveryFindings({");
+    expect(canonicalAtlasDiscoverySource).toContain("return await materializeAtlasAdmissions({");
+  });
+
+  it("keeps partial-card eligibility tied to fetched, claim-grade, same-case source observations", () => {
+    expect(canonicalAtlasDiscoverySource).toContain('observation.executionStatus !== "success"');
+    expect(canonicalAtlasDiscoverySource).toContain("isClaimGradeDiscoverySourceUrl(sourceUrl)");
+    expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
+    expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
+    expect(canonicalAtlasDiscoverySource).toContain('stage: "partial_review"');
+    expect(canonicalAtlasDiscoverySource).not.toContain('notes: "INVESTIGATOR-ADMITTED REVIEW CANDIDATE');
   });
 });

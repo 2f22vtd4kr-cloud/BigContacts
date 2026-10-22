@@ -53,8 +53,20 @@ describe("canonicalCaseContinuationGuard", () => {
   it("does not label a discovery-only continuation as a complete Atlas outcome", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
     expect(source).toContain('outcome:"incomplete"');
-    expect(source).toContain("candidate admission and card creation were not completed");
+    expect(source).toContain("checkpointCanonicalDiscoveryFindings");
+    expect(source).toContain('"canonical-continuation-incomplete"');
+    expect(source).toContain("case remains reviewable and continuable.");
+    expect(source).toContain("did not reach accepted model-decided completion");
+    expect(source).toContain("onDiscoveryCheckpoint:async(checkpoint)");
+    expect(source).toContain("},shouldCancel});");
     expect(source).not.toContain('outcome:"complete",message:`Canonical continuation complete;');
+  });
+  it("applies an explicitly selected bounded research depth to the same durable case", () => {
+    const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
+    expect(source).toContain("const requestedDepthValue=req.body?.researchDepth");
+    expect(source).toContain('["fast","standard","deep"].includes(requestedDepthValue)');
+    expect(source).toContain("researchDepth:requestedResearchDepth");
+    expect(source).toContain("resolveResearchDepth({explicit:effectiveResearchDepth})");
   });
   it("rebuilds continuation control context from the row-locked durable case", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
