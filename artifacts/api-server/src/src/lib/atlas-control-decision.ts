@@ -282,7 +282,7 @@ export function buildAtlasPinnedControlState(input: {
     "SOURCE-BACKED FINDINGS INCLUDING PARTIAL FINDINGS (not HNWI/contact conclusions): " + input.findings.slice(0, 4).map((finding) => (finding.personName ? finding.personName + (finding.role ? " / " + finding.role : "") : finding.value).slice(0, 90) + " [scope=" + finding.scope + "; admission=" + (finding.promotionDecision ?? "review-only") + "; sources=" + finding.sourceUrls.length + "; " + finding.note.slice(0, 50) + "]").join(" | "),
     "FAILED ROUTES (not negative evidence): " + state.failedLeadUrls.slice(0, 1).map((item) => item.url.slice(0, 100) + " " + item.action + "/" + item.execution + (item.failureDomain ? " " + item.failureDomain : "")).join(" | "),
     "PREFLIGHT-BLOCKED ROUTES (no outbound request): " + state.blockedLeadUrls.slice(0, 1).map((item) => item.url.slice(0, 100) + " " + item.action + (item.failureDomain ? " " + item.failureDomain : "")).join(" | "),
-    "CONTROL LAW: Never say no leads remain when unfetchedLeadUrlCount is positive. Stop is still allowed if remaining leads are demonstrably irrelevant/low-value/infeasible; explain why. URLs/snippets are leads, not evidence.",
+    "CONTROL LAW: Do not say no leads remain if unfetchedLeadUrlCount is positive. Stop is still allowed if remaining leads are demonstrably irrelevant/low-value/infeasible; explain why. URLs/snippets are leads, not evidence.",
   ];
   return lines.join("\n").slice(0, 2_700);
 }
