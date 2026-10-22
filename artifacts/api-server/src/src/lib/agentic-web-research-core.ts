@@ -2474,12 +2474,6 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
   return [compactBase, compactDirection].filter(Boolean).join("\n");
 }
 
-/**
- * Preserve the control meaning of a blocked action in the last-resort prompt.
- * The full guard observation is verbose; generic head/tail truncation can erase
- * both the reason and the required recovery behavior.
- */
-
 function completePromptUrl(raw: unknown, maxChars = MAX_PROMPT_URL_CHARS): string | null {
   if (typeof raw !== "string" || !raw.trim()) return null;
   const safe = sanitizeUrlForEvidence(raw.trim());
@@ -2509,6 +2503,11 @@ function completePromptUrlSample(
   };
 }
 
+/**
+ * Preserve blocked-action control meaning and complete URLs in a last-resort
+ * prompt. Ordinary source excerpts may be compacted, but neither a guard reason
+ * nor a URL may be silently fractured by truncation.
+ */
 export function compactEmergencyTrajectoryObservation(observation: string, maxChars = 100): string {
   const normalized = typeof observation === "string" ? observation.trim() : "";
   if (/SCOPE FILTERED PARALLEL SEARCHES:/i.test(normalized)) {
