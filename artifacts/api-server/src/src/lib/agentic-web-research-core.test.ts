@@ -441,7 +441,7 @@ describe("partial model findings", () => {
       mode: "discovery",
     });
     expect(prompt).toContain("PARTIAL FINDINGS");
-    expect(prompt).toContain("not terminal-only");
+    expect(prompt).toContain("PARTIAL FINDINGS (not terminal-only)");
     expect(prompt).toContain("source-backed leads");
   });
 });
