@@ -87,3 +87,18 @@ describe("explicit target continuation after a model-completed case", () => {
     expect(route).toContain("canonical-continuation-cancelled");
   });
 });
+
+
+describe("resumed target control direction remains in the live case context", () => {
+  it("applies an explicit continuation direction to the first act in this invocation, not only absolute act one", () => {
+    const runner = readRunner();
+    expect(runner).toContain("actNumber === firstActNumber ? (options.initialDirection?.trim() || null) : null");
+    expect(runner).not.toContain("actNumber === 1 ? (options.initialDirection?.trim() || null) : null");
+  });
+
+  it("keeps the active Boss-directed research question in action checkpoints and after a redirect", () => {
+    const runner = readRunner();
+    expect(runner).toContain('CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence): " + direction');
+    expect(runner).toContain('lastOversight?.action === "redirect" && lastOversight.direction ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION');
+  });
+});
