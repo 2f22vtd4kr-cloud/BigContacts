@@ -61,10 +61,10 @@ describe("Atlas control-plane lead continuity", () => {
         observedUrls: [longUrl],
         unfetchedLeadUrls: [longUrl],
       }],
-    }))) as { openQuestions: Array<{ observedUrls: string[]; unfetchedLeadUrls: string[] }> };
+    }))) as { latestQuestions: Array<{ observedUrls: string[]; unfetchedLeadUrls: string[] }> };
 
-    expect(report.openQuestions[0].observedUrls).toEqual([longUrl]);
-    expect(report.openQuestions[0].unfetchedLeadUrls).toEqual([longUrl]);
+    expect(report.latestQuestions[0].observedUrls).toEqual([longUrl]);
+    expect(report.latestQuestions[0].unfetchedLeadUrls).toEqual([longUrl]);
   });
 
   it("omits an oversized URL atomically and records that it was omitted from the supervisor prompt", () => {
@@ -85,10 +85,10 @@ describe("Atlas control-plane lead continuity", () => {
         unfetchedLeadUrls: [oversizedUrl],
       }],
     }));
-    const report = JSON.parse(compact) as { openQuestions: Array<{ unfetchedLeadUrls: string[]; unfetchedLeadUrlCount: number; unfetchedLeadUrlsOmittedFromPromptCount: number }> };
-    expect(report.openQuestions[0].unfetchedLeadUrls).toEqual([]);
-    expect(report.openQuestions[0].unfetchedLeadUrlCount).toBe(1);
-    expect(report.openQuestions[0].unfetchedLeadUrlsOmittedFromPromptCount).toBe(1);
+    const report = JSON.parse(compact) as { latestQuestions: Array<{ unfetchedLeadUrls: string[]; unfetchedLeadUrlCount: number; unfetchedLeadUrlsOmittedFromPromptCount: number }> };
+    expect(report.latestQuestions[0].unfetchedLeadUrls).toEqual([]);
+    expect(report.latestQuestions[0].unfetchedLeadUrlCount).toBe(1);
+    expect(report.latestQuestions[0].unfetchedLeadUrlsOmittedFromPromptCount).toBe(1);
     expect(compact).not.toContain(oversizedUrl.slice(0, 220));
   });
 
