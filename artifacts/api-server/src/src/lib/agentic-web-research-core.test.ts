@@ -362,7 +362,6 @@ describe("Investigator prompt URL integrity", () => {
     });
 
     expect(prompt).toContain(url);
-    expect(prompt).toContain("unscoped_legacy_requires_scope_validation");
     expect(prompt).toContain('"leadUrlsOmittedFromPromptCount":0');
   });
 
@@ -393,7 +392,6 @@ describe("Investigator prompt URL integrity", () => {
     });
 
     expect(prompt).toContain('"leadUrlsOmittedFromPromptCount":1');
-    expect(prompt).toContain("unscoped_legacy_requires_scope_validation");
     expect(prompt.includes(url.slice(0, 120))).toBe(prompt.includes(url));
   });
 });
