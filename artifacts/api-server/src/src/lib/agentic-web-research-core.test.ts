@@ -2673,7 +2673,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
       mode: "discovery",
     });
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
-    expect(prompt).toContain("organization finding now");
+    expect(prompt).toContain("After a successful visit/browser_fetch");
     expect(prompt).toContain("sourceUrls=[that fetched URL only]");
   });
 });
