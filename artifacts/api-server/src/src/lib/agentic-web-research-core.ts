@@ -3563,6 +3563,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     researchContract,
     actionLiveness,
     availableActionsGuidance,
+    compactWorkerCapabilityGuidance,
     registryGuidance,
     providerGuidance,
     "",
