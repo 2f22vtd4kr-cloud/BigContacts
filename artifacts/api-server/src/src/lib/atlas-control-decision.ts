@@ -642,12 +642,12 @@ export function compactAtlasInvestigatorReport(rawInput: string | null | undefin
       findings: Array.isArray(parsed.findings) ? parsed.findings.slice(-8).map(compactFinding).filter(Boolean) : [],
       modelFindings: Array.isArray(parsed.modelFindings) ? parsed.modelFindings.slice(-6).map(compactFinding).filter(Boolean) : [],
       targetInvestigation: parsed.targetInvestigation && typeof parsed.targetInvestigation === "object"
-        ? JSON.stringify(parsed.targetInvestigation).slice(0, 1_200)
+        ? compactPromptSectionPreservingUrlTokens(JSON.stringify(parsed.targetInvestigation), 1_200, "[TARGET INVESTIGATION COMPACTED: URL tokens at excerpt boundaries omitted whole; full case state remains durable]")
         : null,
       latestQuestions,
     }, null, 2);
   } catch {
-    return raw.slice(0, 2_400);
+    return compactPromptSectionPreservingUrlTokens(raw, 2_400, "[UNPARSED REPORT COMPACTED: URL tokens at excerpt boundaries omitted whole; full raw report remains available in durable records]");
   }
 }
 
