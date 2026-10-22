@@ -4109,7 +4109,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         finalEmergencyAssignment,
         activeScope ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 60) : "CASE OBJECTIVE: public-source research; never invent evidence.",
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
-        "Worker-backed actions, when listed in AVAILABLE ACTIONS, require grounded seeds; results are leads, not proof.",
+        compactWorkerCapabilityGuidance,
         "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID.",
         "PDF RETRIEVAL: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; OCR is unavailable. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
         "EVIDENCE: snippets are leads, not evidence. Never invent identities, ownership, URLs or contacts.",
