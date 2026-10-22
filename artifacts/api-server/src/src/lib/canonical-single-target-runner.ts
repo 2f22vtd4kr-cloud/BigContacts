@@ -357,7 +357,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     }
   }
   const storedOversightTurn = Array.isArray(caseState.investigatorActOversight)
-    ? (caseState.investigatorActOversight as unknown[]).reduce((max, item) => item && typeof item === "object" ? Math.max(max, Number((item as Record<string, unknown>).controlTurn ?? 0) || 0) : max, 0)
+    ? (caseState.investigatorActOversight as unknown[]).reduce<number>((max, item) => item && typeof item === "object" ? Math.max(max, Number((item as Record<string, unknown>).controlTurn ?? 0) || 0) : max, 0)
     : 0;
   const [latestDurableControlEvent] = await db.select({ payload: researchCaseEventsTable.payload })
     .from(researchCaseEventsTable)
