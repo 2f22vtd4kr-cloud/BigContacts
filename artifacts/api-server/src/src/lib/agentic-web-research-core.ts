@@ -3540,7 +3540,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
-  const compactWorkerCapabilityGuidance = "Conditional specialist OSINT actions: Worker-backed actions, when listed in AVAILABLE ACTIONS, ONLY if the exact action appears in AVAILABLE ACTIONS this turn; otherwise unavailable. footprint_email=email; footprint_username_maigret/footprint_username_sherlock=username; harvest_domain=domain; footprint_spiderfoot=target+targetType+profile. Use observed seeds; outputs are leads, not proof.";
+  const compactWorkerCapabilityGuidance = availablePythonActions.size > 0
+    ? "Conditional specialist OSINT actions: Worker-backed actions, when listed in AVAILABLE ACTIONS, ONLY if the exact action appears in AVAILABLE ACTIONS this turn; otherwise unavailable. footprint_email=email; footprint_username_maigret/footprint_username_sherlock=username; harvest_domain=domain; footprint_spiderfoot=target+targetType+profile. Use observed seeds; outputs are leads, not proof."
+    : "";
   const compactCriticalRetrievalGuidance = "BINARY " + "URL POLICY: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. OCR is unavailable. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
   const availableRegistryIds = getAvailableRegistryIds();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
