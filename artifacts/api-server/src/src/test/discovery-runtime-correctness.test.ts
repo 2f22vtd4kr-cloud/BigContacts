@@ -517,7 +517,9 @@ describe("discovery runtime architecture", () => {
     expect(controlSource).toContain("missionActionBudget: parsed.missionActionBudget");
     expect(controlSource).toContain("parsed.openQuestions.slice(-12)");
     expect(controlSource).toContain("question.unfetchedLeadUrls.filter");
-    expect(controlSource).toContain(".slice(0, 6).map((url) => url.slice(0, 220))");
+    expect(controlSource).toContain("compactPromptSectionPreservingUrlTokens");
+    expect(controlSource).toContain("unfetchedLeadUrlsOmittedFromPromptCount");
+    expect(controlSource).not.toContain(".map((url) => url.slice(0, 220))");
   });
 
   it("keeps search-result URLs as unresolved leads instead of fetched observations", async () => {
