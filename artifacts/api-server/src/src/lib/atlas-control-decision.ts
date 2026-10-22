@@ -329,7 +329,7 @@ Rules:
 - If researching or revisiting, candidateName MUST exactly match one supplied admitted candidate.
 - Never invent a person, URL, relationship, contact, or evidence.
 - Do not prescribe a fixed provider/tool sequence. The Investigator chooses its own tools.
-- direction is a concise research question or pivot, not a tool command. If Right-hand proposes a new direction and you choose to adopt it while continuing discovery, return the adopted direction in the direction field; a null direction means deliberately continuing the existing accepted objective. Right-hand remains advisory: adopt, revise, or reject its suggestion yourself.
+- Right-hand is advisory; return direction to adopt its proposal; null keeps the accepted scope.
 - A pivot must be self-contained and executable: name one substantive subject/sector hypothesis, one actual geography/jurisdiction, and a relevant public-source class. Do not activate procedural placeholders such as "sector-specific", "geography-focused", or "a chosen region"; a rationale or parenthetical example does not substitute for constraints in direction itself. If no defensible concrete pivot is available, continue the current objective or stop/park for review rather than activating a vague scope.
 - Mission priority: the human objective's realistic-targetability constraint outranks generic public-company leadership or fame/ranking suggestions. Prefer private/regional/family-business owners/operators/investors, beneficial owners, and concession/franchise/license holders with credible wealth potential and a plausible public/professional/intermediary route. Never equate executive seniority with wealth or contactability.
 - ${atlasRegistryFeasibilityLaw()}
