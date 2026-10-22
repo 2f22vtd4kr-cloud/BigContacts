@@ -353,26 +353,29 @@ Return ONE JSON object only: {"action":"continue_discovery|research_candidate|re
   const rightHand = trimPromptSection(JSON.stringify(input.rightHand), rightHandBudget);
   const state = trimPromptSection(input.compactState, Math.max(0, dynamicBudget - report.length - rightHand.length));
   const compose = (currentReport: string, currentState: string, currentRightHand: string): string =>
-    fixedPrefix + "\\n\\n" + reportLabel + currentReport + (pinned ? pinnedLabel + pinned : "") + stateLabel + currentState + rightHandLabel + currentRightHand;
-  let prompt = compose(report, state, rightHand);
+    fixedPrefix + "\n\n" + reportLabel + currentReport + (pinned ? pinnedLabel + pinned : "") + stateLabel + currentState + rightHandLabel + currentRightHand;
+  let finalReport = report;
+  let finalState = state;
+  let finalRightHand = rightHand;
+  let prompt = compose(finalReport, finalState, finalRightHand);
   // Never apply middle-compaction to the whole control prompt: that can cut a URL
   // inside PINNED AUTHORITATIVE CASE STATE and make an unfetched lead unrecoverable.
   // If framing exceeds the ceiling, shed optional history, oversight detail, then
   // report detail while preserving the scope, lead counts, and URL examples intact.
   if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
     const excess = prompt.length - ATLAS_BOSS_CONTROL_PROMPT_BUDGET + 1;
-    const boundedState = trimPromptSection(input.compactState, Math.max(0, state.length - excess));
-    prompt = compose(report, boundedState, rightHand);
+    finalState = trimPromptSection(input.compactState, Math.max(0, finalState.length - excess));
+    prompt = compose(finalReport, finalState, finalRightHand);
   }
   if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
     const excess = prompt.length - ATLAS_BOSS_CONTROL_PROMPT_BUDGET + 1;
-    const boundedRightHand = trimPromptSection(JSON.stringify(input.rightHand), Math.max(0, rightHand.length - excess));
-    prompt = compose(report, state, boundedRightHand);
+    finalRightHand = trimPromptSection(JSON.stringify(input.rightHand), Math.max(0, finalRightHand.length - excess));
+    prompt = compose(finalReport, finalState, finalRightHand);
   }
   if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
     const excess = prompt.length - ATLAS_BOSS_CONTROL_PROMPT_BUDGET + 1;
-    const boundedReport = trimPromptSection(input.investigatorReport, Math.max(0, report.length - excess));
-    prompt = compose(boundedReport, state, rightHand);
+    finalReport = trimPromptSection(input.investigatorReport, Math.max(0, finalReport.length - excess));
+    prompt = compose(finalReport, finalState, finalRightHand);
   }
   if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
     throw new Error("Atlas Boss prompt cannot fit while preserving its pinned authoritative case state.");
