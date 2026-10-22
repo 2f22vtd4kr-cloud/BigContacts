@@ -268,6 +268,27 @@ export function buildAtlasPinnedControlState(input: {
 }): string {
   const state = input.leadInventory;
   const lines = [
+    "ACTIVE ACCEPTED BOSS SCOPE: " + (input.activeScope?.trim() || "(no narrower Boss-approved pivot; use the base objective)."),
+    "This scope persists through directionless continue_discovery turns. Right-hand direction is advice unless Boss explicitly accepts a pivot.",
+    "AUTHORITATIVE DURABLE LEAD COUNTS (full counts; URLs below are samples): " + JSON.stringify({
+      searchResultLeadUrlCount: state.searchResultLeadUrlCount,
+      successfullyFetchedLeadUrlCount: state.successfullyFetchedLeadUrlCount,
+      unfetchedLeadUrlCount: state.unfetchedLeadUrlCount,
+      failedLeadUrlCount: state.failedLeadUrlCount,
+      blockedLeadUrlCount: state.blockedLeadUrlCount,
+    }),
+    "UNFETCHED (not fetched/not blocked; positive count means leads remain): " + state.unfetchedLeadUrls.slice(0, 4).map((url) => url.slice(0, 110)).join(" | "),
+    "ADMITTED PERSON CANDIDATES (only these may be selected): " + input.admittedCandidates.slice(0, 5).map((candidate) => candidate.name.slice(0, 65) + (candidate.role ? " / " + candidate.role.slice(0, 45) : "") + " [sources=" + candidate.sourceUrls.length + "]").join(" | "),
+    "SOURCE-BACKED FINDINGS INCLUDING PARTIAL FINDINGS (not HNWI/contact conclusions): " + input.findings.slice(0, 4).map((finding) => (finding.personName ? finding.personName + (finding.role ? " / " + finding.role : "") : finding.value).slice(0, 90) + " [scope=" + finding.scope + "; admission=" + (finding.promotionDecision ?? "review-only") + "; sources=" + finding.sourceUrls.length + "; " + finding.note.slice(0, 50) + "]").join(" | "),
+    "FAILED ROUTES (not negative evidence): " + state.failedLeadUrls.slice(0, 1).map((item) => item.url.slice(0, 100) + " " + item.action + "/" + item.execution + (item.failureDomain ? " " + item.failureDomain : "")).join(" | "),
+    "PREFLIGHT-BLOCKED ROUTES (no outbound request): " + state.blockedLeadUrls.slice(0, 1).map((item) => item.url.slice(0, 100) + " " + item.action + (item.failureDomain ? " " + item.failureDomain : "")).join(" | "),
+    "CONTROL LAW: Never say no leads remain when unfetchedLeadUrlCount is positive. Stop is still allowed if remaining leads are demonstrably irrelevant/low-value/infeasible; explain why. URLs/snippets are leads, not evidence.",
+  ];
+  return lines.join("\\n").slice(0, 2_700);
+}
+}): string {
+  const state = input.leadInventory;
+  const lines = [
     "ACTIVE ACCEPTED BOSS SCOPE: " + (input.activeScope?.trim() || "(no narrower Boss-approved pivot is active; use the base case objective)."),
     "This exact accepted scope persists across directionless continue_discovery turns. Right-hand direction is advice unless Boss explicitly accepts a pivot. Do not treat a rejected or unaccepted suggestion as active scope.",
     "AUTHORITATIVE DURABLE LEAD COUNTS (full deduplicated counts; URL lists below are samples only):",
@@ -309,9 +330,10 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
   const reportLabel = "INVESTIGATOR TEXT REPORT:\\n";
   const pinnedLabel = "\\n\\nPINNED AUTHORITATIVE CASE STATE (survives history compaction):\\n";
   const stateLabel = "\\n\\nCOMPLETE DISCOVERY STATE (compact historical context):\\n";
-  const pinned = input.pinnedControlState?.trim() ? trimPromptSection(input.pinnedControlState, 3_200) : "";
-  const dynamicBudget = Math.max(0, ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - pinnedLabel.length - pinned.length - stateLabel.length);
-  const report = trimPromptSection(input.investigatorReport, Math.min(1_000, Math.floor(dynamicBudget * 0.22)));
+  const availableForPinned = Math.max(0, ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - pinnedLabel.length - stateLabel.length - 850);
+  const pinned = input.pinnedControlState?.trim() ? trimPromptSection(input.pinnedControlState, Math.min(2_700, availableForPinned)) : "";
+  const dynamicBudget = Math.max(0, ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length);
+  const report = trimPromptSection(input.investigatorReport, Math.min(900, Math.floor(dynamicBudget * 0.20)));
   const state = trimPromptSection(input.compactState, Math.max(0, dynamicBudget - report.length));
   const prompt = fixedPrefix + "\\n\\n" + reportLabel + report + (pinned ? pinnedLabel + pinned : "") + stateLabel + state;
   return prompt.length <= ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET ? prompt : trimPromptSection(prompt, ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
@@ -349,10 +371,11 @@ Return ONE JSON object only: {"action":"continue_discovery|research_candidate|re
   const pinnedLabel = "\\n\\nPINNED AUTHORITATIVE CASE STATE (survives history compaction):\\n";
   const stateLabel = "\\n\\nCOMPLETE DISCOVERY STATE (compact historical context):\\n";
   const rightHandLabel = "\\n\\nRIGHT-HAND ADVICE:\\n";
-  const pinned = input.pinnedControlState?.trim() ? trimPromptSection(input.pinnedControlState, 3_200) : "";
-  const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - pinnedLabel.length - pinned.length - stateLabel.length - rightHandLabel.length);
-  const reportBudget = Math.min(1_800, Math.floor(dynamicBudget * 0.16));
-  const rightHandBudget = Math.min(1_600, Math.floor(dynamicBudget * 0.14));
+  const availableForPinned = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - pinnedLabel.length - stateLabel.length - rightHandLabel.length - 1_650);
+  const pinned = input.pinnedControlState?.trim() ? trimPromptSection(input.pinnedControlState, Math.min(2_700, availableForPinned)) : "";
+  const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length - rightHandLabel.length);
+  const reportBudget = Math.min(1_500, Math.floor(dynamicBudget * 0.15));
+  const rightHandBudget = Math.min(1_300, Math.floor(dynamicBudget * 0.13));
   const report = trimPromptSection(input.investigatorReport, reportBudget);
   const rightHand = trimPromptSection(JSON.stringify(input.rightHand), rightHandBudget);
   const state = trimPromptSection(input.compactState, Math.max(0, dynamicBudget - report.length - rightHand.length));
