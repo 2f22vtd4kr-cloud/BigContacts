@@ -306,6 +306,8 @@ describe("attested Python OSINT capabilities remain model-selectable when the ru
     expect(orientation).toContain("fresh signed worker attestation");
     expect(orientation).toContain("independently pinned worker/proxy image digests");
     expect(orientation).toContain("a source-observed email can justify considering footprint_email (Holehe) or footprint_spiderfoot");
+    expect(orientation).toContain("Additional Python-backed capabilities are conditional on the per-turn signed-attestation allowlist below.");
+    expect(orientation).not.toContain("Currently executable specialist tools: domain_lookup and registry_search");
     expect(orientation).not.toContain("intentionally not available capabilities");
   });
 
