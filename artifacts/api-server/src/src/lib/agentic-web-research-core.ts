@@ -4055,7 +4055,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const shortestScope = activeScope
         ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 100)
         : "CASE OBJECTIVE: source-backed real-person research; never invent evidence.";
-      const shortestActionsGuidance = "ACTIONS: " + availableActions.join("|") + ".";
+      const shortestActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
       const shortestRegistryGuidance = `REGISTRY GUIDANCE: enabled IDs only: ${registryIdList}; never invent IDs; unavailable/failed is not a no-hit.`;
       const shortestDiscoveryGate = input.mode === "discovery"
         ? "DISCOVERY GATE: People—not companies/prestige—are targets; organizations are leads. Honor Boss topic/geography; source class may vary per query; official sources must not change scope. Avoid generic wealth/net-worth/private-equity-profile searches alone. Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
