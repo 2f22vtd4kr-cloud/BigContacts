@@ -344,16 +344,40 @@ Return ONE JSON object only: {"action":"continue_discovery|research_candidate|re
   const pinnedLabel = "\n\nPINNED AUTHORITATIVE CASE STATE (survives history compaction):\n";
   const stateLabel = "\n\nCOMPLETE DISCOVERY STATE (compact historical context):\n";
   const rightHandLabel = "\n\nRIGHT-HAND ADVICE:\n";
-  const availableForPinned = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - pinnedLabel.length - stateLabel.length - rightHandLabel.length - 1_650);
+  const availableForPinned = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - 2 - reportLabel.length - pinnedLabel.length - stateLabel.length - rightHandLabel.length - 1_650);
   const pinned = input.pinnedControlState?.trim() ? trimPromptSection(input.pinnedControlState, Math.min(2_700, availableForPinned)) : "";
-  const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length - rightHandLabel.length);
+  const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - 2 - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length - rightHandLabel.length);
   const reportBudget = Math.min(1_500, Math.floor(dynamicBudget * 0.15));
   const rightHandBudget = Math.min(1_300, Math.floor(dynamicBudget * 0.13));
   const report = trimPromptSection(input.investigatorReport, reportBudget);
   const rightHand = trimPromptSection(JSON.stringify(input.rightHand), rightHandBudget);
   const state = trimPromptSection(input.compactState, Math.max(0, dynamicBudget - report.length - rightHand.length));
-  const prompt = fixedPrefix + "\n\n" + reportLabel + report + (pinned ? pinnedLabel + pinned : "") + stateLabel + state + rightHandLabel + rightHand;
-  return prompt.length <= ATLAS_BOSS_CONTROL_PROMPT_BUDGET ? prompt : trimPromptSection(prompt, ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
+  const compose = (currentReport: string, currentState: string, currentRightHand: string): string =>
+    fixedPrefix + "\\n\\n" + reportLabel + currentReport + (pinned ? pinnedLabel + pinned : "") + stateLabel + currentState + rightHandLabel + currentRightHand;
+  let prompt = compose(report, state, rightHand);
+  // Never apply middle-compaction to the whole control prompt: that can cut a URL
+  // inside PINNED AUTHORITATIVE CASE STATE and make an unfetched lead unrecoverable.
+  // If framing exceeds the ceiling, shed optional history, oversight detail, then
+  // report detail while preserving the scope, lead counts, and URL examples intact.
+  if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
+    const excess = prompt.length - ATLAS_BOSS_CONTROL_PROMPT_BUDGET + 1;
+    const boundedState = trimPromptSection(input.compactState, Math.max(0, state.length - excess));
+    prompt = compose(report, boundedState, rightHand);
+  }
+  if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
+    const excess = prompt.length - ATLAS_BOSS_CONTROL_PROMPT_BUDGET + 1;
+    const boundedRightHand = trimPromptSection(JSON.stringify(input.rightHand), Math.max(0, rightHand.length - excess));
+    prompt = compose(report, state, boundedRightHand);
+  }
+  if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
+    const excess = prompt.length - ATLAS_BOSS_CONTROL_PROMPT_BUDGET + 1;
+    const boundedReport = trimPromptSection(input.investigatorReport, Math.max(0, report.length - excess));
+    prompt = compose(boundedReport, state, rightHand);
+  }
+  if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
+    throw new Error("Atlas Boss prompt cannot fit while preserving its pinned authoritative case state.");
+  }
+  return prompt;
 }
 
 export type AtlasBossGenerationFailureCategory =
