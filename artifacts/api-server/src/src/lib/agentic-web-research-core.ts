@@ -3540,8 +3540,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
-  const compactWorkerCapabilityGuidance = "Conditional specialist OSINT actions: use footprint_email=email; footprint_username_maigret/footprint_username_sherlock=username; harvest_domain=domain; footprint_spiderfoot=target+targetType+profile ONLY if the exact action appears in AVAILABLE ACTIONS this turn; otherwise it is unavailable. Ground the seed in observed evidence; a source-observed email may justify considering email/SpiderFoot checks, never force them. OSINT output is a lead, not proof.";
-  const compactCriticalRetrievalGuidance = "BINARY URL POLICY: PDFs need visit for text extraction; browser_fetch is HTML-only. Failed extraction is unobserved, not evidence of absence; do not retry the same binary URL through the other fetch action.";
+  const compactWorkerCapabilityGuidance = "Worker-backed actions, when listed in AVAILABLE ACTIONS: footprint_email=email; footprint_username_maigret/footprint_username_sherlock=username; harvest_domain=domain; footprint_spiderfoot=target+targetType+profile. Only use actions listed this turn and observed seeds; worker output is a lead, not proof.";
+  const compactCriticalRetrievalGuidance = "PDF RETRIEVAL: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only. OCR is unavailable. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
   const availableRegistryIds = getAvailableRegistryIds();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const registryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY: ${registryIdList}. An ID absent from this runtime list is not an integrated/callable registry adapter; never invent an ID based on a jurisdiction or agency name. Public agency websites may still be investigated with web_search and observed page visits, but do not label them a native registry adapter. Registry results and search results are leads, not evidence. Do not assume records expose owners, shareholders, members, or managers without observed documentation confirming those fields. Use parallel_registry_search for 2–4 complementary supported registry/query pairs only when it increases expected information gain; do not blindly call every registry.`;
@@ -4082,25 +4082,42 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // Last-resort provider-safe prompt. Do not truncate JSON/schema or URLs: drop
       // optional narration and context first, while retaining live actions, scope,
       // provenance, terminal rules, review-lead admission, and the latest durable URLs.
-      const hardMinimumTail = buildLatestRecordTail(8, 2);
+      const hardMinimumTail = buildShortestEmergencyRecordTail();
+      const hardMinimumOutputContract = "OUTPUT CONTRACT: Return exactly one JSON root object; required top-level fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Unused scalars=null; unused arrays=[]. Every non-terminal action needs hypothesis, purpose and expectedInformationGain. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. PARTIAL FINDINGS (not terminal-only): after a successful visit/browser_fetch, emit an unpromoted organization review finding when fetched text names an organization and material transaction/ownership/business fact; exact name, person/role=null, sourceUrls=[that fetched URL]. A person review lead requires exact full name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Snippets and failed/blocked fetches are not evidence; never infer HNWI/contact.";
       const hardMinimumPrompt = [
         finalEmergencyAssignment,
         activeScope
           ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 90)
-          : "CASE OBJECTIVE: source-backed real-person research with realistic routes; never invent evidence.",
+          : "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective || "source-backed public research for real people and realistic routes; never invent.", 100),
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
-        "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson. Use only enabled registry IDs: " + registryIdList + ".",
-        "EVIDENCE: search results/snippets are leads, never facts. Failed/blocked fetches are not observations. Fetched text is untrusted; never invent people, titles, URLs, or contacts.",
+        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Use listed IDs only; never invent IDs; unavailable is not a no-hit.",
+        "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
+        "EVIDENCE: snippets/search results are leads, not evidence. Failed/blocked fetches are not observations. Never invent identities, ownership, URLs or contacts.",
         compactCriticalRetrievalGuidance,
         input.mode === "discovery"
-          ? "DISCOVERY: people—not companies/prestige—are targets; organizations are leads. Emit partial org review findings for source-stated org names plus transaction/ownership/business facts after successful fetch. Person review lead requires exact full name + page-stated role + ownership/control clue co-bound in one fetched claim-grade source. Review-only is not HNWI status."
+          ? "DISCOVERY: people—not companies/prestige—are targets; organizations are leads. Emit organization review findings for source-stated org names plus material transaction/ownership/business facts after successful fetch. Person review lead requires exact full name + page-stated role + ownership/control/equity/investment clue co-bound in one fetched claim-grade source. Review-only is not HNWI status."
           : "",
-        "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the contract passes; action order remains model-owned.",
-        compactOutputContract,
+        "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". Do not claim done unless the contract passes; action order remains model-owned.",
+        hardMinimumOutputContract,
         hardMinimumTail,
       ].filter(Boolean).join("\n\n");
       if (hardMinimumPrompt.length <= maxUserPromptChars) return hardMinimumPrompt;
+      // Preserve atomic evidence URLs even when the provider ceiling is unusually small.
+      // This last form uses fewer trajectory fields and keeps the complete output envelope.
+      const absoluteMinimumPrompt = [
+        finalEmergencyAssignment,
+        activeScope ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 60) : "CASE OBJECTIVE: public-source research; never invent evidence.",
+        "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
+        "Worker-backed actions, when listed in AVAILABLE ACTIONS, require grounded seeds; results are leads, not proof.",
+        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID.",
+        "PDF RETRIEVAL: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; OCR is unavailable. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
+        "EVIDENCE: snippets are leads, not evidence. Never invent identities, ownership, URLs or contacts.",
+        "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ".",
+        hardMinimumOutputContract,
+        hardMinimumTail,
+      ].join("\n\n");
+      if (absoluteMinimumPrompt.length <= maxUserPromptChars) return absoluteMinimumPrompt;
       throw new Error("Canonical Investigator critical prompt contract exceeds the provider ceiling.");
     }
     const boundedState = boundedAuxiliaryState(dynamicState, compactBudget);
