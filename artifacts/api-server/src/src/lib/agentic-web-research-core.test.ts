@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -296,6 +297,40 @@ describe("model-selectable Investigator capabilities", () => {
     for (const action of ["harvest_domain", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "footprint_spiderfoot", "made_up_tool", "", null]) {
       expect(isModelSelectableAgentAction(action)).toBe(false);
     }
+  });
+});
+
+describe("attested Python OSINT capabilities remain model-selectable when the runtime authorizes them", () => {
+  it("does not describe conditional worker tools as permanently unavailable", () => {
+    const orientation = apexOrientationFor("dig_agent");
+    expect(orientation).toContain("fresh signed worker attestation");
+    expect(orientation).toContain("independently pinned worker/proxy image digests");
+    expect(orientation).toContain("a source-observed email can justify considering footprint_email (Holehe) or footprint_spiderfoot");
+    expect(orientation).not.toContain("intentionally not available capabilities");
+  });
+
+  it("keeps an attested email/SpiderFoot choice in the same per-turn prompt and structured action enum", () => {
+    // This fixture represents the allowlist produced after the runtime verifies
+    // its current worker attestation; it does not make tools globally available.
+    const actionAllowlist = ["footprint_email", "footprint_spiderfoot", "web_search"];
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Investigate a source-observed public email and establish whether it is relevant to the target.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "An official page exposes the public email contact@example.test.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist,
+    });
+
+    expect(prompt).toContain("AVAILABLE ACTIONS: footprint_email | footprint_spiderfoot | web_search.");
+    expect(prompt).toContain("Worker-backed actions, when listed in AVAILABLE ACTIONS");
+    expect(prompt).not.toContain("intentionally not available capabilities");
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-20b", actionAllowlist) as {
+      json_schema: { schema: { properties: { action: { enum: string[] } } } };
+    };
+    expect(responseFormat.json_schema.schema.properties.action.enum).toEqual(actionAllowlist);
   });
 });
 
