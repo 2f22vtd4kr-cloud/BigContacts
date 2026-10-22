@@ -4,6 +4,7 @@ import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { createJob, getActiveJobStrict, getJobStrict, setActiveJob, updateJob, clearActiveJobIfOwned } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob, isCanonicalJobOwner } from "../../lib/canonical-job-lock";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
+import type { ResearchDepth } from "../../lib/research-depth";
 import { decideTargetNextAction } from "../../lib/target-control-decision";
 import { enablePermanentRedis } from "../../lib/redis";
 import { withProviderScope } from "../../lib/provider-gate";
@@ -61,6 +62,12 @@ function contextOf(file: Record<string, any>): string {
 router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, res): Promise<void> => {
   try { await enablePermanentRedis(); } catch (error) { res.status(503).json({ error: safeThrownErrorSummary("Permanent Redis is unavailable for canonical target continuation", error) }); return; }
   const caseId = Number(req.params.caseId); if (!Number.isInteger(caseId) || caseId <= 0) { res.status(400).json({ error: "Invalid target case ID" }); return; }
+  const requestedDepthValue = req.body?.researchDepth;
+  if (requestedDepthValue !== undefined && (typeof requestedDepthValue !== "string" || !["fast", "standard", "deep"].includes(requestedDepthValue))) {
+    res.status(400).json({ error: "researchDepth must be one of fast, standard, or deep." });
+    return;
+  }
+  const requestedResearchDepth = typeof requestedDepthValue === "string" ? requestedDepthValue as ResearchDepth : undefined;
   const [current] = await db.select().from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!current) { res.status(404).json({ error: "Target case not found" }); return; }
   const file = parseFile(current.caseFile); if (!file || file.target == null || current.caseType !== "target") { res.status(409).json({ error: "Only a canonical target case can run target continuation" }); return; }
   if (!Number.isInteger(Number(current.targetEntityId)) || Number(current.targetEntityId) <= 0) { res.status(409).json({ error: "Target case has no durable target entity" }); return; }
@@ -223,7 +230,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
       await tx.insert(researchCaseEventsTable).values({ caseId, iteration: controlTurn, actorRole: "groq_boss", eventType: "assignment", status: "recorded", summary: `Groq Boss authorized ${decision.action} for target continuation.`, correlationKey: continuationEventKey, payload: JSON.stringify({ direction, reason: decision.reason, confidence: decision.confidence, bossModel: decision.bossModel, jobId, controlTurn, targetEntityId: current.targetEntityId }) }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
     }, { isolationLevel: "serializable" });
     await updateJob(jobId, { progress: 1, message: `Groq Boss authorized ${decision.action}; remounting target context for ${targetName}…`, result: JSON.stringify({ caseId, decision }) });
-    void (async () => { try { await withProviderScope(`atlas-run:${jobId}`, () => runCanonicalSingleTargetInvestigation(jobId!, Number(current.targetEntityId), { existingCaseId: caseId, initialDirection: direction })); } catch (error) { const message = safeThrownErrorSummary("Target continuation failed", error); await db.update(researchCasesTable).set({ status: "review", currentAction: "target-continuation-error", updatedAt: new Date() }).where(and(cancellationFenceSql(caseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`)); await updateJob(jobId!, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }); } finally { await clearActiveJobIfOwned("atlas-run", jobId!); await releaseCanonicalJob("atlas-run", jobId!).catch(() => undefined); } })();
+    void (async () => { try { await withProviderScope(`atlas-run:${jobId}`, () => runCanonicalSingleTargetInvestigation(jobId!, Number(current.targetEntityId), { existingCaseId: caseId, initialDirection: direction, researchDepth: requestedResearchDepth })); } catch (error) { const message = safeThrownErrorSummary("Target continuation failed", error); await db.update(researchCasesTable).set({ status: "review", currentAction: "target-continuation-error", updatedAt: new Date() }).where(and(cancellationFenceSql(caseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`)); await updateJob(jobId!, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }); } finally { await clearActiveJobIfOwned("atlas-run", jobId!); await releaseCanonicalJob("atlas-run", jobId!).catch(() => undefined); } })();
     res.status(202).json({ caseId, jobId, status: "running", decision, mode: "canonical-model-owned-target-continuation" });
   } catch (error) {
     const statusCode = Number((error as { statusCode?: unknown })?.statusCode ?? 503);

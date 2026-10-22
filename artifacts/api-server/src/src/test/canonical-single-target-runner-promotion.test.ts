@@ -57,3 +57,20 @@ describe("target case context progresses at action boundaries", () => {
     expect(runner).toContain("const records = selected.map((item, index) => ({ ...item.record, turn: index + 1 }))");
   });
 });
+
+
+describe("target-card continuation uses the target case and selected depth", () => {
+  it("persists and clears the entity's target-case pointer without overwriting other metadata", () => {
+    const runner = readRunner();
+    expect(runner).toContain("targetCaseId, targetCaseJobId: atlasJobId");
+    expect(runner).toContain("delete nextMetadata.targetCaseId");
+    expect(runner).toContain('await delCachePattern("entities:list:*")');
+  });
+
+  it("routes target continuation through the same durable target case and selected depth", () => {
+    const route = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-target-continuation.ts"), "utf8");
+    expect(route).toContain('"/research/bureau/target-cases/:caseId/run-next-pass"');
+    expect(route).toContain('["fast", "standard", "deep"].includes(requestedDepthValue)');
+    expect(route).toContain("researchDepth: requestedResearchDepth");
+  });
+});
