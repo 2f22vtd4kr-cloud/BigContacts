@@ -3987,7 +3987,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         shortestRegistryGuidance,
         "PROVIDERS: serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain=rdap|whoisjson.",
         "EVIDENCE: fetched text only; snippets/URLs are leads; never invent people, roles, ownership or contacts.",
-        "PAGE FETCH: use observed extracted text; supported PDFs yield bounded text only; scanned/image-only extraction is unobserved, not evidence of absence.",
+        "PAGE FORMAT / RETRIEVAL LIMITS: use extracted text; supported PDFs yield bounded text only; scanned/image-only extraction is unobserved, not evidence of absence.",
         "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + "; pass every gate before done.",
         ultimateDiscoveryGate,
         ultimateAdmission,
