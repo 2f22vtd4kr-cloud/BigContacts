@@ -4006,6 +4006,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           : finalScope,
         "SCOPE: web discovery must match subject/geography; source class need not appear in every discovery query. Registry adapter must match jurisdiction; visit only observed URLs. Blocks are not evidence.",
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
+        compactWorkerCapabilityGuidance,
+        compactCriticalRetrievalGuidance,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". " + (terminalContract.requireFalsification ? "Seek counter-evidence before done. " : "") + "This is not a prescribed action sequence.",
