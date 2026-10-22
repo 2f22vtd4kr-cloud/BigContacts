@@ -93,7 +93,7 @@ export function compactPromptSectionPreservingUrlTokens(
   const spans: Array<{ start: number; end: number }> = [];
   const urlPattern = /https?:\/\/[^\s"'<>]+/giu;
   for (const match of source.matchAll(urlPattern)) {
-    const start = match.index;
+    const start = match.index ?? 0;
     spans.push({ start, end: start + match[0].length });
   }
 
