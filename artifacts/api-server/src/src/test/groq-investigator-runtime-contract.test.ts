@@ -205,7 +205,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
-    expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
+    expect(prompt).toContain("DISCOVERY ADMISSION");
+    expect(prompt).toContain("one successfully fetched claim-grade source");
   });
 
   it("uses the GPT-OSS-compatible reasoning contract", () => {

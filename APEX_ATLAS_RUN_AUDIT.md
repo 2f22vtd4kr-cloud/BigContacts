@@ -1,6 +1,6 @@
 # Apex Atlas End-to-End Run Audit
 
-⭐ **Current sequential audit:** [Replit Live Run 07 — 2026-10-18](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-18_REPLIT_RUN_07.md)
+⭐ **Current sequential audit:** [Fresh Replit import run 02 — 2026-10-21/22, PR #723/#724 verification](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-21_FRESH_REPLIT_IMPORT_RUN_02.md)
 
 ## Audit contract
 
