@@ -399,6 +399,58 @@ describe("Investigator prompt URL integrity", () => {
   });
 });
 
+  it("retains the last fetched page's claim text after a later search becomes the newest action", () => {
+    const sourceUrl = "https://www.uravilamps.com/pdf/announcements/intimation-of-press-release-for-majority-stake-acquisition.pdf";
+    const fetchedObservation = [
+      "PDF PAGE " + sourceUrl,
+      "Issuer boilerplate and repeated document headings. ".repeat(70),
+      "FACT_AT_END_SENTINEL: The filing states that the company acquired a majority stake in Example Components Private Limited.",
+    ].join("\n");
+    const records: AgenticTrajectoryRecord[] = [
+      {
+        turn: 9,
+        model: "openai/gpt-oss-120b",
+        action: "visit",
+        execution: "success",
+        args: { url: sourceUrl },
+        observation: fetchedObservation,
+        observedUrls: [sourceUrl],
+        leadUrls: [],
+        findings: [],
+        providerFallback: [],
+      },
+      {
+        turn: 10,
+        model: "openai/gpt-oss-120b",
+        action: "web_search",
+        execution: "success",
+        args: { query: "independent acquisition corroboration", provider: "serper" },
+        observation: "Search returned a further article lead.",
+        observedUrls: [],
+        leadUrls: ["https://news.example.test/article/acquisition"],
+        findings: [],
+        providerFallback: [],
+      },
+    ];
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover real people from public transaction and ownership evidence.",
+      history: [],
+      trajectoryRecords: records,
+      lastObservation: "Search returned a further article lead.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+
+    expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE");
+    expect(prompt).toContain("FACT_AT_END_SENTINEL");
+    expect(prompt).toContain(sourceUrl);
+    expect(prompt).not.toContain(sourceUrl.slice(0, 80) + "...");
+    expect(prompt).not.toContain("must visit");
+    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a mandated next action/i);
+  });
+
 describe("discovery lead inventory", () => {
   it("keeps other search-result URLs available after one URL fails retrieval", () => {
     const urls = Array.from({ length: 17 }, (_, index) => `https://lead-${index + 1}.example.test/company`);
