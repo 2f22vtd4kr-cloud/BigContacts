@@ -334,6 +334,68 @@ describe("attested Python OSINT capabilities remain model-selectable when the ru
   });
 });
 
+describe("Investigator prompt URL integrity", () => {
+  it("keeps a complete source URL when it fits the prompt inventory", () => {
+    const url = "https://registry.example.test/filings/" + "a".repeat(300);
+    const record = {
+      turn: 1,
+      model: "test-model",
+      action: "web_search",
+      execution: "success",
+      args: { query: "official registry filing" },
+      observation: "Search returned one potential official registry source.",
+      observedUrls: [],
+      leadUrls: [url],
+      findings: [],
+      providerFallback: [],
+    } as AgenticTrajectoryRecord;
+
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find source-backed owner/operator evidence from public registries.",
+      history: [],
+      trajectoryRecords: [record],
+      lastObservation: "A relevant registry result remains unfetched.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+
+    expect(prompt).toContain(url);
+    expect(prompt).toContain('"leadUrlsOmittedFromPromptCount":0');
+  });
+
+  it("does not emit a truncated prefix when a URL is too long for an atomic prompt sample", () => {
+    const url = "https://registry.example.test/filings/" + "z".repeat(700);
+    const record = {
+      turn: 1,
+      model: "test-model",
+      action: "web_search",
+      execution: "success",
+      args: { query: "official registry filing" },
+      observation: "Search returned one potential official registry source.",
+      observedUrls: [],
+      leadUrls: [url],
+      findings: [],
+      providerFallback: [],
+    } as AgenticTrajectoryRecord;
+
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Find source-backed owner/operator evidence from public registries.",
+      history: [],
+      trajectoryRecords: [record],
+      lastObservation: "A relevant registry result remains unfetched.",
+      findings: [],
+      mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+
+    expect(prompt).toContain('"leadUrlsOmittedFromPromptCount":1');
+    expect(prompt.includes(url.slice(0, 120))).toBe(prompt.includes(url));
+  });
+});
+
 describe("discovery lead inventory", () => {
   it("keeps other search-result URLs available after one URL fails retrieval", () => {
     const urls = Array.from({ length: 17 }, (_, index) => `https://lead-${index + 1}.example.test/company`);
