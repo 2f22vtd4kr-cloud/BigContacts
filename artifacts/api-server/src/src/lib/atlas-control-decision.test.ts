@@ -160,7 +160,7 @@ describe("Atlas control prompt preserves authoritative case-wide lead state", ()
     expect(report).toContain('"unfetchedLeadUrls"');
     expect(report).toContain(leadUrl);
     expect(report).toContain('"failedLeadUrlCount": 4');
-    expect(report).toContain('"blockedLeadUrlCount": 1);
+    expect(report).toContain('"blockedLeadUrlCount": 1');
 
     const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport: report, compactState: "compact durable case context" });
     const bossPrompt = buildAtlasBossControlPrompt({
