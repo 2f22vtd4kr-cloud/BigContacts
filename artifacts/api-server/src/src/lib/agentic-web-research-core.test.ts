@@ -441,7 +441,7 @@ describe("partial model findings", () => {
       mode: "discovery",
     });
     expect(prompt).toContain("PARTIAL FINDINGS");
-    expect(prompt).toContain("not terminal-only");
+    expect(prompt).toContain("PARTIAL FINDINGS (not terminal-only)");
     expect(prompt).toContain("source-backed leads");
   });
 });
@@ -2644,5 +2644,44 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
     expect(canonicalAtlasDiscoverySource).toContain('stage: "partial_review"');
     expect(canonicalAtlasDiscoverySource).not.toContain('notes: "INVESTIGATOR-ADMITTED REVIEW CANDIDATE');
+  });
+});
+
+
+describe("latest fetched source evidence survives emergency Investigator compaction", () => {
+  it("keeps a source fact near the end of a long successful page observation", () => {
+    const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(180) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
+    const compact = compactEmergencyTrajectoryObservation(observation, 700);
+    expect(compact.length).toBeLessThanOrEqual(700);
+    expect(compact).toContain("Fetched official company filing");
+    expect(compact).toContain("OWNERSHIP FACT SENTINEL");
+  });
+
+  it("keeps fetched page facts and organization partial-finding instructions in the model prompt", () => {
+    const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(180) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Discover public-source leads for under-the-radar business owners and operators.",
+      history: [],
+      trajectoryRecords: [{
+        turn: 1, model: "openai/gpt-oss-120b", action: "visit", execution: "success",
+        args: { url: "https://www.example.org/filing" }, observation,
+        observedUrls: ["https://www.example.org/filing"], findings: [],
+      }],
+      lastObservation: observation,
+      findings: [],
+      mode: "discovery",
+    });
+    expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
+    expect(prompt).toContain("After a successful visit/browser_fetch");
+    expect(prompt).toContain("sourceUrls=[that fetched URL only]");
+  });
+});
+
+
+describe("small emergency observation budgets", () => {
+  it("never exceeds a budget too small to fit the middle-omission marker", () => {
+    const observation = "a fetched page observation with useful text";
+    expect(compactEmergencyTrajectoryObservation(observation, 40)).toBe(observation.slice(0, 40));
   });
 });
