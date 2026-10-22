@@ -344,8 +344,9 @@ Return ONE JSON object only: {"action":"continue_discovery|research_candidate|re
   const pinnedLabel = "\n\nPINNED AUTHORITATIVE CASE STATE (survives history compaction):\n";
   const stateLabel = "\n\nCOMPLETE DISCOVERY STATE (compact historical context):\n";
   const rightHandLabel = "\n\nRIGHT-HAND ADVICE:\n";
-  const availableForPinned = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - 2 - reportLabel.length - pinnedLabel.length - stateLabel.length - rightHandLabel.length - 1_650);
-  const pinned = input.pinnedControlState?.trim() ? trimPromptSection(input.pinnedControlState, Math.min(2_700, availableForPinned)) : "";
+  // The caller builds this pinned state from bounded, explicit scope/count/URL fields.
+  // Never middle-trim it: cutting a URL here can hide the very remaining lead Boss needs.
+  const pinned = input.pinnedControlState?.trim() ? input.pinnedControlState.trim() : "";
   const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - 2 - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length - rightHandLabel.length);
   const reportBudget = Math.min(1_500, Math.floor(dynamicBudget * 0.15));
   const rightHandBudget = Math.min(1_300, Math.floor(dynamicBudget * 0.13));
