@@ -115,7 +115,7 @@ export function compactPromptSectionPreservingUrlTokens(
     return source.slice(0, end);
   };
 
-  if (limit <= marker.length + 2) return safePrefix();
+  if (limit < marker.length + 2) return safePrefix();
   const available = limit - marker.length - 2;
   let headEnd = Math.ceil(available * 0.55);
   let tailStart = source.length - (available - headEnd);
@@ -496,9 +496,9 @@ export function compactInvestigationContext(input: {
 /** Bound an auxiliary model-state section without deleting the durable state behind it. */
 export function boundInvestigatorPromptSection(value: string, maxChars = 6_000): string {
   const normalized = typeof value === "string" ? value.trim() : "";
-  const marker = "[AUXILIARY CONTEXT BOUND: middle detail omitted; URL tokens intersecting excerpt edges omitted whole; durable state remains outside this prompt]";
+  const marker = "[AUXILIARY CONTEXT BOUND: middle omitted; URL edges omitted whole; full state durable]";
   const requested = Number.isFinite(maxChars) ? Math.floor(maxChars) : 6_000;
-  const bounded = Math.max(0, Math.min(12_000, requested));
+  const bounded = Math.max(marker.length + 2, Math.min(12_000, requested));
   return compactPromptSectionPreservingUrlTokens(normalized, bounded, marker);
 }
 
