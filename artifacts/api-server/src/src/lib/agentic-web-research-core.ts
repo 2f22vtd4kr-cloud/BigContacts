@@ -3665,7 +3665,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     leadUrls: leads.urls,
     leadUrlCount: leads.totalCount,
     leadUrlsOmittedFromPromptCount: leads.omittedFromPromptCount,
-    ...(inActiveScope || !(record.leadUrls ?? []).length ? {} : { outOfActiveScopeLeadUrlsOmittedFromPromptCount: record.leadUrls.length }),
+    ...(inActiveScope || !(record.leadUrls ?? []).length ? {} : { outOfActiveScopeLeadUrlsOmittedFromPromptCount: record.leadUrls?.length ?? 0 }),
     observation: (() => {
       const latestFetchNeedsEvidenceExcerpt = record === latestRecord
         && record.execution === "success"
