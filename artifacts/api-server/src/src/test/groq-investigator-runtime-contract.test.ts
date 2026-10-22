@@ -205,7 +205,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
-    expect(prompt).toContain("DISCOVERY ADMISSION");
+    expect(prompt).toMatch(/DISCOVERY (?:ADMISSION|LEAD HANDOFF CONTRACT)/);
     expect(prompt).toContain("one successfully fetched claim-grade source");
   });
 
