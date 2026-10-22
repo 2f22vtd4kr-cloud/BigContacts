@@ -239,11 +239,13 @@ export function compactCanonicalDiscoveryContinuationContext(
   const normalized = typeof raw === "string" ? sanitizeUrlsInText(raw.trim()) : "";
   if (normalized.length <= maxChars) return normalized;
 
-  return compactPromptSectionPreservingUrlTokens(
-    normalized,
-    maxChars,
-    "[DISCOVERY CONTINUATION CONTEXT COMPACTED: middle detail omitted; URL tokens intersecting excerpt edges are omitted whole; the full durable case and event ledger remain authoritative]",
-  );
+  const continuationMarker = CANONICAL_CONTINUATION_CONTEXT_MARKER
+    .replace(/^\n\n|\n\n$/g, "")
+    .replace(
+      "middle detail omitted;",
+      "middle detail omitted; URL tokens intersecting excerpt edges are omitted whole;",
+    );
+  return compactPromptSectionPreservingUrlTokens(normalized, maxChars, continuationMarker);
 }
 
 /**
