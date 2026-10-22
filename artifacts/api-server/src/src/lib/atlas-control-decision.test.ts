@@ -137,3 +137,16 @@ describe("Atlas control-plane lead continuity", () => {
   });
 
 });
+
+
+describe("Atlas Boss direction adoption", () => {
+  it("requires Boss to explicitly carry an adopted Right-hand direction into the accepted objective", () => {
+    const prompt = buildAtlasBossControlPrompt({
+      investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      compactState: "Current accepted objective is a broad owner/operator discovery mission.",
+      rightHand: { status: "completed", decision: "continue_discovery", reason: "Explore Nordic public registries.", direction: "Investigate regional private manufacturers in Sweden using official business registers.", confidence: 0.8, model: "test-model", error: null },
+    });
+    expect(prompt).toContain("Right-hand is advisory");
+    expect(prompt).toContain("null keeps the accepted scope");
+  });
+});

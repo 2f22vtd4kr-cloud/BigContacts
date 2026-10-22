@@ -329,7 +329,7 @@ Rules:
 - If researching or revisiting, candidateName MUST exactly match one supplied admitted candidate.
 - Never invent a person, URL, relationship, contact, or evidence.
 - Do not prescribe a fixed provider/tool sequence. The Investigator chooses its own tools.
-- direction is a concise research question or pivot, not a tool command.
+- Right-hand is advisory; return direction to adopt its proposal; null keeps the accepted scope.
 - A pivot must be self-contained and executable: name one substantive subject/sector hypothesis, one actual geography/jurisdiction, and a relevant public-source class. Do not activate procedural placeholders such as "sector-specific", "geography-focused", or "a chosen region"; a rationale or parenthetical example does not substitute for constraints in direction itself. If no defensible concrete pivot is available, continue the current objective or stop/park for review rather than activating a vague scope.
 - Mission priority: the human objective's realistic-targetability constraint outranks generic public-company leadership or fame/ranking suggestions. Prefer private/regional/family-business owners/operators/investors, beneficial owners, and concession/franchise/license holders with credible wealth potential and a plausible public/professional/intermediary route. Never equate executive seniority with wealth or contactability.
 - ${atlasRegistryFeasibilityLaw()}
@@ -344,16 +344,44 @@ Return ONE JSON object only: {"action":"continue_discovery|research_candidate|re
   const pinnedLabel = "\n\nPINNED AUTHORITATIVE CASE STATE (survives history compaction):\n";
   const stateLabel = "\n\nCOMPLETE DISCOVERY STATE (compact historical context):\n";
   const rightHandLabel = "\n\nRIGHT-HAND ADVICE:\n";
-  const availableForPinned = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - pinnedLabel.length - stateLabel.length - rightHandLabel.length - 1_650);
-  const pinned = input.pinnedControlState?.trim() ? trimPromptSection(input.pinnedControlState, Math.min(2_700, availableForPinned)) : "";
-  const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length - rightHandLabel.length);
+  // The caller builds this pinned state from bounded, explicit scope/count/URL fields.
+  // Never middle-trim it: cutting a URL here can hide the very remaining lead Boss needs.
+  const pinned = input.pinnedControlState?.trim() ? input.pinnedControlState.trim() : "";
+  const dynamicBudget = Math.max(0, ATLAS_BOSS_CONTROL_PROMPT_BUDGET - fixedPrefix.length - 2 - reportLabel.length - (pinned ? pinnedLabel.length + pinned.length : 0) - stateLabel.length - rightHandLabel.length);
   const reportBudget = Math.min(1_500, Math.floor(dynamicBudget * 0.15));
   const rightHandBudget = Math.min(1_300, Math.floor(dynamicBudget * 0.13));
   const report = trimPromptSection(input.investigatorReport, reportBudget);
   const rightHand = trimPromptSection(JSON.stringify(input.rightHand), rightHandBudget);
   const state = trimPromptSection(input.compactState, Math.max(0, dynamicBudget - report.length - rightHand.length));
-  const prompt = fixedPrefix + "\n\n" + reportLabel + report + (pinned ? pinnedLabel + pinned : "") + stateLabel + state + rightHandLabel + rightHand;
-  return prompt.length <= ATLAS_BOSS_CONTROL_PROMPT_BUDGET ? prompt : trimPromptSection(prompt, ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
+  const compose = (currentReport: string, currentState: string, currentRightHand: string): string =>
+    fixedPrefix + "\n\n" + reportLabel + currentReport + (pinned ? pinnedLabel + pinned : "") + stateLabel + currentState + rightHandLabel + currentRightHand;
+  let finalReport = report;
+  let finalState = state;
+  let finalRightHand = rightHand;
+  let prompt = compose(finalReport, finalState, finalRightHand);
+  // Never apply middle-compaction to the whole control prompt: that can cut a URL
+  // inside PINNED AUTHORITATIVE CASE STATE and make an unfetched lead unrecoverable.
+  // If framing exceeds the ceiling, shed optional history, oversight detail, then
+  // report detail while preserving the scope, lead counts, and URL examples intact.
+  if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
+    const excess = prompt.length - ATLAS_BOSS_CONTROL_PROMPT_BUDGET + 1;
+    finalState = trimPromptSection(input.compactState, Math.max(0, finalState.length - excess));
+    prompt = compose(finalReport, finalState, finalRightHand);
+  }
+  if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
+    const excess = prompt.length - ATLAS_BOSS_CONTROL_PROMPT_BUDGET + 1;
+    finalRightHand = trimPromptSection(JSON.stringify(input.rightHand), Math.max(0, finalRightHand.length - excess));
+    prompt = compose(finalReport, finalState, finalRightHand);
+  }
+  if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
+    const excess = prompt.length - ATLAS_BOSS_CONTROL_PROMPT_BUDGET + 1;
+    finalReport = trimPromptSection(input.investigatorReport, Math.max(0, finalReport.length - excess));
+    prompt = compose(finalReport, finalState, finalRightHand);
+  }
+  if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
+    throw new Error("Atlas Boss prompt cannot fit while preserving its pinned authoritative case state.");
+  }
+  return prompt;
 }
 
 export type AtlasBossGenerationFailureCategory =
