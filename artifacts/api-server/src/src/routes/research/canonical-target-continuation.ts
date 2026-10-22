@@ -130,9 +130,12 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
       if (locked.caseFile !== current.caseFile) {
         throw Object.assign(new Error("Target continuation case changed after it was read; refusing a stale projection."), { statusCode: 409 });
       }
-      if (locked.status === "complete" || locked.status === "cancelled"
+      // A user-initiated Continue action may explicitly reopen a model-completed
+      // target case for more research. Durable cancellation and lease fences remain
+      // absolute and are never bypassed by this route.
+      if (locked.status === "cancelled"
         || (locked.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(locked.currentAction ?? "")))) {
-        throw Object.assign(new Error("Target continuation case is durably complete or cancelled and cannot be resumed."), { statusCode: 409, cancellationFence: true });
+        throw Object.assign(new Error("Target continuation case is durably cancelled and cannot be resumed."), { statusCode: 409, cancellationFence: true });
       }
       const latestFile = parseFile(locked.caseFile);
       if (!latestFile || latestFile.target == null) {

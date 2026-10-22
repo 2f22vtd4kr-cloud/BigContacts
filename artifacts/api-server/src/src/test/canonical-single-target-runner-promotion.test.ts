@@ -74,3 +74,16 @@ describe("target-card continuation uses the target case and selected depth", () 
     expect(route).toContain("researchDepth: requestedResearchDepth");
   });
 });
+
+
+describe("explicit target continuation after a model-completed case", () => {
+  it("retains the target-case pointer for completed targets and permits user-requested continuation without bypassing cancellation fences", () => {
+    const runner = readRunner();
+    const route = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-target-continuation.ts"), "utf8");
+    expect(runner).toContain('if (authoritativeCase?.status === "cancelled" || cancelled)');
+    expect(runner).not.toContain('if (authoritativeCase?.status === "complete" || authoritativeCase?.status === "cancelled" || cancelled)');
+    expect(route).toContain("A user-initiated Continue action may explicitly reopen a model-completed");
+    expect(route).toContain('if (locked.status === "cancelled"');
+    expect(route).toContain("canonical-continuation-cancelled");
+  });
+});

@@ -184,7 +184,7 @@ async function loadDurableTargetTrajectory(caseId: number): Promise<{ records: A
   const findings = records.flatMap((record) => record.findings ?? []);
   return { records, findings };
 }
-async function clearTargetCaseReferenceIfTerminal(entityId: number, caseId: number): Promise<void> {
+async function clearTargetCaseReferenceIfCancelled(entityId: number, caseId: number): Promise<void> {
   await db.transaction(async (tx) => {
     const [entity] = await tx.select({ metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, entityId)).for("update").limit(1);
     if (!entity?.metadata) return;
@@ -579,8 +579,8 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
 
   const authoritativeCase = finalCase[0] ?? await loadCase(caseRow.id);
   const terminal = deriveCanonicalTerminalDecision({ durableCaseStatus: authoritativeCase?.status ?? null, locallyCancelled: cancelled });
-  if (authoritativeCase?.status === "complete" || authoritativeCase?.status === "cancelled" || cancelled) {
-    await clearTargetCaseReferenceIfTerminal(target.id, caseRow.id);
+  if (authoritativeCase?.status === "cancelled" || cancelled) {
+    await clearTargetCaseReferenceIfCancelled(target.id, caseRow.id);
   }
   await publishJob( { status: terminal.jobStatus, progress: terminal.outcome === "complete" ? 1 : 0, total: 1, atlasPhase: terminal.outcome === "complete" ? 1 : 0, atlasPhaseTotal: 1, outcome: terminal.outcome, message: stopped ? `Groq Boss explicitly stopped ${target.name} after ${completedActs} Investigator act(s).` : cancelled ? `Target investigation for ${target.name} was cancelled after ${completedActs} controlled act(s).` : deadlineExceeded ? `Target investigation for ${target.name} reached its global deadline after ${completedActs} controlled act(s).` : `Target investigation for ${target.name} preserved for review after ${completedActs} controlled act(s).`, result: JSON.stringify({ caseId: caseRow.id, investigator: latestResult ? { status: latestResult.status, model: latestResult.model, findings: latestResult.findings, searches: latestResult.searches, visits: latestResult.visits, iterations: latestResult.iterations, trajectory: latestResult.trajectory, trajectoryRecords: latestResult.trajectoryRecords, evidenceGraphs: latestResult.evidenceGraphs, executionId: latestResult.executionId } : null, lastOversight, completedActs, investigatorIterationsUsed, resourceLimited, deadlineExceeded, cancelled, hardTimeoutMs, terminal, durableCaseStatus: authoritativeCase?.status ?? null }), finishedAt: new Date().toISOString() }); return { investigatorIterationsUsed, resourceLimited, status: cancelled ? "cancelled" : authoritativeCase?.status === "complete" ? "complete" : "review", exhaustedInvestigatorLlm: [...quotaExhaustedInvestigators].filter((capability) => !initialExcludedInvestigators.has(capability)), investigatorLlm };
   } catch (error) {
