@@ -4095,7 +4095,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the contract passes; action order remains model-owned.",
         compactOutputContract,
         hardMinimumTail,
-      ].filter(Boolean).join("\\n\\n");
+      ].filter(Boolean).join("\n\n");
       if (hardMinimumPrompt.length <= maxUserPromptChars) return hardMinimumPrompt;
       throw new Error("Canonical Investigator critical prompt contract exceeds the provider ceiling.");
     }
