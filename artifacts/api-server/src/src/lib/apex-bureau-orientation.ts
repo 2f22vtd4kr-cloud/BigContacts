@@ -31,7 +31,7 @@ PROVENANCE: raw page text is observation, not identity. A model hypothesis is no
 
 export const APEX_OSINT_TOOL_SURFACE = `OSINT TOOL SURFACE (capability map for dig investigators — runtime availability is decided per turn; choose tools when useful, never forced in a fixed order):
 - web_search — Investigator-selected Serper / Tavily / Exa (exact values: serper | tavily | exa)
-SEARCH/BROWSE TOOLS (not promotion authorities): web_search executes only the provider explicitly selected by the Investigator; there is no cross-provider research fallback. Provider-specific key/transport retries are execution mechanics only. visit/browser_fetch may use HTTP then Scrapfly/ZenRows/Browserless/Playwright. Currently executable specialist tools: domain_lookup and registry_search. The investigator chooses tools; providers only execute.
+SEARCH/BROWSE TOOLS (not promotion authorities): web_search executes only the provider explicitly selected by the Investigator; there is no cross-provider research fallback. Provider-specific key/transport retries are execution mechanics only. visit/browser_fetch may use HTTP then Scrapfly/ZenRows/Browserless/Playwright. Core specialist action types include domain_lookup and registry_search; their data-provider/adapter availability is still runtime-checked. Additional Python-backed capabilities are conditional on the per-turn signed-attestation allowlist below. The Investigator chooses tools; providers only execute.
 - visit — HTTP fetch + contact-fact extraction from HTML
 - browser_fetch — Investigator-selected Scrapfly / ZenRows / Browserless / Playwright for JS/challenge pages (exact values: scrapfly | zenrows | browserless | playwright)
 - domain_lookup — RDAP / WhoisJSON (exact values: rdap | whoisjson)
