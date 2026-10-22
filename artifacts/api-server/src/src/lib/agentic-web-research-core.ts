@@ -3594,10 +3594,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const orderedTrajectoryRecords = [...input.trajectoryRecords].sort((a, b) => a.turn - b.turn);
   const latestRecord = orderedTrajectoryRecords.at(-1);
   const activePivotScopeKey = input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") : null;
-  // Legacy records can predate pivotScopeKey. Keep their leads visible but label them
-  // unscoped so the Investigator must validate scope before following them. Explicitly
-  // out-of-scope records remain excluded from model-facing URLs and evidence context.
-  const belongsToActiveScope = (record: AgenticTrajectoryRecord): boolean => !activePivotScopeKey || !record.pivotScopeKey || record.pivotScopeKey === activePivotScopeKey;
+  // A legacy record without pivotScopeKey cannot be assumed to belong to a newer
+  // accepted pivot. Keep it durable, but exclude its URLs from active-scope lead carry-forward.
+  const belongsToActiveScope = (record: AgenticTrajectoryRecord): boolean =>
+    activePivotScopeKey ? record.pivotScopeKey === activePivotScopeKey : !record.pivotScopeKey;
   const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
   const latestSuccessfulSearchRecord = [...orderedTrajectoryRecords].reverse().find((record) =>
     searchActions.has(record.action) && record.execution === "success" && belongsToActiveScope(record),
