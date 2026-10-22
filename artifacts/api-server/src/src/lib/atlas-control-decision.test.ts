@@ -137,3 +137,57 @@ describe("Atlas control-plane lead continuity", () => {
   });
 
 });
+
+
+describe("Atlas control prompt preserves authoritative case-wide lead state", () => {
+  it("keeps top-level lead counts and URL examples during report compaction and outside supervisor report clipping", () => {
+    const raw = JSON.parse(reportWithUnfetchedLead()) as Record<string, unknown>;
+    raw.searchResultLeadUrlCount = 70;
+    raw.successfullyFetchedLeadUrlCount = 12;
+    raw.unfetchedLeadUrlCount = 32;
+    raw.failedLeadUrlCount = 4;
+    raw.blockedLeadUrlCount = 1;
+    raw.unfetchedLeadUrls = [leadUrl, "https://example.org/second-unfetched"];
+    raw.failedLeadUrls = [{ url: "https://example.net/failed", action: "visit", execution: "http_error", failureDomain: "external_page_fetch", failureKind: "request_failure" }];
+    raw.blockedLeadUrls = [{ url: "https://example.gov/blocked", action: "visit", failureDomain: "preflight", failureKind: "scope_guard" }];
+    raw.findings = Array.from({ length: 8 }, (_, index) => ({
+      vectorType: "other", value: "long factual finding " + index, personName: null, role: null,
+      scope: "organization", sourceUrls: [leadUrl], note: "f".repeat(1_000),
+    }));
+    raw.repeatedHistory = "large middle context ".repeat(2_000);
+    const report = compactAtlasInvestigatorReport(JSON.stringify(raw));
+    expect(report).toContain('"unfetchedLeadUrlCount": 32');
+    expect(report).toContain('"unfetchedLeadUrls"');
+    expect(report).toContain(leadUrl);
+    expect(report).toContain('"failedLeadUrlCount": 4');
+    expect(report).toContain('"blockedLeadUrlCount": 1);
+
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport: report, compactState: "compact durable case context" });
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: report,
+      compactState: "compact durable case context",
+      rightHand: { status: "completed", decision: "continue_discovery", reason: "There are unfetched leads.", direction: null, confidence: 0.8, model: "test-model", error: null },
+    });
+    for (const prompt of [rightHandPrompt, bossPrompt]) {
+      expect(prompt).toContain("AUTHORITATIVE CASE-WIDE LEAD INVENTORY");
+      expect(prompt).toContain("unfetchedLeadUrlCount=32");
+      expect(prompt).toContain(leadUrl);
+      expect(prompt).toContain("https://example.org/second-unfetched");
+      expect(prompt).toContain("failedLeadUrlCount=4");
+      expect(prompt).toContain("blockedLeadUrlCount=1");
+    }
+    expect(rightHandPrompt.length).toBeLessThanOrEqual(9_600);
+    expect(bossPrompt.length).toBeLessThanOrEqual(12_976);
+  });
+
+  it("makes explicit that Boss, not Right-hand, owns whether to adopt a proposed direction", () => {
+    const report = compactAtlasInvestigatorReport(reportWithUnfetchedLead());
+    const prompt = buildAtlasBossControlPrompt({
+      investigatorReport: report,
+      compactState: "Current accepted objective is a broad owner/operator discovery mission.",
+      rightHand: { status: "completed", decision: "continue_discovery", reason: "Explore Nordic public registries.", direction: "Investigate regional private manufacturers in Sweden using official business registers.", confidence: 0.8, model: "test-model", error: null },
+    });
+    expect(prompt).toContain("Right-hand remains advisory");
+    expect(prompt).toContain("a null direction means deliberately continuing the existing accepted objective");
+  });
+});
