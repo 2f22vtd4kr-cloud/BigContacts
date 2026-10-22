@@ -175,7 +175,7 @@ describe("investigator context compaction", () => {
 
   it("omits whole URL tokens when emergency head-tail compaction would split one", () => {
     const longUrl = "https://registry.example.test/filings/" + "a".repeat(250);
-    const source = "H".repeat(60) + longUrl + "T".repeat(140);
+    const source = "H".repeat(60) + " " + longUrl + " " + "T".repeat(140);
     const compacted = compactPromptSectionPreservingUrlTokens(source, 300);
 
     expect(compacted.length).toBeLessThanOrEqual(300);
