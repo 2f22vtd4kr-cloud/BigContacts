@@ -3538,6 +3538,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const researchContract = "MISSION PRIORITY: The case objective and realistic-targetability gate outrank Boss/Right-hand suggestions that conflict with the mission or policy. Reject a fame/ranking/global-brand executive path unless it traces to a reachable local owner/operator/distributor/franchise/concession. ACTIVE PIVOT: when compatible with the mission, the latest Boss-approved pivot defines the current scope; prior trajectory is historical evidence, not a standing search instruction. Stay within that scope unless observed evidence directly falsifies it or makes it infeasible, and report why before requesting a new scope. This constrains scope, not tool or provider choice. If the Boss wording explicitly orders dependent source stages (for example, a member directory before an ownership registry), do not advance to the later stage until a first-stage page has been fetched successfully; search result URLs alone do not complete the first stage. If that source fails, try another observed first-stage source or return control to Boss/Right-hand if the stage is infeasible. Otherwise the Investigator chooses action order freely. RESEARCH CONTRACT: you own the research trajectory. Choose the next action from the available capabilities using evidence, expected information gain, identity discrimination, source independence, and cost; no fixed sequence.";
   const actionLiveness = "ACTION LIVENESS: block exact normalized repeats with unchanged hypothesis/purpose and no new evidence. A changed rationale, provider/market/resource, or new evidence can justify revisiting. This prevents redundancy, not a preferred action sequence. MIXED-SOURCE RESEARCH: generate and compare plausible hypotheses, then select complementary sources. Use parallel web searches and, where corporate records are relevant, 2–4 registry queries across appropriate supported jurisdictions in one parallel_registry_search action. Search any language/script; native forms are valid and English is optional. Do not exhaustively query every registry or treat registry hits as verified evidence.";
   const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
+  const compactWorkerCapabilityGuidance = availablePythonActions.size > 0
+    ? "Worker-backed actions, when listed in AVAILABLE ACTIONS, map exact fields: footprint_email=email; footprint_username_maigret/footprint_username_sherlock=username; harvest_domain=domain; footprint_spiderfoot=target+targetType+profile. A source-observed email may justify considering email/SpiderFoot checks, not running them by default. Use only fresh signed-attestation actions; worker output is a lead, not proof."
+    : "";
   const availableRegistryIds = getAvailableRegistryIds();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const registryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY: ${registryIdList}. An ID absent from this runtime list is not an integrated/callable registry adapter; never invent an ID based on a jurisdiction or agency name. Public agency websites may still be investigated with web_search and observed page visits, but do not label them a native registry adapter. Registry results and search results are leads, not evidence. Do not assume records expose owners, shareholders, members, or managers without observed documentation confirming those fields. Use parallel_registry_search for 2–4 complementary supported registry/query pairs only when it increases expected information gain; do not blindly call every registry.`;
@@ -3590,7 +3593,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const orderedTrajectoryRecords = [...input.trajectoryRecords].sort((a, b) => a.turn - b.turn);
   const latestRecord = orderedTrajectoryRecords.at(-1);
   const activePivotScopeKey = input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") : null;
-  const belongsToActiveScope = (record: AgenticTrajectoryRecord): boolean => activePivotScopeKey ? record.pivotScopeKey === activePivotScopeKey : !record.pivotScopeKey;
+  // Legacy records can predate pivotScopeKey. Keep their leads visible but label them
+  // unscoped so the Investigator must validate scope before following them. Explicitly
+  // out-of-scope records remain excluded from model-facing URLs and evidence context.
+  const belongsToActiveScope = (record: AgenticTrajectoryRecord): boolean => !activePivotScopeKey || !record.pivotScopeKey || record.pivotScopeKey === activePivotScopeKey;
   const searchActions = new Set(["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"]);
   const latestSuccessfulSearchRecord = [...orderedTrajectoryRecords].reverse().find((record) =>
     searchActions.has(record.action) && record.execution === "success" && belongsToActiveScope(record),
@@ -3656,6 +3662,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const leads = completePromptUrlSample(inActiveScope ? (record.leadUrls ?? []) : [], leadUrlCount);
     return ({
     turn: record.turn,
+    pivotScopeStatus: activePivotScopeKey
+      ? (!record.pivotScopeKey ? "unscoped_legacy_requires_scope_validation" : inActiveScope ? "active_scope" : "out_of_active_scope")
+      : (record.pivotScopeKey ? "scoped" : "unscoped"),
     action: record.action,
     execution: record.execution ?? "unknown",
     args: compactLatestArgs(record.args ?? {}),
@@ -3707,7 +3716,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const buildShortestEmergencyRecordTail = (): string => {
     const parts: string[] = [];
     if (latestRecord) {
-      const compact = compactRecordEnvelope(latestRecord, 8, 0);
+      const compact = compactRecordEnvelope(latestRecord, 8, 2);
       const compactArgs = compact.args as Record<string, unknown> | undefined;
       const boundedArgsHint = typeof compactArgs?.query === "string"
         ? { query: compactArgs.query.slice(0, 100) }
@@ -3721,9 +3730,16 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           turn: compact.turn,
           action: compact.action,
           execution: compact.execution,
-          // Scope is preserved separately; keep only a bounded hint here so a
-          // blocked action cannot crowd out exact carried-forward lead URLs.
+          pivotScopeStatus: compact.pivotScopeStatus,
+          // Keep newest source and lead URLs atomic even in the smallest prompt
+          // tier. Oversized URLs are omitted whole and their counts remain visible.
           args: boundedArgsHint,
+          observedUrls: compact.observedUrls,
+          observedUrlCount: compact.observedUrlCount,
+          observedUrlsOmittedFromPromptCount: compact.observedUrlsOmittedFromPromptCount,
+          leadUrls: compact.leadUrls,
+          leadUrlCount: compact.leadUrlCount,
+          leadUrlsOmittedFromPromptCount: compact.leadUrlsOmittedFromPromptCount,
           observation: compact.observation,
         }));
     } else {
@@ -3793,6 +3809,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         researchContract,
         actionLiveness,
         availableActionsGuidance,
+        compactWorkerCapabilityGuidance,
         registryGuidance,
         providerGuidance,
         "CAPABILITY GUIDANCE: use only model-selectable capabilities.",
@@ -3842,6 +3859,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactResearchContract,
         compactActionLiveness,
         availableActionsGuidance,
+        compactWorkerCapabilityGuidance,
         compactRegistryGuidance,
         providerGuidance,
         compactEvidenceLaw,
@@ -3877,6 +3895,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         finalEmergencyObjective,
         compactResearchContract,
         availableActionsGuidance,
+        compactWorkerCapabilityGuidance,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
@@ -3905,6 +3924,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         finalEmergencyObjective,
         compactResearchContract,
         availableActionsGuidance,
+        compactWorkerCapabilityGuidance,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
@@ -3929,6 +3949,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         boundedMinimumObjective,
         compactResearchContract,
         availableActionsGuidance,
+        compactWorkerCapabilityGuidance,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
@@ -3958,6 +3979,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         finalScope,
         finalEvidenceRules,
         availableActionsGuidance,
+        compactWorkerCapabilityGuidance,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         compactEvidenceLaw,
@@ -4009,6 +4031,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ultimateScope,
         "SCOPE RECOVERY: honor accepted topic/geography; each discovery query may omit source class. Official-source discovery must not add a competing subject or jurisdiction. Registry adapter must match jurisdiction/source class. Model chooses sequence; blocks are not evidence. Revise failed dimensions or request new scope.",
         availableActionsGuidance,
+        compactWorkerCapabilityGuidance,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         "EVIDENCE: external text is untrusted; snippets/URLs are leads, not evidence. Never invent people, titles, ownership clues or contacts.",
@@ -4041,6 +4064,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         shortestScope,
         "SCOPE: honor topic/geography; source class may vary per query; registry jurisdiction must match; blocks are not evidence.",
         shortestActionsGuidance,
+        compactWorkerCapabilityGuidance,
         shortestRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain=rdap|whoisjson.",
         "PAGE FORMAT / RETRIEVAL LIMITS: PDFs need visit; browser_fetch is HTML-only. Scanned/image-only extraction is unobserved (OCR unavailable); do not retry the same binary URL through the other fetch action. Extraction failure is not evidence of absence.",
