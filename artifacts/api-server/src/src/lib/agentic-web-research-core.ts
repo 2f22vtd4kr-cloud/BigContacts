@@ -3673,7 +3673,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           turn: compact.turn,
           action: compact.action,
           execution: compact.execution,
-          args: compact.args,
+          // Scope is preserved separately; keep only a bounded hint here so a
+          // blocked action cannot crowd out exact carried-forward lead URLs.
+          args: compact.args && typeof compact.args.query === "string"
+            ? { query: compact.args.query.slice(0, 100) }
+            : compact.args && typeof compact.args.url === "string"
+              ? { url: compact.args.url.slice(0, 180) }
+              : undefined,
           observation: compact.observation,
         }));
     } else {
@@ -3981,10 +3987,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const shortestActionsGuidance = "ACTIONS: " + availableActions.join("|") + ".";
       const shortestRegistryGuidance = `REGISTRY GUIDANCE: enabled IDs only: ${registryIdList}; never invent IDs; unavailable/failed is not a no-hit.`;
       const shortestDiscoveryGate = input.mode === "discovery"
-        ? "DISCOVERY GATE: People—not companies or executive prestige—are the targets; organizations are leads. Avoid generic wealth/net-worth/private-equity-profile searches alone; avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor approved Boss scope; topic/geography must match but source class need not appear in every discovery query. Official-source discovery must not introduce a competing subject or jurisdiction. No preset targets/queries or placeholders. News publishers/articles are leads, never targets/access routes. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
+        ? "DISCOVERY GATE: People—not companies/prestige—are targets; organizations are leads. Honor Boss topic/geography; source class may vary per query; never introduce a competing subject/jurisdiction. Avoid generic wealth/profile searches, rankings and famous brands without a plausible local owner/operator route. No preset targets/placeholders; news publishers/articles are leads, not targets/access routes. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
         : "";
       const shortestAdmission = input.mode === "discovery"
-        ? "DISCOVERY LEAD HANDOFF CONTRACT: review-only PersonCandidate requires exact full name, page-stated role, and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages are acceptable only when directly binding exact name and role. Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. This is not an HNWI conclusion. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion."
+        ? "DISCOVERY LEAD HANDOFF CONTRACT: review-only PersonCandidate requires exact full name, page-stated role, and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages qualify only when directly binding exact name and role. Third-party people-search/profile-directory aggregators and CONTACT FACTS (observed, not attributed) are leads, not identity evidence. This is not an HNWI conclusion. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion."
         : "";
       const shortestPrompt = [
         finalEmergencyAssignment,
