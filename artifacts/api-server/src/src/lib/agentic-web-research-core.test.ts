@@ -325,7 +325,8 @@ describe("attested Python OSINT capabilities remain model-selectable when the ru
     });
 
     expect(prompt).toContain("AVAILABLE ACTIONS: footprint_email | footprint_spiderfoot | web_search.");
-    expect(prompt).toContain("Worker-backed actions, when listed in AVAILABLE ACTIONS");
+    expect(prompt).toContain("Conditional specialist OSINT actions");
+    expect(prompt).toContain("ONLY if the exact action appears in AVAILABLE ACTIONS this turn");
     expect(prompt).not.toContain("intentionally not available capabilities");
     const responseFormat = structuredActionResponseFormat("openai/gpt-oss-20b", actionAllowlist) as {
       json_schema: { schema: { properties: { action: { enum: string[] } } } };
@@ -2194,6 +2195,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
     expect(prompt).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
     expect(prompt).toContain("not evidence or a mandated next action");
+    expect(prompt).toContain("BINARY URL POLICY");
     expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
     expect(prompt).not.toContain("must visit");
   });
