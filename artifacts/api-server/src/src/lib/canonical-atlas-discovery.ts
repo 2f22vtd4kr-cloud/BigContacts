@@ -5,12 +5,12 @@ import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
-import { ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandApprovalReview, type AtlasControlAction } from "./atlas-control-decision";
+import { ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandApprovalReview, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
-import { buildDiscoveryLeadUtilizationState, isUntargetableDiscoveryPersonName, type AgenticFinding } from "./agentic-web-research-core";
+import { buildDiscoveryLeadUtilizationState, discoveryPivotScopeKey, isUntargetableDiscoveryPersonName, type AgenticFinding } from "./agentic-web-research-core";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
@@ -1734,7 +1734,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       controlTurns += 1;
       const controlValidationFeedback = rejectedControlDecision;
       failureStage = "oversight_control_decision";
-      const decision = await decideAtlasNextAction({ objective: activeDiscoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls }) => { const finding = discovery.findings.find((candidate) => normalizeCandidateIdentityName(candidate.personName ?? "") === normalizeCandidateIdentityName(name) && candidate.promotionDecision === "promote" && candidate.scope === "candidate"); return { name, role: finding?.role ?? null, sourceUrls }; }), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: discovery.findings.map((finding) => ({ personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, investigatorReport: JSON.stringify({
+      const controlFindings = [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])];
+      const controlLeadInventory = buildDiscoveryLeadUtilizationState(discovery.trajectoryRecords ?? []);
+      const pinnedControlState = buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective), leadInventory: controlLeadInventory, admittedCandidates: admittedCandidateSources, findings: controlFindings });
+      const decision = await decideAtlasNextAction({ objective: activeDiscoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls }) => { const finding = controlFindings.find((candidate) => normalizeCandidateIdentityName(candidate.personName ?? "") === normalizeCandidateIdentityName(name) && candidate.promotionDecision === "promote" && candidate.scope === "candidate"); return { name, role: finding?.role ?? null, sourceUrls }; }), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: controlFindings.map((finding) => ({ value: finding.value, personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, pinnedControlState, investigatorReport: JSON.stringify({
         provider: boss.investigatorLlm,
         controlValidationFeedback: controlValidationFeedback ? (controlValidationFeedback.kind === "pivot_direction"
           ? `The previous Boss pivot at control turn ${controlValidationFeedback.controlTurn} was rejected by deterministic control validation: ${controlValidationFeedback.reason}. No Investigator tool was executed. Choose a corrected research question or a different valid control action; do not include a concrete URL or prescribe a provider/tool. This feedback is control state, not research evidence.`

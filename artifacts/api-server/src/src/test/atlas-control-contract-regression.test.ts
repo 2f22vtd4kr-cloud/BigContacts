@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
-import { atlasBudgetInterpretationLaw, atlasSourceRouteRecoveryLaw, ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { atlasBudgetInterpretationLaw, atlasSourceRouteRecoveryLaw, ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasPinnedControlState, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -904,5 +904,68 @@ describe("model-request audit correlation", () => {
     expect(canonicalDiscoverySource).toContain("{ jobId: atlasJobId, caseId: discoveryCaseId }");
     expect(canonicalDiscoverySource).toContain("jobId: atlasJobId");
     expect(canonicalDiscoverySource).toContain("caseId: opts.discoveryCaseId ?? null");
+  });
+});
+
+
+describe("Atlas supervisor pinned state survives discovery-history compaction", () => {
+  const pinned = buildAtlasPinnedControlState({
+    activeScope: "Identify beneficial owners of private manufacturing companies in Stockholm County via Swedish public filings",
+    leadInventory: {
+      searchResultLeadUrlCount: 42,
+      successfullyFetchedLeadUrlCount: 10,
+      unfetchedLeadUrlCount: 32,
+      failedLeadUrlCount: 3,
+      blockedLeadUrlCount: 1,
+      unfetchedLeadUrls: [
+        "https://registry.example.test/company-search",
+        "https://industry.example.test/member-directory",
+        "https://filings.example.test/private-manufacturer",
+      ],
+      failedLeadUrls: [{ url: "https://broken.example.test/registry", action: "browser_fetch", execution: "error", failureDomain: "external_page_fetch", failureKind: "request_failure" }],
+      blockedLeadUrls: [{ url: "https://blocked.example.test/lookup", action: "visit", failureDomain: "preflight", failureKind: "scope_guard" }],
+    },
+    admittedCandidates: [],
+    findings: [],
+  });
+
+  it("pins the active Boss scope and full lead counts outside the compacted historical state", () => {
+    expect(pinned).toContain("ACTIVE ACCEPTED BOSS SCOPE");
+    expect(pinned).toContain("Stockholm County");
+    expect(pinned).toContain('"unfetchedLeadUrlCount":32');
+    expect(pinned).toContain("https://registry.example.test/company-search");
+    expect(pinned).toContain("FAILED ROUTES");
+    expect(pinned).toContain("PREFLIGHT-BLOCKED ROUTES");
+    expect(pinned).toContain("Do not say no leads remain if unfetchedLeadUrlCount is positive");
+  });
+
+  it("keeps the pinned lead inventory visible to both Right-hand and Boss despite huge history text", () => {
+    const rightHandPrompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: "report " + "R".repeat(20_000),
+      compactState: "history " + "H".repeat(30_000) + " COMPACT HISTORY TAIL",
+      pinnedControlState: pinned,
+    });
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: "report " + "R".repeat(40_000),
+      compactState: "history " + "H".repeat(80_000) + " COMPACT HISTORY TAIL",
+      pinnedControlState: pinned,
+      rightHand: { status: "completed", decision: "continue_discovery", reason: "Remaining leads are still listed.", direction: null, confidence: 0.8, model: "test-model", error: null },
+    });
+
+    expect(rightHandPrompt).toContain("PINNED AUTHORITATIVE CASE STATE");
+    expect(rightHandPrompt).toContain('"unfetchedLeadUrlCount":32');
+    expect(rightHandPrompt).toContain("https://registry.example.test/company-search");
+    expect(bossPrompt).toContain("PINNED AUTHORITATIVE CASE STATE");
+    expect(bossPrompt).toContain('"unfetchedLeadUrlCount":32');
+    expect(bossPrompt).toContain("https://registry.example.test/company-search");
+    expect(rightHandPrompt.length).toBeLessThanOrEqual(9_600);
+    expect(bossPrompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
+  });
+
+  it("passes the durable inventory and nonterminal partial findings into control decisions", () => {
+    expect(canonicalDiscoverySource).toContain("const controlFindings = [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])]");
+    expect(canonicalDiscoverySource).toContain("buildDiscoveryLeadUtilizationState(discovery.trajectoryRecords ?? [])");
+    expect(canonicalDiscoverySource).toContain("buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective)");
+    expect(canonicalDiscoverySource).toContain("pinnedControlState, investigatorReport:");
   });
 });
