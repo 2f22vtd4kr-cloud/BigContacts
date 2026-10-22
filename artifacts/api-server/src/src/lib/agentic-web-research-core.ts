@@ -4105,7 +4105,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (hardMinimumPrompt.length <= maxUserPromptChars) return hardMinimumPrompt;
       // Preserve atomic evidence URLs even when the provider ceiling is unusually small.
       // This last form uses fewer trajectory fields and keeps the complete output envelope.
-      const absoluteMinimumPrompt = [
+      const ultraCompactEmergencyPrompt = [
         finalEmergencyAssignment,
         activeScope ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 60) : "CASE OBJECTIVE: public-source research; never invent evidence.",
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
@@ -4117,7 +4117,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         hardMinimumOutputContract,
         hardMinimumTail,
       ].join("\n\n");
-      if (absoluteMinimumPrompt.length <= maxUserPromptChars) return absoluteMinimumPrompt;
+      if (ultraCompactEmergencyPrompt.length <= maxUserPromptChars) return ultraCompactEmergencyPrompt;
       throw new Error("Canonical Investigator critical prompt contract exceeds the provider ceiling.");
     }
     const boundedState = boundedAuxiliaryState(dynamicState, compactBudget);
