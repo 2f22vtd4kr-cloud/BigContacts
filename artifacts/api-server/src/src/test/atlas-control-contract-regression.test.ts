@@ -864,8 +864,8 @@ describe("scope-recovery control feedback delivery", () => {
     expect(compacted.scopeRecoveryFeedback).toBe(feedback);
     expect(controlSource).toContain("scopeRecoveryFeedback: boundedText(parsed.scopeRecoveryFeedback, 1_200)");
     expect(controlSource).toContain("When supplied scope-recovery feedback reports repeated preflight blocks");
-    expect(controlSource).toContain("const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState });");
-    expect(controlSource).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, rightHand });");
+    expect(controlSource).toContain("const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState });");
+    expect(controlSource).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, rightHand });");
   });
 });
 
