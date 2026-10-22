@@ -182,19 +182,23 @@ function exportToCsv(entities: any[]) {
 
 // ─── Continue a discovery case or re-run target research ──────────────────────
 
-function discoveryCaseIdFromMetadata(raw?: string | null): number | null {
+function caseIdFromMetadata(raw: string | null | undefined, key: "discoveryCaseId" | "targetCaseId"): number | null {
   try {
     const metadata = raw ? JSON.parse(raw) as Record<string, unknown> : {};
-    const value = Number(metadata.discoveryCaseId);
+    const value = Number(metadata[key]);
     return Number.isSafeInteger(value) && value > 0 ? value : null;
   } catch {
     return null;
   }
 }
 
-function RerunButton({ entityId, discoveryCaseId, researchDepth }: {
+function discoveryCaseIdFromMetadata(raw?: string | null): number | null { return caseIdFromMetadata(raw, "discoveryCaseId"); }
+function targetCaseIdFromMetadata(raw?: string | null): number | null { return caseIdFromMetadata(raw, "targetCaseId"); }
+
+function RerunButton({ entityId, discoveryCaseId, targetCaseId, researchDepth }: {
   entityId: number;
   discoveryCaseId: number | null;
+  targetCaseId: number | null;
   researchDepth: "fast" | "standard" | "deep";
 }) {
   const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
@@ -204,7 +208,15 @@ function RerunButton({ entityId, discoveryCaseId, researchDepth }: {
     if (state === "running") return;
     setState("running");
     try {
-      if (discoveryCaseId !== null) {
+      if (targetCaseId !== null) {
+        const response = await fetch(`/api/research/bureau/target-cases/${encodeURIComponent(String(targetCaseId))}/run-next-pass`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ researchDepth }),
+        });
+        const payload = await readApiJson(response);
+        if (!response.ok) throw new Error(payload?.error || payload?.message || "failed");
+      } else if (discoveryCaseId !== null) {
         const response = await fetch(`/api/research/bureau/cases/${encodeURIComponent(String(discoveryCaseId))}/run-next-pass`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -228,7 +240,8 @@ function RerunButton({ entityId, discoveryCaseId, researchDepth }: {
     : state === "done" ? <CheckCheck className="w-3.5 h-3.5" />
     : state === "error" ? <XCircle className="w-3.5 h-3.5" />
     : <TargetIcon className="w-3.5 h-3.5" />;
-  const label = state === "running" ? "Running" : state === "done" ? (discoveryCaseId !== null ? "Queued" : "Started") : state === "error" ? "Failed" : discoveryCaseId !== null ? "Continue" : "Re-run";
+  const hasCaseToContinue = targetCaseId !== null || discoveryCaseId !== null;
+  const label = state === "running" ? "Running" : state === "done" ? (hasCaseToContinue ? "Queued" : "Started") : state === "error" ? "Failed" : hasCaseToContinue ? "Continue" : "Re-run";
   const cls = state === "done"
     ? "bg-[#9CFF1A]/10 border-[#9CFF1A]/30 text-[#b8ff4d]"
     : state === "error"
@@ -240,8 +253,8 @@ function RerunButton({ entityId, discoveryCaseId, researchDepth }: {
       onClick={handleRerun}
       disabled={state === "running"}
       className={cn("flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors disabled:opacity-60", cls)}
-      title={discoveryCaseId !== null ? "Continue investigation from this durable discovery case using the selected research depth" : "Start a canonical single-target Atlas investigation"}
-      aria-label={discoveryCaseId !== null ? "Continue investigation from this discovery case" : "Re-run target investigation"}
+      title={targetCaseId !== null ? "Continue this target investigation from its durable context using the selected research depth" : discoveryCaseId !== null ? "Continue the discovery investigation using the selected research depth" : "Start a canonical single-target Atlas investigation"}
+      aria-label={targetCaseId !== null ? "Continue target investigation" : discoveryCaseId !== null ? "Continue discovery investigation" : "Re-run target investigation"}
     >
       {icon}
       <span className="text-[11px] font-mono uppercase">{label}</span>
@@ -443,7 +456,7 @@ function MobileEntityCard({
               <Network className="w-3.5 h-3.5" />
               <span className="text-[11px] font-mono uppercase">Network</span>
             </Link>
-            <RerunButton entityId={entity.id} discoveryCaseId={discoveryCaseIdFromMetadata(entity.metadata)} researchDepth={researchDepth} />
+            <RerunButton entityId={entity.id} discoveryCaseId={discoveryCaseIdFromMetadata(entity.metadata)} targetCaseId={targetCaseIdFromMetadata(entity.metadata)} researchDepth={researchDepth} />
             <button
               type="button"
               onClick={(e) => {
