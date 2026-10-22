@@ -4111,7 +4111,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
         "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID.",
-        "PDF RETRIEVAL: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-only; OCR is unavailable. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
+        compactCriticalRetrievalGuidance,
         "EVIDENCE: snippets are leads, not evidence. Never invent identities, ownership, URLs or contacts.",
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ".",
         hardMinimumOutputContract,
