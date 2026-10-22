@@ -3980,6 +3980,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "CASE OBJECTIVE: source-backed real-person research; never invent evidence.";
       const shortestActionsGuidance = "ACTIONS: " + availableActions.join("|") + ".";
       const shortestRegistryGuidance = `REGISTRY GUIDANCE: enabled IDs only: ${registryIdList}; never invent IDs; unavailable/failed is not a no-hit.`;
+      const shortestDiscoveryGate = input.mode === "discovery"
+        ? "DISCOVERY GATE: People—not companies or executive prestige—are the targets; organizations are leads. Avoid generic wealth/net-worth/private-equity-profile searches alone; avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor approved Boss scope; topic/geography must match but source class need not appear in every discovery query. Official-source discovery must not introduce a competing subject or jurisdiction. No preset targets/queries or placeholders. News publishers/articles are leads, never targets/access routes. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
+        : "";
+      const shortestAdmission = input.mode === "discovery"
+        ? "DISCOVERY LEAD HANDOFF CONTRACT: review-only PersonCandidate requires exact full name, page-stated role, and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages are acceptable only when directly binding exact name and role. Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. This is not an HNWI conclusion. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion."
+        : "";
       const shortestPrompt = [
         finalEmergencyAssignment,
         shortestScope,
@@ -3990,8 +3996,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "EVIDENCE: fetched text only; snippets/URLs are leads; never invent people, roles, ownership or contacts.",
         "PAGE FORMAT / RETRIEVAL LIMITS: use extracted text; supported PDFs yield bounded text only; scanned/image-only extraction is unobserved, not evidence of absence.",
         "TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + "; pass every gate before done.",
-        ultimateDiscoveryGate,
-        ultimateAdmission,
+        shortestDiscoveryGate,
+        shortestAdmission,
         compactOutputContract,
         buildShortestEmergencyRecordTail(),
       ].filter(Boolean).join("\n\n");
