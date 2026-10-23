@@ -93,7 +93,8 @@ describe("durable discovery projection URL integrity", () => {
     // the case-file projection has recorded an omitted URL.
     expect(bureauAgenticPassSource).toContain("if (!hasUrlOmissions) return document;");
     expect(bureauAgenticPassSource).toContain("hasDurableUrlProjectionOmissions,");
-    expect(bureauAgenticPassSource).toContain("parsed.hasDurableUrlProjectionOmissions === true");
+    expect(bureauAgenticPassSource).toContain("hasDurableUrlProjectionOmissionsHelper(");
+    expect(bureauAgenticPassSource).toContain("parsed.hasDurableUrlProjectionOmissions,");
     expect(bureauAgenticPassSource).toContain("buildDurableUrlInventoryFromEventPayloads(payloadRows.map((entry) => entry.payload))");
   });
   it("rehydrates the immutable URL inventory after the last-64 trajectory projection evicts older records", () => {
