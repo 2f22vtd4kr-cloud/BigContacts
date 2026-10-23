@@ -26,7 +26,7 @@ jobs:
       - name: Checkout the fixed main snapshot under review
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: f53dbd1fd246cea2162b4f14e16badd60c4542d4
+          ref: 4e476ea3147a3f9ade4f650a221ab636a89c9e3f
           path: audit-source
           fetch-depth: 1
           persist-credentials: false
@@ -38,7 +38,7 @@ jobs:
       - name: Upload complete findings and per-path manifest
         uses: actions/upload-artifact@v4
         with:
-          name: repository-line-audit-f53dbd1-2026-10-23
+          name: repository-line-audit-4e476ea-2026-10-23
           path: |
             audit-tools/audit-output/REPOSITORY_LINE_AUDIT_2026-10-23.md
             audit-tools/audit-output/REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv
@@ -49,11 +49,11 @@ jobs:
       - name: Commit audit report to the isolated audit branch
         run: |
           mkdir -p audit-tools/audits
-          cp audit-tools/audit-output/REPOSITORY_LINE_AUDIT_2026-10-23.md audit-tools/audits/
-          cp audit-tools/audit-output/REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv audit-tools/audits/
-          cp audit-tools/audit-output/REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json audit-tools/audits/
+          cp audit-tools/audit-output/REPOSITORY_LINE_AUDIT_2026-10-23.md audit-tools/audits/CURRENT_MAIN_REPOSITORY_LINE_AUDIT_2026-10-23.md
+          cp audit-tools/audit-output/REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv audit-tools/audits/CURRENT_MAIN_REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv
+          cp audit-tools/audit-output/REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json audit-tools/audits/CURRENT_MAIN_REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json
           git -C audit-tools config user.name "github-actions[bot]"
           git -C audit-tools config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git -C audit-tools add audits/REPOSITORY_LINE_AUDIT_2026-10-23.md audits/REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv audits/REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json
-          git -C audit-tools commit -m "Record pinned-snapshot line-by-line audit results"
+          git -C audit-tools add audits/CURRENT_MAIN_REPOSITORY_LINE_AUDIT_2026-10-23.md audits/CURRENT_MAIN_REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv audits/CURRENT_MAIN_REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json
+          git -C audit-tools commit -m "Record current-main static audit results"
           git -C audit-tools push origin HEAD:audit/line-by-line-main-20261023
