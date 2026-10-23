@@ -9,6 +9,7 @@ const rootPackage = JSON.parse(read("package.json"));
 const bureau = String(rootPackage.scripts?.["check:bureau"] ?? "");
 const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const initializer = read("scripts/initialize-apex-schema.sh");
+const postMerge = read("scripts/post-merge.sh");
 const dbPackage = JSON.parse(read("lib/db/package.json"));
 const finalReviewPath = "artifacts/api-server/src/src/lib/ai-extractor.ts";
 const finalReview = fs.existsSync(`${root}/${finalReviewPath}`) ? read(finalReviewPath) : "";
@@ -24,6 +25,9 @@ const sourceAssertions = [
   ["retired legacy final-review surface has no fallback path", !fs.existsSync(`${root}/${finalReviewPath}`) || (!/groq-final-review-fallback/i.test(finalReview) && !/Groq capacity fallback/i.test(finalReview))],
   ["registry cancellation has a dedicated invariant gate", both.includes("check-agentic-registry-signal.mjs") && bureau.includes("check:agentic-registry-signal")],
   ["registry cancellation is source-native", !fs.existsSync(`${root}/scripts/apply-registry-cancellation-boundary.mjs`) && !fs.existsSync(`${root}/scripts/apply-agentic-registry-signal-wiring.mjs`)],
+  ["post-merge checks fail fast rather than masking earlier failures", /^set -euo pipefail$/m.test(postMerge)],
+  ["post-merge does not perform an unguarded raw Drizzle schema push", !/pnpm --filter @workspace\/db run push/.test(postMerge)],
+  ["post-merge gates schema mutation and delegates to the full initializer", /if \\[\\[ "\\$\\{APEX_ALLOW_SCHEMA_PUSH:-false\\}" == "true" \\]\\]; then[\\s\\S]*bash scripts\/initialize-apex-schema\\.sh/.test(postMerge)],
   ["explicit schema initialization applies committed migrations in order", (() => { const p = [initializer.indexOf('if [[ "${APEX_ALLOW_SCHEMA_PUSH:-false}" != "true" ]]'), initializer.indexOf("pnpm --filter @workspace/db run push"), initializer.indexOf("pnpm --filter @workspace/db run harden"), initializer.indexOf("lib/db/migrations/002-contact-outcome.sql"), initializer.indexOf("lib/db/migrations/003-atlas-review-candidate-type.sql"), initializer.indexOf("lib/db/migrations/004-registry-candidate-truth.sql"), initializer.indexOf('echo "[apex-schema] verifying required Apex durable tables and invariants..."')]; return p.every((value) => value >= 0) && p.every((value, index) => index === 0 || p[index - 1] < value) && String(dbPackage.scripts?.harden ?? "").includes("001-apex-invariants.sql"); })()],
 ];
 for (const [label, ok] of sourceAssertions) { if (!ok) { console.error(`SOURCE PARITY FAIL: ${label}`); failed = true; } }
