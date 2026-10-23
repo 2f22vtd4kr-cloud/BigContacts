@@ -4117,7 +4117,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         shortestRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain=rdap|whoisjson.",
         compactCriticalRetrievalGuidance,
-        "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + "; pass every gate before done.",
+        "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; pass every gate before done.",
         shortestDiscoveryGate,
         shortestAdmission,
         compactOutputContract,
@@ -4128,7 +4128,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // optional narration and context first, while retaining live actions, scope,
       // provenance, terminal rules, review-lead admission, and the latest durable URLs.
       const hardMinimumTail = buildShortestEmergencyRecordTail();
-      const hardMinimumOutputContract = "OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Unused scalars=null; arrays=[]. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. PARTIAL FINDINGS: after successful visit/browser_fetch, emit an unpromoted organization review finding for each observed organization plus material transaction/ownership/business fact; exact name, person/role=null, sourceUrls=[that fetched URL]. Person review lead needs exact full name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Snippets and failed/blocked fetches are not evidence; never infer HNWI/contact.";
+      const hardMinimumOutputContract = "OUTPUT CONTRACT: one JSON root object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Unused scalars=null; arrays=[]. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. PARTIAL FINDINGS (not terminal-only): After a successful visit/browser_fetch, emit an unpromoted organization review finding for a source-stated organization plus a material transaction/ownership/business fact (person/role=null; sourceUrls=[that fetched URL]). A person review lead needs exact full name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Snippets and failed/blocked fetches are not evidence; never infer HNWI/contact.";
       const hardMinimumPrompt = [
         finalEmergencyAssignment,
         activeScope
