@@ -5,7 +5,7 @@ import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { resolveMonotonicResearchCaseIteration } from "./research-case-event-iteration";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
-import { buildDurableUrlInventoryFromEventPayloads, compactDurableDiscoveryRecords } from "./durable-discovery-projection";
+import { buildDurableUrlInventoryFromEventPayloads, compactDurableDiscoveryRecords, hasDurableUrlProjectionOmissions as hasDurableUrlProjectionOmissionsHelper } from "./durable-discovery-projection";
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 import { resolveResearchDepth } from "./research-depth";
 import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsReviewableClaimAcrossObservations } from "./bureau-contact-persist-strict";
@@ -100,15 +100,10 @@ async function loadMountedCaseContext(
   const projectedRecords = Array.isArray(parsed.investigatorTrajectoryRecords)
     ? parsed.investigatorTrajectoryRecords.filter((record): record is Record<string, unknown> => Boolean(record) && typeof record === "object")
     : [];
-  const hasUrlOmissions = parsed.hasDurableUrlProjectionOmissions === true || projectedRecords.some((record) => {
-    const omissions = record.durableProjectionOmissions;
-    if (!omissions || typeof omissions !== "object" || Array.isArray(omissions)) return false;
-    const counts = omissions as Record<string, unknown>;
-    return [
-      "argumentUrls", "argumentTextsWithUrls", "observedUrls", "leadUrls",
-      "findingSourceUrls", "sourceBindingUrls", "textUrls",
-    ].some((key) => Number(counts[key]) > 0);
-  });
+  const hasUrlOmissions = hasDurableUrlProjectionOmissionsHelper(
+    parsed.hasDurableUrlProjectionOmissions,
+    projectedRecords,
+  );
   if (!hasUrlOmissions) return document;
 
   const payloadRows = await db.select({ payload: researchCaseEventsTable.payload })
@@ -156,10 +151,10 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
   // Keep the need to rehydrate omitted URLs beyond the bounded last-64 record
   // window; otherwise a later continuation would forget that durable URLs were
   // intentionally omitted from the caseFile projection.
-  const hasDurableUrlProjectionOmissions = current.hasDurableUrlProjectionOmissions === true || accumulatedRecords.length > durableProjectionRecords.length || durableProjectionRecords.some((record) => {
-    const omissions = (record as AgenticTrajectoryRecord & { durableProjectionOmissions?: Record<string, unknown> }).durableProjectionOmissions;
-    return Boolean(omissions) && Object.entries(omissions!).some(([key, value]) => key !== "reason" && Number(value) > 0);
-  });
+  const hasDurableUrlProjectionOmissions = hasDurableUrlProjectionOmissionsHelper(
+    current.hasDurableUrlProjectionOmissions === true || accumulatedRecords.length > durableProjectionRecords.length,
+    durableProjectionRecords,
+  );
   const incrementalSearches=newOffsetRecords.reduce((total,record)=>total+(record.action==="web_search"||record.action==="registry_search"?1:(record.action==="parallel_web_search"||record.action==="parallel_registry_search")&&Array.isArray(record.args?.searches)?record.args.searches.length:0),0);
   const incrementalVisits=newOffsetRecords.reduce((total,record)=>total+(record.action==="visit"?1:record.action==="browser_fetch"&&record.execution==="success"?1:0),0);
   const nextIteration=Math.max(priorIteration,...newOffsetRecords.map((record)=>record.turn));
