@@ -3,7 +3,7 @@
 **Audit started:** 2026-10-23 (Europe/Kyiv)<br>
 **Source:** https://github.com/2f22vtd4kr-cloud/BigContacts<br>
 **Imported `main` revision:** `0af8a6d83c9707ba4d3ffb4d5af111d31047ab84`<br>
-**Current status:** Source imported. Runtime setup and reconciliation remain in progress. No Apex run has been launched from this project.
+**Current status:** One canonical run is active; discovery has started. The first observation is in progress and no card/admission success is claimed.
 
 This is the chronological audit for this fresh project run. It records observed actions, exact non-secret commands/results, provider-visible decisions when safely observable, setup failures, fixes, and remaining gates.
 
@@ -107,6 +107,17 @@ This is the chronological audit for this fresh project run. It records observed 
 - **Action:** Reviewed the pending configuration/audit diff and ran `git diff --check` before staging the setup state.
 - **Observed issue:** The command stopped on trailing Markdown line-break spaces in the new audit header, before any files were staged or committed. No application or audit content was lost.
 - **Correction:** Replaced the trailing spaces with explicit `<br>` tags. The full diff check and local commit must pass before the clean-stamp restart.
+
+### E014 — One UI-equivalent launch accepted
+
+- **When:** 2026-10-23 21:03:45 Europe/Kyiv.
+- **Preconditions rechecked:** The worktree was clean; build stamp was revision `7832de8b16f7e3e73cec5bd1bd9e6db4f1c540e1`, `dirty=false`; health was HTTP 200 with Redis `ok`; the active Atlas pointer was idle.
+- **Action:** Sent one `POST /api/ingest/atlas-run`, matching the button's default request: `{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}`. No `singleTargetId` or `discoveryContext` was added.
+- **Observed response:** HTTP 202; job `b1933986-969e-4f02-9fcd-41353cc594a2`; poll URL `/api/ingest/job/b1933986-969e-4f02-9fcd-41353cc594a2`; accepted options confirm target count 3, standard depth, 420000 ms, no single target, and no discovery context.
+- **First poll (21:03:59 Europe/Kyiv):** HTTP 200, job `running`, phase 1/4, progress 1/4, `inserted=0`, `skipped=0`, `errors=0`, `total=4`, `cancelRequested=false`; `buildDirty=clean`. Active pointer matches this job and is active.
+- **Early provider metrics:** Three Groq HTTP 200 responses from `openai/gpt-oss-120b`; request latencies 1864, 2044, and 2537 ms; token totals 2876, 2860, and 3250. The workflow metric lines do not identify the role for each call, so role attribution is not inferred here. Remaining request quota decreased 999→997; remaining token-window values were 5512, 2960, and 449 with reset hints. No hard-quota exhaustion was observed at this checkpoint.
+- **Trace state:** The private per-run prompt-audit file is being written at the configured ignored `.local/audits/` destination (88,143 bytes at this poll). It is not copied into the tracked report. The API trace currently exposes one `ok` span and no discovery slots yet.
+- **Interpretation:** The run is accepted and actively discovering; zero insertions at this early snapshot are not a terminal result. No contact or card is claimed.
 
 ## Current gates
 
