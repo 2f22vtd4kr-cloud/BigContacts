@@ -80,13 +80,21 @@ export function compactDurableDiscoveryRecords(records: AgenticTrajectoryRecord[
   return records.slice(Math.max(0, records.length - 64)).map((record) => {
     const omissions = priorOmissions(record);
     const args: Record<string, unknown> = {};
-    for (const [key, rawValue] of Object.entries(record.args ?? {}).slice(0, MAX_DURABLE_PROJECTION_ITEMS)) {
+    const argumentEntries = Object.entries(record.args ?? {});
+    const isUrlArgument = (key: string) => /(?:url|uri)$/i.test(key);
+    // URL-bearing fields take priority so a long optional prompt argument cannot
+    // crowd an authoritative resource route out of the bounded working state.
+    const prioritizedEntries = [
+      ...argumentEntries.filter(([key]) => isUrlArgument(key)),
+      ...argumentEntries.filter(([key]) => !isUrlArgument(key)),
+    ];
+    const projectedEntries = prioritizedEntries.slice(0, MAX_DURABLE_PROJECTION_ITEMS);
+    for (const [key, rawValue] of projectedEntries) {
       if (typeof rawValue !== "string") {
         args[key] = rawValue;
         continue;
       }
-      const isUrlField = /(?:url|uri)$/i.test(key);
-      if (isUrlField) {
+      if (isUrlArgument(key)) {
         if (rawValue.startsWith("[URL omitted from bounded case-file projection;")) {
           args[key] = rawValue;
           continue;
@@ -107,6 +115,17 @@ export function compactDurableDiscoveryRecords(records: AgenticTrajectoryRecord[
         continue;
       }
       args[key] = rawValue.slice(0, MAX_DURABLE_PROJECTION_TEXT_CHARS);
+    }
+    // The argument object is bounded, but omissions must remain observable even
+    // when a URL-bearing field appears after the first N source fields.
+    for (const [key, rawValue] of prioritizedEntries.slice(MAX_DURABLE_PROJECTION_ITEMS)) {
+      if (typeof rawValue !== "string") continue;
+      if (isUrlArgument(key)) {
+        if (!rawValue.startsWith("[URL omitted from bounded case-file projection;")) omissions.argumentUrls += 1;
+      } else if (/https?:\/\//i.test(rawValue)) {
+        omissions.argumentTextsWithUrls += 1;
+        omissions.textUrls += Math.max(1, [...rawValue.matchAll(URL_TOKEN_PATTERN)].length);
+      }
     }
 
     const observed = compactUrlList(record.observedUrls);
