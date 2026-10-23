@@ -97,7 +97,7 @@ describe("durable discovery projection URL integrity", () => {
     expect(bureauAgenticPassSource).toContain("hasDurableUrlProjectionOmissions,");
     expect(bureauAgenticPassSource).toContain("hasDurableUrlProjectionOmissionsHelper(");
     expect(bureauAgenticPassSource).toContain("parsed.hasDurableUrlProjectionOmissions,");
-    expect(bureauAgenticPassSource).toContain("buildDurableUrlInventoryFromEventPayloads(payloadRows.map((entry) => entry.payload))");
+    expect(bureauAgenticPassSource).toContain("buildDurableUrlInventoryFromEventPayloads(payloadRows.map((entry) => entry.payload), {");
   });
   it("rehydrates only exact-scope URLs after an accepted pivot and excludes legacy unscoped events", () => {
     const activeScopeKey = "purchase majority shares in sample manufacturing";
@@ -139,7 +139,7 @@ describe("durable discovery projection URL integrity", () => {
       "current.hasDurableUrlProjectionOmissions === true",
     );
     expect(bureauAgenticPassSource).toContain(
-      "if (!hasUrlOmissions) return document;",
+      "if (!hasUrlOmissions) return { document };",
     );
   });
 
