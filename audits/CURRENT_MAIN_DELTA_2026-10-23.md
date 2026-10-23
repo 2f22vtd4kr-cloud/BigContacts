@@ -66,6 +66,12 @@ These runs demonstrate CI validation of the exact snapshot, not live provider re
 6. **P2 legacy adapters:** some provider adapters use direct `fetch()` rather than shared governed transport. Canonical reachability must be established before migration.
 7. **Python OSINT:** implementation and dispatch code exist, including SpiderFoot, but deployment templates still contain placeholder image digests. No live worker attestation or authorized call was performed; the tool must remain unavailable unless the runtime attestation gate passes.
 
+## Critical/high static-hit triage
+
+- `SEC-DYNAMIC-EVAL` matches in `canonical-job-lock.ts` and `job-queue.ts` are calls to Redis `eval()` with constant Lua scripts implementing atomic owner/lease/status transitions. The sampled locations are not JavaScript `eval()` or `new Function()`; this rule is a false positive for code execution. Continue reviewing Lua arguments, key ownership, and the associated lock/queue tests as a separate correctness/security boundary.
+- `SEC-DYNAMIC-EVAL` in `scripts/check-canonical-job-lock-boundary.mjs` matches a source-contract guard that asserts the expected Redis Lua path; it is not a runtime evaluator.
+- `OPS-TRACKED-CONTACT-AUDIT` in `.replit` and `artifact.toml` is a real configuration concern at SHA `4e476ea...`; the two test-file hits are assertions about that configuration, not evidence of a data leak. PR #732 changes both configurations to keep prompt capture private under ignored `.local/audits/`, disable contact-data inclusion, and disable visible-file capture. It remains unmerged pending the exact-head audit workflows.
+
 ## Audit coverage statement
 
 The original baseline scan covers 3,349 blobs: 3,217 readable text files line-scanned and 132 binary/non-UTF-8 assets inventoried. It reports 79 targeted semantic-review paths, 1,046 non-documentation paths classified automated-only, and 2,092 documentation/historical paths not independently fact-checked. Those categories and line counts are for baseline `f53dbd1...`, not current main.
