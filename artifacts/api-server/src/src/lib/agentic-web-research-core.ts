@@ -3782,7 +3782,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when that offers more information than another search. Before another broad search or pivot, compare the highest-value remaining same-scope lead against the alternatives; do not treat a lack of findings from snippets as evidence against unvisited leads. The Investigator retains action choice; this is an expected-information-gain judgment, not a fixed sequence. Search-result URLs remain leads, not evidence until fetched.",
       );
     }
-    const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory ?? input.priorContext);
+    const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory);
     if (pinnedDurableInventory) parts.push(pinnedDurableInventory);
     return parts.join("\n\n");
   };
@@ -3852,7 +3852,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (latestLeadCount > 0 || carriedLeadCount > 0) {
       parts.push("LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when that offers more information than another search. This is advisory, not evidence or a mandated next action; search-result URLs remain leads, not evidence until fetched.");
     }
-    const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory ?? input.priorContext);
+    const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory);
     if (pinnedDurableInventory) parts.push(pinnedDurableInventory);
     return parts.join("\n\n");
   };
