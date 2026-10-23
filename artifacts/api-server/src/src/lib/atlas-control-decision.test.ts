@@ -111,7 +111,8 @@ describe("Atlas control-plane lead continuity", () => {
     });
     const pinned = buildAtlasPinnedControlState(makeInput(longUrl));
     expect(pinned).toContain(longUrl);
-    expect(pinned).not.toContain(longUrl.slice(0, 110));
+    expect(pinned.match(/https:\/\/registry\.example\.test\/records\/[b]+/)?.[0]).toBe(longUrl);
+    expect(pinned).not.toContain("[URL omitted whole]");
 
     const oversizedUrl = "https://registry.example.test/records/" + "c".repeat(700);
     const omitted = buildAtlasPinnedControlState(makeInput(oversizedUrl));
