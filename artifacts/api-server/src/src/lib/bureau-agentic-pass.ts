@@ -156,7 +156,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
   // Keep the need to rehydrate omitted URLs beyond the bounded last-64 record
   // window; otherwise a later continuation would forget that durable URLs were
   // intentionally omitted from the caseFile projection.
-  const hasDurableUrlProjectionOmissions = current.hasDurableUrlProjectionOmissions === true || durableProjectionRecords.some((record) => {
+  const hasDurableUrlProjectionOmissions = current.hasDurableUrlProjectionOmissions === true || accumulatedRecords.length > durableProjectionRecords.length || durableProjectionRecords.some((record) => {
     const omissions = (record as AgenticTrajectoryRecord & { durableProjectionOmissions?: Record<string, unknown> }).durableProjectionOmissions;
     return Boolean(omissions) && Object.entries(omissions!).some(([key, value]) => key !== "reason" && Number(value) > 0);
   });
