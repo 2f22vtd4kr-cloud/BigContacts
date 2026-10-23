@@ -153,6 +153,13 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
   const accumulatedTrajectory=[...priorTrajectory,...newTrajectoryLines];
   const accumulatedRecords=[...priorRecords,...newOffsetRecords];
   const durableProjectionRecords=compactDurableDiscoveryRecords(accumulatedRecords);
+  // Keep the need to rehydrate omitted URLs beyond the bounded last-64 record
+  // window; otherwise a later continuation would forget that durable URLs were
+  // intentionally omitted from the caseFile projection.
+  const hasDurableUrlProjectionOmissions = current.hasDurableUrlProjectionOmissions === true || durableProjectionRecords.some((record) => {
+    const omissions = (record as AgenticTrajectoryRecord & { durableProjectionOmissions?: Record<string, unknown> }).durableProjectionOmissions;
+    return Boolean(omissions) && Object.entries(omissions!).some(([key, value]) => key !== "reason" && Number(value) > 0);
+  });
   const incrementalSearches=newOffsetRecords.reduce((total,record)=>total+(record.action==="web_search"||record.action==="registry_search"?1:(record.action==="parallel_web_search"||record.action==="parallel_registry_search")&&Array.isArray(record.args?.searches)?record.args.searches.length:0),0);
   const incrementalVisits=newOffsetRecords.reduce((total,record)=>total+(record.action==="visit"?1:record.action==="browser_fetch"&&record.execution==="success"?1:0),0);
   const nextIteration=Math.max(priorIteration,...newOffsetRecords.map((record)=>record.turn));
@@ -175,7 +182,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
      const transactionNextIteration=Math.max(nextIteration,eventIterationFloor);
      const transactionMemoryProjection={...memoryProjection,iterations:transactionNextIteration};
      const transactionContextDocument=contextDocument.replace(JSON.stringify(memoryProjection),JSON.stringify(transactionMemoryProjection));
-    const [projected] = await tx.update(researchCasesTable).set({caseFile:JSON.stringify(sanitizeObservableValue({...current,evidenceState:durableEvidenceState,contextDocument:transactionContextDocument,investigatorTrajectory:accumulatedTrajectory,investigatorTrajectoryRecords:durableProjectionRecords,trajectoryPersistedAt:new Date().toISOString(),investigatorLlm:input.investigatorLlm??result.model,runId:input.runId,runIds:nextRunIds,searches:memoryProjection.searches,visits:memoryProjection.visits})),iteration:transactionNextIteration,currentAction:result.stopReason==="MODEL_DECIDED_DONE"?"review":"investigator-completed",updatedAt:new Date()}).where(and(eq(researchCasesTable.id,caseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${input.jobId ?? ""}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`)).returning({id:researchCasesTable.id}); if(!projected?.id) throw new Error("Discovery trajectory projection rejected by the durable cancellation/ownership fence.");
+    const [projected] = await tx.update(researchCasesTable).set({caseFile:JSON.stringify(sanitizeObservableValue({...current,hasDurableUrlProjectionOmissions,evidenceState:durableEvidenceState,contextDocument:transactionContextDocument,investigatorTrajectory:accumulatedTrajectory,investigatorTrajectoryRecords:durableProjectionRecords,trajectoryPersistedAt:new Date().toISOString(),investigatorLlm:input.investigatorLlm??result.model,runId:input.runId,runIds:nextRunIds,searches:memoryProjection.searches,visits:memoryProjection.visits})),iteration:transactionNextIteration,currentAction:result.stopReason==="MODEL_DECIDED_DONE"?"review":"investigator-completed",updatedAt:new Date()}).where(and(eq(researchCasesTable.id,caseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${input.jobId ?? ""}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`)).returning({id:researchCasesTable.id}); if(!projected?.id) throw new Error("Discovery trajectory projection rejected by the durable cancellation/ownership fence.");
      for(const record of newOffsetRecords){
        const recordEventIteration=resolveMonotonicResearchCaseIteration(record.turn,eventIterationFloor);
        eventIterationFloor=recordEventIteration;
