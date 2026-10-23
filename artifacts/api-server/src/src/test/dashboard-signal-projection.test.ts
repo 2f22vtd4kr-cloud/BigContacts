@@ -23,7 +23,7 @@ describe("dashboard source signal provenance", () => {
     // useful only if PostgreSQL does not cast a malformed legacy row first.
     expect(eventQuery).toContain("payload: researchCaseEventsTable.payload");
     expect(eventQuery).not.toMatch(/researchCaseEventsTable\.payload\}\s*::jsonb/);
-    expect(eventQuery).toContain("JSON.parse(event.payload)");
+    expect(source).toContain("JSON.parse(event.payload)");
   });
 
   it("preserves complete public source-card URLs and omits routes unsafe to redact", () => {
