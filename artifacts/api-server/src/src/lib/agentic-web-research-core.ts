@@ -38,6 +38,59 @@ import {
 } from "./provider-error-diagnostics";
 export { getAgenticLlmHealth };
 const MAX_PROMPT_URL_CHARS = 512;
+
+const DURABLE_EXACT_URL_INVENTORY_HEADING = "DURABLE EXACT URL INVENTORY (verbatim values from immutable research_case_events; URLs are leads, not evidence; never reconstruct or shorten):";
+
+/**
+ * Keep a tiny verbatim sample of ledger-recovered URLs out of the auxiliary
+ * context budget. This is only a lead inventory, not evidence or a fixed action
+ * sequence; ordinary scope, action-schema, and outbound URL guards still apply.
+ */
+function extractPinnedDurableUrlInventory(rawContext: unknown): string {
+  if (typeof rawContext !== "string") return "";
+  const headingAt = rawContext.indexOf(DURABLE_EXACT_URL_INVENTORY_HEADING);
+  if (headingAt < 0) return "";
+  const lines = rawContext.slice(headingAt + DURABLE_EXACT_URL_INVENTORY_HEADING.length).split(/\r?\n/u);
+  const urls: string[] = [];
+  const seen = new Set<string>();
+  const maxUrls = 2;
+  const maxChars = 760;
+  let usedChars = 0;
+  let omitted = 0;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const omittedMatch = trimmed.match(/^(\d+) additional URL\(s\) were omitted whole/u);
+    if (omittedMatch) {
+      omitted += Number(omittedMatch[1]);
+      break;
+    }
+    if (!trimmed.startsWith("- ")) break;
+    const candidate = trimmed.slice(2).trim();
+    const safe = completePromptUrl(candidate);
+    if (!safe || seen.has(safe)) {
+      omitted += 1;
+      continue;
+    }
+    if (urls.length >= maxUrls || safe.length > maxChars - usedChars) {
+      omitted += 1;
+      continue;
+    }
+    urls.push(safe);
+    seen.add(safe);
+    usedChars += safe.length;
+  }
+  if (!urls.length) return "";
+  const parts = [
+    "PINNED DURABLE URL INVENTORY (exact public routes recovered from immutable case events; leads, not evidence; not a mandated action order):",
+    ...urls.map((url) => "- " + url),
+  ];
+  if (omitted > 0) {
+    parts.push(String(omitted) + " additional URL(s) omitted whole from this prompt sample; the immutable case-event ledger remains authoritative. Do not reconstruct them.");
+  }
+  return parts.join("\n");
+}
+
 export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject"; promotionReason?: string };
 export type AgenticTrajectoryRecord = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; pivotScopeKey?: string; leadUrls?: string[]; execution: "selected" | "success" | "partial" | "http_error" | "blocked" | "timeout" | "error" | "cancelled"; observation?: string; observedUrls: string[]; findings: AgenticFinding[]; providerFallback?: string[]; stopReason?: AgenticWebResearchResult["stopReason"]; durableEventId?: number; failureDomain?: AtlasFailureDomain; failureKind?: AtlasFailureKind; sourceBindings?: Array<{ findingValue: string; sourceUrl: string; sourceTurn: number; spanStart: number; spanEnd: number; pageNumber: number | null }> };
 /**
@@ -3729,6 +3782,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when that offers more information than another search. Before another broad search or pivot, compare the highest-value remaining same-scope lead against the alternatives; do not treat a lack of findings from snippets as evidence against unvisited leads. The Investigator retains action choice; this is an expected-information-gain judgment, not a fixed sequence. Search-result URLs remain leads, not evidence until fetched.",
       );
     }
+    const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.priorContext);
+    if (pinnedDurableInventory) parts.push(pinnedDurableInventory);
     return parts.join("\n\n");
   };
   const buildShortestEmergencyRecordTail = (): string => {
@@ -3797,6 +3852,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (latestLeadCount > 0 || carriedLeadCount > 0) {
       parts.push("LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when that offers more information than another search. This is advisory, not evidence or a mandated next action; search-result URLs remain leads, not evidence until fetched.");
     }
+    const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.priorContext);
+    if (pinnedDurableInventory) parts.push(pinnedDurableInventory);
     return parts.join("\n\n");
   };
   const latestRecordTail = buildLatestRecordTail(220, 3);
