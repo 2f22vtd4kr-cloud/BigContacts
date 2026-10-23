@@ -9,7 +9,7 @@ import { GROQ_CHAT_MODELS } from "./groq-models";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
-import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences, sanitizeUrlsInText } from "./url-privacy";
+import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences, sanitizeUrlsInText, retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
 import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
@@ -2475,16 +2475,7 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
 }
 
 function completePromptUrl(raw: unknown, maxChars = MAX_PROMPT_URL_CHARS): string | null {
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  const safe = sanitizeUrlForEvidence(raw.trim());
-  if (!safe || safe.startsWith("[") || safe.length > maxChars) return null;
-  try {
-    const url = new URL(safe);
-    if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) return null;
-    return safe;
-  } catch {
-    return null;
-  }
+  return retainCompletePublicHttpUrlForPrompt(raw, maxChars);
 }
 
 function completePromptUrlSample(
