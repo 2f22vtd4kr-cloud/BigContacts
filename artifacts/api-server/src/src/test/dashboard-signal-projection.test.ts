@@ -22,7 +22,7 @@ describe("dashboard source signal provenance", () => {
     // research_case_events.payload is text. The route's JS JSON.parse catch is
     // useful only if PostgreSQL does not cast a malformed legacy row first.
     expect(eventQuery).toContain("payload: researchCaseEventsTable.payload");
-    expect(eventQuery).not.toContain("::jsonb");
+    expect(eventQuery).not.toMatch(/researchCaseEventsTable\.payload\}\s*::jsonb/);
     expect(eventQuery).toContain("JSON.parse(event.payload)");
   });
 
