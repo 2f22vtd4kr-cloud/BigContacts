@@ -304,7 +304,7 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(0);
   });
 
-  it("allows a tracked audits/ destination only with the development opt-in and keeps credential redaction", () => {
+  it("allows a tracked audits/ destination only with the development opt-in and still redacts contact data", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
     const writes: Array<{ path: string; contents: string }> = [];
@@ -319,8 +319,10 @@ describe("model prompt audit", () => {
     expect(requestId).toBeTruthy();
     expect(writes).toHaveLength(1);
     expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_VISIBLE_OPT_IN_TEST.md"));
-    expect(writes[0]?.contents).toContain("person@example.org");
-    expect(writes[0]?.contents).toContain("+1 (415) 555-0100");
+    expect(writes[0]?.contents).not.toContain("person@example.org");
+    expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
+    expect(writes[0]?.contents).toMatch(/\\[REDACTED_(?:CONTACT_DATA|EMAIL)\\]/);
+    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
     for (const secret of [
       "gsk_123456789012345678901234",
       "private_token_value",
@@ -328,6 +330,42 @@ describe("model prompt audit", () => {
       "named_api_secret_value",
       "PRIVATE_CREDENTIAL_SENTINEL",
     ]) expect(writes[0]?.contents).not.toContain(secret);
+  });
+
+  it("redacts contact data from visible audit responses even when the global opt-in is true", () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
+    const writes: Array<{ path: string; contents: string }> = [];
+    emitModelPromptAuditResponse({
+      requestId: "request-visible-response-redaction",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "test-model",
+      httpStatus: 200,
+      responseBody: JSON.stringify({
+        choices: [{
+          message: {
+            role: "assistant",
+            content: "Contact jane.doe@example.org, phone +1 (415) 555-0100.",
+            reasoning_content: "PRIVATE_PROVIDER_REASONING_SENTINEL",
+          },
+        }],
+      }),
+    }, {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true",
+      APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE: "true",
+      APEX_MODEL_AUDIT_FILE: "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_VISIBLE_RESPONSE_REDACTION_TEST.md",
+    }, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_VISIBLE_RESPONSE_REDACTION_TEST.md"));
+    expect(writes[0]?.contents).not.toContain("jane.doe@example.org");
+    expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
+    expect(writes[0]?.contents).toMatch(/\\[REDACTED_(?:CONTACT_DATA|EMAIL)\\]/);
+    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
+    expect(writes[0]?.contents).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
   });
 
   it("does not extend the visible-audit opt-in to other workspace directories", () => {
