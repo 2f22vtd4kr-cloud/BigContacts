@@ -26,6 +26,19 @@ describe("dashboard source signal provenance", () => {
     expect(eventQuery).toContain("JSON.parse(event.payload)");
   });
 
+  it("preserves complete public source-card URLs and omits routes unsafe to redact", () => {
+    const start = source.indexOf("function normalizeSearchLeadUrl(raw: unknown):");
+    const end = source.indexOf("// GET /dashboard/research-leads", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const normalizer = source.slice(start, end);
+
+    expect(normalizer).toContain("retainCompletePublicHttpUrlForPrompt(raw, 32_768)");
+    expect(normalizer).toContain("sourceUrl,");
+    expect(normalizer).not.toContain("sanitizeUrlForEvidence");
+    expect(normalizer).not.toContain('url.hash = ""');
+  });
+
   it("does not synthesize today's date when no dated activity exists", () => {
     expect(source).toContain("signalDate: activityMap[e.id] ?? null");
     expect(source).not.toContain('signalDate: activityMap[e.id] ?? new Date().toISOString().split("T")[0]!');
