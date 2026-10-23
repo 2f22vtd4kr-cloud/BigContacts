@@ -1,6 +1,6 @@
 # Apex Atlas End-to-End Run Audit
 
-⭐ **Current sequential audit:** [Fresh Replit import run 02 — 2026-10-21/22, PR #723/#724 verification](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-21_FRESH_REPLIT_IMPORT_RUN_02.md)
+⭐ **Current sequential audit:** [Fresh Replit import run 01 — 2026-10-23](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-23_FRESH_REPLIT_IMPORT_RUN_01.md)
 
 ## Audit contract
 
@@ -8,8 +8,8 @@
 - **Started:** 2026-10-12 (Europe/Kyiv). Workflow timestamps below use UTC when available.
 - **Scope:** development workspace only. No deployment/public exposure is part of this run.
 - **Record format:** append chronological, evidence-based events. Include command/API route, bounded and sanitized inputs, provider/model/role when observable, search/tool activity, source URLs and relevant public evidence, durable state deltas, errors, retries, and concise decision rationale.
-- **Do not record:** secret values, API keys, tokens, cookies, credentials, private hidden chain-of-thought, or unsupported guesses. Public contact facts may be recorded only when directly observed in cited public sources and relevant to a card; do not infer or fabricate them.
-- **Raw prompts:** record exact provider-facing prompt text only when available from an explicit, authorized trace; otherwise record the prompt template/version and a truthful note that the raw payload was not exposed. Do not enable unbounded prompt/page logging or change core research policy just to fill this file.
+- **Do not record:** secret values, API keys, tokens, cookies, credentials, hidden chain-of-thought, unsupported guesses, or third-party personal contact values in this tracked file. Use source citations and sanitized factual summaries.
+- **Raw prompts:** record provider-visible prompt content in the tracked report only when safely observable and sanitized; otherwise point to the per-run private trace or record the prompt template/version and state that the raw payload was not exposed. Hidden reasoning is never available for logging. Do not enable unbounded prompt/page logging or change core research policy just to fill this file.
 - **Status at audit creation:** no new Apex run has been launched yet.
 
 ## 0. Import and startup history
