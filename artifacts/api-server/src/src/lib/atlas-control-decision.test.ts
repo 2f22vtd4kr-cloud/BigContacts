@@ -13,6 +13,24 @@ import {
 
 const leadUrl = "https://businesssearch.ohiosos.gov/";
 
+function pinnedStateWithUnfetchedLead(): string {
+  return buildAtlasPinnedControlState({
+    activeScope: "Public company-register investigation in the stated region.",
+    leadInventory: {
+      searchResultLeadUrlCount: 1,
+      successfullyFetchedLeadUrlCount: 0,
+      unfetchedLeadUrlCount: 1,
+      failedLeadUrlCount: 0,
+      blockedLeadUrlCount: 0,
+      unfetchedLeadUrls: [leadUrl],
+      failedLeadUrls: [],
+      blockedLeadUrls: [],
+    },
+    admittedCandidates: [],
+    findings: [],
+  });
+}
+
 function reportWithUnfetchedLead(): string {
   return JSON.stringify({
     provider: "groq",
@@ -123,6 +141,7 @@ describe("Atlas control-plane lead continuity", () => {
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
     const prompt = buildAtlasRightHandControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      pinnedControlState: pinnedStateWithUnfetchedLead(),
       compactState: "Successful searches: 1. Successful visits: 0. A preflight action was blocked before outbound execution.",
     });
     expect(prompt).toContain(leadUrl);
@@ -134,6 +153,7 @@ describe("Atlas control-plane lead continuity", () => {
   it("shows Boss the same lead provenance without prescribing a fixed tool order", () => {
     const prompt = buildAtlasBossControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      pinnedControlState: pinnedStateWithUnfetchedLead(),
       compactState: "Successful searches: 1. Successful visits: 0. A preflight action was blocked before outbound execution.",
       rightHand: {
         status: "completed",
