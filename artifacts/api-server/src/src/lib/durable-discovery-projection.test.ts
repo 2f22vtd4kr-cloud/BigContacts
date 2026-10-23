@@ -80,6 +80,8 @@ describe("durable discovery projection URL integrity", () => {
     // The production resume path appends this exact bounded inventory only when
     // the case-file projection has recorded an omitted URL.
     expect(bureauAgenticPassSource).toContain("if (!hasUrlOmissions) return document;");
+    expect(bureauAgenticPassSource).toContain("hasDurableUrlProjectionOmissions,");
+    expect(bureauAgenticPassSource).toContain("parsed.hasDurableUrlProjectionOmissions === true");
     expect(bureauAgenticPassSource).toContain("buildDurableUrlInventoryFromEventPayloads(payloadRows.map((entry) => entry.payload))");
   });
   it("omits over-budget URLs atomically and records the omission instead of persisting a truncated URL", () => {
