@@ -172,10 +172,10 @@ export function compactDurableDiscoveryRecords(records: AgenticTrajectoryRecord[
  * turn/action pairs. A legacy projection may contain a URL prefix cut mid-token;
  * keeping that copy alongside the full event would render a plausible but false link.
  */
-export function mergeSourceCardTrajectoryRecords(
-  projectionRecords: Record<string, unknown>[],
-  durableRecords: Record<string, unknown>[],
-): Record<string, unknown>[] {
+export function mergeSourceCardTrajectoryRecords<T extends Record<string, unknown>>(
+  projectionRecords: T[],
+  durableRecords: T[],
+): T[] {
   const actionKey = (record: Record<string, unknown>) =>
     `${Number(record.turn ?? 0)}:${String(record.action ?? "")}`;
   const durableActionKeys = new Set(durableRecords.map(actionKey));
