@@ -1,0 +1,59 @@
+name: Repository Line-by-Line Audit (Pinned Main)
+
+on:
+  push:
+    branches:
+      - audit/line-by-line-main-20261023
+    paths:
+      - scripts/audit-all-tracked-paths.mjs
+      - .github/workflows/repository-line-audit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  full-tree-static-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout audit harness branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: audit/line-by-line-main-20261023
+          path: audit-tools
+          fetch-depth: 0
+
+      - name: Checkout the fixed main snapshot under review
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: f53dbd1fd246cea2162b4f14e16badd60c4542d4
+          path: audit-source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Inspect every tracked path and text line
+        run: |
+          node audit-tools/scripts/audit-all-tracked-paths.mjs audit-source audit-tools/audit-output
+
+      - name: Upload complete findings and per-path manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-line-audit-f53dbd1-2026-10-23
+          path: |
+            audit-tools/audit-output/REPOSITORY_LINE_AUDIT_2026-10-23.md
+            audit-tools/audit-output/REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv
+            audit-tools/audit-output/REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Commit audit report to the isolated audit branch
+        run: |
+          mkdir -p audit-tools/audits
+          cp audit-tools/audit-output/REPOSITORY_LINE_AUDIT_2026-10-23.md audit-tools/audits/
+          cp audit-tools/audit-output/REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv audit-tools/audits/
+          cp audit-tools/audit-output/REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json audit-tools/audits/
+          git -C audit-tools config user.name "github-actions[bot]"
+          git -C audit-tools config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C audit-tools add audits/REPOSITORY_LINE_AUDIT_2026-10-23.md audits/REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv audits/REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json
+          git -C audit-tools commit -m "Record pinned-snapshot line-by-line audit results"
+          git -C audit-tools push origin HEAD:audit/line-by-line-main-20261023
