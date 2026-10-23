@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { desc, isNotNull, isNull, eq, sql, and, or, gte } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchCasesTable } from "@workspace/db";
+import { desc, isNotNull, isNull, eq, sql, and, or, gte, inArray } from "drizzle-orm";
+import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { sanitizeUrlForEvidence } from "../lib/url-privacy";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
@@ -266,6 +266,62 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     .limit(limit);
 
   const activeDiscovery = sourceCases.some((row) => row.status === "active");
+
+  // Case-file trajectories are intentionally compact and may omit an URL atomically
+  // when it cannot fit their safe projection budget. Rehydrate the recent source
+  // inventory from the append-only event ledger so the UI can still show the exact
+  // recorded URL, without treating it as claim-grade evidence.
+  const sourceCaseIds = sourceCases.map((row) => row.id);
+  const durableSourceEvents = sourceCaseIds.length > 0
+    ? await db.select({
+        id: researchCaseEventsTable.id,
+        caseId: researchCaseEventsTable.caseId,
+        payload: sql<string>`jsonb_build_object(
+          'action', (${researchCaseEventsTable.payload}::jsonb -> 'action'),
+          'turn', (${researchCaseEventsTable.payload}::jsonb -> 'turn'),
+          'args', jsonb_build_object('url', (${researchCaseEventsTable.payload}::jsonb -> 'args' -> 'url')),
+          'leadUrls', (${researchCaseEventsTable.payload}::jsonb -> 'leadUrls'),
+          'observedUrls', (${researchCaseEventsTable.payload}::jsonb -> 'observedUrls'),
+          'execution', (${researchCaseEventsTable.payload}::jsonb -> 'execution'),
+          'observation', left(coalesce(${researchCaseEventsTable.payload}::jsonb ->> 'observation', ''), 1500),
+          'failureDomain', (${researchCaseEventsTable.payload}::jsonb -> 'failureDomain'),
+          'failureKind', (${researchCaseEventsTable.payload}::jsonb -> 'failureKind')
+        )::text`.as("payload"),
+      }).from(researchCaseEventsTable).where(and(
+        inArray(researchCaseEventsTable.caseId, sourceCaseIds),
+        inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"]),
+      )).orderBy(desc(researchCaseEventsTable.id)).limit(Math.min(1_600, sourceCaseIds.length * 64))
+    : [];
+  const durableRecordsByCase = new Map<number, Record<string, any>[]>();
+  for (const event of [...durableSourceEvents].reverse()) {
+    if (typeof event.payload !== "string") continue;
+    try {
+      const parsed: unknown = JSON.parse(event.payload);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
+      const payload = parsed as Record<string, unknown>;
+      if (typeof payload.action !== "string") continue;
+      const args = payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
+        ? payload.args as Record<string, unknown> : {};
+      const record = {
+        turn: Number(payload.turn ?? 0),
+        action: payload.action,
+        args,
+        execution: String(payload.execution ?? "error"),
+        observedUrls: Array.isArray(payload.observedUrls) ? payload.observedUrls.filter((v): v is string => typeof v === "string") : [],
+        leadUrls: Array.isArray(payload.leadUrls) ? payload.leadUrls.filter((v): v is string => typeof v === "string") : [],
+        observation: typeof payload.observation === "string" ? payload.observation : "",
+        failureDomain: typeof payload.failureDomain === "string" ? payload.failureDomain : null,
+        failureKind: typeof payload.failureKind === "string" ? payload.failureKind : null,
+      };
+      const current = durableRecordsByCase.get(event.caseId) ?? [];
+      current.push(record);
+      durableRecordsByCase.set(event.caseId, current);
+    } catch {
+      // A malformed legacy event must not prevent the compact case-file projection
+      // from continuing to produce honest, bounded source cards.
+    }
+  }
+
   const sourceLeadByUrl = new Map<string, {
     id: string;
     caseId: number;
@@ -292,10 +348,21 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     } catch {
       continue;
     }
-    const records = Array.isArray(caseFile.investigatorTrajectoryRecords)
+    const projectionRecords = Array.isArray(caseFile.investigatorTrajectoryRecords)
       ? caseFile.investigatorTrajectoryRecords.filter((value): value is Record<string, any> =>
           Boolean(value) && typeof value === "object" && !Array.isArray(value))
       : [];
+    // Prefer full append-only events for turns that still appear in the compact
+    // projection; also retain projection-only legacy records absent from the ledger.
+    const durableRecords = durableRecordsByCase.get(sourceCase.id) ?? [];
+    const recordsByIdentity = new Map<string, Record<string, any>>();
+    for (const record of projectionRecords) {
+      recordsByIdentity.set(`${Number(record.turn ?? 0)}:${String(record.action ?? "")}:${String((record.args as Record<string, unknown> | undefined)?.url ?? "")}`, record);
+    }
+    for (const record of durableRecords) {
+      recordsByIdentity.set(`${Number(record.turn ?? 0)}:${String(record.action ?? "")}:${String((record.args as Record<string, unknown> | undefined)?.url ?? "")}`, record);
+    }
+    const records = [...recordsByIdentity.values()].sort((a, b) => Number(a.turn ?? 0) - Number(b.turn ?? 0));
     const successfullyFetched = new Set<string>();
     const attempts = new Map<string, Record<string, any>>();
     const blockedAttempts = new Map<string, Record<string, any>>();
