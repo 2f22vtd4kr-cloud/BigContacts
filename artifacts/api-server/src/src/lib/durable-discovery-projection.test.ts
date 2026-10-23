@@ -265,7 +265,7 @@ describe("durable discovery projection URL integrity", () => {
       "The filing names Example Holdings as buyer. Contact [public email omitted] at [phone omitted].",
     );
     expect(extractSearchResultSnippetForLead(observation, "https://registry.example.org/missing")).toBeNull();
-    expect(extractSearchResultSnippetForLead(observation, "https://registry.example.org/acquisitions/record-17", 40)?.length).toBeLessThanOrEqual(40);
+    expect(extractSearchResultSnippetForLead(observation, "https://registry.example.org/acquisitions/record-17", 10)?.length).toBeLessThanOrEqual(10);
   });
 
 });
