@@ -292,6 +292,6 @@ export function buildDurableUrlInventoryFromEventPayloads(
     omittedWhole > 0
       ? String(omittedWhole) + " additional URL(s) were omitted whole from this bounded inventory; the case-event ledger remains authoritative. Do not invent or rebuild them."
       : "No URL value in this inventory sample was truncated.",
-  ].join("\\n");
+  ].join("\n");
   return { text, urls, omittedWhole };
 }
