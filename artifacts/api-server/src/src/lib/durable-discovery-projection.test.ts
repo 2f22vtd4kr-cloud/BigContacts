@@ -1,6 +1,14 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { AgenticTrajectoryRecord } from "./agentic-web-research-core";
-import { compactDurableDiscoveryRecords, mergeSourceCardTrajectoryRecords } from "./durable-discovery-projection";
+import { buildStepPrompt, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import {
+  buildDurableUrlInventoryFromEventPayloads,
+  compactDurableDiscoveryRecords,
+  mergeSourceCardTrajectoryRecords,
+} from "./durable-discovery-projection";
+
+const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 
 function recordWithUrl(url: string): AgenticTrajectoryRecord {
   return {
@@ -33,6 +41,47 @@ function recordWithUrl(url: string): AgenticTrajectoryRecord {
 }
 
 describe("durable discovery projection URL integrity", () => {
+  it("rehydrates an over-budget source URL from immutable events into a resumed Investigator prompt", () => {
+    const longUrl = "https://registry.example.org/acquisitions/" + "a".repeat(435) + "?record=ACQ-2026-0198.pdf";
+    expect(longUrl.length).toBeGreaterThan(500);
+    expect(longUrl.length).toBeLessThanOrEqual(512);
+
+    const [projected] = compactDurableDiscoveryRecords([recordWithUrl(longUrl)]);
+    expect(projected.leadUrls).toEqual([]);
+    expect(projected.durableProjectionOmissions?.leadUrls).toBe(1);
+
+    const immutableEventPayload = JSON.stringify({
+      action: "visit",
+      execution: "success",
+      args: { url: longUrl },
+      leadUrls: [longUrl],
+      observedUrls: [longUrl],
+      findings: [{ sourceUrls: [longUrl] }],
+    });
+    const inventory = buildDurableUrlInventoryFromEventPayloads([immutableEventPayload]);
+
+    expect(inventory.urls).toEqual([longUrl]);
+    expect(inventory.text.split("\\n")).toContain("- " + longUrl);
+    expect(inventory.text).not.toContain(longUrl.slice(0, 500) + "…");
+
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Research public acquisition records within the accepted scope.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "An earlier search found a potential acquisition source.",
+      findings: [],
+      priorContext: inventory.text,
+      mode: "discovery",
+    });
+    expect(prompt).toContain(longUrl);
+    expect(prompt).not.toContain(longUrl.slice(0, 500) + "…");
+
+    // The production resume path appends this exact bounded inventory only when
+    // the case-file projection has recorded an omitted URL.
+    expect(bureauAgenticPassSource).toContain("if (!hasUrlOmissions) return document;");
+    expect(bureauAgenticPassSource).toContain("buildDurableUrlInventoryFromEventPayloads(payloadRows.map((entry) => entry.payload))");
+  });
   it("omits over-budget URLs atomically and records the omission instead of persisting a truncated URL", () => {
     const longUrl = `https://registry.example.org/acquisitions/${"transaction-segment/".repeat(35)}?record=ACQ-2026-0198.pdf&view=full`;
     expect(longUrl.length).toBeGreaterThan(500);
