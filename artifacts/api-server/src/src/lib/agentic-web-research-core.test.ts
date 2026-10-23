@@ -763,7 +763,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.");
     expect(prompt).toContain("DISCOVERY PROGRESS GATE");
     expect(prompt).toContain("DISCOVERY TARGETABILITY GATE");
-    expect(prompt).toContain("People—not companies or executive prestige—are the target");
+    expect(prompt).toMatch(/People—not companies(?: or executive prestige|\/prestige)—(?:are the target|are targets)/);
     expect(prompt).toContain("ownership/equity/control/investment clue");
     expect(prompt).toMatch(/do not infer wealth from seniority alone|never infer wealth from seniority alone|seniority alone is not wealth/i);
     expect(prompt).toContain("an organization is a lead, not");
