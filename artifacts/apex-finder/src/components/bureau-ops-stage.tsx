@@ -146,14 +146,21 @@ export function extractQuery(e: OpsEvent): string | undefined {
   // Never surface internal research-contract / lane prompts / template meta as the search box query
   const safeParts = [e.inputSummary, e.resultSummary, e.stage, e.raw]
     .filter((x): x is string => Boolean(x) && !isInternalLanePrompt(String(x)));
-  const blob = safeParts.join(" ");
-  const m =
-    blob.match(/Query:\s*([^\n|]+)/i) ||
-    blob.match(/search(?:ing)?\s+(?:for\s+)?["\u201c]?([^"\u201d\n]{8,140})/i) ||
-    blob.match(/site:[^\s]+[^\n]{0,80}/i);
-  if (m?.[1] && !isInternalLanePrompt(m[1])) return cleanQueryText(m[1]);
-  // Prefer short operator inputSummary when it is a real human query — not template inventory
+  // Parse each recorded field independently. Joining summaries first lets a Query:
+  // capture bleed into unrelated resultSummary/stage text on the same synthetic line.
+  for (const part of safeParts) {
+    const explicit = part.match(/Query:\s*([^\n|]+)/i);
+    if (explicit?.[1] && !isInternalLanePrompt(explicit[1])) return cleanQueryText(explicit[1]);
+  }
+  // Fallback query phrases are accepted only from the recorded input summary,
+  // never from result summaries or provider/stage metadata.
   if (e.inputSummary && !isInternalLanePrompt(e.inputSummary)) {
+    const queryMatch =
+      e.inputSummary.match(/search(?:ing)?\s+(?:for\s+)?["]?([^"\n]{8,140})/i) ||
+      e.inputSummary.match(/site:[^\s]+[^\n]{0,80}/i);
+    if (queryMatch?.[1] && !isInternalLanePrompt(queryMatch[1])) return cleanQueryText(queryMatch[1]);
+
+    // Prefer short operator inputSummary when it is a real human query — not template inventory.
     const ins = cleanQueryText(e.inputSummary);
     if (ins.length >= 6 && ins.length <= 120 && !/^the .+ is still uncovered$/i.test(ins)) {
       const stripped = ins.replace(/^(resolve_identity|official_routes|complementary_lane|contact_routes):\s*/i, "").trim();
