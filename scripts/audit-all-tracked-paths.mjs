@@ -119,12 +119,99 @@ for(const f of manifest.filter(x=>[".sh",".bash"].includes(x.extension)&&x.scan=
 for(const f of manifest.filter(x=>[".yml",".yaml"].includes(x.extension)&&x.scan==="text-line-scan")){
  try{execFileSync("ruby",["-e","require 'yaml'; YAML.load_file(ARGV[0], aliases: true)",path.join(root,f.path)],{stdio:"pipe"});}catch(err){parseErrors.push({path:f.path,kind:"YAML syntax or parser unavailable",error:String(err).slice(0,300)});}
 }
+const semanticScopeByPath = new Map([
+  [".replit", "Deployment target, external ports, prompt/contact audit flags and post-merge timeout."],
+  ["README.md", "Project scope and repository entry-point claims."],
+  ["package.json", "Root scripts, workspace and check:bureau orchestration."],
+  ["artifacts/api-server/package.json", "API build, typecheck and test scripts."],
+  ["artifacts/api-server/tsconfig.json", "Active source-root/build inclusion."],
+  ["artifacts/api-server/src/index.ts", "Compatibility entrypoint versus active implementation."],
+  ["artifacts/api-server/src/src/index.ts", "Active server entrypoint."],
+  ["artifacts/api-server/src/src/app.ts", "HTTP app composition and middleware mount path."],
+  ["artifacts/api-server/src/src/routes/index.ts", "Canonical route mounting and authentication boundary."],
+  ["artifacts/api-server/src/src/routes/entities.ts", "Entity list filters, contact outcomes, visibility and mutations."],
+  ["artifacts/api-server/src/src/routes/extended-osint.ts", "Legacy router reachability relative to canonical aggregator."],
+  ["artifacts/api-server/src/src/routes/osint-tools.ts", "Mounted OSINT tool routes."],
+  ["artifacts/api-server/src/src/lib/operator-auth.ts", "Authentication implementation contrasted against route mounting."],
+  ["artifacts/api-server/src/src/test/operator-auth.test.ts", "Tests asserting the intentional unmounted-auth boundary."],
+  ["artifacts/api-server/src/src/lib/model-prompt-audit.ts", "Audit-data redaction and visible-file policy."],
+  ["artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "Model action loop, tool dispatch and prompt URL projection."],
+  ["artifacts/api-server/src/src/lib/agentic-web-research.ts", "Durable trajectory and continuation paths sampled."],
+  ["artifacts/api-server/src/src/lib/atlas-control-decision.ts", "Boss/Right-hand control context, direction and URL compaction."],
+  ["artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "Finding admission, organization/person materialization and reconciliation."],
+  ["artifacts/api-server/src/src/lib/bureau-agentic-pass.ts", "Bureau trajectory persistence and bounded caseFile projection."],
+  ["artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "Investigator context budget and compaction helpers."],
+  ["artifacts/api-server/src/src/lib/ssrf-safe-fetch.ts", "DNS/IP validation, socket pinning, redirects and body/deadline bounds."],
+  ["artifacts/api-server/src/src/lib/provider-gate.ts", "Provider concurrency, budgets, cooldowns and memory bounds."],
+  ["artifacts/api-server/src/src/lib/registry-enricher.ts", "Registry adapter dispatch and entity-ID query boundary."],
+  ["artifacts/api-server/src/src/lib/python-osint-worker-client.ts", "Attestation, capability advertising, egress and worker dispatch."],
+  ["artifacts/api-server/src/src/lib/atlas-capability-registry.ts", "Model-facing capability registration and availability guidance."],
+  ["artifacts/api-server/src/src/lib/entity-visibility-guard.ts", "Hidden-entity visibility boundary."],
+  ["artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts", "Legacy mutation versus evidence-bound promotion."],
+  ["artifacts/api-server/src/src/lib/canonical-job-lock.ts", "Atomic job lease/lock transitions; Redis Lua calls."],
+  ["artifacts/api-server/src/src/lib/job-queue.ts", "Authoritative queue/lease/cancellation behavior; Redis Lua calls."],
+  ["artifacts/api-server/src/src/lib/presented-contacts.ts", "UI/API contact representation and organization/person outcomes."],
+  ["artifacts/api-server/src/src/lib/research-epistemic-vnext.ts", "Source spans and claim-grade validation sampled."],
+  ["artifacts/api-server/src/src/lib/target-act-oversight.ts", "Target direction/oversight recovery path sampled."],
+  ["artifacts/api-server/src/src/lib/research-intelligence-replay.ts", "Durable research replay path sampled."],
+  ["artifacts/api-server/src/src/lib/research-intelligence-engine.ts", "Search-lead versus fetched-evidence distinctions sampled."],
+  ["artifacts/api-server/src/src/routes/dashboard.ts", "Entity/source-card projection from durable events."],
+  ["artifacts/apex-finder/src/pages/entities.tsx", "Entity list filters, company/candidate labels and rendered-card flow."],
+  ["artifacts/apex-finder/src/App.tsx", "UI root and route wrapper."],
+  ["services/apex-python-osint-worker/app.py", "Worker API, attestation, limits and SpiderFoot target/profile contract."],
+  ["services/apex-python-osint-worker/tool_runner.py", "Tool subprocess/input protocol sampled."],
+  ["deployment/apex-python-osint-worker/squid.conf", "Outbound proxy ACLs and public-web-only restrictions."],
+  ["deployment/apex-python-osint-worker/network-policies.yaml", "Worker/proxy network isolation."],
+  ["deployment/apex-python-osint-worker/worker-deployment.yaml", "Worker isolation and placeholder deployment identity."],
+  ["deployment/apex-python-osint-worker/proxy-deployment.yaml", "Proxy isolation and deployment identity."],
+  ["deployment/apex-python-osint-worker/worker-ingress.yaml", "Ingress placeholder and operator customization."],
+  ["deployment/apex-python-osint-worker/kustomization.yaml", "Worker deployment composition."],
+  ["lib/db/migrations/001-apex-invariants.sql", "Append-only events, size limits, replay/job binding and cancellation fencing."],
+  ["lib/db/migrations/002-contact-outcome.sql", "Idempotent contact-outcome column compatibility."],
+  ["lib/db/migrations/003-atlas-review-candidate-type.sql", "Narrow review-only PersonCandidate correction."],
+  ["lib/db/migrations/004-registry-candidate-truth.sql", "Guarded legacy registry reclassification; no evidence rewrite."],
+  ["lib/db/src/schema/entities.ts", "Entity type/contact-outcome contract."],
+  ["lib/db/src/schema/research_cases.ts", "Durable case schema and lifecycle."],
+  ["lib/db/src/schema/research_case_events.ts", "Event immutability, payload size and correlation schema."],
+  ["lib/db/src/schema/research_evidence.ts", "Claim-level evidence and restrictive FK semantics."],
+  ["lib/db/src/schema/research_sessions.ts", "Research-session audit and safe-use fields."],
+  ["lib/db/package.json", "Schema push/hardening commands."],
+  ["scripts/post-merge.sh", "Post-merge setup sequence and failure/timeout behavior."],
+  ["scripts/initialize-apex-schema.sh", "Schema push, hardening, migrations and verification."],
+  ["scripts/check-source-migration-hardener-parity.mjs", "Migration/initializer static invariant."],
+  ["scripts/check-operator-auth-boundary.mjs", "Intended authentication boundary guard."],
+  ["scripts/live-batch-trigger.md", "Documented trigger for provider-backed runtime proof."]
+]);
+for (const file of files) {
+  if (file.path.startsWith(".github/workflows/")) {
+    semanticScopeByPath.set(file.path, "Workflow trigger, declared permissions, immutable action refs, secret footprint and live-cost behavior sampled; not every line manually interpreted.");
+  }
+}
+for (const item of manifest) {
+  if (item.scan !== "text-line-scan") {
+    item.semanticReviewStatus = "inventory-only-no-text-line-review";
+    item.semanticReviewScope = "Binary/non-UTF-8 content recorded by path, blob SHA and byte size; internals not semantically interpreted.";
+  } else if (semanticScopeByPath.has(item.path)) {
+    item.semanticReviewStatus = "targeted-semantic-review-selected-sections";
+    item.semanticReviewScope = semanticScopeByPath.get(item.path);
+  } else if (item.category === "documentation" || item.category === "historical-audit-record") {
+    item.semanticReviewStatus = "automated-line-scan-only-not-fact-checked";
+    item.semanticReviewScope = "Readable lines scanned by static rules; prose/audit assertions not independently validated line by line.";
+  } else {
+    item.semanticReviewStatus = "automated-line-scan-only-not-full-semantic-review";
+    item.semanticReviewScope = "Readable lines scanned and matching syntax checks applied; full manual semantic review not claimed.";
+  }
+}
+const semanticReviewStatusCount = manifest.reduce((acc, item) => {
+  acc[item.semanticReviewStatus] = (acc[item.semanticReviewStatus] || 0) + 1;
+  return acc;
+}, {});
 const duplicateBlobGroups=[...dupes.entries()].filter(x=>x[1].length>1).map(([blobSha,paths])=>({blobSha,count:paths.length,paths}));
-const csv=["path,blob_sha,bytes,category,language,extension,lines,scan,line_rule_hits,max_line_length",...manifest.map(f=>[f.path,f.blobSha,f.bytes||"",f.category,f.language,f.extension,f.lines===null?"":f.lines,f.scan,f.lineRuleHits,f.maxLineLength||""].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(","))].join("\n")+"\n";
+const csv=["path,blob_sha,bytes,category,language,extension,lines,scan,line_rule_hits,max_line_length,semantic_review_status,semantic_review_scope",...manifest.map(f=>[f.path,f.blobSha,f.bytes||"",f.category,f.language,f.extension,f.lines===null?"":f.lines,f.scan,f.lineRuleHits,f.maxLineLength||"",f.semanticReviewStatus,f.semanticReviewScope].map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(","))].join("\n")+"\n";
 fs.writeFileSync(path.join(out,"REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv"),csv);
 const metadata={repository:"2f22vtd4kr-cloud/BigContacts",snapshotSha,createdAt:new Date().toISOString(),treeEntriesIncludingDirectories:3436,fileBlobs:files.length,manifestRows:manifest.length,filesWithTextLineScan:textFiles,filesInventoriedAsBinaryOrNonUtf8:binaryFiles,filesWithReadErrors:readErrors.length,totalTextLinesScanned:totalTextLines,totalBlobBytes:totalBytes,totalMiB:Math.round(totalBytes/1048576*100)/100,scanMethod:"Every text-file line scanned against listed static rules; JSON/JSONL parsed; Python py_compile, JavaScript node --check, shell bash -n, and Ruby YAML parsing run on matching tracked files.",limitations:["Pattern hits are triage signals, not adjudicated vulnerabilities.","Semantic human review of every documentation line and every binary pixel is not claimed.","No dependency install, external provider request, database-backed integration, deployed-worker attestation or Replit run was performed.","This report applies only to the pinned snapshot; later commits require a separate delta review."]};
-fs.writeFileSync(path.join(out,"REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json"),JSON.stringify({audit:metadata,counts:{classCount,languageCount,extCount,severityCount,perRule,parseErrorCount:parseErrors.length,readErrorCount:readErrors.length,duplicateBlobGroups:duplicateBlobGroups.length},parseErrors,readErrors,duplicateBlobGroups,rules:rules.map(r=>({id:r[0],severity:r[1],pattern:String(r[2])})),findings,manifest},null,2)+"\n");
+fs.writeFileSync(path.join(out,"REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json"),JSON.stringify({audit:metadata,counts:{classCount,languageCount,extCount,severityCount,perRule,semanticReviewStatusCount,parseErrorCount:parseErrors.length,readErrorCount:readErrors.length,duplicateBlobGroups:duplicateBlobGroups.length},parseErrors,readErrors,duplicateBlobGroups,rules:rules.map(r=>({id:r[0],severity:r[1],pattern:String(r[2])})),findings,manifest},null,2)+"\n");
 const topRules=Object.entries(perRule).sort((a,b)=>b[1]-a[1]).slice(0,30),high=findings.filter(f=>f.severity==="critical"||f.severity==="high"),review=findings.filter(f=>f.severity==="review");
-const report=["# Repository line-by-line static audit","","Repository: 2f22vtd4kr-cloud/BigContacts","Snapshot SHA: "+snapshotSha,"Tree entries including directories: 3436","Tracked blob files: "+files.length,"Text files line-scanned: "+textFiles,"Text lines scanned: "+totalTextLines.toLocaleString("en-US"),"Binary/non-UTF-8 files inventoried, not text-line-scanned: "+binaryFiles,"Path/line/rule hits: "+findings.length+" (triage signals, not confirmed vulnerabilities)","Critical/high pattern hits: "+high.length,"Review-level hits: "+review.length,"JavaScript/shell/YAML/JSON/JSONL/Python syntax findings: "+parseErrors.length,"Unreadable paths: "+readErrors.length,"","## Method","Checked out the exact snapshot and enumerated all blobs with git ls-tree. Every readable text line was checked against the versioned static rule set in the JSON artifact. JSON/JSONL were parsed; tracked Python files were syntax-checked with python3 -m py_compile, JavaScript/MJS/CJS with node --check, shell with bash -n, and YAML with the Ruby YAML parser. CSV manifest has one row per blob with SHA, byte size, line count or binary disposition, path class and hit count.","","This is a comprehensive automated line-by-line static pass, not a claim that regex checks replace semantic human review of every line. Binary assets have no source lines. Pattern hits require contextual triage; false positives are expected. No dependencies, external provider requests, database-backed integration, deployment, or Replit run was performed.","","## Coverage by path class",...Object.entries(classCount).sort((a,b)=>b[1]-a[1]).map(x=>"- "+x[0]+": "+x[1]),"","## Coverage by language",...Object.entries(languageCount).sort((a,b)=>b[1]-a[1]).map(x=>"- "+x[0]+": "+x[1]),"","## Most frequent rules",...topRules.map(x=>"- "+x[0]+": "+x[1]),"","## Critical/high locations",...(high.length?high.sort((a,b)=>a.path.localeCompare(b.path)||a.line-b.line).slice(0,400).map(f=>"- "+f.path+":"+f.line+" — "+f.rule+" ("+f.severity+"); source text withheld"):["- None produced by this rule set."]),"","## Parse issues",...(parseErrors.length?parseErrors.map(e=>"- "+e.path+(e.line?":"+e.line:"")+" — "+e.kind+": "+e.error):["- None detected by available parsers."]),"","## Read errors",...(readErrors.length?readErrors.map(e=>"- "+e.path+" — "+e.error):["- None."]),"","## High-impact findings from focused architecture review","1. Research-to-card gap: job 81a955bf-f44f-4faf-a39a-e2bcffbc5014 recorded 32 unfetched leads and zero findings/admissions/evidence/cards despite a terminal lead-exhaustion rationale. Source-backed organization materialization does not guarantee review records for snippet-only leads.","2. URL integrity: the active #728 branch contains the URL-atomic projection/replay fix effort but is not in this pinned main snapshot.","3. Audit privacy: tracked .replit enables prompt capture and contact-data inclusion in a visible audit path; this is a future exposure risk, not a claim of present leakage.","4. Worker readiness: SpiderFoot and related tools exist in source, but live worker attestation, image digests, configured tool set, and an authorized live call remain unverified.","","## Artifacts","- REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv: one row per tracked blob.","- REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json: path/line/rule findings and scan metadata without source excerpts.","","## Coverage definition","Every blob in this pinned snapshot is either text-line-scanned or inventoried as binary/non-UTF-8/read-error. Runtime behavior, semantic review and live-provider truth are separate workstreams."].join("\n")+"\n";
+const report=["# Repository line-by-line static audit","","Repository: 2f22vtd4kr-cloud/BigContacts","Snapshot SHA: "+snapshotSha,"Tree entries including directories: 3436","Tracked blob files: "+files.length,"Text files line-scanned: "+textFiles,"Text lines scanned: "+totalTextLines.toLocaleString("en-US"),"Binary/non-UTF-8 files inventoried, not text-line-scanned: "+binaryFiles,"Path/line/rule hits: "+findings.length+" (triage signals, not confirmed vulnerabilities)","Critical/high pattern hits: "+high.length,"Review-level hits: "+review.length,"JavaScript/shell/YAML/JSON/JSONL/Python syntax findings: "+parseErrors.length,"Unreadable paths: "+readErrors.length,"Targeted semantic-review paths: "+(semanticReviewStatusCount["targeted-semantic-review-selected-sections"]||0),"Automated-only non-documentation paths: "+(semanticReviewStatusCount["automated-line-scan-only-not-full-semantic-review"]||0),"Documentation/historical audit paths not independently fact-checked: "+(semanticReviewStatusCount["automated-line-scan-only-not-fact-checked"]||0),"Binary/non-UTF-8 paths inventory-only: "+(semanticReviewStatusCount["inventory-only-no-text-line-review"]||0),"","## Method","Checked out the exact snapshot and enumerated all blobs with git ls-tree. Every readable text line was checked against the versioned static rule set in the JSON artifact. JSON/JSONL were parsed; tracked Python files were syntax-checked with python3 -m py_compile, JavaScript/MJS/CJS with node --check, shell with bash -n, and YAML with the Ruby YAML parser. CSV manifest has one row per blob with SHA, byte size, line count or binary disposition, path class and hit count.","","This is a comprehensive automated line-by-line static pass, not a claim that regex checks replace semantic human review of every line. Binary assets have no source lines. Pattern hits require contextual triage; false positives are expected. No dependencies, external provider requests, database-backed integration, deployment, or Replit run was performed.","","## Coverage by path class",...Object.entries(classCount).sort((a,b)=>b[1]-a[1]).map(x=>"- "+x[0]+": "+x[1]),"","## Coverage by language",...Object.entries(languageCount).sort((a,b)=>b[1]-a[1]).map(x=>"- "+x[0]+": "+x[1]),"","## Most frequent rules",...topRules.map(x=>"- "+x[0]+": "+x[1]),"","## Critical/high locations",...(high.length?high.sort((a,b)=>a.path.localeCompare(b.path)||a.line-b.line).slice(0,400).map(f=>"- "+f.path+":"+f.line+" — "+f.rule+" ("+f.severity+"); source text withheld"):["- None produced by this rule set."]),"","## Parse issues",...(parseErrors.length?parseErrors.map(e=>"- "+e.path+(e.line?":"+e.line:"")+" — "+e.kind+": "+e.error):["- None detected by available parsers."]),"","## Read errors",...(readErrors.length?readErrors.map(e=>"- "+e.path+" — "+e.error):["- None."]),"","## High-impact findings from focused architecture review","1. Research-to-card gap: job 81a955bf-f44f-4faf-a39a-e2bcffbc5014 recorded 32 unfetched leads and zero findings/admissions/evidence/cards despite a terminal lead-exhaustion rationale. Source-backed organization materialization does not guarantee review records for snippet-only leads.","2. URL integrity: the active #728 branch contains the URL-atomic projection/replay fix effort but is not in this pinned main snapshot.","3. Audit privacy: tracked .replit enables prompt capture and contact-data inclusion in a visible audit path; this is a future exposure risk, not a claim of present leakage.","4. Worker readiness: SpiderFoot and related tools exist in source, but live worker attestation, image digests, configured tool set, and an authorized live call remain unverified.","","## Per-path semantic disposition","The CSV manifest has one row per blob plus semantic_review_status and semantic_review_scope. These fields distinguish selected-section/call-path review from automated-only coverage, documentation not fact-checked, and binary inventory-only exclusions.","","## Artifacts","- REPOSITORY_LINE_AUDIT_MANIFEST_2026-10-23.csv: one row per tracked blob with line counts, pattern hits and semantic-review disposition.","- REPOSITORY_LINE_AUDIT_FINDINGS_2026-10-23.json: path/line/rule findings and scan metadata without source excerpts.","","## Coverage definition","Every blob in this pinned snapshot is either text-line-scanned or inventoried as binary/non-UTF-8/read-error. Runtime behavior, semantic review and live-provider truth are separate workstreams."].join("\n")+"\n";
 fs.writeFileSync(path.join(out,"REPOSITORY_LINE_AUDIT_2026-10-23.md"),report);
 console.log(JSON.stringify({snapshotSha,treeEntriesIncludingDirectories:3436,fileBlobs:files.length,textFilesLineScanned:textFiles,totalTextLinesScanned:totalTextLines,binaryOrNonUtf8:binaryFiles,findings:findings.length,severityCount,parseErrors:parseErrors.length,unreadableFiles:readErrors.length,topRules},null,2));
