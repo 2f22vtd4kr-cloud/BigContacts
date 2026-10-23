@@ -24,14 +24,17 @@ This is a comprehensive automated line-by-line static pass, not a claim that reg
 
 ## Coverage by path class
 - documentation: 2030
-- first-party-implementation: 741
+- first-party-implementation: 524
 - operational-script: 266
+- first-party-test: 194
 - visual-or-attachment-asset: 174
 - historical-audit-record: 62
 - runtime-or-repository-configuration: 39
 - ci-workflow: 18
+- database-migration-or-schema: 18
 - other-tracked-file: 13
 - build-or-dependency-configuration: 6
+- generated-or-vendored: 5
 
 ## Coverage by language
 - documentation: 2157
