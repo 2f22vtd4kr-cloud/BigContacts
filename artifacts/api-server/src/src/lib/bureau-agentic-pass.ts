@@ -1,11 +1,11 @@
 /** Bureau-facing wrapper around the canonical model-owned ReAct Investigator. */
 import { randomUUID } from "node:crypto";
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { resolveMonotonicResearchCaseIteration } from "./research-case-event-iteration";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
-import { compactDurableDiscoveryRecords } from "./durable-discovery-projection";
+import { buildDurableUrlInventoryFromEventPayloads, compactDurableDiscoveryRecords } from "./durable-discovery-projection";
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 import { resolveResearchDepth } from "./research-depth";
 import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsReviewableClaimAcrossObservations } from "./bureau-contact-persist-strict";
@@ -68,7 +68,60 @@ export function sourceBackedAgenticFindings(findings:AgenticFinding[],trajectory
 export function findingsToContactEvidence(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>({vectorType:f.vectorType,value:f.value,scope:f.scope==="candidate"?"candidate":"organization",personName:f.scope==="candidate"?f.personName:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:f.note}));}
 export function findingsToBureauContacts(findings:AgenticFinding[],_fallbackPersonName:string,trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>{const person=typeof f.personName==="string"?f.personName.trim():"";const candidate=f.scope==="candidate"&&person.length>0;return{vectorType:f.vectorType,value:f.value,scope:candidate?"candidate":"organization",personName:candidate?person:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:`bureau-agentic:${f.note}`,tier:"candidate",state:"review_only",promote:candidate&&f.promotionDecision==="promote"};});}
 async function loadDurableSearchQueries(caseId:number|null):Promise<string[]>{if(caseId==null)return[];const rows=await db.select({payload:researchCaseEventsTable.payload,status:researchCaseEventsTable.status}).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId,caseId));const queries:string[]=[];for(const row of rows){if((row.status!=="success"&&row.status!=="error")||typeof row.payload!=="string")continue;try{const payload=JSON.parse(row.payload) as Record<string,unknown>;const action=typeof payload.action==="string"?payload.action:"";const args=payload.args&&typeof payload.args==="object"?payload.args as Record<string,unknown>:{};if((action==="web_search"||action==="registry_search")&&typeof args.query==="string")queries.push(args.query);if((action==="parallel_web_search"||action==="parallel_registry_search")&&Array.isArray(args.searches))for(const search of args.searches){if(search&&typeof search==="object"&&typeof (search as Record<string,unknown>).query==="string")queries.push((search as Record<string,unknown>).query as string);}}catch{}}return[...new Set(queries.map((query)=>query.trim()).filter(Boolean))];}
-async function loadMountedCaseContext(caseId:number|undefined,mode:"target"|"discovery",jobId:string|undefined,runId:string):Promise<string|null>{if(caseId==null)return null;const[row]=await db.select({caseFile:researchCasesTable.caseFile,caseType:researchCasesTable.caseType}).from(researchCasesTable).where(and(eq(researchCasesTable.id,caseId),eq(researchCasesTable.caseType,mode))).limit(1);if(!row?.caseFile)throw new Error(`Investigation case ${caseId} has no durable case file of type ${mode}.`);let parsed:Record<string,unknown>;try{parsed=JSON.parse(row.caseFile) as Record<string,unknown>;}catch{throw new Error(`Investigation case ${caseId} has unreadable durable state.`);}const storedJob=typeof parsed.jobId==="string"?parsed.jobId:typeof parsed.atlasJobId==="string"?parsed.atlasJobId:null;const storedRun=typeof parsed.runId==="string"?parsed.runId:null;if(jobId&&storedJob!==jobId)throw new Error(`Investigation case ${caseId} is not bound to Atlas job ${jobId}.`);if(mode==="target"&&storedRun&&storedRun!==runId)throw new Error(`Investigation case ${caseId} is bound to a different execution run.`);const document=typeof parsed.contextDocument==="string"?parsed.contextDocument.trim():"";if(!document)throw new Error(`Investigation case ${caseId} has no durable context document.`);return document;}
+async function loadMountedCaseContext(
+  caseId: number | undefined,
+  mode: "target" | "discovery",
+  jobId: string | undefined,
+  runId: string,
+): Promise<string | null> {
+  if (caseId == null) return null;
+  const [row] = await db.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType })
+    .from(researchCasesTable)
+    .where(and(eq(researchCasesTable.id, caseId), eq(researchCasesTable.caseType, mode)))
+    .limit(1);
+  if (!row?.caseFile) throw new Error(`Investigation case ${caseId} has no durable case file of type ${mode}.`);
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(row.caseFile) as Record<string, unknown>;
+  } catch {
+    throw new Error(`Investigation case ${caseId} has unreadable durable state.`);
+  }
+  const storedJob = typeof parsed.jobId === "string" ? parsed.jobId : typeof parsed.atlasJobId === "string" ? parsed.atlasJobId : null;
+  const storedRun = typeof parsed.runId === "string" ? parsed.runId : null;
+  if (jobId && storedJob !== jobId) throw new Error(`Investigation case ${caseId} is not bound to Atlas job ${jobId}.`);
+  if (mode === "target" && storedRun && storedRun !== runId) throw new Error(`Investigation case ${caseId} is bound to a different execution run.`);
+  const document = typeof parsed.contextDocument === "string" ? parsed.contextDocument.trim() : "";
+  if (!document) throw new Error(`Investigation case ${caseId} has no durable context document.`);
+
+  // The bounded caseFile projection intentionally omits unsafe or oversized URLs
+  // as whole values. Rehydrate the exact public URLs from the immutable event
+  // ledger only when such an omission occurred, so a resume can use the original
+  // route rather than a truncated or reconstructed approximation.
+  const projectedRecords = Array.isArray(parsed.investigatorTrajectoryRecords)
+    ? parsed.investigatorTrajectoryRecords.filter((record): record is Record<string, unknown> => Boolean(record) && typeof record === "object")
+    : [];
+  const hasUrlOmissions = projectedRecords.some((record) => {
+    const omissions = record.durableProjectionOmissions;
+    if (!omissions || typeof omissions !== "object" || Array.isArray(omissions)) return false;
+    const counts = omissions as Record<string, unknown>;
+    return [
+      "argumentUrls", "argumentTextsWithUrls", "observedUrls", "leadUrls",
+      "findingSourceUrls", "sourceBindingUrls", "textUrls",
+    ].some((key) => Number(counts[key]) > 0);
+  });
+  if (!hasUrlOmissions) return document;
+
+  const payloadRows = await db.select({ payload: researchCaseEventsTable.payload })
+    .from(researchCaseEventsTable)
+    .where(and(
+      eq(researchCaseEventsTable.caseId, caseId),
+      inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision", "claim"]),
+    ))
+    .orderBy(desc(researchCaseEventsTable.id))
+    .limit(256);
+  const inventory = buildDurableUrlInventoryFromEventPayloads(payloadRows.map((entry) => entry.payload));
+  return inventory.text ? document + "\\n\\n" + inventory.text : document;
+}
 async function ensureDiscoveryCaseContext(input:{mode?:"target"|"discovery";objective?:string;investigatorLlm?:InvestigatorCapability;jobId?:string;runId:string}):Promise<number|null>{if(input.mode!=="discovery"||!input.jobId)return null;const [created]=await db.insert(researchCasesTable).values({caseType:"discovery",status:"active",directorMode:"groq_boss",directorProvider:"groq",directorModel:"pending",objective:input.objective??"Canonical Atlas model-owned discovery",motivation:"Durable memory for canonical Atlas Investigator discovery.",openingPrompt:"Investigator chooses every research action. This case is memory/state, not a deterministic research plan.",caseFile:JSON.stringify({caseType:"discovery",contextDocument:["CANONICAL ATLAS DISCOVERY CASE",`JOB: ${input.jobId}`,`RUN: ${input.runId}`,`INVESTIGATOR: ${input.investigatorLlm??"unassigned"}`,`OBJECTIVE: ${input.objective??""}`,"STATE: Discovery mode; no person target is implied."].join("\n"),investigationTimeline:[],investigatorTrajectory:[],investigatorTrajectoryRecords:[],jobId:input.jobId,runId:input.runId}),currentAction:"canonical-investigator-discovery",iteration:0}).returning({id:researchCasesTable.id});const caseId=created?.id??null;if(caseId)await db.insert(researchCaseEventsTable).values({caseId,iteration:0,actorRole:"head_investigator",eventType:"assignment",status:"recorded",summary:"Atlas discovery Investigator mounted into durable discovery state.",correlationKey:`${input.runId}:assignment`,payload:JSON.stringify({jobId:input.jobId,runId:input.runId,investigatorLlm:input.investigatorLlm,architecture:"free-react",mode:"discovery"})});return caseId;}
 async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string;investigatorLlm?:InvestigatorCapability;jobId?:string;runId:string;trajectoryTurnOffset?:number;finalize?:boolean},result:{trajectory:string[];trajectoryRecords:AgenticTrajectoryRecord[];groundingTrajectoryRecords?:AgenticTrajectoryRecord[];model:string;iterations:number;searches:number;visits:number;stopReason?:string}):Promise<void>{
   const [row]=await db.select({caseFile:researchCasesTable.caseFile,iteration:researchCasesTable.iteration}).from(researchCasesTable).where(eq(researchCasesTable.id,caseId)).limit(1);
