@@ -184,3 +184,114 @@ export function mergeSourceCardTrajectoryRecords<T extends Record<string, unknow
     ...durableRecords,
   ].sort((a, b) => Number(a.turn ?? 0) - Number(b.turn ?? 0));
 }
+
+
+export type DurableUrlInventory = {
+  text: string;
+  urls: string[];
+  omittedWhole: number;
+};
+
+const MAX_REHYDRATED_URLS = 32;
+const MAX_REHYDRATED_URL_CHARS = 12_000;
+
+function isVerbatimPublicHttpUrl(value: unknown): value is string {
+  if (typeof value !== "string" || !value || value !== value.trim() || /\\s/.test(value)) return false;
+  if (value.length > 32_768 || value.includes("[REDACTED]") || value.includes("[URL omitted from bounded case-file projection")) return false;
+  try {
+    const parsed = new URL(value);
+    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname || parsed.username || parsed.password) return false;
+    if ([...parsed.searchParams.values()].some((item) => item.includes("[REDACTED]"))) return false;
+    const fragment = parsed.hash.slice(1);
+    const queryAt = fragment.indexOf("?");
+    const fragmentQuery = queryAt >= 0 ? fragment.slice(queryAt + 1) : fragment;
+    if ([...new URLSearchParams(fragmentQuery).values()].some((item) => item.includes("[REDACTED]"))) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Rehydrates exact public URL values from append-only case events when the
+ * bounded caseFile projection omits a route whole. It never canonicalizes,
+ * redacts, or slices the URL here; privacy-redacted routes remain non-actionable.
+ */
+export function buildDurableUrlInventoryFromEventPayloads(
+  payloadsNewestFirst: readonly (string | null | undefined)[],
+  options: { maxUrls?: number; maxChars?: number } = {},
+): DurableUrlInventory {
+  const maxUrls = Number.isFinite(options.maxUrls) ? Math.max(0, Math.floor(options.maxUrls!)) : MAX_REHYDRATED_URLS;
+  const maxChars = Number.isFinite(options.maxChars) ? Math.max(0, Math.floor(options.maxChars!)) : MAX_REHYDRATED_URL_CHARS;
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (value: unknown) => {
+    if (!isVerbatimPublicHttpUrl(value) || seen.has(value)) return;
+    seen.add(value);
+    candidates.push(value);
+  };
+  const addMany = (value: unknown) => {
+    if (Array.isArray(value)) for (const item of value) add(item);
+  };
+
+  for (const rawPayload of payloadsNewestFirst) {
+    if (typeof rawPayload !== "string" || !rawPayload) continue;
+    let payload: Record<string, unknown>;
+    try {
+      const parsed: unknown = JSON.parse(rawPayload);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
+      payload = parsed as Record<string, unknown>;
+    } catch {
+      continue;
+    }
+    addMany(payload.leadUrls);
+    addMany(payload.observedUrls);
+
+    const args = payload.args;
+    if (args && typeof args === "object" && !Array.isArray(args)) {
+      for (const [key, value] of Object.entries(args as Record<string, unknown>)) {
+        if (/(?:url|uri)$/i.test(key)) add(value);
+      }
+    }
+    if (Array.isArray(payload.findings)) {
+      for (const finding of payload.findings) {
+        if (finding && typeof finding === "object" && !Array.isArray(finding)) {
+          addMany((finding as Record<string, unknown>).sourceUrls);
+        }
+      }
+    }
+    const claim = payload.claim;
+    if (claim && typeof claim === "object" && !Array.isArray(claim)) {
+      addMany((claim as Record<string, unknown>).sourceUrls);
+    }
+    if (Array.isArray(payload.sourceBindings)) {
+      for (const binding of payload.sourceBindings) {
+        if (binding && typeof binding === "object" && !Array.isArray(binding)) {
+          add((binding as Record<string, unknown>).sourceUrl);
+        }
+      }
+    }
+  }
+
+  const urls: string[] = [];
+  let usedChars = 0;
+  let omittedWhole = 0;
+  for (const url of candidates) {
+    if (urls.length >= maxUrls || url.length > maxChars - usedChars) {
+      omittedWhole += 1;
+      continue;
+    }
+    urls.push(url);
+    usedChars += url.length;
+  }
+
+  const text = [
+    "DURABLE EXACT URL INVENTORY (verbatim values from immutable research_case_events; URLs are leads, not evidence; never reconstruct or shorten):",
+    ...urls.map((url) => "- " + url),
+    omittedWhole > 0
+      ? String(omittedWhole) + " additional URL(s) were omitted whole from this bounded inventory; the case-event ledger remains authoritative. Do not invent or rebuild them."
+      : "No URL value in this inventory sample was truncated.",
+  ].join("\\n");
+  return { text, urls, omittedWhole };
+}
