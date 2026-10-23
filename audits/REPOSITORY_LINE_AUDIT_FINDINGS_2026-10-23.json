@@ -2,7 +2,7 @@
   "audit": {
     "repository": "2f22vtd4kr-cloud/BigContacts",
     "snapshotSha": "f53dbd1fd246cea2162b4f14e16badd60c4542d4",
-    "createdAt": "2026-10-23T10:33:47.232Z",
+    "createdAt": "2026-10-23T10:35:27.625Z",
     "treeEntriesIncludingDirectories": 3436,
     "fileBlobs": 3349,
     "manifestRows": 3349,
@@ -12,7 +12,7 @@
     "totalTextLinesScanned": 556985,
     "totalBlobBytes": 73629427,
     "totalMiB": 70.22,
-    "scanMethod": "Every text-file line scanned against listed static rules; JSON/JSONL parsed; tracked Python syntax checked.",
+    "scanMethod": "Every text-file line scanned against listed static rules; JSON/JSONL parsed; Python py_compile, JavaScript node --check, shell bash -n, and Ruby YAML parsing run on matching tracked files.",
     "limitations": [
       "Pattern hits are triage signals, not adjudicated vulnerabilities.",
       "Semantic human review of every documentation line and every binary pixel is not claimed.",
