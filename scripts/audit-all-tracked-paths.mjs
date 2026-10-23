@@ -188,7 +188,7 @@ const semanticScopeByPath = new Map([
   ["artifacts/apex-finder/src/pages/dashboard.tsx", "Dashboard projection and explicit distinction between entity review cards and unverified source cards."],
   ["artifacts/api-server/src/src/test/dashboard-signal-projection.test.ts", "Source-card URL integrity and defensive durable-event projection checks."],
   ["artifacts/api-server/src/src/lib/url-privacy.ts", "Complete public URL retention, secret-bearing parameter withholding and evidence-safe URL behavior."],
-  ["artifacts/api-server/src/src/lib/url-privacy.test.ts", "URL privacy and source URL regression tests."],
+  ["artifacts/api-server/src/src/test/url-privacy.test.ts", "URL privacy and source URL regression tests."],
   ["artifacts/api-server/src/src/lib/agentic-web-research-core.test.ts", "Partial finding parsing and prompt compaction regression tests."],
   ["artifacts/api-server/src/src/lib/atlas-control-decision.test.ts", "Pinned lead inventory, URL integrity and control-prompt regression tests."],
   ["artifacts/api-server/src/src/lib/model-prompt-audit.test.ts", "Prompt audit redaction and destination policy regression tests."],
