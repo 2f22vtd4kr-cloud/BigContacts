@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AgenticTrajectoryRecord } from "./agentic-web-research-core";
-import { compactDurableDiscoveryRecords } from "./durable-discovery-projection";
+import { compactDurableDiscoveryRecords, mergeSourceCardTrajectoryRecords } from "./durable-discovery-projection";
 
 function recordWithUrl(url: string): AgenticTrajectoryRecord {
   return {
@@ -90,6 +90,18 @@ describe("durable discovery projection URL integrity", () => {
       sourceBindingUrls: 1,
     });
     expect(JSON.stringify(projected)).not.toContain("X-Amz-Signature=%5BREDACTED%5D");
+  });
+
+  it("prefers the complete immutable event over an old truncated projection", () => {
+    const originalUrl = `https://registry.example.org/acquisitions/${"document-segment/".repeat(40)}?record=ACQ-2026-0198.pdf`;
+    const legacyPrefix = originalUrl.slice(0, 500);
+    const projection = [{ turn: 7, action: "visit", args: { url: legacyPrefix }, execution: "success" }];
+    const durable = [{ turn: 7, action: "visit", args: { url: originalUrl }, execution: "success" }];
+
+    const merged = mergeSourceCardTrajectoryRecords(projection, durable);
+
+    expect(merged).toHaveLength(1);
+    expect((merged[0].args as Record<string, unknown>).url).toBe(originalUrl);
   });
 
   it("does not cut through a URL embedded in an overlong argument string", () => {
