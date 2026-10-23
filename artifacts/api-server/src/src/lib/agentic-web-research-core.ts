@@ -4128,7 +4128,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // optional narration and context first, while retaining live actions, scope,
       // provenance, terminal rules, review-lead admission, and the latest durable URLs.
       const hardMinimumTail = buildShortestEmergencyRecordTail();
-      const hardMinimumOutputContract = "OUTPUT CONTRACT: one JSON root object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Unused scalars=null; arrays=[]. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. PARTIAL FINDINGS (not terminal-only): After a successful visit/browser_fetch, emit an unpromoted organization review finding for a source-stated organization plus a material transaction/ownership/business fact (person/role=null; sourceUrls=[that fetched URL]). A person review lead needs exact full name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Snippets and failed/blocked fetches are not evidence; never infer HNWI/contact.";
+      const hardMinimumOutputContract = "OUTPUT CONTRACT: one JSON root object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Unused scalars=null; arrays=[]. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. PARTIAL FINDINGS (not terminal-only): After a successful visit/browser_fetch, emit an unpromoted organization review finding for a source-stated organization plus a material transaction/ownership/business fact (person/role=null; sourceUrls=[that fetched URL only]). A person review lead needs exact full name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Snippets and failed/blocked fetches are not evidence; never infer HNWI/contact.";
       const hardMinimumPrompt = [
         finalEmergencyAssignment,
         activeScope
@@ -4137,7 +4137,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
         "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Use listed IDs only; never invent IDs; unavailable is not a no-hit.",
-        "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
+        "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         "EVIDENCE: snippets/search results are leads, not evidence. Failed/blocked fetches are not observations. Never invent identities, ownership, URLs or contacts.",
         compactCriticalRetrievalGuidance,
         shortestDiscoveryGate,
