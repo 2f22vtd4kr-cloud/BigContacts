@@ -77,7 +77,7 @@ describe("durable discovery projection URL integrity", () => {
     const redactedUrl = "https://registry.example.org/record?X-Amz-Signature=%5BREDACTED%5D&view=full";
     const [projected] = compactDurableDiscoveryRecords([recordWithUrl(redactedUrl)]);
 
-    expect(projected.args.url).toMatch(/^\\[URL omitted from bounded case-file projection/);
+    expect(projected.args.url).toMatch(/^\[URL omitted from bounded case-file projection/);
     expect(projected.observedUrls).toEqual([]);
     expect(projected.leadUrls).toEqual([]);
     expect(projected.findings[0]?.sourceUrls).toEqual([]);
