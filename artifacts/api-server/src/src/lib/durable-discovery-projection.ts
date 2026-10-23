@@ -87,7 +87,7 @@ export function extractSearchResultSnippetForLead(
 
   const raw = lines.slice(urlLineIndex + 1, end).join(" ").trim();
   if (!raw) return null;
-  const boundedLimit = Math.min(500, Math.max(40, Math.floor(maxChars)));
+  const boundedLimit = Math.min(500, Math.max(1, Math.floor(maxChars)));
   const safe = raw
     .replace(/https?:\/\/\S+/gi, "[URL omitted]")
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[public email omitted]")
