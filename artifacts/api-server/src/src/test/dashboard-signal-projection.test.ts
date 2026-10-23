@@ -40,6 +40,13 @@ describe("dashboard source signal provenance", () => {
     expect(normalizer).toContain("url.hostname.replace(/^www[.]/i");
   });
 
+  it("retains URL-bound search snippets on source cards without promoting them to evidence", () => {
+    expect(source).toContain("extractSearchResultSnippetForLead");
+    expect(source).toContain("const searchSnippetsByUrl = new Map<string, string>()");
+    expect(source).toContain("searchSnippet: searchSnippetsByUrl.get(source.key) ?? null");
+    expect(source).toContain("searchSnippet: searchSnippetsByUrl.get(source.key) ?? extractSearchResultSnippetForLead(record.observation, source.sourceUrl)");
+  });
+
   it("does not synthesize today's date when no dated activity exists", () => {
     expect(source).toContain("signalDate: activityMap[e.id] ?? null");
     expect(source).not.toContain('signalDate: activityMap[e.id] ?? new Date().toISOString().split("T")[0]!');
