@@ -200,7 +200,7 @@ function normalizeSearchLeadUrl(raw: unknown): {
     return {
       key,
       sourceUrl,
-      sourceDomain: url.hostname.replace(/^www\\./i, ""),
+      sourceDomain: url.hostname.replace(/^www[.]/i, ""),
       sourcePath: (url.pathname || "/").slice(0, 180),
     };
   } catch {
