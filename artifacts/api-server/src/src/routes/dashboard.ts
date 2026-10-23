@@ -278,7 +278,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
       caseId: researchCaseEventsTable.caseId,
       // payload is text and legacy rows may be malformed. Select the raw,
       // bounded event value and parse defensively below so one corrupt record
-      // cannot make PostgreSQL fail the entire dashboard query during ::jsonb.
+      // cannot make PostgreSQL fail the entire dashboard query before JS parsing.
       payload: researchCaseEventsTable.payload,
     }).from(researchCaseEventsTable).where(and(
       eq(researchCaseEventsTable.caseId, sourceCase.id),
