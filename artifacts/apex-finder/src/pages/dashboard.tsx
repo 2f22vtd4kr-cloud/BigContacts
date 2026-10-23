@@ -258,6 +258,7 @@ function SourceLeadCard({ lead, index }: { lead: any; index: number }) {
   const observed = lead.retrievalStatus === "observed";
   const partialFetch = lead.retrievalStatus === "partial_fetch";
   const blocked = lead.retrievalStatus === "blocked_preflight";
+  const hasFetchedExcerpt = (observed || partialFetch) && Boolean(lead.excerpt);
   return (
     <a
       href={lead.sourceUrl}
@@ -293,6 +294,12 @@ function SourceLeadCard({ lead, index }: { lead: any; index: number }) {
           <p className="mt-2 border-l border-sky-300/25 pl-2 text-xs leading-5 text-muted-foreground" data-testid={`text-source-excerpt-${lead.caseId}-${lead.id}`}>
             {lead.excerpt}
           </p>
+        )}
+        {lead.searchSnippet && !hasFetchedExcerpt && (
+          <div className="mt-2 border-l border-amber-300/25 pl-2 text-xs leading-5 text-muted-foreground" data-testid={`text-unverified-search-snippet-${lead.caseId}-${lead.id}`}>
+            <span className="mb-1 block font-mono text-[10px] uppercase tracking-[0.08em] text-amber-200">Unverified search snippet</span>
+            {lead.searchSnippet}
+          </div>
         )}
       </div>
       <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">

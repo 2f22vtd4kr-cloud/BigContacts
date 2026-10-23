@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { desc, isNotNull, isNull, eq, sql, and, or, gte, inArray } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { retainCompletePublicHttpUrlForPrompt } from "../lib/url-privacy";
-import { mergeSourceCardTrajectoryRecords } from "../lib/durable-discovery-projection";
+import { extractSearchResultSnippetForLead, mergeSourceCardTrajectoryRecords } from "../lib/durable-discovery-projection";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
 import { computeAccessScore } from "../lib/access-score";
@@ -329,6 +329,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     lastFailureDomain: string | null;
     lastFailureKind: string | null;
     excerpt: string | null;
+    searchSnippet: string | null;
     turn: number;
     updatedAt: Date;
   }>();
@@ -351,6 +352,18 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     // This prevents legacy truncated URL prefixes from generating clickable source cards.
     const durableRecords = durableRecordsByCase.get(sourceCase.id) ?? [];
     const records = mergeSourceCardTrajectoryRecords(projectionRecords, durableRecords);
+    // Keep the provider snippet attached to its exact URL so a failed or blocked
+    // fetch does not erase useful search context from the review card.
+    const searchSnippetsByUrl = new Map<string, string>();
+    for (const record of [...records].reverse()) {
+      if (record.execution !== "success" || !["web_search", "parallel_web_search"].includes(String(record.action))) continue;
+      for (const rawUrl of Array.isArray(record.leadUrls) ? record.leadUrls : []) {
+        const source = normalizeSearchLeadUrl(rawUrl);
+        if (!source || searchSnippetsByUrl.has(source.key)) continue;
+        const snippet = extractSearchResultSnippetForLead(record.observation, source.sourceUrl);
+        if (snippet) searchSnippetsByUrl.set(source.key, snippet);
+      }
+    }
     const successfullyFetched = new Set<string>();
     const attempts = new Map<string, Record<string, any>>();
     const blockedAttempts = new Map<string, Record<string, any>>();
@@ -422,6 +435,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
           lastFailureDomain: null,
           lastFailureKind: null,
           excerpt,
+          searchSnippet: searchSnippetsByUrl.get(source.key) ?? null,
           turn: Number(record.turn ?? 0),
           updatedAt: sourceCase.updatedAt,
         });
@@ -456,6 +470,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
           lastFailureDomain: typeof attempt?.failureDomain === "string" ? attempt.failureDomain : null,
           lastFailureKind: typeof attempt?.failureKind === "string" ? attempt.failureKind : null,
           excerpt: null,
+          searchSnippet: searchSnippetsByUrl.get(source.key) ?? extractSearchResultSnippetForLead(record.observation, source.sourceUrl),
           turn: Number(record.turn ?? 0),
           updatedAt: sourceCase.updatedAt,
         });

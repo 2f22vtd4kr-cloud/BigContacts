@@ -37,6 +37,68 @@ export function hasDurableUrlProjectionOmissions(
   });
 }
 
+function searchLeadUrlKey(raw: string): string | null {
+  try {
+    const url = new URL(raw.trim());
+    if ((url.protocol !== "http:" && url.protocol !== "https:") || !url.hostname || url.username || url.password) return null;
+    // Search lead URLs are recorded without fragments; use the same identity for
+    // matching the provider's URL: line while retaining the route stored on the card.
+    url.hash = "";
+    url.hostname = url.hostname.toLowerCase();
+    const href = url.href;
+    return href.endsWith("/") ? href.slice(0, -1) : href;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Extract only the provider's snippet for one exact search-result URL. This is
+ * a display hint, never claim-grade evidence; callers must label it unverified.
+ */
+export function extractSearchResultSnippetForLead(
+  observation: unknown,
+  sourceUrl: string,
+  maxChars = 280,
+): string | null {
+  if (typeof observation !== "string" || !Number.isFinite(maxChars) || maxChars < 1) return null;
+  const targetKey = searchLeadUrlKey(sourceUrl);
+  if (!targetKey) return null;
+  const lines = observation.split(/\r?\n/);
+  const urlLineIndex = lines.findIndex((line) => {
+    const match = line.match(/^\s*URL:\s*(https?:\/\/\S+)\s*$/i);
+    return Boolean(match && searchLeadUrlKey(match[1]!) === targetKey);
+  });
+  if (urlLineIndex < 0) return null;
+
+  let end = lines.length;
+  for (let index = urlLineIndex + 1; index < lines.length; index++) {
+    if (/^\s*(?:INVESTIGATOR QUERY GUIDANCE|PARALLEL_SEARCH \d+ provider=|WEB_SEARCH provider=)/i.test(lines[index]!)) {
+      end = index;
+      break;
+    }
+    if (/^\s*URL:\s*https?:\/\//i.test(lines[index]!)) {
+      // The line immediately before the next URL is that result's title, not
+      // part of this result's snippet. Stop before it.
+      end = Math.max(urlLineIndex + 1, index - 1);
+      break;
+    }
+  }
+
+  const raw = lines.slice(urlLineIndex + 1, end).join(" ").trim();
+  if (!raw) return null;
+  const boundedLimit = Math.min(500, Math.max(1, Math.floor(maxChars)));
+  const safe = raw
+    .replace(/https?:\/\/\S+/gi, "[URL omitted]")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[public email omitted]")
+    .replace(/\+?\d[\d\s().-]{7,}\d/g, "[phone omitted]")
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, boundedLimit);
+  return safe || null;
+}
+
 function safeProjectionUrl(raw: string): string | null {
   return retainCompletePublicHttpUrlForPrompt(raw, MAX_DURABLE_PROJECTION_URL_CHARS);
 }
