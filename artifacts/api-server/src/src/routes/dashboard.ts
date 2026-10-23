@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { desc, isNotNull, isNull, eq, sql, and, or, gte, inArray } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
-import { sanitizeUrlForEvidence } from "../lib/url-privacy";
+import { retainCompletePublicHttpUrlForPrompt } from "../lib/url-privacy";
 import { mergeSourceCardTrajectoryRecords } from "../lib/durable-discovery-projection";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
@@ -187,20 +187,20 @@ function normalizeSearchLeadUrl(raw: unknown): {
   sourceDomain: string;
   sourcePath: string;
 } | null {
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  const safe = sanitizeUrlForEvidence(raw.trim());
-  if (!safe || safe.startsWith("[")) return null;
+  // A source card is a route the user may open. Never turn a signed/token URL
+  // into a redacted lookalike or strip a fragment that may identify an SPA page.
+  const sourceUrl = retainCompletePublicHttpUrlForPrompt(raw, 32_768);
+  if (!sourceUrl) return null;
   try {
-    const url = new URL(safe);
+    const url = new URL(sourceUrl);
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    url.hash = "";
-    url.hostname = url.hostname.toLowerCase();
-    const sourceUrl = url.href;
-    const key = sourceUrl.endsWith("/") ? sourceUrl.slice(0, -1) : sourceUrl;
+    const keyUrl = new URL(sourceUrl);
+    keyUrl.hostname = keyUrl.hostname.toLowerCase();
+    const key = keyUrl.href.endsWith("/") ? keyUrl.href.slice(0, -1) : keyUrl.href;
     return {
       key,
       sourceUrl,
-      sourceDomain: url.hostname.replace(/^www\./i, ""),
+      sourceDomain: url.hostname.replace(/^www\\./i, ""),
       sourcePath: (url.pathname || "/").slice(0, 180),
     };
   } catch {
