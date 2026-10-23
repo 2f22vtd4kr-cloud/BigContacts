@@ -5,6 +5,7 @@ import { buildStepPrompt, type AgenticTrajectoryRecord } from "./agentic-web-res
 import {
   buildDurableUrlInventoryFromEventPayloads,
   compactDurableDiscoveryRecords,
+  hasDurableUrlProjectionOmissions,
   mergeSourceCardTrajectoryRecords,
 } from "./durable-discovery-projection";
 
@@ -41,6 +42,17 @@ function recordWithUrl(url: string): AgenticTrajectoryRecord {
 }
 
 describe("durable discovery projection URL integrity", () => {
+  it("keeps sticky URL omission state after its original trajectory record rolls out", () => {
+    expect(hasDurableUrlProjectionOmissions(true, [])).toBe(true);
+    expect(hasDurableUrlProjectionOmissions(false, [{
+      durableProjectionOmissions: { leadUrls: 1, reason: "whole URL omitted from bounded projection" },
+    }])).toBe(true);
+    expect(hasDurableUrlProjectionOmissions(false, [{
+      durableProjectionOmissions: { leadUrls: 0, reason: "nothing omitted" },
+    }])).toBe(false);
+    expect(hasDurableUrlProjectionOmissions(false, [])).toBe(false);
+  });
+
   it("rehydrates an over-budget source URL from immutable events into a resumed Investigator prompt", () => {
     const longUrl = "https://registry.example.org/acquisitions/" + "a".repeat(435) + "?record=ACQ-2026-0198.pdf";
     expect(longUrl.length).toBeGreaterThan(500);
