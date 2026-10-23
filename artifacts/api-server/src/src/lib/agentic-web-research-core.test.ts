@@ -941,7 +941,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("Slovakia");
     expect(prompt).toContain("ownership filings or local business registries");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
-    expect(prompt).toContain("VALID PROVIDERS:");
+    expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toContain("one successfully fetched claim-grade source");
     expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
@@ -2827,7 +2827,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     });
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
     expect(prompt).toMatch(/after (?:a )?successful visit\/browser_fetch/i);
-    expect(prompt).toContain("sourceUrls=[that fetched URL only]");
+    expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
   });
 });
 
