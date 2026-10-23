@@ -5,6 +5,7 @@ import { buildStepPrompt, type AgenticTrajectoryRecord } from "./agentic-web-res
 import {
   buildDurableUrlInventoryFromEventPayloads,
   compactDurableDiscoveryRecords,
+  extractSearchResultSnippetForLead,
   hasDurableUrlProjectionOmissions,
   mergeSourceCardTrajectoryRecords,
 } from "./durable-discovery-projection";
@@ -242,7 +243,29 @@ describe("durable discovery projection URL integrity", () => {
     expect(projected.args.source0Url).toBe("https://registry.example.org/source/0");
     expect(projected.args.source23Url).toBe("https://registry.example.org/source/23");
     expect(projected.args.optional0).toBeUndefined();
-    expect(projected.durableProjectionOmissions?.argumentUrls).toBe(2);
+    expect(projected.durableProjectionOmi
+  it("retains the matching search snippet as explicitly unverified context and redacts contact data", () => {
+    const url = "https://registry.example.org/acquisitions/record-17";
+    const observation = [
+      "WEB_SEARCH provider=serper",
+      "https://registry.example.org/acquisitions/record-17",
+      "",
+      "Example Acquisition Notice",
+      "URL: https://registry.example.org/acquisitions/record-17#details",
+      "The filing names Example Holdings as buyer. Contact person@example.org at +1 (415) 555-0100.",
+      "Next Result Title",
+      "URL: https://registry.example.org/other-record",
+      "This belongs to a different result and must not leak into the first snippet.",
+      "INVESTIGATOR QUERY GUIDANCE: continue with the best lead.",
+    ].join("\n");
+
+    expect(extractSearchResultSnippetForLead(observation, url)).toBe(
+      "The filing names Example Holdings as buyer. Contact [public email omitted] at [phone omitted].",
+    );
+    expect(extractSearchResultSnippetForLead(observation, "https://registry.example.org/missing")).toBeNull();
+    expect(extractSearchResultSnippetForLead(observation, "https://registry.example.org/acquisitions/record-17", 40)?.length).toBeLessThanOrEqual(40);
+  });
+ssions?.argumentUrls).toBe(2);
   });
 
 });
