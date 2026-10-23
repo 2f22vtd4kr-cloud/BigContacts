@@ -32,10 +32,11 @@ function cat(p){
  if(/^docs\//.test(p))return"documentation";
  if(/^\.github\/workflows\//.test(p))return"ci-workflow";
  if(/^(scripts|main\.py)(\/|$)/.test(p))return"operational-script";
- if(/^(lib|artifacts|services|deployment)\//.test(p))return"first-party-implementation";
- if(/(^|\/)(migrations?|drizzle)\//i.test(p)||/\.sql$/i.test(p))return"database-migration-or-schema";
+ if(/(^|\/)(migrations?|drizzle|schema)\//i.test(p)||/\.sql$/i.test(p))return"database-migration-or-schema";
  if(/(^|\/)(node_modules|vendor|dist|build|coverage|generated)\//i.test(p))return"generated-or-vendored";
+ if(/(^|\/)(__tests__|tests?)(\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$/i.test(p))return"first-party-test";
  if(/^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig.*\.json|\.npmrc)$/.test(p))return"build-or-dependency-configuration";
+ if(/^(lib|artifacts|services|deployment)\//.test(p))return"first-party-implementation";
  if(/^\./.test(p)||/(^|\/)(Dockerfile|Makefile|Justfile)$/i.test(p))return"runtime-or-repository-configuration";
  return"other-tracked-file";
 }
