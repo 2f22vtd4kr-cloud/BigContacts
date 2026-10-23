@@ -31,11 +31,3 @@ APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"
 APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"
 APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"
 APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-23_FRESH_REPLIT_IMPORT_RUN_02.md"
-
-[[ports]]
-localPort = 8080
-externalPort = 8080
-
-[[ports]]
-localPort = 8081
-externalPort = 80
