@@ -83,7 +83,9 @@ describe("durable discovery projection URL integrity", () => {
       trajectoryRecords: [],
       lastObservation: "An earlier search found a potential acquisition source.",
       findings: [],
-      priorContext: inventory.text,
+      // Match production: only the dedicated inventory input is trusted as an exact route list.
+      priorContext: "Previously compacted case context; no authoritative route is embedded here.",
+      durableUrlInventory: inventory.text,
       mode: "discovery",
     });
     expect(prompt).toContain(longUrl);
@@ -91,7 +93,7 @@ describe("durable discovery projection URL integrity", () => {
 
     // The production resume path appends this exact bounded inventory only when
     // the case-file projection has recorded an omitted URL.
-    expect(bureauAgenticPassSource).toContain("if (!hasUrlOmissions) return document;");
+    expect(bureauAgenticPassSource).toContain("if (!hasUrlOmissions) return { document };");
     expect(bureauAgenticPassSource).toContain("hasDurableUrlProjectionOmissions,");
     expect(bureauAgenticPassSource).toContain("hasDurableUrlProjectionOmissionsHelper(");
     expect(bureauAgenticPassSource).toContain("parsed.hasDurableUrlProjectionOmissions,");
