@@ -29,17 +29,41 @@ function safeProjectionUrl(raw: string): string | null {
 /** Keep URL tokens atomic when shortening non-authoritative descriptive text. */
 function compactText(raw: string | undefined, maxChars: number): { value?: string; omittedUrls: number } {
   if (raw === undefined || raw.length <= maxChars || raw.includes("[URL omitted from bounded case-file projection")) return { value: raw, omittedUrls: 0 };
-  const match = [...raw.matchAll(URL_TOKEN_PATTERN)].find((candidate) => {
-    const start = candidate.index ?? -1;
-    return start >= 0 && start < maxChars && start + candidate[0].length > maxChars;
-  });
-  if (match?.index !== undefined) {
+  const matches = [...raw.matchAll(URL_TOKEN_PATTERN)];
+  const omitted = matches.filter((candidate) => (candidate.index ?? 0) + candidate[0].length > maxChars);
+  if (omitted.length > 0) {
+    const firstOmittedStart = omitted[0].index ?? maxChars;
+    const prefixEnd = Math.min(maxChars, firstOmittedStart);
     return {
-      value: raw.slice(0, match.index) + "[URL omitted from bounded case-file projection; full value remains in immutable research_case_events]",
-      omittedUrls: 1,
+      value: raw.slice(0, prefixEnd) + "[URL omitted from bounded case-file projection; full value remains in immutable research_case_events]",
+      omittedUrls: omitted.length,
     };
   }
   return { value: raw.slice(0, maxChars), omittedUrls: 0 };
+}
+
+function countUrlReferences(value: unknown, key = "", depth = 0): { urlFields: number; textFields: number; textUrls: number } {
+  if (depth > 8 || value == null) return { urlFields: 0, textFields: 0, textUrls: 0 };
+  if (typeof value === "string") {
+    if (/(?:urls?|uris?)$/i.test(key)) {
+      return /^https?:\/\//i.test(value) ? { urlFields: 1, textFields: 0, textUrls: 0 } : { urlFields: 0, textFields: 0, textUrls: 0 };
+    }
+    const matches = [...value.matchAll(URL_TOKEN_PATTERN)];
+    return { urlFields: 0, textFields: matches.length > 0 ? 1 : 0, textUrls: matches.length };
+  }
+  if (Array.isArray(value)) {
+    return value.reduce((sum, item) => {
+      const next = countUrlReferences(item, key, depth + 1);
+      return { urlFields: sum.urlFields + next.urlFields, textFields: sum.textFields + next.textFields, textUrls: sum.textUrls + next.textUrls };
+    }, { urlFields: 0, textFields: 0, textUrls: 0 });
+  }
+  if (typeof value === "object") {
+    return Object.entries(value as Record<string, unknown>).reduce((sum, [childKey, child]) => {
+      const next = countUrlReferences(child, childKey, depth + 1);
+      return { urlFields: sum.urlFields + next.urlFields, textFields: sum.textFields + next.textFields, textUrls: sum.textUrls + next.textUrls };
+    }, { urlFields: 0, textFields: 0, textUrls: 0 });
+  }
+  return { urlFields: 0, textFields: 0, textUrls: 0 };
 }
 
 function compactUrlList(values: readonly string[] | undefined): { values: string[]; omitted: number } {
@@ -81,6 +105,12 @@ export function compactDurableDiscoveryRecords(records: AgenticTrajectoryRecord[
     const omissions = priorOmissions(record);
     const args: Record<string, unknown> = {};
     const argumentEntries = Object.entries(record.args ?? {});
+    const countDroppedArgument = (key: string, value: unknown) => {
+      const counted = countUrlReferences(value, key);
+      omissions.argumentUrls += counted.urlFields;
+      omissions.argumentTextsWithUrls += counted.textFields;
+      omissions.textUrls += counted.textUrls;
+    };
     const isUrlArgument = (key: string) => /(?:url|uri)$/i.test(key);
     // URL-bearing fields take priority so a long optional prompt argument cannot
     // crowd an authoritative resource route out of the bounded working state.
@@ -119,13 +149,8 @@ export function compactDurableDiscoveryRecords(records: AgenticTrajectoryRecord[
     // The argument object is bounded, but omissions must remain observable even
     // when a URL-bearing field appears after the first N source fields.
     for (const [key, rawValue] of prioritizedEntries.slice(MAX_DURABLE_PROJECTION_ITEMS)) {
-      if (typeof rawValue !== "string") continue;
-      if (isUrlArgument(key)) {
-        if (!rawValue.startsWith("[URL omitted from bounded case-file projection;")) omissions.argumentUrls += 1;
-      } else if (/https?:\/\//i.test(rawValue)) {
-        omissions.argumentTextsWithUrls += 1;
-        omissions.textUrls += Math.max(1, [...rawValue.matchAll(URL_TOKEN_PATTERN)].length);
-      }
+      if (typeof rawValue === "string" && rawValue.startsWith("[URL omitted from bounded case-file projection;")) continue;
+      countDroppedArgument(key, rawValue);
     }
 
     const observed = compactUrlList(record.observedUrls);
@@ -135,6 +160,10 @@ export function compactDurableDiscoveryRecords(records: AgenticTrajectoryRecord[
 
     let omittedFindingSourceUrls = 0;
     let omittedFindingTextUrls = 0;
+    for (const omittedFinding of (record.findings ?? []).slice(MAX_DURABLE_PROJECTION_ITEMS)) {
+      omissions.findingSourceUrls += countUrlReferences(omittedFinding.sourceUrls, "sourceUrls").urlFields;
+      omissions.textUrls += countUrlReferences([omittedFinding.note, omittedFinding.promotionReason], "note").textUrls;
+    }
     const findings: AgenticFinding[] = (record.findings ?? []).slice(0, MAX_DURABLE_PROJECTION_ITEMS).map((finding) => {
       const sources = compactUrlList(finding.sourceUrls);
       omittedFindingSourceUrls += sources.omitted;
