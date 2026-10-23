@@ -37,6 +37,7 @@ describe("dashboard source signal provenance", () => {
     expect(normalizer).toContain("sourceUrl,");
     expect(normalizer).not.toContain("sanitizeUrlForEvidence");
     expect(normalizer).not.toContain('url.hash = ""');
+    expect(normalizer).toContain("url.hostname.replace(/^www[.]/i");
   });
 
   it("does not synthesize today's date when no dated activity exists", () => {
