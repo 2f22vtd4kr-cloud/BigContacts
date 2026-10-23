@@ -321,7 +321,7 @@ describe("model prompt audit", () => {
     expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_VISIBLE_OPT_IN_TEST.md"));
     expect(writes[0]?.contents).not.toContain("person@example.org");
     expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
-    expect(writes[0]?.contents).toMatch(/\\[REDACTED_(?:CONTACT_DATA|EMAIL)\\]/);
+    expect(writes[0]?.contents).toMatch(/REDACTED_(?:CONTACT_DATA|EMAIL)/);
     expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
     for (const secret of [
       "gsk_123456789012345678901234",
@@ -363,7 +363,7 @@ describe("model prompt audit", () => {
     expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_VISIBLE_RESPONSE_REDACTION_TEST.md"));
     expect(writes[0]?.contents).not.toContain("jane.doe@example.org");
     expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
-    expect(writes[0]?.contents).toMatch(/\\[REDACTED_(?:CONTACT_DATA|EMAIL)\\]/);
+    expect(writes[0]?.contents).toMatch(/REDACTED_(?:CONTACT_DATA|EMAIL)/);
     expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
     expect(writes[0]?.contents).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
   });
