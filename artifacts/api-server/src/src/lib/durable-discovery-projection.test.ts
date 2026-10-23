@@ -73,6 +73,25 @@ describe("durable discovery projection URL integrity", () => {
     expect(projected.durableProjectionOmissions).toBeUndefined();
   });
 
+  it("omits already-redacted signed URLs instead of treating them as authoritative routes", () => {
+    const redactedUrl = "https://registry.example.org/record?X-Amz-Signature=%5BREDACTED%5D&view=full";
+    const [projected] = compactDurableDiscoveryRecords([recordWithUrl(redactedUrl)]);
+
+    expect(projected.args.url).toMatch(/^\\[URL omitted from bounded case-file projection/);
+    expect(projected.observedUrls).toEqual([]);
+    expect(projected.leadUrls).toEqual([]);
+    expect(projected.findings[0]?.sourceUrls).toEqual([]);
+    expect(projected.sourceBindings).toEqual([]);
+    expect(projected.durableProjectionOmissions).toMatchObject({
+      argumentUrls: 1,
+      observedUrls: 1,
+      leadUrls: 1,
+      findingSourceUrls: 1,
+      sourceBindingUrls: 1,
+    });
+    expect(JSON.stringify(projected)).not.toContain("X-Amz-Signature=%5BREDACTED%5D");
+  });
+
   it("does not cut through a URL embedded in an overlong argument string", () => {
     const longUrl = `https://registry.example.org/acquisitions/${"document-segment/".repeat(40)}?id=full-record`;
     const base = recordWithUrl("https://registry.example.org/company/123");
