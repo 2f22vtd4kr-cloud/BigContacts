@@ -7,7 +7,7 @@
 # source changes belong in Git and must be committed explicitly.
 # ============================================================
 
-set -u
+set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -18,8 +18,17 @@ if ! pnpm install --frozen-lockfile; then
   exit 1
 fi
 
-echo "=== [2/5] Applying DB schema (additive) ==="
-pnpm --filter @workspace/db run push || echo "WARN: db push failed — check DATABASE_URL"
+echo "=== [2/5] Database schema lifecycle ==="
+if [[ "${APEX_ALLOW_SCHEMA_PUSH:-false}" == "true" ]]; then
+  # Schema mutation is a deliberate operation. Use the same single-writer
+  # initializer as runtime boot so hardening, compatibility migrations, and
+  # invariant verification cannot be skipped by a raw Drizzle push.
+  bash scripts/initialize-apex-schema.sh
+  unset APEX_ALLOW_SCHEMA_PUSH
+else
+  echo "Schema mutation skipped. For an explicit migration window, set APEX_ALLOW_SCHEMA_PUSH=true."
+  echo "Database schema readiness was not verified by this post-merge hook."
+fi
 
 echo "=== [3/5] Checking for synthetic data ==="
 if ! bash scripts/check-no-synthetic-data.sh; then
