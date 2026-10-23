@@ -276,17 +276,10 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     db.select({
       id: researchCaseEventsTable.id,
       caseId: researchCaseEventsTable.caseId,
-      payload: sql<string>`jsonb_build_object(
-        'action', (${researchCaseEventsTable.payload}::jsonb -> 'action'),
-        'turn', (${researchCaseEventsTable.payload}::jsonb -> 'turn'),
-        'args', jsonb_build_object('url', (${researchCaseEventsTable.payload}::jsonb -> 'args' -> 'url')),
-        'leadUrls', (${researchCaseEventsTable.payload}::jsonb -> 'leadUrls'),
-        'observedUrls', (${researchCaseEventsTable.payload}::jsonb -> 'observedUrls'),
-        'execution', (${researchCaseEventsTable.payload}::jsonb -> 'execution'),
-        'observation', left(coalesce(${researchCaseEventsTable.payload}::jsonb ->> 'observation', ''), 1500),
-        'failureDomain', (${researchCaseEventsTable.payload}::jsonb -> 'failureDomain'),
-        'failureKind', (${researchCaseEventsTable.payload}::jsonb -> 'failureKind')
-      )::text`.as("payload"),
+      // payload is text and legacy rows may be malformed. Select the raw,
+      // bounded event value and parse defensively below so one corrupt record
+      // cannot make PostgreSQL fail the entire dashboard query during ::jsonb.
+      payload: researchCaseEventsTable.payload,
     }).from(researchCaseEventsTable).where(and(
       eq(researchCaseEventsTable.caseId, sourceCase.id),
       inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"]),
