@@ -165,3 +165,22 @@ export function compactDurableDiscoveryRecords(records: AgenticTrajectoryRecord[
     return projected;
   });
 }
+
+
+/**
+ * Prefer immutable trajectory events over the bounded projection for identical
+ * turn/action pairs. A legacy projection may contain a URL prefix cut mid-token;
+ * keeping that copy alongside the full event would render a plausible but false link.
+ */
+export function mergeSourceCardTrajectoryRecords(
+  projectionRecords: Record<string, unknown>[],
+  durableRecords: Record<string, unknown>[],
+): Record<string, unknown>[] {
+  const actionKey = (record: Record<string, unknown>) =>
+    `${Number(record.turn ?? 0)}:${String(record.action ?? "")}`;
+  const durableActionKeys = new Set(durableRecords.map(actionKey));
+  return [
+    ...projectionRecords.filter((record) => !durableActionKeys.has(actionKey(record))),
+    ...durableRecords,
+  ].sort((a, b) => Number(a.turn ?? 0) - Number(b.turn ?? 0));
+}
