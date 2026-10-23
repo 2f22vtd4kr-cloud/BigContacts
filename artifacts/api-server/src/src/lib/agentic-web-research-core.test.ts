@@ -785,8 +785,8 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
     expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
     expect(prompt).toContain("CONTACT FACTS (observed, not attributed)");
-    expect(prompt).toContain("minEvidence=1; minIndependentSourceUnits=1");
-    expect(prompt).toContain("requireFalsification=false");
+    expect(prompt).toMatch(/minEvidence=1; (?:minIndependentSourceUnits=1|independentSources=1)/);
+    expect(prompt).toMatch(/(?:requireFalsification=false|falsification=false)/);
     expect(prompt).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(prompt).toContain("not a prescribed action sequence");
   });
@@ -851,7 +851,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
     expect(prompt).toContain("OUTPUT CONTRACT:");
-    expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider");
+    expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*provider/i);
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(prompt).toContain("one successfully fetched claim-grade source");
     expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
@@ -942,7 +942,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("ownership filings or local business registries");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("VALID PROVIDERS:");
-    expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
+    expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toContain("one successfully fetched claim-grade source");
     expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
     expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
@@ -1627,7 +1627,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:)/);
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
-    expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
+    expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
     expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
@@ -2826,7 +2826,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
       mode: "discovery",
     });
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
-    expect(prompt).toContain("After a successful visit/browser_fetch");
+    expect(prompt).toMatch(/after (?:a )?successful visit\/browser_fetch/i);
     expect(prompt).toContain("sourceUrls=[that fetched URL only]");
   });
 });
