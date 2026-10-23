@@ -45,7 +45,7 @@ export type OpsEvent = {
 
 type SceneKind = "google" | "browser" | "prompt" | "domain" | "footprint" | "serp" | "bureau" | "boss" | "case" | "registry" | "persona";
 
-type Scene = {
+export type Scene = {
   id: string;
   kind: SceneKind;
   provider: ProviderKind;
@@ -73,12 +73,12 @@ function pickTool(e: OpsEvent): string {
   return String(e.activeToolId || e.toolIds?.[0] || e.stage || e.kind || "");
 }
 
-function isLogGarbage(s: string): boolean {
+export function isLogGarbage(s: string): boolean {
   if (!s) return true;
   const t = s.trim();
   if (t.length < 3) return true;
   if (/^[{[]/.test(t)) return true;
-  if (/BOSS_DISCOVERY_DIRECTION|DISCOVERY_MODEL_STEP|DISCOVERY_ADMIT|DURABLE_PROMOTION|BUREAU|/i.test(t)) return true;
+  if (/\b(?:BOSS_DISCOVERY_DIRECTION|DISCOVERY_MODEL_STEP|DISCOVERY_ADMIT|DURABLE_PROMOTION)\b|\bBUREAU(?:_|\s+(?:EVENT|TRACE|LOG|STATE|CONTROL)\b)/i.test(t)) return true;
   if (/modelFindings|vectorType|atlasPhase|sourceUrls.{0,40}https/i.test(t) && t.length > 90) return true;
   if (/slot=\d+\/\d+.*concurrent=/i.test(t)) return true;
   return /DIRECTOR\s+\d{4}-|jobId=/i.test(t) && t.length > 100;
@@ -142,7 +142,7 @@ function cleanQueryText(s: string): string {
     .trim();
 }
 
-function extractQuery(e: OpsEvent): string | undefined {
+export function extractQuery(e: OpsEvent): string | undefined {
   // Never surface internal research-contract / lane prompts / template meta as the search box query
   const safeParts = [e.inputSummary, e.resultSummary, e.stage, e.raw]
     .filter((x): x is string => Boolean(x) && !isInternalLanePrompt(String(x)));
@@ -373,7 +373,7 @@ function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
   return `${prefix} ${body}`;
 }
 
-function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = null): Scene {
+export function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = null): Scene {
   const tool = pickTool(e);
   const provider = detectProviderKind(`${tool} ${e.stage || ""} ${e.resultSummary || ""}`);
   const status = String(e.status || "unknown").trim().toLowerCase();
@@ -419,7 +419,7 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
   else if (e.methodKind === "registry" || e.actor === "registry" || /edgar|companies.?house|brreg|registry/i.test(toolBlob)) kind = "registry";
   else if (e.methodKind === "persona" || /persona-review/i.test(toolBlob)) kind = "persona";
   else if (e.methodKind === "domain" || provider === "domain" || /domain-surface|domain-resolver|rdap|whois|whoxy|dns/i.test(toolBlob)) kind = "domain";
-  else if (e.methodKind === "search" || provider === "google" || /\bgoogle\b/i.test(toolBlob)) kind = "google";
+  else if (provider === "google" || /\bgoogle\b/i.test(toolBlob)) kind = "google";
   else if (e.methodKind === "search" || ["serp", "serper", "serpapi", "tavily", "exa", "perplexity"].includes(provider) || /tavily|exa|perplexity|serper|serpapi|web.?search/i.test(tool)) kind = "serp";
   else if (e.methodKind === "extract" || provider === "prompt" || e.prompt || /groq|llm|extract|gemini/i.test(tool)) kind = "prompt";
   else if (e.methodKind === "footprint" || provider === "sherlock" || provider === "maigret" || provider === "holehe" || /footprint|holehe|sherlock|maigret|harvest/i.test(toolBlob)) kind = "footprint";
