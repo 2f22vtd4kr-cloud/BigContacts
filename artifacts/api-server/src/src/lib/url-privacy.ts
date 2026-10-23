@@ -16,7 +16,7 @@ export function retainCompletePublicHttpUrlForPrompt(rawUrl: unknown, maxChars =
   if (typeof rawUrl !== "string") return null;
   const raw = rawUrl.trim();
   const limit = Number.isFinite(maxChars) ? Math.max(0, Math.floor(maxChars)) : 0;
-  if (!raw || raw.length > limit || /\s/.test(raw)) return null;
+  if (!raw || raw.length > limit || /\s/.test(raw) || /\[(?:REDACTED|URL omitted from bounded case-file projection)/i.test(raw)) return null;
   try {
     const url = new URL(raw);
     if ((url.protocol !== "http:" && url.protocol !== "https:") || !url.hostname || url.username || url.password) {
