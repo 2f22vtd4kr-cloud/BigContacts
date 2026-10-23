@@ -50,11 +50,15 @@ describe("model prompt audit", () => {
     const productionConfig = artifactConfig.split("[services.production]")[1] ?? "";
 
     expect(serviceRun).toBe("cd ../.. && bash scripts/replit-boot.sh");
-    expect(artifactConfig).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
-    expect(artifactConfig).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
-    expect(artifactConfig).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
-    expect(artifactConfig).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "true"');
-    expect(artifactConfig).toMatch(/APEX_MODEL_AUDIT_FILE = "audits\/APEX_ATLAS_SEQUENTIAL_AUDIT_[^"]+\.md"/);
+    const workspaceConfig = readFileSync(resolve(workspaceRoot, ".replit"), "utf8");
+
+    for (const config of [artifactConfig, workspaceConfig]) {
+      expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
+      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
+      expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
+      expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
+      expect(config).toContain('APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_SEQUENTIAL_AUDIT_RUN_03.md"');
+    }
     expect(productionConfig).not.toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
     expect(serviceRun).not.toContain("APEX_CAPTURE_MODEL_PROMPTS=true");
