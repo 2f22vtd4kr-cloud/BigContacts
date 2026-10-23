@@ -107,7 +107,7 @@ export function sanitizeUrlsInText(text: string): string {
 
 const AUTHORITATIVE_URL_FIELD = /(?:url|uri)s?$/i;
 const MAX_OBSERVABLE_PUBLIC_URL_CHARS = 12_000;
-const OMITTED_PRIVATE_URL = "[URL omitted from privacy-safe observable state; credential-bearing or non-public route not retained]";
+export const PRIVACY_WITHHELD_URL_MARKER = "[URL omitted from privacy-safe observable state; credential-bearing or non-public route not retained]";
 
 function sanitizeObservableValueAtKey<T>(value: T, key: string): T {
   if (typeof value === "string") {
@@ -115,11 +115,11 @@ function sanitizeObservableValueAtKey<T>(value: T, key: string): T {
       // Durable route fields must never be silently normalized into a different
       // URL. Preserve safe public URLs verbatim; withhold credential/signed routes
       // as a whole rather than persisting a misleading redacted clickable URL.
-      if (value !== value.trim()) return OMITTED_PRIVATE_URL as T;
+      if (value !== value.trim()) return PRIVACY_WITHHELD_URL_MARKER as T;
       return (retainCompletePublicHttpUrlForPrompt(value, MAX_OBSERVABLE_PUBLIC_URL_CHARS)
-        ?? OMITTED_PRIVATE_URL) as T;
+        ?? PRIVACY_WITHHELD_URL_MARKER) as T;
     }
-    return sanitizeUrlsInText(value) as T;
+    return sanitizeObservableText(value) as T;
   }
   if (Array.isArray(value)) {
     return value.map((item) => sanitizeObservableValueAtKey(item, key)) as T;
@@ -132,6 +132,22 @@ function sanitizeObservableValueAtKey<T>(value: T, key: string): T {
     return output as T;
   }
   return value;
+}
+
+/**
+ * Preserve a safe public URL exactly when it appears in free-form observed text.
+ * Unsafe, signed, or over-budget routes are withheld whole rather than rewritten
+ * into plausible-looking URLs. Trailing prose punctuation stays outside the token.
+ */
+function sanitizeObservableText(text: string): string {
+  return text.replace(/https?:\/\/[^\s<>"'`]+/gi, (candidate) => {
+    const trailing = candidate.match(/[),.;!?\]}]+$/)?.[0] ?? "";
+    const rawUrl = trailing ? candidate.slice(0, -trailing.length) : candidate;
+    const exact = rawUrl === rawUrl.trim()
+      ? retainCompletePublicHttpUrlForPrompt(rawUrl, MAX_OBSERVABLE_PUBLIC_URL_CHARS)
+      : null;
+    return (exact ?? PRIVACY_WITHHELD_URL_MARKER) + trailing;
+  });
 }
 
 /** Recursively sanitizes a value before it becomes observable or durable. */
