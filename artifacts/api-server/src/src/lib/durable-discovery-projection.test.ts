@@ -165,4 +165,21 @@ describe("durable discovery projection URL integrity", () => {
     expect(projected.durableProjectionOmissions?.argumentTextsWithUrls).toBe(1);
     expect(projected.durableProjectionOmissions?.textUrls).toBe(1);
   });
+
+  it("prioritizes URL fields and reports URLs omitted beyond the projection argument cap", () => {
+    const base = recordWithUrl("https://registry.example.org/company/123");
+    base.args = Object.fromEntries([
+      ...Array.from({ length: 30 }, (_, index) => ["optional" + index, "low-priority-value"]),
+      ...Array.from({ length: 26 }, (_, index) => ["sourceUrl" + index, "https://registry.example.org/source/" + index]),
+    ]);
+
+    const [projected] = compactDurableDiscoveryRecords([base]);
+
+    expect(Object.keys(projected.args)).toHaveLength(24);
+    expect(projected.args.sourceUrl0).toBe("https://registry.example.org/source/0");
+    expect(projected.args.sourceUrl23).toBe("https://registry.example.org/source/23");
+    expect(projected.args.optional0).toBeUndefined();
+    expect(projected.durableProjectionOmissions?.argumentUrls).toBe(2);
+  });
+
 });
