@@ -22,6 +22,21 @@ export type DurableProjectionRecord = AgenticTrajectoryRecord & {
   durableProjectionOmissions?: DurableProjectionOmissions;
 };
 
+/** A bounded trajectory can roll an omission-bearing record out of its recent window. */
+export function hasDurableUrlProjectionOmissions(
+  priorFlag: unknown,
+  records: readonly unknown[],
+): boolean {
+  if (priorFlag === true) return true;
+  return records.some((record) => {
+    if (!record || typeof record !== "object" || Array.isArray(record)) return false;
+    const omissions = (record as Record<string, unknown>).durableProjectionOmissions;
+    if (!omissions || typeof omissions !== "object" || Array.isArray(omissions)) return false;
+    return Object.entries(omissions as Record<string, unknown>)
+      .some(([key, value]) => key !== "reason" && Number(value) > 0);
+  });
+}
+
 function safeProjectionUrl(raw: string): string | null {
   return retainCompletePublicHttpUrlForPrompt(raw, MAX_DURABLE_PROJECTION_URL_CHARS);
 }
