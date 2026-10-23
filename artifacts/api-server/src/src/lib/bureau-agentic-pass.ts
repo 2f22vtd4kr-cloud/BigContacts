@@ -100,7 +100,7 @@ async function loadMountedCaseContext(
   const projectedRecords = Array.isArray(parsed.investigatorTrajectoryRecords)
     ? parsed.investigatorTrajectoryRecords.filter((record): record is Record<string, unknown> => Boolean(record) && typeof record === "object")
     : [];
-  const hasUrlOmissions = projectedRecords.some((record) => {
+  const hasUrlOmissions = parsed.hasDurableUrlProjectionOmissions === true || projectedRecords.some((record) => {
     const omissions = record.durableProjectionOmissions;
     if (!omissions || typeof omissions !== "object" || Array.isArray(omissions)) return false;
     const counts = omissions as Record<string, unknown>;
