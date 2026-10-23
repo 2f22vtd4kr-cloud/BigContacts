@@ -4103,10 +4103,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const shortestActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
       const shortestRegistryGuidance = `REGISTRY GUIDANCE: enabled IDs only: ${registryIdList}; never invent IDs; unavailable/failed is not a no-hit.`;
       const shortestDiscoveryGate = input.mode === "discovery"
-        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies/prestige—are targets; organizations are leads. Honor Boss topic/geography; source class may vary per query; official sources must not change scope. Avoid generic wealth/net-worth/private-equity-profile searches alone. Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
+        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are the target; an organization is a lead, not the target. Require ownership/equity/control/investment clue; never infer wealth from seniority alone. Honor approved Boss scope: topic/geography must match; source class need not appear in every discovery query. No preset targets/queries; the model chooses tools and action order; this is not a prescribed action sequence. Avoid generic wealth/net-worth/private-equity-profile searches alone, Fortune/ranking lists, and global-brand leadership without a plausible local owner/operator route hypothesis. News publishers and articles are evidence leads only, never targets or access routes. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
         : "";
       const shortestAdmission = input.mode === "discovery"
-        ? "DISCOVERY LEAD HANDOFF CONTRACT: review-only PersonCandidate needs exact full name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority. Official company leadership/staff and filing/registry pages qualify only when they directly bind exact name/role. Third-party people-search/profile-directory aggregators and CONTACT FACTS (observed, not attributed) are leads, not identity evidence. Not an HNWI conclusion. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion."
+        ? "DISCOVERY LEAD HANDOFF CONTRACT: review-only PersonCandidate needs exact full name, page-stated role and ownership/equity/control/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages are acceptable only when they directly bind exact name/role. third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are leads, not identity evidence. Not an HNWI conclusion. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion."
         : "";
       const shortestPrompt = [
         finalEmergencyAssignment,
@@ -4128,7 +4128,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // optional narration and context first, while retaining live actions, scope,
       // provenance, terminal rules, review-lead admission, and the latest durable URLs.
       const hardMinimumTail = buildShortestEmergencyRecordTail();
-      const hardMinimumOutputContract = "OUTPUT CONTRACT: Return exactly one JSON root object; required top-level fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Unused scalars=null; unused arrays=[]. Every non-terminal action needs hypothesis, purpose and expectedInformationGain. Findings require vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. PARTIAL FINDINGS (not terminal-only): after a successful visit/browser_fetch, emit an unpromoted organization review finding when fetched text names an organization and material transaction/ownership/business fact; exact name, person/role=null, sourceUrls=[that fetched URL]. A person review lead requires exact full name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Snippets and failed/blocked fetches are not evidence; never infer HNWI/contact.";
+      const hardMinimumOutputContract = "OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Unused scalars=null; arrays=[]. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. PARTIAL FINDINGS: after successful visit/browser_fetch, emit an unpromoted organization review finding for each observed organization plus material transaction/ownership/business fact; exact name, person/role=null, sourceUrls=[that fetched URL]. Person review lead needs exact full name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Snippets and failed/blocked fetches are not evidence; never infer HNWI/contact.";
       const hardMinimumPrompt = [
         finalEmergencyAssignment,
         activeScope
@@ -4140,9 +4140,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "PROVIDERS: web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         "EVIDENCE: snippets/search results are leads, not evidence. Failed/blocked fetches are not observations. Never invent identities, ownership, URLs or contacts.",
         compactCriticalRetrievalGuidance,
-        input.mode === "discovery"
-          ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: people—not companies/prestige—are targets; organizations are leads. Honor accepted Boss topic/geography. After a successful fetch, emit review-only organization findings for source-stated org names plus material transaction/ownership/business facts. Person review lead requires exact full name + page-stated role + ownership/control/equity/investment clue co-bound in one fetched claim-grade source. Review-only is not HNWI status; never infer wealth from seniority."
-          : "",
+        shortestDiscoveryGate,
+        shortestAdmission,
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". Do not claim done unless the contract passes; action order remains model-owned.",
         hardMinimumOutputContract,
         hardMinimumTail,
@@ -4157,7 +4156,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactWorkerCapabilityGuidance,
         "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID.",
         compactCriticalRetrievalGuidance,
-        ...(input.mode === "discovery" ? ["DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: people—not companies/prestige—are targets; organizations are leads. Honor accepted Boss topic/geography. Never infer HNWI from seniority."] : []),
+        shortestDiscoveryGate,
+        shortestAdmission,
         "EVIDENCE: snippets are leads, not evidence. Never invent identities, ownership, URLs or contacts.",
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ".",
         hardMinimumOutputContract,
