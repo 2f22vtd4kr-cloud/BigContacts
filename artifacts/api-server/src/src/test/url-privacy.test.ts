@@ -78,6 +78,25 @@ describe("URL privacy boundary", () => {
     expect(output).toContain("The source remains untrusted.");
   });
 
+  it("preserves safe authoritative route fields verbatim and omits secret-bearing route fields whole", () => {
+    const publicUrl = "https://REGISTRY.example.test/record?id=A%2Fb&space=a%20b&order=2&order=1";
+    const secretUrl = "https://registry.example.test/record?X-Amz-Signature=private&view=full";
+
+    const safe = sanitizeObservableValue({
+      args: { url: publicUrl },
+      leadUrls: [publicUrl],
+      finding: { sourceUrls: [publicUrl] },
+      secretSourceUrl: secretUrl,
+    });
+
+    expect(safe.args.url).toBe(publicUrl);
+    expect(safe.leadUrls[0]).toBe(publicUrl);
+    expect(safe.finding.sourceUrls[0]).toBe(publicUrl);
+    expect(safe.secretSourceUrl).toContain("[URL omitted from privacy-safe observable state");
+    expect(safe.secretSourceUrl).not.toContain(secretUrl);
+    expect(safe.secretSourceUrl).not.toContain("private");
+  });
+
   it("recursively sanitizes nested observable values without mutating source state", () => {
     const raw = {
       url: "https://user:password@example.com/?api_key=secret",
