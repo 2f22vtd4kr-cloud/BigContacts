@@ -6,6 +6,40 @@ function isSensitiveUrlParameter(name: string): boolean {
   return SENSITIVE_URL_PARAMETER.test(name.replace(/[^a-z0-9]/gi, "").toLowerCase());
 }
 
+/**
+ * Return an authoritative URL verbatim for a model-facing route inventory.
+ * URLs containing credentials or known secret-bearing query/fragment parameters
+ * are omitted as a whole: substituting [REDACTED] would make a signed route look
+ * usable even though its identity has changed. Never truncate this value.
+ */
+export function retainCompletePublicHttpUrlForPrompt(rawUrl: unknown, maxChars = 512): string | null {
+  if (typeof rawUrl !== "string") return null;
+  const raw = rawUrl.trim();
+  const limit = Number.isFinite(maxChars) ? Math.max(0, Math.floor(maxChars)) : 0;
+  if (!raw || raw.length > limit || /\\s/.test(raw)) return null;
+  try {
+    const url = new URL(raw);
+    if ((url.protocol !== "http:" && url.protocol !== "https:") || !url.hostname || url.username || url.password) {
+      return null;
+    }
+    if ([...url.searchParams.keys()].some(isSensitiveUrlParameter)) return null;
+
+    const fragment = url.hash.slice(1);
+    if (fragment) {
+      const queryStart = fragment.indexOf("?");
+      const parameterText = queryStart >= 0 ? fragment.slice(queryStart + 1) : fragment;
+      const fragmentParameters = new URLSearchParams(parameterText);
+      if ([...fragmentParameters.keys()].some(isSensitiveUrlParameter)) return null;
+    }
+
+    // Returning the original token, not URL.href or sanitizeUrlForEvidence(),
+    // preserves percent-encoding and signed/query semantics exactly.
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
 function redactParameters(input: URLSearchParams): URLSearchParams {
   const safe = new URLSearchParams();
   for (const [name, value] of input.entries()) {
