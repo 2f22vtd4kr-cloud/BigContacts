@@ -61,7 +61,7 @@ describe("durable discovery projection URL integrity", () => {
     const inventory = buildDurableUrlInventoryFromEventPayloads([immutableEventPayload]);
 
     expect(inventory.urls).toEqual([longUrl]);
-    expect(inventory.text.split("\\n")).toContain("- " + longUrl);
+    expect(inventory.text.split("\n")).toContain("- " + longUrl);
     expect(inventory.text).not.toContain(longUrl.slice(0, 500) + "…");
 
     const prompt = buildStepPrompt({
