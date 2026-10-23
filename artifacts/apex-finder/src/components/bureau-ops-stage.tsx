@@ -159,8 +159,8 @@ export function extractQuery(e: OpsEvent): string | undefined {
       e.inputSummary.match(/search(?:ing)?\s+(?:for\s+)?["]?([^"\n]{8,140})/i) ||
       e.inputSummary.match(/site:[^\s]+[^\n]{0,80}/i);
     if (queryMatch?.[1] && !isInternalLanePrompt(queryMatch[1])) return cleanQueryText(queryMatch[1]);
-  // Prefer short operator inputSummary when it is a real human query — not template inventory
-  if (e.inputSummary && !isInternalLanePrompt(e.inputSummary)) {
+
+    // Prefer short operator inputSummary when it is a real human query — not template inventory.
     const ins = cleanQueryText(e.inputSummary);
     if (ins.length >= 6 && ins.length <= 120 && !/^the .+ is still uncovered$/i.test(ins)) {
       const stripped = ins.replace(/^(resolve_identity|official_routes|complementary_lane|contact_routes):\s*/i, "").trim();
