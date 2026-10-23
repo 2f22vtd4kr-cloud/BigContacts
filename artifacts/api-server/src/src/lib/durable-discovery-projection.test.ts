@@ -168,16 +168,18 @@ describe("durable discovery projection URL integrity", () => {
 
   it("prioritizes URL fields and reports URLs omitted beyond the projection argument cap", () => {
     const base = recordWithUrl("https://registry.example.org/company/123");
-    base.args = Object.fromEntries([
-      ...Array.from({ length: 30 }, (_, index) => ["optional" + index, "low-priority-value"]),
-      ...Array.from({ length: 26 }, (_, index) => ["sourceUrl" + index, "https://registry.example.org/source/" + index]),
-    ]);
+    const args: Record<string, unknown> = {};
+    for (let index = 0; index < 30; index += 1) args["optional" + index] = "low-priority-value";
+    for (let index = 0; index < 26; index += 1) {
+      args["source" + index + "Url"] = "https://registry.example.org/source/" + index;
+    }
+    base.args = args;
 
     const [projected] = compactDurableDiscoveryRecords([base]);
 
     expect(Object.keys(projected.args)).toHaveLength(24);
-    expect(projected.args.sourceUrl0).toBe("https://registry.example.org/source/0");
-    expect(projected.args.sourceUrl23).toBe("https://registry.example.org/source/23");
+    expect(projected.args.source0Url).toBe("https://registry.example.org/source/0");
+    expect(projected.args.source23Url).toBe("https://registry.example.org/source/23");
     expect(projected.args.optional0).toBeUndefined();
     expect(projected.durableProjectionOmissions?.argumentUrls).toBe(2);
   });
