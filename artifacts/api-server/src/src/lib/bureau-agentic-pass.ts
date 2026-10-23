@@ -5,6 +5,7 @@ import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { resolveMonotonicResearchCaseIteration } from "./research-case-event-iteration";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
+import { compactDurableDiscoveryRecords } from "./durable-discovery-projection";
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 import { resolveResearchDepth } from "./research-depth";
 import { isClaimGradeObservationAction, persistSourceBackedBureauContactsForEntity, supportsReviewableClaimAcrossObservations } from "./bureau-contact-persist-strict";
@@ -69,28 +70,6 @@ export function findingsToBureauContacts(findings:AgenticFinding[],_fallbackPers
 async function loadDurableSearchQueries(caseId:number|null):Promise<string[]>{if(caseId==null)return[];const rows=await db.select({payload:researchCaseEventsTable.payload,status:researchCaseEventsTable.status}).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId,caseId));const queries:string[]=[];for(const row of rows){if((row.status!=="success"&&row.status!=="error")||typeof row.payload!=="string")continue;try{const payload=JSON.parse(row.payload) as Record<string,unknown>;const action=typeof payload.action==="string"?payload.action:"";const args=payload.args&&typeof payload.args==="object"?payload.args as Record<string,unknown>:{};if((action==="web_search"||action==="registry_search")&&typeof args.query==="string")queries.push(args.query);if((action==="parallel_web_search"||action==="parallel_registry_search")&&Array.isArray(args.searches))for(const search of args.searches){if(search&&typeof search==="object"&&typeof (search as Record<string,unknown>).query==="string")queries.push((search as Record<string,unknown>).query as string);}}catch{}}return[...new Set(queries.map((query)=>query.trim()).filter(Boolean))];}
 async function loadMountedCaseContext(caseId:number|undefined,mode:"target"|"discovery",jobId:string|undefined,runId:string):Promise<string|null>{if(caseId==null)return null;const[row]=await db.select({caseFile:researchCasesTable.caseFile,caseType:researchCasesTable.caseType}).from(researchCasesTable).where(and(eq(researchCasesTable.id,caseId),eq(researchCasesTable.caseType,mode))).limit(1);if(!row?.caseFile)throw new Error(`Investigation case ${caseId} has no durable case file of type ${mode}.`);let parsed:Record<string,unknown>;try{parsed=JSON.parse(row.caseFile) as Record<string,unknown>;}catch{throw new Error(`Investigation case ${caseId} has unreadable durable state.`);}const storedJob=typeof parsed.jobId==="string"?parsed.jobId:typeof parsed.atlasJobId==="string"?parsed.atlasJobId:null;const storedRun=typeof parsed.runId==="string"?parsed.runId:null;if(jobId&&storedJob!==jobId)throw new Error(`Investigation case ${caseId} is not bound to Atlas job ${jobId}.`);if(mode==="target"&&storedRun&&storedRun!==runId)throw new Error(`Investigation case ${caseId} is bound to a different execution run.`);const document=typeof parsed.contextDocument==="string"?parsed.contextDocument.trim():"";if(!document)throw new Error(`Investigation case ${caseId} has no durable context document.`);return document;}
 async function ensureDiscoveryCaseContext(input:{mode?:"target"|"discovery";objective?:string;investigatorLlm?:InvestigatorCapability;jobId?:string;runId:string}):Promise<number|null>{if(input.mode!=="discovery"||!input.jobId)return null;const [created]=await db.insert(researchCasesTable).values({caseType:"discovery",status:"active",directorMode:"groq_boss",directorProvider:"groq",directorModel:"pending",objective:input.objective??"Canonical Atlas model-owned discovery",motivation:"Durable memory for canonical Atlas Investigator discovery.",openingPrompt:"Investigator chooses every research action. This case is memory/state, not a deterministic research plan.",caseFile:JSON.stringify({caseType:"discovery",contextDocument:["CANONICAL ATLAS DISCOVERY CASE",`JOB: ${input.jobId}`,`RUN: ${input.runId}`,`INVESTIGATOR: ${input.investigatorLlm??"unassigned"}`,`OBJECTIVE: ${input.objective??""}`,"STATE: Discovery mode; no person target is implied."].join("\n"),investigationTimeline:[],investigatorTrajectory:[],investigatorTrajectoryRecords:[],jobId:input.jobId,runId:input.runId}),currentAction:"canonical-investigator-discovery",iteration:0}).returning({id:researchCasesTable.id});const caseId=created?.id??null;if(caseId)await db.insert(researchCaseEventsTable).values({caseId,iteration:0,actorRole:"head_investigator",eventType:"assignment",status:"recorded",summary:"Atlas discovery Investigator mounted into durable discovery state.",correlationKey:`${input.runId}:assignment`,payload:JSON.stringify({jobId:input.jobId,runId:input.runId,investigatorLlm:input.investigatorLlm,architecture:"free-react",mode:"discovery"})});return caseId;}
-function compactDurableDiscoveryRecords(records:AgenticTrajectoryRecord[]): AgenticTrajectoryRecord[] {
-  // The immutable research_case_events ledger retains the complete observations.
-  // caseFile is a bounded working projection and must stay below the 1 MiB DB fence.
-  return records.slice(Math.max(0, records.length - 64)).map((record) => ({
-    ...record,
-    args: Object.fromEntries(Object.entries(record.args ?? {}).slice(0, 24).map(([key, value]) => [key, typeof value === "string" ? value.slice(0, 800) : value])),
-    thought: record.thought?.slice(0, 600),
-    observation: record.observation?.slice(0, 2_000),
-    observedUrls: [...new Set(record.observedUrls ?? [])].slice(0, 24),
-    leadUrls: [...new Set(record.leadUrls ?? [])].slice(0, 24).map((url) => url.slice(0, 500)),
-    findings: (record.findings ?? []).slice(0, 24).map((finding) => ({
-      ...finding,
-      value: finding.value?.slice(0, 500),
-      personName: finding.personName?.slice(0, 160) ?? null,
-      role: finding.role?.slice(0, 160) ?? null,
-      sourceUrls: [...new Set(finding.sourceUrls ?? [])].slice(0, 24),
-      note: finding.note?.slice(0, 500),
-      promotionReason: finding.promotionReason?.slice(0, 500),
-    })),
-  }));
-}
-
 async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string;investigatorLlm?:InvestigatorCapability;jobId?:string;runId:string;trajectoryTurnOffset?:number;finalize?:boolean},result:{trajectory:string[];trajectoryRecords:AgenticTrajectoryRecord[];groundingTrajectoryRecords?:AgenticTrajectoryRecord[];model:string;iterations:number;searches:number;visits:number;stopReason?:string}):Promise<void>{
   const [row]=await db.select({caseFile:researchCasesTable.caseFile,iteration:researchCasesTable.iteration}).from(researchCasesTable).where(eq(researchCasesTable.id,caseId)).limit(1);
   if(!row?.caseFile)throw new Error(`Discovery case ${caseId} disappeared before trajectory persistence.`);
