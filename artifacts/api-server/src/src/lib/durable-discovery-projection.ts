@@ -242,6 +242,7 @@ export type DurableUrlInventory = {
 
 const MAX_REHYDRATED_URLS = 32;
 const MAX_REHYDRATED_URL_CHARS = 12_000;
+const MAX_VERBATIM_URL_CHARS = 32_768;
 
 function isVerbatimPublicHttpUrl(value: unknown): value is string {
   // Share the same exact-URL and secret-bearing-parameter policy as prompts.
