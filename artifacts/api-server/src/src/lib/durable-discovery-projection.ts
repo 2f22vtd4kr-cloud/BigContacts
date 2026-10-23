@@ -1,4 +1,4 @@
-import { sanitizeUrlForEvidence } from "./url-privacy";
+import { retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
 import type { AgenticFinding, AgenticTrajectoryRecord } from "./agentic-web-research-core";
 
 const MAX_DURABLE_PROJECTION_URL_CHARS = 500;
@@ -23,14 +23,7 @@ export type DurableProjectionRecord = AgenticTrajectoryRecord & {
 };
 
 function safeProjectionUrl(raw: string): string | null {
-  const safe = sanitizeUrlForEvidence(raw);
-  if (!safe || safe.startsWith("[") || safe.length > MAX_DURABLE_PROJECTION_URL_CHARS) return null;
-  try {
-    const parsed = new URL(safe);
-    return parsed.protocol === "http:" || parsed.protocol === "https:" ? safe : null;
-  } catch {
-    return null;
-  }
+  return retainCompletePublicHttpUrlForPrompt(raw, MAX_DURABLE_PROJECTION_URL_CHARS);
 }
 
 /** Keep URL tokens atomic when shortening non-authoritative descriptive text. */
