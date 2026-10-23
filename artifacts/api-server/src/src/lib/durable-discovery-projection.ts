@@ -244,22 +244,11 @@ const MAX_REHYDRATED_URLS = 32;
 const MAX_REHYDRATED_URL_CHARS = 12_000;
 
 function isVerbatimPublicHttpUrl(value: unknown): value is string {
-  if (typeof value !== "string" || !value || value !== value.trim() || /\\s/.test(value)) return false;
-  if (value.length > 32_768 || value.includes("[REDACTED]") || value.includes("[URL omitted from bounded case-file projection")) return false;
-  try {
-    const parsed = new URL(value);
-    if ((parsed.protocol !== "http:" && parsed.protocol !== "https:") || !parsed.hostname || parsed.username || parsed.password) return false;
-    if ([...parsed.searchParams.values()].some((item) => item.includes("[REDACTED]"))) return false;
-    const fragment = parsed.hash.slice(1);
-    const queryAt = fragment.indexOf("?");
-    const fragmentQuery = queryAt >= 0 ? fragment.slice(queryAt + 1) : fragment;
-    if ([...new URLSearchParams(fragmentQuery).values()].some((item) => item.includes("[REDACTED]"))) return false;
-    return true;
-  } catch {
-    return false;
-  }
+  // Share the same exact-URL and secret-bearing-parameter policy as prompts.
+  // A durable event is not permission to surface credentials or a rewritten URL.
+  return typeof value === "string"
+    && retainCompletePublicHttpUrlForPrompt(value, MAX_VERBATIM_URL_CHARS) === value;
 }
-
 /**
  * Rehydrates exact public URL values from append-only case events when the
  * bounded caseFile projection omits a route whole. It never canonicalizes,
