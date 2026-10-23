@@ -7,21 +7,12 @@ import { logger } from "./logger";
 import { describeThrownProviderError } from "./provider-error-diagnostics";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { getAvailableRegistryIds } from "./registry-client";
-import { sanitizeUrlForEvidence } from "./url-privacy";
+import { retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
 
 const MAX_ATLAS_CONTROL_PROMPT_URL_CHARS = 512;
 
 function completeAtlasControlPromptUrl(raw: unknown): string | null {
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  const safe = sanitizeUrlForEvidence(raw.trim());
-  if (!safe || safe.startsWith("[") || safe.length > MAX_ATLAS_CONTROL_PROMPT_URL_CHARS) return null;
-  try {
-    const url = new URL(safe);
-    if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) return null;
-    return safe;
-  } catch {
-    return null;
-  }
+  return retainCompletePublicHttpUrlForPrompt(raw, MAX_ATLAS_CONTROL_PROMPT_URL_CHARS);
 }
 
 function completeAtlasControlPromptUrlSamples(values: readonly string[], maxItems: number): string[] {
