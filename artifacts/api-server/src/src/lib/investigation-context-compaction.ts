@@ -73,8 +73,84 @@ export function getInvestigatorContextBudget(): InvestigatorContextBudget {
   };
 }
 
+
+/**
+ * Compact only the model-facing excerpt. URL tokens at excerpt boundaries are
+ * either included in full or omitted in full; never pass a partial URL that
+ * looks actionable but points to a different resource.
+ */
+export function compactPromptSectionPreservingUrlTokens(
+  value: string,
+  maxChars: number,
+  marker = "[PROMPT COMPACTION: middle detail omitted; URL tokens intersecting excerpt edges are omitted whole; durable source state is unchanged]",
+): string {
+  const source = typeof value === "string" ? value : "";
+  const requested = Number.isFinite(maxChars) ? Math.floor(maxChars) : 0;
+  const limit = Math.max(0, requested);
+  if (source.length <= limit) return source;
+  if (limit === 0) return "";
+
+  const spans: Array<{ start: number; end: number }> = [];
+  const urlPattern = /https?:\/\/[^\s"'<>]+/giu;
+  for (const match of source.matchAll(urlPattern)) {
+    const start = match.index ?? 0;
+    spans.push({ start, end: start + match[0].length });
+  }
+
+  const safePrefix = (): string => {
+    let end = Math.min(limit, source.length);
+    let crossedUrl = false;
+    for (const span of spans) {
+      if (span.start < end && span.end > end) {
+        end = span.start;
+        crossedUrl = true;
+      }
+    }
+    if (!crossedUrl) return source.slice(0, limit);
+    const omission = "[URL omitted whole]";
+    if (limit >= omission.length + 2) {
+      const prefixLimit = Math.max(0, limit - omission.length - 1);
+      return source.slice(0, Math.min(end, prefixLimit)).trimEnd() + " " + omission;
+    }
+    return source.slice(0, end);
+  };
+
+  if (limit < marker.length + 2) return safePrefix();
+  const available = limit - marker.length - 2;
+  let headEnd = Math.ceil(available * 0.55);
+  let tailStart = source.length - (available - headEnd);
+  let edgeUrlOmitted = false;
+
+  for (const span of spans) {
+    if (span.start < headEnd && span.end > headEnd) {
+      headEnd = span.start;
+      edgeUrlOmitted = true;
+    }
+    if (span.start < tailStart && span.end > tailStart) {
+      tailStart = span.end;
+      edgeUrlOmitted = true;
+    }
+  }
+  tailStart = Math.max(headEnd, tailStart);
+  const effectiveMarker = edgeUrlOmitted
+    ? marker
+    : marker.replace("URL tokens intersecting excerpt edges are omitted whole; ", "");
+  const revisedAvailable = limit - effectiveMarker.length - 2;
+  if (headEnd + source.length - tailStart > revisedAvailable) {
+    const safeHead = Math.min(headEnd, Math.ceil(revisedAvailable * 0.55));
+    const safeTailStart = Math.max(tailStart, source.length - (revisedAvailable - safeHead));
+    headEnd = safeHead;
+    tailStart = safeTailStart;
+  }
+  return source.slice(0, headEnd).trimEnd()
+    + "\n" + effectiveMarker + "\n"
+    + (tailStart < source.length ? source.slice(tailStart).trimStart() : "");
+}
+
 function trim(value: unknown, max: number): string {
-  return typeof value === "string" ? sanitizeUrlsInText(value.trim().slice(0, max)) : "";
+  return typeof value === "string"
+    ? sanitizeUrlsInText(compactPromptSectionPreservingUrlTokens(value.trim(), max, "[TEXT EXCERPT COMPACTED: URL tokens intersecting the excerpt boundary were omitted whole; full source remains durable]"))
+    : "";
 }
 
 function unique(values: readonly string[]): string[] {
@@ -130,13 +206,11 @@ function headTail<T>(values: readonly T[], maxItems: number): T[] {
 
 function fitSection(section: string, remaining: number): string {
   if (remaining <= 0) return "";
-  if (section.length <= remaining) return section;
-  const marker = "\n[CONTEXT BUDGET: MIDDLE DETAIL OMITTED; DURABLE RECORDS RETAINED]\n";
-  if (remaining <= marker.length + 2) return "";
-  const available = remaining - marker.length;
-  const head = Math.ceil(available * 0.55);
-  const tail = Math.max(0, available - head);
-  return section.slice(0, head).trimEnd() + marker + (tail > 0 ? section.slice(-tail).trimStart() : "");
+  return compactPromptSectionPreservingUrlTokens(
+    section,
+    remaining,
+    "[CONTEXT BUDGET: middle detail omitted; URL tokens intersecting excerpt edges are omitted whole; durable records retained]",
+  );
 }
 
 const DEFAULT_CANONICAL_CONTINUATION_CONTEXT_CHARS = 7_000;
@@ -165,13 +239,13 @@ export function compactCanonicalDiscoveryContinuationContext(
   const normalized = typeof raw === "string" ? sanitizeUrlsInText(raw.trim()) : "";
   if (normalized.length <= maxChars) return normalized;
 
-  const available = maxChars - CANONICAL_CONTINUATION_CONTEXT_MARKER.length;
-  if (available <= 0) return normalized.slice(0, maxChars);
-  const headChars = Math.ceil(available * 0.55);
-  const tailChars = available - headChars;
-  return normalized.slice(0, headChars).trimEnd()
-    + CANONICAL_CONTINUATION_CONTEXT_MARKER
-    + (tailChars > 0 ? normalized.slice(-tailChars).trimStart() : "");
+  const continuationMarker = CANONICAL_CONTINUATION_CONTEXT_MARKER
+    .replace(/^\n\n|\n\n$/g, "")
+    .replace(
+      "middle detail omitted;",
+      "middle detail omitted; URL tokens intersecting excerpt edges are omitted whole;",
+    );
+  return compactPromptSectionPreservingUrlTokens(normalized, maxChars, continuationMarker);
 }
 
 /**
@@ -424,29 +498,16 @@ export function compactInvestigationContext(input: {
 /** Bound an auxiliary model-state section without deleting the durable state behind it. */
 export function boundInvestigatorPromptSection(value: string, maxChars = 6_000): string {
   const normalized = typeof value === "string" ? value.trim() : "";
-  const marker = "[AUXILIARY CONTEXT BOUND: omitted middle detail remains durable outside this prompt]";
+  const marker = "[AUXILIARY CONTEXT BOUND: middle omitted; URL edges omitted whole; full state durable]";
   const requested = Number.isFinite(maxChars) ? Math.floor(maxChars) : 6_000;
-  // Keep enough room for the omission marker, but do not silently inflate small
-  // caller budgets (for example, the latest-act observation's 220-character cap).
   const bounded = Math.max(marker.length + 2, Math.min(12_000, requested));
-  if (normalized.length <= bounded) return normalized;
-  const available = Math.max(0, bounded - marker.length - 2);
-  if (available === 0) return marker;
-  const headChars = Math.floor(available * 0.55);
-  const tailChars = available - headChars;
-  const head = normalized.slice(0, headChars).trimEnd();
-  const tail = tailChars > 0 ? normalized.slice(-tailChars).trimStart() : "";
-  return head + "\n" + marker + (tail ? "\n" + tail : "");
+  return compactPromptSectionPreservingUrlTokens(normalized, bounded, marker);
 }
 
 export function tightenInvestigatorPrompt(prompt: string, maxChars = 12_000): string {
-  if (prompt.length <= maxChars) return prompt;
-  const marker = "[EMERGENCY REQUEST-SIZE COMPACTION: middle working-context detail omitted; durable records retained]";
-  const separator = "\n\n";
-  const available = Math.max(0, maxChars - marker.length - separator.length * 2);
-  const headChars = Math.floor(available * 0.58);
-  const tailChars = available - headChars;
-  return (prompt.slice(0, headChars).trimEnd()
-    + separator + marker + separator
-    + prompt.slice(-tailChars).trimStart()).slice(0, maxChars);
+  return compactPromptSectionPreservingUrlTokens(
+    prompt,
+    maxChars,
+    "[EMERGENCY REQUEST-SIZE COMPACTION: middle working-context detail omitted; URL tokens intersecting excerpt edges omitted whole; durable records retained]",
+  );
 }

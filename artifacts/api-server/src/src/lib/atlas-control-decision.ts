@@ -2,11 +2,25 @@ import { resolveGroqBossModel, generateGroqBossText } from "./groq-boss";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { and, desc, eq } from "drizzle-orm";
-import { compactInvestigationContext, type CompactionFinding } from "./investigation-context-compaction";
+import { compactInvestigationContext, compactPromptSectionPreservingUrlTokens, type CompactionFinding } from "./investigation-context-compaction";
 import { logger } from "./logger";
 import { describeThrownProviderError } from "./provider-error-diagnostics";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { getAvailableRegistryIds } from "./registry-client";
+import { retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
+
+const MAX_ATLAS_CONTROL_PROMPT_URL_CHARS = 512;
+
+function completeAtlasControlPromptUrl(raw: unknown): string | null {
+  return retainCompletePublicHttpUrlForPrompt(raw, MAX_ATLAS_CONTROL_PROMPT_URL_CHARS);
+}
+
+function completeAtlasControlPromptUrlSamples(values: readonly string[], maxItems: number): string[] {
+  return values.slice(0, Math.max(0, maxItems)).flatMap((raw) => {
+    const safe = completeAtlasControlPromptUrl(raw);
+    return safe ? [safe] : [];
+  });
+}
 export type AtlasControlAction = "continue_discovery" | "research_candidate" | "revisit_candidate" | "pivot_discovery" | "stop";
 export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: "completed" | "unavailable"; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null }; bossModel: string | null; error: string | null };
 
@@ -267,6 +281,15 @@ export function buildAtlasPinnedControlState(input: {
   findings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>;
 }): string {
   const state = input.leadInventory;
+  const unfetchedSample = completeAtlasControlPromptUrlSamples(state.unfetchedLeadUrls, 4);
+  const failedSample = state.failedLeadUrls.slice(0, 1).flatMap((item) => {
+    const url = completeAtlasControlPromptUrl(item.url);
+    return url ? [{ ...item, url }] : [];
+  });
+  const blockedSample = state.blockedLeadUrls.slice(0, 1).flatMap((item) => {
+    const url = completeAtlasControlPromptUrl(item.url);
+    return url ? [{ ...item, url }] : [];
+  });
   const lines = [
     "ACTIVE ACCEPTED BOSS SCOPE: " + (input.activeScope?.trim() || "(no narrower Boss-approved pivot; use the base objective)."),
     "This scope persists through directionless continue_discovery turns. Right-hand direction is advice unless Boss explicitly accepts a pivot.",
@@ -277,25 +300,26 @@ export function buildAtlasPinnedControlState(input: {
       failedLeadUrlCount: state.failedLeadUrlCount,
       blockedLeadUrlCount: state.blockedLeadUrlCount,
     }),
-    "UNFETCHED (not fetched/not blocked; positive count means leads remain): " + state.unfetchedLeadUrls.slice(0, 4).map((url) => url.slice(0, 110)).join(" | "),
+    "UNFETCHED (not fetched/not blocked; positive count means leads remain): " + unfetchedSample.join(" | ") + (Math.max(0, state.unfetchedLeadUrlCount - unfetchedSample.length) ? " [" + Math.max(0, state.unfetchedLeadUrlCount - unfetchedSample.length) + " URL(s) omitted whole from this prompt sample; complete routes remain in durable case state]" : ""),
     "ADMITTED PERSON CANDIDATES (only these may be selected): " + input.admittedCandidates.slice(0, 5).map((candidate) => candidate.name.slice(0, 65) + (candidate.role ? " / " + candidate.role.slice(0, 45) : "") + " [sources=" + candidate.sourceUrls.length + "]").join(" | "),
     "SOURCE-BACKED FINDINGS INCLUDING PARTIAL FINDINGS (not HNWI/contact conclusions): " + input.findings.slice(0, 4).map((finding) => (finding.personName ? finding.personName + (finding.role ? " / " + finding.role : "") : finding.value).slice(0, 90) + " [scope=" + finding.scope + "; admission=" + (finding.promotionDecision ?? "review-only") + "; sources=" + finding.sourceUrls.length + "; " + finding.note.slice(0, 50) + "]").join(" | "),
-    "FAILED ROUTES (not negative evidence): " + state.failedLeadUrls.slice(0, 1).map((item) => item.url.slice(0, 100) + " " + item.action + "/" + item.execution + (item.failureDomain ? " " + item.failureDomain : "")).join(" | "),
-    "PREFLIGHT-BLOCKED ROUTES (no outbound request): " + state.blockedLeadUrls.slice(0, 1).map((item) => item.url.slice(0, 100) + " " + item.action + (item.failureDomain ? " " + item.failureDomain : "")).join(" | "),
+    "FAILED ROUTES (not negative evidence): " + failedSample.map((item) => item.url + " " + item.action + "/" + item.execution + (item.failureDomain ? " " + item.failureDomain : "")).join(" | ") + (Math.max(0, state.failedLeadUrlCount - failedSample.length) ? " [" + Math.max(0, state.failedLeadUrlCount - failedSample.length) + " failed route(s) omitted whole from this prompt sample]" : ""),
+    "PREFLIGHT-BLOCKED ROUTES (no outbound request): " + blockedSample.map((item) => item.url + " " + item.action + (item.failureDomain ? " " + item.failureDomain : "")).join(" | ") + (Math.max(0, state.blockedLeadUrlCount - blockedSample.length) ? " [" + Math.max(0, state.blockedLeadUrlCount - blockedSample.length) + " blocked route(s) omitted whole from this prompt sample]" : ""),
     "CONTROL LAW: Do not say no leads remain if unfetchedLeadUrlCount is positive. Stop is still allowed if remaining leads are demonstrably irrelevant/low-value/infeasible; explain why. URLs/snippets are leads, not evidence.",
   ];
-  return lines.join("\n").slice(0, 2_700);
+  return compactPromptSectionPreservingUrlTokens(
+    lines.join("\n"),
+    2_700,
+    "[PINNED CONTROL STATE COMPACTED: middle detail omitted; URL tokens crossing excerpt edges omitted whole; durable case state remains authoritative]",
+  );
 }
 
 function trimPromptSection(value: string, maxChars: number): string {
-  const normalized = value.trim();
-  if (normalized.length <= maxChars) return normalized;
-  const marker = "\n\n[APEX PROMPT COMPACTION: middle context omitted; durable case state remains authoritative.]\n\n";
-  if (maxChars <= marker.length + 2) return normalized.slice(0, Math.max(0, maxChars));
-  const available = maxChars - marker.length;
-  const headChars = Math.ceil(available * 0.6);
-  const tailChars = Math.max(0, available - headChars);
-  return normalized.slice(0, headChars).trimEnd() + marker + normalized.slice(-tailChars).trimStart();
+  return compactPromptSectionPreservingUrlTokens(
+    value.trim(),
+    maxChars,
+    "[APEX PROMPT COMPACTION: middle context omitted; URL tokens intersecting excerpt edges are omitted whole; durable case state remains authoritative]",
+  );
 }
 
 export function buildAtlasRightHandControlPrompt(input: { investigatorReport: string; compactState: string; pinnedControlState?: string }): string {
@@ -540,12 +564,18 @@ async function persistControlDecision(input: { caseId: number; controlTurn: numb
 export function compactAtlasInvestigatorReport(rawInput: string | null | undefined): string {
   const raw = rawInput?.trim() || "No post-investigator report is available yet; opening oversight must reason only over the opening case state.";
   const boundedText = (value: unknown, max: number): string | null =>
-    typeof value === "string" ? value.slice(0, max) : null;
+    typeof value === "string"
+      ? compactPromptSectionPreservingUrlTokens(value, max, "[REPORT FIELD BOUNDED: URL tokens at excerpt boundaries omitted whole; full record remains durable]")
+      : null;
   const boundedCount = (value: unknown): number | null =>
     typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : null;
   const compactFinding = (value: unknown): Record<string, unknown> | null => {
     if (!value || typeof value !== "object" || Array.isArray(value)) return null;
     const finding = value as Record<string, unknown>;
+    const rawSourceUrls = Array.isArray(finding.sourceUrls)
+      ? finding.sourceUrls.filter((url): url is string => typeof url === "string")
+      : [];
+    const sourceUrls = completeAtlasControlPromptUrlSamples(rawSourceUrls, 4);
     return {
       vectorType: boundedText(finding.vectorType, 30),
       value: boundedText(finding.value, 240),
@@ -553,9 +583,9 @@ export function compactAtlasInvestigatorReport(rawInput: string | null | undefin
       role: boundedText(finding.role, 120),
       scope: boundedText(finding.scope, 24),
       promotionDecision: boundedText(finding.promotionDecision, 16),
-      sourceUrls: Array.isArray(finding.sourceUrls)
-        ? finding.sourceUrls.filter((url): url is string => typeof url === "string").slice(0, 4).map((url) => url.slice(0, 300))
-        : [],
+      sourceUrls,
+      sourceUrlCount: rawSourceUrls.length,
+      sourceUrlsOmittedFromPromptCount: Math.max(0, rawSourceUrls.length - sourceUrls.length),
       note: boundedText(finding.note, 240),
     };
   };
@@ -564,17 +594,25 @@ export function compactAtlasInvestigatorReport(rawInput: string | null | undefin
     const latestQuestions = Array.isArray(parsed.openQuestions) ? parsed.openQuestions.slice(-12).flatMap((value) => {
       if (!value || typeof value !== "object" || Array.isArray(value)) return [];
       const question = value as Record<string, unknown>;
+      const rawObservedUrls = Array.isArray(question.observedUrls)
+        ? question.observedUrls.filter((url): url is string => typeof url === "string")
+        : [];
+      const rawUnfetchedLeadUrls = Array.isArray(question.unfetchedLeadUrls)
+        ? question.unfetchedLeadUrls.filter((url): url is string => typeof url === "string")
+        : [];
+      const observedUrls = completeAtlasControlPromptUrlSamples(rawObservedUrls, 4);
+      const unfetchedLeadUrls = completeAtlasControlPromptUrlSamples(rawUnfetchedLeadUrls, 6);
       return [{
         turn: boundedCount(question.turn),
         action: boundedText(question.action, 48),
         execution: boundedText(question.execution, 24),
         observation: boundedText(question.observation, 600),
-        observedUrls: Array.isArray(question.observedUrls)
-          ? question.observedUrls.filter((url): url is string => typeof url === "string").slice(0, 4).map((url) => url.slice(0, 300))
-          : [],
-        unfetchedLeadUrls: Array.isArray(question.unfetchedLeadUrls)
-          ? question.unfetchedLeadUrls.filter((url): url is string => typeof url === "string").slice(0, 6).map((url) => url.slice(0, 220))
-          : [],
+        observedUrls,
+        observedUrlCount: rawObservedUrls.length,
+        observedUrlsOmittedFromPromptCount: Math.max(0, rawObservedUrls.length - observedUrls.length),
+        unfetchedLeadUrls,
+        unfetchedLeadUrlCount: rawUnfetchedLeadUrls.length,
+        unfetchedLeadUrlsOmittedFromPromptCount: Math.max(0, rawUnfetchedLeadUrls.length - unfetchedLeadUrls.length),
         stopReason: boundedText(question.stopReason, 80),
         failureDomain: boundedText(question.failureDomain, 48),
         failureKind: boundedText(question.failureKind, 48),
@@ -595,12 +633,12 @@ export function compactAtlasInvestigatorReport(rawInput: string | null | undefin
       findings: Array.isArray(parsed.findings) ? parsed.findings.slice(-8).map(compactFinding).filter(Boolean) : [],
       modelFindings: Array.isArray(parsed.modelFindings) ? parsed.modelFindings.slice(-6).map(compactFinding).filter(Boolean) : [],
       targetInvestigation: parsed.targetInvestigation && typeof parsed.targetInvestigation === "object"
-        ? JSON.stringify(parsed.targetInvestigation).slice(0, 1_200)
+        ? compactPromptSectionPreservingUrlTokens(JSON.stringify(parsed.targetInvestigation), 1_200, "[TARGET INVESTIGATION COMPACTED: URL tokens at excerpt boundaries omitted whole; full case state remains durable]")
         : null,
       latestQuestions,
     }, null, 2);
   } catch {
-    return raw.slice(0, 2_400);
+    return compactPromptSectionPreservingUrlTokens(raw, 2_400, "[UNPARSED REPORT COMPACTED: URL tokens at excerpt boundaries omitted whole; full raw report remains available in durable records]");
   }
 }
 

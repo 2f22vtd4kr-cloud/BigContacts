@@ -18,10 +18,10 @@ const checks = [
   ["canonical Investigator prompt reserves a bounded intelligence-state layer", /boundInvestigatorPromptSection\(\s*input\.intelligenceContext[\s\S]*?1_200/.test(core)],
   ["current findings retain both early and recent entries", /headTail\(input\.findings, 6\)/.test(source)],
   ["archived trajectory retains both early and recent entries", /headTail\(input\.trajectoryRecords \?\? \[\], 10\)/.test(source)],
-  ["emergency reducer enforces its maximum", /\.slice\(0, maxChars\)/.test(source)],
+  ["shared URL-safe reducer enforces requested prompt bounds", /export function compactPromptSectionPreservingUrlTokens/.test(source) && /const limit = Math\.max\(0, requested\)/.test(source) && /source\.length <= limit/.test(source) && /return source\.slice\(0, limit\)/.test(source)],
   ["unbounded whole-trajectory prompt assembly is absent", !/trajectoryRecords\.map\(.*observation.*join\(/s.test(source)],
   ["canonical continuation uses the bounded model-facing context compactor", /export function compactCanonicalDiscoveryContinuationContext/.test(source) && /MAX_CANONICAL_CONTINUATION_CONTEXT_CHARS = 8_000/.test(source) && discoveryContinuation.includes("compactCanonicalDiscoveryContinuationContext(context,7000)") && !discoveryContinuation.includes("context.length<=16000")],
-  ["continuation compactor preserves both head and tail around its omission marker", source.includes("normalized.slice(0, headChars).trimEnd()") && source.includes("+ CANONICAL_CONTINUATION_CONTEXT_MARKER") && source.includes("normalized.slice(-tailChars).trimStart()")],
+  ["continuation compactor uses URL-atomic head/tail retention over durable context", /compactCanonicalDiscoveryContinuationContext/.test(source) && /compactPromptSectionPreservingUrlTokens\(normalized, maxChars, continuationMarker\)/.test(source) && /CANONICAL_CONTINUATION_CONTEXT_MARKER/.test(source) && /middle detail omitted; URL tokens intersecting excerpt edges are omitted whole/.test(source)],
   ["continuation compactor uses a real newline bound marker", /const CANONICAL_CONTINUATION_CONTEXT_MARKER\s*=\s*"\\n\\n\[DISCOVERY CONTINUATION CONTEXT COMPACTED:/.test(source)],
 ];
 let failed = false;

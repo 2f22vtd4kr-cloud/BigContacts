@@ -31,7 +31,7 @@ describe("target act URL privacy boundary", () => {
     expect(serialized).not.toContain("fragment-secret");
     expect(serialized).not.toContain("alice:password");
     expect(serialized).toContain("Alice Example");
-    expect(serialized).toContain("REDACTED");
+    expect(serialized).toContain("[URL omitted from privacy-safe observable state; credential-bearing or non-public route not retained]");
   });
 
   it("redacts percent-encoded sensitive keys in route-style OAuth fragments", () => {
@@ -74,7 +74,7 @@ describe("target act URL privacy boundary", () => {
     const targetSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/target-act-oversight.ts"), "utf8");
     const discoverySource = fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
     expect(targetSource).toContain("caseFile:JSON.stringify(sanitizeObservableValue(caseFile))");
-    expect(discoverySource).toContain("caseFile:JSON.stringify(sanitizeObservableValue({...current,evidenceState:durableEvidenceState");
+    expect(discoverySource).toContain("caseFile:JSON.stringify(sanitizeObservableValue({...current,hasDurableUrlProjectionOmissions,evidenceState:durableEvidenceState");
     expect(discoverySource).toContain("JSON.stringify(sanitizeObservableValue({jobId:input.jobId??null,runId:input.runId");
   });
 

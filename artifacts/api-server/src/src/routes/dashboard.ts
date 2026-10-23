@@ -1,7 +1,8 @@
 import { Router, type IRouter } from "express";
-import { desc, isNotNull, isNull, eq, sql, and, or, gte } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchCasesTable } from "@workspace/db";
-import { sanitizeUrlForEvidence } from "../lib/url-privacy";
+import { desc, isNotNull, isNull, eq, sql, and, or, gte, inArray } from "drizzle-orm";
+import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
+import { retainCompletePublicHttpUrlForPrompt } from "../lib/url-privacy";
+import { mergeSourceCardTrajectoryRecords } from "../lib/durable-discovery-projection";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
 import { computeAccessScore } from "../lib/access-score";
@@ -186,20 +187,20 @@ function normalizeSearchLeadUrl(raw: unknown): {
   sourceDomain: string;
   sourcePath: string;
 } | null {
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  const safe = sanitizeUrlForEvidence(raw.trim());
-  if (!safe || safe.startsWith("[")) return null;
+  // A source card is a route the user may open. Never turn a signed/token URL
+  // into a redacted lookalike or strip a fragment that may identify an SPA page.
+  const sourceUrl = retainCompletePublicHttpUrlForPrompt(raw, 32_768);
+  if (!sourceUrl) return null;
   try {
-    const url = new URL(safe);
+    const url = new URL(sourceUrl);
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    url.hash = "";
-    url.hostname = url.hostname.toLowerCase();
-    const sourceUrl = url.href;
-    const key = sourceUrl.endsWith("/") ? sourceUrl.slice(0, -1) : sourceUrl;
+    const keyUrl = new URL(sourceUrl);
+    keyUrl.hostname = keyUrl.hostname.toLowerCase();
+    const key = keyUrl.href.endsWith("/") ? keyUrl.href.slice(0, -1) : keyUrl.href;
     return {
       key,
       sourceUrl,
-      sourceDomain: url.hostname.replace(/^www\./i, ""),
+      sourceDomain: url.hostname.replace(/^www[.]/i, ""),
       sourcePath: (url.pathname || "/").slice(0, 180),
     };
   } catch {
@@ -266,6 +267,56 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     .limit(limit);
 
   const activeDiscovery = sourceCases.some((row) => row.status === "active");
+
+  // Case-file trajectories are intentionally compact and may omit an URL atomically
+  // when it cannot fit their safe projection budget. Rehydrate recent source records
+  // from the append-only event ledger so the UI shows the exact recorded URL rather
+  // than a truncated prefix. Only the fields needed for source cards are selected.
+  const sourceEventBatches = await Promise.all(sourceCases.map(async (sourceCase) =>
+    db.select({
+      id: researchCaseEventsTable.id,
+      caseId: researchCaseEventsTable.caseId,
+      // payload is text and legacy rows may be malformed. Select the raw,
+      // bounded event value and parse defensively below so one corrupt record
+      // cannot make PostgreSQL fail the entire dashboard query before JS parsing.
+      payload: researchCaseEventsTable.payload,
+    }).from(researchCaseEventsTable).where(and(
+      eq(researchCaseEventsTable.caseId, sourceCase.id),
+      inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"]),
+    )).orderBy(desc(researchCaseEventsTable.id)).limit(64)
+  ));
+  const durableRecordsByCase = new Map<number, Record<string, any>[]>();
+  for (let batchIndex = 0; batchIndex < sourceEventBatches.length; batchIndex++) {
+    const sourceCase = sourceCases[batchIndex];
+    const records: Record<string, any>[] = [];
+    for (const event of [...sourceEventBatches[batchIndex]].reverse()) {
+      if (typeof event.payload !== "string") continue;
+      try {
+        const parsed: unknown = JSON.parse(event.payload);
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
+        const payload = parsed as Record<string, unknown>;
+        if (typeof payload.action !== "string") continue;
+        const args = payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
+          ? payload.args as Record<string, unknown> : {};
+        records.push({
+          turn: Number(payload.turn ?? 0),
+          action: payload.action,
+          args,
+          execution: String(payload.execution ?? "error"),
+          observedUrls: Array.isArray(payload.observedUrls) ? payload.observedUrls.filter((v): v is string => typeof v === "string") : [],
+          leadUrls: Array.isArray(payload.leadUrls) ? payload.leadUrls.filter((v): v is string => typeof v === "string") : [],
+          observation: typeof payload.observation === "string" ? payload.observation : "",
+          failureDomain: typeof payload.failureDomain === "string" ? payload.failureDomain : null,
+          failureKind: typeof payload.failureKind === "string" ? payload.failureKind : null,
+        });
+      } catch {
+        // A malformed legacy event must not prevent the compact projection
+        // from continuing to produce source cards for the rest of the case.
+      }
+    }
+    if (sourceCase) durableRecordsByCase.set(sourceCase.id, records);
+  }
+
   const sourceLeadByUrl = new Map<string, {
     id: string;
     caseId: number;
@@ -292,10 +343,14 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     } catch {
       continue;
     }
-    const records = Array.isArray(caseFile.investigatorTrajectoryRecords)
+    const projectionRecords = Array.isArray(caseFile.investigatorTrajectoryRecords)
       ? caseFile.investigatorTrajectoryRecords.filter((value): value is Record<string, any> =>
           Boolean(value) && typeof value === "object" && !Array.isArray(value))
       : [];
+    // Replace projection records for turns present in the immutable ledger.
+    // This prevents legacy truncated URL prefixes from generating clickable source cards.
+    const durableRecords = durableRecordsByCase.get(sourceCase.id) ?? [];
+    const records = mergeSourceCardTrajectoryRecords(projectionRecords, durableRecords);
     const successfullyFetched = new Set<string>();
     const attempts = new Map<string, Record<string, any>>();
     const blockedAttempts = new Map<string, Record<string, any>>();

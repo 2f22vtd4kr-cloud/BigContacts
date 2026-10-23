@@ -6,6 +6,40 @@ function isSensitiveUrlParameter(name: string): boolean {
   return SENSITIVE_URL_PARAMETER.test(name.replace(/[^a-z0-9]/gi, "").toLowerCase());
 }
 
+/**
+ * Return an authoritative URL verbatim for a model-facing route inventory.
+ * URLs containing credentials or known secret-bearing query/fragment parameters
+ * are omitted as a whole: substituting [REDACTED] would make a signed route look
+ * usable even though its identity has changed. Never truncate this value.
+ */
+export function retainCompletePublicHttpUrlForPrompt(rawUrl: unknown, maxChars = 512): string | null {
+  if (typeof rawUrl !== "string") return null;
+  const raw = rawUrl.trim();
+  const limit = Number.isFinite(maxChars) ? Math.max(0, Math.floor(maxChars)) : 0;
+  if (!raw || raw.length > limit || /\s/.test(raw) || /\[(?:REDACTED|URL omitted from bounded case-file projection)/i.test(raw)) return null;
+  try {
+    const url = new URL(raw);
+    if ((url.protocol !== "http:" && url.protocol !== "https:") || !url.hostname || url.username || url.password) {
+      return null;
+    }
+    if ([...url.searchParams.keys()].some(isSensitiveUrlParameter)) return null;
+
+    const fragment = url.hash.slice(1);
+    if (fragment) {
+      const queryStart = fragment.indexOf("?");
+      const parameterText = queryStart >= 0 ? fragment.slice(queryStart + 1) : fragment;
+      const fragmentParameters = new URLSearchParams(parameterText);
+      if ([...fragmentParameters.keys()].some(isSensitiveUrlParameter)) return null;
+    }
+
+    // Returning the original token, not URL.href or sanitizeUrlForEvidence(),
+    // preserves percent-encoding and signed/query semantics exactly.
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
 function redactParameters(input: URLSearchParams): URLSearchParams {
   const safe = new URLSearchParams();
   for (const [name, value] of input.entries()) {
@@ -71,16 +105,52 @@ export function sanitizeUrlsInText(text: string): string {
   });
 }
 
-/** Recursively sanitizes a value before it becomes observable or durable. */
-export function sanitizeObservableValue<T>(value: T): T {
-  if (typeof value === "string") return sanitizeUrlsInText(value) as T;
-  if (Array.isArray(value)) return value.map((item) => sanitizeObservableValue(item)) as T;
+const AUTHORITATIVE_URL_FIELD = /(?:url|uri)s?$/i;
+const MAX_OBSERVABLE_PUBLIC_URL_CHARS = 12_000;
+export const PRIVACY_WITHHELD_URL_MARKER = "[URL omitted from privacy-safe observable state; credential-bearing or non-public route not retained]";
+
+function sanitizeObservableValueAtKey<T>(value: T, key: string): T {
+  if (typeof value === "string") {
+    if (AUTHORITATIVE_URL_FIELD.test(key) && /^https?:\/\//i.test(value)) {
+      // Durable route fields must never be silently normalized into a different
+      // URL. Preserve safe public URLs verbatim; withhold credential/signed routes
+      // as a whole rather than persisting a misleading redacted clickable URL.
+      if (value !== value.trim()) return PRIVACY_WITHHELD_URL_MARKER as T;
+      return (retainCompletePublicHttpUrlForPrompt(value, MAX_OBSERVABLE_PUBLIC_URL_CHARS)
+        ?? PRIVACY_WITHHELD_URL_MARKER) as T;
+    }
+    return sanitizeObservableText(value) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeObservableValueAtKey(item, key)) as T;
+  }
   if (value && typeof value === "object") {
     const output: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-      output[key] = sanitizeObservableValue(item);
+    for (const [childKey, item] of Object.entries(value as Record<string, unknown>)) {
+      output[childKey] = sanitizeObservableValueAtKey(item, childKey);
     }
     return output as T;
   }
   return value;
+}
+
+/**
+ * Preserve a safe public URL exactly when it appears in free-form observed text.
+ * Unsafe, signed, or over-budget routes are withheld whole rather than rewritten
+ * into plausible-looking URLs. Trailing prose punctuation stays outside the token.
+ */
+function sanitizeObservableText(text: string): string {
+  return text.replace(/https?:\/\/[^\s<>"'`]+/gi, (candidate) => {
+    const trailing = candidate.match(/[),.;!?\]}]+$/)?.[0] ?? "";
+    const rawUrl = trailing ? candidate.slice(0, -trailing.length) : candidate;
+    const exact = rawUrl === rawUrl.trim()
+      ? retainCompletePublicHttpUrlForPrompt(rawUrl, MAX_OBSERVABLE_PUBLIC_URL_CHARS)
+      : null;
+    return (exact ?? PRIVACY_WITHHELD_URL_MARKER) + trailing;
+  });
+}
+
+/** Recursively sanitizes a value before it becomes observable or durable. */
+export function sanitizeObservableValue<T>(value: T): T {
+  return sanitizeObservableValueAtKey(value, "");
 }

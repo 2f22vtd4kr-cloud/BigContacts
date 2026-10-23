@@ -2,6 +2,7 @@ import fs from "node:fs";
 const control = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-decision.ts", "utf8");
 const compactor = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const bureau = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts", "utf8");
+const durableProjection = fs.readFileSync("artifacts/api-server/src/src/lib/durable-discovery-projection.ts", "utf8");
 const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const agenticWrapper = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
 const episodeHealth = fs.readFileSync("artifacts/api-server/src/src/lib/investigator-episode-health.ts", "utf8");
@@ -29,7 +30,7 @@ const checks = [
 ["compactor preserves source URLs in the archived trajectory index", /ARCHIVED TRAJECTORY INDEX/.test(compactor) && /observedUrls/.test(compactor)],
 ["compactor preserves evidence attribution summaries", /CURRENT FINDINGS \/ LEADS/.test(compactor) && /sourceUrls/.test(compactor)],
 ["discovery durable projection is explicit", /DURABLE CASE MEMORY PROJECTION/.test(bureau)],
-["discovery full trajectory remains in immutable ledger while caseFile projection is bounded", /complete observations remain in research_case_events/.test(bureau) && /records\.slice\(Math\.max\(0, records\.length - 64\)\)/.test(bureau)],
+["discovery full trajectory remains in immutable ledger while caseFile projection is bounded and URLs remain whole", /complete observations remain in research_case_events/.test(bureau) && /records\.slice\(Math\.max\(0, records\.length - 64\)\)/.test(durableProjection) && /retainCompletePublicHttpUrlForPrompt/.test(durableProjection) && /durableProjectionOmissions/.test(durableProjection)],
 ["discovery durable projection stores bounded structured Investigator records", /investigatorTrajectoryRecords:durableProjectionRecords/.test(bureau) && /compactDurableDiscoveryRecords/.test(bureau)],
 ["discovery trajectory is also retained in the immutable event ledger", /eventType=record\.action==="done"\?"decision":record\.action==="investigator_provider_error"\?"provider_error":"tool_observation"/.test(bureau) && /researchCaseEventsTable/.test(bureau)],
 ["discovery trajectory events have run-turn correlation", /\$\{input\.runId\}:turn:\$\{record\.turn\}:trajectory/.test(bureau)],

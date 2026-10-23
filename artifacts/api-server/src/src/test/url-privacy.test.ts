@@ -3,9 +3,32 @@ import {
   sanitizeObservableValue,
   sanitizeUrlForEvidence,
   sanitizeUrlsInText,
+  retainCompletePublicHttpUrlForPrompt,
 } from "../lib/url-privacy";
 
 describe("URL privacy boundary", () => {
+  it("retains exact public URLs verbatim instead of normalizing their route", () => {
+    const raw = "https://REGISTRY.example.test/record?id=A%2Fb&tab=ownership";
+    expect(retainCompletePublicHttpUrlForPrompt(raw)).toBe(raw);
+  });
+
+  it.each([
+    "https://user:password@example.com/private",
+    "https://storage.example.test/object?X-Amz-Signature=signed-secret&download=1",
+    "https://example.com/#/callback?access_token=fragment-secret&state=keep",
+    "https://example.com/object?api%5Fkey=secret",
+    "https://example.com/object?token=%5BREDACTED%5D",
+    "https://example.com/path/[REDACTED]",
+    "https://example.com/[URL omitted from bounded case-file projection: 1]",
+  ])("omits credential-bearing or secret-parameter URLs whole", (raw) => {
+    expect(retainCompletePublicHttpUrlForPrompt(raw)).toBeNull();
+  });
+
+  it("omits oversized route URLs rather than returning a shortened prefix", () => {
+    const raw = "https://registry.example.test/filings/" + "a".repeat(700);
+    expect(retainCompletePublicHttpUrlForPrompt(raw, 512)).toBeNull();
+  });
+
   it("removes URL userinfo and redacts sensitive query and fragment parameters", () => {
     const safe = new URL(sanitizeUrlForEvidence(
       "https://user:password@example.com/private?Api-Key=secret&search=known#access_token=fragment-secret&state=public",
@@ -55,6 +78,25 @@ describe("URL privacy boundary", () => {
     expect(output).not.toContain("secret");
     expect(output).toContain("https://example.com/path?token=%5BREDACTED%5D).");
     expect(output).toContain("The source remains untrusted.");
+  });
+
+  it("preserves safe authoritative route fields verbatim and omits secret-bearing route fields whole", () => {
+    const publicUrl = "https://REGISTRY.example.test/record?id=A%2Fb&space=a%20b&order=2&order=1";
+    const secretUrl = "https://registry.example.test/record?X-Amz-Signature=private&view=full";
+
+    const safe = sanitizeObservableValue({
+      args: { url: publicUrl },
+      leadUrls: [publicUrl],
+      finding: { sourceUrls: [publicUrl] },
+      secretSourceUrl: secretUrl,
+    });
+
+    expect(safe.args.url).toBe(publicUrl);
+    expect(safe.leadUrls[0]).toBe(publicUrl);
+    expect(safe.finding.sourceUrls[0]).toBe(publicUrl);
+    expect(safe.secretSourceUrl).toContain("[URL omitted from privacy-safe observable state");
+    expect(safe.secretSourceUrl).not.toContain(secretUrl);
+    expect(safe.secretSourceUrl).not.toContain("private");
   });
 
   it("recursively sanitizes nested observable values without mutating source state", () => {

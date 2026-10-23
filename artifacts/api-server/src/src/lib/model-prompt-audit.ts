@@ -101,6 +101,30 @@ export function resolveModelAuditFilePath(
   return resolve(workspaceRootFrom(cwd), configuredPath);
 }
 
+/**
+ * Contact data may be retained only in private local audit locations or outside
+ * the repository. A visible/tracked audits/ destination always redacts contact
+ * data, even if a broad development environment flag was accidentally enabled.
+ * This prevents a checked-in .replit setting from bypassing redaction.
+ */
+function shouldIncludeContactDataForAuditFile(
+  env: AuditEnvironment,
+  cwd: string,
+): boolean {
+  if (env.APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA !== "true" || !env.APEX_MODEL_AUDIT_FILE?.trim()) return false;
+  const root = workspaceRootFrom(cwd);
+  const resolved = resolveModelAuditFilePath(env.APEX_MODEL_AUDIT_FILE, cwd);
+  const relativePath = relative(root, resolved);
+  const isOutsideWorkspace = relativePath === ".."
+    || relativePath.startsWith(".." + sep)
+    || isAbsolute(relativePath);
+  if (isOutsideWorkspace) return true;
+
+  const normalizedRelativePath = relativePath.replace(/\\/g, "/");
+  return normalizedRelativePath.startsWith("private-audits/")
+    || normalizedRelativePath.startsWith(".local/audits/");
+}
+
 function resolveSafeModelAuditFilePath(
   configuredPath: string,
   cwd: string,
@@ -375,7 +399,7 @@ export function emitModelPromptAudit(
     attempt: input.attempt ?? 1,
     jobId: input.jobId ?? null,
     caseId: input.caseId ?? null,
-    requestSummary: safeRequestBody(input.requestBody, env.APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA === "true"),
+    requestSummary: safeRequestBody(input.requestBody, shouldIncludeContactDataForAuditFile(env, cwd)),
     providerPrivateReasoningCaptured: false,
   };
   const serialized = JSON.stringify(record, null, 2);
@@ -515,7 +539,7 @@ export function emitModelPromptAuditResponse(
       ? visibleProviderResponse(
           responseBody,
           input.httpStatus,
-          env.APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA === "true",
+          shouldIncludeContactDataForAuditFile(env, cwd),
         )
       : null,
   };

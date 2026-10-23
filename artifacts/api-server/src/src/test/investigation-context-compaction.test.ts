@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("investigator context compaction", () => {
   it("bounds working context while retaining old source URLs in the archive index", () => {
@@ -171,6 +171,26 @@ describe("investigator context compaction", () => {
     ], lastObservation: "latest", findings: [] });
     expect(context).toContain("https://example.com/a#fragment");
     expect(context).toContain("https://example.com/b");
+  });
+
+  it("omits whole URL tokens when emergency head-tail compaction would split one", () => {
+    const longUrl = "https://registry.example.test/filings/" + "a".repeat(250);
+    const source = "H".repeat(60) + " " + longUrl + " " + "T".repeat(140);
+    const compacted = compactPromptSectionPreservingUrlTokens(source, 300);
+
+    expect(compacted.length).toBeLessThanOrEqual(300);
+    expect(compacted).toContain("URL tokens intersecting excerpt edges are omitted whole");
+    expect(compacted).not.toContain(longUrl.slice(0, 80));
+    expect(compacted).not.toContain(longUrl);
+    expect(compacted.startsWith("H".repeat(40))).toBe(true);
+    expect(compacted.endsWith("T".repeat(40))).toBe(true);
+  });
+
+  it("preserves a complete long URL instead of shortening it to a misleading prefix", () => {
+    const longUrl = "https://registry.example.test/filings/" + "b".repeat(300);
+    const compacted = compactPromptSectionPreservingUrlTokens("SOURCE URL: " + longUrl, 500);
+    expect(compacted).toContain(longUrl);
+    expect(compacted).not.toContain("[URL omitted whole]");
   });
 
   it("emergency request-size compaction preserves prompt contract boundaries", () => {

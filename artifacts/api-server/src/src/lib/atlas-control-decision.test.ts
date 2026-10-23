@@ -5,12 +5,31 @@ import {
   atlasLeadUtilizationLaw,
   atlasRegistryFeasibilityLaw,
   buildAtlasBossControlPrompt,
+  buildAtlasPinnedControlState,
   validateAtlasRightHandControl,
   buildAtlasRightHandControlPrompt,
   compactAtlasInvestigatorReport,
 } from "./atlas-control-decision";
 
 const leadUrl = "https://businesssearch.ohiosos.gov/";
+
+function pinnedStateWithUnfetchedLead(): string {
+  return buildAtlasPinnedControlState({
+    activeScope: "Public company-register investigation in the stated region.",
+    leadInventory: {
+      searchResultLeadUrlCount: 1,
+      successfullyFetchedLeadUrlCount: 0,
+      unfetchedLeadUrlCount: 1,
+      failedLeadUrlCount: 0,
+      blockedLeadUrlCount: 0,
+      unfetchedLeadUrls: [leadUrl],
+      failedLeadUrls: [],
+      blockedLeadUrls: [],
+    },
+    admittedCandidates: [],
+    findings: [],
+  });
+}
 
 function reportWithUnfetchedLead(): string {
   return JSON.stringify({
@@ -43,9 +62,86 @@ describe("Atlas control-plane lead continuity", () => {
     expect(compact).toContain('"visits": 0');
   });
 
+  it("preserves complete source URLs longer than 300 characters in supervisor reports", () => {
+    const longUrl = "https://registry.example.test/records/" + "a".repeat(320);
+    const report = JSON.parse(compactAtlasInvestigatorReport(JSON.stringify({
+      provider: "groq",
+      status: "completed",
+      searches: 1,
+      visits: 0,
+      findings: [],
+      modelFindings: [],
+      openQuestions: [{
+        turn: 1,
+        action: "web_search",
+        execution: "success",
+        observation: "Official registry result returned.",
+        observedUrls: [longUrl],
+        unfetchedLeadUrls: [longUrl],
+      }],
+    }))) as { latestQuestions: Array<{ observedUrls: string[]; unfetchedLeadUrls: string[] }> };
+
+    expect(report.latestQuestions[0].observedUrls).toEqual([longUrl]);
+    expect(report.latestQuestions[0].unfetchedLeadUrls).toEqual([longUrl]);
+  });
+
+  it("omits an oversized URL atomically and records that it was omitted from the supervisor prompt", () => {
+    const oversizedUrl = "https://registry.example.test/records/" + "z".repeat(700);
+    const compact = compactAtlasInvestigatorReport(JSON.stringify({
+      provider: "groq",
+      status: "completed",
+      searches: 1,
+      visits: 0,
+      findings: [],
+      modelFindings: [],
+      openQuestions: [{
+        turn: 1,
+        action: "web_search",
+        execution: "success",
+        observation: "Official registry result returned.",
+        observedUrls: [],
+        unfetchedLeadUrls: [oversizedUrl],
+      }],
+    }));
+    const report = JSON.parse(compact) as { latestQuestions: Array<{ unfetchedLeadUrls: string[]; unfetchedLeadUrlCount: number; unfetchedLeadUrlsOmittedFromPromptCount: number }> };
+    expect(report.latestQuestions[0].unfetchedLeadUrls).toEqual([]);
+    expect(report.latestQuestions[0].unfetchedLeadUrlCount).toBe(1);
+    expect(report.latestQuestions[0].unfetchedLeadUrlsOmittedFromPromptCount).toBe(1);
+    expect(compact).not.toContain(oversizedUrl.slice(0, 220));
+  });
+
+  it("keeps pinned lead URLs intact or records whole-item omission", () => {
+    const longUrl = "https://registry.example.test/records/" + "b".repeat(320);
+    const makeInput = (url: string) => ({
+      activeScope: "Public company-register investigation in the stated region.",
+      leadInventory: {
+        searchResultLeadUrlCount: 1,
+        successfullyFetchedLeadUrlCount: 0,
+        unfetchedLeadUrlCount: 1,
+        failedLeadUrlCount: 0,
+        blockedLeadUrlCount: 0,
+        unfetchedLeadUrls: [url],
+        failedLeadUrls: [],
+        blockedLeadUrls: [],
+      },
+      admittedCandidates: [],
+      findings: [],
+    });
+    const pinned = buildAtlasPinnedControlState(makeInput(longUrl));
+    expect(pinned).toContain(longUrl);
+    expect(pinned.match(/https:\/\/registry\.example\.test\/records\/[b]+/)?.[0]).toBe(longUrl);
+    expect(pinned).not.toContain("[URL omitted whole]");
+
+    const oversizedUrl = "https://registry.example.test/records/" + "c".repeat(700);
+    const omitted = buildAtlasPinnedControlState(makeInput(oversizedUrl));
+    expect(omitted).toContain("1 URL(s) omitted whole from this prompt sample");
+    expect(omitted).not.toContain(oversizedUrl.slice(0, 110));
+  });
+
   it("shows Right-hand that search leads are not evidence and blocks are not negative findings", () => {
     const prompt = buildAtlasRightHandControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      pinnedControlState: pinnedStateWithUnfetchedLead(),
       compactState: "Successful searches: 1. Successful visits: 0. A preflight action was blocked before outbound execution.",
     });
     expect(prompt).toContain(leadUrl);
@@ -57,6 +153,7 @@ describe("Atlas control-plane lead continuity", () => {
   it("shows Boss the same lead provenance without prescribing a fixed tool order", () => {
     const prompt = buildAtlasBossControlPrompt({
       investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      pinnedControlState: pinnedStateWithUnfetchedLead(),
       compactState: "Successful searches: 1. Successful visits: 0. A preflight action was blocked before outbound execution.",
       rightHand: {
         status: "completed",
