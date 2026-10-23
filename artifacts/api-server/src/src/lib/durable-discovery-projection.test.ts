@@ -84,6 +84,21 @@ describe("durable discovery projection URL integrity", () => {
     expect(bureauAgenticPassSource).toContain("parsed.hasDurableUrlProjectionOmissions === true");
     expect(bureauAgenticPassSource).toContain("buildDurableUrlInventoryFromEventPayloads(payloadRows.map((entry) => entry.payload))");
   });
+  it("rehydrates the immutable URL inventory after the last-64 trajectory projection evicts older records", () => {
+    // The projection's size limit can drop an otherwise complete older source.
+    // The durable case flag must stay true so resume never mistakes that eviction
+    // for a complete working set and skips ledger rehydration.
+    expect(bureauAgenticPassSource).toContain(
+      "accumulatedRecords.length > durableProjectionRecords.length",
+    );
+    expect(bureauAgenticPassSource).toContain(
+      "current.hasDurableUrlProjectionOmissions === true",
+    );
+    expect(bureauAgenticPassSource).toContain(
+      "if (!hasUrlOmissions) return document;",
+    );
+  });
+
   it("omits over-budget URLs atomically and records the omission instead of persisting a truncated URL", () => {
     const longUrl = `https://registry.example.org/acquisitions/${"transaction-segment/".repeat(35)}?record=ACQ-2026-0198.pdf&view=full`;
     expect(longUrl.length).toBeGreaterThan(500);
