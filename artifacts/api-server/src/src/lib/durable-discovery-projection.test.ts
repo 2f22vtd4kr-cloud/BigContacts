@@ -97,6 +97,23 @@ describe("durable discovery projection URL integrity", () => {
     expect(bureauAgenticPassSource).toContain("parsed.hasDurableUrlProjectionOmissions,");
     expect(bureauAgenticPassSource).toContain("buildDurableUrlInventoryFromEventPayloads(payloadRows.map((entry) => entry.payload))");
   });
+  it("rehydrates only exact-scope URLs after an accepted pivot and excludes legacy unscoped events", () => {
+    const activeScopeKey = "purchase majority shares in sample manufacturing";
+    const activeUrl = "https://registry.example.org/current-pivot";
+    const olderScopeUrl = "https://registry.example.org/previous-pivot";
+    const legacyUrl = "https://registry.example.org/unscoped-legacy";
+    const inventory = buildDurableUrlInventoryFromEventPayloads([
+      JSON.stringify({ pivotScopeKey: activeScopeKey, leadUrls: [activeUrl] }),
+      JSON.stringify({ pivotScopeKey: "research unrelated jurisdiction", leadUrls: [olderScopeUrl] }),
+      JSON.stringify({ leadUrls: [legacyUrl] }),
+    ], { activeScopeKey, requireExactScope: true });
+
+    expect(inventory.urls).toEqual([activeUrl]);
+    expect(inventory.text).toContain(activeUrl);
+    expect(inventory.text).not.toContain(olderScopeUrl);
+    expect(inventory.text).not.toContain(legacyUrl);
+  });
+
   it("rehydrates the immutable URL inventory after the last-64 trajectory projection evicts older records", () => {
     // The projection's size limit can drop an otherwise complete older source.
     // The durable case flag must stay true so resume never mistakes that eviction
