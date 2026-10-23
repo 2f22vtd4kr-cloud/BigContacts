@@ -35,7 +35,7 @@ function safeProjectionUrl(raw: string): string | null {
 
 /** Keep URL tokens atomic when shortening non-authoritative descriptive text. */
 function compactText(raw: string | undefined, maxChars: number): { value?: string; omittedUrls: number } {
-  if (raw === undefined || raw.length <= maxChars) return { value: raw, omittedUrls: 0 };
+  if (raw === undefined || raw.length <= maxChars || raw.includes("[URL omitted from bounded case-file projection")) return { value: raw, omittedUrls: 0 };
   const match = [...raw.matchAll(URL_TOKEN_PATTERN)].find((candidate) => {
     const start = candidate.index ?? -1;
     return start >= 0 && start < maxChars && start + candidate[0].length > maxChars;
@@ -94,6 +94,10 @@ export function compactDurableDiscoveryRecords(records: AgenticTrajectoryRecord[
       }
       const isUrlField = /(?:url|uri)$/i.test(key);
       if (isUrlField) {
+        if (rawValue.startsWith("[URL omitted from bounded case-file projection;")) {
+          args[key] = rawValue;
+          continue;
+        }
         const safe = safeProjectionUrl(rawValue);
         if (safe) args[key] = safe;
         else {
