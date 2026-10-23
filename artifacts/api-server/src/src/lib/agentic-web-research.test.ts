@@ -35,6 +35,21 @@ describe("target wrapper parse-failure routing", () => {
   });
 });
 
+describe("durable URL inventory continuation passthrough", () => {
+  it("preserves the separate durable inventory while rebuilding lossy prior context", () => {
+    const inputStart = targetWrapperSource.indexOf("const actInput: RunInput = { ...input");
+    const coreCall = targetWrapperSource.indexOf("core.runAgenticWebResearch(actInput)", inputStart);
+    expect(inputStart).toBeGreaterThan(-1);
+    expect(coreCall).toBeGreaterThan(inputStart);
+    const actInput = targetWrapperSource.slice(inputStart, coreCall);
+    expect(actInput).toContain("...input");
+    expect(actInput).toContain("priorContext: buildContinuationState");
+    // The wrapper deliberately changes priorContext; it must not overwrite the
+    // separate durableUrlInventory field carried through by ...input.
+    expect(actInput).not.toMatch(/durableUrlInventory\\s*:/);
+  });
+});
+
 describe("bounded Investigator action-parse recovery", () => {
   it("allows one corrective model turn when the action budget remains", () => {
     expect(shouldContinueAfterInvestigatorParseFailure({
