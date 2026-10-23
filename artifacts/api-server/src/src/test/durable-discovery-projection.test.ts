@@ -23,7 +23,7 @@ describe("durable discovery URL projection", () => {
         sourceUrls: [shortUrl, longUrl],
         note: "Observed organization name",
       }],
-    }]) ;
+    }]);
 
     expect(projected).toBeDefined();
     expect(projected?.leadUrls).toEqual([shortUrl]);
