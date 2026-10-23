@@ -18,6 +18,8 @@ describe("URL privacy boundary", () => {
     "https://example.com/#/callback?access_token=fragment-secret&state=keep",
     "https://example.com/object?api%5Fkey=secret",
     "https://example.com/object?token=%5BREDACTED%5D",
+    "https://example.com/path/[REDACTED]",
+    "https://example.com/[URL omitted from bounded case-file projection: 1]",
   ])("omits credential-bearing or secret-parameter URLs whole", (raw) => {
     expect(retainCompletePublicHttpUrlForPrompt(raw)).toBeNull();
   });
