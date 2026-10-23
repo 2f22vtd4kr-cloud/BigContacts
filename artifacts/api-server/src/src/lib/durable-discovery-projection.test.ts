@@ -114,6 +114,18 @@ describe("durable discovery projection URL integrity", () => {
     expect(inventory.text).not.toContain(legacyUrl);
   });
 
+  it("passes the active accepted scope into resumed discovery URL rehydration", () => {
+    expect(bureauAgenticPassSource).toContain(
+      'const activeScopeKey = mode === "discovery" ? discoveryPivotScopeKey(objective) : null;',
+    );
+    expect(bureauAgenticPassSource).toContain(
+      'requireExactScope: mode === "discovery" && activeScopeKey !== null,',
+    );
+    expect(bureauAgenticPassSource).toContain(
+      "payloadRows.map((entry) => entry.payload), {",
+    );
+  });
+
   it("rehydrates the immutable URL inventory after the last-64 trajectory projection evicts older records", () => {
     // The projection's size limit can drop an otherwise complete older source.
     // The durable case flag must stay true so resume never mistakes that eviction
