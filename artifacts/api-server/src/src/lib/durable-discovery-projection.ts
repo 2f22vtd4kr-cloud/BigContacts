@@ -273,7 +273,7 @@ function isVerbatimPublicHttpUrl(value: unknown): value is string {
  */
 export function buildDurableUrlInventoryFromEventPayloads(
   payloadsNewestFirst: readonly (string | null | undefined)[],
-  options: { maxUrls?: number; maxChars?: number } = {},
+  options: { maxUrls?: number; maxChars?: number; activeScopeKey?: string | null; requireExactScope?: boolean } = {},
 ): DurableUrlInventory {
   const maxUrls = Number.isFinite(options.maxUrls) ? Math.max(0, Math.floor(options.maxUrls!)) : MAX_REHYDRATED_URLS;
   const maxChars = Number.isFinite(options.maxChars) ? Math.max(0, Math.floor(options.maxChars!)) : MAX_REHYDRATED_URL_CHARS;
@@ -299,6 +299,19 @@ export function buildDurableUrlInventoryFromEventPayloads(
     } catch {
       continue;
     }
+
+    // Once Boss has accepted a new pivot, only events explicitly tagged with
+    // that exact scope may repopulate the Investigator URL inventory. Legacy
+    // unscoped events and records from an earlier pivot remain durable but are
+    // not silently adopted into the new mission.
+    if (options.requireExactScope === true) {
+      if (typeof options.activeScopeKey !== "string" || !options.activeScopeKey
+        || typeof payload.pivotScopeKey !== "string"
+        || payload.pivotScopeKey !== options.activeScopeKey) {
+        continue;
+      }
+    }
+
     addMany(payload.leadUrls);
     addMany(payload.observedUrls);
 
