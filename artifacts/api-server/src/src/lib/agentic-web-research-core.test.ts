@@ -368,6 +368,30 @@ describe("Investigator prompt URL integrity", () => {
     expect(prompt).toContain('"leadUrlsOmittedFromPromptCount":0');
   });
 
+  it("pins exact durable URLs from their separate input when prior context is compacted or sanitized", () => {
+    const url = "https://REGISTRY.example.test/filings?id=A%2Fb#ownership";
+    const durableUrlInventory = [
+      "DURABLE EXACT URL INVENTORY (verbatim values from immutable research_case_events; URLs are leads, not evidence; never reconstruct or shorten):",
+      "- " + url,
+    ].join("\n");
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:\nOfficial ownership filings in the active jurisdiction.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "A related lead remains unfetched.",
+      findings: [],
+      priorContext: "Previously compacted context with https://registry.example.test/filings?id=[REDACTED] and no authoritative route.",
+      durableUrlInventory,
+      mode: "discovery",
+      actionAllowlist: ["web_search", "visit", "done"],
+    });
+
+    expect(prompt).toContain("PINNED DURABLE URL INVENTORY");
+    expect(prompt).toContain(url);
+    expect(prompt).not.toContain("https://registry.example.test/filings?id=[REDACTED]");
+  });
+
   it("does not emit a truncated prefix when a URL is too long for an atomic prompt sample", () => {
     const url = "https://registry.example.test/filings/" + "z".repeat(700);
     const record = {
