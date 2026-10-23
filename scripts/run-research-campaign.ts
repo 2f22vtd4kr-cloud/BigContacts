@@ -19,7 +19,8 @@ const timeoutMs = Math.min(600000, Math.max(30000, Number(process.env.CAMPAIGN_T
 const maxCases = Math.min(cases.length, Math.max(1, Number(process.env.CAMPAIGN_CASE_LIMIT ?? cases.length)));
 const selectedCases = cases.slice(0, maxCases);
 const systemVersion = String(process.env.GITHUB_SHA ?? "local");
-const taskEnvelope = { maxIterations: 64, maxObservations: 16000, maxTrajectoryRecords: 512, researchDepth: "standard", targetTimeoutMs: timeoutMs, investigatorPool: ["groq", "mistral"], oversight: ["gemini-right-hand", "gemini-boss"] };
+const taskEnvelope = { maxIterations: 64, maxObservations: 16000, maxTrajectoryRecords: 512, researchDepth: "standard", targetTimeoutMs: timeoutMs, investigatorRouting: "Groq Boss selects from the runtime-configured Groq Investigator capability registry", oversight: ["groq-boss", "groq-right-hand"], crossProviderFallback: false };
+const configuration = { controlPlaneProvider: "groq", investigatorProviderFamily: "groq", investigatorSelection: "boss-selected runtime-configured capability", oversight: ["groq-boss", "groq-right-hand"], crossProviderFallback: false };
 const runs = [];
 const existingRunKeys = new Set();
 if (fs.existsSync(outputFile)) {
@@ -121,9 +122,9 @@ async function runOne(gtCase, trialIndex) {
   let activeClaimed = false;
   const caseFile = { version: 2, target: entity, atlasJobId: jobId, campaignCaseId: gtCase.caseId, investigatorActOversight: [] };
   const [researchCase] = await db.insert(researchCasesTable).values({
-    targetEntityId: entity.id, caseType: "target", status: "active", directorMode: "gemini_boss_pending", directorProvider: "gemini", directorModel: "auto-low-cost-pending",
+    targetEntityId: entity.id, caseType: "target", status: "active", directorMode: "groq_boss_pending", directorProvider: "groq", directorModel: "auto-low-cost-pending",
     objective: String(gtCase.objective), motivation: "Matched Research Gauntlet trial. Preserve the benchmark objective verbatim; the Investigator still owns the research trajectory.",
-    openingPrompt: String(gtCase.objective), caseFile: JSON.stringify(caseFile), currentAction: "gemini-opening-assignment", iteration: 0,
+    openingPrompt: String(gtCase.objective), caseFile: JSON.stringify(caseFile), currentAction: "groq-boss-opening-assignment", iteration: 0,
   }).returning({ id: researchCasesTable.id });
   if (!researchCase) throw new Error("Failed to create campaign research case.");
   try {
@@ -132,7 +133,7 @@ async function runOne(gtCase, trialIndex) {
     await runCanonicalSingleTargetInvestigation(jobId, entity.id, { existingCaseId: researchCase.id, researchDepth: "standard", targetTimeoutMs: timeoutMs, initialDirection: String(gtCase.objective) });
   } catch (error) {
     if (activeClaimed) await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined);
-    return { schemaVersion:"research-run-v1", caseId:gtCase.caseId, system:"apex-canonical", trialId, runId, registryVersion:gt.version, systemVersion, taskEnvelope, configuration:{ investigatorPool:["groq","mistral"], oversight:["gemini-right-hand","gemini-boss"] }, identities:[], claims:[], contacts:[], contradictions:[], observations:[], trajectory:[], outcome:"system_failure", failureRecords:[{ failureId:`${runId}:exception`, class:"SYSTEM_FAILURE", severity:"critical", evidenceObservationIds:[], description:"The canonical campaign invocation threw an exception.", rootCause:String(error?.message ?? error), regressionCaseId:gtCase.caseId }], startedAt, finishedAt:new Date().toISOString() };
+    return { schemaVersion:"research-run-v1", caseId:gtCase.caseId, system:"apex-canonical", trialId, runId, registryVersion:gt.version, systemVersion, taskEnvelope, configuration, identities:[], claims:[], contacts:[], contradictions:[], observations:[], trajectory:[], outcome:"system_failure", failureRecords:[{ failureId:`${runId}:exception`, class:"SYSTEM_FAILURE", severity:"critical", evidenceObservationIds:[], description:"The canonical campaign invocation threw an exception.", rootCause:String(error?.message ?? error), regressionCaseId:gtCase.caseId }], startedAt, finishedAt:new Date().toISOString() };
   }
   const job = await getJob(jobId);
   const row = await db.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, researchCase.id)).limit(1);
@@ -147,7 +148,7 @@ async function runOne(gtCase, trialIndex) {
   const trajectory = acts.flatMap(a => Array.isArray(a.trajectory) ? a.trajectory : []);
   const status = String(job?.status ?? "failed");
   const outcome = status === "done" && identities.length ? "verified" : status === "done" ? "insufficient_evidence" : status === "cancelled" ? "cancelled" : "system_failure";
-  const run = { schemaVersion:"research-run-v1", caseId:gtCase.caseId, system:"apex-canonical", trialId, runId, registryVersion:gt.version, systemVersion, taskEnvelope, configuration:{ investigatorPool:["groq","mistral"], oversight:["gemini-right-hand","gemini-boss"] }, identities, claims, contacts:[], contradictions:[], observations, trajectory, outcome, failureRecords:[], startedAt, finishedAt:new Date().toISOString(), raw:{ jobId, caseId:researchCase.id, jobStatus:status, investigatorModel:investigator.model ?? null, stopReason:investigator.trajectoryRecords?.at(-1)?.stopReason ?? null, completedActs:state.completedActs ?? null, deadlineExceeded:state.deadlineExceeded ?? false, cancelled:state.cancelled ?? false } };
+  const run = { schemaVersion:"research-run-v1", caseId:gtCase.caseId, system:"apex-canonical", trialId, runId, registryVersion:gt.version, systemVersion, taskEnvelope, configuration, identities, claims, contacts:[], contradictions:[], observations, trajectory, outcome, failureRecords:[], startedAt, finishedAt:new Date().toISOString(), raw:{ jobId, caseId:researchCase.id, jobStatus:status, investigatorModel:investigator.model ?? null, stopReason:investigator.trajectoryRecords?.at(-1)?.stopReason ?? null, completedActs:state.completedActs ?? null, deadlineExceeded:state.deadlineExceeded ?? false, cancelled:state.cancelled ?? false } };
   run.failureRecords = makeFailure(run, gtCase, outcome);
   if (activeClaimed) await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined);
   return run;

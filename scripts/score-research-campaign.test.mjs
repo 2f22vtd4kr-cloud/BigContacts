@@ -10,6 +10,19 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SCORER = join(ROOT, "scripts/score-research-campaign.mjs");
 const CASE_COUNT = 50;
 const TRIALS_PER_CASE = 3;
+
+const CAMPAIGN_RUNNER = join(ROOT, "scripts/run-research-campaign.ts");
+
+test("campaign records the current canonical Groq-only role contract", () => {
+  const source = readFileSync(CAMPAIGN_RUNNER, "utf8");
+  assert.match(source, /investigatorRouting:\s*"Groq Boss selects from the runtime-configured Groq Investigator capability registry"/);
+  assert.match(source, /oversight:\s*\["groq-boss",\s*"groq-right-hand"\]/);
+  assert.match(source, /crossProviderFallback:\s*false/);
+  assert.match(source, /directorMode:\s*"groq_boss_pending",\s*directorProvider:\s*"groq"/);
+  assert.match(source, /currentAction:\s*"groq-boss-opening-assignment"/);
+  assert.doesNotMatch(source, /mistral|gemini/i, "retired provider identities must not be represented as campaign configuration");
+});
+
 const taskEnvelope = {
   maxIterations: 64,
   maxObservations: 16000,
