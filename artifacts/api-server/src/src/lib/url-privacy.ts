@@ -105,16 +105,36 @@ export function sanitizeUrlsInText(text: string): string {
   });
 }
 
-/** Recursively sanitizes a value before it becomes observable or durable. */
-export function sanitizeObservableValue<T>(value: T): T {
-  if (typeof value === "string") return sanitizeUrlsInText(value) as T;
-  if (Array.isArray(value)) return value.map((item) => sanitizeObservableValue(item)) as T;
+const AUTHORITATIVE_URL_FIELD = /(?:url|uri)s?$/i;
+const MAX_OBSERVABLE_PUBLIC_URL_CHARS = 12_000;
+const OMITTED_PRIVATE_URL = "[URL omitted from privacy-safe observable state; credential-bearing or non-public route not retained]";
+
+function sanitizeObservableValueAtKey<T>(value: T, key: string): T {
+  if (typeof value === "string") {
+    if (AUTHORITATIVE_URL_FIELD.test(key) && /^https?:\/\//i.test(value)) {
+      // Durable route fields must never be silently normalized into a different
+      // URL. Preserve safe public URLs verbatim; withhold credential/signed routes
+      // as a whole rather than persisting a misleading redacted clickable URL.
+      if (value !== value.trim()) return OMITTED_PRIVATE_URL as T;
+      return (retainCompletePublicHttpUrlForPrompt(value, MAX_OBSERVABLE_PUBLIC_URL_CHARS)
+        ?? OMITTED_PRIVATE_URL) as T;
+    }
+    return sanitizeUrlsInText(value) as T;
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeObservableValueAtKey(item, key)) as T;
+  }
   if (value && typeof value === "object") {
     const output: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-      output[key] = sanitizeObservableValue(item);
+    for (const [childKey, item] of Object.entries(value as Record<string, unknown>)) {
+      output[childKey] = sanitizeObservableValueAtKey(item, childKey);
     }
     return output as T;
   }
   return value;
+}
+
+/** Recursively sanitizes a value before it becomes observable or durable. */
+export function sanitizeObservableValue<T>(value: T): T {
+  return sanitizeObservableValueAtKey(value, "");
 }
