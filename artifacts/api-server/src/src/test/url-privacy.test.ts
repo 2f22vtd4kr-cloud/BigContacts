@@ -3,9 +3,30 @@ import {
   sanitizeObservableValue,
   sanitizeUrlForEvidence,
   sanitizeUrlsInText,
+  retainCompletePublicHttpUrlForPrompt,
 } from "../lib/url-privacy";
 
 describe("URL privacy boundary", () => {
+  it("retains exact public URLs verbatim instead of normalizing their route", () => {
+    const raw = "https://REGISTRY.example.test/record?id=A%2Fb&tab=ownership";
+    expect(retainCompletePublicHttpUrlForPrompt(raw)).toBe(raw);
+  });
+
+  it.each([
+    "https://user:password@example.com/private",
+    "https://storage.example.test/object?X-Amz-Signature=signed-secret&download=1",
+    "https://example.com/#/callback?access_token=fragment-secret&state=keep",
+    "https://example.com/object?api%5Fkey=secret",
+    "https://example.com/object?token=%5BREDACTED%5D",
+  ])("omits credential-bearing or secret-parameter URLs whole", (raw) => {
+    expect(retainCompletePublicHttpUrlForPrompt(raw)).toBeNull();
+  });
+
+  it("omits oversized route URLs rather than returning a shortened prefix", () => {
+    const raw = "https://registry.example.test/filings/" + "a".repeat(700);
+    expect(retainCompletePublicHttpUrlForPrompt(raw, 512)).toBeNull();
+  });
+
   it("removes URL userinfo and redacts sensitive query and fragment parameters", () => {
     const safe = new URL(sanitizeUrlForEvidence(
       "https://user:password@example.com/private?Api-Key=secret&search=known#access_token=fragment-secret&state=public",
