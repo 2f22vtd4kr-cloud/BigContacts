@@ -243,7 +243,9 @@ describe("durable discovery projection URL integrity", () => {
     expect(projected.args.source0Url).toBe("https://registry.example.org/source/0");
     expect(projected.args.source23Url).toBe("https://registry.example.org/source/23");
     expect(projected.args.optional0).toBeUndefined();
-    expect(projected.durableProjectionOmi
+    expect(projected.durableProjectionOmissions?.argumentUrls).toBe(2);
+  });
+
   it("retains the matching search snippet as explicitly unverified context and redacts contact data", () => {
     const url = "https://registry.example.org/acquisitions/record-17";
     const observation = [
@@ -264,8 +266,6 @@ describe("durable discovery projection URL integrity", () => {
     );
     expect(extractSearchResultSnippetForLead(observation, "https://registry.example.org/missing")).toBeNull();
     expect(extractSearchResultSnippetForLead(observation, "https://registry.example.org/acquisitions/record-17", 40)?.length).toBeLessThanOrEqual(40);
-  });
-ssions?.argumentUrls).toBe(2);
   });
 
 });
