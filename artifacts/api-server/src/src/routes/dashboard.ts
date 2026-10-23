@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { desc, isNotNull, isNull, eq, sql, and, or, gte, inArray } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { sanitizeUrlForEvidence } from "../lib/url-privacy";
+import { mergeSourceCardTrajectoryRecords } from "../lib/durable-discovery-projection";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
 import { computeAccessScore } from "../lib/access-score";
@@ -356,11 +357,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     // Replace projection records for turns present in the immutable ledger.
     // This prevents legacy truncated URL prefixes from generating clickable source cards.
     const durableRecords = durableRecordsByCase.get(sourceCase.id) ?? [];
-    const durableActionKeys = new Set(durableRecords.map((record) => `${Number(record.turn ?? 0)}:${String(record.action ?? "")}`));
-    const legacyProjectionRecords = projectionRecords.filter((record) =>
-      !durableActionKeys.has(`${Number(record.turn ?? 0)}:${String(record.action ?? "")}`));
-    const records = [...legacyProjectionRecords, ...durableRecords]
-      .sort((a, b) => Number(a.turn ?? 0) - Number(b.turn ?? 0));
+    const records = mergeSourceCardTrajectoryRecords(projectionRecords, durableRecords);
     const successfullyFetched = new Set<string>();
     const attempts = new Map<string, Record<string, any>>();
     const blockedAttempts = new Map<string, Record<string, any>>();
