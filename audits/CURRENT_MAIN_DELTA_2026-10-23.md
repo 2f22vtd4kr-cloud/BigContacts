@@ -79,3 +79,14 @@ These runs demonstrate CI validation of the exact snapshot, not live provider re
 The original baseline scan covers 3,349 blobs: 3,217 readable text files line-scanned and 132 binary/non-UTF-8 assets inventoried. It reports 79 targeted semantic-review paths, 1,046 non-documentation paths classified automated-only, and 2,092 documentation/historical paths not independently fact-checked. Those categories and line counts are for baseline `f53dbd1...`, not current main.
 
 Current main contains 3,351 blobs. A refreshed automated line-by-line inventory, manifest, and findings artifact for exact current-main SHA `4e476ea3147a3f9ade4f650a221ab636a89c9e3f` has now completed on the audit branch: 3,219 readable text files, 558,536 text lines, 132 binary/non-UTF-8 assets, 2,270 pattern hits, 18 critical/high pattern hits, zero parser/syntax findings, and zero unreadable paths. The current-main audit artifacts are not yet merged to `main`. Its refreshed manifest classifies 94 paths as targeted semantic-review selections, 1,033 non-documentation paths as automated-only, 2,092 documentation/historical paths as not independently fact-checked, and 132 binary/non-UTF-8 paths as inventory-only; these categories sum to 3,351 blobs. The 94 targeted statuses inherit earlier review records plus the selected PR #728 delta paths and do not mean every line of those paths was independently re-read in this session. This refresh does not close the semantic-review gap; systematic semantic review of all applicable first-party paths remains required. No Replit run was launched.
+
+
+## Post-audit code changes merged after the audited 4e476ea snapshot
+
+The static inventory and findings JSON above are pinned to `4e476ea3147a3f9ade4f650a221ab636a89c9e3f`, not the current branch head. After that snapshot, the following reviewed remediation PRs were merged to `main`:
+
+- PR #732, merge `1bf9028534b76fea62b79fdadb731bf1e3394ba3`: disables contact-data inclusion and visible-file prompt audit output by default, and directs capture to a private `.local/audits` path.
+- PR #733, merge `4d75f3b5be3ea9ac3c537383545d2a67a574a1ca`: gates schema mutation and makes post-merge verification fail closed rather than reporting readiness after failed setup.
+- PR #734, merge `4a79fbf752618bf18382e5658ecef1305bc8d23b`: retains search-result snippets as explicitly unverified review context, distinct from fetched excerpts and qualification evidence; honors caller-provided snippet bounds.
+
+The current main SHA was independently verified as `4a79fbf752618bf18382e5658ecef1305bc8d23b` after these merges. The 3,351-blob inventory, 3,219 readable text files, 558,536 scanned lines, and 2,270 static hits remain measurements of the earlier `4e476ea` snapshot only. A new full inventory/manifest and semantic review delta are still needed for `4a79fbf`; do not describe the older artifacts as a complete audit of current main. No Replit run was launched.
