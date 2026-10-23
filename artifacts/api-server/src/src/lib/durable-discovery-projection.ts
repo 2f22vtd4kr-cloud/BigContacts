@@ -1,4 +1,4 @@
-import { retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
+import { PRIVACY_WITHHELD_URL_MARKER, retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
 import type { AgenticFinding, AgenticTrajectoryRecord } from "./agentic-web-research-core";
 
 const MAX_DURABLE_PROJECTION_URL_CHARS = 500;
@@ -91,7 +91,7 @@ function priorOmissions(record: AgenticTrajectoryRecord): DurableProjectionOmiss
     findingSourceUrls: Math.max(0, Number(prior?.findingSourceUrls) || 0),
     sourceBindingUrls: Math.max(0, Number(prior?.sourceBindingUrls) || 0),
     textUrls: Math.max(0, Number(prior?.textUrls) || 0),
-    reason: "A value did not fit the bounded case-file projection and was omitted as a whole; the immutable research_case_events payload is authoritative.",
+    reason: "Routes may be omitted whole by the size bound or withheld by URL privacy policy; only safe public URL values remain in the immutable event ledger.",
   };
 }
 
@@ -125,7 +125,8 @@ export function compactDurableDiscoveryRecords(records: AgenticTrajectoryRecord[
         continue;
       }
       if (isUrlArgument(key)) {
-        if (rawValue.startsWith("[URL omitted from bounded case-file projection;")) {
+        if (rawValue.startsWith("[URL omitted from bounded case-file projection;")
+          || rawValue === PRIVACY_WITHHELD_URL_MARKER) {
           args[key] = rawValue;
           continue;
         }
@@ -329,7 +330,7 @@ export function buildDurableUrlInventoryFromEventPayloads(
     ...urls.map((url) => "- " + url),
     omittedWhole > 0
       ? String(omittedWhole) + " additional URL(s) were omitted whole from this bounded inventory; the case-event ledger remains authoritative. Do not invent or rebuild them."
-      : "No URL value in this inventory sample was truncated.",
+      : "No safe public URL in this inventory sample was truncated; credential-bearing or otherwise sensitive routes are withheld by policy and cannot be reconstructed.",
   ].join("\n");
   return { text, urls, omittedWhole };
 }
