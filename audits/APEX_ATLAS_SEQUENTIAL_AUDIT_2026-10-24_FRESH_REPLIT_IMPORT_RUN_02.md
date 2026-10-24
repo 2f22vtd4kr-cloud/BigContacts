@@ -164,6 +164,24 @@ It does **not** contain API keys, Redis credentials, raw personal email addresse
 - **Retired status endpoint:** `GET /api/ingest/atlas-status` returned `410`; source route topology and static checks show the legacy launch/status surface is quarantined. It was not used to alter state.
 - **Next action:** Track this audit and its root pointer locally, rebuild from a clean audit-only commit, recheck health and the idle pointer, then issue exactly one UI-default canonical launch.
 
+### 021 — Clean build and final prelaunch gate
+
+- **Action:** Committed the root audit pointer and this report locally as `01d933d5d560085af2e1b20e649869af3f554dee`, then restarted the API from that clean worktree.
+- **Source comparison:** Local `main` differs from upstream `e627d37df88791abae33eddf0310284b1760f4a0` only by the two audit documents; application source is unchanged and there was no push.
+- **Build/boot:** The workflow logs identify the local audit commit, confirm schema push was skipped, and show API build/static launch/provider-boundary checks passing. The API is running.
+- **Final health:** `/api/healthz`, `/api/healthz/details`, and `/api/system/status` return HTTP 200; PostgreSQL and permanent Redis slot 1 are healthy; `bureauIntegrity` is `ok` with no reasons.
+- **Final lock check:** A second read-only `GET` of `apex:activejob:atlas-run` returned `null` after restart. No job is active, and no earlier run was resumed or modified.
+- **Next action:** Send the button-equivalent request once: `POST /api/ingest/atlas-run` with `{targetCount:3,researchDepth:"standard",targetTimeoutMs:420000}`. This is one real, discovery-first canonical run; it is not a smoke test.
+
+### 022 — UI-default canonical launch accepted
+
+- **Request time:** `2026-10-24T07:11:33.786Z`.
+- **Action:** Sent exactly one `POST /api/ingest/atlas-run` with `{targetCount:3,researchDepth:"standard",targetTimeoutMs:420000}`. No single target, custom discovery context, mock mode, forced provider, or scripted search itinerary was supplied.
+- **Response:** HTTP `202`; job `2c9b4725-4544-4712-8556-06627ccea718`; poll path `/api/ingest/job/2c9b4725-4544-4712-8556-06627ccea718`. The accepted options normalize to 3 targets, standard depth, 420000 ms, no single target, and no discovery context.
+- **Immediate durable state:** Redis active pointer matches this job; status `running`, phase `0/4`. The job records build revision `01d933d5d560085af2e1b20e649869af3f554dee` and `buildDirty: clean`.
+- **Response-shape note:** This handler did not return optional `phases`/`executionModel` labels in the safe response projection; it did return the job ID, poll URL, and normalized options. The durable phase/status record is authoritative.
+- **Next action:** Poll the canonical job record and safe durable trajectory incrementally; verify each handoff, actual tool observation, evidence/admission, card projection, terminal status, and lock release.
+
 ## Run record
 
 No Apex application boot, model request, web search, research launch, or card creation has occurred in this project yet. Do not treat source history, prior runs, an accepted HTTP 202, or an empty database as proof of a successful run. Verify job terminal state, durable evidence/admission/card counts, UI projection, and released lock separately.
