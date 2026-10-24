@@ -155,6 +155,12 @@ Record the full observable sequence from setup through discovery, Investigator r
 - **Observed issue:** The check rejected trailing Markdown hard-break spaces in the new report header and root audit metadata. No commit was created; the API was not booted and no research action occurred.
 - **Correction/result:** Replaced those metadata hard breaks with explicit `<br>` markers. This is the same failure class recorded by Run 01; the staged `git diff --cached --check` now passes before any commit or boot.
 
+### 019 — Visible audit checkpoint saved locally
+
+- **Action:** Committed the root audit pointer, run-audit pointer, and this active report in local commit `98361ea24` after the staged whitespace check passed.
+- **Observed result:** The audit file is tracked and visible; `git check-ignore` returned no match. The commit contains only audit documentation and pointers. No source change or push to GitHub occurred.
+- **Next:** Verify the clean source boundary and start the one configured canonical API workflow.
+
 ## Run record
 
 Append each subsequent command, request, model/tool event, visible prompt/structured response, oversight decision, durable state delta, error, fix, and verification here in sequence. Keep raw third-party personal contact values and hidden reasoning out of this tracked file.
