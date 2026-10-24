@@ -54,11 +54,11 @@ describe("model prompt audit", () => {
 
     for (const config of [artifactConfig, workspaceConfig]) {
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
-      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
+      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
       expect(config).toMatch(/APEX_MODEL_AUDIT_FILE = "\.local\/audits\/[^"]+"/);
-      expect(config).not.toContain('APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_SEQUENTIAL_AUDIT_RUN_03.md"');
+      expect(config).toContain('APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-24_REPLIT_RUN_03.md"');
     }
     expect(productionConfig).not.toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
@@ -260,6 +260,65 @@ describe("model prompt audit", () => {
     expect(captured).not.toContain("jane.doe@example.org");
     expect(captured).not.toContain("4155550100");
     expect(captured).toContain("Jane Doe");
+  });
+
+  it("retains public contact values in the private development run audit while still excluding credentials and private reasoning", () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
+    const env = {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true",
+      APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "true",
+      APEX_MODEL_AUDIT_FILE: ".local/audits/APEX_ATLAS_MODEL_AUDIT_TEST.md",
+    };
+    const requestWrites: Array<{ path: string; contents: string }> = [];
+    emitModelPromptAudit(input, env, (path, contents) => requestWrites.push({ path, contents }), apiPackageCwd);
+    expect(requestWrites).toHaveLength(1);
+    expect(requestWrites[0]?.path).toBe(resolve(workspaceRoot, ".local/audits/APEX_ATLAS_MODEL_AUDIT_TEST.md"));
+    expect(requestWrites[0]?.contents).toContain("person@example.org");
+    expect(requestWrites[0]?.contents).toContain("+1 (415) 555-0100");
+    expect(requestWrites[0]?.contents).not.toContain("gsk_123456789012345678901234");
+    expect(requestWrites[0]?.contents).not.toContain("private_token_value");
+
+    const writes: Array<{ path: string; contents: string }> = [];
+    emitModelPromptAuditResponse({
+      requestId: "request-private-contact-retention",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "openai/gpt-oss-120b",
+      httpStatus: 200,
+      responseBody: JSON.stringify({
+        choices: [{
+          index: 0,
+          finish_reason: "stop",
+          message: {
+            role: "assistant",
+            content: JSON.stringify({
+              action: "done",
+              findings: [
+                { vectorType: "email", value: "jane.doe@example.org", personName: "Jane Doe", role: "Owner", sourceUrl: "https://example.org/contact" },
+                { vectorType: "phone", value: "+1 (415) 555-0100", personName: "Jane Doe", role: "Owner", sourceUrl: "https://example.org/contact" },
+              ],
+              diagnostic: "Bearer gsk_123456789012345678901234",
+              thought: "PRIVATE_MODEL_THOUGHT_SENTINEL",
+            }),
+            reasoning_content: "PRIVATE_PROVIDER_REASONING_SENTINEL",
+          },
+        }],
+      }),
+    }, env, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
+
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.path).toBe(resolve(workspaceRoot, ".local/audits/APEX_ATLAS_MODEL_AUDIT_TEST.md"));
+    const captured = writes[0]?.contents ?? "";
+    expect(captured).toContain("jane.doe@example.org");
+    expect(captured).toContain("+1 (415) 555-0100");
+    expect(captured).toContain("https://example.org/contact");
+    expect(captured).not.toContain("PRIVATE_MODEL_THOUGHT_SENTINEL");
+    expect(captured).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
+    expect(captured).not.toContain("gsk_123456789012345678901234");
+    expect(captured).toContain("[REDACTED_SECRET]");
   });
 
   it("resolves workspace-relative audit paths from the repository root when the API cwd is nested", () => {
