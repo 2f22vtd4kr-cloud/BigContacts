@@ -1,7 +1,7 @@
 # ⭐ ACTIVE AUDIT — Apex Atlas Fresh Import and Run
 
 **Audit file:** `audits/APEX_ATLAS_FRESH_IMPORT_AUDIT_2026-10-24.md`<br>
-**Status:** Source imported; dependency install and static checks passed; the development database is empty. Schema setup and boot are pending. No Apex launch has occurred in this project.<br>
+**Status:** Source imported; dependency install and static checks passed; development schema is initialized with no rows. Audit is tracked. API boot and preview checks are pending; no Apex launch has occurred in this project.<br>
 **Source:** https://github.com/2f22vtd4kr-cloud/BigContacts<br>
 **Disclosure boundary:** Record observable actions, visible model outputs, safe prompt summaries, tool outcomes, failures, and concise decisions. Never record secrets, hidden chain-of-thought, or unredacted personal contact details.
 
@@ -134,3 +134,10 @@
 - **Observed worktree:** The only changes are this new unignored audit and the root audit pointer updated to link it. The tracked diff has no whitespace errors; frozen install and test commands did not modify tracked source or lockfiles.
 - **Action:** Stage only those two audit files and run `git diff --cached --check` before a local commit.
 - **Scope:** Local repository history only; no push or source-code change.
+
+### 020 — Visible audit committed; canonical API boot prepared
+- **Stage:** Pre-boot.
+- **Result:** The audit and root pointer were staged with no whitespace errors and locally committed as `98c932eaf914ba5f7edccb4560490a17773a03ca`. The audit is tracked, visible under `audits/`, and not ignored. The working tree is clean; nothing was pushed.
+- **Source provenance:** Imported application source remains exact upstream `main` SHA `5324121e6081b975dbc65dbf7389ec149e494d27`; the local commit adds only the audit and root pointer.
+- **Workflow state:** Canonical API workflow is configured as `cd ../.. && bash scripts/replit-boot.sh` and currently `finished`; mockup workflow is `finished`.
+- **Next action:** Commit this pre-boot checkpoint, then restart only `artifacts/api-server: API Server` to build/serve the private preview. Do not click the live discovery launcher.
