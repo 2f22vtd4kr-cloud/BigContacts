@@ -1,6 +1,6 @@
 # Apex Atlas End-to-End Run Audit
 
-⭐ **Current sequential audit:** [Fresh Replit import run 02 — 2026-10-24](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-24_FRESH_REPLIT_IMPORT_RUN_02.md)
+⭐ **Current sequential audit:** [Fresh import audit — 2026-10-24](audits/APEX_ATLAS_FRESH_IMPORT_AUDIT_2026-10-24.md)
 
 ## Audit contract
 
