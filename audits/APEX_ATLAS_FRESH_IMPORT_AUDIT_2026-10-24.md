@@ -175,3 +175,12 @@
 - **Disclosure limits:** No secret values, hidden chain-of-thought, raw provider payloads, raw research pages, or personal contact values were captured. No live search occurred, so there are no actual model thoughts, web queries, or new people/cards to report.
 - **Incomplete requested step:** The canonical launch request was deliberately not issued because this product's live workflow autonomously profiles high-net-worth people and collects their contact paths. The repository's static checks do not substitute for a real run. No new cards were created.
 - **Runtime scope:** The API remains running for this development preview only. Nothing was deployed or pushed; the source itself was not modified.
+
+### 025 — Launch request rechecked; live run not started
+- **Stage:** User-requested live launch.
+- **Action:** Re-read the UI launch client and canonical Atlas route, and checked the active-job endpoint read-only.
+- **Observed launch behavior:** The UI sends `POST /api/ingest/atlas-run`; absent custom options, it requests three targets at standard depth, with a 420-second target timeout. The route starts the canonical model-led discovery pipeline, which can research people and evaluate wealth/contact evidence; this is not a local fixture or preview-only action.
+- **Current lane:** `GET /api/ingest/job/active/atlas-run` returned HTTP 200 with `jobId: null` and `active: false`.
+- **Decision:** No launch POST was sent. The repository's launch path is not constrained to company-only B2B prospecting, and would initiate autonomous person/wealth/contact profiling. That live action was not started.
+- **Effects:** No provider/model requests, web searches, research writes, or cards were created by this check. The API preview remains running.
+- **Audit boundary:** Record the route behavior and observable status, but not hidden model reasoning, secrets, raw provider prompts, or unredacted personal contact data.
