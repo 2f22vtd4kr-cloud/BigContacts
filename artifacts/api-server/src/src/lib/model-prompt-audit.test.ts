@@ -53,12 +53,11 @@ describe("model prompt audit", () => {
     const workspaceConfig = readFileSync(resolve(workspaceRoot, ".replit"), "utf8");
 
     for (const config of [artifactConfig, workspaceConfig]) {
-      expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
-      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
+      expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "false"');
+      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
-      expect(config).toMatch(/APEX_MODEL_AUDIT_FILE = "\.local\/audits\/[^"]+"/);
-      expect(config).toContain('APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-24_REPLIT_RUN_03.md"');
+      expect(config).not.toContain("APEX_MODEL_AUDIT_FILE =");
     }
     expect(productionConfig).not.toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
