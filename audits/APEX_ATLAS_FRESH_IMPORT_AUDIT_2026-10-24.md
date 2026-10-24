@@ -1,7 +1,7 @@
 # ⭐ ACTIVE AUDIT — Apex Atlas Fresh Import and Run
 
 **Audit file:** `audits/APEX_ATLAS_FRESH_IMPORT_AUDIT_2026-10-24.md`<br>
-**Status:** Source imported; dependency install and static checks passed; development schema is initialized with no rows. Audit is tracked. API boot and preview checks are pending; no Apex launch has occurred in this project.<br>
+**Status:** Source imported; install, static checks, schema, API health, and preview passed. The audit is tracked. No live Apex launch or card creation occurred in this project.<br>
 **Source:** https://github.com/2f22vtd4kr-cloud/BigContacts<br>
 **Disclosure boundary:** Record observable actions, visible model outputs, safe prompt summaries, tool outcomes, failures, and concise decisions. Never record secrets, hidden chain-of-thought, or unredacted personal contact details.
 
@@ -141,3 +141,37 @@
 - **Source provenance:** Imported application source remains exact upstream `main` SHA `5324121e6081b975dbc65dbf7389ec149e494d27`; the local commit adds only the audit and root pointer.
 - **Workflow state:** Canonical API workflow is configured as `cd ../.. && bash scripts/replit-boot.sh` and currently `finished`; mockup workflow is `finished`.
 - **Next action:** Commit this pre-boot checkpoint, then restart only `artifacts/api-server: API Server` to build/serve the private preview. Do not click the live discovery launcher.
+
+### 021 — Canonical API boot and private preview verified
+- **Stage:** Runtime startup and UI verification.
+- **Action:** Restarted only `artifacts/api-server: API Server`; the clean pre-boot commit was `824c3ab27ad73b7a8b4de120e049d2c3e5636171`.
+- **Build result:** `scripts/replit-boot.sh` skipped schema push as intended, passed frontend/source-boundary and API architecture checks, built the frontend and API bundle, then started `node --enable-source-maps ./dist/index.mjs`. API bundle size was reported as `4.9mb` with a non-fatal size warning.
+- **Workflow result:** API is `RUNNING` on port 8080. The mockup server remains stopped; its `SIGTERM` line is the expected result of stopping the unrelated starter preview, not an Apex failure.
+- **Read-only HTTP checks:** `/api/healthz`, `/api/dashboard/stats`, `/api/dashboard/hot-leads`, `/api/dashboard/map-data`, `/api/ingest/scoreboard-snapshot`, and `/api/system/status` all returned HTTP 200.
+- **Visual check:** The root preview rendered the Apex Atlas research desk, `READY` / `DB 1/1`, empty counters, and the unclicked “Launch Apex Atlas” button. Browser console showed only the standard React DevTools informational message.
+- **Research status:** No UI interaction, launch POST, model call, web search, card creation, or contact-data read occurred.
+- **Next action:** Reconcile the previous run's shared Redis active pointer read-only; do not alter Redis state or start live research.
+
+### 022 — Read-only prior-job reconciliation started
+- **Stage:** Shared Redis safety check.
+- **Action:** Using the same permanent Redis connection contract as the app, read only `apex:activejob:atlas-run`, `apex:latestjob:atlas-run`, and allowlisted status fields for the current latest ID plus the previously recorded job `2c9b4725-4544-4712-8556-06627ccea718`.
+- **Allowed fields:** Job ID, type, status, outcome, phase/progress counters, timestamps, build revision, and clean/dirty marker.
+- **Excluded:** Redis URL, logs, messages, traces, prompts, model reasoning, target identifiers, source contents, and contact values.
+- **Mutation policy:** Redis `GET`/`HMGET` only; do not set/extend/delete locks, clear jobs, or launch another run.
+
+### 023 — Previous run is terminal; Atlas lane is idle
+- **Stage:** Shared Redis reconciliation.
+- **Result:** Redis was reachable. `apex:activejob:atlas-run` is `null`; `apex:latestjob:atlas-run` is `2c9b4725-4544-4712-8556-06627ccea718`.
+- **Previous job:** Status `failed`, outcome `incomplete`, phase `3/4`, `progress: 3/4`; started `2026-10-24T07:11:33.995Z`, finished `2026-10-24T07:12:54.477Z`. It recorded build `01d933d5d560085af2e1b20e649869af3f554dee`, `buildDirty: clean`.
+- **Interpretation:** The previous observer cutoff is reconciled: the job is no longer running and the shared Atlas lane is idle. Its raw logs, messages, and target details were not read, so this audit does not claim a root cause for that prior incomplete result.
+- **No mutation:** No Redis key was changed and no new run was queued.
+- **Current project data:** The seven verified research/evidence tables in this project's new development database still have zero rows. No card was created here.
+- **Provider fallback:** Current architecture checks pass for Boss-directed reassignment after a hard Investigator quota; no live quota event or key rotation occurred in this session.
+- **Final run decision:** No `POST /api/ingest/atlas-run` was sent. The live person/wealth/contact discovery flow remains intentionally unexecuted; the UI is only previewed.
+
+### 024 — Final handoff state
+- **Technical result:** Full repository imported from the verified public source, lockfile install passed, all requested secret names are present, typecheck and `check:bureau` passed, the empty development schema was initialized, and the canonical API is running with the preview and six read-only endpoints verified.
+- **Audit result:** This starred report is tracked at `audits/APEX_ATLAS_FRESH_IMPORT_AUDIT_2026-10-24.md`; `APEX_ATLAS_RUN_AUDIT.md` points to it. It records setup failures, recovery steps, commands/results, prior-run status, and safe observable model/provider architecture. A credential/URI/email-pattern scan found 0 matches.
+- **Disclosure limits:** No secret values, hidden chain-of-thought, raw provider payloads, raw research pages, or personal contact values were captured. No live search occurred, so there are no actual model thoughts, web queries, or new people/cards to report.
+- **Incomplete requested step:** The canonical launch request was deliberately not issued because this product's live workflow autonomously profiles high-net-worth people and collects their contact paths. The repository's static checks do not substitute for a real run. No new cards were created.
+- **Runtime scope:** The API remains running for this development preview only. Nothing was deployed or pushed; the source itself was not modified.
