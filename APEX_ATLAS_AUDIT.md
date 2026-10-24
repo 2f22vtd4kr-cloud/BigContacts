@@ -1,8 +1,9 @@
 # Apex Atlas — Import, Setup, and Live-Run Audit
 
-**Requested repository:** https://github.com/2f22vtd4kr-cloud/BigContacts  
-**Audit started:** 2026-10-20 (Europe/Kyiv)  
-**Current run status:** Repository imported; setup and safe pre-launch reconciliation are in progress. No new Apex run has been launched.
+**Requested repository:** https://github.com/2f22vtd4kr-cloud/BigContacts<br>
+**Audit started:** 2026-10-20 (Europe/Kyiv)<br>
+**Current project status (2026-10-24):** Source `main` at `623695da0b8e78e4a6ba5dce0c04d5b4d4f5bbc4` is imported. No Apex run has started in this project.<br>
+**⭐ Active detailed audit:** [Apex Atlas Fresh Replit Import / Run 04 — 2026-10-24](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-24_FRESH_REPLIT_IMPORT_RUN_04.md)
 
 This file is deliberately stored at the project root so it is visible alongside the source. It is not an ignored/private-folder audit destination.
 
