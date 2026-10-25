@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { desc, isNotNull, eq, sql, and, or, gte } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable } from "@workspace/db";
+import { desc, isNotNull, eq, sql, and, or, gte, inArray } from "drizzle-orm";
+import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchEvidenceTable, researchCasesTable } from "@workspace/db";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
 import { getCache, setCache } from "../lib/redis";
 import { computeAccessScore } from "../lib/access-score";
@@ -322,6 +322,121 @@ router.get("/dashboard/stats", async (_req, res): Promise<void> => {
   };
   await setCache("dashboard:stats", payload, 60);
   res.json(payload);
+});
+
+// GET /dashboard/research-leads
+// Project only review leads backed by durable evidence tied to the same discovery case.
+// Search snippets alone are never projected as named person cards.
+router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
+  const rawLimit = Array.isArray(req.query.limit) ? req.query.limit[0] : req.query.limit;
+  const parsedLimit = Number(rawLimit ?? 8);
+  const limit = Number.isFinite(parsedLimit) ? Math.min(32, Math.max(1, Math.floor(parsedLimit))) : 8;
+
+  const rows = await db
+    .select({
+      entityId: entitiesTable.id,
+      entityName: entitiesTable.name,
+      entityType: entitiesTable.type,
+      entityNotes: entitiesTable.notes,
+      entityMetadata: entitiesTable.metadata,
+      evidenceClaimType: researchEvidenceTable.claimType,
+      evidenceSourceUrl: researchEvidenceTable.sourceUrl,
+      evidenceMetadata: researchEvidenceTable.metadata,
+      evidenceCreatedAt: researchEvidenceTable.createdAt,
+    })
+    .from(entitiesTable)
+    .innerJoin(researchEvidenceTable, eq(researchEvidenceTable.entityId, entitiesTable.id))
+    .where(and(
+      eq(entitiesTable.type, "PersonCandidate"),
+      eq(entitiesTable.isHidden, false),
+      inArray(researchEvidenceTable.claimType, ["identity_candidate", "partial_identity_lead"]),
+      sql`LOWER(COALESCE(${researchEvidenceTable.sourceUrl}, '')) LIKE 'https://%'`,
+    ))
+    .orderBy(desc(researchEvidenceTable.createdAt))
+    .limit(Math.max(limit * 12, 100));
+
+  const byEntity = new Map<number, {
+    entityId: number;
+    entityName: string;
+    entityType: string;
+    notes: string | null;
+    role: string | null;
+    sourceUrls: string[];
+    createdAt: Date;
+  }>();
+
+  const parseMetadata = (raw: string | null | undefined): Record<string, unknown> => {
+    try {
+      const parsed: unknown = JSON.parse(raw ?? "{}");
+      return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+        ? parsed as Record<string, unknown>
+        : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const normalizeSourceUrl = (raw: unknown): string | null => {
+    if (typeof raw !== "string") return null;
+    try {
+      const url = new URL(raw);
+      if (url.protocol !== "https:" || url.username || url.password) return null;
+      url.hash = "";
+      return url.href;
+    } catch {
+      return null;
+    }
+  };
+
+  for (const row of rows) {
+    const entityMetadata = parseMetadata(row.entityMetadata);
+    const evidenceMetadata = parseMetadata(row.evidenceMetadata);
+    const caseId = Number(entityMetadata.discoveryCaseId);
+    const evidenceCaseId = Number(evidenceMetadata.discoveryCaseId);
+    if (entityMetadata.reviewOnly !== true || !Number.isSafeInteger(caseId) || caseId <= 0 || evidenceCaseId !== caseId) continue;
+    if (row.evidenceClaimType === "identity_candidate" && entityMetadata.admission !== "investigator-explicit-promotion") continue;
+    if (row.evidenceClaimType === "partial_identity_lead" && entityMetadata.partialPersonLead !== true) continue;
+    const sourceUrl = normalizeSourceUrl(row.evidenceSourceUrl);
+    if (!sourceUrl) continue;
+
+    let lead = byEntity.get(row.entityId);
+    if (!lead) {
+      lead = {
+        entityId: row.entityId,
+        entityName: row.entityName,
+        entityType: row.entityType,
+        notes: row.entityNotes,
+        role: typeof entityMetadata.role === "string" && entityMetadata.role.trim()
+          ? entityMetadata.role.trim()
+          : typeof evidenceMetadata.role === "string" && evidenceMetadata.role.trim()
+            ? evidenceMetadata.role.trim()
+            : null,
+        sourceUrls: [],
+        createdAt: row.evidenceCreatedAt,
+      };
+      byEntity.set(row.entityId, lead);
+    }
+    if (!lead.sourceUrls.includes(sourceUrl)) lead.sourceUrls.push(sourceUrl);
+  }
+
+  const leads = [...byEntity.values()]
+    .slice(0, limit)
+    .map(({ entityId, entityName, entityType, notes, role, sourceUrls, createdAt }) => ({
+      entityId,
+      entityName,
+      entityType,
+      notes: [role, notes].filter((part): part is string => typeof part === "string" && part.trim().length > 0).join(" · "),
+      sourceUrls,
+      createdAt: createdAt.toISOString(),
+    }));
+
+  const [activeDiscoveryCase] = await db
+    .select({ id: researchCasesTable.id })
+    .from(researchCasesTable)
+    .where(and(eq(researchCasesTable.caseType, "discovery"), eq(researchCasesTable.status, "active")))
+    .limit(1);
+
+  res.json({ leads, sourceLeads: [], activeDiscovery: Boolean(activeDiscoveryCase) });
 });
 
 // GET /dashboard/map-data
