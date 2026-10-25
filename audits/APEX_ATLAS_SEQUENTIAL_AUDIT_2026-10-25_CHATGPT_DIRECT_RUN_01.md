@@ -87,3 +87,12 @@ Append every subsequent event here before/while progressing where practical. At 
 - No returned evidence proves either background task executed any of those steps. Do not interpret an update acknowledgement as launch success. Do not launch from a second workspace while the original job remains unresolved.
 - The live GitHub Actions fallback is still not viable until the role credentials are securely configured there; the available GitHub actions do not include a secret-write operation, and no API launch ran in the last failed workflow.
 - **Checkpoint:** no canonically admitted card ID, durable evidence chain, or matching UI card has been observed. Continue pursuing the existing Replit task/runtime channel; acceptance remains open.
+
+
+## E010 — Exhausted available Replit workspace inspection routes
+
+- Refreshed `main` at `7d507d959049f1770eec6eb345bfb92b307a4e67` before continuing.
+- Repeated app discovery by exact project-title keywords. The only matching editable app is the old **Apex Atlas** workspace (last modified 2026-08-23); searches for **BigContacts** return no app. The newer **New Project** workspace was also asked read-only to report canonical repository linkage and role-secret presence; it returned `phase=paused` with an empty response. Its publish status is also `found=false`.
+- There is no exposed Replit connector method for shell/process output, SQL/database queries, secret management, preview inspection, or background-turn retrieval. Both active continuation requests are acknowledged but cannot be observed through the exposed interface; they are not proof of execution.
+- I did not publish either app, create a replacement project, put credentials into source/issues/workflow inputs, or launch a second job in an unverified runtime.
+- **Current state remains blocked, not green:** no live API health response, canonical job reconciliation, model/tool trace, admitted evidence IDs, card ID, or matching UI card is observable. The next technically valid step requires a working Replit Agent/runtime execution channel or securely configured CI role secrets plus a workflow dispatch capability; neither is currently exposed in this session. Continue when either channel becomes operational, without treating this audit note as acceptance.
