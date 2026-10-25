@@ -26,7 +26,7 @@ describe("Groq Investigator runtime contract", () => {
   it("accepts a one-item parallel registry search while retaining registry validation", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_registry_search",
-      searches: [{ query: "West Midlands manufacturing directors", registry: "companies-house" }],
+      searches: [{ query: "West Midlands manufacturing directors", registry: "sec-edgar" }],
       hypothesis: "Registry filings can identify named company officers.",
       purpose: "Find named people to verify against independent sources.",
       expectedInformationGain: 0.5,
@@ -34,7 +34,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(parsed?.action).toBe("parallel_registry_search");
     if (parsed?.action !== "parallel_registry_search") throw new Error("expected parallel registry search");
     expect(parsed.searches).toHaveLength(1);
-    expect(parsed.searches[0]?.registry).toBe("companies-house");
+    expect(parsed.searches[0]?.registry).toBe("sec-edgar");
   });
 
   it("preserves the active Boss question when emergency compaction receives a bounded objective", () => {
