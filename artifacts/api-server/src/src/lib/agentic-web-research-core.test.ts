@@ -1266,6 +1266,19 @@ Choose each next action yourself from the available capabilities and observed ev
       registry: "sec-edgar",
     }, [])).not.toBeNull();
 
+    const westMidlandsObjective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Query UK Companies House for private limited companies in the renewable energy sector located in the West Midlands, retrieve shareholder filings to uncover individual owners.",
+    ].join("\n\n");
+    expect(discoveryPivotAlignmentReason(westMidlandsObjective, "registry_search", {
+      query: "renewable energy private limited companies West Midlands",
+      registry: "companies-house",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(westMidlandsObjective, "registry_search", {
+      query: "renewable energy private limited companies West Midlands",
+      registry: "sec-edgar",
+    }, [])).not.toBeNull();
+
     const austinObjective = [
       "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Austin, Texas using SEC EDGAR to identify owners/operators.",

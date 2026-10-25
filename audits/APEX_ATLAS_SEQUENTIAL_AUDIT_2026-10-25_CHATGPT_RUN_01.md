@@ -185,3 +185,10 @@ No first card is verified by this agent. Continue when actionable runtime status
 
 - Confirmed that the standard API build workflow did not execute `src/src/lib/agentic-web-research-core.test.ts`; the complete-codebase audit loop covers `src/src/test/*.test.ts` but not the library test directory. Added an explicit CI step to run the core pivot-scope test file together with `discovery-runtime-correctness.test.ts` on every relevant API source change. This makes the named-company evidence gate and national-registry geography regressions direct CI requirements instead of relying on typecheck or static checks.
 - Current revision: pending CI. No runtime card acceptance is claimed until the canonical proof workflow returns a source-backed card through both API projections.
+
+
+## E023 — Canonical runtime probe: West Midlands scope alias and temporary Groq TPD exhaustion
+
+- Canonical proof run `40198764037` on main revision `fb79d12a8e706bfc668196ba9a9813fa4764bcf1` failed closed with no candidate admitted. The audit artifact recorded that Groq GPT-OSS 120B was at the organization's 200,000 tokens/day limit (198,716 used; the request required 2,761 tokens and was asked to retry after 10m38s). The 20B fallback and Right-hand role were also rejected by the same organization's TPD limit. This is an external quota blocker; do not treat the empty candidate result as a successful no-hit or replace Investigator with an oversight role.
+- The trace also showed the approved West Midlands renewable-energy pivot's first Companies House searches succeeded, but later in-scope queries were blocked because the region compatibility table had `midlands` without the exact compound alias `west midlands`. Added explicit West Midlands/East Midlands and other England-region aliases plus a regression asserting Companies House accepts the West Midlands query and SEC EDGAR rejects it.
+- The canonical workflow's acceptance gate correctly failed: `entities.json` was empty and dashboard leads were empty. The next proof must run after the provider's stated quota reset and must produce a persisted source-backed card through both API projections.

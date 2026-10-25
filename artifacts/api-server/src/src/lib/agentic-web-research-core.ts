@@ -3150,7 +3150,9 @@ const REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION: Record<string, readonly str
     "tampa", "tucson", "atlanta", "memphis", "richmond", "norfolk", "albuquerque", "anchorage", "honolulu",
   ],
   GB: [
-    "england", "scotland", "wales", "northern ireland", "midlands", "yorkshire", "london", "birmingham",
+    "england", "scotland", "wales", "northern ireland", "midlands", "west midlands", "east midlands",
+    "north west england", "north east england", "south east england", "south west england", "east of england",
+    "yorkshire", "london", "birmingham",
     "manchester", "leeds", "liverpool", "bristol", "sheffield", "newcastle", "nottingham", "leicester",
     "coventry", "southampton", "oxford", "cambridge", "brighton", "portsmouth", "plymouth", "exeter",
     "york", "reading", "milton keynes", "edinburgh", "glasgow", "aberdeen", "dundee", "cardiff",
