@@ -599,7 +599,12 @@ export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promi
   if (!availableInvestigators.length) return { status: "unavailable", model: selection.model, investigatorLlm: null, report: null, candidates: [], citations: [], nextDirections: [], uncertainties: [], error: excluded.size
     ? "No alternate configured Investigator capability remains after explicit Boss-directed exclusion of exhausted capabilities."
     : "No Investigator capability is currently available; refusing an unselected or deterministic substitute." };
-  const prompt = buildGroqBossDiscoveryPrompt(input, availableInvestigators);
+  const prompt = [
+    buildGroqBossDiscoveryPrompt(input, availableInvestigators),
+    input.excludedInvestigatorLlm?.length && availableInvestigators.length === 1
+      ? `QUOTA-RECOVERY ASSIGNMENT CONTRACT: This is a control-plane reassignment after the previous Investigator exhausted model token capacity. The only currently permitted Investigator capability is ${availableInvestigators[0]}. Select exactly that capability in investigatorLlm so the same durable case can continue. Do not reuse an excluded capability. This selects an execution capability only; do not prescribe a research target, query, tool, provider, or sequence.`
+      : "",
+  ].filter(Boolean).join("\\n\\n");
   try {
     const generated = await generateGeminiBossText(selection, prompt, {
       responseFormat: buildBossDiscoveryResponseFormat(availableInvestigators),
