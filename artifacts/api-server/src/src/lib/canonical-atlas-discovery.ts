@@ -271,7 +271,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
         if (existingEvidence) {
           let priorMetadata: Record<string, unknown> = {};
           try { const parsed: unknown = JSON.parse(existingEvidence.metadata ?? "{}"); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) priorMetadata = parsed as Record<string, unknown>; } catch {}
-          await tx.update(researchEvidenceTable).set({ metadata: JSON.stringify({ ...priorMetadata, discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: support.eventId, role: selectedRole, independentPublisher: support.publisher, reviewOnly: true }) }).where(eq(researchEvidenceTable.id, existingEvidence.id));
+          await tx.update(researchEvidenceTable).set({ metadata: JSON.stringify({ ...priorMetadata, discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: support.eventId, promotionDecision: "promote", role: selectedRole, independentPublisher: support.publisher, reviewOnly: true }) }).where(eq(researchEvidenceTable.id, existingEvidence.id));
           durableSourceCount += 1;
           continue;
         }

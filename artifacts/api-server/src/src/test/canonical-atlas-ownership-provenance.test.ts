@@ -82,6 +82,12 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
     expect(targetRunner).not.toContain("evidenceGraphCount: latestResult?.evidenceGraphs?.length ?? 0");
   });
 
+  it("retains explicit promotion metadata when canonical evidence is reused", () => {
+    const discovery = read("src/src/lib/canonical-atlas-discovery.ts");
+    expect(discovery).toContain('promotionDecision: "promote", role: selectedRole, independentPublisher: support.publisher, reviewOnly: true');
+    expect(discovery).toContain("supportingEventId: support.eventId");
+  });
+
   it("admits a review-only ownership lead from one fetched exact identity/role source without weakening provenance", () => {
     const discovery = read("src/src/lib/canonical-atlas-discovery.ts");
     const policy = read("src/src/lib/candidate-source-url-union.ts");
