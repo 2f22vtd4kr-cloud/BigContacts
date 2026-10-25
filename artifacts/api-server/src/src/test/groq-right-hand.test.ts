@@ -444,8 +444,8 @@ describe("Groq Right-hand model policy", () => {
 
     expect(result.status).toBe("completed");
     expect(result.model).toBe("openai/gpt-oss-20b");
-    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     const responseSchema = responseSchemas.at(-1);
     expect(responseSchema?.properties.decision).toMatchObject({ minLength: 1, maxLength: 300 });
     expect(responseSchema?.properties.reason).toMatchObject({ minLength: 1, maxLength: 1_200 });
