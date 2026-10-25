@@ -132,7 +132,7 @@ jobs:
         run: |
           set -euo pipefail
           unset APEX_ALLOW_SCHEMA_PUSH
-          rm -f /tmp/apex-api.log /tmp/health.json /tmp/launch.json /tmp/job.json /tmp/job-final.json /tmp/atlas-trace.json /tmp/entities.json /tmp/dashboard-research-leads.json
+          rm -f /tmp/apex-api.log /tmp/health.json /tmp/launch.json /tmp/job.json /tmp/job-final.json /tmp/active-atlas-job.json /tmp/atlas-trace.json /tmp/entities.json /tmp/dashboard-research-leads.json
           rm -f ".local/audits/APEX_ATLAS_MODEL_AUDIT_${GITHUB_RUN_ID}.md"
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
           API_PID=$!
@@ -144,6 +144,14 @@ jobs:
               curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace.json || true
               curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/entities?limit=50&offset=0" | tee /tmp/entities.json || true
               curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/dashboard/research-leads?limit=8" | tee /tmp/dashboard-research-leads.json || true
+              # A terminal job may briefly remain under the active key while finally releases its lease.
+              # Require the strict lane probe to show an actually empty key, not only active=false.
+              for i in $(seq 1 15); do
+                if curl -fsS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/active/atlas-run" -o /tmp/active-atlas-job.json; then
+                  if node -e 'const x=require("/tmp/active-atlas-job.json"); process.exit(x?.type==="atlas-run"&&x.jobId===null&&x.job===null&&x.active===false?0:1)'; then break; fi
+                fi
+                sleep 1
+              done
             fi
             cat /tmp/apex-api.log || true
             if kill -0 "$API_PID" 2>/dev/null; then kill "$API_PID" 2>/dev/null || true; fi
@@ -183,6 +191,15 @@ jobs:
           const job = readJson("/tmp/job-final.json");
           const entitiesPayload = readJson("/tmp/entities.json");
           const dashboard = readJson("/tmp/dashboard-research-leads.json");
+          const activeAtlasLane = readJson("/tmp/active-atlas-job.json");
+          if (activeAtlasLane?.type !== "atlas-run" || activeAtlasLane?.active !== false ||
+              activeAtlasLane?.jobId !== null || activeAtlasLane?.job !== null) {
+            throw new Error(
+              "Canonical job terminalized but active Atlas lock was not proven released: " +
+              JSON.stringify({ type: activeAtlasLane?.type, jobId: activeAtlasLane?.jobId,
+                active: activeAtlasLane?.active, jobStatus: activeAtlasLane?.job?.status ?? null })
+            );
+          }
           const entities = Array.isArray(entitiesPayload) ? entitiesPayload
             : Array.isArray(entitiesPayload?.entities) ? entitiesPayload.entities : [];
           const leads = Array.isArray(dashboard?.leads) ? dashboard.leads : [];
@@ -218,6 +235,7 @@ jobs:
             sourceUrls: accepted.sourceUrls,
             entityProjection: "matched",
             dashboardProjection: "matched",
+            activeAtlasLock: "released",
           }, null, 2));
           NODE
       - name: Preserve canonical runtime evidence
@@ -234,6 +252,7 @@ jobs:
             /tmp/launch.json
             /tmp/job.json
             /tmp/job-final.json
+            /tmp/active-atlas-job.json
             /tmp/atlas-trace.json
             /tmp/entities.json
             /tmp/dashboard-research-leads.json
