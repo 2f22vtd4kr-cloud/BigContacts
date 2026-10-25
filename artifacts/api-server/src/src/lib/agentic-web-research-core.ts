@@ -901,7 +901,7 @@ export function recordSearchProviderFailure(
   const previous = states.get(normalized);
   const failures = (previous?.failures ?? 0) + 1;
   const terminalClass = failureClass === "unauthorized" || failureClass === "forbidden" || failureClass === "not_found";
-  const repeatedInvalidRequest = failureClass === "invalid_request" && failures >= 2;
+  const repeatedInvalidRequest = failureClass === "invalid_request" && previous?.lastFailureClass === "invalid_request";
   const state: SearchProviderFailureState = {
     failures,
     lastFailureClass: failureClass,
@@ -1086,7 +1086,7 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
       data = JSON.parse(responseBody) as typeof data;
     } catch {
       logger.warn({ provider: "serper", queryChars: query.length, queryDigest: digestDiagnosticText(query), localeProvided: Boolean(locale?.trim()), marketProvided: Boolean(market?.trim()), outcome: "INVALID_JSON", httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search returned invalid JSON");
-      return { text: "serper returned no usable result: INVALID_JSON.", urls: [], status: "error" };
+      return { text: "serper returned no usable result: INVALID_JSON.", urls: [], status: "error", failureClass: "invalid_response" };
     }
     const organic = Array.isArray(data.organic) ? data.organic : [];
     const urls = organic.map((item) => normalizedUrl(item.link || "")).filter((u): u is string => Boolean(u));
@@ -1111,7 +1111,7 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
         marketChars: typeof body.gl === "string" ? body.gl.length : 0,
       },
     }, "agentic provider search completed");
-    return { text: text || `serper returned no usable result: ${outcome}.`, urls, status: outcome === "EMPTY_ORGANIC" ? "empty" : outcome === "SUCCESS" ? "success" : "error" };
+    return { text: text || `serper returned no usable result: ${outcome}.`, urls, status: outcome === "EMPTY_ORGANIC" ? "empty" : outcome === "SUCCESS" ? "success" : "error", ...(outcome === "INVALID_RESULTS" ? { failureClass: "invalid_response" as const } : {}) };
   } catch (error) {
     if (signal?.aborted) throw new Error("cancelled");
     const outcome = providerErrorClass(error);
@@ -1134,7 +1134,7 @@ async function webSearchTavily(query: string, signal?: AbortSignal): Promise<Pro
   const key = [process.env.TAVILY_API_KEY, ...Array.from({ length: 8 }, (_, i) => process.env[`TAVILY_API_KEY_${i + 1}`])].map((x) => (x || "").trim()).find(Boolean);
   if (!key) {
     logger.warn({ provider: "tavily", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome: "MISSING_API_KEY" }, "agentic provider search unavailable");
-    return { text: "tavily returned no usable result: missing API key.", urls: [], status: "error" };
+    return { text: "tavily returned no usable result: missing API key.", urls: [], status: "error", failureClass: "unauthorized" };
   }
   try {
     const startedAt = Date.now();
@@ -1144,24 +1144,24 @@ async function webSearchTavily(query: string, signal?: AbortSignal): Promise<Pro
     if (!response.ok) {
       const outcome = `HTTP_${response.status}`;
       logger.warn({ provider: "tavily", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search rejected");
-      return { text: `tavily returned no usable result: ${outcome}.`, urls: [], status: "error" };
+      return { text: `tavily returned no usable result: ${outcome}.`, urls: [], status: "error", failureClass: classifyProviderHttpStatus(response.status) };
     }
     let data: { answer?: string; results?: Array<{ title?: string; url?: string; content?: string }> };
     try { data = JSON.parse(responseBody) as typeof data; } catch {
       logger.warn({ provider: "tavily", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome: "INVALID_JSON", httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search returned invalid JSON");
-      return { text: "tavily returned no usable result: INVALID_JSON.", urls: [], status: "error" };
+      return { text: "tavily returned no usable result: INVALID_JSON.", urls: [], status: "error", failureClass: "invalid_response" };
     }
     const results = Array.isArray(data.results) ? data.results : [];
     const urls = results.map((item) => normalizedUrl(item.url || "")).filter((u): u is string => Boolean(u));
     const text = [data.answer || "", ...results.map((item) => `${item.title || ""}\nURL: ${item.url || ""}\n${item.content || ""}`)].join("\n").trim();
     const outcome = !Array.isArray(data.results) ? "INVALID_RESULTS" : results.length === 0 ? "EMPTY_RESULTS" : urls.length === 0 ? "INVALID_RESULTS" : "SUCCESS";
     logger.info({ provider: "tavily", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), resultCount: results.length, validUrlCount: urls.length, elapsedMs }, "agentic provider search completed");
-    return { text: text || `tavily returned no usable result: ${outcome}.`, urls, status: outcome === "EMPTY_RESULTS" ? "empty" : outcome === "SUCCESS" ? "success" : "error" };
+    return { text: text || `tavily returned no usable result: ${outcome}.`, urls, status: outcome === "EMPTY_RESULTS" ? "empty" : outcome === "SUCCESS" ? "success" : "error", ...(outcome === "INVALID_RESULTS" ? { failureClass: "invalid_response" as const } : {}) };
   } catch (error) {
     if (signal?.aborted) throw new Error("cancelled");
     const outcome = providerErrorClass(error);
     const diagnostic = describeThrownProviderError(error); logger.warn({ provider: "tavily", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, errorName: diagnostic.errorName, errorCode: diagnostic.errorCode, causeCode: diagnostic.causeCode, messageChars: diagnostic.messageChars, messageDigest: diagnostic.messageDigest }, "agentic provider search failed");
-    return { text: `tavily returned no usable result: ${outcome}.`, urls: [], status: "error" };
+    return { text: `tavily returned no usable result: ${outcome}.`, urls: [], status: "error", failureClass: classifyThrownProviderError(error) };
   }
 }
 
@@ -1169,7 +1169,7 @@ async function webSearchExa(query: string, signal?: AbortSignal): Promise<Provid
   const key = [process.env.EXA_API_KEY, process.env.EXA_1, process.env.EXA_2, ...Array.from({ length: 8 }, (_, i) => process.env[`EXA_API_KEY_${i + 1}`])].map((x) => (x || "").trim()).find(Boolean);
   if (!key) {
     logger.warn({ provider: "exa", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome: "MISSING_API_KEY" }, "agentic provider search unavailable");
-    return { text: "exa returned no usable result: missing API key.", urls: [], status: "error" };
+    return { text: "exa returned no usable result: missing API key.", urls: [], status: "error", failureClass: "unauthorized" };
   }
   try {
     const startedAt = Date.now();
@@ -1179,24 +1179,24 @@ async function webSearchExa(query: string, signal?: AbortSignal): Promise<Provid
     if (!response.ok) {
       const outcome = `HTTP_${response.status}`;
       logger.warn({ provider: "exa", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search rejected");
-      return { text: `exa returned no usable result: ${outcome}.`, urls: [], status: "error" };
+      return { text: `exa returned no usable result: ${outcome}.`, urls: [], status: "error", failureClass: classifyProviderHttpStatus(response.status) };
     }
     let data: { results?: Array<{ title?: string; url?: string; text?: string }> };
     try { data = JSON.parse(responseBody) as typeof data; } catch {
       logger.warn({ provider: "exa", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome: "INVALID_JSON", httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search returned invalid JSON");
-      return { text: "exa returned no usable result: INVALID_JSON.", urls: [], status: "error" };
+      return { text: "exa returned no usable result: INVALID_JSON.", urls: [], status: "error", failureClass: "invalid_response" };
     }
     const results = Array.isArray(data.results) ? data.results : [];
     const urls = results.map((item) => normalizedUrl(item.url || "")).filter((u): u is string => Boolean(u));
     const text = results.map((item) => `${item.title || ""}\nURL: ${item.url || ""}\n${item.text || ""}`).join("\n");
     const outcome = !Array.isArray(data.results) ? "INVALID_RESULTS" : results.length === 0 ? "EMPTY_RESULTS" : urls.length === 0 ? "INVALID_RESULTS" : "SUCCESS";
     logger.info({ provider: "exa", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), resultCount: results.length, validUrlCount: urls.length, elapsedMs }, "agentic provider search completed");
-    return { text: text || `exa returned no usable result: ${outcome}.`, urls, status: outcome === "EMPTY_RESULTS" ? "empty" : outcome === "SUCCESS" ? "success" : "error" };
+    return { text: text || `exa returned no usable result: ${outcome}.`, urls, status: outcome === "EMPTY_RESULTS" ? "empty" : outcome === "SUCCESS" ? "success" : "error", ...(outcome === "INVALID_RESULTS" ? { failureClass: "invalid_response" as const } : {}) };
   } catch (error) {
     if (signal?.aborted) throw new Error("cancelled");
     const outcome = providerErrorClass(error);
     const diagnostic = describeThrownProviderError(error); logger.warn({ provider: "exa", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, errorName: diagnostic.errorName, errorCode: diagnostic.errorCode, causeCode: diagnostic.causeCode, messageChars: diagnostic.messageChars, messageDigest: diagnostic.messageDigest }, "agentic provider search failed");
-    return { text: `exa returned no usable result: ${outcome}.`, urls: [], status: "error" };
+    return { text: `exa returned no usable result: ${outcome}.`, urls: [], status: "error", failureClass: classifyThrownProviderError(error) };
   }
 }
 
