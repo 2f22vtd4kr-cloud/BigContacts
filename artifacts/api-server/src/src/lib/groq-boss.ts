@@ -360,10 +360,12 @@ async function generateGroqBossTextImpl(
                 await new Promise((resolve) => setTimeout(resolve, tokenWindowDelay));
                 continue;
               }
-              // Ordinary token-window exhaustion is not a hard request-quota event.
-              // Preserve the selected model/capability rather than rotating away from
-              // it when the only problem is the current token window.
-              return { model, raw: null, error: "upstream_token_window_wait_exceeded", attempts };
+              // A token-window wait is not a hard request-quota event, but waiting
+              // beyond this control decision's deadline cannot help. Move to the next
+              // bounded model of the SAME Boss capability, then the next configured
+              // credential if needed; never substitute an Investigator or other role.
+              lastError = "upstream_token_window_wait_exceeded";
+              break;
             }
             if (!hardQuota && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && delay <= 2_500 && Date.now() + delay < deadline) {
               rateLimitRetries += 1;
