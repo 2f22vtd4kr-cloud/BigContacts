@@ -1256,7 +1256,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const londonObjective = [
       "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in London using Companies House to identify owners/operators.",
-    ].join("\\n\\n");
+    ].join("\n\n");
     expect(discoveryPivotAlignmentReason(londonObjective, "registry_search", {
       query: "private family-owned manufacturing companies London",
       registry: "companies-house",
@@ -1269,7 +1269,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const austinObjective = [
       "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Austin, Texas using SEC EDGAR to identify owners/operators.",
-    ].join("\\n\\n");
+    ].join("\n\n");
     expect(discoveryPivotAlignmentReason(austinObjective, "registry_search", {
       query: "private family-owned manufacturing companies Austin",
       registry: "sec-edgar",
