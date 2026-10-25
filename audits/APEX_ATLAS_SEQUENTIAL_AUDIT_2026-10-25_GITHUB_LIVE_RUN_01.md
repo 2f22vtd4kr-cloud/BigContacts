@@ -60,3 +60,21 @@ Include the real job ID, final workflow result, terminal counters, minimum-admis
 ## Current truth
 
 No full run has yet been verified. No card has been created by this fallback. The remaining path requires a runtime that can read the configured Replit provider secrets or authorized Groq Boss / Right-hand / Investigator credentials made available to the execution environment; without them, the intended model-driven Bureau cannot legally or honestly progress to discovery and card creation. Do not replace missing model roles with canned data, mock mode, synthetic cards, or a deterministic search script.
+
+### E007 — Audit-append commit triggered a second preflight-only workflow attempt
+
+- Observation timestamp (UTC): 2026-10-25 09:13:20–09:13:33; workflow [40179743647](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/40179743647), job ID 121128048468, commit 36978077febba0335f7d889ac7a82287be4ea23c.
+- The branch workflow runs on each push to the isolated audit branch. Updating this audit therefore retriggered the same workflow after the first failure; that second workflow again failed at the same explicit Groq Boss-role credential preflight. All build, boot, HTTP launch, LLM, and search steps were skipped. This was not a second Apex launch request; no Atlas job ID exists for either branch workflow.
+- Diagnostic process mistake: the push trigger was too broad for an append-only audit file, so writing the audit automatically repeated a predictable preflight. Do not push further edits to this branch expecting a new run. A future version of this workflow should have a manual dispatch/explicit one-time trigger or exclude audit-only paths.
+
+## Final observed state (2026-10-25)
+
+- Requested acceptance condition: NOT MET.
+- Genuine source-driven canonical launch by this fallback: 0 (no launch POST observed).
+- Successful model calls and actual source searches by this fallback: 0.
+- Persisted cards/entities produced by this fallback: 0.
+- Root cause of this fallback not starting: the GH Actions execution identity has no configured Groq Boss/Right-hand/Investigator role credentials. This is different from a provider key exhausting quota during an active Investigator run.
+- Original Replit job eb10bdd6-2c98-41db-94fc-52d599ca09fe: still unverified from this execution environment; last known observation remains running at discovery phase 1/4 with 0 inserts. Do not mark it success, failure, or idle based on the failed GH jobs.
+- Evidence links: [UI-default fallback attempt](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/40179569398), [second preflight-only attempt](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/40179743647), and [parallel canonical-runtime proof](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/40179498576).
+
+**Blocker:** this session has neither a usable Replit runtime/agent response nor access to provider-role credentials for the independent runner. The connector cannot retrieve or set GitHub Actions secrets, and reading or copying secret values from Replit is not supported. Repeating an identical launch attempt would not be a legitimate recovery; credential availability and the original Replit job/runtime must first be restored/reconciled. Preserve the intended model-led Bureau; do not simulate a successful card.
