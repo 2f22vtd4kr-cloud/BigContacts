@@ -3202,12 +3202,11 @@ function pivotRegistryMatchesGeography(
   // guessing their country from capitalization, while a conflicting country
   // alias still fails closed.
   const normalizedQuery = normalizeDiscoverySearchQuery(query);
+  const queryTokens = new Set(query.toLowerCase().match(/[a-z]+/g) ?? []);
   return countryAliases.some((alias) => {
     const normalizedAlias = normalizeDiscoverySearchQuery(alias);
     if (normalizedAlias.length >= 3) return normalizedQuery.includes(normalizedAlias);
-    return new RegExp(`(?:^|[^a-z])${normalizedAlias.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\  if (!queryMatchesGeography) return false;
-  const compatibleRegions = REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION[coverage.jurisdiction] ?? [];
-  return compatibleRegions.some((region) => pivotTextMatchesGeography(region, options));")}(?:$|[^a-z])`, "i").test(query);
+    return queryTokens.has(normalizedAlias);
   });
 }
 
