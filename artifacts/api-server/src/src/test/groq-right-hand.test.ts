@@ -399,8 +399,8 @@ describe("Groq Right-hand model policy", () => {
     const chatModels = fetchMock.mock.calls
       .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions")
       .map(([, init]) => JSON.parse(String(init?.body)).model);
-    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("tries the next catalog-listed Right-hand model when the first response fails its caller's contract", async () => {
