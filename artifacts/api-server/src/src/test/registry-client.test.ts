@@ -150,13 +150,27 @@ describe("registry result requires a source-backed entity name", () => {
     expect(normalizeCompaniesHouseOfficer({ title: "" })).toBeNull();
   });
 
-  it("normalizes valid Companies House names and preserves officer review status", () => {
-    expect(normalizeCompaniesHouseCompany({ title: "  Example Limited  ", company_number: "123" })?.name)
-      .toBe("Example Limited");
-    const officer = normalizeCompaniesHouseOfficer({ title: "  Alex Example  ", officer_role: "director" });
+  it("normalizes valid Companies House names and preserves official record URLs as unvisited leads", () => {
+    const company = normalizeCompaniesHouseCompany({
+      title: "  Example Limited  ",
+      company_number: "12345678",
+    });
+    expect(company?.name).toBe("Example Limited");
+    expect(registryResultLeadUrls(company!)).toContain(
+      "https://find-and-update.company-information.service.gov.uk/company/12345678",
+    );
+
+    const officer = normalizeCompaniesHouseOfficer({
+      title: "  Alex Example  ",
+      officer_role: "director",
+      links: { self: "/officers/abc123def456/appointments" },
+    });
     expect(officer?.name).toBe("Alex Example");
     expect(officer?.type).toBe("PersonCandidate");
     expect(officer?.notes).toContain("personal wealth not established");
+    expect(registryResultLeadUrls(officer!)).toContain(
+      "https://find-and-update.company-information.service.gov.uk/officers/abc123def456/appointments",
+    );
   });
 
   it("drops SEC hits without an entity name and falls through blank preferred fields", () => {

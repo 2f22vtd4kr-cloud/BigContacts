@@ -287,6 +287,9 @@ export function normalizeCompaniesHouseCompany(item: any): RegistryResult | null
       companyStatus: item?.company_status,
       dateOfCreation: item?.date_of_creation,
       sicCodes: item?.sic_codes,
+      companyUrl: typeof item?.company_number === "string" && /^[A-Za-z0-9]+$/.test(item.company_number.trim())
+        ? `https://find-and-update.company-information.service.gov.uk/company/${encodeURIComponent(item.company_number.trim())}`
+        : null,
     }),
   };
 }
@@ -324,6 +327,16 @@ export function normalizeCompaniesHouseOfficer(item: any): RegistryResult | null
       nationality: item?.nationality,
       occupation: item?.occupation,
       appointedOn: item?.appointed_on,
+      officerUrl: (() => {
+        const self = typeof item?.links?.self === "string" ? item.links.self : "";
+        const path = self.startsWith("/") ? self : (() => {
+          try { return new URL(self).pathname; } catch { return ""; }
+        })();
+        const match = path.match(/^\/officers\/([A-Za-z0-9-]+)\/appointments\/?$/i);
+        return match
+          ? `https://find-and-update.company-information.service.gov.uk/officers/${encodeURIComponent(match[1])}/appointments`
+          : null;
+      })(),
       reviewOnly: true,
       wealthStatus: "unverified",
     }),
