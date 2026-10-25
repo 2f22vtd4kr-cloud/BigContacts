@@ -177,9 +177,12 @@ describe("Groq Boss token-window recovery", () => {
 
     expect(result.raw).toBeNull();
     expect(result.error).toContain("upstream_token_window_wait_exceeded");
-    expect(result.error).not.toContain("HTTP 429");
-    expect(result.error).not.toContain("openai/gpt-oss-20b");
-    expect(calls).toBe(1);
+    expect(result.error).not.toContain("hard quota");
+    // A token-window wait beyond the remaining decision budget should move to the
+    // next bounded model of the same Boss capability, not terminate before fallback.
+    expect(result.error).toContain("openai/gpt-oss-20b");
+    expect(calls).toBe(2);
     expect(fetchMock.mock.calls[0]?.[1]).toBeTruthy();
+    expect(fetchMock.mock.calls[1]?.[1]).toBeTruthy();
   });
 });
