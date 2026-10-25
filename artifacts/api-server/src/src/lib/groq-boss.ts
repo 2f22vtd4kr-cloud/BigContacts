@@ -59,6 +59,7 @@ const MODEL_CATALOG_TIMEOUT_MS = 5_000;
 const MAX_MODEL_ATTEMPTS = 2;
 const MAX_503_RETRIES_PER_MODEL = 1;
 const MAX_429_RETRIES_PER_MODEL = 1;
+const MAX_TOKEN_WINDOW_RECOVERY_WAIT_MS = 120_000;
 
 function boundedEnv(name: string, fallback: number, minimum: number, maximum: number): number {
   const parsed = Number(process.env[name]);
@@ -354,7 +355,7 @@ async function generateGroqBossTextImpl(
             const hardQuota = groqHardRateLimit(response, responseBody);
             const tokenWindowDelay = tokenWindowWaitMs(response, responseBody);
             if (tokenWindowDelay !== null) {
-              if (tokenWindowDelay <= 45_000 && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && Date.now() + tokenWindowDelay < deadline) {
+              if (tokenWindowDelay <= MAX_TOKEN_WINDOW_RECOVERY_WAIT_MS && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && Date.now() + tokenWindowDelay < deadline) {
                 rateLimitRetries += 1;
                 await new Promise((resolve) => setTimeout(resolve, tokenWindowDelay));
                 continue;

@@ -65,6 +65,7 @@ describe("Groq Boss token-window recovery", () => {
   afterEach(() => {
     delete process.env.GROQ_BOSS_API_KEY;
     for (let i = 1; i <= 10; i += 1) delete process.env[`GROQ_BOSS_API_KEY_${i}`];
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -105,6 +106,47 @@ describe("Groq Boss token-window recovery", () => {
     expect(fetchMock.mock.calls[1]?.[1]).toBeTruthy();
   });
 
+  it("waits through a bounded 46-second token reset and retries the same Boss model", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-token-window-retry-key";
+    vi.useFakeTimers();
+    let calls = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(JSON.stringify({ error: { type: "tokens", code: "rate_limit_exceeded" } }), {
+          status: 429,
+          headers: {
+            "retry-after": "20",
+            "x-ratelimit-remaining-tokens": "3108",
+            "x-ratelimit-reset-tokens": "46s",
+            "x-ratelimit-remaining-requests": "998",
+          },
+        });
+      }
+      return new Response(JSON.stringify({ choices: [{ message: { content: '{"decision":"proceed"}' } }] }), { status: 200 });
+    });
+
+    const pending = generateGroqBossText(
+      {
+        model: "openai/gpt-oss-120b",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 1,
+        candidateModels: ["openai/gpt-oss-120b"],
+        keyName: "GROQ_BOSS_API_KEY",
+      },
+      "Return a small JSON decision.",
+    );
+    await Promise.resolve();
+    await vi.runAllTimersAsync();
+    const result = await pending;
+
+    expect(result.raw).toBe('{"decision":"proceed"}');
+    expect(result.error).toBeNull();
+    expect(calls).toBe(2);
+    expect(fetchMock.mock.calls[1]?.[1]).toBeTruthy();
+  });
+
   it("fails closed without retrying when the token reset exceeds the bounded recovery window", async () => {
     process.env.GROQ_BOSS_API_KEY = "test-groq-boss-long-reset-key";
     let calls = 0;
@@ -115,7 +157,7 @@ describe("Groq Boss token-window recovery", () => {
         headers: {
           "retry-after": "20",
           "x-ratelimit-remaining-tokens": "3108",
-          "x-ratelimit-reset-tokens": "46s",
+          "x-ratelimit-reset-tokens": "121s",
           "x-ratelimit-remaining-requests": "998",
         },
       });
