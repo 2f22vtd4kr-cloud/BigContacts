@@ -7,6 +7,7 @@ import {
   buildAtlasBossControlPrompt,
   buildAtlasPinnedControlState,
   validateAtlasRightHandControl,
+  normalizeAtlasRightHandControl,
   buildAtlasRightHandControlPrompt,
   compactAtlasInvestigatorReport,
   normalizeAtlasOpeningRightHandApprovalReview,
@@ -227,6 +228,12 @@ describe("Atlas control-plane lead continuity", () => {
     expect(validateAtlasRightHandControl({
       decision: "continue_discovery", reason: "Supported lead remains.", direction: null, confidence: 0.8,
     })).toBe(true);
+    expect(normalizeAtlasRightHandControl({
+      decision: "continue_discovery", reason: "35 same-scope leads remain.", direction: "continue_discovery", confidence: "high",
+    })).toEqual({ decision: "continue_discovery", reason: "35 same-scope leads remain.", direction: null, confidence: 0.85 });
+    expect(normalizeAtlasRightHandControl({
+      decision: "pivot_discovery", reason: "Try another source family.", direction: "a different sector", confidence: "very high",
+    })).toBeNull();
     expect(validateAtlasRightHandControl({
       decision: "continue_discovery", reason: "r".repeat(601), direction: null, confidence: 0.8,
     })).toBe(false);
