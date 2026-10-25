@@ -116,10 +116,10 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     expect(chatBodies).toHaveLength(2);
     expect(chatBodies[0].max_completion_tokens).toBe(1_024);
     expect(chatBodies[0].reasoning_effort).toBe("low");
-    expect(chatBodies[0].response_format).toMatchObject({ type: "json_schema" });
+    expect(chatBodies[0].response_format).toBeUndefined();
     expect(chatBodies[1].max_completion_tokens).toBe(1_280);
     expect(chatBodies[1].reasoning_effort).toBe("low");
-    expect(chatBodies[1].response_format).toEqual({ type: "json_object" });
+    expect(chatBodies[1].response_format).toBeUndefined();
   });
 
   it("bounds total outbound attempts and returns unavailable when generation-budget recovery also fails", async () => {
