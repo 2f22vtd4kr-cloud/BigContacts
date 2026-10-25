@@ -60,3 +60,7 @@ The previous run's Right-hand opening review failed its exact structured approva
 ## Canonical retry after strict Right-hand JSON normalization — 2026-10-25
 
 The prior run still stopped before discovery at the Right-hand opening-review contract. The latest transport normalizes only JSON serialization when the model wraps a JSON object in Markdown fences; the parsed object must still pass the exact approval validator, with no field/value inference or relaxed admission. The same-role format-repair retry remains bounded. Use exact UI defaults and require a persisted source-backed person card plus same-run API projection retrieval.
+
+## Canonical retry after expanding distinct Investigator credential fallbacks — 2026-10-25
+
+The latest real run passed the Boss and Right-hand gates, entered Investigator discovery, and then stopped on explicit tokens-per-day exhaustion for `groq-investigator-1`. The prior fallback wiring did not yield a distinct credential after fingerprint-based alias exclusion. The workflow now offers the configured Right-hand and Boss Groq credentials as fallback credential slots only when dedicated Investigator alternate secrets are absent; the Investigator role and Boss-directed reassignment contract remain unchanged, and duplicate credentials are still excluded. Launch with UI defaults and verify durable card/evidence plus API projection; do not count a provider fallback alone as success.
