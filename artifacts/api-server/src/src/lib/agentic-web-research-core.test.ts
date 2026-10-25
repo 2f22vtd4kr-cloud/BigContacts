@@ -1210,6 +1210,10 @@ Choose each next action yourself from the available capabilities and observed ev
       query: "Rieter",
       registry: "companies-house",
     }, [])).not.toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
+      query: "Swiss private family-owned manufacturing companies",
+      registry: "companies-house",
+    }, [])).not.toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "web_search", {
       query: "Rieter",
       provider: "serper",
