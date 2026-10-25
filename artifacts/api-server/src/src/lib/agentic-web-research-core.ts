@@ -4426,8 +4426,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         hardMinimumTail,
       ].join("\n\n");
       if (ultraCompactEmergencyPrompt.length <= maxUserPromptChars) return ultraCompactEmergencyPrompt;
-      // Absolute last-resort recovery must still carry the latest observation.
-      // Omitting it caused the fallback model to repeat stale actions and ignore
+      // Absolute last-resort recovery: do not abort a canonical discovery run
+      // because durable history cannot fit in the provider prompt budget. Preserve
+      // the latest observation instead of omitting it, which caused the fallback
+      // model to repeat stale actions and ignore
       // parse-correction feedback precisely when its context budget was tight.
       const absoluteMinimumBase = [
         finalEmergencyAssignment,
