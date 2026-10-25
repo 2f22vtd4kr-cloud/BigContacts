@@ -193,10 +193,10 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     const observations = caseEvents.flatMap((event) => {
       if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return [];
       try {
-        const payload = JSON.parse(event.payload) as { action?: string; execution?: string; observedUrls?: unknown[]; runId?: string; observation?: string };
-        // Person identity/role admission remains bound to the same model-owned
-        // Investigator run that emitted the promotion finding.
-        if (payload.runId !== input.discoveryRunId || !Array.isArray(payload.observedUrls)) return [];
+        const payload = JSON.parse(event.payload) as { jobId?: string | null; action?: string; execution?: string; observedUrls?: unknown[]; runId?: string; observation?: string };
+        // Both the job and the exact Investigator run must match: a case-scoped
+        // query alone is not sufficient authorization to reuse an observation.
+        if (payload.jobId !== input.atlasJobId || payload.runId !== input.discoveryRunId || !Array.isArray(payload.observedUrls)) return [];
         return payload.observedUrls.filter((url) => typeof url === "string").map((url) => ({
           action: payload.action ?? "", execution: payload.execution ?? "", sourceUrl: String(url),
           observation: typeof payload.observation === "string" ? payload.observation : "", eventId: event.id,
@@ -378,6 +378,7 @@ export async function reconcileCanonicalDiscoveryCaseReviewCards(input: {
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
         payload = parsed as Record<string, unknown>;
       } catch { continue; }
+      if (payload.jobId !== input.atlasJobId) continue;
       const runId = typeof payload.runId === "string" ? payload.runId : "";
       const findings = Array.isArray(payload.findings) ? payload.findings as AgenticFinding[] : [];
       if (!runId || findings.length === 0) continue;
@@ -473,9 +474,9 @@ async function materializePartialPersonLeadCards(input: {
     if (typeof event.payload !== "string") return [];
     try {
       const payload = JSON.parse(event.payload) as {
-        action?: string; execution?: string; observedUrls?: unknown[]; observation?: string;
+        jobId?: string | null; action?: string; execution?: string; observedUrls?: unknown[]; observation?: string;
       };
-      if (!Array.isArray(payload.observedUrls)) return [];
+      if (payload.jobId !== input.atlasJobId || !Array.isArray(payload.observedUrls)) return [];
       return payload.observedUrls.filter((url): url is string => typeof url === "string").map((url) => ({
         action: payload.action ?? "",
         execution: payload.execution ?? "",
@@ -716,10 +717,10 @@ async function materializePartialOrganizationLeadCards(input: {
     if (typeof event.payload !== "string") return [];
     try {
       const payload = JSON.parse(event.payload) as {
-        action?: string; execution?: string; observedUrls?: unknown[];
+        jobId?: string | null; action?: string; execution?: string; observedUrls?: unknown[];
         observation?: string; runId?: string;
       };
-      if (!Array.isArray(payload.observedUrls)) return [];
+      if (payload.jobId !== input.atlasJobId || !Array.isArray(payload.observedUrls)) return [];
       return payload.observedUrls.filter((url): url is string => typeof url === "string").map((url) => ({
         action: payload.action ?? "",
         execution: payload.execution ?? "",
