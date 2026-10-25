@@ -3111,6 +3111,42 @@ function pivotTextMatchesGeography(value: string, options: readonly string[][]):
   }));
 }
 
+const REGISTRY_REGION_COMPATIBILITY: Record<string, readonly string[]> = {
+  "ares-czechia": ["moravia", "morava", "bohemia", "czechia", "czech", "czech republic"],
+  "zefix-switzerland": ["switzerland", "swiss", "zurich", "geneva", "bern", "basel", "vaud", "ticino"],
+  "atoka-italy": ["italy", "italian", "lombardy", "lombardia", "milan", "piedmont", "veneto", "tuscany", "sicily"],
+  "offeneregister-germany": ["germany", "german", "bavaria", "bayern", "saxony", "sachsen", "berlin", "hamburg"],
+  "companies-house": ["united kingdom", "uk", "britain", "england", "scotland", "wales", "northern ireland", "midlands", "yorkshire"],
+  "brreg": ["norway", "norwegian", "oslo", "vestland", "trondelag"],
+  "cvr-denmark": ["denmark", "danish", "copenhagen", "jutland"],
+  "ytj-finland": ["finland", "finnish", "helsinki", "tampere"],
+  "bolagsverket-sweden": ["sweden", "swedish", "stockholm", "skane", "gotland"],
+  "kvk-netherlands": ["netherlands", "dutch", "holland", "amsterdam", "rotterdam"],
+  "kbo-belgium": ["belgium", "belgian", "flanders", "wallonia", "brussels"],
+  "borme-spain": ["spain", "spanish", "madrid", "catalonia", "andalusia"],
+};
+
+function pivotRegistryMatchesGeography(
+  registry: string,
+  query: string,
+  options: readonly string[][],
+): boolean {
+  if (pivotTextMatchesGeography(registry, options)) return true;
+  // A national registry can serve a narrower region, but only when the actual
+  // query names that region and the adapter's jurisdiction is compatible with
+  // it. A concise named-company hypothesis is allowed when the adapter itself
+  // directly matches the pivot's jurisdiction (handled above).
+  if (!pivotTextMatchesGeography(query, options)) return false;
+  const registryId = registry.trim().toLowerCase();
+  const compatibleTerms = REGISTRY_REGION_COMPATIBILITY[registryId] ?? [];
+  const scopeTokens = new Set(options.flat().map((token) =>
+    token.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, ""),
+  ));
+  return compatibleTerms.some((term) =>
+    scopeTokens.has(term.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "")),
+  );
+}
+
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
   if (!value.trim() || anchors.length === 0) return false;
   const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
@@ -3335,7 +3371,7 @@ function pivotActionIsAligned(
     // A selected registry adapter can carry the jurisdiction (e.g. ares-czechia)
     // when the model reasonably uses a concise query such as "agribusiness".
     const matchesGeography = isRegistryAction && hasSelectedRegistry
-      ? pivotTextMatchesGeography(registry, geographyOptions)
+      ? pivotRegistryMatchesGeography(registry, text, geographyOptions)
       : matchesGeographyInQuery;
     const matchesRequiredSource = requiredSourceAnchors.length === 0
       || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
@@ -3459,7 +3495,7 @@ function pivotActionAlignmentFailureDetails(
     const isRegistryAction = action === "registry_search" || action === "parallel_registry_search";
     const matchesSubject = anchors.length === 0 || pivotTextMatchesAnchors(text, anchors);
     const matchesGeography = isRegistryAction && Boolean(registry)
-      ? pivotTextMatchesGeography(registry, geographyOptions)
+      ? pivotRegistryMatchesGeography(registry, text, geographyOptions)
       : pivotTextMatchesGeography(text, geographyOptions);
     const matchesRequiredSource = requiredSourceAnchors.length === 0
       || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
