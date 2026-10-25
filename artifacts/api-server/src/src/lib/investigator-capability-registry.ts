@@ -14,12 +14,16 @@ export const GROQ_INVESTIGATOR_KEY_NAMES = [
   ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`),
 ] as const;
 
-export type GroqInvestigatorCapability = `groq-investigator-${number}`;
+export type GroqInvestigatorCapability = `groq-investigator-${number}` | "groq-investigator-20b";
 export type InvestigatorCapability = GroqInvestigatorCapability;
+export const GROQ_INVESTIGATOR_20B_CAPABILITY: GroqInvestigatorCapability = "groq-investigator-20b";
 
-export const INVESTIGATOR_CAPABILITIES = GROQ_INVESTIGATOR_KEY_NAMES.map(
-  (_keyName, index) => `groq-investigator-${index + 1}` as GroqInvestigatorCapability,
-);
+export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
+  ...GROQ_INVESTIGATOR_KEY_NAMES.map(
+    (_keyName, index) => `groq-investigator-${index + 1}` as GroqInvestigatorCapability,
+  ),
+  GROQ_INVESTIGATOR_20B_CAPABILITY,
+];
 
 function keyIndex(capability: InvestigatorCapability): number | null {
   const match = capability.match(/^groq-investigator-(\d+)$/);
@@ -34,6 +38,7 @@ export function investigatorCapabilityKeyName(capability: InvestigatorCapability
 }
 
 export function investigatorCapabilityLabel(capability: InvestigatorCapability): string {
+  if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return "Groq Investigator GPT-OSS 20B model fallback";
   const keyName = investigatorCapabilityKeyName(capability);
   return keyName ? `Groq Investigator ${keyIndex(capability)} (${keyName})` : capability;
 }
@@ -66,7 +71,11 @@ export function getInvestigatorCredentialAliases(
       .filter((value): value is string => value !== null),
   );
   if (!fingerprints.size) return [];
+  // A model-specific TPD fallback shares a credential but not the exhausted
+  // model's per-model token budget. Keep it out of credential-alias exclusion;
+  // the explicit token-capacity recovery path decides when it is eligible.
   return INVESTIGATOR_CAPABILITIES.filter((capability) => {
+    if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return false;
     const keyName = investigatorCapabilityKeyName(capability);
     const credential = keyName ? env[keyName]?.trim() : undefined;
     return Boolean(credential && fingerprints.has(digestDiagnosticText(credential)));
