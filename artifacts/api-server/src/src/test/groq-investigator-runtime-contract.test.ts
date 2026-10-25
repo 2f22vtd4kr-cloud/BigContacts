@@ -142,6 +142,14 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain("nested registry-search item");
   });
 
+  it("explains the configured browser provider when browser_fetch action arguments are invalid", () => {
+    const repair = buildActionParseFailureObservation("invalid_action_arguments action=browser_fetch invalid=provider");
+    expect(repair).toContain("browser_fetch");
+    expect(repair).toContain("currently configured values");
+    expect(repair).toContain("choose another action");
+    expect(repair).toContain("never null these fields");
+  });
+
   it("aligns the prompt with every required property in the strict structured-action schema", () => {
     const prompt = buildStepPrompt({
       targetName: "",
