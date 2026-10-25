@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildActionParseFailureObservation, buildGroqInvestigatorRequestBody, buildStepPrompt, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { buildActionParseFailureObservation, buildGroqInvestigatorRequestBody, buildStepPrompt, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
@@ -7,6 +7,36 @@ import { resolveResearchDepth } from "../lib/research-depth";
 import { buildBoundedInvestigatorObjective } from "../lib/investigation-context-compaction";
 
 describe("Groq Investigator runtime contract", () => {
+  it("accepts a one-item parallel web search and drops only oversized optional provider locale hints", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "parallel_web_search",
+      searches: [{ query: "West Midlands private manufacturing directors", provider: "exa", locale: "United Kingdom (English)", market: "United Kingdom market" }],
+      hypothesis: "A focused search may surface public company and director sources.",
+      purpose: "Find public source leads for person-level verification.",
+      expectedInformationGain: 0.5,
+    }));
+    expect(parsed?.action).toBe("parallel_web_search");
+    if (parsed?.action !== "parallel_web_search") throw new Error("expected parallel web search");
+    expect(parsed.searches).toHaveLength(1);
+    expect(parsed.searches[0]?.query).toContain("manufacturing directors");
+    expect(parsed.searches[0]?.locale).toBeUndefined();
+    expect(parsed.searches[0]?.market).toBeUndefined();
+  });
+
+  it("accepts a one-item parallel registry search while retaining registry validation", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "parallel_registry_search",
+      searches: [{ query: "West Midlands manufacturing directors", registry: "sec-edgar" }],
+      hypothesis: "Registry filings can identify named company officers.",
+      purpose: "Find named people to verify against independent sources.",
+      expectedInformationGain: 0.5,
+    }));
+    expect(parsed?.action).toBe("parallel_registry_search");
+    if (parsed?.action !== "parallel_registry_search") throw new Error("expected parallel registry search");
+    expect(parsed.searches).toHaveLength(1);
+    expect(parsed.searches[0]?.registry).toBe("sec-edgar");
+  });
+
   it("preserves the active Boss question when emergency compaction receives a bounded objective", () => {
     const direction = "Perform registry queries on Zefix/Swiss commercial register for family-owned mid-market firms in the target sectors to extract named owners with publicly documented wealth indicators.";
     const boundedObjective = buildBoundedInvestigatorObjective({
