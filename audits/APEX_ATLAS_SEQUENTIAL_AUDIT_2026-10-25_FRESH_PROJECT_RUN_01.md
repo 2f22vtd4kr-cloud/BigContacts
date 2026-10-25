@@ -152,7 +152,7 @@ Append each subsequent setup action, exact command and result, failure/recovery,
 - Attempted a container-side `git ls-remote` and clone from GitHub as the independent execution route; both failed because the container could not resolve `github.com`. The GitHub connector itself remains able to read and write repository files. An archive fallback was also unavailable because the web retrieval layer could not access the codeload tarball. These are access/environment failures, not evidence that Apex code or research failed.
 - No second launch POST, provider request, cancellation, DB write, or search was issued by this reviewer. No new candidate, evidence row, admission, card, terminal state, or idle-lock state is verified. Do not treat the Replit task's `updating` phase or the historical first poll as a successful run. Continue by obtaining a real runtime response from the same workspace, reconcile the active job and DB/card state read-only, and launch only if the exact target runtime is verified idle and the previous POST/run is known terminal.
 
-### E015 — Static trace of canonical run → source-bound admission → card projection
+### E016 — Static trace of canonical run → source-bound admission → card projection
 
 - Observation timestamp (UTC): `2026-10-25T09:06:02.754Z`; source revision examined: `main` at `655f52897287ee8f9944defc28e4c5ad4f670a83` (audit-only commit from E014; no source edits in this checkpoint).
 - Read the current source for `routes/research/canonical-atlas-launch.ts`, `lib/canonical-atlas-discovery.ts`, `lib/bureau-agentic-pass.ts`, `lib/agentic-web-research.ts`, `lib/agentic-web-research-core.ts`, `lib/candidate-source-url-union.ts`, and `lib/durable-discovery-projection.ts`.
