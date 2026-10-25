@@ -295,6 +295,10 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
      if(raw){
       if(validateRaw&&!validateRaw(raw)){
        failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:null,body:null,rateLimitHeaders:{},failureClass:"invalid_contract",keyFingerprint:fingerprint(candidate.entry.key)});
+       // A schema-valid JSON object can still violate a task-specific contract.
+       // Retry once with JSON-object mode on this same model before moving to the
+       // next same-role model; the caller's validator remains the admission gate.
+       if(!useJsonObjectFallback&&outboundAttemptCount<maxOutboundAttempts){useJsonObjectFallback=true;continue;}
        break;
       }
       return {raw,error:null,model:candidate.model};
