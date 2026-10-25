@@ -179,3 +179,9 @@ No first card is verified by this agent. Continue when actionable runtime status
 
 - Tightened the national-registry correction so known subregions (including London and common US cities/states) are recognized directly, while an unlisted locality is accepted only when the actual query also names the adapter's country/jurisdiction. This avoids requiring a finite list of every possible town and avoids letting an arbitrary capitalized location pass against a mismatched registry.
 - Regression coverage includes an unlisted Springfield locality: Companies House is accepted only when the query explicitly includes United Kingdom, while SEC EDGAR is rejected when no US jurisdiction is established. This is code-level scope validation; live runtime acceptance remains pending.
+
+
+## E022 — Run pivot-scope regression tests in the standard API CI gate
+
+- Confirmed that the standard API build workflow did not execute `src/src/lib/agentic-web-research-core.test.ts`; the complete-codebase audit loop covers `src/src/test/*.test.ts` but not the library test directory. Added an explicit CI step to run the core pivot-scope test file together with `discovery-runtime-correctness.test.ts` on every relevant API source change. This makes the named-company evidence gate and national-registry geography regressions direct CI requirements instead of relying on typecheck or static checks.
+- Current revision: pending CI. No runtime card acceptance is claimed until the canonical proof workflow returns a source-backed card through both API projections.
