@@ -35,6 +35,28 @@ describe("Atlas control-plane contract regression", () => {
 });
 
 describe("Atlas control-plane contract regression", () => {
+  it("binds every durable source-observation reader to the requested Atlas job", () => {
+    const sourceReaders = [
+      canonicalDiscoverySource.slice(
+        canonicalDiscoverySource.indexOf("async function materializeAtlasAdmissions"),
+        canonicalDiscoverySource.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+      ),
+      canonicalDiscoverySource.slice(
+        canonicalDiscoverySource.indexOf("export async function reconcileCanonicalDiscoveryCaseReviewCards"),
+        canonicalDiscoverySource.indexOf("async function assertAtlasJobActive"),
+      ),
+      canonicalDiscoverySource.slice(
+        canonicalDiscoverySource.indexOf("async function materializePartialPersonLeadCards"),
+        canonicalDiscoverySource.indexOf("async function materializePartialOrganizationLeadCards"),
+      ),
+      canonicalDiscoverySource.slice(
+        canonicalDiscoverySource.indexOf("async function materializePartialOrganizationLeadCards"),
+        canonicalDiscoverySource.indexOf("export async function runCanonicalAtlasPipeline"),
+      ),
+    ];
+    expect(sourceReaders.every((source) => source.includes("payload.jobId !== input.atlasJobId"))).toBe(true);
+  });
+
   it("does not seed the discovery Boss with a fabricated sector phrase", () => {
     const prompt = buildGroqBossDiscoveryPrompt({
       objective: "Discover real named people for subsequent public-contact research.",
