@@ -105,6 +105,44 @@ export function validateAtlasOpeningRightHandApprovalReview(value: Record<string
     && value.confidence >= 0 && value.confidence <= 1;
 }
 
+/**
+ * Normalize harmless formatting drift in a Right-hand opening contract before
+ * applying the strict authorization validator. The approval enum and confidence
+ * are never inferred, coerced, clamped, or defaulted; missing/wrongly-typed fields
+ * still fail closed. Narrative text and focus lanes are display/control metadata,
+ * so whitespace, extra model fields, and overlong values can be bounded safely.
+ */
+export function normalizeAtlasOpeningRightHandApprovalReview(
+  value: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!value) return null;
+  const approval = typeof value.approval === "string" ? value.approval.trim() : "";
+  const decision = typeof value.decision === "string" ? value.decision.trim() : "";
+  const reason = typeof value.reason === "string" ? value.reason.trim() : "";
+  const focusLanes = value.focusLanes;
+  const confidence = value.confidence;
+  if ((approval !== "approve" && approval !== "reject")
+    || !decision || !reason
+    || !Array.isArray(focusLanes)
+    || !focusLanes.every((lane) => typeof lane === "string")
+    || typeof confidence !== "number" || !Number.isFinite(confidence)
+    || confidence < 0 || confidence > 1) {
+    return null;
+  }
+  const normalized: Record<string, unknown> = {
+    approval,
+    decision: decision.slice(0, 300),
+    reason: reason.slice(0, 1_200),
+    focusLanes: focusLanes
+      .map((lane) => (lane as string).trim())
+      .filter(Boolean)
+      .slice(0, 8)
+      .map((lane) => lane.slice(0, 160)),
+    confidence,
+  };
+  return validateAtlasOpeningRightHandApprovalReview(normalized) ? normalized : null;
+}
+
 export function validateAtlasBossControl(value: Record<string, unknown> | null): boolean {
   if (!value || !validateExactObjectFields(value, ["action", "candidateName", "direction", "reason", "confidence"])) return false;
   const action = normalizeAtlasControlAction(value.action);
