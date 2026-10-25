@@ -1,0 +1,14 @@
+# Apex Atlas Sequential Audit — 2026-10-25 ChatGPT Run 03
+
+## E028 — Repair observed live Right-hand and Investigator contract failures
+
+- Canonical runtime proof run `40215675763` reached a real Companies House fetch but failed closed before a source-backed person card. Evidence: Boss opening completed on `openai/gpt-oss-120b`; 8 registry searches, 1 successful page fetch, 35 unvisited lead URLs, 0 admitted candidates. The fetched record was a health-clinic LLP, not evidence for the requested manufacturing scope.
+- The Right-hand GPT-OSS 20B response was valid JSON but used `confidence:"high"` and `direction:"continue_discovery"`; strict numeric-confidence validation rejected it. A subsequent retry hit the 8k TPM limit. Added narrow normalization for only `low/medium/high` confidence labels to 0.25/0.5/0.85 and clears a direction that merely repeats a non-pivot action name. The decision enum, reason, direction limits, exact keys, and pivot requirement remain fail-closed; Boss still owns the actual action.
+- After the selected Investigator's GPT-OSS 120B capability hit the provider's token-per-day quota, the 20B fallback repeatedly emitted `registry:"UK Companies House"` (unsupported alias) or omitted `registry`, causing action-contract failures. Added explicit, configured-ID feedback to the local repair prompt and aliases for common Companies House labels; no tool action is manufactured, and registry availability/targetability checks remain authoritative.
+- Tests cover confidence normalization, rejection of unknown confidence words, Companies House alias parsing, and exact registry repair guidance. Re-run full build/audits and the canonical runtime proof; do not claim acceptance until a source-backed `candidate_review` card is present in both dashboard and entity projections.
+
+
+- PR #750's first build exposed a test-environment issue in the new alias test: Companies House is correctly unavailable when the test has no API key, so the parser rejected the alias at the availability gate. The test now stubs a non-secret dummy key for that assertion only and restores the environment; production availability checks are unchanged.
+
+
+- The first PR #750 build caught a prompt-budget regression: the expanded Right-hand contract guidance displaced a pinned source URL from the bounded prompt. Shortened the added contract instructions while retaining the action enum, numeric confidence, direction-null, and concrete-pivot rules; the pinned evidence URL must remain in the prompt.

@@ -2723,6 +2723,18 @@ Choose each next action yourself from the available capabilities and observed ev
       action: "registry_search",
       registry: "sec-edgar",
     });
+    vi.stubEnv("COMPANIES_HOUSE_API_KEY", "test-companies-house-key");
+    try {
+      expect(describeAgentActionParseFailure(action("UK Companies House"))).toBe("");
+      expect(parseAgentAction(action("UK Companies House"))).toMatchObject({
+        action: "registry_search",
+        registry: "uk companies house",
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(buildActionParseFailureObservation("invalid_action_arguments action=registry_search missing=registry"))
+      .toContain('For the UK Companies House adapter, the exact ID is "companies-house"');
   });
 
   it("classifies malformed and ambiguous Investigator envelopes without persisting response text", () => {
