@@ -1204,6 +1204,10 @@ Choose each next action yourself from the available capabilities and observed ev
       query: "Rieter",
       registry: "zefix-switzerland",
     }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
+      query: "casino operators",
+      registry: "zefix-switzerland",
+    }, [])).not.toBeNull();
 
     // A mismatched registry or ungrounded web search still fails closed.
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
