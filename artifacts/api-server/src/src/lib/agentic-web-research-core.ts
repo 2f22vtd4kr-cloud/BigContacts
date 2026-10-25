@@ -3112,21 +3112,38 @@ function pivotTextMatchesGeography(value: string, options: readonly string[][]):
   }));
 }
 
+const REGISTRY_COUNTRY_ALIASES_BY_JURISDICTION: Record<string, readonly string[]> = {
+  US: ["united states", "usa", "us"],
+  GB: ["united kingdom", "uk", "britain"],
+  NO: ["norway", "norwegian"],
+  CZ: ["czechia", "czech republic", "czech"],
+  FR: ["france", "french"],
+  DK: ["denmark", "danish"],
+  CH: ["switzerland", "swiss"],
+  DE: ["germany", "german"],
+  SE: ["sweden", "swedish"],
+  FI: ["finland", "finnish"],
+  IT: ["italy", "italian"],
+  ES: ["spain", "spanish"],
+  NL: ["netherlands", "dutch", "holland"],
+  BE: ["belgium", "belgian"],
+};
+
 const REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION: Record<string, readonly string[]> = {
-  US: ["united states", "usa", "us", "texas", "midwest", "illinois", "indiana", "ohio", "michigan", "wisconsin", "minnesota", "iowa", "missouri"],
-  GB: ["united kingdom", "uk", "britain", "england", "scotland", "wales", "northern ireland", "midlands", "yorkshire"],
-  NO: ["norway", "norwegian", "oslo", "vestland", "trondelag"],
-  CZ: ["czechia", "czech republic", "czech", "moravia", "morava", "bohemia", "south moravia"],
-  FR: ["france", "french", "paris", "lyon", "provence", "brittany", "occitania"],
-  DK: ["denmark", "danish", "copenhagen", "jutland"],
-  CH: ["switzerland", "swiss", "zurich", "geneva", "bern", "basel", "vaud", "ticino"],
-  DE: ["germany", "german", "bavaria", "bayern", "saxony", "sachsen", "berlin", "hamburg"],
-  SE: ["sweden", "swedish", "stockholm", "skane", "gotland"],
-  FI: ["finland", "finnish", "helsinki", "tampere"],
-  IT: ["italy", "italian", "lombardy", "lombardia", "milan", "piedmont", "veneto", "tuscany", "sicily"],
-  ES: ["spain", "spanish", "madrid", "catalonia", "andalusia"],
-  NL: ["netherlands", "dutch", "holland", "amsterdam", "rotterdam"],
-  BE: ["belgium", "belgian", "flanders", "wallonia", "brussels"],
+  US: ["texas", "midwest", "illinois", "indiana", "ohio", "michigan", "wisconsin", "minnesota", "iowa", "missouri"],
+  GB: ["england", "scotland", "wales", "northern ireland", "midlands", "yorkshire"],
+  NO: ["oslo", "vestland", "trondelag"],
+  CZ: ["moravia", "morava", "bohemia", "south moravia"],
+  FR: ["paris", "lyon", "provence", "brittany", "occitania"],
+  DK: ["copenhagen", "jutland"],
+  CH: ["zurich", "geneva", "bern", "basel", "vaud", "ticino"],
+  DE: ["bavaria", "bayern", "saxony", "sachsen", "berlin", "hamburg"],
+  SE: ["stockholm", "skane", "gotland"],
+  FI: ["helsinki", "tampere"],
+  IT: ["lombardy", "lombardia", "milan", "piedmont", "veneto", "tuscany", "sicily"],
+  ES: ["madrid", "catalonia", "andalusia"],
+  NL: ["amsterdam", "rotterdam"],
+  BE: ["flanders", "wallonia", "brussels"],
 };
 
 function pivotQueryLooksLikeNamedEntityHypothesis(value: string): boolean {
@@ -3160,18 +3177,18 @@ function pivotRegistryMatchesGeography(
     // metadata cannot alone establish the active geography.
     return queryMatchesGeography;
   }
-  if (pivotTextMatchesGeography(registry, options)) return true;
+  const countryAliases = REGISTRY_COUNTRY_ALIASES_BY_JURISDICTION[coverage.jurisdiction] ?? [];
+  if (countryAliases.some((alias) => pivotTextMatchesGeography(alias, options))) {
+    // The canonical adapter jurisdiction itself matches the pivot geography,
+    // so a concise model-selected entity name can be tested without repeating it.
+    return true;
+  }
   // A national registry can serve a narrower region, but only when the actual
   // query names that region and the canonical registry matrix says the adapter
   // covers the corresponding jurisdiction.
   if (!queryMatchesGeography) return false;
-  const compatibleTerms = REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION[coverage.jurisdiction] ?? [];
-  const scopeTokens = new Set(options.flat().map((token) =>
-    token.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, ""),
-  ));
-  return compatibleTerms.some((term) =>
-    scopeTokens.has(term.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "")),
-  );
+  const compatibleRegions = REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION[coverage.jurisdiction] ?? [];
+  return compatibleRegions.some((region) => pivotTextMatchesGeography(region, options));
 }
 
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
