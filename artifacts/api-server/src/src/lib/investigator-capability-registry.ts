@@ -26,6 +26,7 @@ export const INVESTIGATOR_CAPABILITIES: GroqInvestigatorCapability[] = [
 ];
 
 function keyIndex(capability: InvestigatorCapability): number | null {
+  if (capability === GROQ_INVESTIGATOR_20B_CAPABILITY) return 1;
   const match = capability.match(/^groq-investigator-(\d+)$/);
   if (!match) return null;
   const index = Number(match[1]);
