@@ -403,7 +403,7 @@ describe("attested Python OSINT capabilities remain model-selectable when the ru
     expect(prompt).toContain("Conditional specialist OSINT actions");
     expect(prompt).toContain("ONLY if the exact action appears in AVAILABLE ACTIONS this turn");
     expect(prompt).not.toContain("intentionally not available capabilities");
-    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-20b", actionAllowlist) as {
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist) as {
       json_schema: { schema: { properties: { action: { enum: string[] } } } };
     };
     expect(responseFormat.json_schema.schema.properties.action.enum).toEqual(actionAllowlist);
@@ -755,7 +755,7 @@ describe("decision-scoped action allowlists", () => {
     expect(responseFormat.json_schema.schema.properties.action.enum).toEqual(actionAllowlist);
 
     const requestBody = buildGroqInvestigatorRequestBody({
-      model: "openai/gpt-oss-20b",
+      model: "openai/gpt-oss-120b",
       prompt,
       cognitiveTask: "identity_resolution",
       actionAllowlist,
@@ -1190,6 +1190,30 @@ Choose each next action yourself from the available capabilities and observed ev
       query: "Midlands private limited construction Companies House director shareholder registry",
       provider: "serper",
     }, [fetchedDirectoryPage])).toBeNull();
+  });
+
+  it("allows a model-selected named-company hypothesis in the matching official registry", () => {
+    const objective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Switzerland using the Zefix registry to identify owners/operators.",
+    ].join("\n\n");
+
+    // Proper-name hypotheses need not repeat the sector words; the selected
+    // adapter fixes jurisdiction/source class and results remain unverified leads.
+    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
+      query: "Rieter",
+      registry: "zefix-switzerland",
+    }, [])).toBeNull();
+
+    // A mismatched registry or ungrounded web search still fails closed.
+    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
+      query: "Rieter",
+      registry: "companies-house",
+    }, [])).not.toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Rieter",
+      provider: "serper",
+    }, [])).not.toBeNull();
   });
 
   it("recognizes filing-document names as valid filing-source language", () => {
@@ -2197,9 +2221,20 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS|Required fields: action,query,provider|Include every required field: action,/);
   });
 
-  it("keeps the structured response contract at the provider boundary", () => {
+  it("omits provider-side format enforcement for GPT-OSS 20B while retaining local parsing", () => {
+    expect(structuredActionResponseFormat("openai/gpt-oss-20b")).toBeNull();
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",
+      prompt: "Return one JSON action object.",
+      cognitiveTask: "identity_resolution",
+    });
+    expect(body).not.toHaveProperty("response_format");
+    expect(body.messages).toHaveLength(2);
+  });
+
+  it("keeps the structured response contract at the provider boundary", () => {
+    const body = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-120b",
       prompt: "choose the next research action",
       cognitiveTask: "identity_resolution",
     });
