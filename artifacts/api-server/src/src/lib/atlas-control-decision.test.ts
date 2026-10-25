@@ -234,6 +234,12 @@ describe("Atlas control-plane lead continuity", () => {
     expect(normalizeAtlasRightHandControl({
       decision: "pivot_discovery", reason: "Try another source family.", direction: "a different sector", confidence: "very high",
     })).toBeNull();
+    expect(normalizeAtlasRightHandControl({
+      decision: "continue_discovery", reason: "r".repeat(601), direction: null, confidence: "high",
+    })).toBeNull();
+    expect(normalizeAtlasRightHandControl({
+      decision: "pivot_discovery", reason: "Try a different source family.", direction: "d".repeat(601), confidence: 0.8,
+    })).toBeNull();
     expect(validateAtlasRightHandControl({
       decision: "continue_discovery", reason: "r".repeat(601), direction: null, confidence: 0.8,
     })).toBe(false);
