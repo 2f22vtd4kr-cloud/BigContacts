@@ -96,3 +96,10 @@ It excludes secret values, credentials, hidden private chain-of-thought, and raw
 ## Run record
 
 Append every consequential setup, preflight, launch, model/tool observation, evidence/admission transition, card projection, recovery, and terminal-state check below in chronological order. Do not rewrite earlier entries. A launch response or running job is not a successful run: verify the final job state, durable evidence and admission counts, card projection, and released active-job lock.
+
+### 012 — Corrected private-trace policy (2026-10-25)
+
+- **Correction to entry 008:** The rule to exclude raw contacts applies to this tracked/public Markdown audit. It was too broad to apply the same rule to the separate ignored local model trace; these two artefacts serve different purposes.
+- **Private trace configuration proposed in PR #738:** model-visible request/response capture and source-published professional email/phone retention are enabled only for .local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-25_REPLIT_RUN_01.md. The .local directory is git-ignored, and the model-audit writer refuses tracked raw-prompt destinations by default. Test prompt capture and visible/tracked-file opt-in remain false.
+- **Public report boundary:** this report stays sanitized and must not contain raw contact values or a copy of the private trace. Credential-shaped secrets remain redacted, and provider-hidden private chain-of-thought is not captured. The private trace is retrieved separately from the Replit workspace for investigation-quality analysis and must never be staged or committed.
+- **Run-state qualification:** this clarification and PR do not constitute an application launch or a live research run. The next run must still verify that the merged SHA is deployed, prompts/responses are written, events are scoped to the job, and the final durable outcome/cards are reconciled.
