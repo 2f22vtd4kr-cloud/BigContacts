@@ -747,7 +747,7 @@ describe("decision-scoped action allowlists", () => {
     });
     expect(prompt).toContain("AVAILABLE ACTIONS: footprint_email | web_search.");
 
-    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-20b", actionAllowlist) as {
+    const responseFormat = structuredActionResponseFormat("openai/gpt-oss-120b", actionAllowlist) as {
       type: string;
       json_schema: { schema: { properties: { action: { enum: string[] } } } };
     };
