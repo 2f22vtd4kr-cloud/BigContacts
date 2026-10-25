@@ -589,4 +589,39 @@ describe("Groq Right-hand model policy", () => {
     expect(normalizeGroqRightHandDiscoveryAdvice({ ...valid, focusLanes: ["l".repeat(161)] }, "model").status).toBe("unavailable");
   });
 
+  it("retries one invalid task contract in JSON-object mode before accepting only the caller-validated contract", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "test-right-hand-contract-retry");
+    const formats: string[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (String(input) === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }] }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body));
+      formats.push(body.response_format?.type);
+      const content = formats.length === 1
+        ? '{"approval":"maybe","decision":"unclear","reason":"not valid","focusLanes":[],"confidence":0.5}'
+        : '{"approval":"approve","decision":"The direction is in scope.","reason":"A public-source path is plausible.","focusLanes":["official filings"],"confidence":0.7}';
+      return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson(
+      "Return the approval contract.",
+      "Return one JSON object.",
+      { schema: { type: "object", properties: { approval: { type: "string" } }, required: ["approval"], additionalProperties: false } },
+      (raw) => {
+        try {
+          const parsed = JSON.parse(raw);
+          return parsed.approval === "approve" || parsed.approval === "reject";
+        } catch { return false; }
+      },
+      undefined,
+      { maxAttempts: 2, maxCompletionTokens: 1_024, reasoningEffort: "low" },
+    );
+
+    expect(result.status).toBe("completed");
+    expect(JSON.parse(result.raw ?? "{}").approval).toBe("approve");
+    expect(formats).toEqual(["json_schema", "json_object"]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
 });
