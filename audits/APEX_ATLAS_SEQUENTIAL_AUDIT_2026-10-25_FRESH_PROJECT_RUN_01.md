@@ -242,3 +242,11 @@ Append each subsequent setup action, exact command and result, failure/recovery,
 - The latest shared audit and workflow evidence still show GitHub Actions runs failing at the preflight gate because the Groq Boss role secret is missing from that runner. Re-running those workflows without changing secure secret configuration would repeat a known prelaunch failure; no secret-write capability is available in this session.
 - No launch was sent in this event. In particular, the accepted job `eb10bdd6-2c98-41db-94fc-52d599ca09fe` remains unresolved in its originating runtime, so the no-duplicate-launch safety gate remains active.
 - **Acceptance remains unmet:** no new source-backed research, durable admitted card, or matching UI-visible card is verified. The current hard blocker is access to the correct live runtime and secure confirmation/configuration of its required model-role credentials. No keys were copied into this report or source.
+
+
+### E024 — Published-runtime and runner-log recheck
+
+- Observation date: 2026-10-25. Rechecked publication status for the two accessible candidate apps: both `Apex Atlas` and `New Project` return `found=false`; neither has a published deployment URL from the Replit connector. This is not proof that their private previews are stopped, and it does not identify the correct originating runtime.
+- Re-read the latest default-run workflow job `121128858449` and its logs. The runner's environment explicitly shows the Groq Boss, Right-hand, and Investigator role slots empty; search-provider slots are present, but cannot substitute for model roles. The job failed at step 4 before Node setup, dependency installation, schema/build, API startup, authenticated smoke, or launch. A small audit artifact exists, but it is not evidence of a launch or card.
+- This confirms the CI blocker is the runner's missing model-role configuration, not a proven defect in live research logic. The GitHub connector exposes no secure Actions-secret write function. Repeating the run or using a synthetic fixture would not satisfy acceptance.
+- No new launch was sent. The unresolved previously accepted job remains a duplicate-launch hazard until its own runtime is reachable and reconciled. **No first card is verified.**
