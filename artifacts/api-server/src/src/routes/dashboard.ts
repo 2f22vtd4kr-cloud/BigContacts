@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { desc, isNotNull, isNull, eq, sql, and, or, gte, inArray } from "drizzle-orm";
-import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
+import { db, entitiesTable, assetsTable, relationshipsTable, researchSessionsTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
 import { retainCompletePublicHttpUrlForPrompt } from "../lib/url-privacy";
 import { extractSearchResultSnippetForLead, mergeSourceCardTrajectoryRecords } from "../lib/durable-discovery-projection";
 import { GetHotLeadsQueryParams } from "@workspace/api-zod";
@@ -229,7 +229,7 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     ),
   )).orderBy(desc(entitiesTable.updatedAt)).limit(limit);
 
-  const leads = rows.flatMap((row) => {
+  const partialLeads = rows.flatMap((row) => {
     let metadata: Record<string, unknown> = {};
     try {
       const parsed: unknown = row.metadata ? JSON.parse(row.metadata) : {};
@@ -253,6 +253,104 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
       limitations: Array.isArray(metadata.limitations) ? metadata.limitations.filter((value): value is string => typeof value === "string") : [],
     }];
   });
+  // Canonical Atlas admissions use their own review-only marker and durable
+  // identity_candidate evidence; they do not set partialPersonLead. Project
+  // those cards explicitly, but only when entity/evidence metadata bind the
+  // same discovery case and the evidence row points to its exact tool event.
+  const canonicalCandidateRows = await db.select({
+    entityId: entitiesTable.id,
+    entityName: entitiesTable.name,
+    entityType: entitiesTable.type,
+    notes: entitiesTable.notes,
+    entityMetadata: entitiesTable.metadata,
+    evidenceValue: researchEvidenceTable.value,
+    evidenceSourceUrl: researchEvidenceTable.sourceUrl,
+    evidenceMetadata: researchEvidenceTable.metadata,
+    updatedAt: entitiesTable.updatedAt,
+  }).from(entitiesTable).innerJoin(researchEvidenceTable, eq(researchEvidenceTable.entityId, entitiesTable.id)).where(and(
+    eq(entitiesTable.type, "PersonCandidate"),
+    eq(entitiesTable.isHidden, false),
+    eq(researchEvidenceTable.claimType, "identity_candidate"),
+    eq(researchEvidenceTable.status, "review"),
+    sql`LOWER(COALESCE(${researchEvidenceTable.sourceUrl}, '')) LIKE 'https://%'`,
+  )).orderBy(desc(researchEvidenceTable.createdAt)).limit(Math.max(limit * 8, 64));
+
+  const canonicalByEntity = new Map<number, {
+    entityId: number;
+    entityName: string;
+    entityType: string;
+    notes: string | null;
+    sourceUrls: string[];
+    stage: "candidate_review";
+    updatedAt: Date;
+    limitations: string[];
+  }>();
+  const parseReviewMetadata = (raw: string | null): Record<string, unknown> => {
+    try {
+      const parsed: unknown = raw ? JSON.parse(raw) : {};
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  };
+  for (const row of canonicalCandidateRows) {
+    const entityMetadata = parseReviewMetadata(row.entityMetadata);
+    const evidenceMetadata = parseReviewMetadata(row.evidenceMetadata);
+    const entityCaseId = Number(entityMetadata.discoveryCaseId);
+    const evidenceCaseId = Number(evidenceMetadata.discoveryCaseId);
+    const supportingEventId = Number(evidenceMetadata.supportingEventId);
+    const atlasJobId = typeof evidenceMetadata.atlasJobId === "string" ? evidenceMetadata.atlasJobId.trim() : "";
+    const role = typeof entityMetadata.role === "string" ? entityMetadata.role.trim() : "";
+    const evidenceRole = typeof evidenceMetadata.role === "string" ? evidenceMetadata.role.trim() : "";
+    if (entityMetadata.reviewOnly !== true || entityMetadata.admission !== "investigator-explicit-promotion") continue;
+    if (!Number.isSafeInteger(entityCaseId) || entityCaseId <= 0 || evidenceCaseId !== entityCaseId) continue;
+    if (evidenceMetadata.reviewOnly !== true || evidenceMetadata.promotionDecision !== "promote") continue;
+    if (!Number.isSafeInteger(supportingEventId) || supportingEventId <= 0 || !atlasJobId) continue;
+    if (!role || role !== evidenceRole || row.evidenceValue !== row.entityName) continue;
+    const source = normalizeSearchLeadUrl(row.evidenceSourceUrl);
+    if (!source || !/^https:\/\//i.test(source.sourceUrl)) continue;
+    const prior = canonicalByEntity.get(row.entityId);
+    if (prior) {
+      if (!prior.sourceUrls.includes(source.sourceUrl)) prior.sourceUrls.push(source.sourceUrl);
+      if (row.updatedAt > prior.updatedAt) prior.updatedAt = row.updatedAt;
+      continue;
+    }
+    canonicalByEntity.set(row.entityId, {
+      entityId: row.entityId,
+      entityName: row.entityName,
+      entityType: row.entityType,
+      notes: [role, row.notes].filter((part): part is string => typeof part === "string" && part.trim().length > 0).join(" · ") || null,
+      sourceUrls: [source.sourceUrl],
+      stage: "candidate_review",
+      updatedAt: row.updatedAt,
+      limitations: ["Review-only discovery candidate. Independent corroboration, business materiality, falsification, and a realistic contact route remain unverified."],
+    });
+  }
+
+  const leadByEntity = new Map<number, {
+    entityId: number;
+    entityName: string;
+    entityType: string;
+    notes: string | null;
+    sourceUrls: string[];
+    stage: "candidate_review" | "partial_review";
+    updatedAt: Date;
+    limitations: string[];
+  }>();
+  for (const lead of [...canonicalByEntity.values(), ...partialLeads]) {
+    const prior = leadByEntity.get(lead.entityId);
+    if (!prior) {
+      leadByEntity.set(lead.entityId, { ...lead, sourceUrls: [...new Set(lead.sourceUrls)], limitations: [...new Set(lead.limitations)] });
+      continue;
+    }
+    prior.sourceUrls = [...new Set([...prior.sourceUrls, ...lead.sourceUrls])];
+    prior.limitations = [...new Set([...prior.limitations, ...lead.limitations])];
+    if (!prior.notes && lead.notes) prior.notes = lead.notes;
+    if (lead.stage === "candidate_review") prior.stage = "candidate_review";
+    if (lead.updatedAt > prior.updatedAt) prior.updatedAt = lead.updatedAt;
+  }
+  const leads = [...leadByEntity.values()].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()).slice(0, limit);
+
   const entitySourceKeys = new Set(leads.flatMap((lead) =>
     lead.sourceUrls.map((url) => normalizeSearchLeadUrl(url)?.key).filter((key): key is string => Boolean(key)),
   ));
