@@ -293,15 +293,21 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
      if(response.status===429)break;
      if(response.status===500||response.status===502||response.status===503||response.status===504)break;
      return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
-     const raw=extractText(JSON.parse(responseBody));
+     let raw=extractText(JSON.parse(responseBody));
      if(raw){
-      if(validateRaw&&!validateRaw(raw)){
-       failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:null,body:null,rateLimitHeaders:{},failureClass:"invalid_contract",keyFingerprint:fingerprint(candidate.entry.key)});
-       // A schema-valid JSON object can still violate a task-specific contract.
-       // Retry once with JSON-object mode on this same model before moving to the
-       // next same-role model; the caller's validator remains the admission gate.
-       if(!useJsonObjectFallback&&outboundAttemptCount<maxOutboundAttempts){useJsonObjectFallback=true;currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\\n\\n"+contractRecoveryPrompt;continue;}
-       break;
+      if(validateRaw){
+       // Some JSON-capable chat models wrap an otherwise valid object in Markdown
+       // fences. Normalize only the serialization; the exact caller contract still
+       // validates the parsed object and no field/value is repaired or inferred.
+       try { JSON.parse(raw); } catch { const extracted=extractJson(raw); if(extracted) raw=JSON.stringify(extracted); }
+       if(!validateRaw(raw)){
+        failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:null,body:null,rateLimitHeaders:{},failureClass:"invalid_contract",keyFingerprint:fingerprint(candidate.entry.key)});
+        // A schema-valid JSON object can still violate a task-specific contract.
+        // Retry once with explicit format repair and JSON-object mode before moving
+        // to the next same-role model; the caller's validator remains authoritative.
+        if(!useJsonObjectFallback&&outboundAttemptCount<maxOutboundAttempts){useJsonObjectFallback=true;currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\\n\\n"+contractRecoveryPrompt;continue;}
+        break;
+       }
       }
       return {raw,error:null,model:candidate.model};
      }
