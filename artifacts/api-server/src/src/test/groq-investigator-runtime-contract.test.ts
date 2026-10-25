@@ -335,11 +335,15 @@ describe("Groq Investigator runtime contract", () => {
     expect(GROQ_CHAT_MODELS).toHaveLength(1);
   });
 
-  it("keeps the active Groq Investigator models on the same structured action contract", () => {
+  it("keeps the local action contract while applying model-specific provider-format compatibility", () => {
     for (const model of ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"]) {
       const body = buildGroqInvestigatorRequestBody({ model, prompt: "choose the next research action", cognitiveTask: "identity_resolution" });
       expect(body.model).toBe(model);
-      expect(body.response_format).toBeDefined();
+      if (model === "openai/gpt-oss-20b") {
+        expect(body).not.toHaveProperty("response_format");
+      } else {
+        expect(body.response_format).toBeDefined();
+      }
       expect(body).not.toHaveProperty("reasoning_format");
     }
   });

@@ -22,6 +22,7 @@ import { bindExactSourceSpan, type SourceSpan } from "./research-epistemic-vnext
 import { candidateIdentityObserved } from "./identity-text-match";
 import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import { getAvailableRegistryIds, normalizeRegistryId } from "./registry-client";
+import { REGISTRY_COVERAGE_MATRIX } from "./registry-matrix";
 import { extractPdfText, PdfTextExtractionError, PDF_TEXT_MAX_BYTES, PDF_TEXT_MAX_PAGES } from "./pdf-text-extractor";
 import { inferResearchCognitiveTask, rankGroqModelsForTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, type InvestigatorCapability } from "./investigator-capability-registry";
@@ -1801,11 +1802,12 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - systemPrompt.length));
   const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
+  const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
   return {
     model,
     max_completion_tokens: groqInvestigatorCompletionBudget(cognitiveTask),
     ...(reasoningSupported ? { reasoning_effort: groqInvestigatorReasoningEffort(model, cognitiveTask), include_reasoning: false } : {}),
-    response_format: structuredActionResponseFormat(model, actionAllowlist),
+    ...(responseFormat.type !== "none" ? { response_format: responseFormat } : {}),
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: boundedPrompt },
@@ -2013,7 +2015,7 @@ async function callGroqJson(
         const requestBody = {
           ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask, actionAllowlist }),
           max_completion_tokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
-          response_format: responseFormat,
+          ...(responseFormat.type !== "none" ? { response_format: responseFormat } : {}),
         };
         emitInvestigatorProviderRequestAudit({
           model,
@@ -2155,7 +2157,7 @@ async function callGroqJson(
             reason: response.status === 400 && providerCode === "json_validate_failed"
               ? (isGroqCompletionTruncationMessage(providerMessage)
                 ? "completion_output_truncated"
-                : (jsonObjectFallbackUsed || responseFormat.type === "json_object" ? "json_object_output_rejected" : "json_schema_rejected"))
+                : (jsonObjectFallbackUsed || responseFormat.type === "json_object" ? "json_object_output_rejected" : responseFormat.type === "json_schema" ? "json_schema_rejected" : "provider_rejected"))
               : response.status === 413
                 ? "request_size"
                 : "provider_rejected",
@@ -2184,7 +2186,7 @@ async function callGroqJson(
           if (
             recovery.action === "retry_json_object" &&
             !jsonObjectFallbackUsed &&
-            structuredActionResponseFormat(model, actionAllowlist).type === "json_schema"
+            structuredActionResponseFormat(model, actionAllowlist)?.type === "json_schema"
           ) {
             // Compatibility fallback only. Local action parsing and authorization remain mandatory.
             jsonObjectFallbackUsed = true;
@@ -2413,7 +2415,12 @@ const AGENTIC_ACTION_SCHEMA = {
 } as const;
 
 export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> {
-  const strictSupported = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"].includes(model);
+  // Groq's GPT-OSS 20B endpoint repeatedly fails JSON generation/validation
+  // with json_validate_failed, including after the JSON-object compatibility retry.
+  // Omit provider-side format enforcement for this one fallback model and keep the
+  // strict local parser/action allowlist as the authoritative contract.
+  if (model === "openai/gpt-oss-20b") return { type: "none" };
+  const strictSupported = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"].includes(model);
   const browserProviders = getAvailableBrowserFetchProviders();
   const selectableActions = actionAllowlist ? [...actionAllowlist] : getModelSelectableAgentActions();
   const availableActions = actionAllowlist ? selectableActions : browserProviders.length
@@ -3105,6 +3112,102 @@ function pivotTextMatchesGeography(value: string, options: readonly string[][]):
   }));
 }
 
+const REGISTRY_COUNTRY_ALIASES_BY_JURISDICTION: Record<string, readonly string[]> = {
+  US: ["united states", "usa", "us"],
+  GB: ["united kingdom", "uk", "britain"],
+  NO: ["norway", "norwegian"],
+  CZ: ["czechia", "czech republic", "czech"],
+  FR: ["france", "french"],
+  DK: ["denmark", "danish"],
+  CH: ["switzerland", "swiss"],
+  DE: ["germany", "german"],
+  SE: ["sweden", "swedish"],
+  FI: ["finland", "finnish"],
+  IT: ["italy", "italian"],
+  ES: ["spain", "spanish"],
+  NL: ["netherlands", "dutch", "holland"],
+  BE: ["belgium", "belgian"],
+};
+
+// Known subregions and major cities that commonly appear as the sole geography
+// in a pivot. Unknown localities remain fail-closed unless the query also names
+// the registry's country/jurisdiction; a national adapter must never authorize a
+// different country's location merely because it is a capitalized place name.
+const REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION: Record<string, readonly string[]> = {
+  US: [
+    "alabama", "alaska", "arizona", "arkansas", "california", "colorado", "connecticut", "delaware",
+    "florida", "georgia", "hawaii", "idaho", "illinois", "indiana", "iowa", "kansas", "kentucky",
+    "louisiana", "maine", "maryland", "massachusetts", "michigan", "minnesota", "mississippi",
+    "missouri", "montana", "nebraska", "nevada", "new hampshire", "new jersey", "new mexico",
+    "new york", "north carolina", "north dakota", "ohio", "oklahoma", "oregon", "pennsylvania",
+    "rhode island", "south carolina", "south dakota", "tennessee", "texas", "utah", "vermont",
+    "virginia", "washington", "west virginia", "wisconsin", "wyoming", "district of columbia", "midwest",
+    "austin", "boston", "baltimore", "buffalo", "charlotte", "chicago", "cleveland", "columbus",
+    "dallas", "denver", "detroit", "houston", "indianapolis", "jacksonville", "las vegas", "los angeles",
+    "miami", "milwaukee", "minneapolis", "nashville", "new orleans", "new york city", "oakland", "oklahoma city",
+    "omaha", "orlando", "philadelphia", "phoenix", "pittsburgh", "portland", "raleigh", "sacramento",
+    "salt lake city", "san antonio", "san diego", "san francisco", "san jose", "seattle", "st louis",
+    "tampa", "tucson", "atlanta", "memphis", "richmond", "norfolk", "albuquerque", "anchorage", "honolulu",
+  ],
+  GB: [
+    "england", "scotland", "wales", "northern ireland", "midlands", "yorkshire", "london", "birmingham",
+    "manchester", "leeds", "liverpool", "bristol", "sheffield", "newcastle", "nottingham", "leicester",
+    "coventry", "southampton", "oxford", "cambridge", "brighton", "portsmouth", "plymouth", "exeter",
+    "york", "reading", "milton keynes", "edinburgh", "glasgow", "aberdeen", "dundee", "cardiff",
+    "swansea", "belfast", "derry",
+  ],
+  NO: ["oslo", "vestland", "trondelag"],
+  CZ: ["moravia", "morava", "bohemia", "prague", "brno", "south moravia"],
+  FR: ["paris", "lyon", "provence", "brittany", "occitania", "marseille", "toulouse", "bordeaux", "lille", "nice"],
+  DK: ["copenhagen", "jutland", "aarhus", "odense", "aalborg"],
+  CH: ["zurich", "geneva", "bern", "basel", "vaud", "ticino", "lausanne", "lucerne"],
+  DE: ["bavaria", "bayern", "saxony", "sachsen", "berlin", "hamburg", "munich", "frankfurt", "cologne", "dusseldorf"],
+  SE: ["stockholm", "skane", "gotland", "gothenburg", "malmo", "uppsala"],
+  FI: ["helsinki", "tampere", "turku", "oulu"],
+  IT: ["lombardy", "lombardia", "milan", "piedmont", "veneto", "tuscany", "sicily", "rome", "naples", "turin", "bologna", "florence"],
+  ES: ["madrid", "catalonia", "andalusia", "barcelona", "valencia", "seville", "bilbao"],
+  NL: ["amsterdam", "rotterdam", "utrecht", "eindhoven", "the hague"],
+  BE: ["flanders", "wallonia", "brussels", "antwerp", "ghent", "liege"],
+};
+
+function pivotRegistryMatchesGeography(
+  registry: string,
+  query: string,
+  options: readonly string[][],
+): boolean {
+  const registryId = normalizeRegistryId(registry);
+  const coverage = REGISTRY_COVERAGE_MATRIX.find((entry) => entry.id === registryId);
+  if (!coverage?.runtimeAdapterImplemented) return false;
+
+  const queryMatchesGeography = pivotTextMatchesGeography(query, options);
+  if (coverage.jurisdiction === "Global") {
+    // A global source must be scoped by the model's actual query; its adapter
+    // metadata cannot alone establish the active geography.
+    return queryMatchesGeography;
+  }
+  const countryAliases = REGISTRY_COUNTRY_ALIASES_BY_JURISDICTION[coverage.jurisdiction] ?? [];
+  if (countryAliases.some((alias) => pivotTextMatchesGeography(alias, options))) {
+    // The canonical adapter jurisdiction itself matches the pivot geography,
+    // so a concise model-selected entity name can be tested without repeating it.
+    return true;
+  }
+  // A national registry can serve a narrower region, but only when the actual
+  // query names that region and the canonical registry matrix says the adapter
+  // covers the corresponding jurisdiction.
+  if (!queryMatchesGeography) return false;
+  const compatibleRegions = REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION[coverage.jurisdiction] ?? [];
+  if (compatibleRegions.some((region) => pivotTextMatchesGeography(region, options))) return true;
+  // For an unlisted locality, require the model's actual query to name the
+  // adapter jurisdiction explicitly. This supports new/rare cities without
+  // guessing their country from capitalization, while a conflicting country
+  // alias still fails closed.
+  const queryTokens = new Set(normalizeDiscoverySearchQuery(query).match(/[a-z]+/g) ?? []);
+  return countryAliases.some((alias) => {
+    const aliasTokens = normalizeDiscoverySearchQuery(alias).match(/[a-z]+/g) ?? [];
+    return aliasTokens.length > 0 && aliasTokens.every((token) => queryTokens.has(token));
+  });
+}
+
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
   if (!value.trim() || anchors.length === 0) return false;
   const tokens = (value.toLowerCase().match(/[a-z]{3,}/g) ?? []).map(pivotScopeToken);
@@ -3328,12 +3431,18 @@ function pivotActionIsAligned(
     const matchesGeographyInQuery = pivotTextMatchesGeography(text, geographyOptions);
     // A selected registry adapter can carry the jurisdiction (e.g. ares-czechia)
     // when the model reasonably uses a concise query such as "agribusiness".
-    const matchesGeography = matchesGeographyInQuery
-      || (isRegistryAction && hasSelectedRegistry && pivotTextMatchesGeography(registry, geographyOptions));
+    const matchesGeography = isRegistryAction && hasSelectedRegistry
+      ? pivotRegistryMatchesGeography(registry, text, geographyOptions)
+      : matchesGeographyInQuery;
     const matchesRequiredSource = requiredSourceAnchors.length === 0
       || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
       || (isRegistryAction && hasSelectedRegistry
         && requiredSourceAnchors.some((anchor) => ["registry", "database", "filing"].includes(anchor)));
+    // A jurisdiction-matched registry does not establish that a named entity
+    // belongs to the active sector. Keep concise proper-name hypotheses blocked
+    // until fetched evidence from an aligned source grounds the entity; the
+    // evidenceGrounded path below permits that follow-up without trusting a
+    // search-result lead or the registry adapter alone.
     const matchesCoreScope = matchesSubject && matchesGeography
       && (isWebDiscovery || matchesRequiredSource);
     // An official source discovery query can legitimately omit the business sector:
@@ -3444,8 +3553,9 @@ function pivotActionAlignmentFailureDetails(
     const isWebDiscovery = action === "web_search" || action === "parallel_web_search";
     const isRegistryAction = action === "registry_search" || action === "parallel_registry_search";
     const matchesSubject = anchors.length === 0 || pivotTextMatchesAnchors(text, anchors);
-    const matchesGeography = pivotTextMatchesGeography(text, geographyOptions)
-      || (isRegistryAction && Boolean(registry) && pivotTextMatchesGeography(registry, geographyOptions));
+    const matchesGeography = isRegistryAction && Boolean(registry)
+      ? pivotRegistryMatchesGeography(registry, text, geographyOptions)
+      : pivotTextMatchesGeography(text, geographyOptions);
     const matchesRequiredSource = requiredSourceAnchors.length === 0
       || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
       || (isRegistryAction && Boolean(registry)

@@ -801,7 +801,7 @@ describe("Boss-accepted discovery pivot scope", () => {
     const registryLead = {
       ...alignedSearch,
       action: "registry_search",
-      args: { query: "boutique fitness franchise owners Texas corporate registry", registry: "companies-house" },
+      args: { query: "boutique fitness franchise owners Texas corporate registry", registry: "sec-edgar" },
       observation: "Registry row lead: FitNation; official record URL is unvisited.",
       observedUrls: [],
       leadUrls: ["https://registry.example.test/company/fitnation"],
