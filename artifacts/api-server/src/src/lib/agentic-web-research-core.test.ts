@@ -2748,7 +2748,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(describeAgentActionParseFailure('{"action":"visit","url":"not-a-url","hypothesis":"validate URL handling","purpose":"check parser rejection","expectedInformationGain":0.5}')).toBe("invalid_action_arguments action=visit invalid=url");
     expect(describeAgentActionParseFailure('{"action":"web_search","query":"anchor","provider":"serper"} trailing text {"noise":true}')).toContain("non_json_envelope chars=");
     expect(describeAgentActionParseFailure('{"action":"visit","url":"https://example.com"} {"action":"done"}')).toContain("multiple_json_objects chars=");
-    expect(describeAgentActionParseFailure('{"action":"parallel_web_search","searches":[{"query":"anchor","provider":"serper"}],"hypothesis":"test batch validation","purpose":"verify minimum parallel search count","expectedInformationGain":0.5}')).toBe("invalid_action_arguments action=parallel_web_search searches_min=2");
+    expect(describeAgentActionParseFailure('{"action":"parallel_web_search","searches":[],"hypothesis":"test batch validation","purpose":"verify empty search batches are rejected","expectedInformationGain":0.5}')).toBe("invalid_action_arguments action=parallel_web_search searches_min=1");
   });
 
   it("requires an explicit done.findings array but accepts an intentional empty finding set", () => {
