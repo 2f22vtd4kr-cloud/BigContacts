@@ -1192,32 +1192,47 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [fetchedDirectoryPage])).toBeNull();
   });
 
-  it("allows a model-selected named-company hypothesis in the matching official registry", () => {
+  it("blocks ungrounded named-company registry hypotheses but allows evidence-grounded follow-up", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Switzerland using the Zefix registry to identify owners/operators.",
     ].join("\n\n");
 
-    // Proper-name hypotheses need not repeat the sector words; the selected
-    // adapter fixes jurisdiction/source class and results remain unverified leads.
+    // A registry's jurisdiction is not proof that an arbitrary named company
+    // belongs to the active sector. Names need a successful aligned fetch first.
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "Rieter",
       registry: "zefix-switzerland",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "Rieter Switzerland",
       registry: "opencorporates",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "casino operators",
       registry: "zefix-switzerland",
     }, [])).not.toBeNull();
-
-    // A mismatched registry or ungrounded web search still fails closed.
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "Rieter",
       registry: "companies-house",
     }, [])).not.toBeNull();
+
+    const scopeKey = discoveryPivotScopeKey(objective);
+    const fetchedCompanyProfile = {
+      turn: 1,
+      model: "test-model",
+      action: "visit",
+      args: { url: "https://www.switzerland-family-owned-manufacturing.example/rieter" },
+      pivotScopeKey: scopeKey ?? undefined,
+      execution: "success",
+      observation: "Rieter is described as a Swiss manufacturing company in this fetched company profile.",
+      observedUrls: ["https://www.switzerland-family-owned-manufacturing.example/rieter"],
+      findings: [],
+    } as AgenticTrajectoryRecord;
+    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
+      query: "Rieter",
+      registry: "zefix-switzerland",
+    }, [fetchedCompanyProfile])).toBeNull();
 
     const ukObjective = [
       "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
@@ -1226,7 +1241,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(discoveryPivotAlignmentReason(ukObjective, "registry_search", {
       query: "Rieter Holdings",
       registry: "companies-house",
-    }, [])).toBeNull();
+    }, [])).not.toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "Swiss private family-owned manufacturing companies",
       registry: "companies-house",
