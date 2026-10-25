@@ -4697,11 +4697,11 @@ if (input.mode === "discovery" && action.action === "parallel_web_search") {
           mismatch: reason.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim() ?? "active pivot scope",
         }));
         record.args = selectedArgs;
-        scopeFilterSummary = "SCOPE FILTERED PARALLEL SEARCHES: retained " + partition.allowed.length
+        scopeFilterSummary = [scopeFilterSummary, "SCOPE FILTERED PARALLEL SEARCHES: retained " + partition.allowed.length
           + " scope-aligned query(s); removed " + partition.rejected.length
           + " out-of-scope query(s) before any outbound request. Rejected dimensions: "
           + [...new Set(partition.rejected.map(({ reason }) => reason.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim() ?? "active pivot scope"))].join("; ")
-          + ". Rejected queries were not sent.";
+          + ". Rejected queries were not sent."].filter(Boolean).join("\n");
       }
     }
     if (input.mode === "discovery" && action.action === "parallel_registry_search") {
