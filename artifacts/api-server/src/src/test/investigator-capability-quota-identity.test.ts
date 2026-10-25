@@ -3,6 +3,7 @@ import {
   getAvailableDistinctInvestigatorCapabilities,
   getAvailableInvestigatorCapabilities,
   getInvestigatorCredentialAliases,
+  getModelScopedInvestigatorQuotaFallback,
   type InvestigatorCapability,
 } from "../lib/investigator-capability-registry";
 
@@ -50,5 +51,32 @@ describe("Investigator credential quota identity", () => {
       "groq-investigator-1",
       "groq-investigator-3",
     ]);
+  });
+
+  it("permits the explicit 20B model fallback only for a model-scoped quota recovery", () => {
+    const singleCredential = {
+      GROQ_INVESTIGATOR_API_KEY: "one-credential",
+      GROQ_INVESTIGATOR_API_KEY_1: "",
+      GROQ_INVESTIGATOR_API_KEY_2: "",
+      GROQ_INVESTIGATOR_API_KEY_3: "",
+      GROQ_INVESTIGATOR_API_KEY_4: "",
+      GROQ_INVESTIGATOR_API_KEY_5: "",
+    } as NodeJS.ProcessEnv;
+
+    expect(getModelScopedInvestigatorQuotaFallback(
+      singleCredential,
+      "groq-investigator-1",
+      ["groq-investigator-1"],
+    )).toBe("groq-investigator-20b");
+    expect(getModelScopedInvestigatorQuotaFallback(
+      singleCredential,
+      "groq-investigator-20b",
+      ["groq-investigator-20b"],
+    )).toBe("groq-investigator-1");
+    expect(getModelScopedInvestigatorQuotaFallback(
+      singleCredential,
+      "groq-investigator-1",
+      ["groq-investigator-1", "groq-investigator-20b"],
+    )).toBeNull();
   });
 });
