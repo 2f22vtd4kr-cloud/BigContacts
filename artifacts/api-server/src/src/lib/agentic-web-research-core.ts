@@ -4224,8 +4224,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             action: boundedLatest.action,
             execution: boundedLatest.execution,
             args: boundedLatest.args,
-            observedUrls: boundedLatest.observedUrls.slice(0, 1),
-            leadUrls: boundedLatest.leadUrls.slice(0, 1),
+            observedUrls: Array.isArray(boundedLatest.observedUrls) ? boundedLatest.observedUrls.slice(0, 1) : [],
+            leadUrls: Array.isArray(boundedLatest.leadUrls) ? boundedLatest.leadUrls.slice(0, 1) : [],
             observation: String(boundedLatest.observation ?? "").slice(0, 220),
           })
         : "LATEST OBSERVATION: " + compactEmergencyTrajectoryObservation(input.lastObservation || "(none)", 140);
@@ -4246,7 +4246,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (finalRecoveryPrompt.length <= maxUserPromptChars) return finalRecoveryPrompt;
       // Absolute last resort omits only the model-facing trajectory excerpt; the
       // complete latest action, source URLs, and observations remain durable.
-      const absoluteMinimumPrompt = [
+      const finalAbsoluteMinimumPrompt = [
         finalEmergencyAssignment,
         activeScope
           ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 80)
@@ -4258,7 +4258,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ...(input.mode === "discovery" ? [shortestAdmission] : []),
         hardMinimumOutputContract,
       ].filter(Boolean).join("\n\n");
-      if (absoluteMinimumPrompt.length <= maxUserPromptChars) return absoluteMinimumPrompt;
+      if (finalAbsoluteMinimumPrompt.length <= maxUserPromptChars) return finalAbsoluteMinimumPrompt;
       // The irreducible schema/safety contract is static and materially smaller
       // than the supported provider budget; it never includes unbounded case state.
       return [
