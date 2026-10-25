@@ -195,6 +195,7 @@ jobs:
             /tmp/apex-api.log
             .local/audits/APEX_ATLAS_MODEL_AUDIT_*.md
           if-no-files-found: ignore
+          include-hidden-files: true
       - name: Stop canonical API
         if: always()
         run: |
