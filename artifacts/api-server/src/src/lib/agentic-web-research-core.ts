@@ -1806,7 +1806,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
     model,
     max_completion_tokens: groqInvestigatorCompletionBudget(cognitiveTask),
     ...(reasoningSupported ? { reasoning_effort: groqInvestigatorReasoningEffort(model, cognitiveTask), include_reasoning: false } : {}),
-    ...(responseFormat ? { response_format: responseFormat } : {}),
+    ...(responseFormat.type !== "none" ? { response_format: responseFormat } : {}),
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: boundedPrompt },
@@ -2014,7 +2014,7 @@ async function callGroqJson(
         const requestBody = {
           ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask, actionAllowlist }),
           max_completion_tokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
-          ...(responseFormat ? { response_format: responseFormat } : {}),
+          ...(responseFormat.type !== "none" ? { response_format: responseFormat } : {}),
         };
         emitInvestigatorProviderRequestAudit({
           model,
@@ -2156,7 +2156,7 @@ async function callGroqJson(
             reason: response.status === 400 && providerCode === "json_validate_failed"
               ? (isGroqCompletionTruncationMessage(providerMessage)
                 ? "completion_output_truncated"
-                : (jsonObjectFallbackUsed || responseFormat?.type === "json_object" ? "json_object_output_rejected" : responseFormat?.type === "json_schema" ? "json_schema_rejected" : "provider_rejected"))
+                : (jsonObjectFallbackUsed || responseFormat.type === "json_object" ? "json_object_output_rejected" : responseFormat.type === "json_schema" ? "json_schema_rejected" : "provider_rejected"))
               : response.status === 413
                 ? "request_size"
                 : "provider_rejected",
@@ -2171,7 +2171,7 @@ async function callGroqJson(
             status: response.status,
             providerCode,
             providerMessage,
-            responseFormat: responseFormat?.type === "json_schema" ? "json_schema" : "json_object",
+            responseFormat: responseFormat.type === "json_schema" ? "json_schema" : "json_object",
             completionBudgetRetryUsed,
             currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
           });
@@ -2413,12 +2413,12 @@ const AGENTIC_ACTION_SCHEMA = {
   },
 } as const;
 
-export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> | null {
+export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> {
   // Groq's GPT-OSS 20B endpoint repeatedly rejects otherwise valid action outputs
   // with json_validate_failed, including after the JSON-object compatibility retry.
   // Omit provider-side format enforcement for this one fallback model and keep the
   // strict local parser/action allowlist as the authoritative contract.
-  if (model === "openai/gpt-oss-20b") return null;
+  if (model === "openai/gpt-oss-20b") return { type: "none" };
   const strictSupported = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"].includes(model);
   const browserProviders = getAvailableBrowserFetchProviders();
   const selectableActions = actionAllowlist ? [...actionAllowlist] : getModelSelectableAgentActions();
