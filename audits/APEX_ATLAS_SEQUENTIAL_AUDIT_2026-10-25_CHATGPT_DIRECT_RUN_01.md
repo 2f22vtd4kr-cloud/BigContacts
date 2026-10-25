@@ -38,3 +38,18 @@ Continue appending chronological checkpoints. For the live run record: capture f
 - Retry workflow [40183010170](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/40183010170), job ID `121137852230`, is pinned to commit `fb25f550aba690ca687abc84fab498fc41969d90`. Its role-credential preflight passed and it reached application build; the actual research launch and persisted-card verification are still pending at the time of this entry.
 
 **Status remains unmet.** A card is not credited until the follow-up run proves a real persisted card ID, source evidence IDs/URLs, and matching retrieval from the same run's API projection. This isolated GitHub Actions database is explicitly not the user's persistent Replit database.
+
+## E013 — Mainline syntax failure found and repaired before runtime
+
+- Workflow [40186105418](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/40186105418) failed API typecheck at `agentic-web-research-core.ts:3699`: an unescaped literal quote in the discovery targetability guidance broke the TypeScript string. The run never reached API build or launch.
+- Fixed the malformed literal on `main` in commit `3cb94484e6071f0dc151c6d13848f31516788e08`; a subsequent mainline repair simplified the prose to avoid quoted delimiters in `376a99b08efd5e2ab2fc40a3745d7dbecaa0ca78`, and `315e2a0faa29ef30d3dfb0f0044e3948f91c4413` added prompt-recovery/generic-label regression coverage.
+- API Build and Atlas CI subsequently passed on `315e2a0faa29ef30d3dfb0f0044e3948f91c4413`. The syntax defect is closed; it was not evidence of a card.
+
+## E014 — Real launch now fails at Groq Boss token-window capacity, before discovery
+
+- Canonical workflow [40186219574](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/40186219574) compiled and launched the real UI-default request on isolated PostgreSQL/Redis. Job `c497440d-3b85-499a-9501-6e15ae79b300` failed in the Boss control phase with `upstream_token_window_wait_exceeded`; zero records, findings, or cards were admitted. The artifact and job log show a terminal failure, not a successful empty result.
+- Added bounded token-window recovery in commit `354de95c262ec9bbecd3b2c2fdfdadc3207cc1dd`: wait bound raised to 120 seconds within the existing 180-second Boss deadline, and regression coverage exercises a 46-second reset plus fail-closed behavior beyond 120 seconds. The API Build job passed on this commit.
+- A follow-up real run [40186435053](https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/40186435053), pinned to `ad16eb0a7414d2d6ec676dabb911689c75e79d55`, still failed immediately at Boss with the same token-window error, indicating the upstream reset window exceeded the new 120-second bound. Its job `223cdebb-ca14-44fd-ae30-ce110ca9be03` inserted zero records and returned empty trace/entities/dashboard projections. The source correctly did not rotate to Investigator or fabricate findings.
+- The workflow runner exposes one configured Boss credential and no populated numbered Boss credential aliases; secret values are not recorded. A fresh retry must occur after the upstream token window resets, or the secure runtime must have an additional valid Boss credential configured. Do not put secret values in GitHub source, audit text, workflow inputs, or logs.
+- The isolated workflow database remains separate from the Replit database. Acceptance remains unmet until a real card is persisted and its supporting source evidence and matching UI/API projection are verified.
+
