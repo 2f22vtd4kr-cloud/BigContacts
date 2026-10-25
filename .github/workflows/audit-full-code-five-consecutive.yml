@@ -214,8 +214,9 @@ jobs:
           fi
           for test_file in "${test_files[@]}"; do
             if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
-            echo "===== FULL AUDIT TEST: ${test_file} ====="
-            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+            echo "===== FULL AUDIT TEST START: ${test_file} at $(date -u +%FT%TZ) ====="
+            timeout --signal=TERM --kill-after=10s 120s pnpm exec vitest run --maxWorkers=1 "${test_file}"
+            echo "===== FULL AUDIT TEST PASS: ${test_file} at $(date -u +%FT%TZ) ====="
           done
       - run: git diff --exit-code
 
@@ -309,8 +310,9 @@ jobs:
           fi
           for test_file in "${test_files[@]}"; do
             if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
-            echo "===== FULL AUDIT TEST: ${test_file} ====="
-            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+            echo "===== FULL AUDIT TEST START: ${test_file} at $(date -u +%FT%TZ) ====="
+            timeout --signal=TERM --kill-after=10s 120s pnpm exec vitest run --maxWorkers=1 "${test_file}"
+            echo "===== FULL AUDIT TEST PASS: ${test_file} at $(date -u +%FT%TZ) ====="
           done
       - run: git diff --exit-code
 
@@ -404,8 +406,9 @@ jobs:
           fi
           for test_file in "${test_files[@]}"; do
             if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
-            echo "===== FULL AUDIT TEST: ${test_file} ====="
-            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+            echo "===== FULL AUDIT TEST START: ${test_file} at $(date -u +%FT%TZ) ====="
+            timeout --signal=TERM --kill-after=10s 120s pnpm exec vitest run --maxWorkers=1 "${test_file}"
+            echo "===== FULL AUDIT TEST PASS: ${test_file} at $(date -u +%FT%TZ) ====="
           done
       - run: git diff --exit-code
 
@@ -499,7 +502,8 @@ jobs:
           fi
           for test_file in "${test_files[@]}"; do
             if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
-            echo "===== FULL AUDIT TEST: ${test_file} ====="
-            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+            echo "===== FULL AUDIT TEST START: ${test_file} at $(date -u +%FT%TZ) ====="
+            timeout --signal=TERM --kill-after=10s 120s pnpm exec vitest run --maxWorkers=1 "${test_file}"
+            echo "===== FULL AUDIT TEST PASS: ${test_file} at $(date -u +%FT%TZ) ====="
           done
       - run: git diff --exit-code
