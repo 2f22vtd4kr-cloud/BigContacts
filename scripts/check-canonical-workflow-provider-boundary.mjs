@@ -33,6 +33,11 @@ for (const [file, required] of Object.entries(canonical)) {
   }
 }
 
+const canonicalProof = fs.readFileSync(".github/workflows/apex-canonical-runtime-proof.yml", "utf8");
+if (!canonicalProof.includes("/api/ingest/job/active/atlas-run")) failures.push("apex-canonical-runtime-proof.yml: acceptance must probe the strict Atlas active-job lock");
+if (!canonicalProof.includes("/tmp/active-atlas-job.json")) failures.push("apex-canonical-runtime-proof.yml: artifact must preserve the post-run active-job snapshot");
+if (!canonicalProof.includes("activeAtlasLane?.jobId !== null")) failures.push("apex-canonical-runtime-proof.yml: acceptance must require the Atlas active-job key to be released");
+
 const live = fs.readFileSync(".github/workflows/apex-live-audit.yml", "utf8");
 if (!live.includes("actions/upload-artifact@")) failures.push("apex-live-audit.yml: failed live runs must upload forensic artifacts");
 if (!live.includes("/tmp/apex-api.log")) failures.push("apex-live-audit.yml: uploaded evidence must include API logs");
