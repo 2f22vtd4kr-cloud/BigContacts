@@ -4626,7 +4626,30 @@ export async function runAgenticWebResearch(input: { targetName: string; company
     }
     consecutiveActionParseFailures = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, true);
     runtimeStage = "model_action_validation";
-    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; let scopeFilterSummary: string | null = null; if (input.mode === "discovery" && action.action === "parallel_web_search") {
+    const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; delete selectedArgs.partialFindings; delete selectedArgs.findings; const record: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.action === "footprint_email" ? action.thought?.split(action.email).join("[redacted email target]") : action.action === "footprint_username_maigret" || action.action === "footprint_username_sherlock" ? action.thought?.split(action.username).join("[redacted username target]") : action.action === "footprint_spiderfoot" && (action.targetType === "email" || action.targetType === "username") ? action.thought?.split(action.target).join("[redacted " + action.targetType + " target]") : action.thought, pivotScopeKey: input.mode === "discovery" ? discoveryPivotScopeKey(input.objective ?? "") ?? undefined : undefined, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); record.findings = action.partialFindings; partialFindings = mergeFindings(partialFindings, action.partialFindings); const previousResearchRecords = [...priorTrajectoryRecords, ...records.slice(0, -1)]; let scopeFilterSummary: string | null = null;
+    if (action.action === "parallel_web_search") {
+      const providerRejectedSearches = action.searches.filter((search) => isSearchProviderDisabled(searchProviderFailures, search.provider));
+      if (providerRejectedSearches.length > 0) {
+        const originalSearches = [...action.searches];
+        const allowedSearches = originalSearches.filter((search) => !isSearchProviderDisabled(searchProviderFailures, search.provider));
+        selectedArgs.proposedSearches = originalSearches;
+        selectedArgs.searchProviderRejectedSearches = providerRejectedSearches.map((search) => ({ query: search.query, provider: search.provider }));
+        selectedArgs.searches = allowedSearches;
+        action.searches = allowedSearches;
+        record.args = selectedArgs;
+        if (allowedSearches.length === 0) {
+          record.execution = "blocked"; record.failureDomain = "tool_execution"; record.failureKind = "request_failure";
+          record.observation = renderSearchProviderAvailabilityNotice(searchProviderFailures) + "\nNo search was sent because every proposed provider is disabled for this trajectory. Choose any other permitted action supported by current observations; the runtime does not prescribe a fixed sequence.";
+          lastObservation = record.observation;
+          pushHistory("step" + (i + 1) + ": parallel_web_search execution=blocked reason=all_providers_disabled");
+          await emitSanitizedTrajectoryRecord(record);
+          emit("parallel_web_search", { provider: "multi", status: "blocked", summary: "All proposed search providers are disabled for this trajectory; no request was sent." });
+          continue;
+        }
+        scopeFilterSummary = "SEARCH PROVIDER FILTER: removed " + providerRejectedSearches.length + " query/provider pair(s) for providers disabled after repeated non-retryable failures. The remaining model-selected query/provider pairs may execute; no substitute query or provider is generated by the runtime.";
+      }
+    }
+    if (input.mode === "discovery" && action.action === "parallel_web_search") {
       const originalSearches = [...action.searches];
       const partition = partitionParallelWebSearchesByPivotScope(input.objective ?? "", originalSearches, previousResearchRecords);
       if (partition.allowed.length > 0 && partition.rejected.length > 0) {
@@ -4638,11 +4661,11 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           mismatch: reason.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim() ?? "active pivot scope",
         }));
         record.args = selectedArgs;
-        scopeFilterSummary = "SCOPE FILTERED PARALLEL SEARCHES: retained " + partition.allowed.length
+        scopeFilterSummary = [scopeFilterSummary, "SCOPE FILTERED PARALLEL SEARCHES: retained " + partition.allowed.length
           + " scope-aligned query(s); removed " + partition.rejected.length
           + " out-of-scope query(s) before any outbound request. Rejected dimensions: "
           + [...new Set(partition.rejected.map(({ reason }) => reason.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim() ?? "active pivot scope"))].join("; ")
-          + ". Rejected queries were not sent.";
+          + ". Rejected queries were not sent."].filter(Boolean).join("\n");
       }
     }
     if (input.mode === "discovery" && action.action === "parallel_registry_search") {
