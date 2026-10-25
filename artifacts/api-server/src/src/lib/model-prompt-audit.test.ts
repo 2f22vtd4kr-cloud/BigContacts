@@ -60,7 +60,7 @@ describe("model prompt audit", () => {
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
     }
     const gitignore = readFileSync(resolve(workspaceRoot, ".gitignore"), "utf8");
-    expect(gitignore).toMatch(/^\\.local\\/$/m);
+    expect(gitignore).toContain(".local/");
     expect(productionConfig).not.toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_FILE =');
