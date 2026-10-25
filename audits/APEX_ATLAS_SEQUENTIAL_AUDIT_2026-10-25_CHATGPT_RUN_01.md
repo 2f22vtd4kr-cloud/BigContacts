@@ -173,3 +173,9 @@ No first card is verified by this agent. Continue when actionable runtime status
 - The follow-up Codex review found that the registry geography guard used a small regional whitelist, rejecting a London-only pivot for Companies House and similarly rejecting many otherwise in-scope US localities for SEC EDGAR. The guard remains fail-closed for cross-jurisdiction adapters; this correction expands the explicitly supported subregion/city aliases across the implemented national registries, including London and common US states/cities. For unknown localities, the query must also name the registry's country/jurisdiction rather than letting a national adapter authorize an arbitrary place.
 - Added regression coverage proving a London pivot accepts Companies House but rejects SEC EDGAR, and an Austin, Texas pivot accepts SEC EDGAR but rejects Companies House. This is a static compatibility guard only; it does not claim a live registry response or candidate admission.
 - Verification revision: pending CI on the combined follow-up commit. Canonical runtime proof remains the final acceptance gate.
+
+
+## E021 — Unknown national subregions require explicit jurisdiction in query
+
+- Tightened the national-registry correction so known subregions (including London and common US cities/states) are recognized directly, while an unlisted locality is accepted only when the actual query also names the adapter's country/jurisdiction. This avoids requiring a finite list of every possible town and avoids letting an arbitrary capitalized location pass against a mismatched registry.
+- Regression coverage includes an unlisted Springfield locality: Companies House is accepted only when the query explicitly includes United Kingdom, while SEC EDGAR is rejected when no US jurisdiction is established. This is code-level scope validation; live runtime acceptance remains pending.

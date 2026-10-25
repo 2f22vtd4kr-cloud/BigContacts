@@ -1278,6 +1278,19 @@ Choose each next action yourself from the available capabilities and observed ev
       query: "private family-owned manufacturing companies Austin",
       registry: "companies-house",
     }, [])).not.toBeNull();
+
+    const unlistedLocalityObjective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Springfield using Companies House to identify owners/operators.",
+    ].join("\n\n");
+    expect(discoveryPivotAlignmentReason(unlistedLocalityObjective, "registry_search", {
+      query: "private family-owned manufacturing companies Springfield United Kingdom",
+      registry: "companies-house",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(unlistedLocalityObjective, "registry_search", {
+      query: "private family-owned manufacturing companies Springfield",
+      registry: "sec-edgar",
+    }, [])).not.toBeNull();
   });
 
   it("recognizes filing-document names as valid filing-source language", () => {

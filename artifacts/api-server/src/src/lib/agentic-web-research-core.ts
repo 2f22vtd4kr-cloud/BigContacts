@@ -3196,7 +3196,19 @@ function pivotRegistryMatchesGeography(
   // covers the corresponding jurisdiction.
   if (!queryMatchesGeography) return false;
   const compatibleRegions = REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION[coverage.jurisdiction] ?? [];
-  return compatibleRegions.some((region) => pivotTextMatchesGeography(region, options));
+  if (compatibleRegions.some((region) => pivotTextMatchesGeography(region, options))) return true;
+  // For an unlisted locality, require the model's actual query to name the
+  // adapter jurisdiction explicitly. This supports new/rare cities without
+  // guessing their country from capitalization, while a conflicting country
+  // alias still fails closed.
+  const normalizedQuery = normalizeDiscoverySearchQuery(query);
+  return countryAliases.some((alias) => {
+    const normalizedAlias = normalizeDiscoverySearchQuery(alias);
+    if (normalizedAlias.length >= 3) return normalizedQuery.includes(normalizedAlias);
+    return new RegExp(`(?:^|[^a-z])${normalizedAlias.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\  if (!queryMatchesGeography) return false;
+  const compatibleRegions = REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION[coverage.jurisdiction] ?? [];
+  return compatibleRegions.some((region) => pivotTextMatchesGeography(region, options));")}(?:$|[^a-z])`, "i").test(query);
+  });
 }
 
 function pivotTextMatchesAnchors(value: string, anchors: readonly string[]): boolean {
