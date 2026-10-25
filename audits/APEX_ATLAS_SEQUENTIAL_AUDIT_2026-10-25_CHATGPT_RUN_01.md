@@ -199,3 +199,10 @@ No first card is verified by this agent. Continue when actionable runtime status
 - The failed canonical run's trace had `searches > 0`, `visits = 0`, and an empty deduplicated lead URL inventory. The Companies House normalizers retained company/officer identifiers but omitted their official record URLs from metadata, so `registryResultLeadUrls` could not pass a record URL to the Investigator for a chosen visit. This made the successful registry search result a name-only lead.
 - Added canonical public Companies House web URLs to normalized company records using validated official company numbers, and officer appointment URLs only when the official API response supplies a matching `links.self` officer path. These remain unvisited leads and are never copied to observed URLs before a successful fetch.
 - Added regression assertions for company and officer URL normalization. The next canonical run must show the Investigator fetching a returned official record URL and still pass the persisted-card gate; URL construction alone is not evidence.
+
+
+## E025 — Make Replit's normal build ignore local handoff snapshots
+
+- The Replit sync verified that the app code was at merged main `a44235837bd65bf6092e2836ad3c1cb40e18c5b0`, with clean working tree and healthy API/Redis, but its unmodified root build still failed at `scripts/check-build-no-source-mutation.mjs`. The guard recursively scanned ignored session-local snapshot manifests under `.local/conversation-workspace/files/` and treated stale script strings in those historical snapshots as live package lifecycle commands.
+- Updated the guard to skip `.local` alongside other generated/cache directories. The guard still scans tracked project package manifests and rejects executable source-mutator scripts; this only excludes local handoff snapshots that are not part of the repository source.
+- Replit must be synced to the merged guard fix and a normal, unmodified `pnpm build` rerun before declaring the app ready. This is separate from the canonical runtime card acceptance gate.

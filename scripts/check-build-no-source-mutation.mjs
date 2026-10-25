@@ -3,7 +3,8 @@ import path from "node:path";
 
 const root = process.cwd();
 const packageJsonPaths = [];
-const ignored = new Set(["node_modules", ".git", "dist", "build", ".cache", ".turbo"]);
+// .local contains ignored per-session artifacts and handoff snapshots, not executable project manifests.
+const ignored = new Set(["node_modules", ".git", "dist", "build", ".cache", ".turbo", ".local"]);
 const ALLOWED_SAFETY_MUTATOR = "scripts/apply-investigator-ui-source-boundary.mjs";
 function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
