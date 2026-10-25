@@ -933,6 +933,44 @@ export function renderSearchProviderAvailabilityNotice(
   return lines.join("\n");
 }
 
+export function applySearchProviderOutcome(
+  states: Map<string, SearchProviderFailureState>,
+  provider: string,
+  status: string,
+  failureClass?: ProviderFailureClass | null,
+): void {
+  const normalized = provider.trim().toLowerCase();
+  if (!normalized) return;
+  if (status === "success" || status === "empty") {
+    if (!isSearchProviderDisabled(states, normalized)) states.delete(normalized);
+    return;
+  }
+  if (status === "error" && failureClass) recordSearchProviderFailure(states, normalized, failureClass);
+}
+
+export function restoreSearchProviderFailureState(
+  priorRecords: readonly Pick<AgenticTrajectoryRecord, "action" | "args">[],
+): Map<string, SearchProviderFailureState> {
+  const states = new Map<string, SearchProviderFailureState>();
+  const applyRawOutcome = (raw: unknown): void => {
+    if (!raw || typeof raw !== "object") return;
+    const outcome = raw as Record<string, unknown>;
+    if (typeof outcome.provider !== "string" || typeof outcome.status !== "string") return;
+    const validStatus = ["success", "empty", "error"].includes(outcome.status);
+    if (!validStatus) return;
+    const failureClass = typeof outcome.failureClass === "string" ? outcome.failureClass as ProviderFailureClass : undefined;
+    applySearchProviderOutcome(states, outcome.provider, outcome.status, failureClass);
+  };
+  for (const record of priorRecords) {
+    const args = record.args && typeof record.args === "object" ? record.args : {};
+    if (record.action === "web_search") applyRawOutcome(args.searchOutcome);
+    if (record.action === "parallel_web_search" && Array.isArray(args.searchOutcomes)) {
+      for (const outcome of args.searchOutcomes) applyRawOutcome(outcome);
+    }
+  }
+  return states;
+}
+
 function safeAgenticError(error: unknown, aborted = false): string {
   const diagnostic = describeThrownProviderError(error);
   const failureClass = classifyThrownProviderError(error, aborted);
@@ -4536,34 +4574,7 @@ export function createCancellationSupervisor(
   timer.unref?.();
   return { checkNow, stop: () => { stopped = true; clearInterval(timer); } };
 }
-export async function runAgenticWebResearch(input: { targetName: string; companyName?: string | null; objective?: string; investigatorLlm?: InvestigatorCapability; cognitiveTask?: ResearchCognitiveTask; maxIterations?: number; hardTimeoutMs?: number; shouldCancel?: () => boolean | Promise<boolean>; signal?: AbortSignal; jobId?: string | null; caseId?: number; mode?: "target" | "discovery"; priorContext?: string; durableUrlInventory?: string; priorIntelligenceContext?: IntelligenceContext; priorTrajectoryRecords?: readonly AgenticTrajectoryRecord[]; priorSearchQueries?: readonly string[]; initialConsecutiveActionParseFailures?: number; onLiveStep?: (step: { action: string; query?: string; url?: string; provider?: string; status?: string; summary?: string; targetName: string; companyName?: string | null }) => void; onTrajectoryRecord?: (record: AgenticTrajectoryRecord) => void | Promise<void> }): Promise<AgenticWebResearchResult> { const name = input.targetName.trim(); if (name.length < 2 && input.mode !== "discovery") return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "empty target" }; const requestedIterations = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_ITER; const maxIter = Math.min(Math.max(0, requestedIterations), MAX_ITER); const hardTimeoutMs = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000)); const startedAt = Date.now(); const runController = new AbortController(); const abortExternal = () => runController.abort(); if (input.signal?.aborted) runController.abort(); else input.signal?.addEventListener("abort", abortExternal, { once: true }); const timeout = setTimeout(() => runController.abort(), hardTimeoutMs); let cancellationRequestedByJob = false; const cancellationSupervisor = input.shouldCancel ? createCancellationSupervisor(input.shouldCancel, () => { cancellationRequestedByJob = true; runController.abort(); }, () => runController.signal.aborted) : undefined; const objective = input.objective || (input.mode === "discovery" ? "Discover promising public entities and evidence-backed research leads from the case objective. Choose the research path yourself." : `Research the public web for the strongest attributable public contact path for ${name}${input.companyName ? ` in the context of ${input.companyName}` : ""}. Use your judgment; verify evidence; stop when the evidence is sufficient or reasonable public avenues are exhausted.`); const history: string[] = []; const pushHistory = (line: string) => history.push(sanitizeUrlsInText(line)); const searchQueriesUsed: string[] = [...new Set((input.priorSearchQueries ?? []).map(normalizeDiscoverySearchQuery).filter(Boolean))]; const failedRegistryAdapters = new Set<string>(); const searchProviderFailures = new Map<string, SearchProviderFailureState>();
-  const observeSearchProviderOutcome = (provider: string, status: string, failureClass: ProviderFailureClass | null | undefined): void => {
-    const normalized = provider.trim().toLowerCase();
-    if (!normalized) return;
-    if (status === "success" || status === "empty") {
-      if (!isSearchProviderDisabled(searchProviderFailures, normalized)) searchProviderFailures.delete(normalized);
-      return;
-    }
-    if (status === "error" && failureClass) recordSearchProviderFailure(searchProviderFailures, normalized, failureClass);
-  };
-  // Rehydrate failure state across the canonical pipeline’s multiple bounded
-  // runAgenticWebResearch passes. The case trajectory is durable; this circuit
-  // state must span those passes or each fresh pass would retry the same bad provider.
-  for (const priorRecord of input.priorTrajectoryRecords ?? []) {
-    const args = priorRecord.args && typeof priorRecord.args === "object" ? priorRecord.args as Record<string, unknown> : {};
-    if (priorRecord.action === "web_search") {
-      const outcome = args.searchOutcome && typeof args.searchOutcome === "object" ? args.searchOutcome as Record<string, unknown> : null;
-      if (outcome && typeof outcome.provider === "string" && typeof outcome.status === "string") observeSearchProviderOutcome(outcome.provider, outcome.status, typeof outcome.failureClass === "string" ? outcome.failureClass as ProviderFailureClass : undefined);
-    }
-    if (priorRecord.action === "parallel_web_search" && Array.isArray(args.searchOutcomes)) {
-      for (const rawOutcome of args.searchOutcomes) {
-        if (!rawOutcome || typeof rawOutcome !== "object") continue;
-        const outcome = rawOutcome as Record<string, unknown>;
-        if (typeof outcome.provider === "string" && typeof outcome.status === "string") observeSearchProviderOutcome(outcome.provider, outcome.status, typeof outcome.failureClass === "string" ? outcome.failureClass as ProviderFailureClass : undefined);
-      }
-    }
-  }
-  let lastObservation = "CASE CONTEXT LOADED\nDurable case context and operator objective are available. No research action has been selected yet; choose any permitted action based on the case context."; let modelUsed = "none", searches = 0, visits = 0; let findings: AgenticFinding[] = []; let partialFindings: AgenticFinding[] = []; const records: AgenticTrajectoryRecord[] = []; let consecutiveActionParseFailures = Math.min(MAX_CONSECUTIVE_ACTION_PARSE_FAILURES - 1, Math.max(0, Number.isFinite(input.initialConsecutiveActionParseFailures) ? Math.floor(input.initialConsecutiveActionParseFailures!) : 0)); let runtimeStage = "turn_preparation"; let runtimePhase = "initialization"; let iterationsAttempted = 0; async function emitSanitizedTrajectoryRecord(record: AgenticTrajectoryRecord): Promise<void> {
+export async function runAgenticWebResearch(input: { targetName: string; companyName?: string | null; objective?: string; investigatorLlm?: InvestigatorCapability; cognitiveTask?: ResearchCognitiveTask; maxIterations?: number; hardTimeoutMs?: number; shouldCancel?: () => boolean | Promise<boolean>; signal?: AbortSignal; jobId?: string | null; caseId?: number; mode?: "target" | "discovery"; priorContext?: string; durableUrlInventory?: string; priorIntelligenceContext?: IntelligenceContext; priorTrajectoryRecords?: readonly AgenticTrajectoryRecord[]; priorSearchQueries?: readonly string[]; initialConsecutiveActionParseFailures?: number; onLiveStep?: (step: { action: string; query?: string; url?: string; provider?: string; status?: string; summary?: string; targetName: string; companyName?: string | null }) => void; onTrajectoryRecord?: (record: AgenticTrajectoryRecord) => void | Promise<void> }): Promise<AgenticWebResearchResult> { const name = input.targetName.trim(); if (name.length < 2 && input.mode !== "discovery") return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "empty target" }; const requestedIterations = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_ITER; const maxIter = Math.min(Math.max(0, requestedIterations), MAX_ITER); const hardTimeoutMs = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000)); const startedAt = Date.now(); const runController = new AbortController(); const abortExternal = () => runController.abort(); if (input.signal?.aborted) runController.abort(); else input.signal?.addEventListener("abort", abortExternal, { once: true }); const timeout = setTimeout(() => runController.abort(), hardTimeoutMs); let cancellationRequestedByJob = false; const cancellationSupervisor = input.shouldCancel ? createCancellationSupervisor(input.shouldCancel, () => { cancellationRequestedByJob = true; runController.abort(); }, () => runController.signal.aborted) : undefined; const objective = input.objective || (input.mode === "discovery" ? "Discover promising public entities and evidence-backed research leads from the case objective. Choose the research path yourself." : `Research the public web for the strongest attributable public contact path for ${name}${input.companyName ? ` in the context of ${input.companyName}` : ""}. Use your judgment; verify evidence; stop when the evidence is sufficient or reasonable public avenues are exhausted.`); const history: string[] = []; const pushHistory = (line: string) => history.push(sanitizeUrlsInText(line)); const searchQueriesUsed: string[] = [...new Set((input.priorSearchQueries ?? []).map(normalizeDiscoverySearchQuery).filter(Boolean))]; const failedRegistryAdapters = new Set<string>(); const searchProviderFailures = restoreSearchProviderFailureState(input.priorTrajectoryRecords ?? []); const observeSearchProviderOutcome = (provider: string, status: string, failureClass: ProviderFailureClass | null | undefined): void => applySearchProviderOutcome(searchProviderFailures, provider, status, failureClass); let lastObservation = "CASE CONTEXT LOADED\nDurable case context and operator objective are available. No research action has been selected yet; choose any permitted action based on the case context."; let modelUsed = "none", searches = 0, visits = 0; let findings: AgenticFinding[] = []; let partialFindings: AgenticFinding[] = []; const records: AgenticTrajectoryRecord[] = []; let consecutiveActionParseFailures = Math.min(MAX_CONSECUTIVE_ACTION_PARSE_FAILURES - 1, Math.max(0, Number.isFinite(input.initialConsecutiveActionParseFailures) ? Math.floor(input.initialConsecutiveActionParseFailures!) : 0)); let runtimeStage = "turn_preparation"; let runtimePhase = "initialization"; let iterationsAttempted = 0; async function emitSanitizedTrajectoryRecord(record: AgenticTrajectoryRecord): Promise<void> {
     const previousStage = runtimeStage;
     runtimeStage = "trajectory_persistence";
     try {
