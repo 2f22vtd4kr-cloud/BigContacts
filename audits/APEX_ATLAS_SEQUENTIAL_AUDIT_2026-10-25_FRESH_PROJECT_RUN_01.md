@@ -109,6 +109,27 @@
 - The three hard-breaks were replaced with plain metadata lines. This is a documentation-only correction; no application source, runtime, database, or provider state changed.
 - Re-run the staged whitespace check before the local-only audit commit. Nothing has been pushed.
 
+### E011 — Final prelaunch gate passed; one launch authorized
+
+- The visible report and root pointer passed `git diff --cached --check` and were committed locally on `main` as `08b9cd1b9d91a31c3ed7f28c32ecf7f62d6c3897`. The working tree is clean; the audit is tracked and not ignored. The commit is local only; nothing was pushed.
+- Restarted the canonical API after the audit commit so the running process/build corresponds to the exact current local revision. Startup again skipped schema mutation and all included source/runtime guards passed.
+- At the final gate, `HEAD=08b9cd1b9d91a31c3ed7f28c32ecf7f62d6c3897`, `/api/healthz` was `ok`, Redis was `ok`, research keys were configured, `/api/healthz/details` was `bureauIntegrity=ok` with `registryShallowRisk=false` and `autoPipeline=false`, and the Atlas active-job endpoint returned `active=false`.
+- Development database pre-run counts remain zero. The prior shared job is terminal `failed/incomplete`; no active lock remains.
+- The user requested one full run. The next action is exactly one UI-equivalent request to `POST /api/ingest/atlas-run` with `{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}`. Do not retry an ambiguous response or run concurrently.
+
+### E012 — One canonical run accepted
+
+- Sent exactly one request to `POST /api/ingest/atlas-run` with the verified UI-default body `{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}`.
+- The server returned HTTP `202` with job ID `eb10bdd6-2c98-41db-94fc-52d599ca09fe`, poll path `/api/ingest/job/eb10bdd6-2c98-41db-94fc-52d599ca09fe`, and `singleTargetId=null`. The response identifies the execution model as canonical model-owned discovery.
+- No retry was sent. The next step is to poll this job and correlate all observations to this job ID; do not launch concurrently.
+
+### E013 — First live discovery poll
+
+- The first status command made a read-only GET successfully, but its local `jq` field-selection expression was malformed (`Cannot index array with string ("key")`), so that display step exited before printing a summary. This was an audit-command formatting error, not an Apex/API failure; no POST was repeated.
+- Corrected allowlisted poll at `2026-10-25T08:37:36Z`: job `eb10bdd6-2c98-41db-94fc-52d599ca09fe` was `running`, build revision matched local `08b9cd1b9d91a31c3ed7f28c32ecf7f62d6c3897`, phase `1/4`, progress `1/4`, `inserted=0`, `skipped=0`, `errors=0`.
+- The live job status described the selected capability as `GROQ-INVESTIGATOR-1` running free-ReAct discovery. The active-job endpoint returned the same job ID. No alternate investigator assignment, evidence, admission, or card is established by this poll.
+- The configured local model-audit file existed (96,403 bytes at this observation). This tracked report does not reproduce its raw prompt/page/contact payloads; it will record observable role/action summaries and safe provenance instead.
+
 ## Run evidence
 
 Append each subsequent setup action, exact command and result, failure/recovery, health/lock observation, model/provider action summary, tool activity, source-backed evidence count, admission/card delta, and final reconciliation here. Preserve uncertainty explicitly.
