@@ -7,7 +7,7 @@ import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandApprovalReview, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
-import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
+import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { buildDiscoveryLeadUtilizationState, discoveryPivotScopeKey, isUntargetableDiscoveryPersonName, type AgenticFinding } from "./agentic-web-research-core";
@@ -1048,11 +1048,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             .filter((capability) => capability !== GROQ_INVESTIGATOR_20B_CAPABILITY);
       const bossExcludedCapabilities = [...new Set([...unavailableCapabilities, ...excludedCapabilityAliases])];
       const availableAlternates = getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities);
-      if (
-        !failedOn20BModel
-        && getAvailableInvestigatorCapabilities(process.env).includes(GROQ_INVESTIGATOR_20B_CAPABILITY)
-        && !availableAlternates.includes(GROQ_INVESTIGATOR_20B_CAPABILITY)
-      ) availableAlternates.push(GROQ_INVESTIGATOR_20B_CAPABILITY);
+      const modelScopedFallback = getModelScopedInvestigatorQuotaFallback(
+        process.env,
+        failedCapability,
+        unavailableCapabilities,
+      );
+      if (modelScopedFallback && !availableAlternates.includes(modelScopedFallback)) {
+        availableAlternates.push(modelScopedFallback);
+      }
       if (!availableAlternates.length) throw new Error(`Groq Investigator capability ${failedCapability} exhausted its hard request quota and no alternate configured Investigator capability remains.`);
       await assertAtlasJobActive(atlasJobId);
       failureStage = "boss_opening_request";
