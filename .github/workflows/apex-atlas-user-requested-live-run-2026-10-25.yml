@@ -1,0 +1,206 @@
+name: Apex Atlas User-Requested Live Run (2026-10-25)
+on:
+  push:
+    branches:
+      - agent/apex-live-run-20261025
+# Provider-resilient real-run lane.
+concurrency:
+  group: apex-live-bureau-resilient-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  live-bureau-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      REDIS_URL: redis://127.0.0.1:6379
+      REDIS_URL_1: redis://127.0.0.1:6379
+      PORT: 8080
+      ENABLE_AUTO_PIPELINE: "false"
+      ENABLE_REDIS_ON_BOOT: "true"
+      NODE_ENV: development
+      GROQ_BOSS_API_KEY: ${{ secrets.GROQ_BOSS_API_KEY }}
+      GROQ_RIGHT_HAND_API_KEY: ${{ secrets.GROQ_RIGHT_HAND_API_KEY }}
+      GROQ_RIGHT_HAND_API_KEY_2: ${{ secrets.GROQ_RIGHT_HAND_API_KEY_2 }}
+      GROQ_RIGHT_HAND_API_KEY_3: ${{ secrets.GROQ_RIGHT_HAND_API_KEY_3 }}
+      GROQ_RIGHT_HAND_API_KEY_4: ${{ secrets.GROQ_RIGHT_HAND_API_KEY_4 }}
+      GROQ_RIGHT_HAND_API_KEY_5: ${{ secrets.GROQ_RIGHT_HAND_API_KEY_5 }}
+      GROQ_INVESTIGATOR_API_KEY: ${{ secrets.GROQ_INVESTIGATOR_API_KEY }}
+      GROQ_INVESTIGATOR_API_KEY_1: ${{ secrets.GROQ_INVESTIGATOR_API_KEY_1 }}
+      GROQ_INVESTIGATOR_API_KEY_2: ${{ secrets.GROQ_INVESTIGATOR_API_KEY_2 }}
+      GROQ_INVESTIGATOR_API_KEY_3: ${{ secrets.GROQ_INVESTIGATOR_API_KEY_3 }}
+      GROQ_INVESTIGATOR_API_KEY_4: ${{ secrets.GROQ_INVESTIGATOR_API_KEY_4 }}
+      GROQ_INVESTIGATOR_API_KEY_5: ${{ secrets.GROQ_INVESTIGATOR_API_KEY_5 }}
+      GROQ_BOSS_API_KEY_1: ${{ secrets.GROQ_BOSS_API_KEY_1 }}
+      GROQ_BOSS_API_KEY_2: ${{ secrets.GROQ_BOSS_API_KEY_2 }}
+      GROQ_BOSS_API_KEY_3: ${{ secrets.GROQ_BOSS_API_KEY_3 }}
+      GROQ_BOSS_API_KEY_4: ${{ secrets.GROQ_BOSS_API_KEY_4 }}
+      GROQ_BOSS_API_KEY_5: ${{ secrets.GROQ_BOSS_API_KEY_5 }}
+      GROQ_BOSS_API_KEY_6: ${{ secrets.GROQ_BOSS_API_KEY_6 }}
+      GROQ_BOSS_API_KEY_7: ${{ secrets.GROQ_BOSS_API_KEY_7 }}
+      GROQ_BOSS_API_KEY_8: ${{ secrets.GROQ_BOSS_API_KEY_8 }}
+      GROQ_BOSS_API_KEY_9: ${{ secrets.GROQ_BOSS_API_KEY_9 }}
+      GROQ_BOSS_API_KEY_10: ${{ secrets.GROQ_BOSS_API_KEY_10 }}
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+      EXA_1: ${{ secrets.EXA_1 }}
+      SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+      ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
+      COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
+      RESEARCH_DEPTH: standard
+      APEX_SKIP_SEMANTIC: "1"
+      APEX_DISCOVERY_BATCH_SIZE: "3"
+      APEX_AGENTIC_CONCURRENCY: "1"
+      APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+      AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "125000"
+      GROQ_AGENTIC_MIN_INTERVAL_MS: "30000"
+      LIVE_AUDIT_TARGET_COUNT: "3"
+      LIVE_AUDIT_MIN_ADMITS: "1"
+      NODE_OPTIONS: --max-old-space-size=1536
+      APEX_CAPTURE_MODEL_PROMPTS: "true"
+      APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "false"
+      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true"
+      APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE: "false"
+      APEX_MODEL_AUDIT_FILE: /tmp/APEX_ATLAS_MODEL_AUDIT_2026-10-25_GITHUB_RUN_01.md
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+      - name: Show exact tip
+        run: git log -1 --oneline
+      - name: Fail fast when canonical model roles are not configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          require_any() {
+            for name in "$@"; do
+              value="$(printenv "$name" 2>/dev/null || true)"
+              if [ -n "$value" ]; then return 0; fi
+            done
+            return 1
+          }
+          require_any GROQ_BOSS_API_KEY GROQ_BOSS_API_KEY_1 GROQ_BOSS_API_KEY_2 GROQ_BOSS_API_KEY_3 GROQ_BOSS_API_KEY_4 GROQ_BOSS_API_KEY_5 GROQ_BOSS_API_KEY_6 GROQ_BOSS_API_KEY_7 GROQ_BOSS_API_KEY_8 GROQ_BOSS_API_KEY_9 GROQ_BOSS_API_KEY_10 || { echo "::error::Missing GitHub Actions secret for the Groq Boss role."; exit 1; }
+          require_any GROQ_RIGHT_HAND_API_KEY GROQ_RIGHT_HAND_API_KEY_2 GROQ_RIGHT_HAND_API_KEY_3 GROQ_RIGHT_HAND_API_KEY_4 GROQ_RIGHT_HAND_API_KEY_5 || { echo "::error::Missing GitHub Actions secret for the Groq Right-hand role."; exit 1; }
+          require_any GROQ_INVESTIGATOR_API_KEY GROQ_INVESTIGATOR_API_KEY_1 GROQ_INVESTIGATOR_API_KEY_2 GROQ_INVESTIGATOR_API_KEY_3 GROQ_INVESTIGATOR_API_KEY_4 GROQ_INVESTIGATOR_API_KEY_5 || { echo "::error::Missing GitHub Actions secret for the Groq Investigator role."; exit 1; }
+          require_any SERPER_API_KEY TAVILY_API_KEY EXA_API_KEY EXA_1 || { echo "::error::Missing GitHub Actions search-provider credential."; exit 1; }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - name: Install pnpm
+        run: npm install -g pnpm@9.15.9
+      - name: Install API workspace graph with registry retries
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "pnpm install attempt ${attempt}/3"
+            if pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
+          done
+          exit 1
+      - name: Install local services
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+      - name: Schema and API build
+        run: |
+          cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts && cd ../../
+          pnpm --dir artifacts/api-server run build
+      - name: Static autonomy checks
+        run: |
+          pnpm run check:no-force-dig
+          pnpm run check:free-react
+          pnpm run check:discovery-quality
+          pnpm run check:trajectory
+          pnpm run check:comparison-contract
+          pnpm run check:agentic-runtime
+          node scripts/check-agentic-timeout.mjs
+          node scripts/check-workflow-action-pins.mjs
+          pnpm run check:retired-api-contract-callers
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
+      - name: Configure isolated CI operator authentication
+        run: |
+          set -euo pipefail
+          API_TOKEN="$(openssl rand -hex 32)"
+          OPERATOR_PASSWORD="$(openssl rand -hex 24)"
+          SESSION_SECRET="$(openssl rand -hex 32)"
+          echo "::add-mask::$API_TOKEN"
+          echo "::add-mask::$OPERATOR_PASSWORD"
+          echo "::add-mask::$SESSION_SECRET"
+          {
+            echo "APEX_API_AUTH_TOKEN=$API_TOKEN"
+            echo "APEX_OPERATOR_PASSWORD=$OPERATOR_PASSWORD"
+            echo "APEX_SESSION_SECRET=$SESSION_SECRET"
+          } >> "$GITHUB_ENV"
+      - name: Run authenticated live API and bounded Bureau smoke
+        run: |
+          set -euo pipefail
+          redis-cli ping
+          rm -f /tmp/apex-api.log /tmp/health.json /tmp/launch.json /tmp/atlas-status.json /tmp/atlas-trace.json /tmp/entities.json
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          API_PID=$!
+          collect_live_state() {
+            JOB_ID="$(node -p 'try{require("/tmp/launch.json").jobId||""}catch{""}')"
+            curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
+            if [ -n "$JOB_ID" ]; then
+              curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | tee /tmp/atlas-status.json || true
+              curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace.json || true
+            fi
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
+            cat /tmp/apex-api.log || true
+            if kill -0 "$API_PID" 2>/dev/null; then kill "$API_PID" 2>/dev/null || true; fi
+            wait "$API_PID" 2>/dev/null || true
+          }
+          trap collect_live_state EXIT
+          READY=0
+          for i in $(seq 1 45); do
+            CODE="$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)"
+            if [ "$CODE" = "200" ]; then READY=1; break; fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then cat /tmp/apex-api.log; exit 1; fi
+            sleep 1
+          done
+          if [ "$READY" -ne 1 ]; then cat /tmp/apex-api.log; exit 1; fi
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
+            -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" \
+            -H 'Content-Type: application/json' \
+            -d '{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}' | tee /tmp/launch.json
+          node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1);console.log("job",x.jobId)'
+          JOB_ID="$(node -p 'require("/tmp/launch.json").jobId')"
+          for i in $(seq 1 1200); do
+            sleep 5
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/atlas-status.json || true
+            STATUS="$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')"
+            case "$STATUS" in done|completed) exit 0;; failed|cancelled) cat /tmp/atlas-status.json; exit 1;; esac
+          done
+          cat /tmp/atlas-status.json
+          exit 1
+      - name: Live autonomy and provenance audit
+        if: always()
+        run: node scripts/audit-live-bureau.mjs
+      - name: Upload live audit artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apex-live-audit-resilient
+          path: |
+            /tmp/launch.json
+            /tmp/atlas-status.json
+            /tmp/atlas-trace.json
+            /tmp/entities.json
+            /tmp/APEX_ATLAS_MODEL_AUDIT_2026-10-25_GITHUB_RUN_01.md
+            audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-25_GITHUB_LIVE_RUN_01.md
+            /tmp/health.json
+            /tmp/apex-api.log
+          if-no-files-found: ignore
