@@ -9,6 +9,8 @@ import {
   validateAtlasRightHandControl,
   buildAtlasRightHandControlPrompt,
   compactAtlasInvestigatorReport,
+  normalizeAtlasOpeningRightHandApprovalReview,
+  validateAtlasOpeningRightHandApprovalReview,
 } from "./atlas-control-decision";
 
 const leadUrl = "https://businesssearch.ohiosos.gov/";
@@ -245,5 +247,49 @@ describe("Atlas Boss direction adoption", () => {
     });
     expect(prompt).toContain("Right-hand is advisory");
     expect(prompt).toContain("null keeps the accepted scope");
+  });
+});
+
+describe("Atlas Right-hand opening review normalization", () => {
+  const valid = {
+    approval: "approve",
+    decision: "The opening scope has a plausible public-source path.",
+    reason: "The scope is concrete and the evidence remains unverified until fetched.",
+    focusLanes: ["official company filings", "company contact pages"],
+    confidence: 0.7,
+  };
+
+  it("bounds harmless format drift while requiring a valid explicit approval", () => {
+    const normalized = normalizeAtlasOpeningRightHandApprovalReview({
+      ...valid,
+      extraModelField: "unused",
+      decision: "D".repeat(350),
+      reason: "R".repeat(1_250),
+      focusLanes: ["  official filing  ", "", ...Array.from({ length: 9 }, (_, i) => `lane-${i}`)],
+    });
+    expect(normalized).not.toBeNull();
+    expect(validateAtlasOpeningRightHandApprovalReview(normalized)).toBe(true);
+    expect(Object.keys(normalized ?? {}).sort()).toEqual(["approval", "confidence", "decision", "focusLanes", "reason"]);
+    expect(normalized?.approval).toBe("approve");
+    expect((normalized?.decision as string).length).toBe(300);
+    expect((normalized?.reason as string).length).toBe(1_200);
+    expect(normalized?.focusLanes).toEqual([
+      "official filing",
+      "lane-0",
+      "lane-1",
+      "lane-2",
+      "lane-3",
+      "lane-4",
+      "lane-5",
+      "lane-6",
+    ]);
+  });
+
+  it("never repairs an ambiguous approval, invalid confidence, or missing required values", () => {
+    expect(normalizeAtlasOpeningRightHandApprovalReview({ ...valid, approval: "maybe" })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandApprovalReview({ ...valid, confidence: 1.5 })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandApprovalReview({ ...valid, reason: 12 })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandApprovalReview({ ...valid, focusLanes: ["ok", 12] })).toBeNull();
+    expect(normalizeAtlasOpeningRightHandApprovalReview({ decision: "x", reason: "y" })).toBeNull();
   });
 });
