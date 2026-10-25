@@ -1190,9 +1190,21 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const dailyTokenQuota = trigger === "upstream_token_quota_exhausted";
       tokenCapacityUnavailableInvestigators.add(failedCapability);
       const unavailableCapabilities = allUnavailableInvestigatorCapabilities();
-      const excludedCapabilityAliases = getInvestigatorCredentialAliases(process.env, unavailableCapabilities);
+      // Groq token budgets are model-scoped. Keep same-model credential aliases
+      // excluded, but explicitly allow the Boss-selected 20B model capability
+      // when the default 120B capability's token capacity is exhausted.
+      const failedOn20BModel = failedCapability === GROQ_INVESTIGATOR_20B_CAPABILITY;
+      const excludedCapabilityAliases = failedOn20BModel
+        ? []
+        : getInvestigatorCredentialAliases(process.env, unavailableCapabilities)
+            .filter((capability) => capability !== GROQ_INVESTIGATOR_20B_CAPABILITY);
       const bossExcludedCapabilities = [...new Set([...unavailableCapabilities, ...excludedCapabilityAliases])];
       const availableAlternates = getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities);
+      if (
+        !failedOn20BModel
+        && getAvailableInvestigatorCapabilities(process.env).includes(GROQ_INVESTIGATOR_20B_CAPABILITY)
+        && !availableAlternates.includes(GROQ_INVESTIGATOR_20B_CAPABILITY)
+      ) availableAlternates.push(GROQ_INVESTIGATOR_20B_CAPABILITY);
       if (!availableAlternates.length) {
         await persistTokenCapacityReassignmentFailure(failedCapability, failure, {
           reason: "no_distinct_configured_investigator",
