@@ -880,6 +880,63 @@ export function providerSearchExecutionStatus(result: { status: "success" | "emp
   return result.status === "error" ? "error" : "success";
 }
 
+export type SearchProviderFailureState = { failures: number; lastFailureClass: ProviderFailureClass; disabled: boolean };
+
+/** Trajectory-local provider circuit breaker; transient outages do not disable providers. */
+export function recordSearchProviderFailure(states: Map<string, SearchProviderFailureState>, provider: string, failureClass: ProviderFailureClass): SearchProviderFailureState | null {
+  const normalized = provider.trim().toLowerCase();
+  if (!["serper", "tavily", "exa"].includes(normalized)) return null;
+  const previous = states.get(normalized);
+  const failures = (previous?.failures ?? 0) + 1;
+  const terminalClass = failureClass === "unauthorized" || failureClass === "forbidden" || failureClass === "not_found";
+  const repeatedInvalidRequest = (failureClass === "invalid_request" || failureClass === "invalid_response") && previous?.lastFailureClass === failureClass;
+  const state: SearchProviderFailureState = { failures, lastFailureClass: failureClass, disabled: Boolean(previous?.disabled || terminalClass || repeatedInvalidRequest) };
+  states.set(normalized, state);
+  return state;
+}
+
+export function isSearchProviderDisabled(states: ReadonlyMap<string, SearchProviderFailureState>, provider: string): boolean {
+  return states.get(provider.trim().toLowerCase())?.disabled === true;
+}
+
+export function renderSearchProviderAvailabilityNotice(states: ReadonlyMap<string, SearchProviderFailureState>): string {
+  const disabled = [...states.entries()].filter(([, state]) => state.disabled);
+  if (!disabled.length) return "";
+  const remaining = ["serper", "tavily", "exa"].filter((provider) => !isSearchProviderDisabled(states, provider));
+  return [
+    "OBSERVED SEARCH-PROVIDER AVAILABILITY (this trajectory only):",
+    ...disabled.map(([provider, state]) => "- " + provider + " is disabled for the rest of this trajectory after " + state.failures + " non-retryable failure(s); last failure class=" + state.lastFailureClass + ". Do not select it again; the runtime will block further calls to it."),
+    "Other selectable search providers not disabled by this runtime state: " + (remaining.join(" | ") || "none") + ".",
+    "Choose any useful action supported by the observations and remaining capabilities. This notice records actual execution failures; it does not prescribe a fixed next action or search sequence.",
+  ].join("\n");
+}
+
+export function applySearchProviderOutcome(states: Map<string, SearchProviderFailureState>, provider: string, status: string, failureClass?: ProviderFailureClass | null): void {
+  const normalized = provider.trim().toLowerCase();
+  if (!normalized) return;
+  if (status === "success" || status === "empty") {
+    if (!isSearchProviderDisabled(states, normalized)) states.delete(normalized);
+    return;
+  }
+  if (status === "error" && failureClass) recordSearchProviderFailure(states, normalized, failureClass);
+}
+
+export function restoreSearchProviderFailureState(priorRecords: readonly Pick<AgenticTrajectoryRecord, "action" | "args">[]): Map<string, SearchProviderFailureState> {
+  const states = new Map<string, SearchProviderFailureState>();
+  const applyRawOutcome = (raw: unknown): void => {
+    if (!raw || typeof raw !== "object") return;
+    const outcome = raw as Record<string, unknown>;
+    if (typeof outcome.provider !== "string" || typeof outcome.status !== "string" || !["success", "empty", "error"].includes(outcome.status)) return;
+    applySearchProviderOutcome(states, outcome.provider, outcome.status, typeof outcome.failureClass === "string" ? outcome.failureClass as ProviderFailureClass : undefined);
+  };
+  for (const record of priorRecords) {
+    const args = record.args && typeof record.args === "object" ? record.args : {};
+    if (record.action === "web_search") applyRawOutcome(args.searchOutcome);
+    if (record.action === "parallel_web_search" && Array.isArray(args.searchOutcomes)) for (const outcome of args.searchOutcomes) applyRawOutcome(outcome);
+  }
+  return states;
+}
+
 function safeAgenticError(error: unknown, aborted = false): string {
   const diagnostic = describeThrownProviderError(error);
   const failureClass = classifyThrownProviderError(error, aborted);
