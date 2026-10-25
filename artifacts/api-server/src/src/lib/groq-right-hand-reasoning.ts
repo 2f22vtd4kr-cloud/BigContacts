@@ -292,7 +292,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
      if(response.status===400&&code==="json_validate_failed"&&!useJsonObjectFallback&&!isGptOssModel&&structuredResponseFormat?.type==="json_schema"){useJsonObjectFallback=true;continue;}
      if(response.status===400&&code==="json_validate_failed"&&!useJsonObjectFallback&&isGptOssModel){
        useJsonObjectFallback=true;
-       currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\\n\\n"+contractRecoveryPrompt;
+       currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\n\n"+contractRecoveryPrompt;
        continue;
      }
      if(response.status===400&&code==="json_validate_failed"&&useJsonObjectFallback)break;
@@ -313,7 +313,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
         // Retry once with explicit format repair before moving to the next same-role
         // model; GPT-OSS uses local parsing rather than provider-side response_format,
         // and the caller's validator remains authoritative.
-        if(!useJsonObjectFallback&&outboundAttemptCount<maxOutboundAttempts){useJsonObjectFallback=true;currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\\n\\n"+contractRecoveryPrompt;continue;}
+        if(!useJsonObjectFallback&&outboundAttemptCount<maxOutboundAttempts){useJsonObjectFallback=true;currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\n\n"+contractRecoveryPrompt;continue;}
         break;
        }
       }

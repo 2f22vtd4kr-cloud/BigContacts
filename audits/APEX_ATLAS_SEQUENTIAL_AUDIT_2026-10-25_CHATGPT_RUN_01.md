@@ -206,3 +206,10 @@ No first card is verified by this agent. Continue when actionable runtime status
 - The Replit sync verified that the app code was at merged main `a44235837bd65bf6092e2836ad3c1cb40e18c5b0`, with clean working tree and healthy API/Redis, but its unmodified root build still failed at `scripts/check-build-no-source-mutation.mjs`. The guard recursively scanned ignored session-local snapshot manifests under `.local/conversation-workspace/files/` and treated stale script strings in those historical snapshots as live package lifecycle commands.
 - Updated the guard to skip `.local` alongside other generated/cache directories. The guard still scans tracked project package manifests and rejects executable source-mutator scripts; this only excludes local handoff snapshots that are not part of the repository source.
 - Replit must be synced to the merged guard fix and a normal, unmodified `pnpm build` rerun before declaring the app ready. This is separate from the canonical runtime card acceptance gate.
+
+
+## E026 — Keep GPT-OSS Right-hand contract validation local
+
+- The second canonical proof (`40200678057`) failed during the opening Right-hand review before discovery began. Groq GPT-OSS 120B returned HTTP 400 `json_validate_failed` for the provider-side response format; the same-role 20B fallback was temporarily blocked by the remaining organization TPD quota (2,125 tokens requested while only 1,375 remained, with a 5m24s retry window). No card was expected from this failed run.
+- Updated the Right-hand adapter to omit provider-side `response_format` for GPT-OSS models and keep local JSON extraction plus the caller's exact contract validator authoritative, matching the existing Investigator compatibility strategy. A single bounded contract-recovery retry remains, then the adapter moves to the next same-role model. Regression tests assert that both GPT-OSS models are called without `response_format` and that invalid output is still rejected locally.
+- The next canonical proof should run after the provider's stated TPD reset and must still pass the persisted source-backed card gate.
