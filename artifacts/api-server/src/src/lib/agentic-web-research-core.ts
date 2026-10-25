@@ -1475,6 +1475,10 @@ export function buildActionParseFailureObservation(parseFailure: string): string
   if (/action=registry_search/.test(failure)) {
     return `The previous model response was not a usable action object (${failure}); no tool ran. For registry_search, provide both a non-empty "query" and a supported "registry" ID, or choose another permitted action. ${rationaleContract} Return every required top-level field; null only action-irrelevant scalar fields and [] only action-irrelevant arrays. Return exactly one JSON object and no prose.`;
   }
+  if (/action=browser_fetch/.test(failure)) {
+    const configuredBrowserProviders = getAvailableBrowserFetchProviders().join(", ") || "none";
+    return `The previous model response was not a usable action object (${failure}); no outbound request ran. For browser_fetch, "url" must be a complete safe HTTP(S) URL and "provider" must be exactly one of the currently configured values [${configuredBrowserProviders}]. Do not use "browser", "web", "google", or a search-provider name as the browser-fetch provider. If no listed browser provider is available, choose another action shown in AVAILABLE ACTIONS (for example visit when suitable); do not invent a provider. ${rationaleContract} Return every required top-level field; null only action-irrelevant scalar fields and [] only action-irrelevant arrays. Return exactly one JSON object and no prose.`;
+  }
   return `The previous model response was not a usable action object (${failure}); no tool ran. Correct the reported JSON/action-contract error, use only a permitted action with all of its required arguments, and return exactly one complete JSON object. ${rationaleContract} Return every required top-level field; null only action-irrelevant scalar fields and [] only action-irrelevant arrays. Do not claim that a tool ran.`;
 }
 
