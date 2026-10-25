@@ -29,3 +29,8 @@ Trigger one isolated, genuine canonical Apex Atlas run against the current main 
 ## Canonical live retry after provider-failure circuit-breaker merge — 2026-10-25
 
 This intentional trigger reruns the unmocked canonical Atlas UI-default path after merge of PR #742, which records repeated invalid search-provider responses per Investigator trajectory and prevents repeated calls to a non-retryable failing provider. Preserve the model-owned Boss → Right-hand → Investigator flow and the existing source-backed admission requirements. Requested settings remain `targetCount=3`, `researchDepth=standard`, and `targetTimeoutMs=420000`. The run is successful only when its artifact contains a durably admitted source-backed person card and an API projection of that same card, with terminal job state and released active-job lock. Do not seed/fabricate a card or claim success from a green workflow alone.
+
+
+## Canonical live retry after discovery prompt syntax repair — 2026-10-25
+
+This trigger follows the prompt-budget recovery commit and the CI-discovered TypeScript syntax defect caused by unescaped quotes around the literal case label in the discovery guidance. The source now escapes that literal; the next workflow run must compile and execute the actual canonical API using the UI-default body only: targetCount=3, researchDepth=standard, targetTimeoutMs=420000. Keep the real Boss → Right-hand → Investigator loop, public-source research, strict evidence admission, durable writes, and projection verification. A green build or job launch is not card success. Count success only after the same run proves a newly persisted source-backed person card, linked source evidence, and API projection retrieval of that same card. Do not seed targets or fabricate cards.
