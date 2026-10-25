@@ -3334,8 +3334,9 @@ function pivotActionIsAligned(
     const matchesGeographyInQuery = pivotTextMatchesGeography(text, geographyOptions);
     // A selected registry adapter can carry the jurisdiction (e.g. ares-czechia)
     // when the model reasonably uses a concise query such as "agribusiness".
-    const matchesGeography = matchesGeographyInQuery
-      || (isRegistryAction && hasSelectedRegistry && pivotTextMatchesGeography(registry, geographyOptions));
+    const matchesGeography = isRegistryAction && hasSelectedRegistry
+      ? pivotTextMatchesGeography(registry, geographyOptions)
+      : matchesGeographyInQuery;
     const matchesRequiredSource = requiredSourceAnchors.length === 0
       || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
       || (isRegistryAction && hasSelectedRegistry
@@ -3457,8 +3458,9 @@ function pivotActionAlignmentFailureDetails(
     const isWebDiscovery = action === "web_search" || action === "parallel_web_search";
     const isRegistryAction = action === "registry_search" || action === "parallel_registry_search";
     const matchesSubject = anchors.length === 0 || pivotTextMatchesAnchors(text, anchors);
-    const matchesGeography = pivotTextMatchesGeography(text, geographyOptions)
-      || (isRegistryAction && Boolean(registry) && pivotTextMatchesGeography(registry, geographyOptions));
+    const matchesGeography = isRegistryAction && Boolean(registry)
+      ? pivotTextMatchesGeography(registry, geographyOptions)
+      : pivotTextMatchesGeography(text, geographyOptions);
     const matchesRequiredSource = requiredSourceAnchors.length === 0
       || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
       || (isRegistryAction && Boolean(registry)
