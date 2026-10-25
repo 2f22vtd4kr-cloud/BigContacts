@@ -2697,7 +2697,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : 0;
   if (observationBudget < 40) return base;
   const compacted = compactEmergencyTrajectoryObservation(observation, observationBudget);
-  const combined = base + "\\n\\n" + header + compacted;
+  const combined = base + "\n\n" + header + compacted;
   return combined.length <= limit ? combined : base;
 }
 
@@ -4459,7 +4459,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ...(input.mode === "discovery" ? [shortestAdmission] : []),
         hardMinimumOutputContract,
       ].filter(Boolean);
-      const basePrompt = absoluteMinimumBase.join("\\n\\n");
+      const basePrompt = absoluteMinimumBase.join("\n\n");
       return appendEmergencyObservationContext(basePrompt, input.lastObservation ?? "", maxUserPromptChars);
     }
     const boundedState = boundedAuxiliaryState(dynamicState, compactBudget);
