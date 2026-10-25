@@ -990,8 +990,8 @@ describe("Apex research runtime readiness hardening", () => {
     }))).toContain("searches[0].registry unsupported");
     expect(describeAgentActionParseFailure(JSON.stringify({
       ...base,
-      searches: [base.searches[0]],
-    }))).toContain("searches_min=2");
+      searches: [],
+    }))).toContain("searches_min=1");
     expect(researchCoreSource).toContain('required: ["query","provider","registry","locale","market","purpose"]');
     expect(researchCoreSource).toContain('registry: { type: ["string","null"], enum: ["sec-edgar"');
   });
