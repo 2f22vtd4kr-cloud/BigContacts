@@ -77,3 +77,13 @@ Append every subsequent event here before/while progressing where practical. At 
 - No substitute/synthetic card was created. No claim is made that discovery, investigation, admission, or materialization occurred in this run.
 
 **E008 checkpoint:** acceptance remains unmet. The immediate blocker is access to a live runtime with configured secrets and an observable execution channel; the available Replit integration is returning no Agent output, and the local execution environment cannot fetch the repository. Continue from this checkpoint without assuming any job is active; establish active-job/lock state before the next launch.
+
+
+## E009 — Active Replit continuation requests still produce no observable execution
+
+- Re-read canonical `main` at `c8e8aabcf737a4d7c6ebbc24f092c0845f2b46fc` and confirmed the direct-run audit's E008 blocker rather than assuming prior attempts had completed.
+- Submitted two continuation/update requests to the existing Replit app **Apex Atlas** (repl ID `e0b2bcaa-14b5-423e-9961-378bb4e8a4df`). Both were acknowledged as background `updating` tasks. Follow-up inspection questions returned `phase=paused` with empty responses; publication status remains `found=false`. The connector exposes no separate task/turn inspection, terminal output, process shell, or database query interface.
+- The requests explicitly require canonical-main synchronization, secret presence checks by name only, reconciliation of the old job/lock, real application boot, model-led live research, and persisted-card plus UI verification; no synthetic data or relaxed admission criteria.
+- No returned evidence proves either background task executed any of those steps. Do not interpret an update acknowledgement as launch success. Do not launch from a second workspace while the original job remains unresolved.
+- The live GitHub Actions fallback is still not viable until the role credentials are securely configured there; the available GitHub actions do not include a secret-write operation, and no API launch ran in the last failed workflow.
+- **Checkpoint:** no canonically admitted card ID, durable evidence chain, or matching UI card has been observed. Continue pursuing the existing Replit task/runtime channel; acceptance remains open.
