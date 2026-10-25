@@ -1205,6 +1205,10 @@ Choose each next action yourself from the available capabilities and observed ev
       registry: "zefix-switzerland",
     }, [])).toBeNull();
     expect(discoveryPivotAlignmentReason(objective, "registry_search", {
+      query: "Rieter Switzerland",
+      registry: "opencorporates",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(objective, "registry_search", {
       query: "casino operators",
       registry: "zefix-switzerland",
     }, [])).not.toBeNull();
