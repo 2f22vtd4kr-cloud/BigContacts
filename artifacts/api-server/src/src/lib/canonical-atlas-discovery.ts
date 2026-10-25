@@ -7,7 +7,7 @@ import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandApprovalReview, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
-import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
+import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 import { buildDiscoveryLeadUtilizationState, discoveryPivotScopeKey, isUntargetableDiscoveryPersonName, type AgenticFinding } from "./agentic-web-research-core";
@@ -1037,9 +1037,22 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     const reassignInvestigatorAfterHardQuota = async (failedCapability: InvestigatorCapability, failure: string): Promise<InvestigatorCapability> => {
       quotaExhaustedInvestigators.add(failedCapability);
       const unavailableCapabilities = allUnavailableInvestigatorCapabilities();
-      const excludedCapabilityAliases = getInvestigatorCredentialAliases(process.env, unavailableCapabilities);
+      // Token capacity is model-scoped in Groq. Keep credential aliases excluded,
+      // but allow Boss to explicitly choose the 20B model capability after 120B
+      // TPD/window exhaustion. If 20B itself is exhausted, allow the primary
+      // 120B capability to be considered again because it has a separate model budget.
+      const failedOn20BModel = failedCapability === GROQ_INVESTIGATOR_20B_CAPABILITY;
+      const excludedCapabilityAliases = failedOn20BModel
+        ? []
+        : getInvestigatorCredentialAliases(process.env, unavailableCapabilities)
+            .filter((capability) => capability !== GROQ_INVESTIGATOR_20B_CAPABILITY);
       const bossExcludedCapabilities = [...new Set([...unavailableCapabilities, ...excludedCapabilityAliases])];
       const availableAlternates = getAvailableDistinctInvestigatorCapabilities(process.env, bossExcludedCapabilities);
+      if (
+        !failedOn20BModel
+        && getAvailableInvestigatorCapabilities(process.env).includes(GROQ_INVESTIGATOR_20B_CAPABILITY)
+        && !availableAlternates.includes(GROQ_INVESTIGATOR_20B_CAPABILITY)
+      ) availableAlternates.push(GROQ_INVESTIGATOR_20B_CAPABILITY);
       if (!availableAlternates.length) throw new Error(`Groq Investigator capability ${failedCapability} exhausted its hard request quota and no alternate configured Investigator capability remains.`);
       await assertAtlasJobActive(atlasJobId);
       failureStage = "boss_opening_request";
