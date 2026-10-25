@@ -238,6 +238,8 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  if(!entry)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
  const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Groq Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:GROQ_RIGHT_HAND_MODEL};
+ let currentUser=normalizedUser;
+ const contractRecoveryPrompt="FORMAT RECOVERY: The previous JSON did not satisfy the caller's exact task-specific contract. Re-evaluate the same request and return exactly the required keys with no extras. Keep decision within 300 characters, reason within 1200 characters, focusLanes to at most 8 non-empty strings of at most 160 characters each, and confidence as a number from 0 to 1. Do not change your substantive judgment merely to fit the format.";
  const systemPrompt=`${apexOrientationCompact("right_hand")}\n\n${system}`;
  // Credential slots are independent credentials, not an implicit failover ladder.
  // This request uses one configured slot and only the documented same-role model fallback.
@@ -260,7 +262,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
   let lastRetryAfterMs: number | null = null;
   let lastRetryAfterHeader: string | null = null;
   while(Date.now()<deadline&&outboundAttemptCount<maxOutboundAttempts){
-    const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:currentCompletionTokens,temperature:0.1,stream:false,response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat, reasoning_effort:currentReasoningEffort, include_reasoning:false};
+    const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:currentUser}],max_completion_tokens:currentCompletionTokens,temperature:0.1,stream:false,response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat, reasoning_effort:currentReasoningEffort, include_reasoning:false};
      const modelAuditRequestId=emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:outboundAttemptCount+1,jobId:auditContext?.jobId??null,caseId:auditContext?.caseId??null,requestBody});
     const body=JSON.stringify(requestBody);
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
@@ -298,7 +300,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
        // A schema-valid JSON object can still violate a task-specific contract.
        // Retry once with JSON-object mode on this same model before moving to the
        // next same-role model; the caller's validator remains the admission gate.
-       if(!useJsonObjectFallback&&outboundAttemptCount<maxOutboundAttempts){useJsonObjectFallback=true;continue;}
+       if(!useJsonObjectFallback&&outboundAttemptCount<maxOutboundAttempts){useJsonObjectFallback=true;currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\\n\\n"+contractRecoveryPrompt;continue;}
        break;
       }
       return {raw,error:null,model:candidate.model};
