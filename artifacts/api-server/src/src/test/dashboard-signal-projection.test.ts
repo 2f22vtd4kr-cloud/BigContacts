@@ -47,6 +47,18 @@ describe("dashboard source signal provenance", () => {
     expect(source).toContain("searchSnippet: searchSnippetsByUrl.get(source.key) ?? extractSearchResultSnippetForLead(record.observation, source.sourceUrl)");
   });
 
+  it("projects canonical PersonCandidate cards only from matching-case durable identity evidence", () => {
+    expect(source).toContain("researchEvidenceTable");
+    expect(source).toContain('eq(entitiesTable.type, "PersonCandidate")');
+    expect(source).toContain('eq(researchEvidenceTable.claimType, "identity_candidate")');
+    expect(source).toContain('eq(researchEvidenceTable.status, "review")');
+    expect(source).toContain('entityMetadata.reviewOnly !== true || entityMetadata.admission !== "investigator-explicit-promotion"');
+    expect(source).toContain("evidenceCaseId !== entityCaseId");
+    expect(source).toContain('evidenceMetadata.promotionDecision !== "promote"');
+    expect(source).toContain("evidenceMetadata.supportingEventId");
+    expect(source).toContain('stage: "candidate_review"');
+  });
+
   it("does not synthesize today's date when no dated activity exists", () => {
     expect(source).toContain("signalDate: activityMap[e.id] ?? null");
     expect(source).not.toContain('signalDate: activityMap[e.id] ?? new Date().toISOString().split("T")[0]!');
