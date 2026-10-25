@@ -3146,22 +3146,6 @@ const REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION: Record<string, readonly str
   BE: ["flanders", "wallonia", "brussels"],
 };
 
-function pivotQueryLooksLikeNamedEntityHypothesis(value: string): boolean {
-  const text = value.trim();
-  if (!text || text.length > 80) return false;
-  const words = text.match(/[\p{L}\p{N}][\p{L}\p{N}&.'’-]*/gu) ?? [];
-  if (words.length < 1 || words.length > 4) return false;
-  // Do not turn a broad topic query into a named-entity exception just because
-  // the model title-cased it. The exception is for a concise proper name or
-  // legal-entity name, not another generic sector/source search.
-  if (/\b(?:owner|owners|ownership|shareholders?|directors?|operators?|companies|company|businesses|business|firms?|manufacturing|manufacturer|construction|fitness|franchise|casino|energy|utility|utilities|food|logistics|registry|register|database|filings?|records?|directory|sector|industry|search|private|family|equity|investment|investor)\b/iu.test(text)) {
-    return false;
-  }
-  const legalEntitySuffix = /\b(?:AG|GmbH|KG|Ltd|Limited|LLC|Inc|Incorporated|SA|SAS|SARL|SE|BV|NV|SpA|Oy|AB|AS|ApS)\b/iu.test(text);
-  const capitalizedWords = words.filter((word) => /^\p{Lu}/u.test(word)).length;
-  return legalEntitySuffix || capitalizedWords >= Math.min(2, words.length);
-}
-
 function pivotRegistryMatchesGeography(
   registry: string,
   query: string,
@@ -3535,8 +3519,7 @@ function pivotActionAlignmentFailureDetails(
 
     const isWebDiscovery = action === "web_search" || action === "parallel_web_search";
     const isRegistryAction = action === "registry_search" || action === "parallel_registry_search";
-    const matchesSubject = anchors.length === 0 || pivotTextMatchesAnchors(text, anchors)
-      || (isRegistryAction && Boolean(registry) && pivotQueryLooksLikeNamedEntityHypothesis(text));
+    const matchesSubject = anchors.length === 0 || pivotTextMatchesAnchors(text, anchors);
     const matchesGeography = isRegistryAction && Boolean(registry)
       ? pivotRegistryMatchesGeography(registry, text, geographyOptions)
       : pivotTextMatchesGeography(text, geographyOptions);
