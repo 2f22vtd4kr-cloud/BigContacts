@@ -3421,16 +3421,12 @@ function pivotActionIsAligned(
       || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
       || (isRegistryAction && hasSelectedRegistry
         && requiredSourceAnchors.some((anchor) => ["registry", "database", "filing"].includes(anchor)));
-    // Registry adapters are jurisdiction/source constrained capabilities. A
-    // model-selected company/person hypothesis can be a concise proper name
-    // (e.g. "Rieter") that cannot lexically repeat sector anchors; allow the
-    // Investigator to test it in the correctly scoped registry. Explicit
-    // exclusions, jurisdiction mismatch, and required source-class checks still
-    // apply, and registry hits remain leads until independently fetched evidence
-    // passes the existing finding/admission gates.
-    const matchesRegistryEntity = isRegistryAction && hasSelectedRegistry
-      && pivotQueryLooksLikeNamedEntityHypothesis(text);
-    const matchesCoreScope = (matchesSubject || matchesRegistryEntity) && matchesGeography
+    // A jurisdiction-matched registry does not establish that a named entity
+    // belongs to the active sector. Keep concise proper-name hypotheses blocked
+    // until fetched evidence from an aligned source grounds the entity; the
+    // evidenceGrounded path below permits that follow-up without trusting a
+    // search-result lead or the registry adapter alone.
+    const matchesCoreScope = matchesSubject && matchesGeography
       && (isWebDiscovery || matchesRequiredSource);
     // An official source discovery query can legitimately omit the business sector:
     // it locates the in-scope registry instead of changing the research lane.
