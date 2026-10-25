@@ -1801,11 +1801,12 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - systemPrompt.length));
   const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
+  const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
   return {
     model,
     max_completion_tokens: groqInvestigatorCompletionBudget(cognitiveTask),
     ...(reasoningSupported ? { reasoning_effort: groqInvestigatorReasoningEffort(model, cognitiveTask), include_reasoning: false } : {}),
-    response_format: structuredActionResponseFormat(model, actionAllowlist),
+    ...(responseFormat ? { response_format: responseFormat } : {}),
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: boundedPrompt },
@@ -2013,7 +2014,7 @@ async function callGroqJson(
         const requestBody = {
           ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask, actionAllowlist }),
           max_completion_tokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
-          response_format: responseFormat,
+          ...(responseFormat ? { response_format: responseFormat } : {}),
         };
         emitInvestigatorProviderRequestAudit({
           model,
@@ -2155,7 +2156,7 @@ async function callGroqJson(
             reason: response.status === 400 && providerCode === "json_validate_failed"
               ? (isGroqCompletionTruncationMessage(providerMessage)
                 ? "completion_output_truncated"
-                : (jsonObjectFallbackUsed || responseFormat.type === "json_object" ? "json_object_output_rejected" : "json_schema_rejected"))
+                : (jsonObjectFallbackUsed || responseFormat?.type === "json_object" ? "json_object_output_rejected" : responseFormat?.type === "json_schema" ? "json_schema_rejected" : "provider_rejected"))
               : response.status === 413
                 ? "request_size"
                 : "provider_rejected",
@@ -2170,7 +2171,7 @@ async function callGroqJson(
             status: response.status,
             providerCode,
             providerMessage,
-            responseFormat: responseFormat.type === "json_schema" ? "json_schema" : "json_object",
+            responseFormat: responseFormat?.type === "json_schema" ? "json_schema" : "json_object",
             completionBudgetRetryUsed,
             currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
           });
@@ -2184,7 +2185,7 @@ async function callGroqJson(
           if (
             recovery.action === "retry_json_object" &&
             !jsonObjectFallbackUsed &&
-            structuredActionResponseFormat(model, actionAllowlist).type === "json_schema"
+            structuredActionResponseFormat(model, actionAllowlist)?.type === "json_schema"
           ) {
             // Compatibility fallback only. Local action parsing and authorization remain mandatory.
             jsonObjectFallbackUsed = true;
@@ -2412,8 +2413,13 @@ const AGENTIC_ACTION_SCHEMA = {
   },
 } as const;
 
-export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> {
-  const strictSupported = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"].includes(model);
+export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> | null {
+  // Groq's GPT-OSS 20B endpoint repeatedly rejects otherwise valid action outputs
+  // with json_validate_failed, including after the JSON-object compatibility retry.
+  // Omit provider-side format enforcement for this one fallback model and keep the
+  // strict local parser/action allowlist as the authoritative contract.
+  if (model === "openai/gpt-oss-20b") return null;
+  const strictSupported = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"].includes(model);
   const browserProviders = getAvailableBrowserFetchProviders();
   const selectableActions = actionAllowlist ? [...actionAllowlist] : getModelSelectableAgentActions();
   const availableActions = actionAllowlist ? selectableActions : browserProviders.length
@@ -3334,7 +3340,14 @@ function pivotActionIsAligned(
       || pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
       || (isRegistryAction && hasSelectedRegistry
         && requiredSourceAnchors.some((anchor) => ["registry", "database", "filing"].includes(anchor)));
-    const matchesCoreScope = matchesSubject && matchesGeography
+    // Registry adapters are jurisdiction/source constrained capabilities. A
+    // model-selected company/person hypothesis can be a concise proper name
+    // (e.g. "Rieter") that cannot lexically repeat sector anchors; allow the
+    // Investigator to test it in the correctly scoped registry. Explicit
+    // exclusions, jurisdiction mismatch, and required source-class checks still
+    // apply, and registry hits remain leads until independently fetched evidence
+    // passes the existing finding/admission gates.
+    const matchesCoreScope = (matchesSubject || isRegistryAction) && matchesGeography
       && (isWebDiscovery || matchesRequiredSource);
     // An official source discovery query can legitimately omit the business sector:
     // it locates the in-scope registry instead of changing the research lane.
