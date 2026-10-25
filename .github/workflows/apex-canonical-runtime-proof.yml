@@ -174,6 +174,52 @@ jobs:
           done
           cat /tmp/job.json
           exit 1
+      - name: Require a persisted source-backed candidate card in both API projections
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require("node:fs");
+          const readJson = (path) => JSON.parse(fs.readFileSync(path, "utf8"));
+          const job = readJson("/tmp/job-final.json");
+          const entitiesPayload = readJson("/tmp/entities.json");
+          const dashboard = readJson("/tmp/dashboard-research-leads.json");
+          const entities = Array.isArray(entitiesPayload) ? entitiesPayload
+            : Array.isArray(entitiesPayload?.entities) ? entitiesPayload.entities : [];
+          const leads = Array.isArray(dashboard?.leads) ? dashboard.leads : [];
+          if (!["done", "completed"].includes(String(job.status ?? ""))) {
+            throw new Error("Canonical job is not terminal-success: " + String(job.status ?? "missing"));
+          }
+          const candidates = leads.filter((lead) =>
+            lead?.stage === "candidate_review" &&
+            Number.isSafeInteger(Number(lead.entityId)) &&
+            Array.isArray(lead.sourceUrls) &&
+            lead.sourceUrls.some((url) => typeof url === "string" && /^https:\/\//i.test(url))
+          );
+          const accepted = candidates.find((lead) => entities.some((entity) =>
+            String(entity?.id) === String(lead.entityId) &&
+            entity?.name === lead.entityName &&
+            entity?.type === "PersonCandidate"
+          ));
+          if (!accepted) {
+            throw new Error(
+              "No source-backed candidate_review card was found in /api/dashboard/research-leads " +
+              "and the same PersonCandidate in /api/entities. " +
+              "entities=" + entities.length + ", dashboardLeads=" + leads.length +
+              ", candidateReviewCards=" + candidates.length
+            );
+          }
+          console.log(JSON.stringify({
+            acceptance: "PASS",
+            jobId: job.jobId,
+            entityId: accepted.entityId,
+            entityName: accepted.entityName,
+            entityType: accepted.entityType,
+            stage: accepted.stage,
+            sourceUrls: accepted.sourceUrls,
+            entityProjection: "matched",
+            dashboardProjection: "matched",
+          }, null, 2));
+          NODE
       - name: Preserve canonical runtime evidence
         if: always()
         run: |
