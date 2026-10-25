@@ -734,4 +734,34 @@ describe("Groq Investigator provider boundary", () => {
     expect(result.error).not.toContain(privateDiagnostic);
     expect(JSON.stringify(result.trajectoryRecords)).not.toContain(privateDiagnostic);
   });
+  it("routes the explicit Boss-selected 20B recovery capability to GPT-OSS 20B without silent model rotation", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-model-recovery-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let selectedModel: string | undefined;
+    mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+      selectedModel = body.model;
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({
+          action: "done", query: null, provider: null, url: null, email: null,
+          username: null, domain: null, registry: null, thought: "Awaiting new research direction",
+          hypothesis: null, purpose: null, expectedInformationGain: 0,
+          locale: null, market: null, target: null, targetType: null, profile: null,
+          searches: [], findings: [],
+        }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-20b",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(selectedModel).toBe("openai/gpt-oss-20b");
+    expect(result.model).toBe("openai/gpt-oss-20b");
+  });
+
 });
