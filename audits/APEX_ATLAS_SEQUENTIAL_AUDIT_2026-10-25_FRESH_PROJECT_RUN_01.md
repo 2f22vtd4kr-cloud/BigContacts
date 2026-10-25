@@ -133,3 +133,13 @@
 ## Run evidence
 
 Append each subsequent setup action, exact command and result, failure/recovery, health/lock observation, model/provider action summary, tool activity, source-backed evidence count, admission/card delta, and final reconciliation here. Preserve uncertainty explicitly.
+
+### E014 — Independent state reconciliation; parallel-run ambiguity and runtime-access gap
+
+- Observation timestamp (UTC): `2026-10-25T09:02:31.907Z`.
+- Independent GitHub inspection found `main` at `14dff4e8e8255306dc1aa8ed07298faa0b59a074` (commit “Update APEX ATLAS sequential audit findings”), after setup/launch commit `08b9cd1b9d91a31c3ed7f28c32ecf7f62d6c3897` and runtime-contract commit `df4ce35ba3370940a9ad5f7e20d09517a49324ad`. The newest tracked audit still ends at E013; no later terminal-state, evidence, admission, card-count, or active-lock observation is present in that tracked file.
+- The user reports a separate recent Replit attempt exhausted its quota before launch. The GitHub audit, however, records that a canonical UI-default POST was accepted in a parallel project/runtime as job `eb10bdd6-2c98-41db-94fc-52d599ca09fe` and its first corrected poll at `2026-10-25T08:37:36Z` returned `running`, phase `1/4`, `inserted=0`. These observations are not necessarily contradictory if they refer to different projects/attempts. Do not merge their histories or assume the accepted job is the user's failed setup attempt without runtime evidence.
+- This independent reviewer has GitHub read/write access but no connected Replit runtime/control surface or deployed runtime URL in the available session. A container-side `git clone https://github.com/2f22vtd4kr-cloud/BigContacts.git` attempt failed at DNS resolution (`Could not resolve host: github.com`); the GitHub connector itself remains operational. This is an execution-environment limitation, not a repository build error.
+- No launch POST, retry, cancellation, or provider request was made from this reviewer; no active-job lock or database counts were queried because the runtime was not reachable. This deliberately avoids creating a second concurrent investigation or treating a stale first poll as terminal evidence.
+- Required next evidence is a read-only poll of job `eb10bdd6-2c98-41db-94fc-52d599ca09fe` and the active-job pointer on its actual Replit project, followed by terminal DB/card reconciliation. If this is not the same workspace as the user's failed attempt, first identify/reconcile each workspace and only launch one idle, verified runtime. Do not report a card until canonical persisted card/entity evidence and UI projection confirm it.
+
