@@ -3129,21 +3129,45 @@ const REGISTRY_COUNTRY_ALIASES_BY_JURISDICTION: Record<string, readonly string[]
   BE: ["belgium", "belgian"],
 };
 
+// Known subregions and major cities that commonly appear as the sole geography
+// in a pivot. Unknown localities remain fail-closed unless the query also names
+// the registry's country/jurisdiction; a national adapter must never authorize a
+// different country's location merely because it is a capitalized place name.
 const REGISTRY_REGION_COMPATIBILITY_BY_JURISDICTION: Record<string, readonly string[]> = {
-  US: ["texas", "midwest", "illinois", "indiana", "ohio", "michigan", "wisconsin", "minnesota", "iowa", "missouri"],
-  GB: ["england", "scotland", "wales", "northern ireland", "midlands", "yorkshire"],
+  US: [
+    "alabama", "alaska", "arizona", "arkansas", "california", "colorado", "connecticut", "delaware",
+    "florida", "georgia", "hawaii", "idaho", "illinois", "indiana", "iowa", "kansas", "kentucky",
+    "louisiana", "maine", "maryland", "massachusetts", "michigan", "minnesota", "mississippi",
+    "missouri", "montana", "nebraska", "nevada", "new hampshire", "new jersey", "new mexico",
+    "new york", "north carolina", "north dakota", "ohio", "oklahoma", "oregon", "pennsylvania",
+    "rhode island", "south carolina", "south dakota", "tennessee", "texas", "utah", "vermont",
+    "virginia", "washington", "west virginia", "wisconsin", "wyoming", "district of columbia", "midwest",
+    "austin", "boston", "baltimore", "buffalo", "charlotte", "chicago", "cleveland", "columbus",
+    "dallas", "denver", "detroit", "houston", "indianapolis", "jacksonville", "las vegas", "los angeles",
+    "miami", "milwaukee", "minneapolis", "nashville", "new orleans", "new york city", "oakland", "oklahoma city",
+    "omaha", "orlando", "philadelphia", "phoenix", "pittsburgh", "portland", "raleigh", "sacramento",
+    "salt lake city", "san antonio", "san diego", "san francisco", "san jose", "seattle", "st louis",
+    "tampa", "tucson", "atlanta", "memphis", "richmond", "norfolk", "albuquerque", "anchorage", "honolulu",
+  ],
+  GB: [
+    "england", "scotland", "wales", "northern ireland", "midlands", "yorkshire", "london", "birmingham",
+    "manchester", "leeds", "liverpool", "bristol", "sheffield", "newcastle", "nottingham", "leicester",
+    "coventry", "southampton", "oxford", "cambridge", "brighton", "portsmouth", "plymouth", "exeter",
+    "york", "reading", "milton keynes", "edinburgh", "glasgow", "aberdeen", "dundee", "cardiff",
+    "swansea", "belfast", "derry",
+  ],
   NO: ["oslo", "vestland", "trondelag"],
-  CZ: ["moravia", "morava", "bohemia", "south moravia"],
-  FR: ["paris", "lyon", "provence", "brittany", "occitania"],
-  DK: ["copenhagen", "jutland"],
-  CH: ["zurich", "geneva", "bern", "basel", "vaud", "ticino"],
-  DE: ["bavaria", "bayern", "saxony", "sachsen", "berlin", "hamburg"],
-  SE: ["stockholm", "skane", "gotland"],
-  FI: ["helsinki", "tampere"],
-  IT: ["lombardy", "lombardia", "milan", "piedmont", "veneto", "tuscany", "sicily"],
-  ES: ["madrid", "catalonia", "andalusia"],
-  NL: ["amsterdam", "rotterdam"],
-  BE: ["flanders", "wallonia", "brussels"],
+  CZ: ["moravia", "morava", "bohemia", "prague", "brno", "south moravia"],
+  FR: ["paris", "lyon", "provence", "brittany", "occitania", "marseille", "toulouse", "bordeaux", "lille", "nice"],
+  DK: ["copenhagen", "jutland", "aarhus", "odense", "aalborg"],
+  CH: ["zurich", "geneva", "bern", "basel", "vaud", "ticino", "lausanne", "lucerne"],
+  DE: ["bavaria", "bayern", "saxony", "sachsen", "berlin", "hamburg", "munich", "frankfurt", "cologne", "dusseldorf"],
+  SE: ["stockholm", "skane", "gotland", "gothenburg", "malmo", "uppsala"],
+  FI: ["helsinki", "tampere", "turku", "oulu"],
+  IT: ["lombardy", "lombardia", "milan", "piedmont", "veneto", "tuscany", "sicily", "rome", "naples", "turin", "bologna", "florence"],
+  ES: ["madrid", "catalonia", "andalusia", "barcelona", "valencia", "seville", "bilbao"],
+  NL: ["amsterdam", "rotterdam", "utrecht", "eindhoven", "the hague"],
+  BE: ["flanders", "wallonia", "brussels", "antwerp", "ghent", "liege"],
 };
 
 function pivotRegistryMatchesGeography(

@@ -1252,6 +1252,34 @@ Choose each next action yourself from the available capabilities and observed ev
     }, [])).not.toBeNull();
   });
 
+  it("allows national registry adapters for supported subregions and rejects cross-jurisdiction adapters", () => {
+    const londonObjective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in London using Companies House to identify owners/operators.",
+    ].join("\\n\\n");
+    expect(discoveryPivotAlignmentReason(londonObjective, "registry_search", {
+      query: "private family-owned manufacturing companies London",
+      registry: "companies-house",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(londonObjective, "registry_search", {
+      query: "private family-owned manufacturing companies London",
+      registry: "sec-edgar",
+    }, [])).not.toBeNull();
+
+    const austinObjective = [
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in Austin, Texas using SEC EDGAR to identify owners/operators.",
+    ].join("\\n\\n");
+    expect(discoveryPivotAlignmentReason(austinObjective, "registry_search", {
+      query: "private family-owned manufacturing companies Austin",
+      registry: "sec-edgar",
+    }, [])).toBeNull();
+    expect(discoveryPivotAlignmentReason(austinObjective, "registry_search", {
+      query: "private family-owned manufacturing companies Austin",
+      registry: "companies-house",
+    }, [])).not.toBeNull();
+  });
+
   it("recognizes filing-document names as valid filing-source language", () => {
     const objective = [
       "Discover under-the-radar people with credible wealth potential.",
