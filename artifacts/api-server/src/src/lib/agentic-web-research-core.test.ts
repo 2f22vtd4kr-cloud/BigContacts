@@ -2222,7 +2222,7 @@ Choose each next action yourself from the available capabilities and observed ev
   });
 
   it("omits provider-side format enforcement for GPT-OSS 20B while retaining local parsing", () => {
-    expect(structuredActionResponseFormat("openai/gpt-oss-20b")).toBeNull();
+    expect(structuredActionResponseFormat("openai/gpt-oss-20b")).toEqual({ type: "none" });
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",
       prompt: "Return one JSON action object.",
