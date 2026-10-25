@@ -188,7 +188,7 @@ describe("Groq Right-hand task-scoped control recovery", () => {
     expect(chatBodies).toHaveLength(2);
     expect(chatBodies[0].max_completion_tokens).toBe(1_024);
     expect(chatBodies[1].max_completion_tokens).toBe(1_024);
-    expect(chatBodies[1].response_format).toEqual({ type: "json_object" });
+    expect(chatBodies[1].response_format).toBeUndefined();
   });
 
   it("leaves unrelated Right-hand tasks on the existing default generation settings", async () => {

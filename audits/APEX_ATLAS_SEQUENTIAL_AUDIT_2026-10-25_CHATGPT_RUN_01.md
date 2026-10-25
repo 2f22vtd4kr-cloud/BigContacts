@@ -219,3 +219,6 @@ No first card is verified by this agent. Continue when actionable runtime status
 
 - The canonical proof is still running against `e2abdc75629869fdacab3a7100d5fd73a224b8cc`. The full-isolation audit for that SHA caught two stale assertions in `groq-right-hand-reasoning.test.ts`: they expected GPT-OSS to receive provider-side `json_schema` and then `json_object` during completion-budget recovery. The adapter intentionally omits provider `response_format` for GPT-OSS; local parsing and the caller validator remain authoritative.
 - Updated both stale assertions to require the field be omitted. No production behavior changed. Re-run isolated tests and the full five-audit gate; the live canonical acceptance gate remains independently required.
+
+
+- Follow-up audit of PR #749 found one duplicate assertion remained because the first patch replaced only the first occurrence. Updated the second stale GPT-OSS `json_object` expectation too; the failed audit log was the evidence for this correction.
