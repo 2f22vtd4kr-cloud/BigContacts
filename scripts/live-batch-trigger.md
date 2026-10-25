@@ -88,3 +88,7 @@ The previous live run showed that the Boss-directed token-capacity recovery did 
 ## Canonical retry with same-role Mistral control fallback — 2026-10-25
 
 The latest run completed six discovery searches, but Groq's Boss control request then hit a rate/token-window limit and the fail-closed control transition stopped the case. The Boss adapter now has a bounded Mistral API fallback for rate-limited Groq control requests, preserving the Boss role and requiring the same JSON contract; the runtime will not invent a Boss decision. Canonical workflow maps any configured Mistral secrets without embedding keys in source. The model-specific GPT-OSS 20B Investigator fallback remains Boss-selected. Run with UI defaults and verify a persisted, source-backed person card and same-run API projection retrieval.
+
+## Correction — preserve Groq-only Boss control architecture — 2026-10-25
+
+A proposed Mistral control fallback was rejected by the repository's explicit architecture guard (Boss control files must remain Groq-only) and has been removed from source and workflow environment. No Mistral key or endpoint remains in the control path. The canonical run is retriggered with the Boss-selected GPT-OSS 20B Investigator model-capacity recovery and the bounded prompt/Right-hand contract fixes. If the Boss itself is rate-limited, the run must fail closed rather than silently substitute another role/provider; the audit will record that as an external provider-capacity blocker.
