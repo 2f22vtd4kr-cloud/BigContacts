@@ -137,7 +137,9 @@ describe("Groq Investigator runtime contract", () => {
     expect(repair).toContain('"locale":null');
     expect(repair).toContain('"market":null');
     expect(repair).toContain('"purpose"');
-    expect(repair).toContain("unused arrays=[]");
+    expect(repair).toContain("null only action-irrelevant scalar fields");
+    expect(repair).toContain("never null these fields");
+    expect(repair).toContain("nested registry-search item");
   });
 
   it("aligns the prompt with every required property in the strict structured-action schema", () => {
@@ -159,6 +161,9 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
+    expect(submitted).toContain("top-level hypothesis/purpose must be non-empty strings");
+    expect(submitted).toContain("expectedInformationGain a number in [0,1] (never null)");
+    expect(submitted).toContain("only done may null them");
     expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(submitted).toContain("Avoid generic wealth/net-worth/private-equity-profile searches alone");
     expect(submitted).toContain("Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop.");
@@ -169,6 +174,19 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
     expect(submitted).toContain('"searches":[],"findings":[]');
     expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(7_200);
+  });
+
+  it("rejects nullable top-level rationale fields on non-terminal research actions", () => {
+    const invalidResearchAction = JSON.stringify({
+      action: "web_search",
+      query: "regional manufacturing company ownership filing",
+      provider: "serper",
+      hypothesis: null,
+      purpose: "test whether an official filing names an owner",
+      expectedInformationGain: 0.6,
+    });
+    expect(describeAgentActionParseFailure(invalidResearchAction, ["web_search"]))
+      .toBe("missing_action_rationale action=web_search missing=hypothesis");
   });
 
   it("keeps a discovery turn usable after the active-scope guard blocks its prior action", () => {

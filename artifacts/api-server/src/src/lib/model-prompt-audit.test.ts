@@ -40,7 +40,7 @@ const input = {
 };
 
 describe("model prompt audit", () => {
-  it("makes the named model-audit capture an explicit development-only opt-in", () => {
+  it("enables contact-complete model capture only in the ignored private Replit run audit", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const artifactConfig = readFileSync(
       resolve(workspaceRoot, "artifacts/api-server/.replit-artifact/artifact.toml"),
@@ -53,14 +53,17 @@ describe("model prompt audit", () => {
     const workspaceConfig = readFileSync(resolve(workspaceRoot, ".replit"), "utf8");
 
     for (const config of [artifactConfig, workspaceConfig]) {
-      expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "false"');
-      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
+      expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
+      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
+      expect(config).toContain('APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-25_REPLIT_RUN_01.md"');
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
-      expect(config).not.toContain("APEX_MODEL_AUDIT_FILE =");
     }
+    const gitignore = readFileSync(resolve(workspaceRoot, ".gitignore"), "utf8");
+    expect(gitignore).toContain(".local/");
     expect(productionConfig).not.toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
+    expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_FILE =');
     expect(serviceRun).not.toContain("APEX_CAPTURE_MODEL_PROMPTS=true");
     expect(serviceRun).not.toContain("MAIN_REFRESH_RELAUNCH_01");
   });

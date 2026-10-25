@@ -377,8 +377,10 @@ function longestBacktickRun(value: string): number {
 }
 
 /**
- * Opt-in development trace of model-visible requests and responses. E-mail/phone
- * values and credentials are redacted; provider-only reasoning fields are omitted.
+ * Opt-in development trace of model-visible requests and responses. Credentials are
+ * always redacted and provider-private reasoning fields are omitted. Source-published
+ * email/phone values are retained only for explicit opt-in to private ignored audit paths;
+ * tracked/visible audit destinations continue to redact contact values or refuse raw capture.
  */
 export function emitModelPromptAudit(
   input: AuditInput,
