@@ -233,6 +233,62 @@ export function formatGroqBossAttemptSummary(attempts: GroqBossAttemptDiagnostic
   return attempts.map((attempt) => `${attempt.model}=HTTP ${attempt.httpStatus ?? "none"}${attempt.providerErrorCode ? ` (${attempt.providerErrorCode})` : ""}${attempt.failureClass ? ` [${attempt.failureClass}]` : ""}`).join(", ");
 }
 
+async function generateMistralBossFallback(
+  prompt: string,
+  responseFormat: Record<string, unknown> | undefined,
+  options?: { maxOutputTokens?: number; jobId?: string | null; caseId?: number | null },
+): Promise<GroqBossTextGenerationResult | null> {
+  const key = [process.env.MISTRAL_API_KEY, process.env.MISTRAL_API_KEY_1, process.env.MISTRAL_API_KEY_2]
+    .map((value) => value?.trim())
+    .find((value): value is string => Boolean(value));
+  if (!key) return null;
+  const model = "mistral-small-latest";
+  const requestBody = {
+    model,
+    messages: [{ role: "user", content: prompt }],
+    max_tokens: Math.min(options?.maxOutputTokens ?? 1536, 2_048),
+    temperature: 0.1,
+    stream: false,
+    ...(responseFormat ? { response_format: { type: "json_object" } } : {}),
+  };
+  const requestId = emitModelPromptAudit({
+    provider: "mistral",
+    role: "groq_boss",
+    model,
+    attempt: 1,
+    jobId: options?.jobId ?? null,
+    caseId: options?.caseId ?? null,
+    requestBody,
+  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25_000);
+  try {
+    const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+    const responseBody = await response.text();
+    emitModelPromptAuditResponse({ requestId, provider: "mistral", role: "groq_boss", model, httpStatus: response.status, responseBody });
+    if (!response.ok) {
+      const code = providerErrorCode(responseBody);
+      return { model, raw: null, error: `Mistral Boss fallback returned HTTP ${response.status}${code ? ` (${code})` : ""}: ${JSON.stringify(summarizeProviderBody(responseBody))}`, attempts: [{ model, keyName: "MISTRAL_API_KEY", httpStatus: response.status, providerErrorCode: code, failureClass: classifyProviderHttpStatus(response.status) }] };
+    }
+    let payload: unknown;
+    try { payload = JSON.parse(responseBody); } catch {
+      return { model, raw: null, error: "Mistral Boss fallback returned a non-JSON response.", attempts: [{ model, keyName: "MISTRAL_API_KEY", httpStatus: response.status, providerErrorCode: null, failureClass: "invalid_response" }] };
+    }
+    const raw = extractText(payload);
+    if (!raw) return { model, raw: null, error: "Mistral Boss fallback returned an empty response.", attempts: [{ model, keyName: "MISTRAL_API_KEY", httpStatus: response.status, providerErrorCode: null, failureClass: "invalid_response" }] };
+    return { model, raw, error: null, attempts: [{ model, keyName: "MISTRAL_API_KEY", httpStatus: response.status, providerErrorCode: null, failureClass: null }] };
+  } catch (error) {
+    return { model, raw: null, error: error instanceof Error && error.name === "AbortError" ? "Mistral Boss fallback exceeded its 25-second deadline." : "Mistral Boss fallback request failed.", attempts: [{ model, keyName: "MISTRAL_API_KEY", httpStatus: null, providerErrorCode: null, failureClass: classifyThrownProviderError(error, false) }] };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function generateGroqBossTextImpl(
   selection: GroqBossModelSelection,
   prompt: string,
@@ -472,6 +528,13 @@ async function generateGroqBossTextImpl(
     }
   }
 
+  const exhaustedOnRateLimit = lastError.includes("token_window_wait_exceeded")
+    || attempts.some((attempt) => attempt.failureClass === "rate_limited" || attempt.providerErrorCode === "rate_limit_exceeded");
+  if (exhaustedOnRateLimit) {
+    const fallback = await generateMistralBossFallback(boundedPrompt, responseFormat, options);
+    if (fallback?.raw) return { ...fallback, attempts: [...attempts, ...fallback.attempts] };
+    if (fallback?.error) lastError += `; ${fallback.error}`;
+  }
   return {
     model: selection.model,
     raw: null,
