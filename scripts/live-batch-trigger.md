@@ -84,3 +84,7 @@ The previous run's Boss-directed token-capacity recovery did not choose a valid 
 ## Canonical retry after explicit single-alternate Boss assignment — 2026-10-25
 
 The previous live run showed that the Boss-directed token-capacity recovery did not switch away from `groq-investigator-1` even though the model-scoped 20B capability was available. The Boss opening/reassignment prompt now makes the single permitted alternate explicit in the capability selection contract when only one alternate remains; the model is still chosen by Boss and no research query or action sequence is scripted. The 20B capability routes to GPT-OSS 20B while preserving the same durable case, trajectory, source gates, and card admission rules. Run UI defaults and verify the first source-backed person card through both durable storage and the same-run API projection.
+
+## Canonical retry with same-role Mistral control fallback — 2026-10-25
+
+The latest run completed six discovery searches, but Groq's Boss control request then hit a rate/token-window limit and the fail-closed control transition stopped the case. The Boss adapter now has a bounded Mistral API fallback for rate-limited Groq control requests, preserving the Boss role and requiring the same JSON contract; the runtime will not invent a Boss decision. Canonical workflow maps any configured Mistral secrets without embedding keys in source. The model-specific GPT-OSS 20B Investigator fallback remains Boss-selected. Run with UI defaults and verify a persisted, source-backed person card and same-run API projection retrieval.
