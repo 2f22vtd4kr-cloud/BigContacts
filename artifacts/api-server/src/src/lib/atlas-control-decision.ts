@@ -70,14 +70,16 @@ export function normalizeAtlasRightHandControl(value: Record<string, unknown> | 
     : typeof value.confidence === "string"
       ? ({ low: 0.25, medium: 0.5, high: 0.85 } as Record<string, number>)[value.confidence.trim().toLowerCase()]
       : undefined;
-  if (!decision || !reason || !(typeof direction === "string" || direction === null)
+  if (!decision || !reason || reason.length > 600
+    || !(typeof direction === "string" || direction === null)
+    || (typeof direction === "string" && direction.length > 600)
     || typeof confidence !== "number" || !Number.isFinite(confidence) || confidence < 0 || confidence > 1) return null;
   const normalizedDirection = decision !== "pivot_discovery" && typeof direction === "string"
     && direction.toLowerCase() === decision ? null : direction;
   const normalized: Record<string, unknown> = {
     decision,
-    reason: reason.slice(0, 600),
-    direction: typeof normalizedDirection === "string" ? normalizedDirection.slice(0, 600) : normalizedDirection,
+    reason,
+    direction: normalizedDirection,
     confidence,
   };
   return validateAtlasRightHandControl(normalized) ? normalized : null;
