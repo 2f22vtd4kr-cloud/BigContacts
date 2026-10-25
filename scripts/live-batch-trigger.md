@@ -106,3 +106,8 @@ Trigger one isolated provider-backed canonical Atlas run on the merged main revi
 ## Canonical proof after West Midlands scope and Companies House URL-lead fixes
 
 Run the exact UI-default discovery-first case again after the prior Groq organization TPD reset window. Current code includes the explicit West Midlands compatibility alias and official Companies House company/officer record URLs as unvisited leads. Do not seed targets, findings, or cards. The Investigator must choose and successfully fetch an official record URL before evidence can be admitted. The workflow fails unless a source-backed candidate_review card is returned by both the dashboard and entity APIs; preserve all model-audit and trace artifacts if it fails.
+
+
+## Canonical proof after GPT-OSS local JSON contract fix
+
+Run the same UI-default discovery-first canonical proof after the Right-hand GPT-OSS local-contract compatibility fix. Do not seed or manufacture targets, findings, source URLs, or cards. The Investigator must fetch a real source URL and create source-backed evidence. Require the existing final gate to find a persisted `candidate_review` card with HTTPS source URLs in the dashboard projection and the same `PersonCandidate` in the entity API. Preserve all model audit, trace, job, entity, dashboard and health artifacts whether the run passes or fails.
