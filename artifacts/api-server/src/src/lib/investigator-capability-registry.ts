@@ -89,6 +89,34 @@ export function getInvestigatorCredentialAliases(
  * Two slot names holding the same API key are one provider quota pool and may
  * not be treated as independent alternates after that credential is exhausted.
  */
+
+/**
+ * Model-scoped quota recovery is a narrow exception to credential deduplication:
+ * the explicit 20B capability shares the configured credential but calls a
+ * different model, so it can recover a 120B-only token cap. The ordinary
+ * registry continues to collapse same-credential slots.
+ */
+export function getModelScopedInvestigatorQuotaFallback(
+  env: NodeJS.ProcessEnv,
+  failedCapability: InvestigatorCapability,
+  unavailableCapabilities: readonly InvestigatorCapability[] = [],
+): InvestigatorCapability | null {
+  const configured = new Set(getAvailableInvestigatorCapabilities(env));
+  const unavailable = new Set(unavailableCapabilities);
+  if (
+    failedCapability !== GROQ_INVESTIGATOR_20B_CAPABILITY
+    && configured.has(GROQ_INVESTIGATOR_20B_CAPABILITY)
+    && !unavailable.has(GROQ_INVESTIGATOR_20B_CAPABILITY)
+  ) return GROQ_INVESTIGATOR_20B_CAPABILITY;
+  const defaultCapability: InvestigatorCapability = "groq-investigator-1";
+  if (
+    failedCapability === GROQ_INVESTIGATOR_20B_CAPABILITY
+    && configured.has(defaultCapability)
+    && !unavailable.has(defaultCapability)
+  ) return defaultCapability;
+  return null;
+}
+
 export function getAvailableDistinctInvestigatorCapabilities(
   env: NodeJS.ProcessEnv = process.env,
   excludedCapabilities: readonly InvestigatorCapability[] = [],
