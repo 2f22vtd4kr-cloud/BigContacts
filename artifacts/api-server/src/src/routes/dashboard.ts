@@ -267,7 +267,6 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
     evidenceSourceUrl: researchEvidenceTable.sourceUrl,
     evidenceMetadata: researchEvidenceTable.metadata,
     updatedAt: entitiesTable.updatedAt,
-    evidenceCreatedAt: researchEvidenceTable.createdAt,
   }).from(entitiesTable).innerJoin(researchEvidenceTable, eq(researchEvidenceTable.entityId, entitiesTable.id)).where(and(
     eq(entitiesTable.type, "PersonCandidate"),
     eq(entitiesTable.isHidden, false),
