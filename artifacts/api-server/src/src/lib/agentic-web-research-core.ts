@@ -3112,6 +3112,7 @@ function pivotTextMatchesGeography(value: string, options: readonly string[][]):
 }
 
 const REGISTRY_REGION_COMPATIBILITY: Record<string, readonly string[]> = {
+  "sec-edgar": ["united states", "usa", "us", "texas", "midwest", "illinois", "indiana", "ohio", "michigan", "wisconsin", "minnesota", "iowa", "missouri"],
   "ares-czechia": ["moravia", "morava", "bohemia", "czechia", "czech", "czech republic"],
   "zefix-switzerland": ["switzerland", "swiss", "zurich", "geneva", "bern", "basel", "vaud", "ticino"],
   "atoka-italy": ["italy", "italian", "lombardy", "lombardia", "milan", "piedmont", "veneto", "tuscany", "sicily"],
