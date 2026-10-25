@@ -59,6 +59,7 @@ describe("Groq Investigator provider boundary", () => {
       "groq-investigator-1",
       "groq-investigator-2",
       "groq-investigator-4",
+      "groq-investigator-20b",
     ]);
   });
   it("binds terminal findings only to exact passages from previously observed non-search sources", () => {
