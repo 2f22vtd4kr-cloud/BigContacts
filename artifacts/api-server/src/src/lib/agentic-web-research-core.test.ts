@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -40,6 +40,71 @@ function livenessRecord(action: string, execution: "success" | "error" | "blocke
     providerFallback: [],
   } as Parameters<typeof discoverySearchLivenessAdvisory>[0][number];
 }
+
+describe("trajectory-local web-search provider failure state", () => {
+  it("disables a provider after repeated invalid requests and preserves other providers", () => {
+    const states = new Map();
+    expect(recordSearchProviderFailure(states, "serper", "invalid_request")).toEqual({ failures: 1, lastFailureClass: "invalid_request", disabled: false });
+    expect(isSearchProviderDisabled(states, "serper")).toBe(false);
+    expect(recordSearchProviderFailure(states, "serper", "invalid_request")).toEqual({ failures: 2, lastFailureClass: "invalid_request", disabled: true });
+    expect(isSearchProviderDisabled(states, "serper")).toBe(true);
+    expect(isSearchProviderDisabled(states, "tavily")).toBe(false);
+    expect(isSearchProviderDisabled(states, "exa")).toBe(false);
+  });
+
+  it("disables immediately on authentication, permission, or not-found failures", () => {
+    for (const failure of ["unauthorized", "forbidden", "not_found"] as const) {
+      const states = new Map();
+      expect(recordSearchProviderFailure(states, "tavily", failure)?.disabled).toBe(true);
+      expect(isSearchProviderDisabled(states, "tavily")).toBe(true);
+    }
+  });
+
+  it("does not disable providers on transient rate limit, outage, timeout, or network failures", () => {
+    for (const failure of ["rate_limited", "provider_unavailable", "timeout", "network_error"] as const) {
+      const states = new Map();
+      expect(recordSearchProviderFailure(states, "exa", failure)?.disabled).toBe(false);
+      expect(isSearchProviderDisabled(states, "exa")).toBe(false);
+    }
+  });
+
+  it("describes observed provider availability without prescribing the next research action or exposing secrets", () => {
+    const states = new Map();
+    recordSearchProviderFailure(states, "serper", "invalid_request");
+    recordSearchProviderFailure(states, "serper", "invalid_request");
+    const notice = renderSearchProviderAvailabilityNotice(states);
+    expect(notice).toMatch(/serper is disabled.*invalid_request/i);
+    expect(notice).toMatch(/tavily \| exa/);
+    expect(notice).toMatch(/does not prescribe a fixed next action/i);
+    expect(notice).not.toMatch(/api.?key|credential|secret/i);
+  });
+
+  it("replays a prior failure across bounded Investigator passes", () => {
+    const priorRecords = [{ action: "web_search", args: { searchOutcome: { provider: "serper", status: "error", failureClass: "invalid_request" } } }] as unknown as AgenticTrajectoryRecord[];
+    const restored = restoreSearchProviderFailureState(priorRecords);
+    expect(isSearchProviderDisabled(restored, "serper")).toBe(false);
+    expect(recordSearchProviderFailure(restored, "serper", "invalid_request")?.disabled).toBe(true);
+  });
+
+  it("resets an invalid-request streak after a successful search", () => {
+    const priorRecords = [{ action: "parallel_web_search", args: { searchOutcomes: [
+      { provider: "serper", status: "error", failureClass: "invalid_request" },
+      { provider: "serper", status: "success", failureClass: null },
+    ] } }] as unknown as AgenticTrajectoryRecord[];
+    const restored = restoreSearchProviderFailureState(priorRecords);
+    expect(isSearchProviderDisabled(restored, "serper")).toBe(false);
+    expect(restored.has("serper")).toBe(false);
+  });
+
+  it("guards single and parallel calls and combines provider and scope filtering feedback", () => {
+    expect(agenticCoreSource).toContain("restoreSearchProviderFailureState(input.priorTrajectoryRecords ?? [])");
+    expect(agenticCoreSource).toContain("reason=search_provider_disabled");
+    expect(agenticCoreSource).toContain("reason=all_providers_disabled");
+    expect(agenticCoreSource).toContain("SEARCH PROVIDER FILTER: removed ");
+    expect(agenticCoreSource).toContain(String.raw`[scopeFilterSummary, "SCOPE FILTERED PARALLEL SEARCHES: retained "`);
+    expect(agenticCoreSource).toContain("no substitute query or provider is generated by the runtime.");
+  });
+});
 
 describe("registry adapter circuit breaker", () => {
   it("blocks retry of a failed adapter but leaves other adapters available", () => {
