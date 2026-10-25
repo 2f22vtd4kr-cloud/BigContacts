@@ -56,3 +56,7 @@ The last canonical run proved the Boss and Right-hand can complete, then the sel
 ## Canonical retry after bounded Right-hand format repair — 2026-10-25
 
 The previous run's Right-hand opening review failed its exact structured approval contract after bounded model attempts. The caller's validator remains authoritative; the retry now explicitly asks the same model to repair format/field bounds and then tries the configured same-role fallback. The next canonical run must also exercise the distinct Investigator fallback credential if the primary Investigator reports explicit tokens-per-day exhaustion. Do not infer success from a green build: use the exact UI-default launch and verify at least one persisted, source-backed person card and retrieval of that same card from the run's API projection.
+
+## Canonical retry after strict Right-hand JSON normalization — 2026-10-25
+
+The prior run still stopped before discovery at the Right-hand opening-review contract. The latest transport normalizes only JSON serialization when the model wraps a JSON object in Markdown fences; the parsed object must still pass the exact approval validator, with no field/value inference or relaxed admission. The same-role format-repair retry remains bounded. Use exact UI defaults and require a persisted source-backed person card plus same-run API projection retrieval.
