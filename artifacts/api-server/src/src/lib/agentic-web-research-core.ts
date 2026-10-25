@@ -3201,12 +3201,10 @@ function pivotRegistryMatchesGeography(
   // adapter jurisdiction explicitly. This supports new/rare cities without
   // guessing their country from capitalization, while a conflicting country
   // alias still fails closed.
-  const normalizedQuery = normalizeDiscoverySearchQuery(query);
-  const queryTokens = new Set(query.toLowerCase().match(/[a-z]+/g) ?? []);
+  const queryTokens = new Set(normalizeDiscoverySearchQuery(query).match(/[a-z]+/g) ?? []);
   return countryAliases.some((alias) => {
-    const normalizedAlias = normalizeDiscoverySearchQuery(alias);
-    if (normalizedAlias.length >= 3) return normalizedQuery.includes(normalizedAlias);
-    return queryTokens.has(normalizedAlias);
+    const aliasTokens = normalizeDiscoverySearchQuery(alias).match(/[a-z]+/g) ?? [];
+    return aliasTokens.length > 0 && aliasTokens.every((token) => queryTokens.has(token));
   });
 }
 
