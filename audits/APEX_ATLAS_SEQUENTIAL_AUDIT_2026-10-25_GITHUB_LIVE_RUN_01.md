@@ -45,3 +45,18 @@ Record the terminal status/outcome, discovered entity names and IDs, source/prov
 ### E005 — Final evidence (append after workflow result)
 
 Include the real job ID, final workflow result, terminal counters, minimum-admission assertion, audit artifact link, persisted card/entity ID(s), public source URLs, and UI/API projection check. Leave unknown values explicitly unknown.
+
+### E006 — Isolated GitHub live-run fallback blocked at credential preflight
+
+- Observation timestamp (UTC): 2026-10-25 09:10:45–09:10:58.
+- Workflow: Apex Atlas User-Requested Live Run (2026-10-25), run https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/40179569398, job ID 121127510267, source commit b04bc6fe77b34f2a6ea55368f7ed0deb101740b8 on branch agent/apex-live-run-20261025.
+- The isolated PostgreSQL/Redis containers became healthy. Before dependency installation, API startup, launch POST, or any external model/search call, the explicit secret-presence gate failed with: “Missing GitHub Actions secret for the Groq Boss role.” Runner logs showed the expected Groq Boss, Right-hand, and Investigator key slots were empty. Several search-provider integrations were configured, but the model-role credentials required to run the bureau were not available in GitHub Actions.
+- The live audit script then correctly reported infra_prelaunch_failure / researchQuality=inconclusive because no launch existed. No API request was made, no model was called, no web query was run, no provider failover occurred, and no card/entity was created in this workflow.
+- Independent corroboration: the other agent's Apex Canonical Runtime Proof run https://github.com/2f22vtd4kr-cloud/BigContacts/actions/runs/40179498576 failed at the same fail-fast Groq Boss secret-presence step before its own canonical launch. Its one-target fast smoke was not a card run.
+- Replit read-only status checks for both candidate project IDs again returned phase=paused with an empty response. get_publish_status returned found=false for both projects, so no already-published endpoint was available to query. These are limitations of the available tools; they do not prove the earlier Replit job is terminal.
+- The failure is credential availability at the execution environment boundary, not evidence that an Investigator key was exhausted, invalid, or rate-limited. No secret values were printed, copied, rotated, or changed. The previous Replit runtime secrets were not available to this GitHub runner and cannot be transferred here by the current connected tools.
+- This branch's isolated workflow was deliberately kept off main to avoid cancelling other agents' ongoing main-branch code-audit runs. The tracked report and the captured, credential-redacted model-request audit remain attached to the visible branch/action artifacts for diagnostics.
+
+## Current truth
+
+No full run has yet been verified. No card has been created by this fallback. The remaining path requires a runtime that can read the configured Replit provider secrets or authorized Groq Boss / Right-hand / Investigator credentials made available to the execution environment; without them, the intended model-driven Bureau cannot legally or honestly progress to discovery and card creation. Do not replace missing model roles with canned data, mock mode, synthetic cards, or a deterministic search script.
