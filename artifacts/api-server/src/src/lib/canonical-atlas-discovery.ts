@@ -5,7 +5,7 @@ import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
-import { ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandApprovalReview, type AtlasControlAction } from "./atlas-control-decision";
+import { ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandApprovalReview, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
@@ -1417,7 +1417,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             const parsed = value && typeof value === "object" && !Array.isArray(value)
               ? value as Record<string, unknown>
               : null;
-            return validateAtlasOpeningRightHandApprovalReview(parsed);
+            return validateAtlasOpeningRightHandApprovalReview(parsed) || normalizeAtlasOpeningRightHandApprovalReview(parsed) !== null;
           } catch {
             return false;
           }
@@ -1462,18 +1462,21 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const parsed = value && typeof value === "object" && !Array.isArray(value)
             ? value as Record<string, unknown>
             : null;
-          if (!validateAtlasOpeningRightHandApprovalReview(parsed) || !parsed) {
+          const normalized = parsed && validateAtlasOpeningRightHandApprovalReview(parsed)
+            ? parsed
+            : normalizeAtlasOpeningRightHandApprovalReview(parsed);
+          if (!normalized || !validateAtlasOpeningRightHandApprovalReview(normalized)) {
             rightHand.status = "unavailable";
             rightHand.error = "Right-hand returned an invalid opening review contract.";
           } else {
             rightHand = {
               status: "completed",
               model: rightHandRaw.model,
-              approval: parsed.approval as "approve" | "reject",
-              decision: (parsed.decision as string).trim(),
-              reason: (parsed.reason as string).trim(),
-              focusLanes: (parsed.focusLanes as string[]).map((lane) => lane.trim()),
-              confidence: parsed.confidence as number,
+              approval: normalized.approval as "approve" | "reject",
+              decision: (normalized.decision as string).trim(),
+              reason: (normalized.reason as string).trim(),
+              focusLanes: (normalized.focusLanes as string[]).map((lane) => lane.trim()),
+              confidence: normalized.confidence as number,
               error: null,
             };
           }
