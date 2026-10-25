@@ -9,3 +9,6 @@
 
 
 - PR #750's first build exposed a test-environment issue in the new alias test: Companies House is correctly unavailable when the test has no API key, so the parser rejected the alias at the availability gate. The test now stubs a non-secret dummy key for that assertion only and restores the environment; production availability checks are unchanged.
+
+
+- The first PR #750 build caught a prompt-budget regression: the expanded Right-hand contract guidance displaced a pinned source URL from the bounded prompt. Shortened the added contract instructions while retaining the action enum, numeric confidence, direction-null, and concrete-pivot rules; the pinned evidence URL must remain in the prompt.
