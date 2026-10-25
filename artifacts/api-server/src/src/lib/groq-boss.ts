@@ -429,9 +429,12 @@ async function generateGroqBossTextImpl(
               continue;
             }
             if (!hardQuota) {
-              // Ordinary request throttling is not evidence that another model or
-              // credential should replace the selected control capability.
-              return { model, raw: null, error: "upstream_rate_limited", attempts };
+              // Preserve the Boss role but cross the provider boundary when Groq's
+              // control request is rate-limited. This is a bounded same-role fallback,
+              // not a deterministic decision or a substitute for Boss output.
+              const fallback = await generateMistralBossFallback(boundedPrompt, responseFormat, options);
+              if (fallback?.raw) return { ...fallback, attempts: [...attempts, ...fallback.attempts] };
+              return { model, raw: null, error: fallback?.error ? `upstream_rate_limited; ${fallback.error}` : "upstream_rate_limited", attempts: [...attempts, ...(fallback?.attempts ?? [])] };
             }
             // Explicit hard request quota may use the bounded Boss model/key
             // fallback chain; it is never confused with token-window exhaustion.
