@@ -2414,7 +2414,7 @@ const AGENTIC_ACTION_SCHEMA = {
 } as const;
 
 export function structuredActionResponseFormat(model: string, actionAllowlist?: readonly string[]): Record<string, unknown> {
-  // Groq's GPT-OSS 20B endpoint repeatedly rejects otherwise valid action outputs
+  // Groq's GPT-OSS 20B endpoint repeatedly fails JSON generation/validation
   // with json_validate_failed, including after the JSON-object compatibility retry.
   // Omit provider-side format enforcement for this one fallback model and keep the
   // strict local parser/action allowlist as the authoritative contract.
