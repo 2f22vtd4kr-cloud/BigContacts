@@ -406,7 +406,7 @@ describe("Groq Right-hand model policy", () => {
   it("tries the next catalog-listed Right-hand model when the first response fails its caller's contract", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-contract-fallback-test-key");
     const chatModels: string[] = [];
-    const responseSchemas: Record<string, any>[] = [];
+    const responseFormats: string[] = [];
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = String(input);
       if (url === "https://api.groq.com/openai/v1/models") {
@@ -418,7 +418,7 @@ describe("Groq Right-hand model policy", () => {
       expect(authorization).toBe("Bearer right-hand-contract-fallback-test-key");
       const body = JSON.parse(String(init?.body));
       chatModels.push(body.model);
-      responseSchemas.push(body.response_format?.json_schema?.schema ?? {});
+      responseFormats.push(body.response_format?.type ?? "omitted");
       const content = body.model === "openai/gpt-oss-120b"
         ? '{"unexpected":"not a valid review"}'
         : '{"decision":"proceed","reason":"supported","focusLanes":[],"confidence":0.9}';
@@ -446,11 +446,7 @@ describe("Groq Right-hand model policy", () => {
     expect(result.model).toBe("openai/gpt-oss-20b");
     expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
     expect(fetchMock).toHaveBeenCalledTimes(4);
-    const responseSchema = responseSchemas.at(-1);
-    expect(responseSchema?.properties.decision).toMatchObject({ minLength: 1, maxLength: 300 });
-    expect(responseSchema?.properties.reason).toMatchObject({ minLength: 1, maxLength: 1_200 });
-    expect(responseSchema?.properties.focusLanes).toMatchObject({ maxItems: 8, items: { minLength: 1, maxLength: 160 } });
-    expect(responseSchema?.properties.confidence).toMatchObject({ minimum: 0, maximum: 1 });
+    expect(responseFormats).toEqual(["omitted", "omitted", "omitted"]);
   });
 
   it("retries a transient 429 before falling back to another model", { timeout: 15_000 }, async () => {
@@ -492,7 +488,7 @@ describe("Groq Right-hand model policy", () => {
     expect(chatCalls).toHaveLength(2);
   });
 
-  it("retries a strict JSON schema rejection in JSON-object mode", { timeout: 15_000 }, async () => {
+  it("omits provider response_format for GPT-OSS and validates the caller contract locally", { timeout: 15_000 }, async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-json-compatibility-test-key");
     const formats: string[] = [];
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
@@ -500,15 +496,9 @@ describe("Groq Right-hand model policy", () => {
         return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }] }), { status: 200 });
       }
       const body = JSON.parse(String(init?.body));
-      formats.push(body.response_format?.type);
-      if (body.response_format?.type === "json_schema") {
-        return new Response(JSON.stringify({
-          error: { code: "json_validate_failed", message: "Structured output validation failed." },
-        }), { status: 400 });
-      }
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: '{"decision":"proceed"}' } }],
-      }), { status: 200 });
+      formats.push(body.response_format?.type ?? "omitted");
+      const content = formats.length === 1 ? '{"decision":"not-proceed"}' : '{"decision":"proceed"}';
+      return new Response(JSON.stringify({ choices: [{ message: { content } }] }), { status: 200 });
     });
 
     const result = await runGroqRightHandFreeJson(
@@ -522,10 +512,13 @@ describe("Groq Right-hand model policy", () => {
           additionalProperties: false,
         },
       },
+      (raw) => {
+        try { return JSON.parse(raw).decision === "proceed"; } catch { return false; }
+      },
     );
 
     expect(result.status).toBe("completed");
-    expect(formats).toEqual(["json_schema", "json_object"]);
+    expect(formats).toEqual(["omitted", "omitted"]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
@@ -589,7 +582,7 @@ describe("Groq Right-hand model policy", () => {
     expect(normalizeGroqRightHandDiscoveryAdvice({ ...valid, focusLanes: ["l".repeat(161)] }, "model").status).toBe("unavailable");
   });
 
-  it("retries one invalid task contract in JSON-object mode before accepting only the caller-validated contract", async () => {
+  it("retries one invalid task contract with local parsing before accepting only the caller-validated contract", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "test-right-hand-contract-retry");
     const formats: string[] = [];
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
@@ -597,7 +590,7 @@ describe("Groq Right-hand model policy", () => {
         return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }] }), { status: 200 });
       }
       const body = JSON.parse(String(init?.body));
-      formats.push(body.response_format?.type);
+      formats.push(body.response_format?.type ?? "omitted");
       const content = formats.length === 1
         ? '{"approval":"maybe","decision":"unclear","reason":"not valid","focusLanes":[],"confidence":0.5}'
         : '{"approval":"approve","decision":"The direction is in scope.","reason":"A public-source path is plausible.","focusLanes":["official filings"],"confidence":0.7}';
@@ -620,7 +613,7 @@ describe("Groq Right-hand model policy", () => {
 
     expect(result.status).toBe("completed");
     expect(JSON.parse(result.raw ?? "{}").approval).toBe("approve");
-    expect(formats).toEqual(["json_schema", "json_object"]);
+    expect(formats).toEqual(["omitted", "omitted"]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 

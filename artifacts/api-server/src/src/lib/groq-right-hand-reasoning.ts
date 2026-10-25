@@ -262,7 +262,8 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
   let lastRetryAfterMs: number | null = null;
   let lastRetryAfterHeader: string | null = null;
   while(Date.now()<deadline&&outboundAttemptCount<maxOutboundAttempts){
-    const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:currentUser}],max_completion_tokens:currentCompletionTokens,temperature:0.1,stream:false,response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat, reasoning_effort:currentReasoningEffort, include_reasoning:false};
+    const omitProviderResponseFormat = candidate.model.toLowerCase().includes("gpt-oss");
+    const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:currentUser}],max_completion_tokens:currentCompletionTokens,temperature:0.1,stream:false,...(omitProviderResponseFormat?{}:{response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat}), reasoning_effort:currentReasoningEffort, include_reasoning:false};
      const modelAuditRequestId=emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:outboundAttemptCount+1,jobId:auditContext?.jobId??null,caseId:auditContext?.caseId??null,requestBody});
     const body=JSON.stringify(requestBody);
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
@@ -287,7 +288,13 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
        useJsonObjectFallback=true;
        continue;
      }
-     if(response.status===400&&code==="json_validate_failed"&&!useJsonObjectFallback&&structuredResponseFormat?.type==="json_schema"){useJsonObjectFallback=true;continue;}
+     const isGptOssModel = candidate.model.toLowerCase().includes("gpt-oss");
+     if(response.status===400&&code==="json_validate_failed"&&!useJsonObjectFallback&&!isGptOssModel&&structuredResponseFormat?.type==="json_schema"){useJsonObjectFallback=true;continue;}
+     if(response.status===400&&code==="json_validate_failed"&&!useJsonObjectFallback&&isGptOssModel){
+       useJsonObjectFallback=true;
+       currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\\n\\n"+contractRecoveryPrompt;
+       continue;
+     }
      if(response.status===400&&code==="json_validate_failed"&&useJsonObjectFallback)break;
      if(response.status===401||response.status===403||response.status===404)break;
      if(response.status===429)break;
@@ -302,9 +309,10 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
        try { JSON.parse(raw); } catch { const extracted=extractJson(raw); if(extracted) raw=JSON.stringify(extracted); }
        if(!validateRaw(raw)){
         failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:null,body:null,rateLimitHeaders:{},failureClass:"invalid_contract",keyFingerprint:fingerprint(candidate.entry.key)});
-        // A schema-valid JSON object can still violate a task-specific contract.
-        // Retry once with explicit format repair and JSON-object mode before moving
-        // to the next same-role model; the caller's validator remains authoritative.
+        // A JSON object can still violate a task-specific contract.
+        // Retry once with explicit format repair before moving to the next same-role
+        // model; GPT-OSS uses local parsing rather than provider-side response_format,
+        // and the caller's validator remains authoritative.
         if(!useJsonObjectFallback&&outboundAttemptCount<maxOutboundAttempts){useJsonObjectFallback=true;currentUser=(normalizedUser.length+contractRecoveryPrompt.length+2<=MAX_PROMPT_CHARS?normalizedUser:normalizedUser.slice(0,MAX_PROMPT_CHARS-contractRecoveryPrompt.length-2))+"\\n\\n"+contractRecoveryPrompt;continue;}
         break;
        }
