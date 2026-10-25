@@ -1222,7 +1222,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const ukObjective = [
       "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Investigate private family-owned manufacturing companies in the United Kingdom using the Companies House registry to identify owners/operators.",
-    ].join("\\n\\n");
+    ].join("\n\n");
     expect(discoveryPivotAlignmentReason(ukObjective, "registry_search", {
       query: "Rieter Holdings",
       registry: "companies-house",
