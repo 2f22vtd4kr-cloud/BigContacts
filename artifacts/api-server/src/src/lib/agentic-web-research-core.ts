@@ -4213,7 +4213,61 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         hardMinimumTail,
       ].join("\n\n");
       if (ultraCompactEmergencyPrompt.length <= maxUserPromptChars) return ultraCompactEmergencyPrompt;
-      throw new Error("Canonical Investigator critical prompt contract exceeds the provider ceiling.");
+      // The history can still make every evidence-rich tier exceed the provider
+      // ceiling after a long fetched page plus a pinned URL inventory. Do not fail
+      // the run during prompt composition: retain the schema/admission law and a
+      // bounded latest-action excerpt while leaving durable history untouched.
+      const boundedLatest = latestRecord ? compactRecordEnvelope(latestRecord, 140, 1) : null;
+      const finalActionTail = boundedLatest
+        ? "LATEST TRAJECTORY RECORD (bounded; durable history remains authoritative): " + JSON.stringify({
+            turn: boundedLatest.turn,
+            action: boundedLatest.action,
+            execution: boundedLatest.execution,
+            args: boundedLatest.args,
+            observedUrls: boundedLatest.observedUrls.slice(0, 1),
+            leadUrls: boundedLatest.leadUrls.slice(0, 1),
+            observation: String(boundedLatest.observation ?? "").slice(0, 220),
+          })
+        : "LATEST OBSERVATION: " + compactEmergencyTrajectoryObservation(input.lastObservation || "(none)", 140);
+      const finalRecoveryPrompt = [
+        finalEmergencyAssignment,
+        activeScope
+          ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 120)
+          : "CASE OBJECTIVE: source-backed research for real people and realistic public/professional routes; never invent evidence.",
+        "SCOPE AND EVIDENCE: honor subject/geography; source class may vary by query. Search results are leads, not evidence. Visit only observed URLs. Never invent people, ownership, wealth or contacts.",
+        "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
+        "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
+        compactRegistryGuidance,
+        "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Action order remains model-owned.",
+        ...(input.mode === "discovery" ? [shortestAdmission] : []),
+        hardMinimumOutputContract,
+        finalActionTail,
+      ].filter(Boolean).join("\n\n");
+      if (finalRecoveryPrompt.length <= maxUserPromptChars) return finalRecoveryPrompt;
+      // Absolute last resort omits only the model-facing trajectory excerpt; the
+      // complete latest action, source URLs, and observations remain durable.
+      const absoluteMinimumPrompt = [
+        finalEmergencyAssignment,
+        activeScope
+          ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 80)
+          : "CASE OBJECTIVE: source-backed public research for real people; never invent evidence.",
+        "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
+        "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
+        "EVIDENCE: search results are leads, not evidence; fetched observations must support exact claims. Never invent identities, ownership, wealth or contacts.",
+        "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless gates pass.",
+        ...(input.mode === "discovery" ? [shortestAdmission] : []),
+        hardMinimumOutputContract,
+      ].filter(Boolean).join("\n\n");
+      if (absoluteMinimumPrompt.length <= maxUserPromptChars) return absoluteMinimumPrompt;
+      // The irreducible schema/safety contract is static and materially smaller
+      // than the supported provider budget; it never includes unbounded case state.
+      return [
+        finalEmergencyAssignment,
+        "CASE OBJECTIVE: source-backed public research for real people and realistic routes; never invent evidence.",
+        "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
+        "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
+        "OUTPUT CONTRACT: Return one JSON object satisfying the provider schema. All schema fields must be present. For non-done actions, hypothesis and purpose are non-empty strings and expectedInformationGain is numeric in [0,1]. Use only listed actions/providers. Search results are leads, not evidence. Never invent identities, ownership, wealth, URLs or contacts.",
+      ].join("\n\n");
     }
     const boundedState = boundedAuxiliaryState(dynamicState, compactBudget);
     return [compactPrefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n");
