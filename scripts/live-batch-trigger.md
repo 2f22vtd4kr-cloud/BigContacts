@@ -92,3 +92,7 @@ The latest run completed six discovery searches, but Groq's Boss control request
 ## Correction — preserve Groq-only Boss control architecture — 2026-10-25
 
 A proposed Mistral control fallback was rejected by the repository's explicit architecture guard (Boss control files must remain Groq-only) and has been removed from source and workflow environment. No Mistral key or endpoint remains in the control path. The canonical run is retriggered with the Boss-selected GPT-OSS 20B Investigator model-capacity recovery and the bounded prompt/Right-hand contract fixes. If the Boss itself is rate-limited, the run must fail closed rather than silently substitute another role/provider; the audit will record that as an external provider-capacity blocker.
+
+## Canonical retry after Right-hand feasibility rejection handling — 2026-10-25
+
+The latest canonical run was stopped by the Right-hand because the Boss proposed a state registry adapter and ownership fields not available in the runtime. The next run must not treat this as a dead end: the Boss prompt now requires a model-owned pivot to a feasible source/jurisdiction when the Right-hand rejects an infeasible first direction, without prescribing a target or query. The same-role Groq-only control architecture is preserved, and the explicit model-scoped GPT-OSS 20B Investigator fallback remains available for token-capacity recovery. Run with UI defaults and verify the first source-backed card via durable storage and API projection.
