@@ -3,7 +3,18 @@ import { describe, expect, it } from "vitest";
 const reconciler = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
 const launchRoute = readFileSync(new URL("../routes/research/canonical-atlas-launch.ts", import.meta.url), "utf8");
 const dashboardRoute = readFileSync(new URL("../routes/dashboard.ts", import.meta.url), "utf8");
+const agenticCore = readFileSync(new URL("../lib/agentic-web-research-core.ts", import.meta.url), "utf8");
 describe("terminal review-card reconciliation", () => {
+  it("retains registry-typed company leads even when the Investigator emitted no finding", () => {
+    expect(agenticCore).toContain("export function compactRegistryCompanyLeads");
+    expect(agenticCore).toContain('row.type !== "Corporation"');
+    expect(agenticCore).toContain("companyLeads: error ? [] : companyLeads");
+    expect(reconciler).toContain("const outcomes = Array.isArray(args.registrySearchOutcomes) ? args.registrySearchOutcomes : []");
+    expect(reconciler).toContain('const partialRegistry = registryAction && payload.execution === "partial"');
+    expect(reconciler).toContain("bindExactSourceSpan(observation.text, lead.name)");
+    expect(reconciler).toContain('verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead"');
+    expect(reconciler).toContain("ownership, control, wealth, and targetability remain unestablished");
+  });
   it("persists only exact organization findings from successful search observations as review leads", () => {
     expect(reconciler).toContain('finding.scope !== "organization"');
     expect(reconciler).toContain('payload.execution === "success"');
