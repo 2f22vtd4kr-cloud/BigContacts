@@ -6,6 +6,7 @@ import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
+import { isCanonicalJobOwner } from "./canonical-job-lock";
 
 function normalizeSource(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -32,6 +33,7 @@ function parseObject(value: unknown): Record<string, unknown> | null {
  */
 export async function reconcileOrganizationReviewCardsForJob(jobId: string): Promise<{ cards: number; evidenceRows: number }> {
   const empty = { cards: 0, evidenceRows: 0 };
+  if (!(await isCanonicalJobOwner("atlas-run", jobId))) return empty;
   const cases = await db.select({ id: researchCasesTable.id, caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType })
     .from(researchCasesTable)
     .where(and(eq(researchCasesTable.caseType, "discovery"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`));
@@ -84,9 +86,10 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       }
       if (!supports.size) continue;
       const persisted = await db.transaction(async (tx) => {
-        const [ownedCase] = await tx.select({ caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile })
+        const [ownedCase] = await tx.select({ caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile, currentAction: researchCasesTable.currentAction })
           .from(researchCasesTable).where(eq(researchCasesTable.id, researchCase.id)).for("update").limit(1);
-        if (!ownedCase || ownedCase.caseType !== "discovery" || parseObject(ownedCase.caseFile)?.jobId !== jobId) return { card: false, evidence: 0 };
+        if (!ownedCase || ownedCase.caseType !== "discovery" || parseObject(ownedCase.caseFile)?.jobId !== jobId
+          || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(ownedCase.currentAction ?? ""))) return { card: false, evidence: 0 };
         const existing = await tx.select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
           .from(entitiesTable).where(and(eq(entitiesTable.type, "Corporation"), sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`)).limit(32);
         const sameCase = existing.find((row) => {
@@ -155,6 +158,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
  * not admit an HNWI, establish a personal contact route, or bypass target gates.
  */
 export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{ cards: number; evidenceRows: number }> {
+  if (!(await isCanonicalJobOwner("atlas-run", jobId))) return { cards: 0, evidenceRows: 0 };
   const cases = await db.select({ id: researchCasesTable.id, caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType })
     .from(researchCasesTable)
     .where(and(eq(researchCasesTable.caseType, "discovery"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`));
@@ -209,9 +213,10 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       }
       if (!supports.size) continue;
       const persisted = await db.transaction(async (tx) => {
-        const [ownedCase] = await tx.select({ caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile })
+        const [ownedCase] = await tx.select({ caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile, currentAction: researchCasesTable.currentAction })
           .from(researchCasesTable).where(eq(researchCasesTable.id, researchCase.id)).for("update").limit(1);
-        if (!ownedCase || ownedCase.caseType !== "discovery" || parseObject(ownedCase.caseFile)?.jobId !== jobId) return { card: false, evidence: 0 };
+        if (!ownedCase || ownedCase.caseType !== "discovery" || parseObject(ownedCase.caseFile)?.jobId !== jobId
+          || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(ownedCase.currentAction ?? ""))) return { card: false, evidence: 0 };
         const existing = await tx.select({ id: entitiesTable.id, type: entitiesTable.type, metadata: entitiesTable.metadata })
           .from(entitiesTable).where(and(sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`, inArray(entitiesTable.type, ["HNWI", "Gatekeeper", "PersonCandidate"]))).limit(32);
         const sameCase = existing.find((row) => {
