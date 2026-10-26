@@ -45,7 +45,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       .where(and(eq(researchCaseEventsTable.caseId, researchCase.id), inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"])))
       .orderBy(researchCaseEventsTable.id);
     const findings = new Map<string, { name: string; urls: Set<string> }>();
-    const observations: Array<{ action: string; execution: string; url: string; text: string; eventId: number; createdAt: Date }> = [];
+    const observations: Array<{ action: string; execution: string; url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead" }> = [];
     for (const event of events) {
       const payload = parseObject(event.payload);
       if (!payload || payload.jobId !== jobId) continue;
@@ -65,15 +65,24 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           findings.set(identity, entry);
         }
       }
-      const searchLeadUrls = Array.isArray(payload.leadUrls) && payload.leadUrls.length
-        ? payload.leadUrls
-        : (Array.isArray(payload.observedUrls) ? payload.observedUrls : []);
-      if (event.eventType === "tool_observation" && payload.execution === "success" && /search/i.test(String(payload.action ?? ""))) {
-        for (const rawUrl of searchLeadUrls) {
-          const url = normalizeSource(rawUrl);
-          if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
-          observations.push({ action: String(payload.action ?? ""), execution: String(payload.execution), url, text: String(payload.observation ?? ""), eventId: event.id, createdAt: event.createdAt });
-        }
+      if (event.eventType !== "tool_observation" || payload.execution !== "success") continue;
+      const action = String(payload.action ?? "");
+      const search = /search/i.test(action);
+      const fetched = action === "visit" || action === "browser_fetch";
+      if (!search && !fetched) continue;
+      // Search-result URLs establish leads; visit/browser-fetch URLs establish
+      // fetched-source support only when the exact name also appears in fetched text.
+      const observedUrls = Array.isArray(payload.observedUrls) ? payload.observedUrls : [];
+      const leadUrls = Array.isArray(payload.leadUrls) && payload.leadUrls.length ? payload.leadUrls : observedUrls;
+      const sourceUrls = fetched ? observedUrls : leadUrls;
+      for (const rawUrl of sourceUrls) {
+        const url = normalizeSource(rawUrl);
+        if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
+        observations.push({
+          action, execution: String(payload.execution), url, text: String(payload.observation ?? ""),
+          eventId: event.id, createdAt: event.createdAt,
+          verificationLevel: fetched ? "fetched_source" : "search_result_lead",
+        });
       }
     }
     for (const lead of findings.values()) {
@@ -81,7 +90,10 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       for (const observation of observations) {
         if (!lead.urls.has(observation.url)) continue;
         if (!bindExactSourceSpan(observation.text, lead.name)?.exact) continue;
-        if (!supports.has(observation.url)) supports.set(observation.url, observation);
+        const previous = supports.get(observation.url);
+        if (!previous || (previous.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) {
+          supports.set(observation.url, observation);
+        }
       }
       if (!supports.size) continue;
       const persisted = await db.transaction(async (tx) => {
