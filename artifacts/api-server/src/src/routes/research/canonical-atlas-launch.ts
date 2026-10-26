@@ -11,6 +11,8 @@ import { describeThrownProviderError } from "../../lib/provider-error-diagnostic
 import { classifyActiveJobLaneStatus } from "../../lib/job-queue-terminal-policy";
 import { withProviderScope } from "../../lib/provider-gate";
 import { parseCanonicalSingleTargetId } from "../../middlewares/normalize-atlas-launch-body";
+import { reconcileOrganizationReviewCardsForJob } from "../../lib/research-lead-card-reconciliation";
+import { logger } from "../../lib/logger";
 
 const router = Router();
 
@@ -220,6 +222,12 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
       }
       await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
     } finally {
+      try {
+        await reconcileOrganizationReviewCardsForJob(atlasJobId);
+      } catch (error) {
+        logger.warn({ jobId: atlasJobId, error: error instanceof Error ? error.message : "unknown reconciliation error" },
+          "Review-only organization card reconciliation deferred; durable research trace remains available.");
+      }
       try {
         await releaseCanonicalJob("atlas-run", atlasJobId);
       } catch {

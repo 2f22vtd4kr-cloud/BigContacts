@@ -21,7 +21,6 @@
 
 import { Router, type IRouter, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable } from "@workspace/db";
-import { reconcileOrganizationReviewCardsForJob } from "../lib/research-lead-card-reconciliation";
 import {
   REGISTRY_IDS,
   getAvailableRegistryIds,
@@ -339,19 +338,6 @@ router.get("/ingest/job/:jobId", async (req, res): Promise<void> => {
     return;
   }
   if (!job) { res.status(404).json({ error: "Job not found." }); return; }
-
-  // Terminal Atlas polling is also a durable reconciliation boundary: keep
-  // exact, source-attributed organization leads as review cards even when the
-  // Investigator could not fetch the linked page. This is idempotent and does
-  // not promote a person or turn a search snippet into supported evidence.
-  if (job.type === "atlas-run" && ["done", "failed", "cancelled"].includes(String(job.status))) {
-    try {
-      await reconcileOrganizationReviewCardsForJob(jobId);
-    } catch (error) {
-      logger.warn({ jobId, error: error instanceof Error ? error.message : "unknown reconciliation error" },
-        "Review-only organization card reconciliation deferred; durable research trace remains available.");
-    }
-  }
 
   const log = await getJobLog(jobId);
   const dedupCount = await getDedupCount();
