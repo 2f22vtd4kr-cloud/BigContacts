@@ -332,7 +332,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
   }
   if(stopModelFallbackForDailyQuota) break;
  }
- return {raw:"",error:`Groq Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:attempts.at(-1)?.model??GROQ_RIGHT_HAND_MODEL};
+ return {raw:"",error:`Groq Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:failures.at(-1)?.model??attempts.at(-1)?.model??GROQ_RIGHT_HAND_MODEL};
 }
 
 async function request(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean,auditContext?:GroqRightHandAuditContext,requestOptions?:GroqRightHandRequestOptions):Promise<{raw:string;error:string|null;model:string}> {
