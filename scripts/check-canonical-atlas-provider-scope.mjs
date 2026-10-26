@@ -58,7 +58,8 @@ const checks = [
       && block.includes('if(!dailyTokenQuota&&kind==="tokens"')
       && block.includes("if(dailyTokenQuota)stopModelFallbackForDailyQuota=true;break;");
     const dailyQuotaStopsSameCredentialModelHops = rightHand.includes("if(stopModelFallbackForDailyQuota) break;");
-    const other429sStillUseBoundedFallback = block.includes("failures.push(diagnostic);break;")
+    const other429sStillUseBoundedFallback = block.includes("failures.push(diagnostic);")
+      && block.includes("stopModelFallbackForDailyQuota=true;break;")
       && rightHand.includes('if(response.status===429)break;');
     return dailyQuotaIsExplicit && dailyQuotaStopsSameCredentialModelHops && other429sStillUseBoundedFallback;
   })(), "Groq Right-hand must stop same-credential retries/model hops for explicit tokens-per-day exhaustion while preserving bounded fallback for other HTTP 429 responses."],
