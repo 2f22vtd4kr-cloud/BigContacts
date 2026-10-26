@@ -184,6 +184,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
     .where(and(eq(researchCasesTable.caseType, "discovery"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`));
   let cards = 0;
   let evidenceRows = 0;
+  let changed = false;
   for (const researchCase of cases) {
     const events = await db.select({ id: researchCaseEventsTable.id, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
       .from(researchCaseEventsTable)
@@ -240,34 +241,58 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
         const [ownedCase] = await tx.select({ caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile, currentAction: researchCasesTable.currentAction })
           .from(researchCasesTable).where(eq(researchCasesTable.id, researchCase.id)).for("update").limit(1);
         if (!ownedCase || ownedCase.caseType !== "discovery" || parseObject(ownedCase.caseFile)?.jobId !== jobId
-          || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(ownedCase.currentAction ?? ""))) return { card: false, evidence: 0 };
+          || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(ownedCase.currentAction ?? ""))) {
+          return { card: false, evidence: 0, updated: false };
+        }
         const existing = await tx.select({ id: entitiesTable.id, type: entitiesTable.type, metadata: entitiesTable.metadata })
           .from(entitiesTable).where(and(sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`, inArray(entitiesTable.type, ["HNWI", "Gatekeeper", "PersonCandidate"]))).limit(32);
         const sameCase = existing.find((row) => {
           const meta = parseObject(row.metadata);
           return row.type === "PersonCandidate" && meta?.partialPersonLead === true && meta.roleOnlyLead === true && Number(meta.discoveryCaseId) === researchCase.id;
         });
-        if (existing.length && !sameCase) return { card: false, evidence: 0 };
-        const sourceUrls = [...supports.keys()];
-        const hasFetched = [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
-        const notes = hasFetched
-          ? `PARTIAL PERSON LEAD — public source associates this person with the role “${lead.role}”. Wealth potential and a suitable approach route remain unverified.`
-          : `SEARCH-RESULT PERSON LEAD — search result associates this person with the role “${lead.role}”. Fetch and corroborate before relying on it.`;
+        // Name-only matches cannot silently merge separate people or promoted entities.
+        if (existing.length && !sameCase) return { card: false, evidence: 0, updated: false };
+
         const prior = parseObject(sameCase?.metadata) ?? {};
-        if (sameCase && prior.admission === "investigator-explicit-promotion") return { card: false, evidence: 0 };
-        const metadata = JSON.stringify({
-          ...prior, reviewOnly: true, partialPersonLead: true, roleOnlyLead: true, stage: "partial_review",
-          admission: prior.admission ?? "source-observed-person-role",
-          verificationLevel: hasFetched ? "fetched_source" : "search_result_lead",
-          discoveryCaseId: researchCase.id, atlasJobId: jobId, role: lead.role, sourceUrls,
-          sourceEvidence: [...supports.values()].map((support) => ({
+        if (sameCase && prior.admission === "investigator-explicit-promotion") return { card: false, evidence: 0, updated: false };
+        const hasFetched = prior.verificationLevel === "fetched_source"
+          || [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
+        const verificationLevel = hasFetched ? "fetched_source" : "search_result_lead";
+        const priorUrls = Array.isArray(prior.sourceUrls)
+          ? prior.sourceUrls.filter((value): value is string => typeof value === "string" && /^https:\/\//i.test(value))
+          : [];
+        const sourceUrls = [...new Set([...priorUrls, ...supports.keys()])];
+        // Merge source provenance monotonically; a repeated weaker search event cannot
+        // overwrite a previously verified fetched-source observation for that URL.
+        const sourceEvidenceByUrl = new Map<string, Record<string, unknown>>();
+        if (Array.isArray(prior.sourceEvidence)) for (const raw of prior.sourceEvidence) {
+          if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+          const entry = raw as Record<string, unknown>;
+          if (typeof entry.url === "string" && /^https:\/\//i.test(entry.url)) sourceEvidenceByUrl.set(entry.url, entry);
+        }
+        for (const support of supports.values()) {
+          const incoming = {
             url: support.url,
             tier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result",
             supportingEventId: support.eventId, observedAt: support.createdAt.toISOString(),
-          })),
+          };
+          const current = sourceEvidenceByUrl.get(support.url);
+          if (!current || (current.tier !== "fetched_public_source" && incoming.tier === "fetched_public_source")) {
+            sourceEvidenceByUrl.set(support.url, incoming);
+          }
+        }
+        const notes = hasFetched
+          ? `PARTIAL PERSON LEAD — a public source directly associates this person with the role “${lead.role}”. Wealth potential and a suitable approach route remain unverified.`
+          : `SEARCH-RESULT PERSON LEAD — search result associates this person with the role “${lead.role}”. Fetch and corroborate before relying on it.`;
+        const metadata = JSON.stringify({
+          ...prior, reviewOnly: true, partialPersonLead: true, roleOnlyLead: true, stage: "partial_review",
+          admission: prior.admission ?? "source-observed-person-role",
+          verificationLevel, discoveryCaseId: researchCase.id, atlasJobId: jobId, role: lead.role, sourceUrls,
+          sourceEvidence: [...sourceEvidenceByUrl.values()],
           limitations: ["wealth status not established", "ownership/control not established", "professional approach route not verified"],
         });
         let entityId = sameCase?.id;
+        let updated = false;
         if (!entityId) {
           const [created] = await tx.insert(entitiesTable).values({
             name: lead.name, type: "PersonCandidate", bayesianScore: 0.05, contactConfidence: 0,
@@ -275,15 +300,34 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
             sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes, metadata,
           }).returning({ id: entitiesTable.id });
           entityId = created?.id;
+          updated = Boolean(entityId);
         } else {
           await tx.update(entitiesTable).set({ notes, metadata, updatedAt: new Date() }).where(eq(entitiesTable.id, entityId));
+          updated = true;
         }
-        if (!entityId) return { card: false, evidence: 0 };
+        if (!entityId) return { card: false, evidence: 0, updated };
+
         let added = 0;
         for (const support of supports.values()) {
-          const [priorEvidence] = await tx.select({ id: researchEvidenceTable.id })
+          const isFetched = support.verificationLevel === "fetched_source";
+          const [priorEvidence] = await tx.select({ id: researchEvidenceTable.id, metadata: researchEvidenceTable.metadata })
             .from(researchEvidenceTable).where(and(eq(researchEvidenceTable.entityId, entityId), eq(researchEvidenceTable.claimType, "partial_person_role_lead"), eq(researchEvidenceTable.sourceUrl, support.url))).limit(1);
-          if (priorEvidence) continue;
+          if (priorEvidence) {
+            const priorEvidenceMetadata = parseObject(priorEvidence.metadata) ?? {};
+            if (isFetched && priorEvidenceMetadata.verificationLevel !== "fetched_source") {
+              await tx.update(researchEvidenceTable).set({
+                claim: "A successfully fetched public-source observation co-binds this exact person name and role; wealth potential and contactability remain unverified.",
+                observedAt: support.createdAt, freshnessScore: 1,
+                metadata: JSON.stringify({
+                  ...priorEvidenceMetadata, partialReview: true, role: lead.role, verificationLevel: "fetched_source",
+                  evidenceTier: "fetched_public_source", discoveryCaseId: researchCase.id, atlasJobId: jobId,
+                  supportingEventId: support.eventId,
+                }),
+              }).where(eq(researchEvidenceTable.id, priorEvidence.id));
+              updated = true;
+            }
+            continue;
+          }
           const [session] = await tx.insert(researchSessionsTable).values({
             targetEntityId: entityId, winningPath: JSON.stringify([{ sourceUrl: support.url, discoveryCaseId: researchCase.id, atlasJobId: jobId, status: "partial_review", verificationLevel: support.verificationLevel }]),
             notes: "Name/role lead only; wealth, ownership, and outreach route require independent research.",
@@ -292,20 +336,24 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           if (!session?.id) throw new Error("Could not persist a review session for a person lead.");
           await tx.insert(researchEvidenceTable).values({
             sessionId: session.id, entityId, claimType: "partial_person_role_lead",
-            claim: "A source observation co-binds this exact person name and role; wealth potential and contactability remain unverified.",
+            claim: isFetched
+              ? "A successfully fetched public-source observation co-binds this exact person name and role; wealth potential and contactability remain unverified."
+              : "A source observation co-binds this exact person name and role; wealth potential and contactability remain unverified.",
             value: lead.name, sourceName: "canonical-agentic-discovery", sourceUrl: support.url,
             sourceDomain: new URL(support.url).hostname, status: "review", confidence: 0.25,
-            observedAt: support.createdAt, freshnessScore: support.verificationLevel === "fetched_source" ? 1 : 0.5,
-            metadata: JSON.stringify({ partialReview: true, role: lead.role, verificationLevel: support.verificationLevel, discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
+            observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
+            metadata: JSON.stringify({ partialReview: true, role: lead.role, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
           });
           added += 1;
+          updated = true;
         }
-        return { card: !sameCase, evidence: added };
+        return { card: !sameCase, evidence: added, updated };
       }, { isolationLevel: "serializable" });
       if (persisted.card) cards += 1;
       evidenceRows += persisted.evidence;
+      changed = changed || persisted.updated;
     }
   }
-  if (cards || evidenceRows) await Promise.all([delCachePattern("entities:list:*").catch(() => undefined), delCachePattern("dashboard:*").catch(() => undefined)]);
+  if (changed) await Promise.all([delCachePattern("entities:list:*").catch(() => undefined), delCachePattern("dashboard:*").catch(() => undefined)]);
   return { cards, evidenceRows };
 }
