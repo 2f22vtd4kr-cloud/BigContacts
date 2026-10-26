@@ -10,9 +10,13 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain('verificationLevel: "search_result_lead"');
     expect(reconciler).toContain('status: "review"');
     expect(reconciler).toContain("unverified lead, not fetched-page evidence");
+    expect(reconciler).toContain("reconcilePersonReviewCardsForJob");
+    expect(reconciler).toContain('finding.scope !== "candidate"');
+    expect(reconciler).toContain('claimType: "partial_person_role_lead"');
   });
   it("runs as idempotent reconciliation when an Atlas job reaches a terminal status", () => {
     expect(launchRoute).toContain("reconcileOrganizationReviewCardsForJob(atlasJobId)");
+    expect(launchRoute).toContain("reconcilePersonReviewCardsForJob(atlasJobId)");
     expect(launchRoute).toContain("await releaseCanonicalJob(\"atlas-run\", atlasJobId)");
   });
 });
