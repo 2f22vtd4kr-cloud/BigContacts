@@ -63,8 +63,12 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           findings.set(identity, entry);
         }
       }
-      if (event.eventType === "tool_observation" && payload.execution === "success" && /search/i.test(String(payload.action ?? "")) && Array.isArray(payload.observedUrls)) {
-        for (const rawUrl of payload.observedUrls) {
+      const searchLeadUrls = [
+        ...(Array.isArray(payload.leadUrls) ? payload.leadUrls : []),
+        ...(Array.isArray(payload.observedUrls) ? payload.observedUrls : []),
+      ];
+      if (event.eventType === "tool_observation" && payload.execution === "success" && /search/i.test(String(payload.action ?? ""))) {
+        for (const rawUrl of searchLeadUrls) {
           const url = normalizeSource(rawUrl);
           if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
           observations.push({ action: String(payload.action ?? ""), execution: String(payload.execution), url, text: String(payload.observation ?? ""), eventId: event.id, createdAt: event.createdAt });
