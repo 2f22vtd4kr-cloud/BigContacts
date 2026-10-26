@@ -45,7 +45,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       .from(researchCaseEventsTable)
       .where(and(eq(researchCaseEventsTable.caseId, researchCase.id), inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"])))
       .orderBy(researchCaseEventsTable.id);
-    const findings = new Map<string, { name: string; urls: Set<string> }>();
+    const findings = new Map<string, { name: string; urls: Set<string>; notes: Set<string> }>();
     const observations: Array<{ action: string; execution: string; url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead" }> = [];
     for (const event of events) {
       const payload = parseObject(event.payload);
@@ -58,7 +58,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           const name = finding.value.trim().replace(/\s+/g, " ");
           const identity = normalizeCandidateIdentityName(name);
           if (name.length < 3 || identity.length < 3) continue;
-          const entry = findings.get(identity) ?? { name, urls: new Set<string>() };
+          const entry = findings.get(identity) ?? { name, urls: new Set<string>(), notes: new Set<string>() };
           if (Array.isArray(finding.sourceUrls)) for (const rawUrl of finding.sourceUrls) {
             const url = normalizeSource(rawUrl);
             if (url && isClaimGradeDiscoverySourceUrl(url)) entry.urls.add(url);
@@ -66,8 +66,40 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           findings.set(identity, entry);
         }
       }
-      if (event.eventType !== "tool_observation" || payload.execution !== "success") continue;
+      if (event.eventType !== "tool_observation") continue;
       const action = String(payload.action ?? "");
+      const registryAction = action === "registry_search" || action === "parallel_registry_search";
+      const successful = payload.execution === "success";
+      const partialRegistry = registryAction && payload.execution === "partial";
+      if (!successful && !partialRegistry) continue;
+      // Preserve only adapter-typed Corporation rows from successful subqueries.
+      // They are lead inputs, not model findings and never person/wealth evidence.
+      if (registryAction && payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)) {
+        const args = payload.args as Record<string, unknown>;
+        const outcomes = Array.isArray(args.registrySearchOutcomes) ? args.registrySearchOutcomes : [];
+        for (const rawOutcome of outcomes) {
+          if (!rawOutcome || typeof rawOutcome !== "object" || Array.isArray(rawOutcome)) continue;
+          const outcome = rawOutcome as Record<string, unknown>;
+          if (outcome.error != null || !Array.isArray(outcome.companyLeads)) continue;
+          for (const rawLead of outcome.companyLeads) {
+            if (!rawLead || typeof rawLead !== "object" || Array.isArray(rawLead)) continue;
+            const company = rawLead as Record<string, unknown>;
+            if (typeof company.name !== "string" || !Array.isArray(company.sourceUrls)) continue;
+            const name = company.name.trim().replace(/\s+/g, " ");
+            const identity = normalizeCandidateIdentityName(name);
+            if (name.length < 3 || identity.length < 3) continue;
+            const entry = findings.get(identity) ?? { name, urls: new Set<string>(), notes: new Set<string>() };
+            for (const rawUrl of company.sourceUrls) {
+              const url = normalizeSource(rawUrl);
+              if (url && isClaimGradeDiscoverySourceUrl(url)) entry.urls.add(url);
+            }
+            if (typeof company.notes === "string" && company.notes.trim()) {
+              entry.notes.add(company.notes.replace(/\s+/g, " ").trim().slice(0, 240));
+            }
+            findings.set(identity, entry);
+          }
+        }
+      }
       const search = /search/i.test(action);
       const fetched = action === "visit" || action === "browser_fetch";
       if (!search && !fetched) continue;
@@ -121,17 +153,22 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           ? prior.sourceUrls.filter((value): value is string => typeof value === "string" && /^https:\/\//i.test(value))
           : [];
         const sourceUrls = [...new Set([...priorUrls, ...supports.keys()])];
+        const sourceNotes = [...new Set([
+          ...(Array.isArray(prior.sourceNotes) ? prior.sourceNotes.filter((value): value is string => typeof value === "string") : []),
+          ...lead.notes,
+        ])].slice(0, 4);
+        const registryContext = sourceNotes.length ? ` Registry search context: ${sourceNotes.join("; ")}.` : "";
         const limitations = hasFetched
           ? ["fetched source supports the exact organization name only", "ownership/control not established", "business materiality not established", "no person or wealth conclusion"]
           : ["organization name remains supported only by search-result text", "fetched source text has not verified the organization name", "ownership/control not established", "business materiality not established", "no person or wealth conclusion"];
         const notes = hasFetched
-          ? "FETCHED-SOURCE REVIEW LEAD — a retrieved public source contains this exact organization name. This does not establish ownership, control, wealth, or targetability."
-          : "SEARCH-RESULT LEAD — exact organization name observed in a successful search result. The name is not verified in fetched source text; fetch and corroborate before relying on details.";
+          ? `FETCHED-SOURCE REVIEW LEAD — a retrieved public source contains this exact organization name. This does not establish ownership, control, wealth, or targetability.${registryContext}`
+          : `SEARCH-RESULT LEAD — exact organization name observed in a successful search/registry result. The underlying source page is not verified; ownership, control, wealth, and targetability remain unestablished.${registryContext}`;
         const metadata = JSON.stringify({
           ...prior, reviewOnly: true, partialOrganizationLead: true, stage: "partial_review",
           admission: prior.admission ?? "source-observed-organization-name",
           verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead",
-          discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, limitations,
+          discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, sourceNotes, limitations,
         });
         let entityId = sameCase?.id;
         let updated = false;
