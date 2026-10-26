@@ -347,6 +347,11 @@ function normalizeResearchSourceLeads(data: unknown): any[] {
 
 function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
   const sourceCount = Array.isArray(lead.sourceUrls) ? lead.sourceUrls.length : 0;
+  const verificationLabel = lead.verificationLevel === "fetched_source"
+    ? "Fetched-source support"
+    : lead.verificationLevel === "search_result_lead"
+      ? "Search lead · unverified"
+      : "Verification pending";
   const descriptor = lead.entityType === "PersonCandidate"
     ? "Identity/ownership lead · wealth not established"
     : "Organization lead · targetable person not yet established";
@@ -359,7 +364,7 @@ function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
     >
       <div className="flex items-center justify-between gap-2">
         <EntityTypeMark type={lead.entityType} compact />
-        <span className="rounded border border-amber-300/20 bg-amber-300/[0.06] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-amber-200">Partial review</span>
+        <span className="rounded border border-amber-300/20 bg-amber-300/[0.06] px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-amber-200">{verificationLabel}</span>
       </div>
       <div>
         <h3 className="line-clamp-2 break-words text-sm font-semibold text-foreground group-hover:text-primary">{lead.entityName}</h3>
