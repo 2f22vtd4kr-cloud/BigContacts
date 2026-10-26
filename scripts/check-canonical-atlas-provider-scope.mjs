@@ -55,7 +55,7 @@ const checks = [
     const end = rightHand.indexOf("if(response.status===429&&retry429", start);
     const block = start >= 0 && end > start ? rightHand.slice(start, end) : "";
     const dailyQuotaIsExplicit = block.includes("isTokenPerDayQuotaError(response.status,responseBody)")
-      && block.includes("if(!dailyTokenQuota&&kind===\\"tokens\\"")
+      && block.includes('if(!dailyTokenQuota&&kind==="tokens"')
       && block.includes("if(dailyTokenQuota)stopModelFallbackForDailyQuota=true;break;");
     const dailyQuotaStopsSameCredentialModelHops = rightHand.includes("if(stopModelFallbackForDailyQuota) break;");
     const other429sStillUseBoundedFallback = block.includes("failures.push(diagnostic);break;")
