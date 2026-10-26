@@ -25,5 +25,9 @@ describe("dashboard source-card snippet honesty", () => {
     expect(reviewCardSource).toContain("Fetched-source support");
     expect(reviewCardSource).toContain('lead.verificationLevel === "search_result_lead"');
     expect(reviewCardSource).toContain("Verification pending");
+    expect(reviewCardSource).toContain("lead.limitations");
+    expect(reviewCardSource).toContain('aria-label="Attributable source links"');
+    expect(reviewCardSource).toContain('target="_blank"');
+    expect(reviewCardSource).toContain("Open gaps · ");
   });
 });
