@@ -106,6 +106,53 @@ describe("Groq Boss token-window recovery", () => {
     expect(fetchMock.mock.calls[1]?.[1]).toBeTruthy();
   });
 
+  it("skips short-window retries for explicit TPD exhaustion and falls back to the next Boss model", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-tpd-quota-key";
+    const chatModels: string[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body));
+      chatModels.push(body.model);
+      if (body.model === "openai/gpt-oss-120b") {
+        return new Response(JSON.stringify({
+          error: {
+            type: "tokens",
+            code: "rate_limit_exceeded",
+            message: "Rate limit reached for model openai/gpt-oss-120b on tokens per day (TPD): Limit 200000, Used 197486, Requested 2921.",
+          },
+        }), {
+          status: 429,
+          headers: {
+            "retry-after": "1",
+            "x-ratelimit-remaining-tokens": "8000",
+            // This short reset must not override the explicit daily-cap signal.
+            "x-ratelimit-reset-tokens": "0.001s",
+            "x-ratelimit-remaining-requests": "998",
+          },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await generateGroqBossText(
+      {
+        model: "openai/gpt-oss-120b",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 2,
+        candidateModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
+        keyName: "GROQ_BOSS_API_KEY",
+      },
+      "Return a small JSON decision.",
+    );
+
+    expect(result.raw).toBe('{"decision":"proceed"}');
+    expect(result.error).toBeNull();
+    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("waits through a bounded 46-second token reset and retries the same Boss model", async () => {
     process.env.GROQ_BOSS_API_KEY = "test-groq-boss-token-window-retry-key";
     vi.useFakeTimers();

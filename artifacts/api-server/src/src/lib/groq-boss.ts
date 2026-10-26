@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
-import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
+import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, isTokenPerDayQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
 import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 
 export const GROQ_BOSS_MODEL = "openai/gpt-oss-120b";
@@ -353,8 +353,9 @@ async function generateGroqBossTextImpl(
             lastError = `Groq Boss ${model} returned HTTP 429${code ? ` (${code})` : ""}: ${JSON.stringify(summarizeProviderBody(responseBody))}`;
             const delay = retryAfterMs(response, 0);
             const hardQuota = groqHardRateLimit(response, responseBody);
+            const dailyTokenQuota = isTokenPerDayQuotaError(response.status, responseBody);
             const tokenWindowDelay = tokenWindowWaitMs(response, responseBody);
-            if (tokenWindowDelay !== null) {
+            if (tokenWindowDelay !== null && !dailyTokenQuota) {
               if (tokenWindowDelay <= MAX_TOKEN_WINDOW_RECOVERY_WAIT_MS && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && Date.now() + tokenWindowDelay < deadline) {
                 rateLimitRetries += 1;
                 await new Promise((resolve) => setTimeout(resolve, tokenWindowDelay));
@@ -367,18 +368,18 @@ async function generateGroqBossTextImpl(
               lastError = "upstream_token_window_wait_exceeded";
               break;
             }
-            if (!hardQuota && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && delay <= 2_500 && Date.now() + delay < deadline) {
+            if (!hardQuota && !dailyTokenQuota && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && delay <= 2_500 && Date.now() + delay < deadline) {
               rateLimitRetries += 1;
               await new Promise((resolve) => setTimeout(resolve, delay));
               continue;
             }
-            if (!hardQuota) {
+            if (!hardQuota && !dailyTokenQuota) {
               // Ordinary request throttling is not evidence that another model or
               // credential should replace the selected control capability.
               return { model, raw: null, error: "upstream_rate_limited", attempts };
             }
-            // Explicit hard request quota may use the bounded Boss model/key
-            // fallback chain; it is never confused with token-window exhaustion.
+            // Explicit hard request quota and explicit model-specific TPD exhaustion
+            // may use bounded same-role model/key fallback; neither is a short token-window reset.
             break;
           }
 

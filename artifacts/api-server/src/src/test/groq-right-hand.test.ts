@@ -349,6 +349,57 @@ describe("Groq Right-hand model policy", () => {
     expect(chatCalls).toHaveLength(1);
   });
 
+  it("skips same-model retries on TPD exhaustion but preserves bounded same-role model fallback", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-tpd-quota-test-key");
+
+    const chatModels: string[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: [
+            { id: "openai/gpt-oss-120b" },
+            { id: "openai/gpt-oss-20b" },
+          ],
+        }), { status: 200 });
+      }
+
+      const body = JSON.parse(String(init?.body));
+      chatModels.push(body.model);
+      if (body.model === "openai/gpt-oss-120b") {
+        return new Response(JSON.stringify({
+          error: {
+            type: "tokens",
+            code: "rate_limit_exceeded",
+            message: "Rate limit reached for model openai/gpt-oss-120b on tokens per day (TPD): Limit 200000, Used 197486, Requested 2921.",
+          },
+        }), {
+          status: 429,
+          headers: {
+            "x-ratelimit-limit-tokens": "200000",
+            "x-ratelimit-remaining-tokens": "8000",
+            // A short reset header must not override the explicit daily-cap signal.
+            "x-ratelimit-reset-tokens": "0.001s",
+            "x-ratelimit-remaining-requests": "998",
+            "retry-after": "180",
+          },
+        });
+      }
+
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-20b");
+    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    // One catalog request plus one request per model; no repeat on the TPD-exhausted 120B model.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("falls back on a hard model 429 within the bounded same-role model policy", { timeout: 15_000 }, async () => {
     vi.useFakeTimers();
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-fallback-test-key");
