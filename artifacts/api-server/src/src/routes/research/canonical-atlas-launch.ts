@@ -224,10 +224,15 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     } finally {
       try {
         await reconcileOrganizationReviewCardsForJob(atlasJobId);
-        await reconcilePersonReviewCardsForJob(atlasJobId);
       } catch (error) {
         logger.warn({ jobId: atlasJobId, error: error instanceof Error ? error.message : "unknown reconciliation error" },
           "Review-only organization card reconciliation deferred; durable research trace remains available.");
+      }
+      try {
+        await reconcilePersonReviewCardsForJob(atlasJobId);
+      } catch (error) {
+        logger.warn({ jobId: atlasJobId, error: error instanceof Error ? error.message : "unknown reconciliation error" },
+          "Review-only person card reconciliation deferred; durable research trace remains available.");
       }
       try {
         await releaseCanonicalJob("atlas-run", atlasJobId);
