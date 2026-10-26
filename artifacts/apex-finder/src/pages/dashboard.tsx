@@ -118,6 +118,8 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
   const dossier = leadMetadata(lead);
   const reviewOnlyLead = dossier.reviewOnly === true || dossier.partialOrganizationLead === true || dossier.partialPersonLead === true;
   const verificationLevel = String(dossier.verificationLevel ?? "");
+  const leadSources = Array.isArray(dossier.sourceUrls) ? dossier.sourceUrls.filter((url): url is string => typeof url === "string" && /^https:\/\//i.test(url)) : [];
+  const leadLimitations = Array.isArray(dossier.limitations) ? dossier.limitations.filter((item): item is string => typeof item === "string" && item.trim()) : [];
   return (
     <Link
       href={`/profile/${lead.entityId}`}
@@ -166,6 +168,20 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
           <span><span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground/65">What we found · </span>{findingsSummary}</span>
         </div>
       </div>
+
+      {reviewOnlyLead && (
+        <div data-testid={`dossier-review-${lead.entityId}`} className="relative mt-3 rounded-lg border border-amber-400/20 bg-amber-400/[0.045] p-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-amber-200/90">Evidence tier</span>
+            <span className="font-mono text-[10px] text-muted-foreground">{leadSources.length} source link{leadSources.length === 1 ? "" : "s"}</span>
+          </div>
+          <p className="mt-1 text-[11px] leading-4 text-foreground/80">
+            {verificationLevel === "search_result_lead" ? "Search-result lead; source page not yet verified." : "Review-only lead; qualification is still open."}
+          </p>
+          {leadSources.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{leadSources.slice(0, 3).map((url) => <a key={url} href={url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} className="max-w-full truncate rounded border border-border/70 bg-background/50 px-1.5 py-1 text-[10px] text-primary hover:bg-primary/5">{new URL(url).hostname}</a>)}</div>}
+          {leadLimitations.length > 0 && <p className="mt-2 text-[10px] leading-4 text-muted-foreground">Open gaps · {leadLimitations.slice(0, 2).join(" · ")}</p>}
+        </div>
+      )}
 
       <div className="relative mt-4 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-3">
         <div className="rounded-lg border border-[#9CFF1A]/10 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5">
