@@ -1,6 +1,6 @@
 # Apex Atlas End-to-End Run Audit
 
-⭐ **Current sequential audit:** [⭐ Apex Atlas Fresh Project / Run 01 — 2026-10-25](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-25_FRESH_PROJECT_RUN_01.md)
+⭐ **Current sequential audit:** [★ Starred Apex Atlas Fresh Replit Import Run 02 — 2026-10-26](audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-26_FRESH_REPLIT_IMPORT_RUN_02.md)
 ⭐ **ChatGPT run audit:** [⭐ APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-25_CHATGPT_RUN_01.md](audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-25_CHATGPT_RUN_01.md) — secure credentials received, but launch/card remains unverified.
 
 ## Audit contract

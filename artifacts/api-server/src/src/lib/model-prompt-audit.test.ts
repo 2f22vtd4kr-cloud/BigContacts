@@ -40,7 +40,7 @@ const input = {
 };
 
 describe("model prompt audit", () => {
-  it("enables contact-complete model capture only in the ignored private Replit run audit", () => {
+  it("enables contact-complete capture only for the explicitly opted-in visible development run audit", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const artifactConfig = readFileSync(
       resolve(workspaceRoot, "artifacts/api-server/.replit-artifact/artifact.toml"),
@@ -55,9 +55,9 @@ describe("model prompt audit", () => {
     for (const config of [artifactConfig, workspaceConfig]) {
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
       expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
-      expect(config).toContain('APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-25_REPLIT_RUN_01.md"');
+      expect(config).toContain('APEX_MODEL_AUDIT_FILE = "audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-26_FRESH_REPLIT_IMPORT_RUN_02_MODEL_TRACE.md"');
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
-      expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
+      expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "true"');
     }
     const gitignore = readFileSync(resolve(workspaceRoot, ".gitignore"), "utf8");
     expect(gitignore).toContain(".local/");
@@ -370,7 +370,7 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(0);
   });
 
-  it("allows a tracked audits/ destination only with the development opt-in and still redacts contact data", () => {
+  it("retains contact data in a visible audits/ destination only with explicit development opt-ins", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
     const writes: Array<{ path: string; contents: string }> = [];
@@ -385,10 +385,9 @@ describe("model prompt audit", () => {
     expect(requestId).toBeTruthy();
     expect(writes).toHaveLength(1);
     expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_VISIBLE_OPT_IN_TEST.md"));
-    expect(writes[0]?.contents).not.toContain("person@example.org");
-    expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
-    expect(writes[0]?.contents).toMatch(/REDACTED_(?:CONTACT_DATA|EMAIL)/);
-    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
+    expect(writes[0]?.contents).toContain("person@example.org");
+    expect(writes[0]?.contents).toContain("+1 (415) 555-0100");
+    expect(writes[0]?.contents).not.toContain("[REDACTED_CONTACT_DATA]");
     for (const secret of [
       "gsk_123456789012345678901234",
       "private_token_value",
@@ -398,7 +397,7 @@ describe("model prompt audit", () => {
     ]) expect(writes[0]?.contents).not.toContain(secret);
   });
 
-  it("redacts contact data from visible audit responses even when the global opt-in is true", () => {
+  it("retains explicitly opted-in contact data in visible responses while omitting private reasoning", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
     const writes: Array<{ path: string; contents: string }> = [];
@@ -427,10 +426,8 @@ describe("model prompt audit", () => {
 
     expect(writes).toHaveLength(1);
     expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_VISIBLE_RESPONSE_REDACTION_TEST.md"));
-    expect(writes[0]?.contents).not.toContain("jane.doe@example.org");
-    expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
-    expect(writes[0]?.contents).toMatch(/REDACTED_(?:CONTACT_DATA|EMAIL)/);
-    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
+    expect(writes[0]?.contents).toContain("jane.doe@example.org");
+    expect(writes[0]?.contents).toContain("+1 (415) 555-0100");
     expect(writes[0]?.contents).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
   });
 

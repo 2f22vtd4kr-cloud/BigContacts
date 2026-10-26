@@ -102,10 +102,10 @@ export function resolveModelAuditFilePath(
 }
 
 /**
- * Contact data may be retained only in private local audit locations or outside
- * the repository. A visible/tracked audits/ destination always redacts contact
- * data, even if a broad development environment flag was accidentally enabled.
- * This prevents a checked-in .replit setting from bypassing redaction.
+ * Contact data is retained in private local audit locations by explicit opt-in.
+ * A visible audits/ destination additionally requires both the development-only
+ * visible-file opt-in and the separate contact-data opt-in. This keeps normal
+ * tracked audits redacted while allowing a user-authorized, per-run audit.
  */
 function shouldIncludeContactDataForAuditFile(
   env: AuditEnvironment,
@@ -122,7 +122,12 @@ function shouldIncludeContactDataForAuditFile(
 
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
   return normalizedRelativePath.startsWith("private-audits/")
-    || normalizedRelativePath.startsWith(".local/audits/");
+    || normalizedRelativePath.startsWith(".local/audits/")
+    || (
+      env.NODE_ENV === "development"
+      && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true"
+      && normalizedRelativePath.startsWith("audits/")
+    );
 }
 
 function resolveSafeModelAuditFilePath(
