@@ -122,7 +122,7 @@ describe("Groq Boss token-window recovery", () => {
         }), {
           status: 429,
           headers: {
-            "retry-after": "180",
+            "retry-after": "1",
             "x-ratelimit-remaining-tokens": "8000",
             // This short reset must not override the explicit daily-cap signal.
             "x-ratelimit-reset-tokens": "0.001s",
