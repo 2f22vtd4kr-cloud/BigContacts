@@ -346,7 +346,22 @@ function normalizeResearchSourceLeads(data: unknown): any[] {
 }
 
 function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
-  const sourceCount = Array.isArray(lead.sourceUrls) ? lead.sourceUrls.length : 0;
+  const rawSources = Array.isArray(lead.sourceUrls) ? lead.sourceUrls : [];
+  const sourceLinks = rawSources.flatMap((raw: unknown) => {
+    if (typeof raw !== "string") return [];
+    try {
+      const url = new URL(raw);
+      if (url.protocol !== "https:" || url.username || url.password) return [];
+      return [{ url: url.href, host: url.hostname }];
+    } catch {
+      return [];
+    }
+  }).filter((item: { url: string; host: string }, i: number, all: Array<{ url: string; host: string }>) =>
+    all.findIndex((candidate) => candidate.url === item.url) === i).slice(0, 3);
+  const sourceCount = sourceLinks.length;
+  const limitations = Array.isArray(lead.limitations)
+    ? lead.limitations.filter((item: unknown): item is string => typeof item === "string" && item.trim())
+    : [];
   const verificationLabel = lead.verificationLevel === "fetched_source"
     ? "Fetched-source support"
     : lead.verificationLevel === "search_result_lead"
@@ -368,8 +383,23 @@ function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
       </div>
       <div>
         <h3 className="line-clamp-2 break-words text-sm font-semibold text-foreground group-hover:text-primary">{lead.entityName}</h3>
-        <p className="mt-1.5 line-clamp-3 text-xs leading-5 text-muted-foreground">{lead.notes || descriptor}</p>
+        {lead.role && <p className="mt-1 text-xs leading-4 text-muted-foreground">Observed role: {lead.role} · qualification not implied</p>}
+        <p className="mt-1.5 line-clamp-3 break-words text-xs leading-5 text-muted-foreground">{lead.notes || descriptor}</p>
       </div>
+      {sourceLinks.length > 0 && (
+        <div className="flex flex-wrap gap-1.5" aria-label="Attributable source links">
+          {sourceLinks.map((source: { url: string; host: string }) => (
+            <a key={source.url} href={source.url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()} className="max-w-full truncate rounded border border-border/70 bg-background/50 px-1.5 py-1 font-mono text-[10px] text-primary hover:bg-primary/5">
+              {source.host}
+            </a>
+          ))}
+        </div>
+      )}
+      {limitations.length > 0 && (
+        <p className="text-[10px] leading-4 text-muted-foreground">
+          <span className="font-mono uppercase tracking-[0.1em]">Open gaps · </span>{limitations.slice(0, 2).join(" · ")}
+        </p>
+      )}
       <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
         <span>{sourceCount} source link{sourceCount === 1 ? "" : "s"}</span>
         <span>Not HNWI-verified</span>
