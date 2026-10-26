@@ -230,8 +230,8 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
         const sourceUrls = [...supports.keys()];
         const hasFetched = [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
         const notes = hasFetched
-          ? "PARTIAL PERSON LEAD — a fetched public source co-binds this exact name and role. Wealth potential and a suitable approach route remain unverified."
-          : "SEARCH-RESULT PERSON LEAD — a successful search observation co-binds this name and role with a source URL. Fetch and corroborate before relying on it.";
+          ? `PARTIAL PERSON LEAD — public source associates this person with the role “${lead.role}”. Wealth potential and a suitable approach route remain unverified.`
+          : `SEARCH-RESULT PERSON LEAD — search result associates this person with the role “${lead.role}”. Fetch and corroborate before relying on it.`;
         const prior = parseObject(sameCase?.metadata) ?? {};
         if (sameCase && prior.admission === "investigator-explicit-promotion") return { card: false, evidence: 0 };
         const metadata = JSON.stringify({
@@ -239,7 +239,12 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           admission: prior.admission ?? "source-observed-person-role",
           verificationLevel: hasFetched ? "fetched_source" : "search_result_lead",
           discoveryCaseId: researchCase.id, atlasJobId: jobId, role: lead.role, sourceUrls,
-          limitations: ["HNWI/wealth status not established", "ownership/control not established", "personal contact route not verified"],
+          sourceEvidence: [...supports.values()].map((support) => ({
+            url: support.url,
+            tier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result",
+            supportingEventId: support.eventId, observedAt: support.createdAt.toISOString(),
+          })),
+          limitations: ["wealth status not established", "ownership/control not established", "professional approach route not verified"],
         });
         let entityId = sameCase?.id;
         if (!entityId) {
