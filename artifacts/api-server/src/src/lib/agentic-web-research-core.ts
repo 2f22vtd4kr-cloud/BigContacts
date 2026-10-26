@@ -110,8 +110,8 @@ export function compactRegistryCompanyLeads(
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
     const row = raw as Record<string, unknown>;
     if (row.type !== "Corporation" || typeof row.name !== "string") continue;
-    const name = row.name.replace(/[\\r\\n\\t]+/g, " ").replace(/\\s+/g, " ").trim();
-    if (name.length < 3 || name.length > 180 || /[\\u0000-\\u001f\\u007f]/u.test(name)) continue;
+    const name = row.name.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
+    if (name.length < 3 || name.length > 180 || /[\u0000-\u001f\u007f]/u.test(name)) continue;
     const identity = name.toLocaleLowerCase("en-US");
     if (seen.has(identity)) continue;
     const metadata = typeof row.metadata === "string" ? row.metadata.slice(0, 20_000) : undefined;
@@ -137,7 +137,7 @@ export function compactRegistryCompanyLeads(
     }))].slice(0, 3);
     if (!sourceUrls.length) continue;
     const noteText = typeof row.notes === "string"
-      ? row.notes.replace(/[\\r\\n\\t]+/g, " ").replace(/\\s+/g, " ").trim().slice(0, 240)
+      ? row.notes.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 240)
       : "";
     leads.push({ name, sourceUrls, notes: noteText || null });
     seen.add(identity);
