@@ -50,9 +50,9 @@ function iconFor(vectorType: string, mark?: string) {
 }
 
 function routeTier(route: ContactRouteView): { label: string; title: string; color: string } {
-  let context = String(route.contextType ?? "").toLowerCase().replace(/[\\s-]+/g, "_");
+  let context = String(route.contextType ?? "").toLowerCase().replace(/\s+/g, "_");
   if (!context && route.metadata) {
-    try { const parsed = JSON.parse(route.metadata) as Record<string, unknown>; context = String(parsed.contextType ?? parsed.contactContext ?? "").toLowerCase().replace(/[\\s-]+/g, "_"); } catch {}
+    try { const parsed = JSON.parse(route.metadata) as Record<string, unknown>; context = String(parsed.contextType ?? parsed.contactContext ?? "").toLowerCase().replace(/\s+/g, "_"); } catch {}
   }
   if (["restricted_context", "sensitive_context", "nonprofessional_context"].includes(context)) return { label: "NOT A ROUTE", title: "This context is not used for outreach ranking", color: "#94a3b8" };
   if (route.mark === "organization") return { label: "PUBLIC COMPANY", title: "Generic corporate route; useful but low-exclusivity", color: "#a78bfa" };
