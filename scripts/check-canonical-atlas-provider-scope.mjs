@@ -50,7 +50,18 @@ const checks = [
   [boss.includes('provider: "groq"'), "Canonical Boss provider must be Groq."],
   [rightHand.includes('provider: "groq"'), "Canonical Right-hand provider must be Groq."],
   [/if \(response\.status === 429\) \{[\s\S]*?\n\s*break;\n\s*\}/.test(boss), "Groq Boss HTTP 429 handling must fall through to the bounded model/key fallback chain rather than terminate the whole control call."],
-  [(() => { const start = rightHand.indexOf("if(response.status===429&&hardRateLimit"); const end = rightHand.indexOf("if(response.status===429&&retry429", start); const block = start >= 0 && end > start ? rightHand.slice(start, end) : ""; return block.includes("failures.push(diagnostic);break;"); })(), "Groq Right-hand hard HTTP 429 handling must fall through to the bounded model/key fallback chain rather than terminate the whole control call."],
+  [(() => {
+    const start = rightHand.indexOf("if(response.status===429&&hardRateLimit");
+    const end = rightHand.indexOf("if(response.status===429&&retry429", start);
+    const block = start >= 0 && end > start ? rightHand.slice(start, end) : "";
+    const dailyQuotaIsExplicit = block.includes("isTokenPerDayQuotaError(response.status,responseBody)")
+      && block.includes("if(!dailyTokenQuota&&kind===\\"tokens\\"")
+      && block.includes("if(dailyTokenQuota)stopModelFallbackForDailyQuota=true;break;");
+    const dailyQuotaStopsSameCredentialModelHops = rightHand.includes("if(stopModelFallbackForDailyQuota) break;");
+    const other429sStillUseBoundedFallback = block.includes("failures.push(diagnostic);break;")
+      && rightHand.includes('if(response.status===429)break;');
+    return dailyQuotaIsExplicit && dailyQuotaStopsSameCredentialModelHops && other429sStillUseBoundedFallback;
+  })(), "Groq Right-hand must stop same-credential retries/model hops for explicit tokens-per-day exhaustion while preserving bounded fallback for other HTTP 429 responses."],
   [rightHand.includes('if(response.status===429)break;'), "Groq Right-hand generic HTTP 429 handling must advance to the next bounded candidate after its retry budget is exhausted."],
   [!rightHand.includes('withProviderScope("atlas-right-hand"'), "Right-hand transport must preserve the caller's canonical Atlas provider scope rather than replacing it with a shared scope."],
   [investigator.includes("getAvailableInvestigatorCapabilities") && investigator.includes("investigatorCapabilityKeyName"), "Canonical Investigator selection must use the runtime capability registry."],
