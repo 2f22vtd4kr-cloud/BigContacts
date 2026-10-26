@@ -3133,7 +3133,7 @@ describe("small emergency observation budgets", () => {
       "PRIMARY CASE OBJECTIVE: discover source-backed named people with ownership evidence and realistic public routes.",
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
       "Search UK Companies House filings for private renewable-energy firms in the Midlands and identify source-backed owners or controllers.",
-    ].join("\\n");
+    ].join("\n");
     const scopeKey = discoveryPivotScopeKey(objective);
     const priorFailedFetch = {
       turn: 18,
@@ -3158,7 +3158,7 @@ describe("small emergency observation budgets", () => {
       objective,
       history: [],
       trajectoryRecords: [priorFailedFetch],
-      lastObservation: "CASE CONTEXT LOADED\\nDurable case context and operator objective are available. No research action has been selected yet; choose any permitted action based on the case context.",
+      lastObservation: "CASE CONTEXT LOADED\nDurable case context and operator objective are available. No research action has been selected yet; choose any permitted action based on the case context.",
       findings: [],
       priorContext: "DURABLE CASE MEMORY ".repeat(500),
       intelligenceContext: "RESEARCH FRONTIER ".repeat(500),
