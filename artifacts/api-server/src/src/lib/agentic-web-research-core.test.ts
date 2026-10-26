@@ -20,7 +20,7 @@ describe("compact company registry lead retention", () => {
       {
         type: "Corporation",
         name: "  TOKERE RENEWABLE ENERGY SOLUTIONS PRIVATE LIMITED  ",
-        notes: "Status: dissolved\\nType: ltd",
+        notes: "Status: dissolved\nType: ltd",
         metadata: JSON.stringify({ urls: [sourceUrl, sourceUrl + "#overview"] }),
       },
       {
