@@ -1,36 +1,3 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
-import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchSessionsTable, researchEvidenceTable } from "@workspace/db";
-import { bindExactSourceSpan } from "./research-epistemic-vnext";
-import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
-import { normalizeCandidateIdentityName } from "./identity-text-match";
-import { sanitizeUrlForEvidence } from "./url-privacy";
-import { delCachePattern } from "./redis";
-import { logger } from "./logger";
-import { isCanonicalJobOwner } from "./canonical-job-lock";
-
-function normalizeSource(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const safe = sanitizeUrlForEvidence(raw);
-  if (!safe || safe.startsWith("[")) return null;
-  try {
-    const url = new URL(safe);
-    if (url.protocol !== "https:") return null;
-    url.hash = "";
-    url.hostname = url.hostname.toLowerCase();
-    return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href;
-  } catch { return null; }
-}
-function parseObject(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "string") return null;
-  try { const parsed: unknown = JSON.parse(value); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null; } catch { return null; }
-}
-
-/**
- * Terminal reconciliation for company leads that were explicitly named by the
- * Investigator and appeared verbatim in a successful search observation, but
- * whose source page could not be fetched. These cards are always review-only;
- * search snippets never become supported claims or person admissions.
- */
 export async function reconcileOrganizationReviewCardsForJob(jobId: string): Promise<{ cards: number; evidenceRows: number }> {
   const empty = { cards: 0, evidenceRows: 0 };
   if (!(await isCanonicalJobOwner("atlas-run", jobId))) return empty;
@@ -39,6 +6,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
     .where(and(eq(researchCasesTable.caseType, "discovery"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`));
   let cards = 0;
   let evidenceRows = 0;
+  let changed = false;
   for (const researchCase of cases) {
     const events = await db.select({ id: researchCaseEventsTable.id, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt })
       .from(researchCaseEventsTable)
@@ -100,63 +68,104 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         const [ownedCase] = await tx.select({ caseType: researchCasesTable.caseType, caseFile: researchCasesTable.caseFile, currentAction: researchCasesTable.currentAction })
           .from(researchCasesTable).where(eq(researchCasesTable.id, researchCase.id)).for("update").limit(1);
         if (!ownedCase || ownedCase.caseType !== "discovery" || parseObject(ownedCase.caseFile)?.jobId !== jobId
-          || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(ownedCase.currentAction ?? ""))) return { card: false, evidence: 0 };
-        const existing = await tx.select({ id: entitiesTable.id, metadata: entitiesTable.metadata })
+          || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(ownedCase.currentAction ?? ""))) {
+          return { card: false, evidence: 0, updated: false };
+        }
+        const existing = await tx.select({ id: entitiesTable.id, metadata: entitiesTable.metadata, notes: entitiesTable.notes })
           .from(entitiesTable).where(and(eq(entitiesTable.type, "Corporation"), sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`)).limit(32);
         const sameCase = existing.find((row) => {
           const meta = parseObject(row.metadata);
           return meta?.partialOrganizationLead === true && Number(meta.discoveryCaseId) === researchCase.id;
         });
-        if (existing.length && !sameCase) return { card: false, evidence: 0 };
-        const sourceUrls = [...supports.keys()];
+        // An exact-name match with different provenance is not safe to merge.
+        if (existing.length && !sameCase) return { card: false, evidence: 0, updated: false };
+
+        const prior = parseObject(sameCase?.metadata) ?? {};
+        const hasFetched = prior.verificationLevel === "fetched_source"
+          || [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
+        const verificationLevel = hasFetched ? "fetched_source" : "search_result_lead";
+        const priorUrls = Array.isArray(prior.sourceUrls)
+          ? prior.sourceUrls.filter((value): value is string => typeof value === "string" && /^https:\/\//i.test(value))
+          : [];
+        const sourceUrls = [...new Set([...priorUrls, ...supports.keys()])];
+        const limitations = hasFetched
+          ? ["fetched source supports the exact organization name only", "ownership/control not established", "business materiality not established", "no person or wealth conclusion"]
+          : ["organization name remains supported only by search-result text", "fetched source text has not verified the organization name", "ownership/control not established", "business materiality not established", "no person or wealth conclusion"];
+        const notes = hasFetched
+          ? "FETCHED-SOURCE REVIEW LEAD — a retrieved public source contains this exact organization name. This does not establish ownership, control, wealth, or targetability."
+          : "SEARCH-RESULT LEAD — exact organization name observed in a successful search result. The name is not verified in fetched source text; fetch and corroborate before relying on details.";
+        const metadata = JSON.stringify({
+          ...prior, reviewOnly: true, partialOrganizationLead: true, stage: "partial_review",
+          admission: prior.admission ?? "source-observed-organization-name",
+          verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead",
+          discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, limitations,
+        });
         let entityId = sameCase?.id;
+        let updated = false;
         if (!entityId) {
           const [created] = await tx.insert(entitiesTable).values({
             name: lead.name, type: "Corporation", bayesianScore: 0.05, contactConfidence: 0,
             contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false,
-            sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]),
-            notes: "SEARCH-RESULT LEAD — exact organization name observed in a successful search result. Source page not verified as fetched evidence; fetch and corroborate before relying on details.",
-            metadata: JSON.stringify({ reviewOnly: true, partialOrganizationLead: true, stage: "partial_review", admission: "source-observed-organization-name", verificationLevel: "search_result_lead", evidenceHierarchy: "unverified-search-lead", discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, limitations: ["source page not fetched", "ownership/control not established", "business materiality not established", "no person or wealth conclusion"] }),
+            sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes, metadata,
           }).returning({ id: entitiesTable.id });
           entityId = created?.id;
-        } else {
-          const prior = parseObject(sameCase?.metadata) ?? {};
-          if (prior.verificationLevel === "fetched_source") return { card: false, evidence: 0 };
-          await tx.update(entitiesTable).set({
-            notes: "SEARCH-RESULT LEAD — exact organization name observed in a successful search result. Source page not verified as fetched evidence; fetch and corroborate before relying on details.",
-            metadata: JSON.stringify({ ...prior, reviewOnly: true, partialOrganizationLead: true, stage: "partial_review", verificationLevel: "search_result_lead", evidenceHierarchy: "unverified-search-lead", discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, limitations: ["source page not fetched", "ownership/control not established", "business materiality not established", "no person or wealth conclusion"] }),
-            updatedAt: new Date(),
-          }).where(eq(entitiesTable.id, entityId));
+          updated = Boolean(entityId);
+        } else if (String(sameCase?.metadata ?? "") !== metadata || String(sameCase?.notes ?? "") !== notes) {
+          await tx.update(entitiesTable).set({ notes, metadata, updatedAt: new Date() }).where(eq(entitiesTable.id, entityId));
+          updated = true;
         }
-        if (!entityId) return { card: false, evidence: 0 };
+        if (!entityId) return { card: false, evidence: 0, updated };
+
         let added = 0;
         for (const support of supports.values()) {
-          const [priorEvidence] = await tx.select({ id: researchEvidenceTable.id })
+          const isFetched = support.verificationLevel === "fetched_source";
+          const [priorEvidence] = await tx.select({ id: researchEvidenceTable.id, metadata: researchEvidenceTable.metadata })
             .from(researchEvidenceTable).where(and(eq(researchEvidenceTable.entityId, entityId), eq(researchEvidenceTable.claimType, "partial_organization_lead"), eq(researchEvidenceTable.sourceUrl, support.url))).limit(1);
-          if (priorEvidence) continue;
+          if (priorEvidence) {
+            const priorEvidenceMetadata = parseObject(priorEvidence.metadata) ?? {};
+            if (isFetched && priorEvidenceMetadata.verificationLevel !== "fetched_source") {
+              await tx.update(researchEvidenceTable).set({
+                claim: "A successfully fetched public-source observation contains this exact organization name; ownership/control and wealth remain unestablished.",
+                observedAt: support.createdAt, freshnessScore: 1,
+                metadata: JSON.stringify({
+                  ...priorEvidenceMetadata, partialReview: true, verificationLevel: "fetched_source",
+                  evidenceTier: "fetched_public_source", discoveryCaseId: researchCase.id, atlasJobId: jobId,
+                  supportingEventId: support.eventId,
+                }),
+              }).where(eq(researchEvidenceTable.id, priorEvidence.id));
+              updated = true;
+            }
+            continue;
+          }
           const [session] = await tx.insert(researchSessionsTable).values({
-            targetEntityId: entityId, winningPath: JSON.stringify([{ sourceUrl: support.url, discoveryCaseId: researchCase.id, atlasJobId: jobId, status: "partial_review", verificationLevel: "search_result_lead" }]),
-            notes: "Search-result company lead only; the linked page has not been verified as fetched evidence.",
+            targetEntityId: entityId, winningPath: JSON.stringify([{ sourceUrl: support.url, discoveryCaseId: researchCase.id, atlasJobId: jobId, status: "partial_review", verificationLevel: support.verificationLevel }]),
+            notes: isFetched
+              ? "Fetched public-source name lead only; ownership, control, wealth, and targetability need independent research."
+              : "Search-result company lead only; the name is not verified in fetched source text.",
             safeUseStatus: "manual_review", crmStatus: "Lead Gen",
           }).returning({ id: researchSessionsTable.id });
           if (!session?.id) throw new Error("Could not persist a review session for a company lead.");
           await tx.insert(researchEvidenceTable).values({
             sessionId: session.id, entityId, claimType: "partial_organization_lead",
-            claim: "A successful search observation surfaced this exact organization name with an attributable source URL; this is an unverified lead, not fetched-page evidence.",
+            claim: isFetched
+              ? "A successfully fetched public-source observation contains this exact organization name; ownership/control and wealth remain unestablished."
+              : "A successful search observation surfaced this exact organization name with an attributable source URL; this remains an unverified lead, not fetched-page evidence.",
             value: lead.name, sourceName: "canonical-agentic-discovery", sourceUrl: support.url,
             sourceDomain: new URL(support.url).hostname, status: "review", confidence: 0.2,
-            observedAt: support.createdAt, freshnessScore: 0.5,
-            metadata: JSON.stringify({ partialReview: true, verificationLevel: "search_result_lead", evidenceTier: "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
+            observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
+            metadata: JSON.stringify({ partialReview: true, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
           });
           added += 1;
+          updated = true;
         }
-        return { card: !sameCase, evidence: added };
+        return { card: !sameCase, evidence: added, updated };
       }, { isolationLevel: "serializable" });
       if (persisted.card) cards += 1;
       evidenceRows += persisted.evidence;
+      changed = changed || persisted.updated;
     }
   }
-  if (cards || evidenceRows) {
+  if (changed) {
     await Promise.all([delCachePattern("entities:list:*").catch(() => undefined), delCachePattern("dashboard:*").catch(() => undefined)]);
     logger.info({ jobId, cards, evidenceRows }, "Reconciled review-only company leads from successful search observations.");
   }
