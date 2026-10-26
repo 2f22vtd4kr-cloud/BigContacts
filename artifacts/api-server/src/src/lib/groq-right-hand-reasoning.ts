@@ -10,6 +10,7 @@ import {
   describeThrownProviderError,
   summarizeProviderBody,
   providerErrorCode,
+  isTokenPerDayQuotaError,
 } from "./provider-error-diagnostics";
 
 // Canonical Right-hand model for the Groq control-plane role.
@@ -249,6 +250,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
   const structuredResponseFormat=responseFormat(format);
  const failures: GroqAttemptDiagnostic[] = [];
+ let stopModelFallbackForDailyQuota = false;
  const boundedIntegerOption=(value:number|undefined,fallback:number,min:number,max:number):number=>Number.isFinite(value)?Math.min(max,Math.max(min,Math.floor(value as number))):fallback;
  const maxOutboundAttempts=requestOptions?.maxAttempts===undefined?Number.POSITIVE_INFINITY:boundedIntegerOption(requestOptions.maxAttempts,MAX_MODEL_ATTEMPTS,1,6);
  let outboundAttemptCount=0;
@@ -276,7 +278,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
      emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,httpStatus:response.status,responseBody});
      modelAuditResponseRecorded=true;
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
-    if(response.status===429&&hardRateLimit(response,responseBody)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const kind=rateLimitKind(response,responseBody);const waitMs=kind==="tokens"?tokenRateLimitWaitMs(response):null;if(kind==="tokens"&&waitMs!==null&&waitMs<=MAX_TOKEN_RATE_LIMIT_WAIT_MS&&retryTokenRateLimit<MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL&&Date.now()+waitMs<deadline){retryTokenRateLimit++;lastRetryAfterMs=waitMs;lastRetryAfterHeader=response.headers.get("retry-after");await new Promise(r=>setTimeout(r,Math.min(waitMs,Math.max(0,deadline-Date.now()))));continue;}const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:waitMs??null,retryAfterHeader:response.headers.get("retry-after"),rateLimitKind:kind,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);break;}
+    if(response.status===429&&hardRateLimit(response,responseBody)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const kind=rateLimitKind(response,responseBody);const dailyTokenQuota=isTokenPerDayQuotaError(response.status,responseBody);const waitMs=kind==="tokens"?tokenRateLimitWaitMs(response):null;if(!dailyTokenQuota&&kind==="tokens"&&waitMs!==null&&waitMs<=MAX_TOKEN_RATE_LIMIT_WAIT_MS&&retryTokenRateLimit<MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL&&Date.now()+waitMs<deadline){retryTokenRateLimit++;lastRetryAfterMs=waitMs;lastRetryAfterHeader=response.headers.get("retry-after");await new Promise(r=>setTimeout(r,Math.min(waitMs,Math.max(0,deadline-Date.now()))));continue;}const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:waitMs??null,retryAfterHeader:response.headers.get("retry-after"),rateLimitKind:kind,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(dailyTokenQuota)stopModelFallbackForDailyQuota=true;break;}
     if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const retryHeader=response.headers.get("retry-after");const delay=retryHeader?retryAfterMs(response,GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS):GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS;lastRetryAfterMs=delay;lastRetryAfterHeader=retryHeader;if(delay<=2500){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
      if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:rateLimitKind(response,responseBody),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);
      const completionBudgetExhausted=response.status===400&&code==="json_validate_failed"&&/max completion tokens reached before generating a valid document/i.test(responseBody);
@@ -328,6 +330,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     break;
    }finally{clearTimeout(timer);}
   }
+  if(stopModelFallbackForDailyQuota) break;
  }
  return {raw:"",error:`Groq Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:attempts.at(-1)?.model??GROQ_RIGHT_HAND_MODEL};
 }
