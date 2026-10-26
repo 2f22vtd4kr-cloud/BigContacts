@@ -104,12 +104,20 @@ function LeadSkeleton() {
   );
 }
 
+function leadMetadata(lead: any): Record<string, unknown> {
+  if (typeof lead?.metadata !== "string") return {};
+  try { const parsed: unknown = JSON.parse(lead.metadata); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {}; } catch { return {}; }
+}
+
 function LeadCard({ lead, index }: { lead: any; index: number }) {
   const access = lead.accessScore ?? 0;
   const confidence = (lead.contactConfidence ?? 0) / 100;
   const contactReady = access >= 0.55;
   const workSummary = entityWorkSummary(lead);
   const findingsSummary = entityFindingsSummary(lead);
+  const dossier = leadMetadata(lead);
+  const reviewOnlyLead = dossier.reviewOnly === true || dossier.partialOrganizationLead === true || dossier.partialPersonLead === true;
+  const verificationLevel = String(dossier.verificationLevel ?? "");
   return (
     <Link
       href={`/profile/${lead.entityId}`}
@@ -130,6 +138,11 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
             {lead.nationality && <><span className="text-border">·</span><NationalityCell nationality={lead.nationality} /></>}
           </div>
         </div>
+        {reviewOnlyLead && (
+          <span data-testid={`badge-review-lead-${lead.entityId}`} className="relative rounded-full border border-amber-400/35 bg-amber-400/10 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-amber-200">
+            {verificationLevel === "search_result_lead" ? "Search lead · unverified" : "Review lead"}
+          </span>
+        )}
         {index < 3 && (
           <span className={`relative rounded-full border px-2 py-1 font-mono text-[11px] uppercase tracking-[0.13em] ${
             contactReady
