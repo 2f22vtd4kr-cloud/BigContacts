@@ -1,3 +1,36 @@
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchSessionsTable, researchEvidenceTable } from "@workspace/db";
+import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
+import { normalizeCandidateIdentityName } from "./identity-text-match";
+import { sanitizeUrlForEvidence } from "./url-privacy";
+import { delCachePattern } from "./redis";
+import { logger } from "./logger";
+import { isCanonicalJobOwner } from "./canonical-job-lock";
+
+function normalizeSource(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const safe = sanitizeUrlForEvidence(raw);
+  if (!safe || safe.startsWith("[")) return null;
+  try {
+    const url = new URL(safe);
+    if (url.protocol !== "https:") return null;
+    url.hash = "";
+    url.hostname = url.hostname.toLowerCase();
+    return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href;
+  } catch { return null; }
+}
+function parseObject(value: unknown): Record<string, unknown> | null {
+  if (typeof value !== "string") return null;
+  try { const parsed: unknown = JSON.parse(value); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null; } catch { return null; }
+}
+
+/**
+ * Terminal reconciliation for exact company-name leads found in successful
+ * search observations and, when available, corroborated in successful fetched
+ * page text. These cards remain review-only; a fetched name is not ownership,
+ * wealth, targetability, or a person admission.
+ */
 export async function reconcileOrganizationReviewCardsForJob(jobId: string): Promise<{ cards: number; evidenceRows: number }> {
   const empty = { cards: 0, evidenceRows: 0 };
   if (!(await isCanonicalJobOwner("atlas-run", jobId))) return empty;
