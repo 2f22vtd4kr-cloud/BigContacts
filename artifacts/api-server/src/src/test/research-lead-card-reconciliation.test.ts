@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 const reconciler = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
 const launchRoute = readFileSync(new URL("../routes/research/canonical-atlas-launch.ts", import.meta.url), "utf8");
+const dashboardRoute = readFileSync(new URL("../routes/dashboard.ts", import.meta.url), "utf8");
 describe("terminal review-card reconciliation", () => {
   it("persists only exact organization findings from successful search observations as review leads", () => {
     expect(reconciler).toContain('finding.scope !== "organization"');
@@ -13,6 +14,12 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain("reconcilePersonReviewCardsForJob");
     expect(reconciler).toContain('finding.scope !== "candidate"');
     expect(reconciler).toContain('claimType: "partial_person_role_lead"');
+    expect(reconciler).toContain('const fetched = action === "visit" || action === "browser_fetch";');
+    expect(reconciler).toContain('verificationLevel: fetched ? "fetched_source" : "search_result_lead"');
+    expect(reconciler).toContain('if (isFetched && priorEvidenceMetadata.verificationLevel !== "fetched_source")');
+    expect(reconciler).toContain('evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result"');
+    expect(reconciler).toContain("changed = changed || persisted.updated");
+    expect(dashboardRoute).toContain('verificationLevel: typeof metadata.verificationLevel === "string" ? metadata.verificationLevel : "unknown"');
   });
   it("runs as idempotent reconciliation when an Atlas job reaches a terminal status", () => {
     expect(launchRoute).toContain("reconcileOrganizationReviewCardsForJob(atlasJobId)");
