@@ -206,7 +206,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
   }
   if (changed) {
     await Promise.all([delCachePattern("entities:list:*").catch(() => undefined), delCachePattern("dashboard:*").catch(() => undefined)]);
-    logger.info({ jobId, cards, evidenceRows }, "Reconciled review-only company leads from successful search observations.");
+    logger.info({ jobId, cards, evidenceRows }, "Reconciled review-only company leads from observed source evidence.");
   }
   return { cards, evidenceRows };
 }
