@@ -15,6 +15,11 @@ export type ContactRouteView = {
   mark?: "personal" | "organization" | "candidate" | string;
   label?: string;
   identityCollisionRisk?: boolean;
+  contextType?: string | null;
+  sourceReliability?: number | null;
+  directnessScore?: number | null;
+  independentCorroboration?: number | null;
+  metadata?: string | null;
 };
 
 function telHref(value: string): string {
@@ -42,6 +47,19 @@ function iconFor(vectorType: string, mark?: string) {
   if (mark === "organization") return Building2;
   if (vectorType === "social") return Link2;
   return User;
+}
+
+function routeTier(route: ContactRouteView): { label: string; title: string; color: string } {
+  let context = String(route.contextType ?? "").toLowerCase().replace(/\s+/g, "_");
+  if (!context && route.metadata) {
+    try { const parsed = JSON.parse(route.metadata) as Record<string, unknown>; context = String(parsed.contextType ?? parsed.contactContext ?? "").toLowerCase().replace(/\s+/g, "_"); } catch {}
+  }
+  if (["restricted_context", "sensitive_context", "nonprofessional_context"].includes(context)) return { label: "NOT A ROUTE", title: "This context is not used for outreach ranking", color: "#94a3b8" };
+  if (route.mark === "organization") return { label: "PUBLIC COMPANY", title: "Generic corporate route; useful but low-exclusivity", color: "#a78bfa" };
+  const verified = /verified|corroborated|accepted/i.test(String(route.validationStatus ?? ""));
+  const professional = ["professional", "business", "public_professional", "public_business"].includes(context);
+  if (route.mark === "personal" && verified && professional && (route.sourceReliability ?? 0) >= 0.7 && (route.directnessScore ?? 0) >= 0.7 && (route.independentCorroboration ?? 0) >= 1) return { label: "DIRECT PROFESSIONAL", title: "Verified public professional route", color: "#34d399" };
+  return { label: "REVIEW", title: "Source context or attribution needs review", color: "#94a3b8" };
 }
 
 function markColor(mark?: string): string {
@@ -73,7 +91,7 @@ export function ContactSurface({
   const seen = new Set<string>();
   const push = (r: ContactRouteView) => {
     const v = String(r.value ?? "").trim();
-    if (!v) return;
+    if (!v || routeTier(r).label === "NOT A ROUTE") return;
     const key = `${String(r.vectorType ?? "other").toLowerCase()}|${v.toLowerCase()}`;
     if (seen.has(key)) return;
     seen.add(key);
@@ -181,6 +199,7 @@ export function ContactSurface({
         >
           {primary.label || primary.mark || primary.vectorType}
         </span>
+        <span className="inline-flex items-center rounded border border-white/10 px-1 py-0.5 text-[9px] font-mono uppercase tracking-wider text-muted-foreground" title={routeTier(primary).title}>{routeTier(primary).label}</span>
         {primary.source && primary.source !== "entity" ? (
           <span className="truncate text-[10px] text-muted-foreground max-w-[120px]" title={primary.source}>
             {primary.source}

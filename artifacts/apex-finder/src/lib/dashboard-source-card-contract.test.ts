@@ -10,5 +10,7 @@ describe("dashboard source-card snippet honesty", () => {
     expect(dashboardSource).toContain("text-unverified-search-snippet-");
     expect(dashboardSource).toContain("The page was fetched, but no structured entity claim was emitted.");
     expect(dashboardSource).toContain("Not an entity / not HNWI evidence");
+    expect(dashboardSource).toContain("badge-review-lead-");
+    expect(dashboardSource).toContain("Search lead · unverified");
   });
 });
