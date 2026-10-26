@@ -13,4 +13,21 @@ describe("dashboard source-card snippet honesty", () => {
     expect(dashboardSource).toContain("badge-review-lead-");
     expect(dashboardSource).toContain("Search lead · unverified");
   });
+
+  it("labels review-lead URLs as source links, not necessarily fetched sources", () => {
+    const start = dashboardSource.indexOf("function ReviewLeadCard(");
+    const end = dashboardSource.indexOf("\n}\n\nexport default function Dashboard()", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const reviewCardSource = dashboardSource.slice(start, end);
+    expect(reviewCardSource).toContain("source link");
+    expect(reviewCardSource).not.toContain("fetched source");
+    expect(reviewCardSource).toContain("Fetched-source support");
+    expect(reviewCardSource).toContain('lead.verificationLevel === "search_result_lead"');
+    expect(reviewCardSource).toContain("Verification pending");
+    expect(reviewCardSource).toContain("lead.limitations");
+    expect(reviewCardSource).toContain('aria-label="Attributable source links"');
+    expect(reviewCardSource).toContain('target="_blank"');
+    expect(reviewCardSource).toContain("Open gaps · ");
+  });
 });
