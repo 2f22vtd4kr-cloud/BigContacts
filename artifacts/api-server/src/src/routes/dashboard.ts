@@ -248,6 +248,8 @@ router.get("/dashboard/research-leads", async (req, res): Promise<void> => {
       entityType: row.entityType,
       notes: row.notes,
       sourceUrls,
+      verificationLevel: typeof metadata.verificationLevel === "string" ? metadata.verificationLevel : "unknown",
+      role: typeof metadata.role === "string" ? metadata.role : null,
       stage: "partial_review" as const,
       updatedAt: row.updatedAt,
       limitations: Array.isArray(metadata.limitations) ? metadata.limitations.filter((value): value is string => typeof value === "string") : [],
