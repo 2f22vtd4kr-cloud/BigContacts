@@ -65,10 +65,9 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           findings.set(identity, entry);
         }
       }
-      const searchLeadUrls = [
-        ...(Array.isArray(payload.leadUrls) ? payload.leadUrls : []),
-        ...(Array.isArray(payload.observedUrls) ? payload.observedUrls : []),
-      ];
+      const searchLeadUrls = Array.isArray(payload.leadUrls) && payload.leadUrls.length
+        ? payload.leadUrls
+        : (Array.isArray(payload.observedUrls) ? payload.observedUrls : []);
       if (event.eventType === "tool_observation" && payload.execution === "success" && /search/i.test(String(payload.action ?? ""))) {
         for (const rawUrl of searchLeadUrls) {
           const url = normalizeSource(rawUrl);
@@ -195,7 +194,11 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       const search = /search/i.test(action);
       const fetched = action === "visit" || action === "browser_fetch";
       if (!search && !fetched) continue;
-      const rawUrls = [...(Array.isArray(payload.leadUrls) ? payload.leadUrls : []), ...(Array.isArray(payload.observedUrls) ? payload.observedUrls : [])];
+      // Search results are lead URLs; fetched actions are supported only by
+      // URLs actually observed by that fetch, never by stale prior lead URLs.
+      const rawUrls = search
+        ? (Array.isArray(payload.leadUrls) && payload.leadUrls.length ? payload.leadUrls : (Array.isArray(payload.observedUrls) ? payload.observedUrls : []))
+        : (Array.isArray(payload.observedUrls) ? payload.observedUrls : []);
       for (const rawUrl of rawUrls) {
         const url = normalizeSource(rawUrl);
         if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
