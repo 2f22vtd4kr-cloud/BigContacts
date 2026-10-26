@@ -22,5 +22,8 @@ describe("dashboard source-card snippet honesty", () => {
     const reviewCardSource = dashboardSource.slice(start, end);
     expect(reviewCardSource).toContain("source link");
     expect(reviewCardSource).not.toContain("fetched source");
+    expect(reviewCardSource).toContain("Fetched-source support");
+    expect(reviewCardSource).toContain('lead.verificationLevel === "search_result_lead"');
+    expect(reviewCardSource).toContain("Verification pending");
   });
 });
