@@ -8,7 +8,7 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain('finding.scope !== "organization"');
     expect(reconciler).toContain('payload.execution === "success"');
     expect(reconciler).toContain("bindExactSourceSpan(observation.text, lead.name)");
-    expect(reconciler).toContain('verificationLevel: "search_result_lead"');
+    expect(reconciler).toContain('const verificationLevel = hasFetched ? "fetched_source" : "search_result_lead"');
     expect(reconciler).toContain('status: "review"');
     expect(reconciler).toContain("unverified lead, not fetched-page evidence");
     expect(reconciler).toContain("reconcilePersonReviewCardsForJob");
