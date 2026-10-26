@@ -3162,6 +3162,10 @@ describe("small emergency observation budgets", () => {
       findings: [],
       priorContext: "DURABLE CASE MEMORY ".repeat(500),
       intelligenceContext: "RESEARCH FRONTIER ".repeat(500),
+      // Exercise the absolute-minimum tier by making action guidance consume more
+      // prompt space than the richer emergency tiers can afford. All entries are
+      // valid capabilities; this is a prompt-budget stress fixture, not a research plan.
+      actionAllowlist: Array.from({ length: 28 }, () => "parallel_web_search"),
       mode: "discovery",
     });
 
