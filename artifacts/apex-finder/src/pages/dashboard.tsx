@@ -366,7 +366,7 @@ function ReviewLeadCard({ lead, index }: { lead: any; index: number }) {
         <p className="mt-1.5 line-clamp-3 text-xs leading-5 text-muted-foreground">{lead.notes || descriptor}</p>
       </div>
       <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-border/70 pt-3 font-mono text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-        <span>{sourceCount} fetched source{sourceCount === 1 ? "" : "s"}</span>
+        <span>{sourceCount} source link{sourceCount === 1 ? "" : "s"}</span>
         <span>Not HNWI-verified</span>
       </div>
     </Link>
