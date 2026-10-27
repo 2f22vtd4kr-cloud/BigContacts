@@ -1433,6 +1433,48 @@ async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa
   return result ? { ...result, text: sanitizeUrlOccurrences(result.text, result.urls), urls: result.urls.map((url) => sanitizeUrlForEvidence(url)), provider } : { text: `${provider} returned no usable result.`, urls: [], provider, status: "error" };
 }
 
+const SEARCH_RESULT_BUSINESS_MARKER = /\\b(?:casino|hotel|resort|bank|holdings?|group|capital|industr(?:y|ies)|manufacturing|motors|energy|airlines?|airways|properties|estates|construction|technolog(?:y|ies)|foods?|gaming|entertainment|marina|yachts?|investments?|partners|ventures|corporation|corp\\.?|company|co\\.?|incorporated|inc\\.?|limited|ltd\\.?|llc|gmbh|s\\.?r\\.?o\\.?|d\\.?o\\.?o\\.?|d\\.?d\\.?|plc|s\\.?a\\.?|b\\.?v\\.?|a\\/s|ag|oy|ou|uab|ab|srl)\\b/i;
+const SEARCH_RESULT_HEADLINE_MARKER = /\\b(?:announces?|according to|breaking|earnings|explained|guide|how to|latest|market outlook|news|press release|ranking|report|review|share price|top \\d+|what is|when|where|who|why)\\b/i;
+
+/**
+ * Deterministic extraction is limited to the provider's exact result title and
+ * exact result URL. It never manufactures a name from a hostname and creates
+ * only a review-only company lead; the fetched page and any person/wealth claims
+ * remain unverified. The Investigator still owns the research strategy.
+ */
+export function extractSearchResultCompanyLeadFindings(resultText: string, resultUrls: readonly string[]): AgenticFinding[] {
+  const allowedUrls = new Set(resultUrls.map((raw) => normalizedUrl(raw)).filter((url): url is string => Boolean(url) && isClaimGradeDiscoverySourceUrl(url)));
+  if (!allowedUrls.size || !resultText.trim()) return [];
+  const leads: AgenticFinding[] = [];
+  const seen = new Set<string>();
+  const pattern = /(?:^|\\n)([^\\n]{3,220})\\nURL:\\s*(https?:\\/\\/[^\\s]+)\\n([^\\n]*)/g;
+  for (const match of resultText.matchAll(pattern)) {
+    const rawTitle = (match[1] ?? "").trim();
+    const url = normalizedUrl((match[2] ?? "").trim());
+    if (!url || !allowedUrls.has(url)) continue;
+    const title = rawTitle.replace(/\\s*[|–—-]\\s*(?:official website|official site|homepage|home)\\s*$/i, "").trim();
+    if (title.length < 3 || title.length > 180 || !/[a-z0-9]/i.test(title)) continue;
+    if (!SEARCH_RESULT_BUSINESS_MARKER.test(title) || SEARCH_RESULT_HEADLINE_MARKER.test(title)) continue;
+    if (!bindExactSourceSpan(resultText, title)?.exact) continue;
+    const identity = normalizeCandidateIdentityName(title);
+    if (!identity || seen.has(identity)) continue;
+    seen.add(identity);
+    leads.push({
+      vectorType: "other",
+      value: title,
+      personName: null,
+      role: null,
+      scope: "organization",
+      sourceUrls: [url],
+      note: "search_result_lead; exact business-like title returned by the search provider; snippet/title only, underlying page not fetched; no ownership, wealth, person, or contact conclusion.",
+      promotionDecision: "promote",
+      promotionReason: "Search-only and unverified; admit only as a low-confidence review-only company card, not as a verified target or investor.",
+    });
+    if (leads.length >= 3) break;
+  }
+  return leads;
+}
+
 export function isPdfPageResponse(url: string, contentType: string | null, contentDisposition: string | null = null): boolean {
   if (contentType && /^(?:application\/pdf|application\/x-pdf)(?:\s*;|$)/i.test(contentType.trim())) return true;
   if (contentDisposition && /filename\*?\s*=\s*(?:UTF-8''|["']?)[^;"'\r\n]*\.pdf(?:["';\s]|$)/i.test(contentDisposition)) return true;
