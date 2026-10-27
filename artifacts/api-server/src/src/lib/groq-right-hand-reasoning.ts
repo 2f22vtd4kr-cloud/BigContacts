@@ -246,18 +246,22 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  // This request uses one configured slot and only the documented same-role model fallback.
  // Recovery through another credential must be explicit rather than a side effect of retries.
  const attempts:Array<{entry:{name:string;key:string};model:string}>=[];
- for(const model of await resolveModelChain(entry.key))attempts.push({entry,model});
+ for(const credential of distinctEntries){
+  for(const model of await resolveModelChain(credential.key))attempts.push({entry:credential,model});
+ }
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
   const structuredResponseFormat=responseFormat(format);
  const failures: GroqAttemptDiagnostic[] = [];
  const boundedIntegerOption=(value:number|undefined,fallback:number,min:number,max:number):number=>Number.isFinite(value)?Math.min(max,Math.max(min,Math.floor(value as number))):fallback;
- const maxOutboundAttempts=requestOptions?.maxAttempts===undefined?Number.POSITIVE_INFINITY:boundedIntegerOption(requestOptions.maxAttempts,MAX_MODEL_ATTEMPTS,1,6);
+ const maxOutboundAttempts=requestOptions?.maxAttempts===undefined?Math.min(6,attempts.length):boundedIntegerOption(requestOptions.maxAttempts,MAX_MODEL_ATTEMPTS,1,6);
  let outboundAttemptCount=0;
+ const quotaBlockedCredentials=new Set<string>();
  let currentCompletionTokens=boundedIntegerOption(requestOptions?.maxCompletionTokens,768,256,1536);
  let currentReasoningEffort=requestOptions?.reasoningEffort??"medium";
  let generationBudgetRecoveryUsed=false;
  for(const candidate of attempts){
   if(Date.now()>=deadline||outboundAttemptCount>=maxOutboundAttempts)break;
+  if(quotaBlockedCredentials.has(fingerprint(candidate.entry.key)))continue;
   let retry503=0,retry429=0,retryTokenRateLimit=0;
    let useJsonObjectFallback=false;
   let lastRetryAfterMs: number | null = null;
@@ -277,7 +281,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
      emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,httpStatus:response.status,responseBody});
      modelAuditResponseRecorded=true;
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
-    if(response.status===429&&hardRateLimit(response,responseBody)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const kind=rateLimitKind(response,responseBody);const dailyTokenQuota=isTokenPerDayQuotaError(response.status,responseBody);const waitMs=kind==="tokens"?tokenRateLimitWaitMs(response):null;if(!dailyTokenQuota&&kind==="tokens"&&waitMs!==null&&waitMs<=MAX_TOKEN_RATE_LIMIT_WAIT_MS&&retryTokenRateLimit<MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL&&Date.now()+waitMs<deadline){retryTokenRateLimit++;lastRetryAfterMs=waitMs;lastRetryAfterHeader=response.headers.get("retry-after");await new Promise(r=>setTimeout(r,Math.min(waitMs,Math.max(0,deadline-Date.now()))));continue;}const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:waitMs??null,retryAfterHeader:response.headers.get("retry-after"),rateLimitKind:kind,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);break;}
+    if(response.status===429&&hardRateLimit(response,responseBody)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const kind=rateLimitKind(response,responseBody);const dailyTokenQuota=isTokenPerDayQuotaError(response.status,responseBody);const waitMs=kind==="tokens"?tokenRateLimitWaitMs(response):null;if(!dailyTokenQuota&&kind==="tokens"&&waitMs!==null&&waitMs<=MAX_TOKEN_RATE_LIMIT_WAIT_MS&&retryTokenRateLimit<MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL&&Date.now()+waitMs<deadline){retryTokenRateLimit++;lastRetryAfterMs=waitMs;lastRetryAfterHeader=response.headers.get("retry-after");await new Promise(r=>setTimeout(r,Math.min(waitMs,Math.max(0,deadline-Date.now()))));continue;}const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:waitMs??null,retryAfterHeader:response.headers.get("retry-after"),rateLimitKind:kind,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(kind==="requests")quotaBlockedCredentials.add(fingerprint(candidate.entry.key));break;}
     if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const retryHeader=response.headers.get("retry-after");const delay=retryHeader?retryAfterMs(response,GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS):GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS;lastRetryAfterMs=delay;lastRetryAfterHeader=retryHeader;if(delay<=2500){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
      if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:rateLimitKind(response,responseBody),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);
      const completionBudgetExhausted=response.status===400&&code==="json_validate_failed"&&/max completion tokens reached before generating a valid document/i.test(responseBody);
@@ -297,7 +301,8 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
        continue;
      }
      if(response.status===400&&code==="json_validate_failed"&&useJsonObjectFallback)break;
-     if(response.status===401||response.status===403||response.status===404)break;
+     if(response.status===401||response.status===403){quotaBlockedCredentials.add(fingerprint(candidate.entry.key));break;}
+     if(response.status===404)break;
      if(response.status===429)break;
      if(response.status===500||response.status===502||response.status===503||response.status===504)break;
      return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
