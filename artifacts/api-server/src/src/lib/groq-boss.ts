@@ -107,9 +107,16 @@ function cacheKey(key: string): string {
 
 async function resolveGroqBossModelImpl(preferredKeyName?: string): Promise<GroqBossModelSelection> {
   const configured = keys();
-  const ordered = preferredKeyName
+  const preferredOrder = preferredKeyName
     ? [...configured.filter((entry) => entry.name === preferredKeyName), ...configured.filter((entry) => entry.name !== preferredKeyName)]
     : configured;
+  const seenCredentialFingerprints = new Set<string>();
+  const ordered = preferredOrder.filter((entry) => {
+    const fingerprint = cacheKey(entry.key);
+    if (seenCredentialFingerprints.has(fingerprint)) return false;
+    seenCredentialFingerprints.add(fingerprint);
+    return true;
+  }).slice(0, MAX_CREDENTIALS_PER_CONTROL_TURN);
 
   if (ordered.length === 0) {
     return { model: GROQ_BOSS_MODEL_PENDING, status: "pending", inspectedKeyCount: 0, candidateCount: 0 };
