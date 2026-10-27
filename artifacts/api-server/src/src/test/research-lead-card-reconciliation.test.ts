@@ -60,7 +60,7 @@ describe("terminal review-card reconciliation", () => {
     expect(agenticCore).toContain("SOURCE-NEUTRAL RESEARCH: compare plausible hypotheses and choose complementary source classes");
     expect(agenticCore).toContain("never default to Companies House or query registries merely because they are available");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
-    expect(agenticCore).toContain('if observed result text states an exact organization name and eligible HTTPS URL, emit a low-confidence review-only company finding');
+    expect(agenticCore).toContain('exact organization name and eligible HTTPS URL in observed text yields a low-confidence review-only company finding');
   });
 
   it("persists only exact organization findings from successful search observations as review leads", () => {
@@ -112,7 +112,7 @@ describe("search-result company lead extraction", () => {
       sourceUrls: ["https://www.perla.si/casino"],
     });
     expect(leads[0]?.note).toContain("underlying page not fetched");
-    expect(leads[0]?.note).toContain("low-confidence review-only company lead");
+    expect(leads[0]?.note).toContain("LOW-CONFIDENCE REVIEW-ONLY COMPANY LEAD");
     expect(leads[0]).not.toHaveProperty("promotionDecision");
   });
 
