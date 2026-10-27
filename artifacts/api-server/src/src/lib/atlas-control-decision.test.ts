@@ -219,7 +219,7 @@ describe("Atlas control-plane lead continuity", () => {
       compactState: "Latest durable state and source observations. ".repeat(4_000),
     });
 
-    expect(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET).toBe(9_600);
+    expect(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET).toBe(7_200);
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
     expect(ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT.schema.properties.reason.maxLength).toBe(600);
     expect(ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT.schema.properties.direction.maxLength).toBe(600);
