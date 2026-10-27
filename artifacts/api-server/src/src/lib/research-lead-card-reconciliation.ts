@@ -7,6 +7,24 @@ import { sanitizeUrlForEvidence } from "./url-privacy";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
+import { getJobStrict } from "./job-queue";
+
+/**
+ * Review-lead reconciliation normally runs while the Atlas lease is owned.
+ * The canonical discovery pipeline also clears that lease as part of some
+ * terminal return paths before the launch route's finally block reconciles
+ * durable observations. Permit that narrow terminal case only when the exact
+ * durable job is known to be an Atlas job in a terminal, non-cancelled state.
+ *
+ * Each case is still checked under a row lock against its exact job binding,
+ * and cancelled/lease-lost cases are refused there. Unknown Redis/job state
+ * remains fail-closed.
+ */
+async function hasReviewReconciliationAuthority(jobId: string): Promise<boolean> {
+  if (await isCanonicalJobOwner("atlas-run", jobId)) return true;
+  const job = await getJobStrict(jobId);
+  return job?.type === "atlas-run" && (job.status === "done" || job.status === "failed");
+}
 
 function normalizeSource(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -44,7 +62,7 @@ function organizationLabelFromUrl(sourceUrl: string): string | null {
  */
 export async function reconcileOrganizationReviewCardsForJob(jobId: string): Promise<{ cards: number; evidenceRows: number }> {
   const empty = { cards: 0, evidenceRows: 0 };
-  if (!(await isCanonicalJobOwner("atlas-run", jobId))) return empty;
+  if (!(await hasReviewReconciliationAuthority(jobId))) return empty;
   const cases = await db.select({ id: researchCasesTable.id, caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType })
     .from(researchCasesTable)
     .where(and(eq(researchCasesTable.caseType, "discovery"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`));
@@ -287,7 +305,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
  * not admit an HNWI, establish a personal contact route, or bypass target gates.
  */
 export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{ cards: number; evidenceRows: number }> {
-  if (!(await isCanonicalJobOwner("atlas-run", jobId))) return { cards: 0, evidenceRows: 0 };
+  if (!(await hasReviewReconciliationAuthority(jobId))) return { cards: 0, evidenceRows: 0 };
   const cases = await db.select({ id: researchCasesTable.id, caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType })
     .from(researchCasesTable)
     .where(and(eq(researchCasesTable.caseType, "discovery"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`));
