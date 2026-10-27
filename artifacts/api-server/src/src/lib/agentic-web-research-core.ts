@@ -4043,7 +4043,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const compactWorkerCapabilityGuidance = availablePythonActions.size > 0
     ? "Conditional specialist OSINT actions: Worker-backed actions, when listed in AVAILABLE ACTIONS, ONLY if the exact action appears in AVAILABLE ACTIONS this turn; otherwise unavailable. footprint_email=email; footprint_username_maigret/footprint_username_sherlock=username; harvest_domain=domain; footprint_spiderfoot=target+targetType+profile. Use observed seeds; outputs are leads, not proof."
     : "";
-  const compactCriticalRetrievalGuidance = "BINARY URL POLICY: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text. Scanned/image-only PDFs require OCR (unavailable). Search snippets remain leads, not evidence. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
+  const compactCriticalRetrievalGuidance = "BINARY URL POLICY: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct extraction failures. Search snippets remain leads, not evidence. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
   const availableRegistryIds = getAvailableRegistryIds();
   const registryIdList = availableRegistryIds.join(", ") || "(no registry adapters currently available; use web_search and observed page visits for public sources)";
   const registryCoverageGuidance = renderRegistryCoverageGuidance(availableRegistryIds);
@@ -4606,7 +4606,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 160)
         : "CASE OBJECTIVE: source-backed real-person research; never invent evidence.";
       const shortestActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
-      const shortestRegistryGuidance = `REGISTRY GUIDANCE: enabled IDs only: ${registryIdList}; never invent IDs; unavailable/failed is not a no-hit.`;
+      const shortestRegistryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY: ${registryIdList}; never invent IDs; unavailable/failed is not a no-hit.`;
       const shortestDiscoveryGate = input.mode === "discovery"
         ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are the target; an organization is a lead, not the target. Require ownership/equity/control/investment clue; never infer wealth from seniority alone. Honor approved Boss scope: topic/geography must match; source class need not appear in every discovery query. No preset targets/queries; the model chooses tools and action order; this is not a prescribed action sequence. Avoid generic wealth/net-worth/private-equity-profile searches alone, Fortune/ranking lists, and global-brand leadership without a plausible local owner/operator route hypothesis. News publishers and articles are evidence leads only, never targets or access routes. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
         : "";
