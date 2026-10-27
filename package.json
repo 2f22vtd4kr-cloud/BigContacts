@@ -180,5 +180,6 @@
       "rollup>@rollup/rollup-win32-x64-msvc": "-",
       "pdfjs-dist>@napi-rs/canvas": "-"
     }
-  }
+  },
+  "packageManager": "pnpm@9.15.9"
 }

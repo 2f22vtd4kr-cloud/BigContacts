@@ -93,6 +93,8 @@ import {
   buildAtokaStartupSearchUrl,
   buildBormeSearchUrl,
   buildKboBelgiumSearchUrl,
+  buildFaaAircraftSearchUrl,
+  normalizeFaaAircraftDetail,
 } from "../lib/registry-client";
 import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -295,7 +297,7 @@ describe("Phase J2 registry normalization", () => {
 
   it("registers the three J2 jurisdictions in the shared dispatch list", () => {
     expect(REGISTRY_IDS).toEqual(expect.arrayContaining(["brreg", "ares-czechia", "bodacc-france"]));
-    expect(REGISTRY_IDS).not.toContain("faa");
+    expect(REGISTRY_IDS).toContain("faa");
     expect(REGISTRY_IDS).not.toContain("hmlr-ppd");
   });
 
@@ -309,7 +311,7 @@ describe("Phase J2 registry normalization", () => {
       "borme-spain",
       "kbo-belgium",
     ]));
-    expect(randomSources).not.toContain("faa");
+    expect(randomSources).toContain("faa");
     expect(randomSources).not.toContain("hmlr-ppd");
   });
 
@@ -379,5 +381,43 @@ describe("registry capability availability", () => {
 
     expect(getAvailableRegistryIds()).toContain("opencorporates");
     expect(isRegistryProviderAvailable("opencorporates")).toBe(true);
+  });
+});
+
+
+describe("FAA Aircraft Registry adapter", () => {
+  it("uses official FAA HTTPS endpoints for grounded registrant names and N-numbers", () => {
+    const byName = new URL(buildFaaAircraftSearchUrl("Example Aviation LLC"));
+    expect(byName.origin).toBe("https://registry.faa.gov"); expect(byName.pathname).toBe("/AircraftInquiry/Search/NameResult");
+    expect(byName.searchParams.get("nametxt")).toBe("Example Aviation LLC"); expect(byName.searchParams.get("sort_option")).toBe("4");
+    const byNNumber = new URL(buildFaaAircraftSearchUrl("N123AB"));
+    expect(byNNumber.pathname).toBe("/AircraftInquiry/Search/NNumberResult"); expect(byNNumber.searchParams.get("NNumbertxt")).toBe("N123AB");
+    expect(() => buildFaaAircraftSearchUrl("  ")).toThrow(/cannot be empty/i);
+  });
+  it("normalizes registrant and aircraft fields without promoting a person to HNWI", () => {
+    const sourceUrl = "https://registry.faa.gov/AircraftInquiry/Search/NNumberResult?NNumbertxt=N123AB";
+    const html = "<html><body><table><tr><td>Serial Number</td><td>ABC-123</td><td>Status</td><td>Valid</td></tr>" +
+      "<tr><td>Manufacturer Name</td><td>CESSNA</td><td>Model</td><td>510</td></tr><tr><td>Type Registration</td><td>LLC</td><td>Fractional Owner</td><td>No</td></tr></table>" +
+      "<table><tr><td>Name</td><td>EXAMPLE AVIATION LLC</td></tr></table></body></html>";
+    const result = normalizeFaaAircraftDetail(html, sourceUrl);
+    expect(result?.name).toBe("EXAMPLE AVIATION LLC"); expect(result?.type).toBe("Corporation");
+    expect(result?.sourceRegistries).toContain("FAA Aircraft Registry"); expect(result?.notes).toContain("does not establish beneficial ownership");
+    expect(JSON.parse(result?.metadata ?? "{}")).toMatchObject({ nNumber: "N123AB", manufacturer: "CESSNA", model: "510", registrationStatus: "Valid", sourceUrl });
+  });
+  it("only admits an individual FAA registrant when the record explicitly identifies an individual", () => {
+    const url = "https://registry.faa.gov/AircraftInquiry/Search/NNumberResult?NNumbertxt=N123AB";
+    const individual = "<table><tr><td>Type Registration</td><td>Individual</td></tr><tr><td>Name</td><td>JOHN DOE</td></tr></table>";
+    expect(normalizeFaaAircraftDetail(individual, url)).toMatchObject({ name: "JOHN DOE", type: "PersonCandidate" });
+    const coOwned = "<table><tr><td>Type Registration</td><td>Co-Owned</td></tr><tr><td>Name</td><td>JOHN DOE</td></tr></table>";
+    expect(normalizeFaaAircraftDetail(coOwned, url)).toBeNull();
+  });
+  it("rejects unrelated, insecure, or registrant-withheld pages rather than inventing an entity", () => {
+    expect(normalizeFaaAircraftDetail("<html><body>No records found</body></html>", "https://registry.faa.gov/AircraftInquiry/Search/NNumberResult?NNumbertxt=N123AB")).toBeNull();
+    expect(normalizeFaaAircraftDetail("<table></table>", "http://registry.faa.gov/AircraftInquiry/Search/NNumberResult?NNumbertxt=N123AB")).toBeNull();
+    expect(normalizeFaaAircraftDetail("<table></table>", "https://example.com/AircraftInquiry/Search/NNumberResult?NNumbertxt=N123AB")).toBeNull();
+  });
+  it("makes FAA a selectable registry and a mixed-source discovery option", () => {
+    expect(REGISTRY_IDS).toContain("faa"); expect(getAvailableRegistryIds()).toContain("faa"); expect(getRandomDiscoveryRegistries()).toContain("faa");
+    expect(REGISTRY_COVERAGE_MATRIX.find((entry) => entry.id === "faa")?.runtimeAdapterImplemented).toBe(true);
   });
 });

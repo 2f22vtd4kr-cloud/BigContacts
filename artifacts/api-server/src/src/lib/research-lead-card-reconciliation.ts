@@ -7,6 +7,24 @@ import { sanitizeUrlForEvidence } from "./url-privacy";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
+import { getJobStrict } from "./job-queue";
+
+/**
+ * Review-lead reconciliation normally runs while the Atlas lease is owned.
+ * The canonical discovery pipeline also clears that lease as part of some
+ * terminal return paths before the launch route's finally block reconciles
+ * durable observations. Permit that narrow terminal case only when the exact
+ * durable job is known to be an Atlas job in a terminal, non-cancelled state.
+ *
+ * Each case is still checked under a row lock against its exact job binding,
+ * and cancelled/lease-lost cases are refused there. Unknown Redis/job state
+ * remains fail-closed.
+ */
+async function hasReviewReconciliationAuthority(jobId: string): Promise<boolean> {
+  if (await isCanonicalJobOwner("atlas-run", jobId)) return true;
+  const job = await getJobStrict(jobId);
+  return job?.type === "atlas-run" && job.cancelRequested !== true && (job.status === "done" || job.status === "failed");
+}
 
 function normalizeSource(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
@@ -25,10 +43,18 @@ function parseObject(value: unknown): Record<string, unknown> | null {
   try { const parsed: unknown = JSON.parse(value); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null; } catch { return null; }
 }
 
-function organizationLabelFromUrl(sourceUrl: string): string | null {
+export function organizationLabelFromUrl(sourceUrl: string): string | null {
   try {
     const host = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "");
-    const label = host.split(".").filter(Boolean).slice(-2, -1)[0] ?? host;
+    if (!host || /^\d+(?:\.\d+){3}$/.test(host)) return null;
+    const labels = host.split(".").filter(Boolean);
+    if (labels.length < 2) return null;
+    const penultimate = labels[labels.length - 2]!;
+    const final = labels[labels.length - 1]!;
+    const commonSecondLevelSuffixes = new Set(["co", "com", "org", "gov", "ac", "net", "edu", "mil"]);
+    const hasTwoLevelPublicSuffix = final.length === 2 && commonSecondLevelSuffixes.has(penultimate);
+    const label = labels[labels.length - (hasTwoLevelPublicSuffix ? 3 : 2)];
+    if (!label || commonSecondLevelSuffixes.has(label) || label.length < 3) return null;
     const normalized = label.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()).trim();
     return normalized.length >= 3 ? `${normalized} (source lead)` : null;
   } catch {
@@ -44,7 +70,7 @@ function organizationLabelFromUrl(sourceUrl: string): string | null {
  */
 export async function reconcileOrganizationReviewCardsForJob(jobId: string): Promise<{ cards: number; evidenceRows: number }> {
   const empty = { cards: 0, evidenceRows: 0 };
-  if (!(await isCanonicalJobOwner("atlas-run", jobId))) return empty;
+  if (!(await hasReviewReconciliationAuthority(jobId))) return empty;
   const cases = await db.select({ id: researchCasesTable.id, caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType })
     .from(researchCasesTable)
     .where(and(eq(researchCasesTable.caseType, "discovery"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`));
@@ -135,17 +161,42 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         const url = normalizeSource(rawUrl);
         if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
         const observationText = String(payload.observation ?? "").replace(/\s+/g, " ").trim().slice(0, 800);
-        const sourceLeadName = !fetched && search ? organizationLabelFromUrl(url) : null;
+        const args = payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
+          ? payload.args as Record<string, unknown>
+          : null;
+        const rawPageIdentity = fetched && args?.observedPageIdentity && typeof args.observedPageIdentity === "object" && !Array.isArray(args.observedPageIdentity)
+          ? args.observedPageIdentity as Record<string, unknown>
+          : null;
+        const pageIdentityName = typeof rawPageIdentity?.name === "string" ? rawPageIdentity.name.trim().replace(/\s+/g, " ") : "";
+        const pageIdentityKind = rawPageIdentity?.kind === "companies_house_record_title" || rawPageIdentity?.kind === "same_site_structured_organization"
+          ? rawPageIdentity.kind
+          : null;
+        const pageIdentitySource = typeof rawPageIdentity?.sourceUrl === "string" ? normalizeSource(rawPageIdentity.sourceUrl) : null;
+        // Metadata can admit the page's own organization identity as a review lead
+        // only when the runtime extracted it from this exact successful source URL.
+        const pageIdentity = pageIdentityName.length >= 3 && pageIdentityName.length <= 180
+          && pageIdentityKind && pageIdentitySource === url
+          ? { name: pageIdentityName, kind: pageIdentityKind, title: typeof rawPageIdentity?.pageTitle === "string" ? rawPageIdentity.pageTitle.slice(0, 220) : "" }
+          : null;
+        const sourceLeadName = pageIdentity?.name ?? (!fetched && search ? organizationLabelFromUrl(url) : null);
         if (sourceLeadName) {
           const identity = normalizeCandidateIdentityName(sourceLeadName);
           const entry = findings.get(identity) ?? { name: sourceLeadName, urls: new Set<string>(), notes: new Set<string>() };
           entry.urls.add(url);
-          if (observationText) entry.notes.add(observationText.slice(0, 240));
+          const identityNote = pageIdentity
+            ? "Fetched-page identity metadata (" + pageIdentity.kind + "); title=" + (pageIdentity.title || "not available") + ". This supports the organization name only; ownership, wealth, targetability, and person attribution remain unestablished."
+            : !fetched && search
+              ? "Source publisher/domain lead derived from the observed search-result URL; this identifies a research source, not a verified target company or investor. " + observationText.slice(0, 150)
+              : observationText.slice(0, 240);
+          if (identityNote) entry.notes.add(identityNote);
           findings.set(identity, entry);
         }
+        const sourceText = pageIdentity
+          ? pageIdentity.name + " — fetched-page identity metadata (" + pageIdentity.kind + "); title=" + (pageIdentity.title || "not available") + ". Supports the page-associated organization name only; no ownership, wealth, or person conclusion."
+          : sourceLeadName ? sourceLeadName + " — " + observationText : observationText;
         observations.push({
           action, execution: String(payload.execution), url,
-          text: sourceLeadName ? `${sourceLeadName} — ${observationText}` : observationText,
+          text: sourceText,
           eventId: event.id, createdAt: event.createdAt,
           verificationLevel: fetched ? "fetched_source" : "search_result_lead",
         });
@@ -287,7 +338,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
  * not admit an HNWI, establish a personal contact route, or bypass target gates.
  */
 export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{ cards: number; evidenceRows: number }> {
-  if (!(await isCanonicalJobOwner("atlas-run", jobId))) return { cards: 0, evidenceRows: 0 };
+  if (!(await hasReviewReconciliationAuthority(jobId))) return { cards: 0, evidenceRows: 0 };
   const cases = await db.select({ id: researchCasesTable.id, caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType })
     .from(researchCasesTable)
     .where(and(eq(researchCasesTable.caseType, "discovery"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`));

@@ -267,17 +267,18 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "faa",
-    runtimeAdapterImplemented: false,
+    runtimeAdapterImplemented: true,
     label: "FAA Aircraft Registry",
     jurisdiction: "US",
     entityIdentifier: "N-number",
     personOfficerFields: "Registrant name as published",
     ownershipAvailability: "Registrant only; not beneficial-owner proof",
-    accessMethod: "Public bulk ZIP",
-    rateLimit: "Bulk download; local cache",
-    licensing: "FAA public data terms",
-    freshness: "Periodic bulk release",
+    accessMethod: "Official FAA Aircraft Inquiry HTTPS name and N-number search; bounded per-aircraft detail fetch",
+    rateLimit: "Low-volume queries; bounded to five records per request; respect provider errors and access controls",
+    licensing: "FAA public data terms; owner-identification withholding restrictions apply",
+    freshness: "Current inquiry response; verify record dates/status from the returned official page; public display may omit withheld registrant data",
     productionReviewStatus: "review_required",
+    notes: "Registrant is not necessarily the beneficial owner. Use when an aircraft hypothesis or grounded registrant/N-number exists; never infer wealth from aircraft registration alone and never bypass withholding or access restrictions.",
   },
   {
     id: "hmlr-ppd",
@@ -294,3 +295,23 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
     productionReviewStatus: "review_required",
   },
 ];
+
+
+/**
+ * Compact model-facing descriptions for only the structured registries that
+ * this runtime can actually invoke. This is source awareness, not a search
+ * itinerary; the live action schema remains authoritative.
+ */
+export function renderRegistryCoverageGuidance(availableIds: readonly string[]): string {
+  const available = new Set(availableIds);
+  const clip = (value: string, max = 92): string => value.length <= max ? value : value.slice(0, max - 1) + "…";
+  return REGISTRY_COVERAGE_MATRIX
+    .filter((entry) => entry.runtimeAdapterImplemented && available.has(entry.id))
+    .map((entry) => [
+      entry.id + " — " + entry.label + " (" + entry.jurisdiction + ")",
+      "entity=" + clip(entry.entityIdentifier, 70),
+      "people/roles=" + clip(entry.personOfficerFields),
+      "ownership limits=" + clip(entry.ownershipAvailability),
+    ].join("; "))
+    .join("\n");
+}
