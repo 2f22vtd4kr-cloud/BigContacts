@@ -12,6 +12,7 @@ import { classifyThrownProviderError } from "./provider-error-diagnostics";
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(), "src/src/lib/research-lead-card-reconciliation.ts"), "utf8");
 
 describe("compact company registry lead retention", () => {
   it("retains only source-attributed Corporation rows and strips duplicates and person rows", () => {
