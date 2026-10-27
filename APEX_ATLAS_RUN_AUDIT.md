@@ -132,3 +132,29 @@ The following is taken from the run's durable `research_case_events` and live to
 **Contact evidence actually admitted:** none. The above-listed contact-like strings were either generic franchisor contacts in search snippets or a sign-in-form placeholder, not a verified named person's professional contact route.
 
 _Append one numbered event per remaining inspection, launch action, model/tool stage, persistence result, failure, retry, and recovery. Do not mark the run successful until the canonical run and durable card/admission state are verified._
+
+
+## 3. Local corrective pass and senior handoff — 2026-10-27
+
+### 3.1 Confirmed defect
+The prior canonical run exhausted the initial discovery allocation without admitting a candidate. The source already released the protected target reserve when no candidate existed, but the continuation call still reused the opening `discoveryIterationsPerAct` value. Therefore released capacity could not be allocated adaptively across subsequent Boss-directed discovery acts. This created an avoidable “budget exhausted” terminal state before the first canonical card.
+
+### 3.2 Local-only fix applied
+In `artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts`, the continuation now recomputes the Investigator act cap from `remainingInvestigatorIterations` using `resolveDiscoveryIterationsPerAct(...)`. The opening act remains bounded exactly as before; only later acts use the currently available global budget. This preserves model-owned control, the hard global ceiling, the target reserve once a candidate exists, provider-role ownership, and fail-closed behavior.
+
+Added regression coverage in `artifacts/api-server/src/src/test/research-depth.test.ts` for released-capacity act sizing (8 remaining → 3 actions; 4 remaining → 2 actions).
+
+### 3.3 Validation status
+`pnpm install --frozen-lockfile` completed successfully without a lockfile change. The first targeted test command was attempted before dependencies were installed and failed because `vitest` was unavailable; dependencies were then installed. A rerun is required by the senior developer in the target checkout before landing the local code fix. No live provider-backed run was launched in this pass, so no card-creation claim is made.
+
+### 3.4 Commit boundary
+Per the requested handoff protocol, only this audit update is intended for the `main` commit. The source fix and regression test remain local/uncommitted so a senior developer can critically review, rerun the focused tests and full Bureau checks, inspect the diff, and apply the production change deliberately.
+
+### 3.5 Required next run / finish line
+Run exactly one canonical UI-equivalent launch only after focused and repository checks pass. Observe Boss assignment, Right-hand oversight, Investigator actions, non-AI bureau tools (including registry/search/browser-fetch/SpiderFoot where selected), per-target case context growth, event ordering, evidence provenance, admission, card materialization, dashboard projection, and lock release. The run is a failure if any configured depth reaches its terminal quota/resource boundary without at least one evidence-backed canonical card. Preserve a separate durable investigation context for every target and case; never merge unrelated target context.
+
+### 3.6 Senior developer review questions
+1. Confirm the dynamic continuation cap cannot exceed the remaining global action ceiling or bypass the target reserve after admission.
+2. Confirm `runDiscoveryWithQuotaRecovery` and control-turn accounting remain bounded when the recomputed cap shrinks.
+3. Confirm the new test is sufficient for standard/fast/deep depth configurations and add an integration regression for the exact two-act/no-admission trajectory from the prior run.
+4. Confirm the audit captures observable agent decisions and tool calls only, excluding hidden reasoning, secrets, and raw personal contact values from tracked reports.
