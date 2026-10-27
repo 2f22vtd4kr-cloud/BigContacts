@@ -5,7 +5,17 @@ const reconciler = readFileSync(new URL("../lib/research-lead-card-reconciliatio
 const launchRoute = readFileSync(new URL("../routes/research/canonical-atlas-launch.ts", import.meta.url), "utf8");
 const dashboardRoute = readFileSync(new URL("../routes/dashboard.ts", import.meta.url), "utf8");
 const agenticCore = readFileSync(new URL("../lib/agentic-web-research-core.ts", import.meta.url), "utf8");
+const orientation = readFileSync(new URL("../lib/apex-bureau-orientation.ts", import.meta.url), "utf8");
 describe("terminal review-card reconciliation", () => {
+  it("chooses source classes by expected information gain and jurisdiction, not a registry-first habit", () => {
+    expect(orientation).toContain("SOURCE SELECTION & JURISDICTION");
+    expect(orientation).toContain("There is no fixed provider or registry-first sequence");
+    expect(orientation).toContain("Companies House is a UK/Great Britain register");
+    expect(orientation).toContain("not a substitute for US state Secretary-of-State filings");
+    expect(orientation).toContain("ordinary web search is often the better first move");
+    expect(orientation).toContain("A search result/snippet can justify a low-confidence review-only company lead");
+  });
+
   it("retains registry-typed company leads even when the Investigator emitted no finding", () => {
     expect(agenticCore).toContain("export function compactRegistryCompanyLeads");
     expect(agenticCore).toContain('row.type !== "Corporation"');
