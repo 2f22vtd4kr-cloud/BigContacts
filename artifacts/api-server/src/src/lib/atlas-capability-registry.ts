@@ -70,9 +70,24 @@ export function capabilityForAction(action: string): AtlasCapability[] {
  * for every enabled action within the existing prompt section budget. This is
  * presentation-only guidance; it does not select or order the research strategy.
  */
+const COMPACT_CAPABILITY_GUIDANCE: Record<string, string> = {
+  "search.serper": "provider=serper; snippets are leads; duplicates happen",
+  "search.tavily": "provider=tavily; answers are leads, not primary evidence",
+  "search.exa": "provider=exa; semantic discovery; relevance is not identity",
+  "web.visit": "inspect source; PDFs bounded; JS/challenge pages may fail",
+  "web.browser_fetch": "browser retrieval when HTTP fails; high cost",
+  "registry.search": "FAA name/N-number; registrant ≠ owner; legal role ≠ personal contact",
+  "registry.search.batch": "2–4 complementary registries; no blind sweeps/fixed order",
+  "domain.lookup": "RDAP/WHOIS; privacy/proxy may obscure owner",
+  "domain.harvest": "verified domain only; public contact/infrastructure leads",
+  "contact.email": "observed public email only; service hits need corroboration",
+  "identity.maigret": "grounded username; account candidates need corroboration",
+  "identity.sherlock": "observed username; profiles are candidates, not identity",
+};
+
 export function renderAtlasCapabilityGuidanceCompact(capabilities: readonly AtlasCapability[] = ATLAS_CAPABILITIES): string {
   return capabilities
     .filter((c) => c.investigatorSelectable !== false)
-    .map((c) => `- ${c.id} (${c.action}): ${c.decisionGuidance ?? c.purpose}`)
+    .map((c) => `- ${c.id} (${c.action}): ${COMPACT_CAPABILITY_GUIDANCE[c.id] ?? (c.decisionGuidance ?? c.purpose).slice(0, 60)}`)
     .join("\n");
 }
