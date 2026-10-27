@@ -404,6 +404,13 @@ describe("FAA Aircraft Registry adapter", () => {
     expect(result?.sourceRegistries).toContain("FAA Aircraft Registry"); expect(result?.notes).toContain("does not establish beneficial ownership");
     expect(JSON.parse(result?.metadata ?? "{}")).toMatchObject({ nNumber: "N123AB", manufacturer: "CESSNA", model: "510", registrationStatus: "Valid", sourceUrl });
   });
+  it("only admits an individual FAA registrant when the record explicitly identifies an individual", () => {
+    const url = "https://registry.faa.gov/AircraftInquiry/Search/NNumberResult?NNumbertxt=N123AB";
+    const individual = "<table><tr><td>Type Registration</td><td>Individual</td></tr><tr><td>Name</td><td>JOHN DOE</td></tr></table>";
+    expect(normalizeFaaAircraftDetail(individual, url)).toMatchObject({ name: "JOHN DOE", type: "PersonCandidate" });
+    const coOwned = "<table><tr><td>Type Registration</td><td>Co-Owned</td></tr><tr><td>Name</td><td>JOHN DOE</td></tr></table>";
+    expect(normalizeFaaAircraftDetail(coOwned, url)).toBeNull();
+  });
   it("rejects unrelated, insecure, or registrant-withheld pages rather than inventing an entity", () => {
     expect(normalizeFaaAircraftDetail("<html><body>No records found</body></html>", "https://registry.faa.gov/AircraftInquiry/Search/NNumberResult?NNumbertxt=N123AB")).toBeNull();
     expect(normalizeFaaAircraftDetail("<table></table>", "http://registry.faa.gov/AircraftInquiry/Search/NNumberResult?NNumbertxt=N123AB")).toBeNull();
