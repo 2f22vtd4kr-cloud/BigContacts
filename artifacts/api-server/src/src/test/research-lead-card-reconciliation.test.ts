@@ -6,6 +6,7 @@ const launchRoute = readFileSync(new URL("../routes/research/canonical-atlas-lau
 const dashboardRoute = readFileSync(new URL("../routes/dashboard.ts", import.meta.url), "utf8");
 const agenticCore = readFileSync(new URL("../lib/agentic-web-research-core.ts", import.meta.url), "utf8");
 const orientation = readFileSync(new URL("../lib/apex-bureau-orientation.ts", import.meta.url), "utf8");
+const runtimeProofWorkflow = readFileSync(new URL("../../../../../.github/workflows/apex-canonical-runtime-proof.yml", import.meta.url), "utf8");
 describe("terminal review-card reconciliation", () => {
   it("chooses source classes by expected information gain and jurisdiction, not a registry-first habit", () => {
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION");
@@ -27,6 +28,16 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain("ownership, control, wealth, and targetability remain unestablished");
     expect(reconciler).toContain("this identifies a research source, not a verified target company or investor");
   });
+  it("requires a real company or person card even if a later control turn fails", () => {
+    expect(runtimeProofWorkflow).toContain('"failed"');
+    expect(runtimeProofWorkflow).toContain('"partial_review"');
+    expect(runtimeProofWorkflow).toContain('"Corporation"');
+    expect(runtimeProofWorkflow).toContain('discoveryContext');
+    expect(runtimeProofWorkflow).toContain('/api/dashboard/research-leads');
+    expect(runtimeProofWorkflow).toContain('/api/entities');
+    expect(runtimeProofWorkflow).toContain('acceptedAfterControlFailure');
+  });
+
   it("preserves a real company lead from one successful web search before later control failure", () => {
     const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
     // Regression: the checkpoint previously read only observedUrls and only
