@@ -4761,7 +4761,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const absoluteMinimumDiscoveryContext = input.mode === "discovery"
         ? "DISCOVERY: people are targets and companies/snippets are leads. Never infer wealth from seniority. Investigator chooses tools/order; no scripted sequence. Target-stage research checks materiality, corroboration/falsification, and realistic public/professional reachability."
         : "";
-      const pinnedDurableInventoryForAbsoluteMinimum = extractPinnedDurableUrlInventory(input.durableUrlInventory);
       const absoluteMinimumObjective = [
         input.objective?.trim()
           ? "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective, 180)
