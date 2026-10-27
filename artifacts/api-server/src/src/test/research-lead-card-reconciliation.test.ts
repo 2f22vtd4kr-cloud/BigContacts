@@ -36,7 +36,7 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain("async function hasReviewReconciliationAuthority(jobId: string)");
     expect(reconciler).toContain('import { getJobStrict } from "./job-queue";');
     expect(reconciler).toContain('job?.type === "atlas-run" && (job.status === "done" || job.status === "failed")');
-    expect(reconciler.match(/hasReviewReconciliationAuthority\\(jobId\\)/g)?.length).toBe(2);
+    expect(reconciler.match(/hasReviewReconciliationAuthority\(jobId\)/g)?.length).toBe(2);
     // The narrow terminal fallback cannot cross the exact durable case binding
     // or the existing cancellation/lease-loss fence.
     expect(reconciler).toContain("parseObject(ownedCase.caseFile)?.jobId !== jobId");
