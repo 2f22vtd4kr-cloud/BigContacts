@@ -4655,6 +4655,16 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (hardMinimumPrompt.length <= maxUserPromptChars) return hardMinimumPrompt;
       // Preserve atomic evidence URLs even when the provider ceiling is unusually small.
       // This last form uses fewer trajectory fields and keeps the complete output envelope.
+      const hasInScopeLeadForEmergencyFollowUp = Boolean(
+        input.mode === "discovery"
+        && (
+          (latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0)
+          || (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) > 0
+        ),
+      );
+      const shortestLeadFollowUp = hasInScopeLeadForEmergencyFollowUp
+        ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is not a fixed sequence. Search-result URLs remain leads until fetched."
+        : "";
       const ultraCompactEmergencyPrompt = [
         finalEmergencyAssignment,
         activeScope ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 160) : "CASE OBJECTIVE: public-source research; never invent evidence.",
@@ -4665,6 +4675,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactCriticalRetrievalGuidance,
         shortestDiscoveryGate,
         shortestAdmission,
+        shortestLeadFollowUp,
         "EVIDENCE: snippets are leads, not evidence. Never invent identities, ownership, URLs or contacts.",
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ".",
         hardMinimumOutputContract,
@@ -4695,6 +4706,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "EVIDENCE: search results and snippets are leads, not evidence. Visit only observed URLs. Never invent identities, ownership, wealth, URLs or contacts.",
         "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless gates pass.",
         absoluteMinimumDiscoveryContext,
+        shortestLeadFollowUp,
         hardMinimumOutputContract,
       ].filter(Boolean);
       const basePrompt = absoluteMinimumBase.join("\n\n");
