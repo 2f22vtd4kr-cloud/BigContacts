@@ -221,7 +221,7 @@ describe("Atlas control-plane lead continuity", () => {
         "ACTIVE ACCEPTED BOSS SCOPE: Midwest family-owned manufacturers in Minnesota and Wisconsin.",
         "AUTHORITATIVE DURABLE LEAD COUNTS: unfetchedLeadUrlCount=1.",
         "UNFETCHED (not fetched/not blocked): https://businesssearch.ohiosos.gov/",
-      ].join("\\n"),
+      ].join("\n"),
     });
 
     expect(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET).toBe(7_200);
