@@ -55,7 +55,7 @@ describe("terminal review-card reconciliation", () => {
     expect(agenticCore).toContain('actual returned result text contains an exact organization name');
     expect(agenticCore).toContain("promotionDecision=promote means admit only to the review-only company-card queue");
     expect(agenticCore).toContain('Search snippets are leads, not claim-grade evidence');
-    expect(agenticCore).toContain('SOURCE CHOICE: no registry-first sequence; match jurisdiction; Companies House is UK-only');
+    expect(agenticCore).toContain('SOURCE CHOICE: no registry-first sequence; choose by expected information gain and jurisdiction. For unanchored local/sector discovery, ordinary web search is often the better first move. Companies House is UK-only');
     expect(agenticCore).toContain('a real result text containing an exact organization name and eligible HTTPS URL may produce a low-confidence review-only company finding');
   });
 
