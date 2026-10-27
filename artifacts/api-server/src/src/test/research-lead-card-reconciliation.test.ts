@@ -110,10 +110,10 @@ describe("search-result company lead extraction", () => {
       personName: null,
       role: null,
       sourceUrls: ["https://www.perla.si/casino"],
-      promotionDecision: "promote",
     });
     expect(leads[0]?.note).toContain("underlying page not fetched");
-    expect(leads[0]?.promotionReason).toContain("review-only company card");
+    expect(leads[0]?.note).toContain("low-confidence review-only company lead");
+    expect(leads[0]).not.toHaveProperty("promotionDecision");
   });
 
   it("rejects article-like headlines and never infers a name from a URL", () => {
