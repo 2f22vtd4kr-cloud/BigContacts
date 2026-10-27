@@ -217,10 +217,20 @@ describe("Atlas control-plane lead continuity", () => {
         repeatedHistory: "low-value historical detail ".repeat(1_000),
       }),
       compactState: "Latest durable state and source observations. ".repeat(4_000),
+      pinnedControlState: [
+        "ACTIVE ACCEPTED BOSS SCOPE: Midwest family-owned manufacturers in Minnesota and Wisconsin.",
+        "AUTHORITATIVE DURABLE LEAD COUNTS: unfetchedLeadUrlCount=1.",
+        "UNFETCHED (not fetched/not blocked): https://businesssearch.ohiosos.gov/",
+      ].join("\\n"),
     });
 
     expect(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET).toBe(7_200);
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET);
+    expect(prompt).toContain("SOURCE-ROUTE RECOVERY JUDGMENT");
+    expect(prompt).toContain("LEAD-UTILIZATION JUDGMENT");
+    expect(prompt).toContain("PINNED AUTHORITATIVE CASE STATE (survives history compaction)");
+    expect(prompt).toContain("ACTIVE ACCEPTED BOSS SCOPE: Midwest family-owned manufacturers in Minnesota and Wisconsin.");
+    expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
     expect(ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT.schema.properties.reason.maxLength).toBe(600);
     expect(ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT.schema.properties.direction.maxLength).toBe(600);
     expect(ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT.schema.required).toEqual([
