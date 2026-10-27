@@ -906,7 +906,7 @@ function decodeHtmlMetadataText(value: string): string {
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&lt;/gi, "<")
     .replace(/&gt;/gi, ">")
-    .replace(/&#(\\d+);/g, (_match, raw: string) => {
+    .replace(/&#(\d+);/g, (_match, raw: string) => {
       const codePoint = Number(raw);
       return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
         ? String.fromCodePoint(codePoint)
@@ -919,7 +919,7 @@ function decodeHtmlMetadataText(value: string): string {
         : " ";
     })
     .replace(/<[^>]*>/g, " ")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim()
     .slice(0, 220);
 }
@@ -929,8 +929,8 @@ function isPlausibleOrganizationName(value: string): boolean {
   return name.length >= 3
     && name.length <= 180
     && /[a-z0-9]/i.test(name)
-    && !/^(?:home|about us|contact|welcome|company|organization|find and update company information|gov\\.uk)$/i.test(name)
-    && !/^https?:\\/\\//i.test(name);
+    && !/^(?:home|about us|contact|welcome|company|organization|find and update company information|gov\.uk)$/i.test(name)
+    && !/^https?:\/\//i.test(name);
 }
 
 /**
@@ -951,30 +951,24 @@ export function extractObservedOrganizationIdentity(
   }
   const normalizedSourceUrl = normalizedUrl(parsedUrl.href);
   if (!normalizedSourceUrl) return null;
-  const titleMatch = html.match(/<title\\b[^>]*>([\\s\\S]*?)<\\/title>/i);
+  const titleMatch = html.match(/<title\b[^>]*>([\s\S]*?)<\/title>/i);
   const pageTitle = titleMatch ? decodeHtmlMetadataText(titleMatch[1] ?? "") : null;
 
   // Companies House exposes the exact registered-company name in record-page
   // titles. Restrict this source-specific parser to its official hostname and
   // numeric company-record route; do not generalize it to arbitrary titles.
   if (parsedUrl.hostname.toLowerCase() === "find-and-update.company-information.service.gov.uk"
-    && /^\\/company\\/\\d+(?:\\/|$)/.test(parsedUrl.pathname)
+    && /^\/company\/\d+(?:\/|$)/.test(parsedUrl.pathname)
     && pageTitle) {
-    const registryTitle = pageTitle.match(/^(.+?)\\s+(?:overview|people|officers|filing history|charges|more|persons with significant control)\\s*[-–—|]/i);
+    const registryTitle = pageTitle.match(/^(.+?)\s+(?:overview|people|officers|filing history|charges|more|persons with significant control)\s*[-–—|]/i);
     const name = registryTitle?.[1]?.trim() ?? "";
     if (isPlausibleOrganizationName(name)) {
       return { name, kind: "companies_house_record_title", pageTitle, sourceUrl: normalizedSourceUrl };
     }
   }
 
-  // Do not create a company card for the publisher of an article page. Article
-  // structured data often embeds the publisher's Organization node alongside
-  // the subject being reported on.
-  const hasArticleSchema = /"@type"\\s*:\\s*(?:"(?:NewsArticle|Article|BlogPosting|Report)"|\\[(?=[^\\]]*"NewsArticle"|[^\\]]*"Article"|[^\\]]*"BlogPosting"))/i.test(html);
-  const articleTypeMeta = /<meta\\b[^>]*(?:property|name)\\s*=\\s*["']og:type["'][^>]*content\\s*=\\s*["']article["']/i.test(html);
-  if (hasArticleSchema || articleTypeMeta) return null;
-
-  const scripts = [...html.matchAll(/<script\\b[^>]*type\\s*=\\s*["']application\\/ld\\+json["'][^>]*>([\\s\\S]*?)<\\/script>/gi)]
+  // Article structured data often embeds a publisher Organization next to its subject.
+  const scripts = [...html.matchAll(/<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
     .map((match) => (match[1] ?? "").trim())
     .filter((text) => text.length > 0 && text.length <= 50_000)
     .slice(0, 24);
@@ -991,13 +985,24 @@ export function extractObservedOrganizationIdentity(
     if (object.mainEntity) addObjects(object.mainEntity, depth + 1);
     if (object.mainEntityOfPage) addObjects(object.mainEntityOfPage, depth + 1);
     if (object.itemListElement) addObjects(object.itemListElement, depth + 1);
+    if (object.publisher) addObjects(object.publisher, depth + 1);
   };
   for (const script of scripts) {
     try { addObjects(JSON.parse(script)); } catch { /* malformed source metadata is unobserved */ }
   }
-  for (const object of objects) {
+  const schemaTypes = (object: Record<string, unknown>): string[] => {
     const rawTypes = Array.isArray(object["@type"]) ? object["@type"] : [object["@type"]];
-    const types = rawTypes.filter((value): value is string => typeof value === "string").map((value) => value.toLowerCase());
+    return rawTypes.filter((value): value is string => typeof value === "string").map((value) => value.toLowerCase());
+  };
+  const isArticleType = (type: string): boolean =>
+    /(?:^|[/#])(?:newsarticle|article|blogposting|report)$/.test(type);
+  const hasArticleSchema = objects.some((object) => schemaTypes(object).some(isArticleType));
+  const articleTypeMeta = /<meta\b[^>]*?(?:property|name)\s*=\s*["']og:type["'][^>]*?content\s*=\s*["']article["']/i.test(html)
+    || /<meta\b[^>]*?content\s*=\s*["']article["'][^>]*?(?:property|name)\s*=\s*["']og:type["']/i.test(html);
+  if (hasArticleSchema || articleTypeMeta) return null;
+
+  for (const object of objects) {
+    const types = schemaTypes(object);
     const organizationType = types.some((type) =>
       /(?:^|[/#])organization$/.test(type)
       || /(?:^|[/#])corporation$/.test(type)
