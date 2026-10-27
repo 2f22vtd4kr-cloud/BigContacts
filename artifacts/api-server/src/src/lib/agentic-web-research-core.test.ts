@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -3100,6 +3100,48 @@ describe("action-level durable review-card checkpoints", () => {
   });
 });
 
+
+
+describe("single fetched page organization identity", () => {
+  it("extracts only the exact company name from an official Companies House record title", () => {
+    const url = "https://find-and-update.company-information.service.gov.uk/company/07401473";
+    const identity = extractObservedOrganizationIdentity(
+      "<html><head><title>STRATFORD ENERGY SOLUTIONS LIMITED overview - Find and update company information - GOV.UK</title></head><body>Company status active</body></html>",
+      url,
+    );
+    expect(identity).toMatchObject({
+      name: "STRATFORD ENERGY SOLUTIONS LIMITED",
+      kind: "companies_house_record_title",
+      sourceUrl: url,
+    });
+  });
+
+  it("uses same-site structured organization identity but not the publisher identity of an article", () => {
+    const url = "https://example-energy.co.uk/about";
+    const organization = extractObservedOrganizationIdentity(
+      '<html><head><title>About us</title><script type="application/ld+json">{"@type":"Organization","name":"Example Energy Limited","url":"https://example-energy.co.uk/"}</script></head></html>',
+      url,
+    );
+    expect(organization).toMatchObject({
+      name: "Example Energy Limited",
+      kind: "same_site_structured_organization",
+      sourceUrl: url,
+    });
+
+    const articlePublisher = extractObservedOrganizationIdentity(
+      '<html><head><title>Investment announcement</title><script type="application/ld+json">{"@type":"NewsArticle","headline":"Investment","publisher":{"@type":"Organization","name":"Example News","url":"https://news.example/"}}</script></head></html>',
+      "https://news.example/green-investment",
+    );
+    expect(articlePublisher).toBeNull();
+  });
+
+  it("requires page identity metadata to be attached to successful visit and browser-fetch observations", () => {
+    expect(agenticCoreSource).toContain("observedPageIdentity: page.pageIdentity ?? null");
+    expect(agenticCoreSource).toContain("observedPageIdentity: result.html && observedBrowserUrl ? extractObservedOrganizationIdentity(result.html, observedBrowserUrl) : null");
+    expect(researchLeadCardReconciliationSource).toContain("pageIdentitySource === url");
+    expect(researchLeadCardReconciliationSource).toContain("organization name only; ownership, wealth, targetability, and person attribution remain unestablished");
+  });
+});
 
 describe("latest fetched source evidence survives emergency Investigator compaction", () => {
   it("keeps a source fact near the end of a long successful page observation", () => {
