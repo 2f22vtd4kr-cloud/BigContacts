@@ -1064,13 +1064,13 @@ describe("registry catalogue honesty", () => {
     const { REGISTRY_IDS } = await import("../lib/registry-client");
     const implemented = REGISTRY_COVERAGE_MATRIX.filter((entry) => entry.runtimeAdapterImplemented).map((entry) => entry.id).sort();
     // Legacy identifiers stay in the catalogue even when no callable adapter
-    // exists. KVK and Sweden have no verified callable implementation; Germany
-    // has code but is separately hidden until its live contract is verified.
+    // exists. KVK and Sweden have no verified callable implementation; HMLR PPD
+    // remains catalogue-only because it reports transactions, not property ownership.
     const nonCallableLegacyIds = ["bolagsverket-sweden", "kvk-netherlands"];
     const callableIds = REGISTRY_IDS.filter((id) => !nonCallableLegacyIds.includes(id)).slice().sort();
     expect(implemented).toEqual(callableIds);
     expect(REGISTRY_COVERAGE_MATRIX.filter((entry) => !entry.runtimeAdapterImplemented).map((entry) => entry.id).sort())
-      .toEqual(["bolagsverket-sweden", "faa", "hmlr-ppd", "kvk-netherlands"]);
+      .toEqual(["bolagsverket-sweden", "hmlr-ppd", "kvk-netherlands"]);
   });
 });
 
