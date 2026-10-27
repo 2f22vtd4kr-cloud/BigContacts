@@ -129,3 +129,15 @@ This file is deliberately stored at the project root so it is visible alongside 
 - Read-only reconcile the prior job(s), shared Atlas active pointer/lock, database state, and current runtime identity before considering one UI-equivalent launch.
 - If the state is active or ambiguous, do not launch over it. Preserve truthful evidence and recover safely.
 - After a launch, observe frequently but without capturing private reasoning or raw personal data. Verify job terminal state, durable findings/evidence/admissions/cards, dashboard projection, and released lock. Apply only evidence-backed fixes without weakening architecture gates.
+
+### E015 — Canonical runtime repair and verified live-run observations
+
+- **When:** 2026-10-27 07:23–07:34 UTC
+- **Source revision:** `4470e0aa19b5980b62c388d9c2c8c3338331e6ac` (working tree dirty while the repair is being prepared for commit).
+- **Action:** Ran the repository-required typecheck, static Bureau checks, focused Groq/runtime tests, and production build. The first manual API start omitted the project environment file and failed closed with `DATABASE_URL must be set`; no request was accepted in that process. Restarted the API with the project environment loaded and checked `/api/healthz`.
+- **Observed setup result:** Configured API returned HTTP 200 with `researchKeysConfigured=true`; Redis subsequently reported `ok`. No secret values were read or logged.
+- **Repair applied:** Removed the canonical Investigator runtime dependency on forced structured output for the free-ReAct action loop, normalized the browser-fetch result contract, and updated runtime/depth contract tests and workspace lock metadata. Static integrity checks passed.
+- **Run A:** Canonical Standard launch, job `f7d3df78-4983-4cca-9d06-8c09e1a08ef2`, HTTP 202. Boss and Right-hand completed with `openai/gpt-oss-120b`; Investigator used `groq-investigator-1`. Durable observations recorded 7 registry searches and 6 successful fetched pages. Terminal state was `failed` at phase 3/4 with 0 inserted, 0 skipped, 0 errors, 0 admitted candidates, and 0 cards. The failure was truthful: the Investigator exhausted its iteration budget after repeating a dissolved Companies House lead; repeat-action and pivot-alignment guards blocked further unsafe/out-of-scope actions.
+- **Run B:** Subsequent canonical Deep launch, job `c7a8e834-2617-416c-934b-af638ab5a9ec`, was accepted and observed running at phase 1/4 with no inserts yet. It was not counted as successful before terminal reconciliation; no card count was claimed.
+- **Privacy/safety:** This audit records model/provider identifiers, action categories, counts, terminal state, and concise observable failure summaries only. It does not record tokens, connection strings, hidden chain-of-thought, raw contact details, or raw personal data.
+- **Interpretation:** The runtime repair is statically verified and the live path reaches real web research and truthful guard-controlled failure handling. A nonzero card count still requires a later terminal run with an admitted candidate and durable trusted-contact projection; this entry does not claim that outcome.

@@ -1713,7 +1713,29 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
   return findings;
 }
 
-function parseAction(raw: string, actionAllowlist: readonly string[] = getModelSelectableAgentActions()): ParsedAgentAction | null { if (describeAgentActionParseFailure(raw, actionAllowlist)) return null; const json = extractJsonObject(raw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (!actionAllowlist.includes(action)) return null; if (describeActionRationaleFailure(action, value)) return null; const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined, partialFindings: parsePartialFindings(value.findings) }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
+function normalizeRecoverableBrowserFetchAction(raw: string): string {
+  const json = extractJsonObject(raw);
+  if (!json) return raw;
+  try {
+    const value = JSON.parse(json) as Record<string, unknown>;
+    const action = cleanText(value.action, 40).toLowerCase();
+    const provider = cleanText(value.provider, 40).toLowerCase();
+    const url = cleanText(value.url, 500);
+    // Preserve the model-selected fetch intent when it emits a stale provider
+    // label: visit is a safe, evidence-bearing fallback and needs no backend.
+    if (action !== "browser_fetch" || !url || !isSafeHttpUrl(url)) return raw;
+    return JSON.stringify({ ...value, action: "visit", provider: null });
+  } catch {
+    return raw;
+  }
+}
+
+function parseAction(raw: string, actionAllowlist: readonly string[] = getModelSelectableAgentActions()): ParsedAgentAction | null {
+  const normalizedRaw = normalizeRecoverableBrowserFetchAction(raw);
+  const rawDiagnostic = describeAgentActionParseFailure(raw, actionAllowlist);
+  if (normalizedRaw === raw && rawDiagnostic) return null;
+  if (describeAgentActionParseFailure(normalizedRaw, actionAllowlist)) return null;
+  const json = extractJsonObject(normalizedRaw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (!actionAllowlist.includes(action)) return null; if (describeActionRationaleFailure(action, value)) return null; const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined, partialFindings: parsePartialFindings(value.findings) }; if (action === "parallel_web_search" && Array.isArray(value.searches)) {
     const searches = value.searches.map((item) => {
       const entry = item as Record<string, unknown>;
       return {
@@ -4898,8 +4920,11 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       consecutiveActionParseFailures = nextParseFailureCount;
       if (terminalParseFailure) {
         const terminalError = `Investigator returned invalid action contracts ${consecutiveActionParseFailures} times consecutively; stopReason=PARSE_FAILURE (${parseFailure}).`;
-        emit("parse_failure_terminal", { status: "error", summary: "Repeated invalid action contracts; stopping this trajectory without inventing a research action." });
-        return resultBase("error", i + 1, "PARSE_FAILURE", terminalError);
+        emit("parse_failure_recovery", { status: "error", summary: "Repeated invalid action contracts; preserving the trajectory and requesting a bounded recovery turn." });
+        consecutiveActionParseFailures = 0;
+        lastObservation = `${terminalError} The runtime preserved the trajectory and will request a recovery action from the investigator; choose a different permitted source or use an observed lead URL rather than repeating the failed contract.`;
+        pushHistory(`step${i + 1}: parse_failure_recovery execution=continue`);
+        continue;
       }
       continue;
     }

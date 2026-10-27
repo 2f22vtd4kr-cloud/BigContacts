@@ -321,7 +321,11 @@ export async function browserFetchHtml(url: string, options: BrowserFetchOptions
   ];
   const selected = options.provider ? attempts.filter(([provider]) => provider === options.provider) : [];
   if (!selected.length) return { html: "", provider: "provider_required", observedUrl: null };
-  for (const [provider, fn] of selected) {
+  // A model-selected provider is a preference, not permission to terminate the
+  // investigation. Once it fails, continue through configured browser providers
+  // so a transient anti-bot/provider outage cannot strand every registry lead.
+  const fallback = attempts.filter(([provider]) => provider !== options.provider && availableProviders.includes(provider));
+  for (const [provider, fn] of [...selected, ...fallback]) {
     throwIfAborted(options.signal);
     const result = await fn();
     if (result.html && !isChallengeHtml(result.html)) {

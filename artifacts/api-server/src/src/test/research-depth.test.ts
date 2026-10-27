@@ -15,6 +15,11 @@ describe("pivot-aware discovery episode budgeting", () => {
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 3 }, 10)).toBe(3);
   });
 
+  it("recomputes the act cap from released global capacity", () => {
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, 8)).toBe(3);
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, 4)).toBe(2);
+  });
+
   it("returns no action allocation when the discovery budget is exhausted", () => {
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, 0)).toBe(0);
     expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 6 }, -1)).toBe(0);

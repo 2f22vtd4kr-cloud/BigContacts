@@ -7,6 +7,19 @@ import { resolveResearchDepth } from "../lib/research-depth";
 import { buildBoundedInvestigatorObjective } from "../lib/investigation-context-compaction";
 
 describe("Groq Investigator runtime contract", () => {
+  it("downgrades a safe browser fetch with a stale provider label to visit", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "browser_fetch",
+      url: "https://example.com/about",
+      provider: "browser",
+      hypothesis: "The official page may identify the organization.",
+      purpose: "Verify a public source.",
+      expectedInformationGain: 0.7,
+    }));
+    expect(parsed?.action).toBe("visit");
+    expect(parsed && "url" in parsed ? parsed.url : undefined).toBe("https://example.com/about");
+  });
+
   it("accepts a one-item parallel web search and drops only oversized optional provider locale hints", () => {
     const parsed = parseAgentAction(JSON.stringify({
       action: "parallel_web_search",
