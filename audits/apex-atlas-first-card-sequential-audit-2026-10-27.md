@@ -172,3 +172,33 @@ Timestamp: 2026-10-27, during the follow-up CI cycle.
 - CI for this commit was still running when this entry was written. The latest API build and full audit must be checked before proceeding.
 
 Runtime remains unverified: no canonical launch job ID, actual search response, persisted card/entity/evidence ID, or normal API read-back has yet been observed. Do not claim the first-card objective is met until all of those are recorded.
+
+
+## 12. First-card recovery: source admission, prompt budget, and Groq call-budget fixes
+
+Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at entry time: `257ff6742a9b1f09719e1422306ec82da0de6114`; further CI-fix commits followed.
+
+### New diagnosis from code inspection
+
+- The Investigator prompt required a search action to emit a partial organization finding. Canonical checkpointing correctly did nothing when the finding list was empty, even if the underlying search observation had useful result titles and URLs. This left card creation dependent on the model successfully serializing a finding before a subsequent Boss/Right-hand failure.
+- Terminal organization reconciliation also had a fallback that derived a purported company label from the result URL hostname. That was not a reliable target-company identity and conflicted with the no-inference contract; a publisher/source domain is not necessarily the company being researched.
+- The Right-hand implementation declared numbered Groq key slots but selected only the first configured credential. Boss could walk a long configured key list on a single control decision, and Investigator capability registration covered only six total Groq slots despite seven numbered Investigator capabilities being supplied for configuration.
+- The compact discovery targetability gate was 3,437 characters before the next fallback sections. Repeated long policy prose increased prompt pressure and made emergency-tier degradation more likely. Boss control was allowed up to 1,536 completion tokens for a small structured control decision.
+
+### Changes made on the recovery branch
+
+- Added bounded deterministic extraction of a low-confidence company review lead from the search provider's **exact returned title and exact returned HTTPS result URL**, only after a successful web/parallel-web search. It uses business-like title markers, rejects obvious headline-like titles, caps each search batch at three such leads, and records explicitly that the page was not fetched and ownership, wealth, people, and contact conclusions are unverified. The Investigator still owns query choice, hypotheses, and the research trajectory; this is evidence admission from observed output, not a scripted search sequence.
+- Removed hostname-to-company-name inference from terminal reconciliation. A URL alone no longer supplies a company identity. Explicit fetched-page identity metadata and exact model/registry leads remain available under their existing source-binding gates.
+- Shortened the discovery targetability prompt while preserving the active Boss scope/geography, no registry-first rule, materiality/realistic-route checks, language flexibility, no-placeholder/no-invention rule, and explicit source-stage dependencies.
+- Retained the case objective in the emergency prompt tier and aligned the compact output-contract test with the current exact wording.
+- Registered all seven numbered Investigator credential slots and added a quota-identity test for them. This fixes the registry's prior off-by-two coverage; actual runtime credentials still must exist in the deployment environment.
+- Made Right-hand credential fallback use distinct configured keys after explicit request-quota or authentication failure, deduplicating identical key values as one quota pool and capping outbound chat requests per control decision. Token-window/model-specific limits still allow same-role model recovery. Added a regression test for a distinct secondary credential after a hard request-quota response.
+- Bounded Boss credential fallback to the selected key plus at most two distinct fallbacks per control decision, deduplicating identical keys. Reduced Boss control completion allowance from 1,536 to 1,024 tokens for its compact JSON decision.
+
+### Verification and remaining uncertainty
+
+- The source-neutral discovery static check and prompt-architecture audit passed on intermediate commits.
+- One CI run initially failed because the roadmap static checker still required exactly five numbered Investigator suffixes; the checker was updated to require seven. Another run exposed missing literal discovery-quality markers after prompt compaction; those phrases were restored compactly.
+- Latest code/CI must still be checked after the newest commits. These are code changes, not evidence of a successful live run.
+- No canonical launch job ID, real provider result, persisted company-card entity ID, evidence-row ID, or normal API/UI read-back has yet been observed in this recovery pass. The first-card objective remains open until those are captured. Do not count source-domain labels, fabricated records, test fixtures, or cards from the separately excluded earlier run sequence.
+- Groq quota caveat: different API keys only provide independent capacity if the provider accounts/projects actually have independent quotas. The code now deduplicates identical secrets and bounds retries, but no claim is made that key rotation can overcome a shared organization/project/model quota.
