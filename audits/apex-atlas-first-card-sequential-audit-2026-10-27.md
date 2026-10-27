@@ -157,3 +157,18 @@ No actual run job ID, search query/provider response, database entity ID, eviden
 The full API audit workflows completed Audit 1 and failed in the isolated test-file step; Audits 2–5 were skipped as designed. Both failed on the same pre-existing assertion in `groq-investigator-runtime-contract.test.ts`: the test expected the phrase “topic/company terms,” while the actual scope-recovery prompt says “topic terms and company terms.” The runtime prompt still preserves the intended rule and the failure was a literal wording mismatch, not a provider/runtime failure.
 
 Changed that assertion to match the existing prompt wording without changing prompt behavior. This correction is now committed on the work branch and has its own fresh CI run pending. References: Five Consecutive Full Code Audits run 40515463160; Five Green Complete Codebase Audit run 40515463170. Both Audit 1 failures were otherwise after successful install, architecture contracts, typecheck/build, DB schema setup and live smoke API test.
+
+
+## 11. Follow-up verification: prompt budget regression found and corrected
+
+Timestamp: 2026-10-27, during the follow-up CI cycle.
+
+- PR #759 remained open/unmerged. Head before this correction: `3aa72741ce290a03b15a4eee03b954047fcafd0e`.
+- API build/typecheck passed, but the focused API regression suite failed in `agentic-web-research-core.test.ts` across prompt-contract cases. The generated prompt was falling through to the last-resort emergency tier; this dropped useful guidance and durable URL/source context from the prompt under test.
+- Diagnosis: the compact output contract had grown too large and duplicated detailed discovery admission rules already represented in separate compact guidance. The emergency prompt budget could therefore overflow, forcing a lower fallback tier.
+- Correction: shortened the emergency output contract while retaining the complete JSON envelope, exact source URL binding, the low-confidence one-search company-review-card rule, the fetched-page requirement for stronger business claims, and the stricter fetched-source person lead rule. This is a prompt-budget correction, not a scripted discovery sequence and not a promotion bypass.
+- Regression test wording for source-selection guidance was aligned with the current prompt contract. Retrieval-limit wording was kept in the compact prompt, including PDF handling and the rule that failed extraction is unobserved.
+- Latest code commit at the time of this entry: `3c84216d26bcfd656f47f2564a9d44b7ca52f5c1`.
+- CI for this commit was still running when this entry was written. The latest API build and full audit must be checked before proceeding.
+
+Runtime remains unverified: no canonical launch job ID, actual search response, persisted card/entity/evidence ID, or normal API read-back has yet been observed. Do not claim the first-card objective is met until all of those are recorded.
