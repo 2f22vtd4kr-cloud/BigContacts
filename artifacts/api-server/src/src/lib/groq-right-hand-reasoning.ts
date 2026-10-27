@@ -235,8 +235,10 @@ type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: s
 function formatAttemptDiagnostic(diagnostic: GroqAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
 
 async function requestImpl(system:string,user:string,format?:Record<string,unknown>,validateRaw?:(raw:string)=>boolean,auditContext?:GroqRightHandAuditContext,requestOptions?:GroqRightHandRequestOptions):Promise<{raw:string;error:string|null;model:string}>{
- const entry=keyEntries()[0];
- if(!entry)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
+ const configuredEntries=keyEntries();
+ if(!configuredEntries.length)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
+ const distinctEntries=configuredEntries.filter((entry,index,all)=>all.findIndex(other=>fingerprint(other.key)===fingerprint(entry.key))===index);
+ const entry=distinctEntries[0];
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
  const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Groq Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:GROQ_RIGHT_HAND_MODEL};
  let currentUser=normalizedUser;
