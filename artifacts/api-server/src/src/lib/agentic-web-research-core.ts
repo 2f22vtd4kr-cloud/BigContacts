@@ -1852,9 +1852,10 @@ function normalizeRecoverableBrowserFetchAction(raw: string): string {
     const action = cleanText(value.action, 40).toLowerCase();
     const provider = cleanText(value.provider, 40).toLowerCase();
     const url = cleanText(value.url, 500);
-    // Preserve the model-selected fetch intent when it emits a stale provider
-    // label: visit is a safe, evidence-bearing fallback and needs no backend.
+    // Preserve browser_fetch when the selected provider is configured. Only
+    // downgrade a stale or unavailable provider label to the safe visit action.
     if (action !== "browser_fetch" || !url || !isSafeHttpUrl(url)) return raw;
+    if (provider && isBrowserFetchProviderAvailable(provider as "scrapfly" | "zenrows" | "browserless" | "playwright")) return raw;
     return JSON.stringify({ ...value, action: "visit", provider: null });
   } catch {
     return raw;
@@ -2884,7 +2885,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
         : "";
       return `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}.${activeScope}${geographyGuidance} Revise the failed dimensions; fetch only an observed aligned URL; do not repeat unchanged without new evidence or ask Boss/Right-hand to revise scope.`;
     }
-    return `SCOPE GUARD BLOCKED ACTION (no request): revise the failed scope dimensions.${activeScope} web discovery may search in-scope topic terms and company terms without repeating source-class wording; choose a registry adapter matching the active geography when using registry_search; fetch only an observed aligned URL and do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.`;
+    return `SCOPE GUARD BLOCKED ACTION (no request): revise the failed scope dimensions.${activeScope} web discovery may search in-scope topic/company terms without repeating source-class wording; web discovery may search in-scope topic terms and company terms without repeating source-class wording; choose a registry adapter matching the active geography when using registry_search; fetch only an observed aligned URL and do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.`;
   }
   // Ordinary fetched-page observations can carry the exact company/person facts
   // needed for a partial finding. Preserve both ends of a bounded excerpt.
