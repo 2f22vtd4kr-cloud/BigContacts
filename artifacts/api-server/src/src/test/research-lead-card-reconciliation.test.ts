@@ -35,7 +35,7 @@ describe("terminal review-card reconciliation", () => {
   it("can reconcile durable review leads after a terminal job releases its live lease", () => {
     expect(reconciler).toContain("async function hasReviewReconciliationAuthority(jobId: string)");
     expect(reconciler).toContain('import { getJobStrict } from "./job-queue";');
-    expect(reconciler).toContain('job?.type === "atlas-run" && (job.status === "done" || job.status === "failed")');
+    expect(reconciler).toContain('job?.type === "atlas-run" && job.cancelRequested !== true && (job.status === "done" || job.status === "failed")');
     expect(reconciler.match(/hasReviewReconciliationAuthority\(jobId\)/g)?.length).toBe(2);
     // The narrow terminal fallback cannot cross the exact durable case binding
     // or the existing cancellation/lease-loss fence.
