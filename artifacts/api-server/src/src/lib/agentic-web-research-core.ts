@@ -4063,7 +4063,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
     && /^(?:case\s+co|case\s+company|default\s+company|test\s+company)$/i.test(rawCompanyName);
-  // Generic case labels are metadata, not actual target entities.
+  // Generic case labels including Case Co are metadata, not actual target entities; never use them as discovery entity anchors.
   const workingContext = buildInvestigatorContext({
     targetName: input.targetName,
     companyName: genericDiscoveryCompanyLabel ? null : input.companyName,
