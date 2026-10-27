@@ -255,9 +255,12 @@ describe("Groq Investigator provider boundary", () => {
       purpose: "test a candidate source", expectedInformationGain: 0.8, locale: null, market: null,
       target: null, targetType: null, profile: null, searches: [], findings: [],
     };
-    mocks.safeOutboundFetch.mockResolvedValue(new Response(JSON.stringify({
+    const modelResponse = () => new Response(JSON.stringify({
       choices: [{ message: { content: JSON.stringify(payload) } }],
-    }), { status: 200, headers: { "content-type": "application/json" } }));
+    }), { status: 200, headers: { "content-type": "application/json" } });
+    // Keep this contract test deterministic even if the core provider transport changes.
+    mocks.safeOutboundFetch.mockImplementation(async () => modelResponse());
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => modelResponse());
 
     const result = await runAgenticWebResearch({
       targetName: "Jane Example",
