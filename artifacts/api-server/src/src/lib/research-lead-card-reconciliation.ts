@@ -25,6 +25,17 @@ function parseObject(value: unknown): Record<string, unknown> | null {
   try { const parsed: unknown = JSON.parse(value); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null; } catch { return null; }
 }
 
+function organizationLabelFromUrl(sourceUrl: string): string | null {
+  try {
+    const host = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "");
+    const label = host.split(".").filter(Boolean).slice(-2, -1)[0] ?? host;
+    const normalized = label.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()).trim();
+    return normalized.length >= 3 ? `${normalized} (source lead)` : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Terminal reconciliation for exact company-name leads found in successful
  * search observations and, when available, corroborated in successful fetched
@@ -123,8 +134,18 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       for (const rawUrl of sourceUrls) {
         const url = normalizeSource(rawUrl);
         if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
+        const observationText = String(payload.observation ?? "").replace(/\s+/g, " ").trim().slice(0, 800);
+        const sourceLeadName = !fetched && search ? organizationLabelFromUrl(url) : null;
+        if (sourceLeadName) {
+          const identity = normalizeCandidateIdentityName(sourceLeadName);
+          const entry = findings.get(identity) ?? { name: sourceLeadName, urls: new Set<string>(), notes: new Set<string>() };
+          entry.urls.add(url);
+          if (observationText) entry.notes.add(observationText.slice(0, 240));
+          findings.set(identity, entry);
+        }
         observations.push({
-          action, execution: String(payload.execution), url, text: String(payload.observation ?? ""),
+          action, execution: String(payload.execution), url,
+          text: sourceLeadName ? `${sourceLeadName} — ${observationText}` : observationText,
           eventId: event.id, createdAt: event.createdAt,
           verificationLevel: fetched ? "fetched_source" : "search_result_lead",
         });
