@@ -112,14 +112,97 @@ One successful run requires a single canonical UI-equivalent launch, model-direc
 - `APEX_ALLOW_SCHEMA_PUSH=true` was scoped to this single shell invocation. The managed workflow's ordinary boot remains configured to skip schema mutation.
 - No provider call, search, launch, evidence, admission, or card creation occurred.
 
+### E012 — API boot, UI, Redis, and prior-job reconciliation
+
+- Restarted only `artifacts/api-server: API Server`. Fresh boot logged the verified `d972d2d` source revision and explicitly skipped schema push. Frontend and API builds completed; the API bundle emitted a nonfatal size warning. Startup architecture checks passed; the mockup preview workflow's SIGTERM reflects the earlier intentional stop, not an Apex failure.
+- Read-only `/api/healthz` and `/api/healthz/details` returned HTTP 200: API `ok`, Redis `ok` (154 ms on the fresh check), Bureau integrity `ok`, no integrity reasons, `autoPipeline=false`, and research keys configured. Safe provider status showed two Groq capabilities and configured service counts without exposing any credential values.
+- Read-only `/api/ingest/job/active/atlas-run` returned `active=false`, `jobId=null`.
+- Reconciled upstream run `6e183bb4-0811-4735-84dd-c439698d44fa`: shared Redis reports terminal `failed` / `incomplete`, progress `3`, `inserted=0`, `skipped=0`, `errors=0`, with message `Canonical Investigator iteration ceiling reached after 20 Investigator iteration(s); case preserved for review.` It is no longer active. Its prior-project durable case is not evidence in this new project's database.
+- New development DB read-only counts remain zero for `entities`, `research_cases`, `research_case_events`, `research_sessions`, `research_run_events`, `research_evidence`, and `contact_evidence`.
+- Captured the running UI at `/`: visible **Launch Apex Atlas** CTA, **Depth · standard** selected, empty entity/priority/evidence/relationship counts, ready database indicator, and no demo data. Browser output contained only the normal React DevTools informational notice.
+- The imported launch helper confirms the UI-default request is `POST /api/ingest/atlas-run` with `{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}` and no target override. This preserves model-owned discovery and lets the UI-default standard budget operate; no custom search route or target is injected.
+- **No new launch has been sent yet.** The prior 20-iteration incomplete result is being considered before the single authorized fresh launch; no retry of that old job is possible or intended.
+
+### E013 — A different live job appeared on shared Redis; launch withheld
+
+- A later read-only check of `/api/ingest/job/active/atlas-run` no longer returned idle. It reported job `2acb2f47-450e-489f-a49c-f134c73e681a`, outer type `atlas-run` / nested type `case-bureau-discovery`, status `running`, progress `1`, `inserted=0`, `errors=0`, started `2026-10-27T06:46:43.006Z`.
+- Runtime metadata reports build revision `76bbac5046a18ac6158791a75971e3ca8a7751aa`, `buildDirty=dirty`, build timestamp `2026-10-27T06:25:59.322Z`, unlike this imported checkout. This is not the UI-equivalent Atlas run started by this session.
+- Observable structured control state says Right-hand approved a Companies House/PSC investigation focused on West Midlands manufacturers and mid-market owners; Boss selected `groq-investigator-1`. This is logged as visible decision metadata, not private model reasoning. No contacts, findings, or card writes were reported.
+- The job occupies the shared Atlas active-job lane. The active pointer changed after the earlier idle read, so one prelaunch check is insufficient.
+- **Safety action:** did not send a launch, cancel, or mutate this other-build job. Do not launch this project until a fresh authoritative read confirms the shared pointer is idle; recheck immediately before the intended canonical launch.
+
+### E014 — Foreign shared job terminated without admission; depth choice recorded
+
+- Read-only `GET /api/ingest/job/2acb2f47-450e-489f-a49c-f134c73e681a` returned HTTP 200 with terminal `failed` / `incomplete`, progress `1`, `inserted=0`, `skipped=0`, `errors=0`, and message `Investigator stopped without a durably evidenced candidate admission; case preserved for review.` This remains an other-build job, not this project's run.
+- The active pointer subsequently returned idle. No cancellation, retry, or mutation was sent to the foreign job.
+- The imported `research-depth.ts` documents depth as a coordination/budget hint: Investigator chooses trajectory and stopping; hard timeout is the operational boundary. Standard allows 20 iterations / 6 iterations per act / 210 seconds; Deep allows 32 / 8 / 360 seconds. Neither mode specifies a search route.
+- Because the prior standard run hit its 20-iteration ceiling and another project's shared job stopped without admission, the planned fresh run will use the UI's existing **Deep** option with the same default `targetCount=3` and `targetTimeoutMs=420000`. This raises only the model-owned bounded budget; no target, query, or tool sequence is injected, and the run-wide timeout remains in force.
+- **Prelaunch gate still required:** check health and the shared active pointer again immediately before sending exactly one canonical launch request.
+
+### E015 — One canonical Deep-budget UI-equivalent launch accepted
+
+- Immediately before launch, read-only `GET /api/healthz` returned HTTP 200 with API `ok`, Redis `ok`, and research keys configured. A fresh `GET /api/ingest/job/active/atlas-run` returned HTTP 200 with `active=false`, `jobId=null`.
+- Sent exactly one `POST /api/ingest/atlas-run` with `{"targetCount":3,"researchDepth":"deep","targetTimeoutMs":420000}`. This matches the imported UI helper with its existing Deep selector; no single-target override or prior discovery context was supplied.
+- The API returned HTTP `202`, job ID `0ac23b27-a5ca-4a41-8756-763de55fc2d2`, and message `Canonical model-owned discovery started`. Options echoed targetCount `3`, singleTargetId `null`, depth `deep`, timeout `420000`, and `discoveryContextIncluded=false`.
+- No retry or second launch was sent. This is the only run started by this project. Next observations must correlate to this job ID and verify the prompt trace is actually being appended to the visible companion file.
+- The request preserves model-directed search/tool choices and deterministic evidence/admission gates. No model/provider prompt or search result has yet been audited in this event.
+
+### E016 — First local Deep run stopped at invalid/no-usable Investigator action
+
+- Read-only polling job `0ac23b27-a5ca-4a41-8756-763de55fc2d2` returned HTTP 200 and terminal `failed` / `incomplete`: start `2026-10-27T06:48:49.226Z`, finish `2026-10-27T06:49:16.001Z`, progress `3`, `inserted=0`, `skipped=0`, `errors=0`.
+- The durable status message is `Canonical Investigator continuation stopped before a usable new research pass; case preserved for review.` Structured failure metadata: `failureDomain=model_action`, `failureKind=no_usable_action`, digest `19447e39d46c8ec4`; no raw error/stack was exposed in the status endpoint.
+- Visible Right-hand decision approved an initial scope to search UK renewable-energy private limited companies through Companies House. Its structured rationale said this is a public registry path to members/directors/shareholders and a concrete sector/geography, without assuming unavailable filing fields. Right-hand model: `openai/gpt-oss-120b`; Boss model: `openai/gpt-oss-20b`; Boss selected `groq-investigator-1`.
+- The visible model trace exists at the configured companion path: 207,963 bytes, 12 request sections and 12 response sections. The source logger's private-reasoning and credential filters remain in force. The trace is being inspected to classify the no-usable-action boundary before any retry.
+- Fresh workflow logs show Groq GPT-OSS 120B requests returning HTTP 200 as well as one HTTP 429 `rate_limit_exceeded` classified as `tokens`; subsequent call(s) succeeded. This is token-window pressure, not hard request-quota exhaustion, so no alternate Investigator key/provider was selected or forced.
+- No admission, evidence-backed contact, entity/card insert, or successful research pass is reported. Do not retry until the raw visible trace identifies a repairable issue and the shared active pointer is rechecked.
+
+### E017 — Trace isolates the first blocked action and scope-control mismatch
+
+- Parsed all 12 visible request/response sections from the prompt trace. The Boss's first accepted hypothesis was UK renewable-energy private limited companies; it selected `groq-investigator-1`. Right-hand approved the public-source hypothesis.
+- Investigator turn 1 emitted `registry_search` with query `renewable energy private limited company site:companieshouse.gov.uk`; the deterministic scope guard blocked it before any external request because the query text omitted the required geography.
+- Investigator turn 2 repeated the same query after its prompt explicitly reported `SCOPE GUARD BLOCKED ACTION` and `failed scope dimension(s): query geography`. It added `locale=en-GB` and `market=UK`, but still omitted geography from the actual query string, so the guard blocked it again. Both turns had zero observed/lead URLs; no Companies House request or web fetch occurred.
+- Right-hand then advised `stop` because lead counts and unfetched URLs were zero. Boss's later visible control response chose `continue_discovery` and proposed a different German/Bavarian manufacturing direction, selecting `groq-investigator-2`; the following Investigator response nevertheless repeated the prior UK renewable-energy direction. The controller's new scope was not consistently reflected in the next action.
+- A subsequent Investigator provider response was classified `upstream_tok` after token-window 429s; this is not hard request-quota exhaustion. The run ended with `no_usable_action` and no admissions.
+- Root cause to address: the prompt feedback does not sufficiently translate the scope-guard's geography failure into a concrete validation requirement for the `query` field, and the control-to-Investigator direction appears stale across continuation. No external source data or contact details were produced.
+- Next: inspect the scope-guard and continuation handoff implementation/tests. Any repair must keep query, geography, provider, tool, and pivot decisions model-owned; deterministic code may only reject mis-scoped actions and provide actionable diagnostics.
+
+### E018 — Durable case events confirm automatic Investigator rotation and stale scope
+
+- Read-only SQL of `research_case_events` for case `1` returned 12 ordered events. It confirms two model-selected `registry_search` attempts were blocked before outbound execution: first for missing query geography, then for repeating the same rejected query. Both had zero observed/lead URLs.
+- After Right-hand advised stop, Boss returned `continue_discovery` without a new structured direction. The durable objective stayed on the original UK renewable-energy scope.
+- Investigator 1 then emitted `upstream_token_quota_exhausted`. The durable classifier records `tokenDailyQuotaExhausted=true` and `hardRequestQuotaExhausted=false`. Boss automatically reassigned `groq-investigator-1` → `groq-investigator-2`; this is the requested same-role fallback and happened without agent intervention.
+- Investigator 2's next action repeated the earlier UK renewable-energy / Companies House query and was blocked by the repeat-pivot guard, despite Boss's visible report proposing Bavaria/Germany manufacturing. The durable control objective still reflected the original UK objective; this is evidence of stale/misaligned direction handoff after a provider-capacity rotation.
+- The later daily token-quota classification is distinct from the earlier short-window `rate_limit_exceeded` events. Correcting E016: an Investigator capacity exhaustion did occur, and Apex did switch to another Investigator capability naturally. No hard request-quota exhaustion was recorded.
+- Case events report `cumulativeSearches=0`, `cumulativeVisits=0`, `investigatorActionExecuted=false`, two blocked Investigator turns before the provider error, and no durable admission. No external registry/search request ran; no person/contact evidence or cards were produced.
+- Likely repair area is the structured Boss-to-Investigator scope handoff when `continue_discovery` or provider rotation occurs. Inspect its contract and tests before changing anything; preserve model authority over the chosen direction.
+
+### E019 — Repair scope narrowed to actionable feedback and explicit control recovery
+
+- The persisted trace shows the full first scope-guard observation named the active UK pivot, but `compactEmergencyTrajectoryObservation()` reduced it to only `failed scope dimension(s): query geography`. The Investigator received a generic “revise those dimensions” message and repeated the same query.
+- The model's second action included `locale=en-GB` and `market=UK`, but the deterministic guard correctly requires geography in the query itself. The recovery prompt did not say that those separate fields do not satisfy the query-text gate.
+- `resolveBossDirectedDiscoveryObjective()` intentionally reuses the active objective for a directionless `continue_discovery`. That is useful after productive work, but after an episode with no external Investigator action it allowed a null direction to reuse the same blocked scope.
+- Planned narrow changes: preserve active-scope context in the compact block message; explicitly name that a geography failure must be repaired in the query field itself, not just locale/market; and reject only directionless `continue_discovery` when the preceding episode executed no external research action. The Boss can still stop or provide a model-chosen scope refinement; no target, query, provider, or tool sequence will be scripted.
+- No change to Investigator selection or quota recovery is planned. The daily token quota case already triggered the intended Boss-owned `groq-investigator-1` → `groq-investigator-2` switch.
+- No second local launch has been sent; the first job is terminal and all external actions were blocked before egress.
+
+### E020 — Recovery repair implemented; focused verification passes
+
+- Updated blocked-scope prompt compaction to preserve the active Boss-approved scope. For a `query geography` failure it now says the query field itself must contain geography from that scope; locale/market metadata or a registry domain alone do not satisfy the gate.
+- Added a targeted control invariant: after the latest Investigator episode executed no external research action, Boss cannot use directionless `continue_discovery` to replay the same accepted objective. The response is rejected before another Investigator action; Boss may provide a structured research direction or stop. Productive episodes still retain directionless same-scope continuation.
+- Added a matching Boss prompt rule: narrative reports and `nextDirections` do not alter the accepted objective; only the structured direction field does. This preserves role separation and avoids inferring scope from prose.
+- No provider, target, query, source route, or tool sequence was added. The existing automatic same-role quota recovery remains unchanged.
+- Correction to E017/E018 wording: Boss's report mentioned Bavaria/Germany, but its structured direction was null. The controller correctly preserved the UK scope rather than inferring a pivot from narrative text. The actionable defect was allowing a directionless continuation after a no-action episode, not a stale structured handoff.
+- Verification: `pnpm run typecheck` passed. The first focused test run reported 202/203 passing because one assertion expected lowercase capitalization; only the assertion was corrected. The rerun passed all 203 tests across the four focused suites. `git diff --check` passed before that test-only wording correction.
+- No second run has been launched yet; the full bureau check and runtime restart are next.
+
 ## Current checkpoint
 
-- **Source snapshot:** verified public `main` at `d972d2d7b43cdda03747f57399c7548a6a761d99`, staged in `/tmp/BigContacts-main`.
-- **Project import:** completed on local `main` at the verified SHA; source is a shallow checkout.
+- **Source snapshot:** public `main` imported at `d972d2d7b43cdda03747f57399c7548a6a761d99`; local commit `51194099d74a1dbfdb768614e91db93a814d453b` adds the development-only visible audit capture opt-in and tests. Nothing was pushed.
+- **Project import:** completed in the existing checkout; `.git` and the starter backup branch are preserved.
 - **Secret presence:** all 13 requested names confirmed; values not inspected.
-- **Workflows/runtime:** canonical API workflow is configured but stopped; Apex has not booted.
-- **Database/Redis/job lane:** development schema initialized and required tables verified; Redis/job state not yet checked.
-- **Provider calls, search, evidence, admission, card creation:** none.
-- **Current acceptance:** NOT MET.
+- **Workflows/runtime:** canonical API is running; first local Deep run is terminal incomplete; recovery repair is implemented and focused tests/typecheck pass; full bureau verification is next.
+- **Database/Redis/job lane:** development schema is initialized; case `1` has 12 control/trajectory events, no durable admission or card.
+- **Provider calls, search, evidence, admission, card creation:** no outbound search/registry calls; two scope-blocked actions; automatic Investigator 1→2 rotation occurred after classified daily token quota exhaustion.
+- **Current acceptance:** NOT MET; complete full verification, restart, then continue to one full run.
 
 Append each subsequent action and result below in chronological order, including setup issues and their exact recovery. Do not delete or rewrite earlier events; correct mistakes in a new event.

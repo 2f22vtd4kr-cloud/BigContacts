@@ -78,6 +78,31 @@ describe("research objective validation", () => {
     });
   });
 
+  it("requires an explicit Boss direction before reusing a scope after a no-action episode", () => {
+    const baseObjective = "Discover credible owners and operators in privately held businesses.";
+    const currentObjective = formatBossDirectedObjective(
+      baseObjective,
+      "Investigate privately held renewable-energy firms in the United Kingdom using public company ownership filings.",
+    );
+    expect(resolveBossDirectedDiscoveryObjective({
+      action: "continue_discovery",
+      baseObjective,
+      currentObjective,
+      direction: null,
+      requireExplicitDirection: true,
+    })).toEqual({
+      valid: false,
+      reason: "A directionless continuation cannot reuse the active scope after the preceding Investigator episode executed no external research action; provide a structured direction or stop.",
+    });
+    expect(resolveBossDirectedDiscoveryObjective({
+      action: "continue_discovery",
+      baseObjective,
+      currentObjective,
+      direction: "Refine the United Kingdom renewable-energy ownership question using publicly accessible company filings.",
+      requireExplicitDirection: true,
+    })).toMatchObject({ valid: true, reusedCurrentObjective: false });
+  });
+
   it("accepts an explicit natural-language proceed decision from Right-hand", () => {
     const direction = "Investigate privately held renewable-energy Mittelstand firms in Bavaria and identify public ownership records.";
     expect(resolveApprovedOpeningDirection({

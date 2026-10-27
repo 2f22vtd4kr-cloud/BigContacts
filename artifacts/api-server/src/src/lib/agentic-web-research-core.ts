@@ -2723,10 +2723,15 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
   }
   if (/pivot_alignment_guard/i.test(normalized)) {
     const mismatch = normalized.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
+    const activePivot = normalized.match(/active Boss-accepted pivot is:\s*([^\n.]+)/i)?.[1]?.trim();
+    const activeScope = activePivot ? ` Active Boss-approved scope: ${activePivot.slice(0, 260)}.` : "";
     if (mismatch) {
-      return `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}. Revise those dimensions; fetch only an observed aligned URL; do not repeat without new evidence.`;
+      const geographyGuidance = /\bquery geography\b/i.test(mismatch)
+        ? " The query field itself must include the geographic term from that scope; market/locale metadata or registry-domain text alone do not satisfy this check."
+        : "";
+      return `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}.${activeScope}${geographyGuidance} Revise the failed dimensions; fetch only an observed aligned URL; do not repeat unchanged without new evidence or ask Boss/Right-hand to revise scope.`;
     }
-    return "SCOPE GUARD BLOCKED ACTION (no request): revise the failed scope dimensions; web discovery may search in-scope topic/company terms without repeating source-class wording; choose a registry adapter matching the active geography when using registry_search; fetch only an observed aligned URL and do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.";
+    return `SCOPE GUARD BLOCKED ACTION (no request): revise the failed scope dimensions.${activeScope} Web discovery may search in-scope topic/company terms without repeating source-class wording; choose a registry adapter matching the active geography when using registry_search; fetch only an observed aligned URL and do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.`;
   }
   // Ordinary fetched-page observations can carry the exact company/person facts
   // needed for a partial finding. Preserve both ends of a bounded excerpt.

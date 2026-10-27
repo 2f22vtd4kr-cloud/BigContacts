@@ -272,6 +272,8 @@ describe("Atlas Boss direction adoption", () => {
     });
     expect(prompt).toContain("Right-hand is advisory");
     expect(prompt).toContain("null keeps the accepted scope");
+    expect(prompt).toContain("preceding Investigator episode executed no external research action");
+    expect(prompt).toContain("structured direction field");
   });
 });
 

@@ -79,9 +79,16 @@ export function resolveBossDirectedDiscoveryObjective(input: {
   baseObjective: string;
   currentObjective: string;
   direction: string | null | undefined;
+  requireExplicitDirection?: boolean;
 }): ResolvedAtlasDiscoveryObjective {
   const proposed = typeof input.direction === "string" ? input.direction.trim() : "";
   if (input.action === "continue_discovery" && !proposed) {
+    if (input.requireExplicitDirection) {
+      return {
+        valid: false,
+        reason: "A directionless continuation cannot reuse the active scope after the preceding Investigator episode executed no external research action; provide a structured direction or stop.",
+      };
+    }
     const current = input.currentObjective.trim();
     if (!current) return { valid: false, reason: "Cannot continue discovery because no accepted active research objective exists." };
     return { valid: true, objective: current, direction: current, reusedCurrentObjective: true };
