@@ -792,8 +792,8 @@ export function buildFaaAircraftSearchUrl(query: string): string {
   return base + "NameResult?nametxt=" + encodeURIComponent(value) + "&sort_option=4";
 }
 function decodeFaaText(value: string): string {
-  return stripHtml(value).replace(/&nbsp;|&#160;/gi, " ").replace(/&amp;/gi, "&").replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
-    .replace(/&#(\d+);/g, (_m, n: string) => String.fromCharCode(Number(n))).replace(/&#x([0-9a-f]+);/gi, (_m, n: string) => String.fromCharCode(Number.parseInt(n, 16))).replace(/\s+/g, " ").trim().slice(0, 500);
+  return value.replace(/<[^>]*>/g, " ").replace(/&nbsp;|&#160;/gi, " ").replace(/&amp;/gi, "&").replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_m: string, n: string) => String.fromCharCode(Number(n))).replace(/&#x([0-9a-f]+);/gi, (_m: string, n: string) => String.fromCharCode(Number.parseInt(n, 16))).replace(/\s+/g, " ").trim().slice(0, 500);
 }
 function faaRowFields(html: string): Record<string, string> {
   const fields: Record<string, string> = {};
