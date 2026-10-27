@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { structuredActionResponseFormat } from "../lib/agentic-web-research-core";
 import { buildCreativeInvestigatorAngles } from "../lib/investigator-prompt-guide";
 import { renderRegistryCoverageGuidance } from "../lib/registry-matrix";
@@ -53,6 +55,9 @@ describe("model-facing registry inventory", () => {
     vi.stubEnv("COMPANIES_HOUSE_API_KEY", ""); vi.stubEnv("OPENCORPORATES_API_TOKEN", ""); vi.stubEnv("OPENCORPORATES_API_KEY", "");
     const prompt = buildCreativeInvestigatorAngles({ targetName: "Sample target", country: "US", includeInstitutionalOrientation: false });
     expect(prompt).not.toContain("AVAILABLE STRUCTURED REGISTRY INVENTORY");
+    const coreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
+    expect(coreSource).toContain("renderRegistryCoverageGuidance(availableRegistryIds)");
+    expect(coreSource).toContain("SOURCE COVERAGE (not a checklist)");
     const inventory = renderRegistryCoverageGuidance(["sec-edgar", "faa"]);
     expect(inventory).toContain("faa — FAA Aircraft Registry (US)");
     expect(inventory).toContain("sec-edgar — SEC EDGAR (US)");
