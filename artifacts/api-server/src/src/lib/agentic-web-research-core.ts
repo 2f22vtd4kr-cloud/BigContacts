@@ -1466,7 +1466,7 @@ export function extractSearchResultCompanyLeadFindings(resultText: string, resul
       role: null,
       scope: "organization",
       sourceUrls: [url],
-      note: "search_result_lead; exact business-like title returned by the search provider; snippet/title only, underlying page not fetched; no ownership, wealth, person, or contact conclusion.",
+      note: "LOW-CONFIDENCE REVIEW-ONLY COMPANY LEAD; search_result_lead; exact business-like title returned by the search provider; snippet/title only, underlying page not fetched; no ownership, wealth, person, or contact conclusion.",
       // Deterministic title extraction creates only a source-backed observation
       // lead. It does not author an Investigator promotion decision; the
       // canonical company-card projector admits it separately as partial_review.
