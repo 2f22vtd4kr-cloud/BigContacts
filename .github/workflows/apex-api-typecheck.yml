@@ -118,8 +118,8 @@ jobs:
         run: pnpm --dir artifacts/api-server run build
       - name: Typecheck workspace
         run: pnpm run typecheck
-      - name: Run registry, Investigator registry-availability, and lead-card regression tests
-        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/registry-client.test.ts src/src/test/agentic-registry-availability.test.ts src/src/test/research-lead-card-reconciliation.test.ts
+      - name: Run registry, Investigator prompt/scope, and lead-card regression tests
+        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/registry-client.test.ts src/src/test/agentic-registry-availability.test.ts src/src/test/research-lead-card-reconciliation.test.ts src/src/test/groq-investigator-runtime-contract.test.ts src/src/src/lib/agentic-web-research-core.test.ts
       - name: Run strict provenance and provider-cache regression tests
         run: pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts src/src/test/provider-gate-cache-bounds.test.ts
       - name: Run discovery pivot-scope regression tests
