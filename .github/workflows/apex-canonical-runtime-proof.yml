@@ -83,10 +83,10 @@ jobs:
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
       NODE_OPTIONS: --max-old-space-size=1536
       APEX_CAPTURE_MODEL_PROMPTS: "true"
-      APEX_MODEL_AUDIT_FILE: ".local/audits/APEX_ATLAS_MODEL_AUDIT_${{ github.run_id }}.md"
+      APEX_MODEL_AUDIT_FILE: "audits/APEX_ATLAS_MODEL_AUDIT_${{ github.run_id }}.md"
       APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "false"
       APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "false"
-      APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE: "false"
+      APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -136,7 +136,7 @@ jobs:
           set -euo pipefail
           unset APEX_ALLOW_SCHEMA_PUSH
           rm -f /tmp/apex-api.log /tmp/health.json /tmp/launch.json /tmp/job.json /tmp/job-final.json /tmp/active-atlas-job.json /tmp/atlas-trace.json /tmp/entities.json /tmp/dashboard-research-leads.json
-          rm -f ".local/audits/APEX_ATLAS_MODEL_AUDIT_${GITHUB_RUN_ID}.md"
+          rm -f "audits/APEX_ATLAS_MODEL_AUDIT_${GITHUB_RUN_ID}.md"
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
           API_PID=$!
           echo "$API_PID" > /tmp/apex-api.pid
@@ -274,7 +274,7 @@ jobs:
             /tmp/dashboard-research-leads.json
             /tmp/health.json
             /tmp/apex-api.log
-            .local/audits/APEX_ATLAS_MODEL_AUDIT_*.md
+            audits/APEX_ATLAS_MODEL_AUDIT_*.md
           if-no-files-found: ignore
           include-hidden-files: true
       - name: Stop canonical API
