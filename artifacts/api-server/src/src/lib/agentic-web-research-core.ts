@@ -4626,10 +4626,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const shortestActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
       const shortestRegistryGuidance = `RUNTIME-AVAILABLE REGISTRY IDS ONLY: ${registryIdList}; never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit.`;
       const shortestDiscoveryGate = input.mode === "discovery"
-        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are the target; an organization is a lead, not the target. Require ownership/equity/control/investment clue; never infer wealth from seniority alone. Honor approved Boss scope: topic/geography must match; source class need not appear in every discovery query. No preset targets/queries; the model chooses tools and action order; this is not a prescribed action sequence. Avoid generic wealth/net-worth/private-equity-profile searches alone, Fortune/ranking lists, and global-brand leadership without a plausible local owner/operator route hypothesis. News publishers and articles are evidence leads only, never targets or access routes. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
+        ? "DISCOVERY GATE: people are targets; companies and snippets are leads. Require observed ownership/control/equity/investment clues; never infer wealth from seniority. Honor Boss topic/geography, but source class need not appear in every query. The model chooses tools/order; no preset targets or sequence. Avoid generic wealth searches, rankings, and famous global executives without a plausible local route. News is a lead, not a target. Target-stage research tests business/asset/exit materiality, corroborates or falsifies, and checks realistic public/professional reachability. No placeholders."
         : "";
       const shortestAdmission = input.mode === "discovery"
-        ? "DISCOVERY LEAD HANDOFF CONTRACT: review-only PersonCandidate needs exact full name, page-stated role and ownership/equity/control/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages are acceptable only when they directly bind exact name/role. third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are leads, not identity evidence. Not an HNWI conclusion. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion."
+        ? "PERSON LEAD GATE: exact full name + page-stated role + ownership/control/equity/investment clue must be co-bound in one fetched claim-grade source. Never infer wealth from seniority. Official leadership/filing pages qualify only when they bind exact name and role; people-search aggregators and unattributed contacts are leads, not identity evidence. This is not an HNWI conclusion; target research must corroborate, falsify, test materiality, and verify a realistic route."
         : "";
       const shortestPrompt = [
         finalEmergencyAssignment,
@@ -4692,7 +4692,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactCriticalRetrievalGuidance,
         shortestDiscoveryGate,
         shortestAdmission,
-        shortestLeadFollowUp,
         "EVIDENCE: snippets are leads, not evidence. Never invent identities, ownership, URLs or contacts.",
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ".",
         hardMinimumOutputContract,
@@ -4723,7 +4722,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "EVIDENCE: search results and snippets are leads, not evidence. Visit only observed URLs. Never invent identities, ownership, wealth, URLs or contacts.",
         "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless gates pass.",
         absoluteMinimumDiscoveryContext,
-        shortestLeadFollowUp,
         hardMinimumOutputContract,
       ].filter(Boolean);
       const basePrompt = absoluteMinimumBase.join("\n\n");
