@@ -557,6 +557,8 @@ describe("Investigator prompt URL integrity", () => {
 
   it("retains the last fetched page's claim text after a later search becomes the newest action", () => {
     const sourceUrl = "https://www.uravilamps.com/pdf/announcements/intimation-of-press-release-for-majority-stake-acquisition.pdf";
+    const objective = "Discover real people from public transaction and ownership evidence.";
+    const pivotScopeKey = discoveryPivotScopeKey(objective);
     const fetchedObservation = [
       "PDF PAGE " + sourceUrl,
       "Issuer boilerplate and repeated document headings. ".repeat(70),
@@ -568,6 +570,7 @@ describe("Investigator prompt URL integrity", () => {
         model: "openai/gpt-oss-120b",
         action: "visit",
         execution: "success",
+        pivotScopeKey,
         args: { url: sourceUrl },
         observation: fetchedObservation,
         observedUrls: [sourceUrl],
@@ -580,6 +583,7 @@ describe("Investigator prompt URL integrity", () => {
         model: "openai/gpt-oss-120b",
         action: "web_search",
         execution: "success",
+        pivotScopeKey,
         args: { query: "independent acquisition corroboration", provider: "serper" },
         observation: "Search returned a further article lead.",
         observedUrls: [],
@@ -590,7 +594,7 @@ describe("Investigator prompt URL integrity", () => {
     ];
     const prompt = buildStepPrompt({
       targetName: "",
-      objective: "Discover real people from public transaction and ownership evidence.",
+      objective,
       history: [],
       trajectoryRecords: records,
       lastObservation: "Search returned a further article lead.",
@@ -2116,14 +2120,16 @@ Choose each next action yourself from the available capabilities and observed ev
   });
 
   it("keeps lead follow-up advisory and leaves search choice with the Investigator", () => {
+    const objective = "discover source-backed people in Ohio manufacturing";
     const records = [{
       ...livenessRecord("web_search", "success"),
+      pivotScopeKey: discoveryPivotScopeKey(objective),
       leadUrls: ["https://www.ohiosos.gov/business/search"],
       observedUrls: [],
     }];
     const prompt = buildStepPrompt({
       targetName: "",
-      objective: "discover source-backed people in Ohio manufacturing",
+      objective,
       history: [],
       trajectoryRecords: records,
       lastObservation: "Search results returned a potentially useful unvisited lead.",
@@ -3029,7 +3035,7 @@ describe("PDF prompt capability contract", () => {
     });
 
     expect(prompt).toContain("visit supports bounded text extraction for text-bearing PDF documents");
-    expect(prompt).toContain("Scanned/image-only PDFs with no text are marked OCR-required; OCR is not available");
+    expect(prompt).toContain("Scanned/image-only PDFs require OCR (unavailable)");
     expect(prompt).toContain("encrypted/password-protected and malformed PDFs are distinct structured extraction failures");
     expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead");
     expect(prompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
