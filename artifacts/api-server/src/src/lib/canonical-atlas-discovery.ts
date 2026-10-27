@@ -717,13 +717,28 @@ async function materializePartialOrganizationLeadCards(input: {
     if (typeof event.payload !== "string") return [];
     try {
       const payload = JSON.parse(event.payload) as {
-        jobId?: string | null; action?: string; execution?: string; observedUrls?: unknown[];
+        jobId?: string | null; action?: string; execution?: string;
+        observedUrls?: unknown[]; leadUrls?: unknown[];
         observation?: string; runId?: string;
       };
-      if (payload.jobId !== input.atlasJobId || !Array.isArray(payload.observedUrls)) return [];
-      return payload.observedUrls.filter((url): url is string => typeof url === "string").map((url) => ({
-        action: payload.action ?? "",
+      if (payload.jobId !== input.atlasJobId || payload.execution !== "success") return [];
+      const action = payload.action ?? "";
+      const fetched = action === "visit" || action === "browser_fetch";
+      const searched = action === "web_search" || action === "parallel_web_search"
+        || action === "registry_search" || action === "parallel_registry_search";
+      // Search-result URLs are leads, not fetched-page evidence. Preserve them
+      // separately so a model finding grounded in an actual result snippet can
+      // become a clearly labelled review card even if the next control turn fails.
+      const sourceUrls = fetched
+        ? payload.observedUrls
+        : searched && Array.isArray(payload.leadUrls) && payload.leadUrls.length
+          ? payload.leadUrls
+          : [];
+      if (!Array.isArray(sourceUrls)) return [];
+      return sourceUrls.filter((url): url is string => typeof url === "string").map((url) => ({
+        action,
         execution: payload.execution ?? "",
+        verificationLevel: fetched ? "fetched_source" as const : "search_result_lead" as const,
         sourceUrl: url,
         observation: typeof payload.observation === "string" ? payload.observation : "",
         eventId: event.id,
@@ -746,17 +761,28 @@ async function materializePartialOrganizationLeadCards(input: {
       .flatMap((finding) => finding.sourceUrls)
       .map(normalizeSourceUrl)
       .filter((url): url is string => Boolean(url)));
-    const supports = new Map<string, { sourceUrl: string; eventId: number; createdAt: Date; spanText: string; spanStart: number; spanEnd: number }>();
+    const supports = new Map<string, {
+      sourceUrl: string; eventId: number; createdAt: Date; spanText: string;
+      spanStart: number; spanEnd: number; verificationLevel: "fetched_source" | "search_result_lead";
+    }>();
     for (const observation of observations) {
-      if (observation.execution !== "success" || (observation.action !== "visit" && observation.action !== "browser_fetch")) continue;
+      if (observation.execution !== "success"
+        || !["visit", "browser_fetch", "web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(observation.action)) continue;
       const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
       if (!sourceUrl || !claimedUrls.has(sourceUrl) || !isClaimGradeDiscoverySourceUrl(sourceUrl)) continue;
+      // Exact-name support must appear in the actual model-visible observation
+      // text, never just in the finding or the URL. Search-only support remains
+      // review-grade and is not silently upgraded to fetched evidence.
       const span = bindExactSourceSpan(observation.observation, name);
       if (!span?.exact) continue;
-      if (!supports.has(sourceUrl)) supports.set(sourceUrl, {
-        sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt,
-        spanText: span.text, spanStart: span.start, spanEnd: span.end,
-      });
+      const previous = supports.get(sourceUrl);
+      if (!previous || (previous.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) {
+        supports.set(sourceUrl, {
+          sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt,
+          spanText: span.text, spanStart: span.start, spanEnd: span.end,
+          verificationLevel: observation.verificationLevel,
+        });
+      }
     }
     if (!supports.size) continue;
 
@@ -796,16 +822,23 @@ async function materializePartialOrganizationLeadCards(input: {
       let entityId = sameCase?.id ?? null;
       let created = false;
       const sourceUrls = [...supports.keys()];
-      const notes = "PARTIAL REVIEW LEAD — the fetched source names this organization. This card is not a verified ownership finding, HNWI conclusion, or targetable-person admission; verify control/ownership, business materiality, and the person hypothesis before acting.";
+      const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
+      const verificationLevel = hasFetchedSource ? "fetched_source" : "search_result_lead";
+      const notes = hasFetchedSource
+        ? "FETCHED-SOURCE REVIEW LEAD — a fetched public source contains this exact organization name. Ownership/control, business materiality, wealth, and targetability remain unverified."
+        : "SEARCH-RESULT REVIEW LEAD — a successful public search observation contains this exact organization name and an attributable result URL. The underlying page is not verified; ownership/control, business materiality, wealth, and targetability remain unverified.";
       const metadata = JSON.stringify({
         reviewOnly: true,
         partialOrganizationLead: true,
         stage: "partial_review",
         admission: "source-observed-organization-name",
+        verificationLevel,
+        evidenceHierarchy: hasFetchedSource ? "fetched-source-name-only" : "unverified-search-result",
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         sourceUrls,
-        limitations: ["ownership/control not established", "business materiality not established", "no person or wealth conclusion"],
+        sourceNotes: [...new Set([...supports.values()].map((support) => support.spanText))].slice(0, 4),
+        limitations: ["ownership/control not established", "business materiality not established", "no person or wealth conclusion", "person-level contact route not established"],
       });
       if (!entityId) {
         const [entity] = await tx.insert(entitiesTable).values({
@@ -840,8 +873,10 @@ async function materializePartialOrganizationLeadCards(input: {
         if (existingEvidence) continue;
         const [session] = await tx.insert(researchSessionsTable).values({
           targetEntityId: entityId,
-          winningPath: JSON.stringify([{ sourceUrl: support.sourceUrl, discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, status: "partial_review" }]),
-          notes: "Source-observed organization-name lead only. No ownership, wealth, or targetable-person claim is made.",
+          winningPath: JSON.stringify([{ sourceUrl: support.sourceUrl, discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, status: "partial_review", verificationLevel: support.verificationLevel }]),
+          notes: support.verificationLevel === "fetched_source"
+            ? "Fetched public-source organization-name lead only; ownership, wealth, and targetable-person claims remain unverified."
+            : "Search-result organization-name lead only; fetched-page verification, ownership, wealth, and targetable-person claims remain outstanding.",
           safeUseStatus: "manual_review",
           crmStatus: "Lead Gen",
         }).returning({ id: researchSessionsTable.id });
@@ -851,17 +886,21 @@ async function materializePartialOrganizationLeadCards(input: {
           sessionId: session.id,
           entityId,
           claimType: "partial_organization_lead",
-          claim: "The fetched source contains the exact organization name; ownership, materiality, and a targetable person remain unverified.",
+          claim: support.verificationLevel === "fetched_source"
+            ? "The fetched public source contains the exact organization name; ownership, materiality, and a targetable person remain unverified."
+            : "A successful public search observation contains the exact organization name and an attributable result URL; the underlying page, ownership, materiality, and a targetable person remain unverified.",
           value: name,
           sourceName: "canonical-agentic-discovery",
           sourceUrl: support.sourceUrl,
           sourceDomain: new URL(support.sourceUrl).hostname,
           status: "review",
-          confidence: 0.25,
+          confidence: support.verificationLevel === "fetched_source" ? 0.25 : 0.15,
           observedAt: event?.createdAt ?? support.createdAt,
-          freshnessScore: 1,
+          freshnessScore: support.verificationLevel === "fetched_source" ? 1 : 0.5,
           metadata: JSON.stringify({
             partialReview: true,
+            verificationLevel: support.verificationLevel,
+            evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result",
             discoveryCaseId: input.discoveryCaseId,
             atlasJobId: input.atlasJobId,
             supportingEventId: support.eventId,
