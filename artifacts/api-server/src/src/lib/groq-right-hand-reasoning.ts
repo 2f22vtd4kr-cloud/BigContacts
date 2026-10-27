@@ -244,9 +244,10 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  let currentUser=normalizedUser;
  const contractRecoveryPrompt="FORMAT RECOVERY: The previous JSON did not satisfy the caller's exact task-specific contract. Re-evaluate the same request and return exactly the required keys with no extras. Keep decision within 300 characters, reason within 1200 characters, focusLanes to at most 8 non-empty strings of at most 160 characters each, and confidence as a number from 0 to 1. Do not change your substantive judgment merely to fit the format.";
  const systemPrompt=`${apexOrientationCompact("right_hand")}\n\n${system}`;
- // Credential slots are independent credentials, not an implicit failover ladder.
- // This request uses one configured slot and only the documented same-role model fallback.
- // Recovery through another credential must be explicit rather than a side effect of retries.
+ // Keep one attempt pool per distinct credential. Model fallback stays within the Right-hand role;
+ // explicit request-quota or authentication failures skip the exhausted credential, while token
+ // window/model-specific limits first allow the same credential's other supported model.
+ // Duplicate slot values are one quota pool and must never be retried as if independent.
  const attempts:Array<{entry:{name:string;key:string};model:string}>=[];
  for(const credential of distinctEntries){
   for(const model of await resolveModelChain(credential.key))attempts.push({entry:credential,model});
