@@ -276,7 +276,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
     accessMethod: "Official FAA Aircraft Inquiry HTTPS name and N-number search; bounded per-aircraft detail fetch",
     rateLimit: "Low-volume queries; bounded to five records per request; respect provider errors and access controls",
     licensing: "FAA public data terms; owner-identification withholding restrictions apply",
-    freshness: "Inquiry data updated each federal working day; public display may omit withheld registrant data",
+    freshness: "Current inquiry response; verify record dates/status from the returned official page; public display may omit withheld registrant data",
     productionReviewStatus: "review_required",
     notes: "Registrant is not necessarily the beneficial owner. Use when an aircraft hypothesis or grounded registrant/N-number exists; never infer wealth from aircraft registration alone and never bypass withholding or access restrictions.",
   },
