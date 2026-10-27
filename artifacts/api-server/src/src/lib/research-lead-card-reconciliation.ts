@@ -93,8 +93,20 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
               const url = normalizeSource(rawUrl);
               if (url && isClaimGradeDiscoverySourceUrl(url)) entry.urls.add(url);
             }
-            if (typeof company.notes === "string" && company.notes.trim()) {
-              entry.notes.add(company.notes.replace(/\s+/g, " ").trim().slice(0, 240));
+            const normalizedNotes = typeof company.notes === "string" ? company.notes.replace(/\s+/g, " ").trim().slice(0, 240) : "";
+            if (normalizedNotes) entry.notes.add(normalizedNotes);
+            // Registry adapters already return an attributable company name and source URL.
+            // Preserve that successful observation as a review-grade lead so a registry-only
+            // pass still produces a transparent Corporation card; it is not treated as fetched
+            // evidence, ownership, wealth, or person admission.
+            for (const rawUrl of company.sourceUrls) {
+              const url = normalizeSource(rawUrl);
+              if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
+              observations.push({
+                action: "registry_search", execution: "success", url,
+                text: `${name}${normalizedNotes ? ` — ${normalizedNotes}` : ""}`,
+                eventId: event.id, createdAt: event.createdAt, verificationLevel: "search_result_lead",
+              });
             }
             findings.set(identity, entry);
           }
