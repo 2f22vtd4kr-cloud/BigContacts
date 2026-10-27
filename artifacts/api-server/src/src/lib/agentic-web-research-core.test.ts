@@ -558,7 +558,7 @@ describe("Investigator prompt URL integrity", () => {
   it("retains the last fetched page's claim text after a later search becomes the newest action", () => {
     const sourceUrl = "https://www.uravilamps.com/pdf/announcements/intimation-of-press-release-for-majority-stake-acquisition.pdf";
     const objective = "Discover real people from public transaction and ownership evidence.";
-    const pivotScopeKey = discoveryPivotScopeKey(objective);
+    const pivotScopeKey = discoveryPivotScopeKey(objective) ?? undefined;
     const fetchedObservation = [
       "PDF PAGE " + sourceUrl,
       "Issuer boilerplate and repeated document headings. ".repeat(70),
@@ -2123,7 +2123,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const objective = "discover source-backed people in Ohio manufacturing";
     const records = [{
       ...livenessRecord("web_search", "success"),
-      pivotScopeKey: discoveryPivotScopeKey(objective),
+      pivotScopeKey: discoveryPivotScopeKey(objective) ?? undefined,
       leadUrls: ["https://www.ohiosos.gov/business/search"],
       observedUrls: [],
     }];
