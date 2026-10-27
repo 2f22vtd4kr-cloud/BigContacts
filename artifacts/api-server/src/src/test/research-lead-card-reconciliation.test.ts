@@ -56,7 +56,7 @@ describe("terminal review-card reconciliation", () => {
     expect(agenticCore).toContain("promotionDecision=promote means admit only to the review-only company-card queue");
     expect(agenticCore).toContain('Search snippets are leads, not claim-grade evidence');
     expect(agenticCore).toContain('SOURCE CHOICE: no registry-first sequence; choose by expected information gain and jurisdiction. For unanchored local/sector discovery, ordinary web search is often the better first move. Companies House is UK-only');
-    expect(agenticCore).toContain('a real result text containing an exact organization name and eligible HTTPS URL may produce a low-confidence review-only company finding');
+    expect(agenticCore).toContain('if observed result text states an exact organization name and an eligible HTTPS URL, emit a low-confidence review-only company finding');
   });
 
   it("persists only exact organization findings from successful search observations as review leads", () => {
