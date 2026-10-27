@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { organizationLabelFromUrl } from "../lib/research-lead-card-reconciliation";
+import { extractSearchResultCompanyLeadFindings } from "../lib/agentic-web-research-core";
 const reconciler = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
 const launchRoute = readFileSync(new URL("../routes/research/canonical-atlas-launch.ts", import.meta.url), "utf8");
 const dashboardRoute = readFileSync(new URL("../routes/dashboard.ts", import.meta.url), "utf8");
@@ -26,7 +26,8 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain("bindExactSourceSpan(observation.text, lead.name)");
     expect(reconciler).toContain('verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead"');
     expect(reconciler).toContain("ownership, control, wealth, and targetability remain unestablished");
-    expect(reconciler).toContain("this identifies a research source, not a verified target company or investor");
+    expect(reconciler).toContain("const sourceLeadName = pageIdentity?.name ?? null;");
+    expect(reconciler).not.toContain("organizationLabelFromUrl(url)");
   });
   it("requires a real company or person card even if a later control turn fails", () => {
     expect(runtimeProofWorkflow).toContain('"failed"');
@@ -98,15 +99,31 @@ describe("terminal review-card reconciliation", () => {
 });
 
 
-describe("search-result source lead labels", () => {
-  it("extracts the registrable label from common two-level public suffixes", () => {
-    expect(organizationLabelFromUrl("https://www.rathbones.co.uk/insights")).toBe("Rathbones (source lead)");
-    expect(organizationLabelFromUrl("https://www.example.com.au/research")).toBe("Example (source lead)");
-    expect(organizationLabelFromUrl("https://www.example.com/report")).toBe("Example (source lead)");
+describe("search-result company lead extraction", () => {
+  it("uses an exact business-like result title and its exact observed HTTPS URL, not the hostname", () => {
+    const text = "Casino Perla\nURL: https://www.perla.si/casino\nCasino and hotel resort in Nova Gorica";
+    const leads = extractSearchResultCompanyLeadFindings(text, ["https://www.perla.si/casino"]);
+    expect(leads).toHaveLength(1);
+    expect(leads[0]).toMatchObject({
+      value: "Casino Perla",
+      scope: "organization",
+      personName: null,
+      role: null,
+      sourceUrls: ["https://www.perla.si/casino"],
+      promotionDecision: "promote",
+    });
+    expect(leads[0]?.note).toContain("underlying page not fetched");
+    expect(leads[0]?.promotionReason).toContain("review-only company card");
   });
 
-  it("does not manufacture labels from IP addresses or public-suffix fragments", () => {
-    expect(organizationLabelFromUrl("https://192.0.2.10/report")).toBeNull();
-    expect(organizationLabelFromUrl("https://co.uk/report")).toBeNull();
+  it("rejects article-like headlines and never infers a name from a URL", () => {
+    expect(extractSearchResultCompanyLeadFindings(
+      "Casino Perla announces new investment\nURL: https://www.perla.si/news\nNews story about a deal",
+      ["https://www.perla.si/news"],
+    )).toEqual([]);
+    expect(extractSearchResultCompanyLeadFindings(
+      "A page with no explicit business title\nURL: https://www.rathbones.co.uk/insights\nFinancial commentary",
+      ["https://www.rathbones.co.uk/insights"],
+    )).toEqual([]);
   });
 });
