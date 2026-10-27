@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: 20
       - name: Install pnpm
-        run: npm install -g pnpm@9.15.4
+        run: npm install -g pnpm@9.15.9
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
       - name: Condition 1 — sidebar decorative indicators are absent
