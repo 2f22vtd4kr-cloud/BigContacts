@@ -123,3 +123,30 @@ Branch: `apex-atlas-first-card-2026-10-27`
 - [ ] Confirm database entity/evidence/session IDs and normal API/UI visibility.
 
 No card has yet been verified from this code change. Do not treat the change or the test assertion as proof of successful runtime behavior.
+
+
+## 9. Source-selection correction and CI status
+
+Updated `artifacts/api-server/src/src/lib/apex-bureau-orientation.ts` on this branch:
+- Versioned the institutional prompt contract as `2026-10-27.1`.
+- Added source-selection guidance based on expected information gain, subject jurisdiction and objective anchors, not registry availability.
+- Explicitly states that Companies House is UK/Great Britain-specific and is not a substitute for US state Secretary-of-State filings.
+- For unanchored local/sector/opportunity discovery, ordinary web search is often a higher-value first action; a registry can still be first when the task has a matching jurisdiction/entity/identifier/filing hypothesis.
+- Kept the strategy model-led: no fixed source/provider sequence and no forced use of every source class.
+
+Added a regression contract in `artifacts/api-server/src/src/test/research-lead-card-reconciliation.test.ts` to guard the source-selection rule and the one-search company-lead projection.
+
+### CI for earlier revision (commit `0b1d9ce7a6a44632ff0c080c2f988a5f35e5b87f`)
+
+- Apex API Build: passed, including workspace typecheck, API build, lead-card regression tests, provenance tests, discovery pivot tests, Boss/Right-hand control tests and canonical race/continuation tests. Run ID: 40515463050.
+- Apex Prompt Architecture Audit: passed. Run ID: 40515463002.
+- Apex Research Quality Contracts: passed. Run ID: 40515463159.
+- Discovery static check: passed. Run ID: 40515463070.
+- Netlify deploy preview for the PR: success. This preview does not prove that the API/database run is live.
+- Full consecutive codebase audits were still in progress at the time of this entry. A later source-selection change has been committed since this CI run and requires its own green checks.
+
+### Runtime limitation remains
+
+The editable Replit app lookup reports `BigContacts`, last updated 2026-07-23. Its publish-status check reports `found=false` (no published deployment). Two Replit Agent update requests were submitted asking it to sync to this branch, rebuild from source, check configuration, launch one canonical run, and verify the normal database/API/UI path. The connector returned an asynchronous `updating` state but subsequent status queries returned no textual progress; the app's last-updated timestamp did not change. Therefore this is not evidence that the workspace was synced or that a run occurred.
+
+No actual run job ID, search query/provider response, database entity ID, evidence ID, or UI-visible card has been verified by this attempt so far. The first-card objective remains open.
