@@ -60,7 +60,7 @@ const checks = [
     const block = start >= 0 && end > start ? rightHand.slice(start, end) : "";
     return block.includes("isTokenPerDayQuotaError(response.status,responseBody)")
       && block.includes('if(!dailyTokenQuota&&kind==="tokens"')
-      && block.includes("failures.push(diagnostic);break;")
+      && block.includes('failures.push(diagnostic);if(kind==="requests")quotaBlockedCredentials.add(fingerprint(candidate.entry.key));break;')
       && rightHand.includes('if(response.status===429)break;');
   })(), "Groq Right-hand must skip same-model token-window retries on explicit TPD exhaustion while preserving bounded same-role model fallback."],
   [rightHand.includes('if(response.status===429)break;'), "Groq Right-hand generic HTTP 429 handling must advance to the next bounded candidate after its retry budget is exhausted."],
