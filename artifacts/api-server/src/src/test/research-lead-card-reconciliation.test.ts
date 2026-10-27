@@ -15,6 +15,7 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain("bindExactSourceSpan(observation.text, lead.name)");
     expect(reconciler).toContain('verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead"');
     expect(reconciler).toContain("ownership, control, wealth, and targetability remain unestablished");
+    expect(reconciler).toContain("this identifies a research source, not a verified target company or investor");
   });
   it("persists only exact organization findings from successful search observations as review leads", () => {
     expect(reconciler).toContain('finding.scope !== "organization"');

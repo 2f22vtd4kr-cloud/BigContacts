@@ -185,7 +185,9 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           entry.urls.add(url);
           const identityNote = pageIdentity
             ? "Fetched-page identity metadata (" + pageIdentity.kind + "); title=" + (pageIdentity.title || "not available") + ". This supports the organization name only; ownership, wealth, targetability, and person attribution remain unestablished."
-            : observationText.slice(0, 240);
+            : !fetched && search
+              ? "Source publisher/domain lead derived from the observed search-result URL; this identifies a research source, not a verified target company or investor. " + observationText.slice(0, 150)
+              : observationText.slice(0, 240);
           if (identityNote) entry.notes.add(identityNote);
           findings.set(identity, entry);
         }
