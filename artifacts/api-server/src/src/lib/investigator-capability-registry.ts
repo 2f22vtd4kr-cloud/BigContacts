@@ -11,7 +11,7 @@ import { digestDiagnosticText } from "./provider-error-diagnostics";
 
 export const GROQ_INVESTIGATOR_KEY_NAMES = [
   "GROQ_INVESTIGATOR_API_KEY",
-  ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`),
+  ...Array.from({ length: 7 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`),
 ] as const;
 
 export type GroqInvestigatorCapability = `groq-investigator-${number}` | "groq-investigator-20b";
