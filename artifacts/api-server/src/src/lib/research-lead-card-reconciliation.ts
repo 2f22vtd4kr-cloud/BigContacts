@@ -23,7 +23,7 @@ import { getJobStrict } from "./job-queue";
 async function hasReviewReconciliationAuthority(jobId: string): Promise<boolean> {
   if (await isCanonicalJobOwner("atlas-run", jobId)) return true;
   const job = await getJobStrict(jobId);
-  return job?.type === "atlas-run" && (job.status === "done" || job.status === "failed");
+  return job?.type === "atlas-run" && job.cancelRequested !== true && (job.status === "done" || job.status === "failed");
 }
 
 function normalizeSource(raw: unknown): string | null {
