@@ -19,7 +19,7 @@ import { getAvailablePythonOsintActions, refreshPythonOsintToolAvailability } fr
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
 import { ResearchIntelligenceEngine, renderIntelligenceContext, type IntelligenceContext } from "./research-intelligence-engine";
 import { bindExactSourceSpan, type SourceSpan } from "./research-epistemic-vnext";
-import { candidateIdentityObserved } from "./identity-text-match";
+import { candidateIdentityObserved, normalizeCandidateIdentityName } from "./identity-text-match";
 import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import { getAvailableRegistryIds, normalizeRegistryId } from "./registry-client";
 import { REGISTRY_COVERAGE_MATRIX, renderRegistryCoverageGuidance } from "./registry-matrix";
@@ -1467,8 +1467,9 @@ export function extractSearchResultCompanyLeadFindings(resultText: string, resul
       scope: "organization",
       sourceUrls: [url],
       note: "search_result_lead; exact business-like title returned by the search provider; snippet/title only, underlying page not fetched; no ownership, wealth, person, or contact conclusion.",
-      promotionDecision: "promote",
-      promotionReason: "Search-only and unverified; admit only as a low-confidence review-only company card, not as a verified target or investor.",
+      // Deterministic title extraction creates only a source-backed observation
+      // lead. It does not author an Investigator promotion decision; the
+      // canonical company-card projector admits it separately as partial_review.
     });
     if (leads.length >= 3) break;
   }
