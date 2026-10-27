@@ -295,3 +295,23 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
     productionReviewStatus: "review_required",
   },
 ];
+
+
+/**
+ * Compact model-facing descriptions for only the structured registries that
+ * this runtime can actually invoke. This is source awareness, not a search
+ * itinerary; the live action schema remains authoritative.
+ */
+export function renderRegistryCoverageGuidance(availableIds: readonly string[]): string {
+  const available = new Set(availableIds);
+  const clip = (value: string, max = 92): string => value.length <= max ? value : value.slice(0, max - 1) + "…";
+  return REGISTRY_COVERAGE_MATRIX
+    .filter((entry) => entry.runtimeAdapterImplemented && available.has(entry.id))
+    .map((entry) => [
+      entry.id + " — " + entry.label + " (" + entry.jurisdiction + ")",
+      "entity=" + clip(entry.entityIdentifier, 70),
+      "people/roles=" + clip(entry.personOfficerFields),
+      "ownership limits=" + clip(entry.ownershipAvailability),
+    ].join("; "))
+    .join("\n");
+}
