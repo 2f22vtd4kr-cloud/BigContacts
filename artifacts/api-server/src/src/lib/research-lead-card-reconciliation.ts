@@ -176,14 +176,14 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           const entry = findings.get(identity) ?? { name: sourceLeadName, urls: new Set<string>(), notes: new Set<string>() };
           entry.urls.add(url);
           const identityNote = pageIdentity
-            ? \`Fetched-page identity metadata (\${pageIdentity.kind}); title=\${pageIdentity.title || "not available"}. This supports the organization name only; ownership, wealth, targetability, and person attribution remain unestablished.\`
+            ? "Fetched-page identity metadata (" + pageIdentity.kind + "); title=" + (pageIdentity.title || "not available") + ". This supports the organization name only; ownership, wealth, targetability, and person attribution remain unestablished."
             : observationText.slice(0, 240);
           if (identityNote) entry.notes.add(identityNote);
           findings.set(identity, entry);
         }
         const sourceText = pageIdentity
-          ? \`\${pageIdentity.name} — fetched-page identity metadata (\${pageIdentity.kind}); title=\${pageIdentity.title || "not available"}. Supports the page-associated organization name only; no ownership, wealth, or person conclusion.\`
-          : sourceLeadName ? \`\${sourceLeadName} — \${observationText}\` : observationText;
+          ? pageIdentity.name + " — fetched-page identity metadata (" + pageIdentity.kind + "); title=" + (pageIdentity.title || "not available") + ". Supports the page-associated organization name only; no ownership, wealth, or person conclusion."
+          : sourceLeadName ? sourceLeadName + " — " + observationText : observationText;
         observations.push({
           action, execution: String(payload.execution), url,
           text: sourceText,
