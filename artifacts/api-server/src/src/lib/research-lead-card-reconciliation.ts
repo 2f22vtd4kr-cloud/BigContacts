@@ -153,17 +153,40 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         const url = normalizeSource(rawUrl);
         if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
         const observationText = String(payload.observation ?? "").replace(/\s+/g, " ").trim().slice(0, 800);
-        const sourceLeadName = !fetched && search ? organizationLabelFromUrl(url) : null;
+        const args = payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
+          ? payload.args as Record<string, unknown>
+          : null;
+        const rawPageIdentity = fetched && args?.observedPageIdentity && typeof args.observedPageIdentity === "object" && !Array.isArray(args.observedPageIdentity)
+          ? args.observedPageIdentity as Record<string, unknown>
+          : null;
+        const pageIdentityName = typeof rawPageIdentity?.name === "string" ? rawPageIdentity.name.trim().replace(/\s+/g, " ") : "";
+        const pageIdentityKind = rawPageIdentity?.kind === "companies_house_record_title" || rawPageIdentity?.kind === "same_site_structured_organization"
+          ? rawPageIdentity.kind
+          : null;
+        const pageIdentitySource = typeof rawPageIdentity?.sourceUrl === "string" ? normalizeSource(rawPageIdentity.sourceUrl) : null;
+        // Metadata can admit the page's own organization identity as a review lead
+        // only when the runtime extracted it from this exact successful source URL.
+        const pageIdentity = pageIdentityName.length >= 3 && pageIdentityName.length <= 180
+          && pageIdentityKind && pageIdentitySource === url
+          ? { name: pageIdentityName, kind: pageIdentityKind, title: typeof rawPageIdentity?.pageTitle === "string" ? rawPageIdentity.pageTitle.slice(0, 220) : "" }
+          : null;
+        const sourceLeadName = pageIdentity?.name ?? (!fetched && search ? organizationLabelFromUrl(url) : null);
         if (sourceLeadName) {
           const identity = normalizeCandidateIdentityName(sourceLeadName);
           const entry = findings.get(identity) ?? { name: sourceLeadName, urls: new Set<string>(), notes: new Set<string>() };
           entry.urls.add(url);
-          if (observationText) entry.notes.add(observationText.slice(0, 240));
+          const identityNote = pageIdentity
+            ? \`Fetched-page identity metadata (\${pageIdentity.kind}); title=\${pageIdentity.title || "not available"}. This supports the organization name only; ownership, wealth, targetability, and person attribution remain unestablished.\`
+            : observationText.slice(0, 240);
+          if (identityNote) entry.notes.add(identityNote);
           findings.set(identity, entry);
         }
+        const sourceText = pageIdentity
+          ? \`\${pageIdentity.name} — fetched-page identity metadata (\${pageIdentity.kind}); title=\${pageIdentity.title || "not available"}. Supports the page-associated organization name only; no ownership, wealth, or person conclusion.\`
+          : sourceLeadName ? \`\${sourceLeadName} — \${observationText}\` : observationText;
         observations.push({
           action, execution: String(payload.execution), url,
-          text: sourceLeadName ? `${sourceLeadName} — ${observationText}` : observationText,
+          text: sourceText,
           eventId: event.id, createdAt: event.createdAt,
           verificationLevel: fetched ? "fetched_source" : "search_result_lead",
         });
