@@ -17,6 +17,22 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain("ownership, control, wealth, and targetability remain unestablished");
     expect(reconciler).toContain("this identifies a research source, not a verified target company or investor");
   });
+  it("preserves a real company lead from one successful web search before later control failure", () => {
+    const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
+    // Regression: the prior projection created an observation without the
+    // execution field, then required observation.execution === "success";
+    // therefore every partial organization lead was silently skipped.
+    expect(canonical).toContain('if (payload.jobId !== input.atlasJobId || payload.execution !== "success") return [];');
+    expect(canonical).toContain('const searched = action === "web_search" || action === "parallel_web_search"');
+    expect(canonical).toContain('searched && Array.isArray(payload.leadUrls) && payload.leadUrls.length');
+    expect(canonical).toContain('execution: payload.execution ?? ""');
+    expect(canonical).toContain('verificationLevel: fetched ? "fetched_source" as const : "search_result_lead" as const');
+    expect(canonical).toContain('verificationLevel === "search_result_lead"');
+    expect(canonical).toContain('A successful public search observation contains the exact organization name');
+    expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
+    expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
+  });
+
   it("persists only exact organization findings from successful search observations as review leads", () => {
     expect(reconciler).toContain('finding.scope !== "organization"');
     expect(reconciler).toContain('payload.execution === "success"');
