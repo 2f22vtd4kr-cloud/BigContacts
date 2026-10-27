@@ -4772,21 +4772,20 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // policy prose. Mandatory schema, review-lead rules, and source provenance
       // remain present even when prior trajectory is large.
       const absoluteMinimumOutputContract = "OUTPUT CONTRACT: Return exactly ONE root JSON object; no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive fields are null/[]; non-done requires non-empty hypothesis/purpose and numeric expectedInformationGain [0,1]. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. PARTIAL FINDINGS (not terminal-only): after a successful web/parallel web/registry search, exact organization name plus attributable eligible HTTPS result URL in observed result text yields a low-confidence review-only company finding bound to that exact URL; note search_result_lead, snippet-only/page not fetched, no ownership/wealth/person/contact conclusion. Promote only into the review-only company-card queue; reason says search-only/unverified. Never infer the name from a URL. A fetched-source company review finding requires fetched text naming the organization and a material business/ownership/transaction fact. A person lead requires exact full name, page-stated role, and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority. Emit source-backed leads on the action that reveals them. Failed/blocked fetches are unobserved.";
+      const absoluteMinimumPdfGuidance = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
       const absoluteMinimumBaseParts = [
         finalEmergencyAssignment,
         absoluteMinimumObjective,
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
-        compactWorkerCapabilityGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers without observed documentation confirming those fields.",
-        compactCriticalRetrievalGuidance,
-        "SCOPE AND SOURCE CHOICE: match objective/jurisdiction; no registry-first sequence. Compare a small set of plausible non-famous business/sector hypotheses. Choose sources by expected information gain, identity discrimination, and cost. Search-result URLs/snippets are leads, not evidence; blocked or failed routes are not negative evidence. The Investigator retains action choice.",
-        "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes; this does not prescribe an action sequence.",
+        absoluteMinimumPdfGuidance,
+        "SCOPE AND SOURCE CHOICE: match objective/jurisdiction; no registry-first sequence. Compare plausible hypotheses by strongest expected evidence/value, expected information gain, identity discrimination, and cost. Search-result URLs/snippets are leads, not evidence; blocked/failed routes are not negative evidence. The Investigator retains action choice. Never evade access controls.",
+        "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes; no prescribed sequence.",
         shortestDiscoveryGate,
         shortestAdmission,
         absoluteMinimumOutputContract,
       ].filter(Boolean);
-      const pinnedInventoryCandidate = extractPinnedDurableUrlInventory(input.durableUrlInventory);
       const baseWithoutInventory = absoluteMinimumBaseParts.join("\\n\\n");
       const inventoryBudget = maxUserPromptChars - baseWithoutInventory.length - 2 - 800;
       const pinnedDurableInventoryForAbsoluteMinimum = pinnedInventoryCandidate && pinnedInventoryCandidate.length <= inventoryBudget
