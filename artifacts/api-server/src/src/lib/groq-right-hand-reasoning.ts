@@ -256,7 +256,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
   const structuredResponseFormat=responseFormat(format);
  const failures: GroqAttemptDiagnostic[] = [];
  const boundedIntegerOption=(value:number|undefined,fallback:number,min:number,max:number):number=>Number.isFinite(value)?Math.min(max,Math.max(min,Math.floor(value as number))):fallback;
- const maxOutboundAttempts=requestOptions?.maxAttempts===undefined?Math.min(6,attempts.length):boundedIntegerOption(requestOptions.maxAttempts,MAX_MODEL_ATTEMPTS,1,6);
+ const maxOutboundAttempts=requestOptions?.maxAttempts===undefined?Math.min(6,attempts.length+2):boundedIntegerOption(requestOptions.maxAttempts,MAX_MODEL_ATTEMPTS,1,6);
  let outboundAttemptCount=0;
  const quotaBlockedCredentials=new Set<string>();
  let currentCompletionTokens=boundedIntegerOption(requestOptions?.maxCompletionTokens,768,256,1536);
