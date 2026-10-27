@@ -93,3 +93,33 @@ Credentials supplied in the conversation are intentionally not copied into this 
 3. Add a regression test using a real-shaped successful search observation (company name + snippet + result URL) and a provider/control failure after that observation. Expected: a source-backed, explicitly review-only company card persists; no HNWI is inferred.
 4. Ensure discovery prompt and action availability favor objective-relevant source diversity, with no unconditional Companies House-first sequence. Keep strategy model-owned.
 5. Fix only the proven code/config/build/runtime causes, run tests, then launch and verify the first real card end-to-end.
+
+
+## 8. Code correction made on the work branch
+
+### Confirmed projection gap
+
+The canonical checkpoint path `materializePartialOrganizationLeadCards` previously gathered only `observedUrls` and only accepted `visit` / `browser_fetch` observations. That means an Investigator finding grounded in a successful web-search result could not become a partial company card at the checkpoint, even if the search result had a real source URL and the exact company name in the search observation. This is a confirmed limitation of the checkpoint path. It is **not yet proven to be the sole cause of zero cards in all 11 supplied runs**, because the prior run payloads have not yet been inspected.
+
+The separate terminal reconciler can recognize search-result leads, but it depends on the exact durable event payload, result URL eligibility, source-name binding and terminal ownership. It is not equivalent to a checkpoint that preserves a grounded company lead immediately after a successful search.
+
+### Change set
+
+Branch: `apex-atlas-first-card-2026-10-27`
+
+- Modified `artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts`:
+  - Checkpoint projection now reads successful `web_search`, `parallel_web_search`, `registry_search`, and `parallel_registry_search` results from `leadUrls`; fetched pages continue to use `observedUrls`.
+  - It still requires the exact company name to occur in the actual observation text and the cited URL to be claim-grade and to match the finding's source URL. No card is created from a finding alone.
+  - Search-only support is labelled `search_result_lead` / `unverified_search_result`, receives lower confidence/freshness, and explicitly says the underlying page, ownership, materiality, wealth and person route remain unverified.
+  - If a fetched source supports the same claim, the support is upgraded to `fetched_source` rather than downgraded.
+  - Existing job/case ownership checks, serializable transaction, review status, evidence/session writes, identity collision guard and cache invalidation remain in place.
+- Added a regression contract in `artifacts/api-server/src/src/test/research-lead-card-reconciliation.test.ts` to require search-result lead handling and evidence-tier separation.
+
+### Verification state
+
+- [ ] CI/build/test results for this branch.
+- [ ] Run against the current deployed/runtime workspace.
+- [ ] Inspect a real search trajectory and confirm the finding name, observation snippet and lead URL bind exactly.
+- [ ] Confirm database entity/evidence/session IDs and normal API/UI visibility.
+
+No card has yet been verified from this code change. Do not treat the change or the test assertion as proof of successful runtime behavior.
