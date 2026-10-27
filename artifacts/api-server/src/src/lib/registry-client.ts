@@ -132,6 +132,10 @@ const REGISTRY_ALIASES: Record<string, RegistryId> = {
   "ares": "ares-czechia",
   "bodacc": "bodacc-france",
   "gleif": "gleif",
+  "faa": "faa",
+  "faa aircraft": "faa",
+  "faa aircraft registry": "faa",
+  "aircraft registry": "faa",
 };
 
 export function normalizeRegistryId(raw: string): RegistryId | null {
@@ -143,7 +147,7 @@ export function normalizeRegistryId(raw: string): RegistryId | null {
 export const REGISTRY_IDS = [
   "sec-edgar", "companies-house", "brreg", "ares-czechia", "bodacc-france", "gleif",
   "cvr-denmark", "zefix-switzerland", "offeneregister-germany", "bolagsverket-sweden",
-  "ytj-finland", "atoka-italy", "borme-spain", "kvk-netherlands", "kbo-belgium", "opencorporates",
+  "ytj-finland", "atoka-italy", "borme-spain", "kvk-netherlands", "kbo-belgium", "opencorporates", "faa",
 ] as const;
 export type RegistryId = (typeof REGISTRY_IDS)[number];
 
@@ -178,7 +182,7 @@ export function getAvailableRegistryIds(): RegistryId[] {
 export const RANDOM_DISCOVERY_REGISTRIES = [
   "sec-edgar", "companies-house", "brreg", "ares-czechia", "bodacc-france", "gleif",
   "cvr-denmark", "zefix-switzerland", "offeneregister-germany", "bolagsverket-sweden",
-  "ytj-finland", "atoka-italy", "borme-spain", "kvk-netherlands", "kbo-belgium",
+  "ytj-finland", "atoka-italy", "borme-spain", "kvk-netherlands", "kbo-belgium", "faa",
 ] as const satisfies readonly RegistryId[];
 
 export function getRandomDiscoveryRegistries(): RegistryId[] {
@@ -779,12 +783,77 @@ async function searchAtokaItaly(query: string, limit: number, signal?: AbortSign
 async function searchBormeSpain(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; const seen = new Set<string>(); const url = buildBormeSearchUrl(query, limit); const resp = await registryFetch("registry", url, { headers: { Accept: "application/json", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (!resp.ok) throw new Error(`BORME Spain HTTP ${resp.status}`); const data = (await resp.json()) as any; const items: any[] = data?.response?.results?.result ?? data?.items ?? []; for (const item of items) { const raw: string = item?.titulo ?? item?.title ?? item?.descripcion ?? ""; if (!raw) continue; const name = raw.replace(/^[A-ZÁÉÍÓÚ\s]+:\s+/u, "").split(/[,;]/)[0]?.trim() ?? raw; if (!name || seen.has(name.toLowerCase())) continue; seen.add(name.toLowerCase()); const pubDate: string = item?.fecha ?? item?.date ?? ""; const section: string = item?.seccion ?? ""; const idBoe: string = item?.identificador ?? item?.id ?? ""; results.push({ name, type: "Corporation", nationality: "ES", knownResidences: "Spain", sourceRegistries: JSON.stringify(["BORME Spain (BOE)"]), notes: [pubDate ? `Published: ${pubDate}` : null, section ? `Section: ${section}` : null].filter(Boolean).join(" | "), metadata: JSON.stringify({ source: "borme-spain", boeId: idBoe, pubDate, section, boeUrl: idBoe ? `https://www.boe.es/boe/dias/${pubDate?.replace(/-/g, "/")}/pdfs/${idBoe}.pdf` : null }) }); if (results.length >= limit) break; } return results; }
 async function searchKboBelgium(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; const url = buildKboBelgiumSearchUrl(query, limit); const resp = await registryFetch("registry", url, { headers: { Accept: "text/html,application/xhtml+xml", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (!resp.ok) throw new Error(`KBO Belgium HTTP ${resp.status}`); const html = await resp.text(); const rowRe = /href="[^"]*ondernemingsnummer=(\d+)[^"]*"\s*>([^<]+)<\/a>/g; const cityRe = /class="resultaatValue"[^>]*>([^<]{3,40})<\/td>/g; let m: RegExpExecArray | null; const cities: string[] = []; let cityMatch; while ((cityMatch = cityRe.exec(html)) !== null) cities.push((cityMatch[1] ?? "").trim()); let idx = 0; while ((m = rowRe.exec(html)) !== null && results.length < limit) { const enterpriseNumber = m[1] ?? ""; const name = (m[2] ?? "").trim(); if (!name || name.length < 2) { idx++; continue; } const city = cities[idx * 2 + 1] ?? cities[idx] ?? ""; results.push({ name, type: "Corporation", nationality: "BE", knownResidences: city ? `${city}, Belgium` : "Belgium", sourceRegistries: JSON.stringify(["KBO Belgium"]), notes: enterpriseNumber ? `KBO: ${enterpriseNumber.replace(/(\d{4})(\d{3})(\d{3})/, "$1.$2.$3")}` : undefined, metadata: JSON.stringify({ source: "kbo-belgium", enterpriseNumber, city, kboUrl: enterpriseNumber ? `https://kbopub.economie.fgov.be/kbopub/toonondernemingps.html?ondernemingsnummer=${enterpriseNumber}` : null }) }); idx++; } return results; }
 
+/** Build an official FAA Aircraft Inquiry URL from a grounded registrant name or N-number. */
+export function buildFaaAircraftSearchUrl(query: string): string {
+  const value = query.trim().slice(0, 180);
+  if (!value) throw new Error("FAA aircraft query cannot be empty.");
+  const base = "https://registry.faa.gov/AircraftInquiry/Search/";
+  if (/^N?[1-9][0-9]{0,4}[A-Z]{0,2}$/i.test(value)) return base + "NNumberResult?NNumbertxt=" + encodeURIComponent(value.toUpperCase());
+  return base + "NameResult?nametxt=" + encodeURIComponent(value) + "&sort_option=4";
+}
+function decodeFaaText(value: string): string {
+  return stripHtml(value).replace(/&nbsp;|&#160;/gi, " ").replace(/&amp;/gi, "&").replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_m, n: string) => String.fromCharCode(Number(n))).replace(/&#x([0-9a-f]+);/gi, (_m, n: string) => String.fromCharCode(Number.parseInt(n, 16))).replace(/\s+/g, " ").trim().slice(0, 500);
+}
+function faaRowFields(html: string): Record<string, string> {
+  const fields: Record<string, string> = {};
+  for (const rowMatch of html.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi)) {
+    const cells = [...(rowMatch[1] ?? "").matchAll(/<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((cell) => decodeFaaText(cell[1] ?? ""));
+    for (let i = 0; i + 1 < cells.length; i += 2) { const label = cells[i]?.replace(/:$/, "").trim().toLowerCase(), value = cells[i + 1]?.trim(); if (label && value && !fields[label]) fields[label] = value; }
+  }
+  return fields;
+}
+/** Normalize one FAA aircraft observation; registrant is not assumed to be beneficial owner. */
+export function normalizeFaaAircraftDetail(html: string, sourceUrl: string): RegistryResult | null {
+  let url: URL;
+  try { url = new URL(sourceUrl); if (url.protocol !== "https:" || url.hostname.toLowerCase() !== "registry.faa.gov" || !url.pathname.toLowerCase().includes("/aircraftinquiry/search/")) return null; } catch { return null; }
+  if (html.length > 5_000_000) return null;
+  const fields = faaRowFields(html);
+  const nNumberFromUrl = url.searchParams.get("NNumbertxt") ?? url.searchParams.get("NNumberTxt") ?? "";
+  const nNumber = (nNumberFromUrl || decodeFaaText(html.match(/N-Number Entered\s*:?([A-Z0-9-]+)/i)?.[1] ?? "")).trim().toUpperCase();
+  const registrant = fields["name"]?.trim();
+  if (!registrant || registrant.length > 180 || !nNumber) return null;
+  const registrationType = fields["type registration"] ?? "";
+  const isOrganization = /\b(?:corporation|llc|limited liability|partnership|government|co-owned|non citizen corporation)\b/i.test(registrationType) || /\b(?:LLC|L\.L\.C\.?|INC\.?|INCORPORATED|CORP\.?|CORPORATION|LTD\.?|LIMITED|LP|LLP|PLC|HOLDINGS|TRUST)\b/i.test(registrant);
+  const manufacturer = fields["manufacturer name"] ?? "", model = fields["model"] ?? "", status = fields["status"] ?? "", serial = fields["serial number"] ?? "";
+  return { name: registrant, type: isOrganization ? "Corporation" : "PersonCandidate", nationality: "US", sourceRegistries: JSON.stringify(["FAA Aircraft Registry"]),
+    notes: ["FAA aircraft registration " + nNumber, manufacturer ? "Manufacturer: " + manufacturer : null, model ? "Model: " + model : null, status ? "Registration status: " + status : null, registrationType ? "Registrant type: " + registrationType : null, "Registrant record only; does not establish beneficial ownership, aircraft market value, or personal wealth."].filter(Boolean).join(" | "),
+    metadata: JSON.stringify({ source: "faa-aircraft-registry", sourceUrl: sourceUrl, nNumber, serialNumber: serial || undefined, manufacturer: manufacturer || undefined, model: model || undefined, registrationStatus: status || undefined, registrationType: registrationType || undefined, ownershipLimitation: "FAA registrant is not necessarily the beneficial owner; some records may be withheld from public display." }) };
+}
+async function searchFaaAircraft(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> {
+  const searchUrl = buildFaaAircraftSearchUrl(query);
+  const resp = await registryFetch("faa-aircraft-registry", searchUrl, { headers: { Accept: "text/html", "User-Agent": "ApexAtlas/1.0 public-registry-research" }, signal: createRegistryRequestSignal(signal, 15_000) });
+  if (!resp.ok) throw new Error("FAA Aircraft Registry " + resp.status + ": " + resp.statusText);
+  const html = await resp.text();
+  if (html.length > 5_000_000) throw new Error("FAA Aircraft Registry response exceeded the 5 MB parse limit.");
+  if (/captcha|access denied|bot manager/i.test(html.slice(0, 50_000))) { const error = new Error("FAA Aircraft Registry returned an access/challenge page; this is a provider failure, not a no-hit."); Object.assign(error, { code: "REGISTRY_PROVIDER_BLOCKED" }); throw error; }
+  const directNNumber = /NNumberResult/i.test(searchUrl), urls = new Set<string>();
+  if (directNNumber) urls.add(searchUrl);
+  else {
+    for (const match of html.matchAll(/href=["\']([^"\']*NNumberResult\?[^"\']*)["\']/gi)) {
+      try { const url = new URL(match[1]!.replace(/&amp;/gi, "&"), "https://registry.faa.gov"); if (url.protocol === "https:" && url.hostname.toLowerCase() === "registry.faa.gov" && /\/AircraftInquiry\/Search\/NNumberResult$/i.test(url.pathname) && (url.searchParams.has("NNumbertxt") || url.searchParams.has("NNumberTxt"))) urls.add(url.toString()); } catch { /* malformed source link is not a lead */ }
+      if (urls.size >= Math.min(5, Math.max(1, limit))) break;
+    }
+    if (!urls.size) { const text = decodeFaaText(html); if (/no records found|no matching aircraft|0 records/i.test(text)) return []; throw new Error("FAA Aircraft Registry response did not match the expected results schema; not treated as a no-hit."); }
+  }
+  const results: RegistryResult[] = [];
+  for (const url of [...urls].slice(0, Math.min(5, Math.max(1, limit)))) {
+    if (signal?.aborted) throw new Error("cancelled");
+    const detail = url === searchUrl ? resp : await registryFetch("faa-aircraft-registry", url, { headers: { Accept: "text/html", "User-Agent": "ApexAtlas/1.0 public-registry-research" }, signal: createRegistryRequestSignal(signal, 15_000) });
+    if (!detail.ok) throw new Error("FAA Aircraft Registry detail " + detail.status + ": " + detail.statusText);
+    const detailHtml = detail === resp ? html : await detail.text(), normalized = normalizeFaaAircraftDetail(detailHtml, url);
+    if (normalized) results.push(normalized);
+  }
+  return results;
+}
+
 export async function searchRegistry(params: RegistrySearchParams): Promise<RegistryResult[]> {
   const { query, registry, limit = 10, signal } = params;
   if (signal?.aborted) throw new Error("cancelled");
   if (!query.trim()) throw new Error("Search query cannot be empty.");
   const normalizedRegistry = normalizeRegistryId(registry);
   if (!normalizedRegistry) throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
+  if (normalizedRegistry === "faa") return searchFaaAircraft(query.trim(), limit, signal);
   if (normalizedRegistry === "bolagsverket-sweden") {
     return searchBolagsverketSweden(query.trim(), limit, signal);
   }
