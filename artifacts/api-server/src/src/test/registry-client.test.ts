@@ -297,7 +297,7 @@ describe("Phase J2 registry normalization", () => {
 
   it("registers the three J2 jurisdictions in the shared dispatch list", () => {
     expect(REGISTRY_IDS).toEqual(expect.arrayContaining(["brreg", "ares-czechia", "bodacc-france"]));
-    expect(REGISTRY_IDS).not.toContain("faa");
+    expect(REGISTRY_IDS).toContain("faa");
     expect(REGISTRY_IDS).not.toContain("hmlr-ppd");
   });
 
@@ -311,7 +311,7 @@ describe("Phase J2 registry normalization", () => {
       "borme-spain",
       "kbo-belgium",
     ]));
-    expect(randomSources).not.toContain("faa");
+    expect(randomSources).toContain("faa");
     expect(randomSources).not.toContain("hmlr-ppd");
   });
 
