@@ -399,6 +399,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
   const fixedPrefix = [
     "APEX ATLAS — Advise Groq Boss on the next control decision from the current case state. The AI, not the harness, owns whether to continue discovery, research/revisit one admitted candidate, pivot, or stop. Never invent a candidate or evidence.",
     "The human objective and realistic-targetability constraints outrank fame, prestige, and seniority. Prefer plausible public/professional/intermediary routes to relevant owners/operators/investors. Do not infer wealth or contactability from titles, and do not assume a person, record, or disclosure surface exists without observation.",
+    "Assess feasibility against observed public-source access/status; do not assume nonpublic filings, private records, searchable registry entries, or named people exist; recommend a publicly verifiable alternative when evidence does not support a premise.",
     atlasRegistryFeasibilityLaw(),
     atlasLeadUtilizationLaw(),
     atlasSourceRouteRecoveryLaw(),
