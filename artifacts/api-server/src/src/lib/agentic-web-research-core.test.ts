@@ -951,7 +951,7 @@ describe("Investigator prompt architecture", () => {
     const blockedObservation = "pivot_alignment_guard blocked this outbound action before execution. The active Boss-accepted pivot is: Midwest family-owned manufacturing businesses, United States Midwest, official state business registries. A new search query must name the pivot subject, geography, and any required source class; follow-up URL/resource actions must be grounded in pivot-aligned source evidence already observed. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. Revise the query/resource or ask Boss/Right-hand to approve a new objective. A first aligned search can seed evidence; no outbound request was made.";
     const compacted = compactEmergencyTrajectoryObservation(blockedObservation);
     expect(compacted).toContain("SCOPE GUARD BLOCKED ACTION");
-    expect(compacted).toContain("web discovery may search in-scope topic terms and company terms");
+    expect(compacted).toContain("web discovery may search in-scope topic/company terms without repeating source-class wording");
     expect(compacted).toContain("observed aligned URL");
     expect(compacted).toContain("request new scope");
     expect(compacted).not.toContain("pivot_alignment_guard blocked this outbound action");
