@@ -811,11 +811,14 @@ export function normalizeFaaAircraftDetail(html: string, sourceUrl: string): Reg
   const fields = faaRowFields(html);
   const nNumberFromUrl = url.searchParams.get("NNumbertxt") ?? url.searchParams.get("NNumberTxt") ?? "";
   const nNumber = (nNumberFromUrl || decodeFaaText(html.match(/N-Number Entered\s*:?([A-Z0-9-]+)/i)?.[1] ?? "")).trim().toUpperCase();
-  const registrant = fields["name"]?.trim();
+  const registrant = (fields["name"] ?? fields["registrant name"] ?? fields["registered owner"])?.trim();
   if (!registrant || registrant.length > 180 || !nNumber) return null;
-  const registrationType = fields["type registration"] ?? "";
-  const isOrganization = /\b(?:corporation|llc|limited liability|partnership|government|co-owned|non citizen corporation)\b/i.test(registrationType) || /\b(?:LLC|L\.L\.C\.?|INC\.?|INCORPORATED|CORP\.?|CORPORATION|LTD\.?|LIMITED|LP|LLP|PLC|HOLDINGS|TRUST)\b/i.test(registrant);
-  const manufacturer = fields["manufacturer name"] ?? "", model = fields["model"] ?? "", status = fields["status"] ?? "", serial = fields["serial number"] ?? "";
+  const registrationType = fields["type registration"] ?? fields["type of registration"] ?? "";
+  const isOrganization = /\b(?:corporation|llc|limited liability|partnership|government|non citizen corporation)\b/i.test(registrationType) || /\b(?:LLC|L\.L\.C\.?|INC\.?|INCORPORATED|CORP\.?|CORPORATION|LTD\.?|LIMITED|LP|LLP|PLC|HOLDINGS|TRUST)\b/i.test(registrant);
+  const isIndividual = /\bindividual\b/i.test(registrationType) && !/co-owned/i.test(registrationType);
+  // Never turn an ambiguous/co-owned registrant row into a single-person card.
+  if (!isOrganization && !isIndividual) return null;
+  const manufacturer = fields["manufacturer name"] ?? fields["manufacturer"] ?? fields["make"] ?? "", model = fields["model"] ?? "", status = fields["status"] ?? "", serial = fields["serial number"] ?? "";
   return { name: registrant, type: isOrganization ? "Corporation" : "PersonCandidate", nationality: "US", sourceRegistries: JSON.stringify(["FAA Aircraft Registry"]),
     notes: ["FAA aircraft registration " + nNumber, manufacturer ? "Manufacturer: " + manufacturer : null, model ? "Model: " + model : null, status ? "Registration status: " + status : null, registrationType ? "Registrant type: " + registrationType : null, "Registrant record only; does not establish beneficial ownership, aircraft market value, or personal wealth."].filter(Boolean).join(" | "),
     metadata: JSON.stringify({ source: "faa-aircraft-registry", sourceUrl: sourceUrl, nNumber, serialNumber: serial || undefined, manufacturer: manufacturer || undefined, model: model || undefined, registrationStatus: status || undefined, registrationType: registrationType || undefined, ownershipLimitation: "FAA registrant is not necessarily the beneficial owner; some records may be withheld from public display." }) };
