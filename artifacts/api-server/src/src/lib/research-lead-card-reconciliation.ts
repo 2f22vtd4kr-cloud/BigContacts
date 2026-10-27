@@ -43,10 +43,18 @@ function parseObject(value: unknown): Record<string, unknown> | null {
   try { const parsed: unknown = JSON.parse(value); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null; } catch { return null; }
 }
 
-function organizationLabelFromUrl(sourceUrl: string): string | null {
+export function organizationLabelFromUrl(sourceUrl: string): string | null {
   try {
     const host = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "");
-    const label = host.split(".").filter(Boolean).slice(-2, -1)[0] ?? host;
+    if (!host || /^\d+(?:\.\d+){3}$/.test(host)) return null;
+    const labels = host.split(".").filter(Boolean);
+    if (labels.length < 2) return null;
+    const penultimate = labels[labels.length - 2]!;
+    const final = labels[labels.length - 1]!;
+    const commonSecondLevelSuffixes = new Set(["co", "com", "org", "gov", "ac", "net", "edu", "mil"]);
+    const hasTwoLevelPublicSuffix = final.length === 2 && commonSecondLevelSuffixes.has(penultimate);
+    const label = labels[labels.length - (hasTwoLevelPublicSuffix ? 3 : 2)];
+    if (!label || commonSecondLevelSuffixes.has(label) || label.length < 3) return null;
     const normalized = label.replace(/[-_]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()).trim();
     return normalized.length >= 3 ? `${normalized} (source lead)` : null;
   } catch {

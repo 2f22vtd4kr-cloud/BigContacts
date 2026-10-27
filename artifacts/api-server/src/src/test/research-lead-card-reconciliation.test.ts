@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { organizationLabelFromUrl } from "../lib/research-lead-card-reconciliation";
 const reconciler = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
 const launchRoute = readFileSync(new URL("../routes/research/canonical-atlas-launch.ts", import.meta.url), "utf8");
 const dashboardRoute = readFileSync(new URL("../routes/dashboard.ts", import.meta.url), "utf8");
@@ -47,5 +48,19 @@ describe("terminal review-card reconciliation", () => {
     expect(launchRoute).toContain("reconcileOrganizationReviewCardsForJob(atlasJobId)");
     expect(launchRoute).toContain("reconcilePersonReviewCardsForJob(atlasJobId)");
     expect(launchRoute).toContain("await releaseCanonicalJob(\"atlas-run\", atlasJobId)");
+  });
+});
+
+
+describe("search-result source lead labels", () => {
+  it("extracts the registrable label from common two-level public suffixes", () => {
+    expect(organizationLabelFromUrl("https://www.rathbones.co.uk/insights")).toBe("Rathbones (source lead)");
+    expect(organizationLabelFromUrl("https://www.example.com.au/research")).toBe("Example (source lead)");
+    expect(organizationLabelFromUrl("https://www.example.com/report")).toBe("Example (source lead)");
+  });
+
+  it("does not manufacture labels from IP addresses or public-suffix fragments", () => {
+    expect(organizationLabelFromUrl("https://192.0.2.10/report")).toBeNull();
+    expect(organizationLabelFromUrl("https://co.uk/report")).toBeNull();
   });
 });
