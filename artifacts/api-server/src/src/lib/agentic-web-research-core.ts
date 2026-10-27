@@ -4062,7 +4062,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "ASSIGNMENT TARGET: " + boundInvestigatorPromptSection(input.targetName, 240);
   const rawCompanyName = typeof input.companyName === "string" ? input.companyName.trim() : "";
   const genericDiscoveryCompanyLabel = input.mode === "discovery"
-    && /^(?:case\\s+co|case\\s+company|default\\s+company|test\\s+company)$/i.test(rawCompanyName);
+    && /^(?:case\s+co|case\s+company|default\s+company|test\s+company)$/i.test(rawCompanyName);
   // Generic case labels are metadata, not actual target entities.
   const workingContext = buildInvestigatorContext({
     targetName: input.targetName,
