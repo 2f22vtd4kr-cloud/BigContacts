@@ -150,3 +150,10 @@ Added a regression contract in `artifacts/api-server/src/src/test/research-lead-
 The editable Replit app lookup reports `BigContacts`, last updated 2026-07-23. Its publish-status check reports `found=false` (no published deployment). Two Replit Agent update requests were submitted asking it to sync to this branch, rebuild from source, check configuration, launch one canonical run, and verify the normal database/API/UI path. The connector returned an asynchronous `updating` state but subsequent status queries returned no textual progress; the app's last-updated timestamp did not change. Therefore this is not evidence that the workspace was synced or that a run occurred.
 
 No actual run job ID, search query/provider response, database entity ID, evidence ID, or UI-visible card has been verified by this attempt so far. The first-card objective remains open.
+
+
+## 10. Full-audit failure and correction
+
+The full API audit workflows completed Audit 1 and failed in the isolated test-file step; Audits 2–5 were skipped as designed. Both failed on the same pre-existing assertion in `groq-investigator-runtime-contract.test.ts`: the test expected the phrase “topic/company terms,” while the actual scope-recovery prompt says “topic terms and company terms.” The runtime prompt still preserves the intended rule and the failure was a literal wording mismatch, not a provider/runtime failure.
+
+Changed that assertion to match the existing prompt wording without changing prompt behavior. This correction is now committed on the work branch and has its own fresh CI run pending. References: Five Consecutive Full Code Audits run 40515463160; Five Green Complete Codebase Audit run 40515463170. Both Audit 1 failures were otherwise after successful install, architecture contracts, typecheck/build, DB schema setup and live smoke API test.
