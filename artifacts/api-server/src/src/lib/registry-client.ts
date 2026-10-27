@@ -842,7 +842,14 @@ async function searchFaaAircraft(query: string, limit: number, signal?: AbortSig
     const detail = url === searchUrl ? resp : await registryFetch("faa-aircraft-registry", url, { headers: { Accept: "text/html", "User-Agent": "ApexAtlas/1.0 public-registry-research" }, signal: createRegistryRequestSignal(signal, 15_000) });
     if (!detail.ok) throw new Error("FAA Aircraft Registry detail " + detail.status + ": " + detail.statusText);
     const detailHtml = detail === resp ? html : await detail.text(), normalized = normalizeFaaAircraftDetail(detailHtml, url);
-    if (normalized) results.push(normalized);
+    if (normalized) { results.push(normalized); continue; }
+    const detailText = decodeFaaText(detailHtml);
+    if (/no records found|no matching aircraft|invalid n-number/i.test(detailText)) continue;
+    if (/aircraft description|registered owner|n-number inquiry results/i.test(detailText)) {
+      const error = new Error("FAA aircraft record was observed, but registrant identity is not publicly available or could not be parsed; this is partial evidence, not a no-hit.");
+      Object.assign(error, { code: "REGISTRY_PARTIAL" }); throw error;
+    }
+    throw new Error("FAA Aircraft Registry detail response did not match the expected schema; not treated as a no-hit.");
   }
   return results;
 }
