@@ -52,6 +52,9 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('A successful public search observation contains the exact organization name');
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
+    expect(agenticCore).toContain('actual returned result text contains an exact organization name');
+    expect(agenticCore).toContain('promotionDecision="promote" means admit only to the review-only company-card queue');
+    expect(agenticCore).toContain('Search snippets are leads, not claim-grade evidence');
   });
 
   it("persists only exact organization findings from successful search observations as review leads", () => {
