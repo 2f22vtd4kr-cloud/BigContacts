@@ -3054,14 +3054,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "Never use placeholders such as CompanyName, companywebsite.com, or example.com.",
     "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
   ];
-  const protectedRuleKeys = [
-    "Press/profile pages are leads, not targets/access routes",
-    "Target-scoped research owns independent corroboration",
-    "Target-stage research tests material business/asset/exit signals",
-    "BINARY URL POLICY",
-    "Never use placeholders such as CompanyName",
-    "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason",
-  ];
   const protectedRules = isInvestigatorPrompt
     ? protectedRuleCandidates.filter((rule) => !base.includes(rule))
     : [];
