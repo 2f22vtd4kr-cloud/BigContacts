@@ -1434,7 +1434,7 @@ async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa
 }
 
 const SEARCH_RESULT_BUSINESS_MARKER = /\b(?:casino|hotel|resort|bank|holdings?|group|capital|industr(?:y|ies)|manufacturing|motors|energy|airlines?|airways|properties|estates|construction|technolog(?:y|ies)|foods?|gaming|entertainment|marina|yachts?|investments?|partners|ventures|corporation|corp\.?|company|co\.?|incorporated|inc\.?|limited|ltd\.?|llc|gmbh|s\.?r\.?o\.?|d\.?o\.?o\.?|d\.?d\.?|plc|s\.?a\.?|b\.?v\.?|a\/s|ag|oy|ou|uab|ab|srl)\b/i;
-const SEARCH_RESULT_HEADLINE_MARKER = /\b(?:announces?|according to|breaking|earnings|explained|guide|how to|latest news|market outlook|press release|ranking|report|review|share price|top \d+|what is|when|where|who|why)\b/i;
+const SEARCH_RESULT_HEADLINE_MARKER = /\b(?:announces?|according to|breaking|earnings|explained|guide|how to|latest news|market outlook|press release|ranking|report|review|share price|top \d+|what is|when|where|who|why)\b|^(?:the\s+)?(?:best|top|leading|largest)\s+(?:casinos?|hotels?|resorts?|banks?|restaurants?|businesses|companies|operators|properties|marinas|yachts?)\b|^(?:list of|directory of|companies in|businesses in|hotels in|casinos in|resorts in|banks in|restaurants in|members directory)\b/i;
 
 function isGenericDiscoveryMetadataTitle(title: string): boolean {
   const normalized = title.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
