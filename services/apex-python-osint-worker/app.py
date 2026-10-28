@@ -363,7 +363,7 @@ def validate_args(tool: str, args: dict[str, Any]) -> dict[str, Any]:
     profile = str(args["profile"]).strip().lower()
     if not target or len(target) > 300:
         raise ValueError("Invalid SpiderFoot target.")
-    if target_type not in {"domain", "hostname", "ip", "email", "username", "person", "asn"}:
+    if target_type not in {"domain", "hostname", "ip", "email", "phone", "username", "person", "asn"}:
         raise ValueError("Invalid SpiderFoot target type.")
     if profile not in PROFILE_MODULES:
         raise ValueError("Invalid SpiderFoot profile.")
@@ -383,6 +383,14 @@ def validate_args(tool: str, args: dict[str, Any]) -> dict[str, Any]:
     elif target_type == "email":
         if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", target) or len(target) > 254:
             raise ValueError("Invalid SpiderFoot email target.")
+    elif target_type == "phone":
+        # Phone targets must be explicitly observed public/business numbers; never generate them.
+        if not re.fullmatch(r"\+?[0-9().\-\s]{7,32}", target):
+            raise ValueError("Invalid SpiderFoot phone target.")
+        digits = re.sub(r"\D", "", target)
+        if not 7 <= len(digits) <= 20:
+            raise ValueError("Invalid SpiderFoot phone target.")
+        target = ("+" if target.lstrip().startswith("+") else "") + digits
     elif target_type == "asn":
         if not re.fullmatch(r"AS\d{1,10}", target, re.IGNORECASE):
             raise ValueError("Invalid ASN target.")
