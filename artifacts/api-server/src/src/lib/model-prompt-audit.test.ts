@@ -61,7 +61,7 @@ describe("model prompt audit", () => {
     }
     const gitignore = readFileSync(resolve(workspaceRoot, ".gitignore"), "utf8");
     expect(gitignore).toContain(".local/");
-    expect(content).not.toContain("audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-26_FRESH_REPLIT_IMPORT_RUN_02_MODEL_TRACE.md");
+    expect(workspaceConfig + artifactConfig).not.toContain("audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-26_FRESH_REPLIT_IMPORT_RUN_02_MODEL_TRACE.md");
     expect(productionConfig).not.toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_FILE =');
