@@ -474,15 +474,27 @@ async function materializePartialPersonLeadCards(input: {
     if (typeof event.payload !== "string") return [];
     try {
       const payload = JSON.parse(event.payload) as {
-        jobId?: string | null; action?: string; execution?: string; observedUrls?: unknown[]; observation?: string;
+        jobId?: string | null; action?: string; execution?: string;
+        observedUrls?: unknown[]; leadUrls?: unknown[]; observation?: string;
       };
-      if (payload.jobId !== input.atlasJobId || !Array.isArray(payload.observedUrls)) return [];
-      return payload.observedUrls.filter((url): url is string => typeof url === "string").map((url) => ({
-        action: payload.action ?? "",
+      if (payload.jobId !== input.atlasJobId) return [];
+      const action = payload.action ?? "";
+      const fetched = action === "visit" || action === "browser_fetch";
+      const searched = action === "web_search" || action === "parallel_web_search"
+        || action === "registry_search" || action === "parallel_registry_search";
+      if (!fetched && !searched) return [];
+      // A name + page-stated role in a successful search result is already a
+      // useful person research lead. Preserve it as a low-confidence review card
+      // now; do not wait for later depth stages or imply HNWI/ownership status.
+      const sourceUrls = fetched ? payload.observedUrls : payload.leadUrls;
+      if (!Array.isArray(sourceUrls)) return [];
+      return sourceUrls.filter((url): url is string => typeof url === "string").map((url) => ({
+        action,
         execution: payload.execution ?? "",
         sourceUrl: url,
         observation: typeof payload.observation === "string" ? payload.observation : "",
         executionStatus: payload.execution ?? "",
+        verificationLevel: fetched ? "fetched_source" as const : "search_result_lead" as const,
         eventId: event.id,
         createdAt: event.createdAt,
       }));
@@ -499,33 +511,26 @@ async function materializePartialPersonLeadCards(input: {
     const supports = new Map<string, {
       sourceUrl: string; eventId: number; createdAt: Date;
       spanText: string; spanStart: number; spanEnd: number;
+      verificationLevel: "fetched_source" | "search_result_lead";
     }>();
     for (const observation of observations) {
       if (observation.executionStatus !== "success"
-        || (observation.action !== "visit" && observation.action !== "browser_fetch")) continue;
+        || !["visit", "browser_fetch", "web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(observation.action)) continue;
       const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
       if (!sourceUrl || !claimedUrls.has(sourceUrl) || !isClaimGradeDiscoverySourceUrl(sourceUrl)) continue;
-      // The exact full name and page-stated role must be co-bound in fetched
-      // material, and the same observation must carry an ownership/control clue.
+      // The exact person name and page-stated role must co-occur in the same
+      // observed source text and bind to the exact source URL. A search result
+      // creates only a review lead; fetched text improves its evidence tier.
       const span = bindExactSourceSpan(observation.observation, lead.role, lead.name, 320);
       if (!span?.exact || !span.subjectMatched || !span.valueMatched) continue;
-      if (!hasDiscoveryOwnershipLeadSignal({
-        personName: lead.name,
-        role: lead.role,
-        observations: [{
-          action: observation.action,
-          execution: observation.executionStatus === "success" ? "success" : "error",
-          sourceUrl: observation.sourceUrl,
-          observation: observation.observation,
-        }],
-      })) continue;
-      if (!supports.has(sourceUrl)) supports.set(sourceUrl, {
+      if (!supports.has(sourceUrl) || (supports.get(sourceUrl)?.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) supports.set(sourceUrl, {
         sourceUrl,
         eventId: observation.eventId,
         createdAt: observation.createdAt,
         spanText: span.text,
         spanStart: span.start,
         spanEnd: span.end,
+        verificationLevel: observation.verificationLevel,
       });
     }
     if (!supports.size) continue;
@@ -575,19 +580,25 @@ async function materializePartialPersonLeadCards(input: {
       let entityId = sameCase?.id ?? null;
       let created = false;
       const sourceUrls = [...supports.keys()];
-      const notes = "PARTIAL REVIEW LEAD — a fetched claim-grade source co-binds this exact name and page-stated role with an ownership/control clue. This is not a verified HNWI or wealth conclusion; target-stage research must corroborate identity, test materiality/falsification, and establish a public professional contact route.";
+      const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
+      const verificationLevel = hasFetchedSource ? "fetched_source" : "search_result_lead";
+      const notes = hasFetchedSource
+        ? `PARTIAL PERSON ROLE LEAD — a fetched public source directly associates this person with the role “${lead.role}”. Wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`
+        : `SEARCH-RESULT PERSON ROLE LEAD — a successful public search/registry result associates this person with the role “${lead.role}”. The underlying page is not verified; wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`;
       const metadata = JSON.stringify({
         ...priorMetadata,
         reviewOnly: true,
         partialPersonLead: true,
+        roleOnlyLead: true,
         stage: "partial_review",
-        admission: priorMetadata.admission ?? "source-backed-partial-finding",
+        admission: priorMetadata.admission ?? "source-observed-person-role",
+        verificationLevel,
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         role: lead.role,
         sourceUrl: sourceUrls[0],
         sourceUrls,
-        limitations: ["HNWI/wealth status not established", "materiality and counter-evidence not assessed", "personal contact route not verified"],
+        limitations: ["HNWI/wealth status not established", "ownership/control and materiality not established", "professional approach route not verified"],
       });
       if (!entityId) {
         const [entity] = await tx.insert(entitiesTable).values({
@@ -623,7 +634,7 @@ async function materializePartialPersonLeadCards(input: {
         const [existingEvidence] = await tx.select({ id: researchEvidenceTable.id })
           .from(researchEvidenceTable).where(and(
             eq(researchEvidenceTable.entityId, entityId),
-            eq(researchEvidenceTable.claimType, "partial_identity_lead"),
+            eq(researchEvidenceTable.claimType, "partial_person_role_lead"),
             eq(researchEvidenceTable.sourceUrl, support.sourceUrl),
           )).limit(1);
         if (existingEvidence) continue;
@@ -635,7 +646,7 @@ async function materializePartialPersonLeadCards(input: {
             atlasJobId: input.atlasJobId,
             stage: "partial_review",
           }]),
-          notes: "Partial identity/ownership lead only. Do not infer HNWI status or publish contact details; target-scoped research still must corroborate, falsify and verify reachability.",
+          notes: "Partial person/role lead only. Do not infer HNWI status or personal contactability; independently corroborate identity, role, relevance, and a suitable public professional approach route.",
           safeUseStatus: "manual_review",
           crmStatus: "Lead Gen",
         }).returning({ id: researchSessionsTable.id });
@@ -644,18 +655,22 @@ async function materializePartialPersonLeadCards(input: {
         await tx.insert(researchEvidenceTable).values({
           sessionId: session.id,
           entityId,
-          claimType: "partial_identity_lead",
-          claim: "Fetched source co-binds the exact person name, page-stated role, and an ownership/control clue; wealth and targetability remain unverified.",
+          claimType: "partial_person_role_lead",
+          claim: support.verificationLevel === "fetched_source"
+            ? "A fetched public source co-binds this exact person name and page-stated role; wealth, ownership/control, and targetability remain unverified."
+            : "A successful public search/registry observation co-binds this exact person name and role; the underlying page, wealth, ownership/control, and targetability remain unverified.",
           value: lead.name,
           sourceName: "canonical-agentic-discovery",
           sourceUrl: support.sourceUrl,
           sourceDomain: new URL(support.sourceUrl).hostname,
           status: "review",
-          confidence: 0.25,
+          confidence: support.verificationLevel === "fetched_source" ? 0.25 : 0.15,
           observedAt: event?.createdAt ?? support.createdAt,
-          freshnessScore: 1,
+          freshnessScore: support.verificationLevel === "fetched_source" ? 1 : 0.5,
           metadata: JSON.stringify({
             partialReview: true,
+            verificationLevel: support.verificationLevel,
+            evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result",
             discoveryCaseId: input.discoveryCaseId,
             atlasJobId: input.atlasJobId,
             supportingEventId: support.eventId,
