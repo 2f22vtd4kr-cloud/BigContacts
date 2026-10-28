@@ -260,3 +260,10 @@ Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at en
 - Further reduced the last-resort base budget: objective/scope excerpt caps reduced, available-action rendering compacted, provider/scope/registry narration shortened, and the absolute-minimum output contract tightened while explicitly retaining the complete JSON envelope, company review-card admission, exact source URL binding, strict person evidence requirements, DISCOVERY LEAD HANDOFF CONTRACT, and the explicit PDF guidance phrases. The discovery gate now explicitly retains source-class flexibility and the Investigator's action-choice authority.
 - Source commit: b2abfd44dbb1daebc6a9fd23975f487fe9d4811a. Fresh CI is pending. Do not claim the prompt compaction is repaired until the focused suite passes without dropped trajectory/evidence context.
 - The real deployment blocker remains separate from code correctness: Replit lists only the stale, unpublished BigContacts workspace; Vercel lists no matching project. No persistent runtime access, live run, company card, evidence ID, or normal persistent-API read-back has been established.
+
+## 21. Final-tier output contract restored after source review — 2026-10-28, 04:24 UTC
+
+- During review of commit b2abfd4 before its CI completed, found that the shortened absolute-minimum prompt list had inadvertently omitted the mandatory output-contract section when the base parts were rearranged. That would have violated the required structured response schema even if the context tests passed.
+- Restored the complete compact output contract in the absolute-minimum base, explicitly retained the visit/browser_fetch fetched-company rule, and corrected two string joins to use real newline separators rather than literal backslash-n text. This is a necessary correctness fix, not a test relaxation.
+- Source commit: d8395c9ff755bb17348356831ca747d616471678. Fresh compile and prompt regression tests must validate this exact revision.
+- No canonical deployed runtime or persisted company card has been verified. The isolated CI proof remains gated on green checks and merge to main; it does not use the persistent Replit database.
