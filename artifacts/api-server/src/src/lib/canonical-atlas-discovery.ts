@@ -590,7 +590,7 @@ async function materializePartialPersonLeadCards(input: {
         partialPersonLead: true,
         roleOnlyLead: true,
         stage: "partial_review",
-        admission: priorMetadata.admission ?? "source-observed-person-role",
+        admission: priorMetadata.admission ?? (hasFetchedSource ? "source-backed-partial-finding" : "source-observed-person-role"),
         verificationLevel,
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
