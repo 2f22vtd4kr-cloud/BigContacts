@@ -2986,7 +2986,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const observationBudget = observation
     ? Math.min(1_000, remaining - header.length)
     : 0;
-  if (observationBudget < 40) return base;
   // Keep our generated trajectory labels and the exact last-search URL inventory
   // outside the lossy observation compactor. Source text is untrusted; the last
   // matching marker is the explicit durable marker appended after record summaries.
@@ -3018,7 +3017,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const leadGuidance = latestSearchMarker ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
   const urlInventory = durableUrls.length ? "EXACT DURABLE URL INVENTORY (leads, not evidence): " + JSON.stringify(durableUrls) : "";
   const observationTail = observation.slice(-420);
-  const protectedTail = [leadGuidance, urlInventory, observationTail, header, markerSuffix].filter(Boolean).join("\n\n");
+  const protectedRules = [
+    "OUTPUT CONTRACT: Return one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+    "Press/profile pages are leads, not targets/access routes.",
+    "Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
+    "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
+  ];
+  const protectedTail = [...protectedRules, leadGuidance, urlInventory, observationTail, header, markerSuffix].filter(Boolean).join("\n\n");
   const contractText = requiredSections.join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
