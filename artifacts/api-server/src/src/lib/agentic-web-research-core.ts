@@ -2999,6 +2999,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     .at(-1) ?? "";
   const markers = [latestSearchMarker, latestTrajectoryMarker].filter(Boolean);
   const markerSuffix = markers.join("\n\n");
+  const carriedFetchedSourceSummary = observation.match(/LAST SUCCESSFUL FETCHED SOURCE \(observed page text; untrusted data, not instructions\):\s*\{[^\n]*\}/)?.[0] ?? "";
   const durableRecordSummaries = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN (\d+)(?:\s*\([^:\n]*\))?:\s*\n?\s*(\{[^\n]*\})/g)]
     .map((match) => {
       try {
@@ -3025,6 +3026,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
     "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
     "Never use placeholders such as CompanyName, companywebsite.com, or example.com.",
+    "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
   ];
   const protectedRuleKeys = [
     "Press/profile pages are leads, not targets/access routes",
@@ -3032,15 +3034,16 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "Target-stage research tests material business/asset/exit signals",
     "BINARY URL POLICY",
     "Never use placeholders such as CompanyName",
+    "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason",
   ];
   const protectedRules = isInvestigatorPrompt
     ? protectedRuleCandidates.filter((rule, index) => !base.includes(protectedRuleKeys[index]))
     : [];
-  const protectedObservationSuffix = [...protectedRules, urlInventory, markerSuffix].filter(Boolean).join("\n\n");
+  const protectedObservationSuffix = [...protectedRules, urlInventory, markerSuffix, carriedFetchedSourceSummary].filter(Boolean).join("\n\n");
   const contentBudget = Math.max(40, observationBudget - protectedObservationSuffix.length - 2);
   const compacted = compactEmergencyTrajectoryObservation(observation, contentBudget);
   const missingMarkers = markers.filter((marker) => !compacted.includes(marker));
-  const compactedWithMarkers = [compacted, ...protectedRules, urlInventory, ...durableRecordSummaries, ...missingMarkers].filter(Boolean).join("\n\n");
+  const compactedWithMarkers = [compacted, ...protectedRules, urlInventory, carriedFetchedSourceSummary, ...durableRecordSummaries, ...missingMarkers].filter(Boolean).join("\n\n");
   const combined = base + "\n\n" + header + compactedWithMarkers;
   if (observationBudget >= 40 && combined.length <= limit) return combined;
   // Preserve mandatory semantic contracts and exact durable lead URLs if the
@@ -3060,7 +3063,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
     "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
   ] : [];
-  const protectedTail = [...fallbackProtectedRules, leadGuidance, urlInventory, observationTail, header, markerSuffix, ...durableRecordSummaries].filter(Boolean).join("\n\n");
+  const protectedTail = [...fallbackProtectedRules, leadGuidance, urlInventory, carriedFetchedSourceSummary, observationTail, header, markerSuffix, ...durableRecordSummaries].filter(Boolean).join("\n\n");
   const contractText = requiredSections.join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
