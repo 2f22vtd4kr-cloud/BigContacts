@@ -38,6 +38,13 @@ describe("search-result company review lead extraction", () => {
       "Case Co is a generic discovery placeholder.",
     ].join("\n");
     expect(extractSearchResultCompanyLeadFindings(genericMetadataText, ["https://caseco.si/"])).toEqual([]);
+
+    const categoryHeadlineText = [
+      "Best Casino Hotels in Slovenia",
+      "URL: https://slovenia-casino-hotels.si/",
+      "A list of casino hotels in Slovenia.",
+    ].join("\n");
+    expect(extractSearchResultCompanyLeadFindings(categoryHeadlineText, ["https://slovenia-casino-hotels.si/"])).toEqual([]);
   });
 });
 
