@@ -4685,7 +4685,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactOutputContract,
         buildShortestEmergencyRecordTail(),
       ].filter(Boolean).join("\n\n");
-      if (shortestPrompt.length <= maxUserPromptChars) return shortestPrompt;
+      const emergencyObservationReserve = latestRecord || latestSuccessfulFetchRecord || carryForwardSuccessfulSearch || String(input.lastObservation ?? "").trim() ? 1_000 : 0;
+      if (shortestPrompt.length + emergencyObservationReserve <= maxUserPromptChars) return shortestPrompt;
       // Last-resort provider-safe prompt. Do not truncate JSON/schema or URLs: drop
       // optional narration and context first, while retaining live actions, scope,
       // provenance, terminal rules, review-lead admission, and the latest durable URLs.
@@ -4755,7 +4756,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // admission rule here instead of repeating the much longer rule already present in
       // hardMinimumOutputContract, so prior action feedback has enough prompt budget.
       const absoluteMinimumDiscoveryContext = input.mode === "discovery"
-        ? "DISCOVERY: people are targets and companies/snippets are leads. Never infer wealth from seniority. Investigator chooses tools/order; no scripted sequence. Target-stage research checks materiality, corroboration/falsification, and realistic public/professional reachability. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion."
+        ? "DISCOVERY PROGRESS GATE: people are targets; companies/snippets are leads. Never infer wealth from seniority. Investigator chooses tools/order; no scripted sequence. Source class may vary per query; target-stage research checks materiality, independent corroboration/falsification, and realistic public/professional reachability."
         : "";
       const absoluteMinimumObjective = [
         input.objective?.trim()
@@ -4767,7 +4768,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // source rather than consuming the entire provider budget with duplicated
       // policy prose. Mandatory schema, review-lead rules, and source provenance
       // remain present even when prior trajectory is large.
-      const absoluteMinimumOutputContract = "OUTPUT CONTRACT: Return exactly ONE root JSON object; no prose. REQUIRED FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive fields null/[]; non-done needs nonempty hypothesis/purpose and numeric expectedInformationGain [0,1]. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. PARTIAL FINDINGS (not terminal-only): after successful web/parallel/registry search, an exact organization name plus attributable eligible HTTPS result URL in actual result text yields a low-confidence review-only company finding tied only to that URL; note search_result_lead, snippet-only/page not fetched, no ownership/wealth/person/contact conclusion. Promote only to the review-only company-card queue; reason search-only/unverified. Never infer company name from URL. After successful visit/browser_fetch, a company review lead requires fetched organization name plus a material business/ownership/transaction fact and that exact URL. A person lead requires one fetched claim-grade source co-binding exact full name, page-stated role, and ownership/control/equity/investment clue. Search snippets are leads, not evidence; failed/blocked fetches are unobserved. Never infer wealth from seniority. Emit source-backed leads on the action that reveals them.";
+      const absoluteMinimumOutputContract = "OUTPUT CONTRACT: Return one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive fields null/[]; non-done requires hypothesis/purpose and expectedInformationGain [0,1]. Each finding has vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. After successful web/parallel/registry search, exact organization name in the actual result title/snippet plus eligible HTTPS result URL yields only a low-confidence review-only company finding bound to that URL; mark search_result_lead, snippet-only/page not fetched, no ownership/wealth/person/contact claims. Never infer a company name from a URL. Fetched company lead requires exact name + material business/ownership/transaction fact in fetched page, with sourceUrls=[that fetched URL only]. Person lead requires one fetched claim-grade source binding exact full name + page-stated role + ownership/control/equity/investment clue. Snippets are leads, not evidence; failed/blocked fetches are unobserved. Never infer wealth from seniority. Emit source-backed leads on the action that reveals them.";
       const absoluteMinimumPdfGuidance = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
       const absoluteMinimumBaseParts = [
         finalEmergencyAssignment,
@@ -4776,9 +4777,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers without observed documentation confirming those fields.",
         absoluteMinimumPdfGuidance,
-        "SCOPE AND SOURCE CHOICE: match objective/jurisdiction; no registry-first sequence. Compare plausible hypotheses by strongest expected evidence/value, expected information gain, identity discrimination, and cost. Search-result URLs/snippets are leads, not evidence; blocked/failed routes are not negative evidence. The Investigator retains action choice. Never evade access controls.",
+        "SCOPE/SOURCE CHOICE: match objective and jurisdiction; source class may vary per query; no registry-first sequence. Compare hypotheses by evidence value, information gain, identity discrimination and cost. URLs/snippets are leads; failed/blocked routes are not negative evidence. Investigator retains action choice.",
         "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes; no prescribed sequence.",
         absoluteMinimumDiscoveryContext,
+        (latestRecord?.leadUrls?.length || carryForwardSuccessfulSearch?.leadUrls?.length) ? "LEAD FOLLOW-UP GUIDANCE (non-binding): compare in-scope unvisited lead URLs by expected information gain; search URLs/snippets remain leads until fetched. Investigator chooses the next action." : "",
         absoluteMinimumOutputContract,
       ].filter(Boolean);
       const baseWithoutInventory = absoluteMinimumBaseParts.join("\\n\\n");
