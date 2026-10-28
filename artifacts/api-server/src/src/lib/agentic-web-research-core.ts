@@ -2993,7 +2993,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const latestSearchMarker = [...observation.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+:[^\n]*/g)]
     .map((match) => match[0])
     .at(-1) ?? "";
-  const latestTrajectoryMarker = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN \d+/g)]
+  const latestTrajectoryMarker = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN \d+:[^\n]*/g)]
     .map((match) => match[0])
     .at(-1) ?? "";
   const markers = [latestSearchMarker, latestTrajectoryMarker].filter(Boolean);
@@ -3003,7 +3003,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const missingMarkers = markers.filter((marker) => !compacted.includes(marker));
   const compactedWithMarkers = [compacted, ...missingMarkers].filter(Boolean).join("\n\n");
   const combined = base + "\n\n" + header + compactedWithMarkers;
-  return combined.length <= limit ? combined : base;
+  if (combined.length <= limit) return combined;
+  const markerOnlyTail = [header, markerSuffix].filter(Boolean).join("\n\n");
+  const baseBudget = Math.max(0, limit - markerOnlyTail.length - 2);
+  const compactBase = baseBudget > 0
+    ? boundInvestigatorPromptSection(base, baseBudget)
+    : "";
+  const markerPreservingFallback = [compactBase, markerOnlyTail].filter(Boolean).join("\n\n");
+  return markerPreservingFallback.length <= limit ? markerPreservingFallback : base;
 }
 
 /**
@@ -4475,7 +4482,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // rules, and the fact that trajectory guidance is advisory. Keep the full
       // field contract while dropping the large example and auxiliary state.
       const compactTerminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". " + (terminalContract.requireFalsification ? "Falsification requirement: at least one successful external action must explicitly attempt to disprove the leading claim in hypothesis, purpose, or query; corroboration alone does not satisfy this. " : "Discovery can hand off a source-backed review lead with unresolved identity, corroboration, and route questions for target-scoped research. ") + "This is not a prescribed action sequence.";
-      const compactDiscoveryAdmissionContract = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF CONTRACT: review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Never infer wealth from seniority; this is not an HNWI conclusion. business materiality is evaluated during target-scoped research. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Official company leadership/staff and filing/registry pages qualify only when directly binding exact name and role. Third-party people-search/profile-directory aggregators and CONTACT FACTS (observed, not attributed) are leads, not identity evidence. Never invent." : null;
+      const compactDiscoveryAdmissionContract = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF CONTRACT: review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Never infer wealth from seniority; this is not an HNWI conclusion. business materiality is evaluated during target-scoped research. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Official company leadership/staff and filing/registry pages qualify only when directly binding exact name and role. Press/profile pages are leads, not targets/access routes. Third-party people-search/profile-directory aggregators and CONTACT FACTS (observed, not attributed) are leads, not identity evidence. Never invent." : null;
       const compactEvidenceLaw = "EVIDENCE: Search snippets are leads, not evidence. Never invent identities, URLs or contacts. Except action=done, top-level hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1] (never null); only done may null them. Prefer independent sources and falsification.";
       const compactLatestTrajectoryMarker = latestRecord
         ? "LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn
