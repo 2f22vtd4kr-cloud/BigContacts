@@ -215,7 +215,8 @@ jobs:
             throw new Error("Canonical job is not terminal (done/completed/failed): " + (jobStatus || "missing"));
           }
           const sourceBackedReviewLeads = leads.filter((lead) =>
-            ["candidate_review", "partial_review"].includes(String(lead?.stage ?? "")) &&
+            lead?.stage === "partial_review" &&
+            lead?.entityType === "Corporation" &&
             Number.isSafeInteger(Number(lead.entityId)) &&
             Array.isArray(lead.sourceUrls) &&
             lead.sourceUrls.some((url) => typeof url === "string" && /^https:\/\//i.test(url))
@@ -223,16 +224,14 @@ jobs:
           const accepted = sourceBackedReviewLeads.find((lead) => entities.some((entity) =>
             String(entity?.id) === String(lead.entityId) &&
             entity?.name === lead.entityName &&
-            entity?.type === lead.entityType &&
-            (
-              (lead.stage === "candidate_review" && entity?.type === "PersonCandidate") ||
-              (lead.stage === "partial_review" && ["Corporation", "PersonCandidate"].includes(String(entity?.type ?? "")))
-            )
+            entity?.type === "Corporation" &&
+            lead?.entityType === "Corporation" &&
+            lead?.stage === "partial_review"
           ));
           if (!accepted) {
             throw new Error(
-              "No source-backed company/person review card was found in /api/dashboard/research-leads " +
-              "and matched to the same entity in /api/entities. " +
+              "No source-backed partial_review Corporation card was found in /api/dashboard/research-leads " +
+              "and matched to the same Corporation in /api/entities. " +
               "entities=" + entities.length + ", dashboardLeads=" + leads.length +
               ", sourceBackedReviewLeads=" + sourceBackedReviewLeads.length +
               ", terminalJobStatus=" + jobStatus
