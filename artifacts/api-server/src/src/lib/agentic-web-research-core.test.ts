@@ -3310,3 +3310,41 @@ describe("small emergency observation budgets", () => {
   });
 
 });
+
+describe("discovery pivot evidence provenance", () => {
+  it("does not let a shared geography token carry an unrelated query across a newly accepted pivot", () => {
+    const objective = [
+      "Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Query Texas Secretary of State business entity database for midsize family-owned firms in North Texas, then extract listed officers/beneficial owners for further validation.",
+    ].join("\\n\\n");
+    const scopeKey = discoveryPivotScopeKey(objective);
+    if (!scopeKey) throw new Error("Expected an active discovery pivot scope key");
+    const priorFetchedSource = {
+      turn: 1,
+      model: "openai/gpt-oss-120b",
+      action: "visit",
+      args: { url: "https://example.org/texas-family-business-directory" },
+      pivotScopeKey: scopeKey,
+      execution: "success",
+      observation: "Texas directory page describes family-owned manufacturing firms and their public business registrations.",
+      observedUrls: ["https://example.org/texas-family-business-directory"],
+      findings: [],
+    } as any;
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "30-year-old Texas real estate developer building empire news 2023",
+      provider: "serper",
+    }, [priorFetchedSource])).not.toBeNull();
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "North Texas family-owned manufacturing firms Secretary of State business entity registry",
+      provider: "serper",
+    }, [])).toBeNull();
+
+    // A genuinely named entity from the fetched page remains a valid follow-up.
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Example Fabrication Texas",
+      provider: "serper",
+    }, [priorFetchedSource])).not.toBeNull();
+  });
+});
