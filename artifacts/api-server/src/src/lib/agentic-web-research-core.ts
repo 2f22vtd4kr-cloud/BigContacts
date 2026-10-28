@@ -3178,7 +3178,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : [];
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
-  const protectedTail = [observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
+  const fallbackOutputContract = isInvestigatorPrompt
+    ? "OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings."
+    : "";
+  const protectedTail = [fallbackOutputContract, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
     ? contractText
@@ -3188,7 +3191,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Dynamic evidence and corrective feedback come first in the last-resort layout.
   // Truncation must never discard the newest model correction merely to retain
   // repeated static policy text that is already represented in the base contract.
-  const minimumTail = [observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
+  const minimumTail = [fallbackOutputContract, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const minimumBase = boundInvestigatorPromptSection(contractText, Math.max(0, limit - minimumTail.length - 2));
   const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\n\n");
   return lastResort.length <= limit ? lastResort : lastResort.slice(0, limit);
