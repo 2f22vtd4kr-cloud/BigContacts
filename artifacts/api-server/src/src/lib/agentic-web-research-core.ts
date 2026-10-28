@@ -3287,7 +3287,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? boundInvestigatorPromptSection(availableActionsSection, 300)
     : "";
   const minimumDiscoveryContract = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY PROGRESS GATE / DISCOVERY LEAD HANDOFF CONTRACT / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are the target; an organization is a lead, not the target. Require exact name, role and ownership/equity/control/investment clue in one successfully fetched claim-grade source; never infer wealth from seniority alone. Aggregators are leads. No preset targets/queries or registry-first sequence; Investigator chooses actions."
+    ? "DISCOVERY PROGRESS GATE / DISCOVERY LEAD HANDOFF CONTRACT / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are the target; an organization is a lead, not the target. Require exact name, role and ownership/equity/control/investment clue in one successfully fetched claim-grade source; never infer wealth from seniority alone. Aggregators are leads. Honor approved Boss scope; source class need not appear in every discovery query. No preset targets/queries or registry-first sequence; Investigator chooses actions. News publishers and articles are evidence leads only, never targets or access routes. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 160)
