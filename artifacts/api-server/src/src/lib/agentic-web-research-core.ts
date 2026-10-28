@@ -3018,7 +3018,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     .filter((url, index, all) => all.indexOf(url) === index)
     .slice(-6);
   const urlInventory = durableUrls.length ? "EXACT DURABLE URL INVENTORY (leads, not evidence): " + JSON.stringify(durableUrls) : "";
-  const isInvestigatorPrompt = /APEX INVESTIGATOR|DISCOVERY LEAD HANDOFF CONTRACT|Target-stage research/i.test(base);
+  const isInvestigatorPrompt = /APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base);
   const protectedRuleCandidates = [
     "Press/profile pages are leads, not targets/access routes.",
     "Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion.",
