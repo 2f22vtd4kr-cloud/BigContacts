@@ -322,3 +322,9 @@ Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at en
 - Reordered the compact source envelope so its raw URL-redacted end-of-page excerpt is first, followed by the exact observed URL array, then a short source head and metadata. The last 160 raw characters preserve the full synthetic fact sentinel and surrounding sentence; URLs are removed from excerpt text because the exact source URL remains separately and atomically recorded. Added the exact ownership/equity/control/investment gate to the absolute-minimum discovery context.
 - Source commit: e1417535c9bb58d55c5fb1d219009b38146d84cd. Fresh CI pending. The carried successful search label must also pass on this revision.
 - No persistent deployment/run/card/evidence read-back exists yet.
+
+## 30. Corrected newest-turn vs carried-search label ordering — 2026-10-28, 05:58 UTC
+
+- The e141753 run preserved the source URL and source text but still failed the final tail sentinel because URL-safe compaction was applied to a tail that contained repeated inline URLs; the prompt must redact those inline URLs and retain the exact source URL separately. The remaining targetability assertion requires the explicit ownership/equity/control/investment clue wording in the absolute-minimum tier.
+- The latest-turn assertion is distinct from the carried-search assertion: in the test case, turn 17 is the newest blocked action and turn 16 is the previous successful search. The emergency summary previously ended with the carried-search turn label. Reordered emergency trajectory summaries so the newest action is the final marker, while the shortest prompt tail now labels the carried search separately and appends the newest action's turn marker after it.
+- Source commit: e1417535c9bb58d55c5fb1d219009b38146d84cd; follow-up source commit: 60ec682ce351913385975ef796dc65aa653501ce. CI for the latest revision is pending. No live run/card/evidence read-back exists yet.
