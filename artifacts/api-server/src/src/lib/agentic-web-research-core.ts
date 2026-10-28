@@ -3153,10 +3153,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ]
     : [];
   const discoveryEvidenceRule = "DISCOVERY LEAD HANDOFF CONTRACT: one successfully fetched claim-grade source must co-bind exact full name, page-stated role, and ownership/control/equity/investment clue; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages are acceptable only when directly binding exact name and role; third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.";
+  const terminalEvidenceRule = "RESEARCH TERMINAL GATE: minEvidence=1; minIndependentSourceUnits=1; requireFalsification=false; not a prescribed action sequence.";
   const fallbackProtectedRules = isInvestigatorPrompt
     ? [
       ...fallbackRuleCandidates.filter((rule) => rule.startsWith("PAGE FORMAT / RETRIEVAL LIMITS:")),
+      ...fallbackRuleCandidates.filter((rule) => rule.startsWith("BINARY URL POLICY:")),
       ...fallbackRuleCandidates.filter((rule) => rule.startsWith("VALID PROVIDERS:")),
+      terminalEvidenceRule,
       ...discoveryFallbackRules,
       ...(discoveryFallbackRules.length ? [discoveryEvidenceRule] : []),
       ...fallbackRuleCandidates.filter((rule) =>
