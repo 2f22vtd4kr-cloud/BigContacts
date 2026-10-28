@@ -3004,12 +3004,21 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     .filter((url, index, all) => all.indexOf(url) === index)
     .slice(-6);
   const urlInventory = durableUrls.length ? "EXACT DURABLE URL INVENTORY (leads, not evidence): " + JSON.stringify(durableUrls) : "";
-  const protectedRules = [
+  const protectedRuleCandidates = [
     "Press/profile pages are leads, not targets/access routes.",
     "Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion.",
     "Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
     "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
-  ].filter((rule) => !base.includes(rule));
+    "Never use placeholders such as CompanyName, companywebsite.com, or example.com.",
+  ];
+  const protectedRuleKeys = [
+    "Press/profile pages are leads, not targets/access routes",
+    "Target-scoped research owns independent corroboration",
+    "Target-stage research tests material business/asset/exit signals",
+    "BINARY URL POLICY",
+    "Never use placeholders such as CompanyName",
+  ];
+  const protectedRules = protectedRuleCandidates.filter((rule, index) => !base.includes(protectedRuleKeys[index]));
   const protectedObservationSuffix = [...protectedRules, urlInventory, markerSuffix].filter(Boolean).join("\n\n");
   const contentBudget = Math.max(40, observationBudget - protectedObservationSuffix.length - 2);
   const compacted = compactEmergencyTrajectoryObservation(observation, contentBudget);
