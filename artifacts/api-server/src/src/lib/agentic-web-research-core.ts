@@ -3182,7 +3182,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? `MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice. No fixed action sequence; the Investigator chooses actions. OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Return exactly one root JSON object, no prose. Inactive fields are null/[]; example: {"url":null,"searches":[],"findings":[]}. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain numeric [0,1]. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
-    ? "EVIDENCE: search-result URLs/snippets are leads, not observed facts. Failed/blocked retrievals are unobserved. Fetched claims must be bound to the exact fetched URL. Search-only organizations remain review-only leads; they do not prove ownership, wealth, person identity or contact. Person/HNWI claims require exact name, page-stated role and ownership/control/equity/investment clue co-bound in one fetched claim-grade source; never infer wealth from seniority. After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures. BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
+    ? "EVIDENCE: Search snippets are leads, not evidence; result URLs remain leads until fetched. Failed/blocked retrievals are unobserved. Bind fetched claims to the exact fetched URL. Search-only organizations are review-only leads, not proof of ownership, wealth, person identity or contact. A person/HNWI requires exact name, page-stated role and ownership/control/equity/investment clue co-bound in one fetched claim-grade source; never infer wealth from seniority. After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures. BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented; failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
     : "";
   // This capability note is already bounded and reflects the current action allowlist;
   // retain it only when the actual base prompt authorizes specialist worker actions.
@@ -3205,37 +3205,66 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const minimumProviderRule = isInvestigatorPrompt
     ? fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? ""
     : "";
-  const minimumPdfRetrievalRule = isInvestigatorPrompt
-    ? "RETRIEVAL: visit for text-bearing PDFs; browser_fetch is HTML-oriented. Failed/blocked extraction is unobserved; do not retry the same binary URL through another fetch action."
-    : "";
-  const minimumDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY GATE: people—not organizations—are targets. A search-only company is review-only and remains a lead. Person/HNWI needs exact name, stated role, and an ownership/control/equity/investment clue in one fetched claim-grade source; never infer wealth from seniority. No preset targets or registry-first sequence; the Investigator chooses actions."
-    : "";
   // The final layout keeps a complete minimal schema/evidence contract independent
   // of the larger, lossy base sections. Drop optional duplicated guidance first.
-  const minimumTail = [
+  // Build the last-resort tail by priority rather than concatenating several
+  // overlapping policy summaries. Exact URLs, schema, provenance, current scope,
+  // latest observation/correction, and the newest durable record are protected;
+  // optional narration is included only when it fits the remaining provider budget.
+  const minimumScopeContext = activeScopeContext
+    ? boundInvestigatorPromptSection(activeScopeContext, 360)
+    : "";
+  const minimumFetchedSourceExcerpt = fetchedSourceExcerpt
+    ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 240)
+    : "";
+  const minimumDurableRecordSummaries = durableRecordSummaries
+    .slice(-1)
+    .map((summary) => boundInvestigatorPromptSection(summary, 360));
+  const scopeRecoveryRule = isInvestigatorPrompt
+    ? "SCOPE GUARD BLOCKED ACTION: revise the failed topic/geography/source-class dimension; no outbound request means no observed evidence. Match active subject and geography, choose a jurisdiction-matching registry adapter, fetch only an observed URL, and request new scope when needed. The Investigator chooses the next action."
+    : "";
+  const mandatoryMinimumParts = [
     fallbackOutputContract,
     fallbackEvidenceContract,
     conditionalCapabilityRule,
-    compactFallbackDiscoveryRule,
     minimumProviderRule,
     terminalEvidenceRule,
-    minimumPdfRetrievalRule,
-    minimumDiscoveryRule,
+    scopeRecoveryRule,
     urlInventory,
     observationTail,
-    activeScopeContext,
+    minimumScopeContext,
     availableActionsSection,
     fetchedSourceLabel,
-    fetchedSourceExcerpt,
+    minimumFetchedSourceExcerpt,
     header,
     markerSuffix,
-    ...durableRecordSummaries,
+    ...minimumDurableRecordSummaries,
+  ].filter(Boolean);
+  const joinPromptParts = (parts: string[]) => parts.filter(Boolean).join("\\n\\n");
+  const mandatoryMinimumTail = joinPromptParts(mandatoryMinimumParts);
+  if (mandatoryMinimumTail.length > limit) {
+    throw new RangeError(
+      `Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=${limit}; mandatory schema, URLs, scope and latest evidence cannot fit without truncation.`,
+    );
+  }
+  const optionalMinimumParts = [
+    compactFallbackDiscoveryRule,
     leadGuidance,
     compactCaseObjective,
-  ].filter(Boolean).join("\n\n");
-  const minimumBase = boundInvestigatorPromptSection(contractText, Math.max(0, limit - minimumTail.length - 2));
-  const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\n\n");
+  ].filter(Boolean);
+  const tailBudget = Math.max(mandatoryMinimumTail.length, limit - Math.min(240, Math.floor(limit * 0.06)));
+  const minimumTailParts = [...mandatoryMinimumParts];
+  let minimumTail = mandatoryMinimumTail;
+  for (const optionalPart of optionalMinimumParts) {
+    const candidate = joinPromptParts([...minimumTailParts, optionalPart]);
+    if (candidate.length <= tailBudget) {
+      minimumTailParts.push(optionalPart);
+      minimumTail = candidate;
+    }
+  }
+  const minimumBaseBudget = Math.max(0, limit - minimumTail.length - 2);
+  const minimumBase = boundInvestigatorPromptSection(contractText, minimumBaseBudget);
+  const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\\n\\n");
   if (lastResort.length <= limit) return lastResort;
   // A too-small provider ceiling is not permission to emit a syntactically bounded
   // but semantically broken prompt. Fail explicitly rather than slicing mandatory
