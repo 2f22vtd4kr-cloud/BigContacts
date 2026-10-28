@@ -5,6 +5,7 @@ const reconciler = readFileSync(new URL("../lib/research-lead-card-reconciliatio
 const launchRoute = readFileSync(new URL("../routes/research/canonical-atlas-launch.ts", import.meta.url), "utf8");
 const dashboardRoute = readFileSync(new URL("../routes/dashboard.ts", import.meta.url), "utf8");
 const agenticCore = readFileSync(new URL("../lib/agentic-web-research-core.ts", import.meta.url), "utf8");
+const bureauPass = readFileSync(new URL("../lib/bureau-agentic-pass.ts", import.meta.url), "utf8");
 const orientation = readFileSync(new URL("../lib/apex-bureau-orientation.ts", import.meta.url), "utf8");
 const runtimeProofWorkflow = readFileSync(new URL("../../../../../.github/workflows/apex-canonical-runtime-proof.yml", import.meta.url), "utf8");
 describe("terminal review-card reconciliation", () => {
@@ -43,6 +44,9 @@ describe("terminal review-card reconciliation", () => {
     expect(organizationMaterializer).toContain("payload.args?.registrySearchOutcomes");
     expect(organizationMaterializer).toContain("companyLeads");
     expect(organizationMaterializer).toContain("if (!leadNames.length) return { materialized: 0, evidenceRows: 0 };");
+    expect(bureauPass).toContain('["web_search","parallel_web_search","registry_search","parallel_registry_search","visit","browser_fetch"].includes(record.action)');
+    expect(bureauPass).toContain('["success","partial"].includes(record.execution)');
+    expect(bureauPass).not.toContain('if(record.findings.length>0){await input.onDiscoveryCheckpoint');
   });
   it("requires a real company or person card even if a later control turn fails", () => {
     expect(runtimeProofWorkflow).toContain('"failed"');
