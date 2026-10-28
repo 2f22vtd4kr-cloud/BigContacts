@@ -3287,7 +3287,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? boundInvestigatorPromptSection(availableActionsSection, 300)
     : "";
   const minimumDiscoveryContract = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY LEAD HANDOFF CONTRACT: one successfully fetched claim-grade source must co-bind exact full name, page-stated role, and ownership/control/equity/investment clue; never infer wealth from seniority. Third-party people-search/profile-directory aggregators are leads only."
+    ? "DISCOVERY PROGRESS GATE / DISCOVERY LEAD HANDOFF CONTRACT: people—not organizations or prestige—are targets; organizations are leads. Require exact name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; aggregators are leads only; never infer wealth from seniority. No preset targets or registry-first sequence; the Investigator chooses actions."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 160)
@@ -3299,6 +3299,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     fallbackOutputContract,
     fallbackEvidenceContract,
     conditionalCapabilityRule,
+    minimumDiscoveryContract,
     minimumProviderRule,
     terminalEvidenceRule,
     scopeRecoveryRule,
