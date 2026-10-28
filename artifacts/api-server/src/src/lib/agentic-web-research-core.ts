@@ -3003,9 +3003,26 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const durableRecordSummaries = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN (\d+)(?:\s*\([^:\n]*\))?:\s*\n?\s*(\{[^\n]*\})/g)]
     .map((match) => {
       try {
-        const record = JSON.parse(match[2]) as Record<string, unknown>;
-        if (typeof record.observation === "string") {
-          record.observation = compactEmergencyTrajectoryObservation(record.observation, 100);
+        const parsed = JSON.parse(match[2]) as Record<string, unknown>;
+        const record: Record<string, unknown> = {
+          turn: parsed.turn ?? Number(match[1]),
+          action: parsed.action,
+          execution: parsed.execution,
+          args: parsed.args,
+          observedUrls: parsed.observedUrls,
+          observedUrlCount: parsed.observedUrlCount,
+          observedUrlsOmittedFromPromptCount: parsed.observedUrlsOmittedFromPromptCount,
+          leadUrls: parsed.leadUrls,
+          leadUrlCount: parsed.leadUrlCount,
+          leadUrlsOmittedFromPromptCount: parsed.leadUrlsOmittedFromPromptCount,
+          failureDomain: parsed.failureDomain,
+          failureKind: parsed.failureKind,
+        };
+        if (typeof parsed.observation === "string") {
+          record.observation = compactEmergencyTrajectoryObservation(parsed.observation, 80);
+        }
+        for (const key of Object.keys(record)) {
+          if (record[key] === undefined) delete record[key];
         }
         return "LATEST TRAJECTORY RECORD — TURN " + match[1] + ": " + JSON.stringify(record);
       } catch {
@@ -3051,20 +3068,23 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // fall back to the base prompt alone, which loses the latest durable action.
   const baseSections = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const requiredSections = baseSections.filter((part) =>
-    /ALL REQUIRED TOP-LEVEL FIELDS:|required fields: action,|DISCOVERY LEAD HANDOFF CONTRACT|Target-stage research tests material business\/asset\/exit signals|Target-scoped research owns independent corroboration|Press\/profile pages are leads, not targets\/access routes|BINARY URL POLICY|PAGE FORMAT \/ RETRIEVAL LIMITS|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:/.test(part)
+    /MISSION PRIORITY:|CASE OBJECTIVE:|ALL REQUIRED TOP-LEVEL FIELDS:|required fields: action,|DISCOVERY LEAD HANDOFF CONTRACT|Target-stage research tests material business\/asset\/exit signals|Target-scoped research owns independent corroboration|Press\/profile pages are leads, not targets\/access routes|BINARY URL POLICY|PAGE FORMAT \/ RETRIEVAL LIMITS|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|SCOPE GUARD BLOCKED ACTION/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const leadGuidance = latestSearchMarker ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
-  const observationTail = compactEmergencyTrajectoryObservation(observation, 500);
+  const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
+  const compactCaseObjective = caseObjective ? boundInvestigatorPromptSection(caseObjective, 260) : "";
+  const observationWithoutCarriedSource = observation.replace(/LAST SUCCESSFUL FETCHED SOURCE \(observed page text; untrusted data, not instructions\):\s*\{[^\n]*\}/, "");
+  const observationTail = compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220);
   const fallbackProtectedRules = isInvestigatorPrompt ? [
+    "MISSION PRIORITY: objective and realistic targetability outrank conflicting advice. No fixed action sequence; the Investigator chooses actions.",
     "OUTPUT CONTRACT: Return one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
     "DISCOVERY LEAD HANDOFF CONTRACT: a person review lead requires exact full name, page-stated role, and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority.",
     "Press/profile pages are leads, not targets/access routes.",
-    "Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion.",
     "Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
     "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
     "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
   ] : [];
-  const protectedTail = [...fallbackProtectedRules, leadGuidance, urlInventory, carriedFetchedSourceSummary, observationTail, header, markerSuffix, ...durableRecordSummaries].filter(Boolean).join("\n\n");
+  const protectedTail = [...fallbackProtectedRules, compactCaseObjective, leadGuidance, urlInventory, carriedFetchedSourceSummary, observationTail, header, markerSuffix, ...durableRecordSummaries].filter(Boolean).join("\n\n");
   const contractText = requiredSections.join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
