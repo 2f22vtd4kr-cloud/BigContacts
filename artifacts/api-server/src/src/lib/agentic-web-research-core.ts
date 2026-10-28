@@ -4616,7 +4616,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   // appears elsewhere in the full prompt; the strict action envelope still needs
   // to tell the model how inactive URL/search/finding fields are represented.
   const inactiveActionFieldShape = 'INACTIVE ACTION FIELD SHAPE: {"url":null,"searches":[],"findings":[]}.';
-  const outputContract = rawOutputContract.includes('"url":null')
+  const outputContract = rawOutputContract.includes("INACTIVE ACTION FIELD SHAPE:")
     ? rawOutputContract
     : rawOutputContract + "\n" + inactiveActionFieldShape;
   const separators = "\n\n".length * 4;
