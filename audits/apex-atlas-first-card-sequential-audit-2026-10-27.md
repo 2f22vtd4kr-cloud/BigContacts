@@ -202,3 +202,11 @@ Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at en
 - Latest code/CI must still be checked after the newest commits. These are code changes, not evidence of a successful live run.
 - No canonical launch job ID, real provider result, persisted company-card entity ID, evidence-row ID, or normal API/UI read-back has yet been observed in this recovery pass. The first-card objective remains open until those are captured. Do not count source-domain labels, fabricated records, test fixtures, or cards from the separately excluded earlier run sequence.
 - Groq quota caveat: different API keys only provide independent capacity if the provider accounts/projects actually have independent quotas. The code now deduplicates identical secrets and bounds retries, but no claim is made that key rotation can overcome a shared organization/project/model quota.
+
+
+## 14. Emergency prompt syntax repair — 2026-10-28, 03:40 UTC
+
+- Commit `d1ae7ea6a422a2858ffabae9634c6990684ee10c` repairs a TypeScript syntax regression introduced while shortening `shortestDiscoveryGate`: the discovery-mode ternary had ended with a semicolon instead of the `: ""` false branch.
+- This syntax issue explains why the Python OSINT worker and API build were failing on the immediately preceding state; do not treat the earlier test failures as semantic-only until a fresh workflow validates compilation and focused assertions.
+- Current latest verified source commit: `d1ae7ea6a422a2858ffabae9634c6990684ee10c`. A workflow lookup for this SHA returned no PR-triggered runs yet. The most recent observed run set on the prior SHA `f9becaefa25a45527b267000bc40cf64a3540303` had API Build, Research Quality Contracts, Python OSINT Worker and Five Green Complete Codebase Audit failed; Prompt Architecture Audit and static discovery check passed; Five Consecutive Full Code Audits was cancelled.
+- No canonical run ID, naturally returned web result, persisted company card/evidence ID, deployment SHA, or normal API/UI read-back has been verified. Do not report task success until those artifacts exist.
