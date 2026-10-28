@@ -2999,10 +2999,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     .at(-1) ?? "";
   const markers = [latestSearchMarker, latestTrajectoryMarker].filter(Boolean);
   const markerSuffix = markers.join("\n\n");
-  const durableUrls = [...observation.matchAll(/https?:\/\/[^\s"'<>]+/g)]
-    .map((match) => match[0].replace(/[),.;]+$/, ""))
-    .filter((url, index, all) => all.indexOf(url) === index)
-    .slice(-6);
   const urlInventory = durableUrls.length ? "EXACT DURABLE URL INVENTORY (leads, not evidence): " + JSON.stringify(durableUrls) : "";
   const protectedRules = [
     "Press/profile pages are leads, not targets/access routes.",
@@ -3029,9 +3025,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     /ALL REQUIRED TOP-LEVEL FIELDS:|required fields: action,|DISCOVERY LEAD HANDOFF CONTRACT|Target-stage research tests material business\/asset\/exit signals|Target-scoped research owns independent corroboration|Press\/profile pages are leads, not targets\/access routes|BINARY URL POLICY|PAGE FORMAT \/ RETRIEVAL LIMITS|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const leadGuidance = latestSearchMarker ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
-  const urlInventory = durableUrls.length ? "EXACT DURABLE URL INVENTORY (leads, not evidence): " + JSON.stringify(durableUrls) : "";
   const observationTail = observation.slice(-420);
-  const protectedRules = [
+  const fallbackProtectedRules = [
     "OUTPUT CONTRACT: Return one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
     "DISCOVERY LEAD HANDOFF CONTRACT: a person review lead requires exact full name, page-stated role, and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority.",
     "Press/profile pages are leads, not targets/access routes.",
@@ -3039,7 +3034,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
     "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
   ];
-  const protectedTail = [...protectedRules, leadGuidance, urlInventory, observationTail, header, markerSuffix].filter(Boolean).join("\n\n");
+  const protectedTail = [...fallbackProtectedRules, leadGuidance, urlInventory, observationTail, header, markerSuffix].filter(Boolean).join("\n\n");
   const contractText = requiredSections.join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
