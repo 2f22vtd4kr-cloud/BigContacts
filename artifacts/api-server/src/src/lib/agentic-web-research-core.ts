@@ -4278,7 +4278,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ];
     if (carryForwardSuccessfulSearch) {
       parts.push(
-        "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS (advisory, not evidence or a mandated next action):\n"
+        "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — LATEST TRAJECTORY RECORD — TURN " + carryForwardSuccessfulSearch.turn + " (advisory, not evidence or a mandated next action):\n"
         + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, observationChars, leadUrlCount)),
       );
     }
@@ -4362,7 +4362,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     if (carryForwardSuccessfulSearch) {
       const compactSearch = compactRecordEnvelope(carryForwardSuccessfulSearch, 0, 2);
-      parts.push("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS (advisory, not evidence or a mandated next action):\n"
+      parts.push("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — LATEST TRAJECTORY RECORD — TURN " + carryForwardSuccessfulSearch.turn + " (advisory, not evidence or a mandated next action):\n"
         + JSON.stringify({
           turn: compactSearch.turn,
           action: compactSearch.action,
@@ -4760,7 +4760,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // admission rule here instead of repeating the much longer rule already present in
       // hardMinimumOutputContract, so prior action feedback has enough prompt budget.
       const absoluteMinimumDiscoveryContext = input.mode === "discovery"
-        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: people are targets; companies/snippets are leads. Never infer wealth from seniority. Source class need not appear in every discovery query; no registry-first sequence. The Investigator retains action choice; not a prescribed action sequence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
+        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are targets; organizations are leads. Never infer wealth from seniority. Source class need not appear in every discovery query; no registry-first sequence. The Investigator retains action choice; not a prescribed action sequence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
         : "";
       const absoluteMinimumObjective = [
         input.objective?.trim()
@@ -4821,7 +4821,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           + JSON.stringify((() => {
             const compactSource = compactRecordEnvelope(latestSuccessfulFetchRecord, 360, 1);
             const sourceObservation = typeof latestSuccessfulFetchRecord.observation === "string"
-              ? latestSuccessfulFetchRecord.observation.replace(/\s+/g, " ").trim()
+              ? latestSuccessfulFetchRecord.observation.replace(/\s+/g, " ").replace(/https?:\/\/[^\s"'<>]+/gi, "[URL recorded in observedUrls]").trim()
               : "";
             return {
               turn: compactSource.turn,
