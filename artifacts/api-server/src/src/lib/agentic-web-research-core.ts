@@ -3260,17 +3260,17 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         const normalizedScope = /ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:/i.test(activeScopeContext)
           ? activeScopeContext
           : "ACTIVE BOSS SCOPE: " + activeScopeContext;
-        return normalizedScope.length <= 800
+        return normalizedScope.length <= 420
           ? normalizedScope
           : compactPromptSectionPreservingUrlTokens(
               normalizedScope,
-              800,
+              420,
               "[scope narration shortened; retain accepted subject, geography, and source-class constraints]",
             );
       })()
     : "";
   const minimumFetchedSourceExcerpt = fetchedSourceExcerpt
-    ? compactPromptSectionPreservingUrlTokens(fetchedSourceExcerpt, 240, "[middle of fetched-source excerpt omitted; observed text remains in durable trajectory]")
+    ? compactPromptSectionPreservingUrlTokens(fetchedSourceExcerpt, 150, "[source excerpt compacted; full observed text remains in durable trajectory]")
     : "";
   const minimumDurableRecordSummaries = durableRecordSummaries.slice(-1).map((summary) => {
     const marker = summary.match(/^LATEST TRAJECTORY RECORD — TURN \d+:/)?.[0] ?? "LATEST TRAJECTORY RECORD:";
@@ -3295,13 +3295,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     }
   });
   const minimumAvailableActionsSection = availableActionsSection
-    ? boundInvestigatorPromptSection(availableActionsSection, 300)
+    ? boundInvestigatorPromptSection(availableActionsSection, 180)
     : "";
   const minimumDiscoveryContract = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY PROGRESS GATE / DISCOVERY LEAD HANDOFF CONTRACT / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are the target; an organization is a lead, not the target. Require exact name, role and ownership/equity/control/investment clue in one successfully fetched claim-grade source; never infer wealth from seniority alone. Aggregators are leads. Honor approved Boss scope; source class need not appear in every discovery query. No preset targets/queries or registry-first sequence; Investigator chooses actions. News publishers and articles are evidence leads only, never targets or access routes. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
+    ? "DISCOVERY: model chooses targets/tools; no preset or registry-first sequence. Preserve relevant company and person leads incrementally with source/provenance and review status. Do not infer HNWI/ownership from seniority. Honor Boss scope; vary source classes by expected information gain. Publishers are evidence, not targets; reject placeholders."
     : "";
   const minimumObservationTail = observationTail
-    ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 160)
+    ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 120)
     : "";
   const scopeRecoveryRule = isInvestigatorPrompt
     ? "SCOPE GUARD BLOCKED ACTION: no outbound request means no evidence. Revise the failed scope dimension, match active subject/geography, use only observed URLs and compatible registry adapters, or request new scope; Investigator chooses actions."
