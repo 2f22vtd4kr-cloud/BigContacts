@@ -10,6 +10,40 @@ const targetWrapperSource = readFileSync(
   "utf8",
 );
 
+describe("incremental source-bound person review leads", () => {
+  const sourceUrl = "https://northstarcasino.si/management";
+  const finding: AgenticFinding = {
+    vectorType: "other",
+    value: "Maja Novak",
+    personName: "Maja Novak",
+    role: "Managing Director",
+    scope: "candidate",
+    sourceUrls: [sourceUrl],
+    note: "LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; exact name and page-stated role only; no ownership, wealth, or HNWI conclusion.",
+  };
+  const record: AgenticTrajectoryRecord = {
+    turn: 1,
+    model: "openai/gpt-oss-120b",
+    action: "web_search",
+    args: { query: "Northstar Casino management" },
+    leadUrls: [sourceUrl],
+    execution: "success",
+    observation: "WEB_SEARCH provider=serper\nMaja Novak\nURL: " + sourceUrl + "\nMaja Novak is the Managing Director of Northstar Casino.",
+    observedUrls: [],
+    findings: [finding],
+  };
+
+  it("keeps exact name+role search observations for low-confidence review-card checkpointing", () => {
+    expect(groundedFindingsForTrajectory([finding], [record])).toEqual([finding]);
+  });
+
+  it("rejects person review leads without the explicit review marker or source-bound role", () => {
+    expect(groundedFindingsForTrajectory([{ ...finding, note: "Possible person" }], [record])).toEqual([]);
+    expect(groundedFindingsForTrajectory([{ ...finding, role: "Chairperson" }], [record])).toEqual([]);
+    expect(groundedFindingsForTrajectory([finding], [{ ...record, leadUrls: [] }])).toEqual([]);
+  });
+});
+
 describe("target wrapper parse-failure routing", () => {
   it("handles parse failure before ordinary Right-hand/Boss oversight", () => {
     const targetLoopStart = targetWrapperSource.indexOf("const MAX_TARGET_ACTION_TURNS");
