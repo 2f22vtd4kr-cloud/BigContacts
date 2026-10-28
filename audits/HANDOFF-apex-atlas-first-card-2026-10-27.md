@@ -4,7 +4,7 @@
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Active PR:** [#759 — Fix canonical Atlas company cards from one search](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/759)  
 **Working branch:** `apex-atlas-first-card-2026-10-27`  
-**Latest verified PR head at handoff:** `d240f3dcbd98aa9d4d1e60ca0939f246d8a14786`  
+**Current PR head:** re-fetch [PR #759](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/759) before acting; any SHA recorded below may be historical.  
 **Sequential audit:** `audits/apex-atlas-first-card-sequential-audit-2026-10-27.md`
 
 ## User's non-negotiable objective
@@ -31,7 +31,7 @@ Changes were made on the PR branch (not merged to `main`):
 
 These are source/CI changes only. They do **not** prove a live run, successful provider call, persisted card, deployment, or user-visible read-back.
 
-## Latest verified state (do not assume it changed)
+## Historical CI state at original handoff (superseded; not current status)
 
 PR #759 was open and unmerged; latest observed head was `d240f3dcbd98aa9d4d1e60ca0939f246d8a14786`, updated at 2026-10-27 18:07 UTC. At handoff, no later commit/run was observed. Check current GitHub state first.
 
@@ -76,15 +76,26 @@ These changes need code-level review and regression tests. Distinguish provider 
 3. Fix prompt compaction by making each prompt tier preserve essential objective/scope, last successful fetched source, actionable trajectory, available tools, source-neutral discovery, and the partial company-card admission contract. Measure/test the final composed prompt at every tier and ensure it stays under the provider context budget. Do not simply delete assertions to turn CI green. Keep a minimal emergency prompt that still contains the durable objective, exact source observation/URL, and valid output contract.
 4. Fix the failing control prompt/request-shape regressions; retain authoritative case state, blocked-vs-failed-vs-unfetched URL distinctions, concrete source-route judgment, and correct Right Hand request schema. Re-run focused tests, API build, research-quality contracts, static discovery check, prompt architecture audit, and both full-code-audit workflows until all are green.
 5. Investigate actual Groq usage: record model, role, prompt chars/tokens if available, completion cap, provider status/error class, attempts, elapsed time, key-alias pool ID (not key value), and whether fallback helped. Optimize prompt sizes/retries across roles; avoid repeating full context or huge history where compact structured state suffices.
-6. Identify and obtain access to the real deployed environment. If Vercel team approval is needed, generate a fresh link for the correct team and give it to the user. Verify deployment SHA and environment variables are present by names only; do not print values.
-7. Launch one normal canonical Atlas run using a straightforward objective suitable for broad web search. Audit sequentially from launch through each model decision/tool result/card-admission/database write. Do not seed/insert cards directly.
+6. The user has chosen to launch the next canonical run themselves on Replit. Do not pursue Vercel or launch a separate provider-backed run. Prepare the codebase for the user's run; verify the merged `main` SHA and Replit setup instructions.
+7. Do not launch Replit on the user's behalf. Keep the GitHub runtime-proof workflow manual-only; a merge must not trigger an automatic provider-backed investigation. The user controls the next Replit launch.
 8. Prove completion with the canonical job/run ID, actual search query/provider and returned URL, source-backed company-card record ID, related evidence/source provenance ID(s), and normal API/UI read-back. Append all facts and blockers to `audits/apex-atlas-first-card-sequential-audit-2026-10-27.md`.
 9. Only then report success. If blocked, report the precise failure and continue fixing rather than claiming a card was created.
 
 ## Audit and privacy of diagnostic content
 
-Keep the audit public in the repository as requested, but never include credential values. Include model-generated visible outputs, prompts sent by the application, action/tool arguments, raw public-source observations needed to reproduce the investigation, response/error classes, timing, DB/API IDs, and your technical diagnosis. Do not claim access to private hidden chain-of-thought; log explicit model response fields the providers actually return, plus prompts, outputs, decisions, and tool traces. For people/contact details, preserve source attribution and distinguish public professional contact routes from speculative or sensitive personal associations. Never infer a romantic relationship or personal contact route without a reliable public source.
+Keep a sanitized chronological audit public in the repository: report model roles/actions, tool/provider choices, redacted or summarized observations, error classes, timings, job/case/card/evidence IDs, and diagnoses. Raw model prompts/completions and contact values belong only in the ignored private `.local/audits/` trace, never in tracked `audits/` files. The current Replit development config targets `.local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-28_CANONICAL_RUN_01.md`, includes contact data for this controlled diagnostic run, and sets visible-file opt-in false. Do not claim access to hidden chain-of-thought; record only the explicit model response fields the provider actually returns.
 
 ## User's frustration / communication requirement
 
 The user explicitly complained that PR #759 sat idle for hours and that earlier responses overstated progress. Be direct and evidence-based. No vague “working on it” updates, no claim that code changes equal successful execution, and no stopping after another provider error. State exactly what was changed, what CI says, and whether a canonical card has actually been persisted. The task is not complete until the first naturally generated card is proven through the normal path.
+
+
+## Recovery update — 2026-10-28, current codebase work
+
+Confirmed and fixed on PR #759:
+- Configured `browser_fetch` actions were being unconditionally rewritten to `visit`. The runtime now preserves the model-selected browser action when its provider is available, and falls back to `visit` only for an unavailable/stale provider label.
+- Search-result title fallback could admit generic discovery metadata such as `Case Co`. A narrow placeholder guard and regression test now reject generic metadata while preserving a concrete business-like company result. This is an identity-quality guard only; it does not prescribe a research itinerary.
+- Raw model trace capture now writes to ignored private `.local/audits/`, not a tracked public file.
+- The GitHub provider-backed runtime-proof workflow is manual-only. Merging this PR will not silently launch a second investigation or spend provider quota.
+
+Read current checks on PR #759 for the final head before merge. Codebase readiness and live acceptance remain separate: the next canonical run is the user's Replit run, and success requires real persisted card/evidence records, both normal API projections, truthful terminal status, and released active-job lock.
