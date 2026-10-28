@@ -125,6 +125,16 @@ class WorkerArgumentValidationTests(unittest.TestCase):
             app.validate_args("spiderfoot", {"target": "1.1.1.1", "targetType": "ip", "profile": "domain-infrastructure"}),
             {"target": "1.1.1.1", "targetType": "ip", "profile": "domain-infrastructure"},
         )
+        self.assertEqual(
+            app.validate_args("spiderfoot", {"target": "+1 (212) 555-0198", "targetType": "phone", "profile": "contact-adjacent"}),
+            {"target": "+12125550198", "targetType": "phone", "profile": "contact-adjacent"},
+        )
+        self.assertEqual(
+            app.validate_args("spiderfoot", {"target": "Jordan Example", "targetType": "person", "profile": "identity-expansion"}),
+            {"target": "Jordan Example", "targetType": "person", "profile": "identity-expansion"},
+        )
+        with self.assertRaises(ValueError):
+            app.validate_args("spiderfoot", {"target": "123", "targetType": "phone", "profile": "contact-adjacent"})
         with self.assertRaises(ValueError):
             app.validate_args("spiderfoot", {"target": "127.0.0.1", "targetType": "ip", "profile": "domain-infrastructure"})
         with self.assertRaises(ValueError):
