@@ -758,14 +758,14 @@ async function materializePartialOrganizationLeadCards(input: {
             if (!rawLead || typeof rawLead !== "object" || Array.isArray(rawLead)) continue;
             const company = rawLead as Record<string, unknown>;
             if (typeof company.name !== "string" || !Array.isArray(company.sourceUrls)) continue;
-            const name = company.name.trim().replace(/\\s+/g, " ");
+            const name = company.name.trim().replace(/\s+/g, " ");
             const identity = normalizeCandidateIdentityName(name);
             if (name.length < 3 || identity.length < 3) continue;
             if (!seenNames.has(identity)) {
               seenNames.add(identity);
               leadNames.push(name);
             }
-            const notes = typeof company.notes === "string" ? company.notes.replace(/\\s+/g, " ").trim().slice(0, 240) : "";
+            const notes = typeof company.notes === "string" ? company.notes.replace(/\s+/g, " ").trim().slice(0, 240) : "";
             for (const rawUrl of company.sourceUrls) {
               if (typeof rawUrl !== "string") continue;
               observations.push({
