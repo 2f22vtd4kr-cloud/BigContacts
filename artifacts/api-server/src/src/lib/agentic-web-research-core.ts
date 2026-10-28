@@ -1895,9 +1895,11 @@ function normalizeRecoverableBrowserFetchAction(raw: string): string {
     const action = cleanText(value.action, 40).toLowerCase();
     const provider = cleanText(value.provider, 40).toLowerCase();
     const url = cleanText(value.url, 500);
-    // Preserve the model-selected fetch intent when it emits a stale provider
-    // label: visit is a safe, evidence-bearing fallback and needs no backend.
+    // Keep browser_fetch when its model-selected provider is configured. The
+    // ordinary visit fallback is only for a genuinely stale/unavailable label;
+    // unconditionally rewriting this action silently disables browser escalation.
     if (action !== "browser_fetch" || !url || !isSafeHttpUrl(url)) return raw;
+    if (getAvailableBrowserFetchProviders().some((configuredProvider) => configuredProvider === provider)) return raw;
     return JSON.stringify({ ...value, action: "visit", provider: null });
   } catch {
     return raw;
