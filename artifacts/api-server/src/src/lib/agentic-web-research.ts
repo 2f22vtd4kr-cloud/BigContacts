@@ -16,6 +16,7 @@ import { inferResearchCognitiveTask } from "./research-cognitive-routing";
 import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES } from "./agentic-web-research-core";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective } from "./investigation-context-compaction";
 import { sanitizeUrlsInText } from "./url-privacy";
 import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
