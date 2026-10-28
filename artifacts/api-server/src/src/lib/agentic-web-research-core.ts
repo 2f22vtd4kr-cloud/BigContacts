@@ -4760,7 +4760,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // admission rule here instead of repeating the much longer rule already present in
       // hardMinimumOutputContract, so prior action feedback has enough prompt budget.
       const absoluteMinimumDiscoveryContext = input.mode === "discovery"
-        ? "DISCOVERY PROGRESS GATE: people are targets; companies/snippets are leads. Never infer wealth from seniority. Source class need not appear in every discovery query; no registry-first sequence. The Investigator retains action choice; not a prescribed action sequence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
+        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: people are targets; companies/snippets are leads. Never infer wealth from seniority. Source class need not appear in every discovery query; no registry-first sequence. The Investigator retains action choice; not a prescribed action sequence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
         : "";
       const absoluteMinimumObjective = [
         input.objective?.trim()
