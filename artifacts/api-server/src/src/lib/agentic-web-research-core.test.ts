@@ -3248,9 +3248,15 @@ describe("small emergency observation budgets", () => {
     );
     expect(withCurrentFailure).toContain("The distinct provider notice says to avoid a futile retry.");
     expect(withCurrentFailure).toContain("FAILED_FETCH_SENTINEL");
-    expect(agenticCoreSource).toContain(
-      "buildEmergencyPriorTrajectoryObservation(\n        latestFetchedSourceSummary\n          ? [latestFetchedSourceSummary, suppliedObservation.slice(0, 60)].filter(Boolean).join(\"\\n\\n\")\n          : suppliedObservation,\n        emergencyTrajectoryRecordSummary,\n      )",
-    );
+    // Assert the current emergency path retains each durable evidence class.
+    // The implementation intentionally combines pinned URLs, the latest fetched-source
+    // excerpt when distinct from the newest action, and current correction text instead
+    // of the obsolete nested-ternary call layout.
+    expect(agenticCoreSource).toContain("const emergencyObservation = buildEmergencyPriorTrajectoryObservation(");
+    expect(agenticCoreSource).toContain("pinnedInventoryCandidate,");
+    expect(agenticCoreSource).toContain("...(latestFetchedSourceSummary ? [latestFetchedSourceSummary] : []),");
+    expect(agenticCoreSource).toContain("suppliedObservation.slice(0, 60),");
+    expect(agenticCoreSource).toContain("emergencyTrajectoryRecordSummary,");
     expect(agenticCoreSource).toContain(
       "appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars)",
     );
