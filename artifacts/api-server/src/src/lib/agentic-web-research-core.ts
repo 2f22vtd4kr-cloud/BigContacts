@@ -3208,10 +3208,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION PRIORITY: objective and realistic-targetability outrank conflicting supervisor advice. The Investigator chooses every action; no fixed research sequence. OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. Inactive fields are null/[]; example: {"url":null,"searches":[],"findings":[]}. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain numeric [0,1]. Parallel web searches need 2–4 objects with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
+    ? `MISSION PRIORITY: objective and realistic-targetability outrank conflicting supervisor advice. The Investigator chooses every action; no fixed action sequence. OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. Inactive fields are null/[]; example: {"url":null,"searches":[],"findings":[]}. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain numeric [0,1]. Parallel web searches need 2–4 objects with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
-    ? "EVIDENCE: search URLs/snippets are leads, not evidence; failed/blocked retrievals are unobserved. Bind each claim to its exact successfully fetched URL. A search-only organization is a low-confidence review-only lead, not proof of ownership, wealth, person identity or contact. After a successful visit/browser_fetch, a fetched company lead needs the exact organization name plus a material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. A person lead requires exact full name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Press/profile pages and news are leads, not targets/access routes. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable). BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
+    ? "EVIDENCE: Search snippets are leads, not evidence; search-result URLs remain leads until fetched. Failed/blocked retrievals are unobserved. Bind each claim to its exact successfully fetched URL. A search-only organization is a low-confidence review-only lead, not proof of ownership, wealth, person identity or contact. After a successful visit/browser_fetch, a fetched company lead needs the exact organization name plus a material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. A person lead requires exact full name, page-stated role and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Press/profile pages and news are leads, not targets/access routes. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable). BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
     : "";
   // This capability note is already bounded and reflects the current action allowlist;
   // retain it only when the actual base prompt authorizes specialist worker actions.
@@ -3299,9 +3299,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     fallbackOutputContract,
     fallbackEvidenceContract,
     conditionalCapabilityRule,
-    compactFallbackDiscoveryRule,
     minimumProviderRule,
-    minimumDiscoveryContract,
     terminalEvidenceRule,
     scopeRecoveryRule,
     urlInventory,
@@ -3321,9 +3319,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // Drop only redundant record/marker copies before failing. The compact
     // observation tail already carries the latest correction/guard explanation;
     // the single latest record summary carries durable action metadata.
-    const compactMandatoryParts = mandatoryMinimumParts.filter((part) =>
-      part !== markerSuffix && !minimumDurableRecordSummaries.includes(part),
-    );
+    // Keep the newest durable record (including its exact turn marker and URL-omission
+    // counters); discard the redundant marker-only copy first to reduce framing overhead.
+    const compactMandatoryParts = mandatoryMinimumParts.filter((part) => part !== markerSuffix);
     mandatoryMinimumTail = joinPromptParts(compactMandatoryParts);
     if (mandatoryMinimumTail.length > limit) {
       throw new RangeError(
