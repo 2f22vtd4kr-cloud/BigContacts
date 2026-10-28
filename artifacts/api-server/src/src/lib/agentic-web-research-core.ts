@@ -4848,7 +4848,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes.",
         absoluteMinimumDiscoveryContext,
         shortestLeadFollowUp,
-        absoluteMinimumOutputContract,
+        pinnedDurableInventoryForAbsoluteMinimum,
+        compactLatestTrajectoryMarker,
+        compactOutputContract,
       ].filter(Boolean);
       const compactBasePrompt = compactAbsoluteMinimumBaseParts.join("\\n\\n");
       const basePrompt = rawBasePrompt.length <= basePromptBudget
