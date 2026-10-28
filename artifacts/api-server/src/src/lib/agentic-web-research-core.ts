@@ -2999,6 +2999,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     .at(-1) ?? "";
   const markers = [latestSearchMarker, latestTrajectoryMarker].filter(Boolean);
   const markerSuffix = markers.join("\n\n");
+  const durableUrls = [...observation.matchAll(/https?:\/\/[^\s"'<>]+/g)]
+    .map((match) => match[0].replace(/[),.;]+$/, ""))
+    .filter((url, index, all) => all.indexOf(url) === index)
+    .slice(-6);
   const urlInventory = durableUrls.length ? "EXACT DURABLE URL INVENTORY (leads, not evidence): " + JSON.stringify(durableUrls) : "";
   const protectedRules = [
     "Press/profile pages are leads, not targets/access routes.",
@@ -3016,10 +3020,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Preserve mandatory semantic contracts and exact durable lead URLs if the
   // normal prompt plus observation exceeds the provider ceiling. Never silently
   // fall back to the base prompt alone, which loses the latest durable action.
-  const durableUrls = [...observation.matchAll(/https?:\/\/[^\s"'<>]+/g)]
-    .map((match) => match[0].replace(/[),.;]+$/, ""))
-    .filter((url, index, all) => all.indexOf(url) === index)
-    .slice(-6);
   const baseSections = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const requiredSections = baseSections.filter((part) =>
     /ALL REQUIRED TOP-LEVEL FIELDS:|required fields: action,|DISCOVERY LEAD HANDOFF CONTRACT|Target-stage research tests material business\/asset\/exit signals|Target-scoped research owns independent corroboration|Press\/profile pages are leads, not targets\/access routes|BINARY URL POLICY|PAGE FORMAT \/ RETRIEVAL LIMITS|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:/.test(part)
