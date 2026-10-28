@@ -3179,7 +3179,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? "OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings."
+    ? "OUTPUT CONTRACT: one JSON root object; required fields: action,"
     : "";
   const protectedTail = [fallbackOutputContract, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
