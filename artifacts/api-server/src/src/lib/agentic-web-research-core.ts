@@ -4012,17 +4012,36 @@ function pivotTextContainsExcludedSubject(value: string, excludedSubjects: reado
   const tokens = new Set((value.toLowerCase().match(/[a-z0-9]{3,}/g) ?? []).map(pivotScopeToken));
   return excludedSubjects.some((subject) => tokens.has(subject));
 }
-function pivotResourceIsGroundedInAlignedEvidence(value: unknown, evidenceText: string): boolean {
+const PIVOT_EVIDENCE_BROAD_TERMS = new Set([
+  "news", "building", "empire", "developer", "development", "wealth", "wealthy",
+  "profile", "profiles", "owner", "owners", "ownership", "company", "companies",
+  "business", "businesses", "firm", "firms", "real", "estate", "private", "family",
+  "owned", "mid", "market", "regional", "local", "public", "source", "sources",
+  "registry", "registries", "database", "filing", "filings", "search", "query",
+]);
+
+function pivotResourceIsGroundedInAlignedEvidence(
+  value: unknown,
+  evidenceText: string,
+  geographyOptions: readonly string[][] = [],
+): boolean {
   if (typeof value !== "string" || !value.trim() || !evidenceText) return false;
   const normalized = normalizeDiscoverySearchQuery(value).replace(/[^a-z0-9@._+-]+/g, " ");
   if (normalized.length >= 4 && evidenceText.includes(normalized)) return true;
+  const geographicTokens = new Set(geographyOptions.flat().map((token) => pivotScopeToken(token)));
   const resourceTokens = normalized.match(/[a-z0-9]{4,}/g) ?? [];
-  const unique = [...new Set(resourceTokens.filter((token) => !PIVOT_SCOPE_GENERIC_TERMS.has(pivotScopeToken(token))))];
-  // A named-resource follow-up must share a distinctive token with a successfully
-  // fetched source observation. Substring coincidence ("ann" in "financial") is
-  // not evidence provenance.
+  const unique = [...new Set(resourceTokens.filter((token) => {
+    const normalizedToken = pivotScopeToken(token);
+    return token.length >= 5
+      && !PIVOT_SCOPE_GENERIC_TERMS.has(normalizedToken)
+      && !PIVOT_EVIDENCE_BROAD_TERMS.has(normalizedToken)
+      && !geographicTokens.has(normalizedToken);
+  }))];
+  // A follow-up may use one distinctive entity token from a fetched source.
+  // Geography, generic business language, and news/fame phrasing are not entity
+  // provenance: "Texas" alone must not authorize an unrelated Texas-rich-list query.
   const observedTokens = new Set(evidenceText.toLowerCase().match(/[a-z0-9]{5,}/g) ?? []);
-  return unique.some((token) => token.length >= 5 && observedTokens.has(token));
+  return unique.some((token) => observedTokens.has(token));
 }
 function pivotDomainMatchesSourceUrls(value: unknown, sourceUrls: ReadonlySet<string>): boolean {
   const domain = normalizedDomainResource(value).replace(/^www\./, "");
@@ -4140,7 +4159,7 @@ function pivotActionIsAligned(
       && requiredSourceAnchors.length > 0
       && pivotTextMatchesAnyAnchor(text, requiredSourceAnchors)
       && /\b(?:\.gov\b|official|secretary of state|business entity|corporate entity|company register|company registry|state registry|handelsregister|krs|ceidg)\b/i.test(text);
-    const evidenceGrounded = pivotResourceIsGroundedInAlignedEvidence(value, evidenceText);
+    const evidenceGrounded = pivotResourceIsGroundedInAlignedEvidence(value, evidenceText, geographyOptions);
     return !pivotTextContainsExcludedSubject(text, excludedSubjects)
       && (matchesCoreScope || officialSourceDiscovery || evidenceGrounded);
   };
@@ -4264,7 +4283,7 @@ function pivotActionAlignmentFailureDetails(
     if (
       dimensions.length > 0
       && !excluded
-      && pivotResourceIsGroundedInAlignedEvidence(value, evidenceText)
+      && pivotResourceIsGroundedInAlignedEvidence(value, evidenceText, geographyOptions)
     ) return [];
     return dimensions.length > 0 ? [`${label} ${dimensions.join(", ")}`] : [];
   });
