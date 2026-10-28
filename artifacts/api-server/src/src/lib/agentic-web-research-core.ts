@@ -3212,6 +3212,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // This capability note is already bounded and reflects the current action allowlist;
   // retain it only when the actual base prompt authorizes specialist worker actions.
   const conditionalCapabilitySection = isInvestigatorPrompt
+    ? base.match(/Conditional specialist OSINT actions:[\s\S]*?(?=\n\n|$)/)?.[0] ?? ""
+    : "";
     ? base.match(/Conditional specialist OSINT actions:[\\s\\S]*?(?=\\n\\n|$)/)?.[0] ?? ""
     : "";
   const conditionalCapabilityRule = conditionalCapabilitySection
@@ -3252,7 +3254,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? compactPromptSectionPreservingUrlTokens(fetchedSourceExcerpt, 240, "[middle of fetched-source excerpt omitted; observed text remains in durable trajectory]")
     : "";
   const minimumDurableRecordSummaries = durableRecordSummaries.slice(-1).map((summary) => {
-    const marker = summary.match(/^LATEST TRAJECTORY RECORD — TURN \\d+:/)?.[0] ?? "LATEST TRAJECTORY RECORD:";
+    const marker = summary.match(/^LATEST TRAJECTORY RECORD — TURN \d+:/)?.[0] ?? "LATEST TRAJECTORY RECORD:";
     const jsonAt = summary.indexOf("{");
     if (jsonAt < 0) return compactPromptSectionPreservingUrlTokens(summary, 300, "[middle omitted]");
     try {
