@@ -3010,8 +3010,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const contractStart = base.lastIndexOf("OUTPUT CONTRACT:");
   const originalOutputContract = contractStart >= 0 ? base.slice(contractStart).trim() : "";
   const outputContract = [
-    "OUTPUT CONTRACT: Return exactly ONE root JSON object; no prose. Required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
-    "Press/profile pages are leads, not targets/access routes. DISCOVERY LEAD HANDOFF: review-only PersonCandidate requires exact full name, page-stated role, and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source.",
+    "OUTPUT CONTRACT: Return exactly ONE root JSON object; no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+    "DISCOVERY LEAD HANDOFF CONTRACT: review-only PersonCandidate requires exact full name, page-stated role, and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source. Press/profile pages are leads, not targets/access routes.",
+    "PARTIAL FINDINGS (not terminal-only): after a successful web_search, parallel_web_search, registry_search, parallel_registry_search, or browser_fetch, if returned text contains an exact organization name and eligible HTTPS result URL, emit a low-confidence organization review finding; snippets are leads, not fetched evidence.",
     "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead when expected information gain is high; the Investigator retains action choice and this is not a required action sequence.",
   ].join("\n\n");
   const policy = contractStart >= 0 ? base.slice(0, contractStart).trim() : base;
@@ -3040,7 +3041,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     fallbackContentBudget,
     "[Middle of emergency observation omitted; complete record remains durable.]",
   );
-  const fallback = [compactPolicy, outputContract, header, compactedContent, markerText].filter(Boolean).join("\n\n");
+  const durableObservationTail = observation.slice(-240);
+  const fallback = [compactPolicy, outputContract, header, compactedContent, durableObservationTail, markerText].filter(Boolean).join("\n\n");
   return fallback.length <= limit ? fallback : base;
 }
 
