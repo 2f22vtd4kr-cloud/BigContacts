@@ -3249,7 +3249,7 @@ describe("small emergency observation budgets", () => {
     expect(withCurrentFailure).toContain("The distinct provider notice says to avoid a futile retry.");
     expect(withCurrentFailure).toContain("FAILED_FETCH_SENTINEL");
     expect(agenticCoreSource).toContain(
-      "buildEmergencyPriorTrajectoryObservation(\n        latestFetchedSourceSummary\n          ? [latestFetchedSourceSummary, suppliedObservation.slice(0, 120)].filter(Boolean).join(\"\\n\\n\")\n          : suppliedObservation,\n        latestTrajectoryRecordSummary,\n      )",
+      "buildEmergencyPriorTrajectoryObservation(\n        latestFetchedSourceSummary\n          ? [latestFetchedSourceSummary, suppliedObservation.slice(0, 60)].filter(Boolean).join(\"\\n\\n\")\n          : suppliedObservation,\n        latestTrajectoryRecordSummary,\n      )",
     );
     expect(agenticCoreSource).toContain(
       "appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars)",
