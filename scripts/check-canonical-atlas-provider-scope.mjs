@@ -74,7 +74,7 @@ const checks = [
   [!/generativelanguage\\.googleapis\\.com|GEMINI_API_KEY|GOOGLE_API_KEY/i.test(activeControlFiles), "Canonical Atlas control files must not contain an active Gemini endpoint or credential."],
   [!/mistral\\.ai|MISTRAL_API_KEY/i.test(activeControlFiles), "Canonical Atlas control files must not contain an active Mistral endpoint or credential."],
   [providerGate.includes('"mistral"') && providerGate.includes('"gemini"'), "Dormant provider-gate classifications for Gemini/Mistral must remain preserved."],
-  [read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts").includes('return kind === "requests" || kind === "tokens";'), "Unknown Right-hand 429s must remain eligible for bounded transient retry."],
+  [read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts").includes('return kind === "requests" || kind === "tokens" || kind === "model";'), "Explicit request/token/model-scoped Right-hand 429s must be classified for bounded recovery; unknown 429s remain on the transient retry path."],
 ];
 
 const failed = checks.filter(([ok]) => !ok);
