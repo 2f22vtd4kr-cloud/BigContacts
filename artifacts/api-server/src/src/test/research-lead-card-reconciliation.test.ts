@@ -63,6 +63,32 @@ describe("terminal review-card reconciliation", () => {
     expect(agenticCore).toContain('exact organization name plus eligible HTTPS URL in observed text yields a low-confidence review-only company finding');
   });
 
+  it("materializes exact public person/role leads at the first discovery checkpoint", () => {
+    const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
+    const personMaterializer = canonical.slice(
+      canonical.indexOf("async function materializePartialPersonLeadCards"),
+      canonical.indexOf("async function materializePartialOrganizationLeadCards"),
+    );
+    expect(personMaterializer).toContain("payload.leadUrls");
+    expect(personMaterializer).toContain('const searched = action === "web_search" || action === "parallel_web_search"');
+    expect(personMaterializer).toContain("bindExactSourceSpan(observation.observation, lead.role, lead.name, 320)");
+    expect(personMaterializer).toContain('roleOnlyLead: true');
+    expect(personMaterializer).toContain('claimType: "partial_person_role_lead"');
+    expect(personMaterializer).toContain('verificationLevel === "search_result_lead"');
+    expect(personMaterializer).not.toContain("hasDiscoveryOwnershipLeadSignal");
+    // This remains a PersonCandidate review card, never automatic HNWI admission.
+    expect(personMaterializer).toContain('type: "PersonCandidate"');
+    expect(personMaterializer).toContain('stage: "partial_review"');
+  });
+
+  it("keeps public business-relevant relationship research separate from private intimate or health-data contact hunting", () => {
+    expect(orientation).toContain("Publicly documented family/business links may be recorded");
+    expect(orientation).toContain("do not infer intimate relationships from surnames or clues");
+    expect(orientation).toContain("Never use medical/clinic records, private intimate details");
+    expect(orientation).toContain("private personal numbers from those contexts");
+    expect(orientation).toContain("do not infer intimate relationships or use medical, clinic, spa, or casino records");
+  });
+
   it("persists only exact organization findings from successful search observations as review leads", () => {
     expect(reconciler).toContain('finding.scope !== "organization"');
     expect(reconciler).toContain('payload.execution === "success"');
