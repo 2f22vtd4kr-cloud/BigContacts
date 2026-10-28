@@ -3018,7 +3018,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         policy,
         policyBudget,
         "[Emergency prompt policy compacted; durable case state remains authoritative.]",
-      )
+      ).slice(0, policyBudget)
     : "";
   const fallback = [compactPolicy, outputContract, header, markerText].filter(Boolean).join("\n\n");
   return fallback.length <= limit ? fallback : base;
