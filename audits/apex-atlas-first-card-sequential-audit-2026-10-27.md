@@ -282,3 +282,10 @@ Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at en
 - Updated the source-level regression assertion to reflect the intentional current observation + fetched-source-summary input to buildEmergencyPriorTrajectoryObservation; the assertion still requires that the helper and appendEmergencyObservationContext path remain wired.
 - Source commit: 56a871d1a2e7fdcb3874c649c3c42700ec484fc6; test commit: f39bd43e84e0fd8503dbbabad678a5427b47b079. Fresh CI is pending; do not claim the 9 failing prompt assertions are repaired until the latest run passes.
 - No deployed Replit runtime, canonical live run, company card, or evidence read-back has been established.
+
+## 24. Final three prompt failures narrowed to source/trajectory ordering and tail budget — 2026-10-28, 04:52 UTC
+
+- The f39bd43 run reduced the discovery prompt suite from 9 failures to 3/194. The exact remaining failures were: fetched-page end fact sentinel clipped out of the compact emergency observation, the exact discovery targetability-gate marker missing, and the latest turn-17 trajectory marker clipped out.
+- Updated emergency composition to place the compact fetched-source envelope first and the latest trajectory record last, with the redundant current observation capped at 120 characters when a fetched-source envelope is present. This makes the source marker/URL and fact excerpt occupy the head while the latest action/blocked feedback occupies the tail; the complete durable source observation remains stored. Updated the discovery gate wording to preserve the targetability marker in the absolute-minimum tier.
+- Source commit: 1de292720b3e0ad14b9c91aad508ed81fb557179. Regression assertion commit: f3475beafdbe891aef850ced3518d403380f1f2d. New CI must pass the exact end-fact and latest-turn assertions before proceeding.
+- No live deployment, canonical run, company card, evidence ID, or persistent API read-back has been observed.
