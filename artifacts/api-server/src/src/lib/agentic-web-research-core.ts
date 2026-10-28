@@ -4821,9 +4821,25 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // even when the absolute-minimum policy/schema nearly fills the provider cap.
       const emergencyObservationReserveChars = Math.min(1_000, Math.max(160, maxUserPromptChars - 700));
       const basePromptBudget = Math.max(700, maxUserPromptChars - emergencyObservationReserveChars - 2);
+      const compactAbsoluteMinimumBaseParts = [
+        finalEmergencyAssignment,
+        absoluteMinimumObjective,
+        "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
+        "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
+        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + "; never invent an ID or treat unavailable/failed as a no-hit.",
+        "PDF RETRIEVAL: use visit for text-bearing PDFs; browser_fetch is HTML-only; OCR is unavailable. Failed extraction is unobserved; do not retry the same binary URL with another fetch action.",
+        "SCOPE/SOURCE CHOICE: match topic and geography; source class may vary per query; no registry-first sequence. Snippets/URLs are leads; blocked/failed routes are not negative evidence. The Investigator retains action choice.",
+        "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes.",
+        absoluteMinimumDiscoveryContext,
+        shortestLeadFollowUp,
+        absoluteMinimumOutputContract,
+      ].filter(Boolean);
+      const compactBasePrompt = compactAbsoluteMinimumBaseParts.join("\\n\\n");
       const basePrompt = rawBasePrompt.length <= basePromptBudget
         ? rawBasePrompt
-        : boundInvestigatorPromptSection(rawBasePrompt, basePromptBudget);
+        : compactBasePrompt.length <= basePromptBudget
+          ? compactBasePrompt
+          : boundInvestigatorPromptSection(compactBasePrompt, basePromptBudget);
       // A new bounded Investigator episode starts with a generic lastObservation even
       // when durable priorTrajectoryRecords exist. In this last-resort prompt tier,
       // passing only lastObservation silently drops that history and invites repeated
