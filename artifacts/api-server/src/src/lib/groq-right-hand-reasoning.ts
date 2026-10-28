@@ -209,21 +209,32 @@ function parseRateLimitResetMs(raw:string|null):number|null {
  const hours=Number(match[1]??0), minutes=Number(match[2]??0), seconds=Number(match[3]??0);
  const milliseconds = Math.floor((hours*3600+minutes*60+seconds)*1000); return Number.isFinite(milliseconds) ? milliseconds : null;
 }
-type RateLimitKind = "requests" | "tokens" | "unknown" | null;
+type RateLimitKind = "requests" | "tokens" | "model" | "unknown" | null;
 function rateLimitKind(response:Response, body:string):RateLimitKind {
  if(response.status!==429) return null;
  if(providerErrorCode(body)==="quota_exceeded") return "requests";
+ const remainingRequests=Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
+ // A zero credential-wide request budget takes precedence over model metadata.
+ if(Number.isFinite(remainingRequests)&&remainingRequests===0) return "requests";
  try {
-  const parsed = JSON.parse(body) as { error?: { type?: unknown } };
+  const parsed = JSON.parse(body) as {
+    param?: unknown;
+    code?: unknown;
+    error?: { type?: unknown; param?: unknown; code?: unknown };
+  };
+  // Explicit model-scoped throttles can fall back to another catalog-listed model
+  // only while the credential-wide request budget remains available.
+  if (
+    (parsed.param === "model" && parsed.code === "rate_limit_exceeded")
+    || (parsed.error?.param === "model" && parsed.error?.code === "rate_limit_exceeded")
+  ) return "model";
   if (parsed.error?.type === "tokens") return "tokens";
  } catch {}
  const remainingTokens=Number(response.headers.get("x-ratelimit-remaining-tokens")?.trim() ?? "NaN");
  if(Number.isFinite(remainingTokens)&&remainingTokens===0) return "tokens";
- const remainingRequests=Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
- if(Number.isFinite(remainingRequests)&&remainingRequests===0) return "requests";
  return "unknown";
 }
-function hardRateLimit(response: Response, body: string): boolean { const kind = rateLimitKind(response, body); return kind === "requests" || kind === "tokens"; }
+function hardRateLimit(response: Response, body: string): boolean { const kind = rateLimitKind(response, body); return kind === "requests" || kind === "tokens" || kind === "model"; }
 function tokenRateLimitWaitMs(response:Response):number|null {
  const reset=parseRateLimitResetMs(response.headers.get("x-ratelimit-reset-tokens"));
  if(reset!==null) return reset;
