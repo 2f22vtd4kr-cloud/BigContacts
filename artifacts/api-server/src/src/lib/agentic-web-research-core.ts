@@ -3187,7 +3187,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // This capability note is already bounded and reflects the current action allowlist;
   // retain it only when the actual base prompt authorizes specialist worker actions.
   const conditionalCapabilityRule = isInvestigatorPrompt
-    ? base.split(/\\n{2,}/).find((part) => part.startsWith("Conditional specialist OSINT actions:")) ?? ""
+    ? base.split(/\n{2,}/).find((part) => part.startsWith("Conditional specialist OSINT actions:")) ?? ""
     : "";
   const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
     ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: people—not companies or executive prestige—are the target; organizations are leads. Require source-backed ownership/equity/control/investment clues and never infer wealth from seniority. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor active subject/geography; source class may vary by query. No preset targets/queries. One possible path, not a required sequence: Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page."
