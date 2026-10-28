@@ -4756,33 +4756,31 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // admission rule here instead of repeating the much longer rule already present in
       // hardMinimumOutputContract, so prior action feedback has enough prompt budget.
       const absoluteMinimumDiscoveryContext = input.mode === "discovery"
-        ? "DISCOVERY PROGRESS GATE: people are targets; companies/snippets are leads. Never infer wealth from seniority. Investigator chooses tools/order; no scripted sequence. Source class may vary per query; target-stage research checks materiality, independent corroboration/falsification, and realistic public/professional reachability."
+        ? "DISCOVERY PROGRESS GATE: people are targets; companies/snippets are leads. Never infer wealth from seniority. No scripted sequence; source class may vary per query. The Investigator retains action choice. Target-stage research checks materiality, independent corroboration/falsification, and realistic public/professional reachability."
         : "";
       const absoluteMinimumObjective = [
         input.objective?.trim()
-          ? "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective, 180)
+          ? "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective, 120)
           : "CASE OBJECTIVE: source-backed public research; never invent evidence.",
-        activeScope ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 300) : "",
+        activeScope ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 160) : "",
       ].filter(Boolean).join("\\n");
       // The last-resort tier must reserve room for the latest action and fetched
       // source rather than consuming the entire provider budget with duplicated
       // policy prose. Mandatory schema, review-lead rules, and source provenance
       // remain present even when prior trajectory is large.
-      const absoluteMinimumOutputContract = "OUTPUT CONTRACT: Return one root JSON object. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive fields null/[]; non-done requires hypothesis/purpose and expectedInformationGain [0,1]. Each finding has vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. After successful web/parallel/registry search, exact organization name in the actual result title/snippet plus eligible HTTPS result URL yields only a low-confidence review-only company finding bound to that URL; mark search_result_lead, snippet-only/page not fetched, no ownership/wealth/person/contact claims. Never infer a company name from a URL. Fetched company lead requires exact name + material business/ownership/transaction fact in fetched page, with sourceUrls=[that fetched URL only]. Person lead requires one fetched claim-grade source binding exact full name + page-stated role + ownership/control/equity/investment clue. Snippets are leads, not evidence; failed/blocked fetches are unobserved. Never infer wealth from seniority. Emit source-backed leads on the action that reveals them.";
+      const absoluteMinimumOutputContract = "OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive fields null/[]; non-done requires hypothesis/purpose and numeric expectedInformationGain [0,1]. Finding fields: vectorType,value,personName,role,scope,sourceUrls,note,promotionDecision,promotionReason. Search lead: after successful web/parallel/registry search, exact organization name in actual result text + eligible HTTPS URL yields only a low-confidence review-only company finding with sourceUrls=[that URL only]; note search_result_lead, snippet-only/page not fetched/no ownership, wealth, person or contact claims; promote only to the review-only company-card queue as search-only/unverified; never infer name from hostname. Fetched company lead needs exact name + material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. DISCOVERY LEAD HANDOFF CONTRACT: a person lead requires one successfully fetched claim-grade source binding exact full name + page-stated role + ownership/control/equity/investment clue. Never infer wealth from seniority. Search snippets remain leads, not evidence; failed/blocked fetches are unobserved. Emit source-backed leads on the revealing action.";
       const absoluteMinimumPdfGuidance = "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.";
       const absoluteMinimumBaseParts = [
         finalEmergencyAssignment,
         absoluteMinimumObjective,
-        "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
-        "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
-        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers without observed documentation confirming those fields.",
+        "AVAILABLE ACTIONS: " + availableActions.join("|") + ".",
+        "VALID PROVIDERS: search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain=rdap|whoisjson.",
+        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + "; never invent an ID or treat unavailable/failed as a no-hit.",
         absoluteMinimumPdfGuidance,
-        "SCOPE/SOURCE CHOICE: match objective and jurisdiction; source class may vary per query; no registry-first sequence. Compare hypotheses by evidence value, information gain, identity discrimination and cost. URLs/snippets are leads; failed/blocked routes are not negative evidence. Investigator retains action choice.",
-        "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes; no prescribed sequence.",
+        "SCOPE/SOURCE CHOICE: match objective and jurisdiction; source class may vary per query; no registry-first sequence. Compare evidence value, information gain, identity discrimination and cost. URLs/snippets are leads; blocked/failed routes are not negative evidence. The Investigator retains action choice.",
+        "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes.",
         absoluteMinimumDiscoveryContext,
-        (latestRecord?.leadUrls?.length || carryForwardSuccessfulSearch?.leadUrls?.length) ? "LEAD FOLLOW-UP GUIDANCE (non-binding): compare in-scope unvisited lead URLs by expected information gain; search URLs/snippets remain leads until fetched. Investigator chooses the next action." : "",
-        absoluteMinimumOutputContract,
-      ].filter(Boolean);
+            ].filter(Boolean);
       const baseWithoutInventory = absoluteMinimumBaseParts.join("\\n\\n");
       const inventoryBudget = maxUserPromptChars - baseWithoutInventory.length - 2 - 800;
       const pinnedInventoryCandidate = extractPinnedDurableUrlInventory(input.durableUrlInventory);
