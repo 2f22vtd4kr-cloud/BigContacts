@@ -343,3 +343,18 @@ Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at en
 - Rechecked Vercel after the user approved the available team connection. Vercel still exposes only team `komarovychpetro-3830's projects`, with no linked Git projects, no project matching `2f22vtd4kr-cloud/BigContacts`, no Apex project, and zero deployments. Thus there is no verified Vercel deployment to launch; do not create a speculative Vercel project or claim Vercel is the canonical host.
 - The repository README identifies `main` as the canonical working/integration branch. The discovered Replit app `BigContacts` (`https://replit.com/@hadserolkijuhte/BigContacts`) reports `found=false` for publish status and was last updated 2026-07-23. It is not a verified live runtime for the current PR branch. Replit inspection request returned no response. The current PR branch is not yet shown deployed to that app.
 - Consequently, step 1 is still pending CI confirmation. Step 2 is not satisfied: the actual live canonical deployment/runtime remains unidentified. No canonical launch, single-query trace, persisted company card, evidence ID, or normal API/UI read-back exists. Do not treat a CI job, source assertion, or an unpublished Replit workspace as a real research run.
+
+## 32. CI and deployment status after Vercel access approval — 2026-10-28, 08:08 UTC
+
+- The latest tracked source commit is `9fbabefa5afe9ae7e5f8f4106412e836eb2839de`. Current checks:
+  - Apex Research Quality Contracts run `40634644694`: passed.
+  - Apex Python OSINT Worker run `40634644733`: passed.
+  - apex-discovery-static-check run `40634644731`: passed.
+  - Apex Prompt Architecture Audit run `40634644789`: passed.
+  - Apex API Build run `40634644652`: failed at “Run discovery pivot-scope regression tests.”
+  - Five Green Complete Codebase Audit run `40634644735`: failed at “Every API test file, isolated.”
+  - Five Consecutive Full Code Audits run `40634644738`: cancelled.
+- The API Build failure is not a compiler failure based on the failed-step name: build reached the discovery pivot-scope regression tests. The current branch therefore does not satisfy step 1; inspect the exact assertion failures and fix them before claiming verification.
+- After the user approved Vercel team access, rechecked the connection. It still exposes only team `team_A2ZxrJwBh2CZdhvfn12qxfk2` (`komarovychpetro-3830's projects`), with zero linked Git projects, zero matching BigContacts/Apex projects, and zero deployments. No additional Vercel team is visible, so another approval link for that same team would not address the gap.
+- Replit connector sees app `BigContacts` at `https://replit.com/@hadserolkijuhte/BigContacts`, last updated 2026-07-23; its publish status reported `found=false`. It is not evidence of a live deployment of this PR branch. Replit's app inspection request did not return a response.
+- Current blocker is explicit: identify the actual canonical deployment/team/runtime (repository README points to Replit as the previous runtime, but the discovered app is unpublished and stale), fix the two CI audit failures, then launch via the real canonical UI/API/job path. No new canonical run ID, company card ID, evidence ID, DB write, or normal API/UI read-back has been observed. Do not treat these CI checks as a live run.
