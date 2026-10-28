@@ -3214,8 +3214,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const conditionalCapabilitySection = isInvestigatorPrompt
     ? base.match(/Conditional specialist OSINT actions:[\s\S]*?(?=\n\n|$)/)?.[0] ?? ""
     : "";
-    ? base.match(/Conditional specialist OSINT actions:[\\s\\S]*?(?=\\n\\n|$)/)?.[0] ?? ""
-    : "";
+
   const conditionalCapabilityRule = conditionalCapabilitySection
     ? compactPromptSectionPreservingUrlTokens(conditionalCapabilitySection, 300, "[specialist capability detail omitted; action allowlist remains authoritative]")
     : "";
