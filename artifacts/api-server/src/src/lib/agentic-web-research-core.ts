@@ -4306,6 +4306,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory);
     if (pinnedDurableInventory) parts.push(pinnedDurableInventory);
+    if (latestRecord && carryForwardSuccessfulSearch && carryForwardSuccessfulSearch !== latestRecord) {
+      const carriedLeadUrls = compactRecordEnvelope(carryForwardSuccessfulSearch, 0, leadUrlCount).leadUrls;
+      parts.push("LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn + "; CARRIED SEARCH LEAD URLS: " + JSON.stringify(carriedLeadUrls));
+    }
     return parts.join("\n\n");
   };
   const buildShortestEmergencyRecordTail = (): string => {
@@ -4362,7 +4366,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     if (carryForwardSuccessfulSearch) {
       const compactSearch = compactRecordEnvelope(carryForwardSuccessfulSearch, 0, 2);
-      parts.push("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — LATEST TRAJECTORY RECORD — TURN " + carryForwardSuccessfulSearch.turn + " (advisory, not evidence or a mandated next action):\n"
+      parts.push("LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN " + carryForwardSuccessfulSearch.turn + " (advisory, not evidence or a mandated next action):\n"
         + JSON.stringify({
           turn: compactSearch.turn,
           action: compactSearch.action,
@@ -4376,7 +4380,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory);
     if (pinnedDurableInventory) parts.push(pinnedDurableInventory);
-    if (latestRecord) parts.push("LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn);
+    if (latestRecord && carryForwardSuccessfulSearch && carryForwardSuccessfulSearch !== latestRecord) {
+      const carriedLeadUrls = compactRecordEnvelope(carryForwardSuccessfulSearch, 0, leadUrlCount).leadUrls;
+      parts.push("LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn + "; CARRIED SEARCH LEAD URLS: " + JSON.stringify(carriedLeadUrls));
+    } else if (latestRecord) {
+      parts.push("LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn);
+    }
     return parts.join("\n\n");
   };
   const latestRecordTail = buildLatestRecordTail(220, 3);
@@ -4761,7 +4770,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // admission rule here instead of repeating the much longer rule already present in
       // hardMinimumOutputContract, so prior action feedback has enough prompt budget.
       const absoluteMinimumDiscoveryContext = input.mode === "discovery"
-        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are targets; organizations are leads. Require an ownership/equity/control/investment clue; never infer wealth from seniority. Source class need not appear in every discovery query; no registry-first sequence. The Investigator retains action choice; not a prescribed action sequence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
+        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are targets; organizations are leads. Require an ownership/equity/control/investment clue. Do not infer wealth from seniority alone. Source class need not appear in every discovery query; no registry-first sequence. The Investigator retains action choice; not a prescribed action sequence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
         : "";
       const absoluteMinimumObjective = [
         input.objective?.trim()
