@@ -48,7 +48,7 @@ TAVILY_API_KEY
 ZENROWS_API_KEY
 ```
 
-Additional numbered Groq Boss, Right-hand, and Investigator credential slots are optional runtime capabilities. Investigator slots are independently selectable; for example `groq-investigator-1` maps to `GROQ_INVESTIGATOR_API_KEY`, `groq-investigator-2` maps to `GROQ_INVESTIGATOR_API_KEY_1`, through `groq-investigator-6` mapping to `GROQ_INVESTIGATOR_API_KEY_5`.
+Additional numbered Groq Boss, Right-hand, and Investigator credential slots are optional runtime capabilities. The Investigator registry exposes eight credential slots: `groq-investigator-1` maps to `GROQ_INVESTIGATOR_API_KEY`, `groq-investigator-2` maps to `GROQ_INVESTIGATOR_API_KEY_1`, continuing sequentially through `groq-investigator-8` → `GROQ_INVESTIGATOR_API_KEY_7`. The separate `groq-investigator-20b` capability is model-scoped GPT-OSS 20B recovery using the base Investigator credential, not a ninth credential slot.
 
 Never silently rotate an explicitly selected Investigator capability to another credential.
 
