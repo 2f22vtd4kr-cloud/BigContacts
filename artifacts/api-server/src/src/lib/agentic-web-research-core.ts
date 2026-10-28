@@ -4278,7 +4278,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ];
     if (carryForwardSuccessfulSearch) {
       parts.push(
-        "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — LATEST TRAJECTORY RECORD — TURN " + carryForwardSuccessfulSearch.turn + " (advisory, not evidence or a mandated next action):\n"
+        "LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN " + carryForwardSuccessfulSearch.turn + " (advisory, not evidence or a mandated next action):\n"
         + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, observationChars, leadUrlCount)),
       );
     }
@@ -4376,6 +4376,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory);
     if (pinnedDurableInventory) parts.push(pinnedDurableInventory);
+    if (latestRecord) parts.push("LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn);
     return parts.join("\n\n");
   };
   const latestRecordTail = buildLatestRecordTail(220, 3);
@@ -4810,7 +4811,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const carriedSuccessfulSearchSummary = carryForwardSuccessfulSearch && carryForwardSuccessfulSearch !== latestRecord
         ? "LATEST TRAJECTORY RECORD — TURN " + carryForwardSuccessfulSearch.turn + " (last successful search; carried lead URLs): " + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, 60, 2))
         : "";
-      const emergencyTrajectoryRecordSummary = [latestTrajectoryRecordSummary, carriedSuccessfulSearchSummary].filter(Boolean).join("\\n\\n");
+      const emergencyTrajectoryRecordSummary = [carriedSuccessfulSearchSummary, latestTrajectoryRecordSummary].filter(Boolean).join("\\n\\n");
       // The absolute-minimum prompt used to preserve only the newest action.
       // When that action was a search, this silently dropped an earlier fetched
       // page containing the exact span needed for a grounded partial finding.
