@@ -3091,6 +3091,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
     "Never use placeholders such as CompanyName, companywebsite.com, or example.com.",
     "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
+    "Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence.",
   ];
   const fallbackProtectedRules = isInvestigatorPrompt ? fallbackRuleCandidates : [];
   const protectedTail = [...fallbackProtectedRules, compactCaseObjective, leadGuidance, urlInventory, fetchedSourceLabel, fetchedSourceExcerpt, observationTail, header, markerSuffix, ...durableRecordSummaries].filter(Boolean).join("\n\n");
