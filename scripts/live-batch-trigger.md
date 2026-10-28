@@ -1,8 +1,8 @@
-# Live Bureau batch trigger
+# Live Bureau batch trigger — historical record
 
-Touch this file to intentionally launch the provider-backed Bureau proof audit on `main`.
+This file preserves the historical acceptance contract for provider-backed canonical proof runs. The workflow `.github/workflows/apex-canonical-runtime-proof.yml` is now **manual-dispatch only**: changing or merging this file must not start a real provider-backed investigation or consume Groq/search quota implicitly.
 
-This narrow path exists for the connected engineering harness because the repository's normal workflow remains manually dispatchable. It is not a product runtime trigger.
+The operator controls the next canonical run in Replit. The isolated GitHub Actions proof remains available only when deliberately dispatched, and is not a substitute for verifying the user's Replit database, job state, or UI.
 
 Current proof regime: bounded 3-target discovery-first exploration, with minimum acceptance of one real source-backed review card (company/business or person) visible in both API projections. Person-target promotion remains a separate, stricter gate; a company card never implies person-level qualification. The audit must prove model-owned discovery, explicit provenance, HTTPS source-backed admission, free-ReAct target research, honest contact provenance, and the absence of deterministic target-promotion shortcuts.
 
@@ -141,3 +141,8 @@ This intentional touch must launch one real canonical discovery case from the UI
 The code now preserves exact business-like titles and their exact HTTPS result URLs as low-confidence, review-only company leads immediately after a successful web search, without deriving names from hostnames and without deterministic person/wealth claims or model promotion decisions. Boss credential fallback is capped to three distinct credentials per control turn; Right-hand fallback deduplicates credentials and is bounded; all seven Investigator slots are wired. The model request audit is written under the visible `audits/` directory with contact data excluded from that raw prompt capture.
 
 Do not seed any target, finding, evidence, entity, or card. Acceptance requires the actual job to terminalize, the same real `Corporation` or valid `PersonCandidate` review card to appear in `/api/dashboard/research-leads` and `/api/entities`, an HTTPS source URL, and proof that the canonical active Atlas lock was released. Upload/retain the run ID, launch/job/trace payloads, model request audit, entity projection, dashboard projection, health and server log even on failure. Append the exact job/card/evidence IDs and source URLs to `audits/apex-atlas-first-card-sequential-audit-2026-10-27.md`. A green workflow without a matching persisted card is a failure.
+
+
+## Runtime trigger safety — 2026-10-28
+
+Automatic push-on-touch was removed because a normal code merge must not launch a second, isolated provider-backed investigation behind the operator's back. Keep the workflow manually dispatchable for an explicitly authorized proof run. The upcoming acceptance run is the user's Replit run, and its result must be evaluated from the actual Replit job, database, and API/UI evidence.
