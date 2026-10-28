@@ -2933,7 +2933,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
   }
   if (/pivot_alignment_guard/i.test(normalized)) {
     const mismatch = normalized.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
-    const activePivot = normalized.match(/active Boss-accepted pivot is:\s*([^\n.]+)/i)?.[1]?.trim();
+    const activePivot = normalized.match(/active Boss-accepted pivot is:\s*((?:(?:e\.g\.|i\.e\.)|[^.\n])*)/i)?.[1]?.trim();
     const activeScope = activePivot ? ` Active Boss-approved scope: ${activePivot.slice(0, 260)}.` : "";
     if (mismatch) {
       const geographyGuidance = /\bquery geography\b/i.test(mismatch)
