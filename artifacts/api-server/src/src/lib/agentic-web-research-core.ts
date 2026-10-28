@@ -4784,6 +4784,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ].filter(Boolean);
       const baseWithoutInventory = absoluteMinimumBaseParts.join("\\n\\n");
       const inventoryBudget = maxUserPromptChars - baseWithoutInventory.length - 2 - 800;
+      const pinnedInventoryCandidate = extractPinnedDurableUrlInventory(input.durableUrlInventory);
       const pinnedDurableInventoryForAbsoluteMinimum = pinnedInventoryCandidate && pinnedInventoryCandidate.length <= inventoryBudget
         ? pinnedInventoryCandidate
         : "";
