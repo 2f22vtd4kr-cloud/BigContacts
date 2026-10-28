@@ -1010,6 +1010,86 @@ export default function ApexProfile() {
         );
       })()}
 
+      {/* ── Discovery evidence hierarchy for incremental review cards ─────── */}
+      {(() => {
+        const e = entity as any;
+        let meta: Record<string, any> = {};
+        try {
+          const parsed = JSON.parse(e.metadata ?? "{}");
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) meta = parsed;
+        } catch {}
+        const partialCompany = meta.partialOrganizationLead === true;
+        const partialPerson = meta.partialPersonLead === true || meta.roleOnlyLead === true;
+        if (!partialCompany && !partialPerson) return null;
+        const tier = String(meta.verificationLevel ?? "unknown");
+        const fetched = tier === "fetched_source";
+        const sources = [
+          ...(Array.isArray(meta.sourceUrls) ? meta.sourceUrls : []),
+          ...(typeof meta.sourceUrl === "string" ? [meta.sourceUrl] : []),
+        ].filter((url: unknown, index: number, all: unknown[]): url is string =>
+          typeof url === "string" && /^https?:\/\//i.test(url) && all.indexOf(url) === index,
+        ).slice(0, 8);
+        const notes = Array.isArray(meta.sourceNotes)
+          ? meta.sourceNotes.filter((note: unknown): note is string => typeof note === "string" && note.trim()).slice(0, 4)
+          : [];
+        const limitations = Array.isArray(meta.limitations)
+          ? meta.limitations.filter((item: unknown): item is string => typeof item === "string" && item.trim()).slice(0, 6)
+          : [];
+        return (
+          <section className="flex-shrink-0 border-b border-border px-4 md:px-6 py-4 bg-card/35" data-testid="discovery-evidence-hierarchy">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-[12px] font-mono font-bold uppercase tracking-widest text-primary">Discovery evidence</span>
+                  <span className={cn(
+                    "rounded border px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider",
+                    fetched ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-amber-400/30 bg-amber-400/10 text-amber-300",
+                  )}>
+                    {fetched ? "Fetched public source" : "Search-result lead"}
+                  </span>
+                </div>
+                <p className="text-[12px] text-muted-foreground mt-1.5 leading-relaxed">
+                  {partialCompany ? "Company lead · name observed; ownership, investment relevance and targetable principals are not yet established." : "Person / role lead · identity and role require further corroboration; this is not an HNWI determination."}
+                </p>
+              </div>
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0">
+                {fetched ? "Higher evidence tier" : "Unverified lead"}
+              </span>
+            </div>
+            {typeof meta.role === "string" && meta.role.trim() && (
+              <div className="mb-2 rounded border border-border/60 bg-background/40 px-3 py-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Observed role</span>
+                <p className="text-xs text-foreground mt-1">{meta.role}</p>
+              </div>
+            )}
+            {notes.length > 0 && (
+              <div className="space-y-1.5 mb-3">
+                {notes.map((note: string, index: number) => (
+                  <p key={index} className="text-xs leading-relaxed text-foreground/80 rounded border border-border/50 bg-background/30 px-3 py-2">{note}</p>
+                ))}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Source trail</span>
+              {sources.length > 0 ? sources.map((url: string) => (
+                <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex max-w-full items-center gap-1 rounded border border-primary/20 bg-primary/5 px-2 py-1 text-[11px] font-mono text-primary hover:underline">
+                  <Globe className="w-3 h-3 shrink-0" /><span className="truncate max-w-[260px]">{(() => { try { return new URL(url).hostname; } catch { return url; } })()}</span>↗
+                </a>
+              )) : <span className="text-[11px] text-muted-foreground">No source URL persisted</span>}
+            </div>
+            {limitations.length > 0 && (
+              <div className="rounded border border-amber-400/20 bg-amber-400/[0.04] px-3 py-2">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-amber-300/80 mb-1">Not yet established</div>
+                <ul className="list-disc pl-4 space-y-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                  {limitations.map((item: string, index: number) => <li key={index}>{item}</li>)}
+                </ul>
+              </div>
+            )}
+          </section>
+        );
+      })()}
+
       {/* ── Direct Contact Vectors (8-vector panel — H5) ───────────────────── */}
       {(() => {
         const e = entity as any;
