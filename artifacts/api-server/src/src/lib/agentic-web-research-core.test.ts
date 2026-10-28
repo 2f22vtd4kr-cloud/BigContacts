@@ -3326,7 +3326,7 @@ describe("discovery pivot evidence provenance", () => {
       args: { url: "https://example.org/texas-family-business-directory" },
       pivotScopeKey: scopeKey,
       execution: "success",
-      observation: "Texas directory page describes family-owned manufacturing firms and their public business registrations.",
+      observation: "Texas directory page describes Example Fabrication as a family-owned manufacturing firm and lists its public registration.",
       observedUrls: ["https://example.org/texas-family-business-directory"],
       findings: [],
     } as any;
