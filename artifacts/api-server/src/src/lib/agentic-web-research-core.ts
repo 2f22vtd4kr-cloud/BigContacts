@@ -2987,8 +2987,22 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? Math.min(1_000, remaining - header.length)
     : 0;
   if (observationBudget < 40) return base;
-  const compacted = compactEmergencyTrajectoryObservation(observation, observationBudget);
-  const combined = base + "\n\n" + header + compacted;
+  // Keep our generated trajectory labels and the exact last-search URL inventory
+  // outside the lossy observation compactor. Source text is untrusted; the last
+  // matching marker is the explicit durable marker appended after record summaries.
+  const latestSearchMarker = [...observation.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+:\s*\[[^\n]*\]/g)]
+    .map((match) => match[0])
+    .at(-1) ?? "";
+  const latestTrajectoryMarker = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN \d+/g)]
+    .map((match) => match[0])
+    .at(-1) ?? "";
+  const markers = [latestSearchMarker, latestTrajectoryMarker].filter(Boolean);
+  const markerSuffix = markers.join("\n\n");
+  const contentBudget = Math.max(40, observationBudget - markerSuffix.length - 2);
+  const compacted = compactEmergencyTrajectoryObservation(observation, contentBudget);
+  const missingMarkers = markers.filter((marker) => !compacted.includes(marker));
+  const compactedWithMarkers = [compacted, ...missingMarkers].filter(Boolean).join("\n\n");
+  const combined = base + "\n\n" + header + compactedWithMarkers;
   return combined.length <= limit ? combined : base;
 }
 
