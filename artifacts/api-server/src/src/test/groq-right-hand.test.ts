@@ -429,7 +429,8 @@ describe("Groq Right-hand model policy", () => {
           headers: {
             "content-type": "application/json",
             "x-ratelimit-limit-requests": "1000",
-            "x-ratelimit-remaining-requests": "0",
+            // The model is throttled; the credential-wide request pool is not exhausted.
+            "x-ratelimit-remaining-requests": "998",
           },
         });
       }
