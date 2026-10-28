@@ -303,3 +303,9 @@ Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at en
 - Changed the source envelope to take its beginning and last 220 characters directly from the raw durable observation, with URL-safe compaction on the tail only. The latest emergency trajectory now includes both the current action and a compact carried-successful-search record, and the builder appends the last explicit trajectory-turn marker at the tail. Added the targetability marker to the remaining compact discovery tier. This preserves the actual source fact, successful-search URL(s), and blocked-action feedback without promoting snippets into verified claims.
 - Source commit: d4e44d6b0e72d6c5e7de3b87b589f06e1c1ffb77. Regression assertion commit: 3cb3f49b7b0600ff42f447cdd84f37ba20a6f10e. Fresh CI is pending; do not proceed until these exact assertions pass.
 - Runtime remains blocked by missing persistent Replit deployment access; no card/evidence IDs or normal persistent API read-back exist.
+
+## 27. Corrected the last remaining targetability marker location — 2026-10-28, 05:18 UTC
+
+- The 3cb3f49 run had not yet been verified green; the preceding 4ffe3e7 run's exact diff showed the absolute-minimum fallback still used the old “DISCOVERY PROGRESS GATE” label even though the shorter intermediate tier had the new targetability label. Added “DISCOVERY TARGETABILITY GATE” to the actual absolute-minimum context as well.
+- Source commit: 513a686f4765530aea174eadac743f78014fd46e. The next run must verify the raw source-tail excerpt preserves FACT_AT_END_SENTINEL and the carried successful search record preserves its turn-17 label and lead URL, in addition to the targetability marker.
+- No live deployment or persistent card/evidence read-back has been produced.
