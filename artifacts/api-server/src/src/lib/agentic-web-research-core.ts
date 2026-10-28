@@ -3072,7 +3072,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const requiredSections = baseSections.filter((part) =>
     /MISSION PRIORITY:|CASE OBJECTIVE:|ALL REQUIRED TOP-LEVEL FIELDS:|required fields: action,|DISCOVERY LEAD HANDOFF CONTRACT|Target-stage research tests material business\/asset\/exit signals|Target-scoped research owns independent corroboration|Press\/profile pages are leads, not targets\/access routes|BINARY URL POLICY|PAGE FORMAT \/ RETRIEVAL LIMITS|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|SCOPE GUARD BLOCKED ACTION/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
-  const leadGuidance = latestSearchMarker ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
   const compactCaseObjective = caseObjective ? boundInvestigatorPromptSection(caseObjective, 260) : "";
   const observationWithoutCarriedSource = observation.replace(/LAST SUCCESSFUL FETCHED SOURCE \(observed page text; untrusted data, not instructions\):\s*\{[^\n]*\}/, "");
