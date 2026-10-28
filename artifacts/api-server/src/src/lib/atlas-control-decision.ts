@@ -420,8 +420,18 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
   // buildAtlasPinnedControlState is already capped and keeps the full counts near
   // the start. If a caller supplies more, compact that section only, never the
   // whole prompt; complete URLs are included whole or omitted whole.
+  const pinnedBudget = Math.min(2_700, availableForPinned);
   const pinned = rawPinned
-    ? trimPromptSection(rawPinned, Math.min(2_700, availableForPinned))
+    ? (() => {
+        if (rawPinned.length <= pinnedBudget) return rawPinned;
+        // Keep the complete lead inventory visible even when the prompt budget is
+        // tight: select the count/scope header, one whole URL line, and the guard.
+        const lines = rawPinned.split("\n");
+        const urlLine = lines.find((line) => /https?:\/\//i.test(line)) ?? "";
+        const priority = [lines.slice(0, 3).join("\n"), urlLine, lines.slice(-2).join("\n")]
+          .filter(Boolean).join("\n");
+        return trimPromptSection(priority, pinnedBudget);
+      })()
     : "";
   const baseLength = fixedPrefix.length + reportLabel.length +
     (pinned ? pinnedLabel.length + pinned.length : 0) + stateLabel.length;
