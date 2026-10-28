@@ -63,7 +63,7 @@ describe("terminal review-card reconciliation", () => {
     // Regression: the checkpoint previously read only observedUrls and only
     // accepted fetched pages, so a model-grounded company name in a successful
     // search result could not create a review card before the next control turn.
-    expect(canonical).toContain('if (payload.jobId !== input.atlasJobId || payload.execution !== "success") return [];');
+    expect(canonical).toContain('if (payload.jobId !== input.atlasJobId) return [];');
     expect(canonical).toContain('const searched = action === "web_search" || action === "parallel_web_search"');
     expect(canonical).toContain('searched && Array.isArray(payload.leadUrls) && payload.leadUrls.length');
     expect(canonical).toContain('execution: payload.execution ?? ""');
