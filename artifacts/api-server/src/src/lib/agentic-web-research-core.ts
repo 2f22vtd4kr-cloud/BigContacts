@@ -3088,7 +3088,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     const url = completePromptUrl(candidate);
     if (!url || seenInventoryUrls.has(url)) continue;
     seenInventoryUrls.add(url);
-    if (exactInventoryUrls.length >= 2 || url.length > 760 - inventoryUrlChars) {
+    // Prompt sampling is bounded separately from the immutable ledger. Keep
+    // complete URLs only, prioritizing canonical pinned values and then recent
+    // trajectory URLs; omitted values remain recoverable from durable events.
+    if (exactInventoryUrls.length >= 2 || url.length > 420 - inventoryUrlChars) {
       omittedInventoryUrlCount += 1;
       continue;
     }
@@ -3201,12 +3204,15 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? `MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice. No fixed action sequence; the Investigator chooses actions. OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Return exactly one root JSON object, no prose. Inactive fields are null/[]; example: {"url":null,"searches":[],"findings":[]}. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain numeric [0,1]. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
-    ? "EVIDENCE: Search snippets are leads, not evidence; result URLs remain leads until fetched. Failed/blocked retrievals are unobserved. Bind fetched claims to the exact fetched URL. Search-only organizations are review-only leads, not proof of ownership, wealth, person identity or contact. A person/HNWI requires exact name, page-stated role and ownership/control/equity/investment clue co-bound in one fetched claim-grade source; never infer wealth from seniority. After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures. BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented; failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
+    ? "EVIDENCE: search snippets are leads, not evidence; result URLs remain leads until fetched. Failed/blocked retrievals are unobserved. Bind fetched claims to their exact fetched URL. Search-only organizations are review-only leads, not proof of ownership, wealth, identity or contact. Person/HNWI requires exact name, page-stated role and ownership/control/equity/investment clue co-bound in one fetched claim-grade source; never infer wealth from seniority. After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable). BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
     : "";
   // This capability note is already bounded and reflects the current action allowlist;
   // retain it only when the actual base prompt authorizes specialist worker actions.
   const conditionalCapabilityRule = isInvestigatorPrompt
-    ? base.split(/\n{2,}/).find((part) => part.startsWith("Conditional specialist OSINT actions:")) ?? ""
+    ? boundInvestigatorPromptSection(
+        base.split(/\n{2,}/).find((part) => part.startsWith("Conditional specialist OSINT actions:")) ?? "",
+        300,
+      )
     : "";
   const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
     ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: people—not companies or executive prestige—are the target; organizations are leads. Require source-backed ownership/equity/control/investment clues and never infer wealth from seniority. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor active subject/geography; source class may vary by query. No preset targets/queries. One possible path, not a required sequence: Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page."
@@ -3231,19 +3237,19 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // latest observation/correction, and the newest durable record are protected;
   // optional narration is included only when it fits the remaining provider budget.
   const minimumScopeContext = activeScopeContext
-    ? boundInvestigatorPromptSection(activeScopeContext, 300)
+    ? boundInvestigatorPromptSection(activeScopeContext, 260)
     : "";
   const minimumFetchedSourceExcerpt = fetchedSourceExcerpt
-    ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 180)
+    ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 140)
     : "";
   const minimumDurableRecordSummaries = durableRecordSummaries
     .slice(-1)
-    .map((summary) => boundInvestigatorPromptSection(summary, 280));
+    .map((summary) => boundInvestigatorPromptSection(summary, 220));
   const minimumAvailableActionsSection = availableActionsSection
-    ? boundInvestigatorPromptSection(availableActionsSection, 360)
+    ? boundInvestigatorPromptSection(availableActionsSection, 300)
     : "";
   const minimumObservationTail = observationTail
-    ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 180)
+    ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 160)
     : "";
   const scopeRecoveryRule = isInvestigatorPrompt
     ? "SCOPE GUARD BLOCKED ACTION: revise the failed topic/geography/source-class dimension; no outbound request means no observed evidence. Match active subject and geography, choose a jurisdiction-matching registry adapter, fetch only an observed URL, and request new scope when needed. The Investigator chooses the next action."
