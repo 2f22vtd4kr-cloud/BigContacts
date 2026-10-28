@@ -2991,10 +2991,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   if (observationBudget < 40 && !hasDurableObservation) return base;
   // Keep the latest action's exact source URLs and the critical research contract
   // outside the lossy observation compactor, even when the normal prompt fits.
-  const latestSearchMarker = [...observation.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+:[^\n]*/g)]
+  const latestSearchMarker = [...observation.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+/g)]
     .map((match) => match[0])
     .at(-1) ?? "";
-  const latestTrajectoryMarker = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN \d+:[^\n]*/g)]
+  const latestTrajectoryMarker = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN \d+/g)]
     .map((match) => match[0])
     .at(-1) ?? "";
   const markers = [latestSearchMarker, latestTrajectoryMarker].filter(Boolean);
