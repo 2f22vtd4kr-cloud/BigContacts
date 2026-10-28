@@ -3179,12 +3179,20 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice. No fixed action sequence; the Investigator chooses actions. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. Required top-level fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive fields are null/[]; example: {"url":null,"searches":[],"findings":[]}. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain numeric [0,1]. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
+    ? `MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice. No fixed action sequence; the Investigator chooses actions. OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Return exactly one root JSON object, no prose. Inactive fields are null/[]; example: {"url":null,"searches":[],"findings":[]}. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain numeric [0,1]. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
-    ? "EVIDENCE: search-result URLs/snippets are leads, not observed facts. Failed/blocked retrievals are unobserved. Fetched claims must be bound to the exact fetched URL. Search-only organizations remain review-only leads; they do not prove ownership, wealth, person identity or contact. Person/HNWI claims require exact name, page-stated role and ownership/control/equity/investment clue co-bound in one fetched claim-grade source; never infer wealth from seniority. PDF/text-bearing binary sources use visit; browser_fetch is HTML-oriented; do not retry the same binary URL through another fetch action."
+    ? "EVIDENCE: search-result URLs/snippets are leads, not observed facts. Failed/blocked retrievals are unobserved. Fetched claims must be bound to the exact fetched URL. Search-only organizations remain review-only leads; they do not prove ownership, wealth, person identity or contact. Person/HNWI claims require exact name, page-stated role and ownership/control/equity/investment clue co-bound in one fetched claim-grade source; never infer wealth from seniority. After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures. BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
     : "";
-  const protectedTail = [fallbackOutputContract, fallbackEvidenceContract, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
+  // This capability note is already bounded and reflects the current action allowlist;
+  // retain it only when the actual base prompt authorizes specialist worker actions.
+  const conditionalCapabilityRule = isInvestigatorPrompt
+    ? base.split(/\\n{2,}/).find((part) => part.startsWith("Conditional specialist OSINT actions:")) ?? ""
+    : "";
+  const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
+    ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: people—not companies or executive prestige—are the target; organizations are leads. Require source-backed ownership/equity/control/investment clues and never infer wealth from seniority. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor active subject/geography; source class may vary by query. No preset targets/queries. One possible path, not a required sequence: Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page."
+    : "";
+  const protectedTail = [fallbackOutputContract, fallbackEvidenceContract, conditionalCapabilityRule, compactFallbackDiscoveryRule, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
     ? contractText
@@ -3208,6 +3216,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const minimumTail = [
     fallbackOutputContract,
     fallbackEvidenceContract,
+    conditionalCapabilityRule,
+    compactFallbackDiscoveryRule,
     minimumProviderRule,
     terminalEvidenceRule,
     minimumPdfRetrievalRule,
