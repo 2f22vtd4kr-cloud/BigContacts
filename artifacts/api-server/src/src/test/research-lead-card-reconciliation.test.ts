@@ -28,6 +28,21 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain("ownership, control, wealth, and targetability remain unestablished");
     expect(reconciler).toContain("const sourceLeadName = pageIdentity?.name ?? null;");
     expect(reconciler).not.toContain("organizationLabelFromUrl(url)");
+
+    const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
+    const checkpoint = canonical.slice(
+      canonical.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+      canonical.indexOf("export async function reconcileCanonicalDiscoveryCaseReviewCards"),
+    );
+    const organizationMaterializer = canonical.slice(
+      canonical.indexOf("async function materializePartialOrganizationLeadCards"),
+      canonical.indexOf("export async function runCanonicalAtlasPipeline"),
+    );
+    expect(checkpoint).not.toContain("if (input.findings.length === 0) return empty;");
+    expect(organizationMaterializer).toContain("Registry adapters may return typed Corporation leads even when the model");
+    expect(organizationMaterializer).toContain("payload.args?.registrySearchOutcomes");
+    expect(organizationMaterializer).toContain("companyLeads");
+    expect(organizationMaterializer).toContain("if (!leadNames.length) return { materialized: 0, evidenceRows: 0 };");
   });
   it("requires a real company or person card even if a later control turn fails", () => {
     expect(runtimeProofWorkflow).toContain('"failed"');
