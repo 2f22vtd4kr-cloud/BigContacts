@@ -105,7 +105,7 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("do not infer intimate relationships from surnames or clues");
     expect(orientation).toContain("Never use medical/clinic records, private intimate details");
     expect(orientation).toContain("private personal numbers from those contexts");
-    expect(orientation).toContain("do not infer intimate relationships or use medical, clinic, spa, or casino records");
+    expect(orientation).toContain("Never infer intimacy or use health/clinic/spa/casino data as contact routes.");
   });
 
   it("persists only exact organization findings from successful search observations as review leads", () => {
