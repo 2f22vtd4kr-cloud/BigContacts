@@ -3076,9 +3076,28 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const pinnedInventoryUrls = [...pinnedInventorySection.matchAll(/https?:\/\/[^\s"'<>]+/g)]
     .map((match) => match[0].replace(/[),.;]+$/, ""))
     .filter((url, index, all) => all.indexOf(url) === index);
-  const exactInventoryUrls = [...new Set([...durableUrls, ...pinnedInventoryUrls])].slice(-6);
+  // Keep this independent recovery inventory atomic and bounded like the
+  // durable-ledger projection: exact URLs only, never URL prefixes. Prefer the
+  // separately supplied immutable inventory, then the newest action URLs.
+  const inventoryUrlCandidates = [...pinnedInventoryUrls, ...durableUrls];
+  const exactInventoryUrls: string[] = [];
+  const seenInventoryUrls = new Set<string>();
+  let inventoryUrlChars = 0;
+  let omittedInventoryUrlCount = 0;
+  for (const candidate of inventoryUrlCandidates) {
+    const url = completePromptUrl(candidate);
+    if (!url || seenInventoryUrls.has(url)) continue;
+    seenInventoryUrls.add(url);
+    if (exactInventoryUrls.length >= 2 || url.length > 760 - inventoryUrlChars) {
+      omittedInventoryUrlCount += 1;
+      continue;
+    }
+    exactInventoryUrls.push(url);
+    inventoryUrlChars += url.length;
+  }
   const urlInventory = exactInventoryUrls.length
     ? "EXACT DURABLE URL INVENTORY (leads, not evidence; URLs copied verbatim): " + JSON.stringify(exactInventoryUrls)
+      + (omittedInventoryUrlCount ? " " + omittedInventoryUrlCount + " additional URL(s) omitted whole; immutable case-event ledger remains authoritative." : "")
     : "";
   const isInvestigatorPrompt = /APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base);
   const protectedRuleCandidates = [
@@ -3212,14 +3231,20 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // latest observation/correction, and the newest durable record are protected;
   // optional narration is included only when it fits the remaining provider budget.
   const minimumScopeContext = activeScopeContext
-    ? boundInvestigatorPromptSection(activeScopeContext, 360)
+    ? boundInvestigatorPromptSection(activeScopeContext, 300)
     : "";
   const minimumFetchedSourceExcerpt = fetchedSourceExcerpt
-    ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 240)
+    ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 180)
     : "";
   const minimumDurableRecordSummaries = durableRecordSummaries
     .slice(-1)
-    .map((summary) => boundInvestigatorPromptSection(summary, 360));
+    .map((summary) => boundInvestigatorPromptSection(summary, 280));
+  const minimumAvailableActionsSection = availableActionsSection
+    ? boundInvestigatorPromptSection(availableActionsSection, 360)
+    : "";
+  const minimumObservationTail = observationTail
+    ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 180)
+    : "";
   const scopeRecoveryRule = isInvestigatorPrompt
     ? "SCOPE GUARD BLOCKED ACTION: revise the failed topic/geography/source-class dimension; no outbound request means no observed evidence. Match active subject and geography, choose a jurisdiction-matching registry adapter, fetch only an observed URL, and request new scope when needed. The Investigator chooses the next action."
     : "";
@@ -3231,9 +3256,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     terminalEvidenceRule,
     scopeRecoveryRule,
     urlInventory,
-    observationTail,
+    minimumObservationTail,
     minimumScopeContext,
-    availableActionsSection,
+    minimumAvailableActionsSection,
     fetchedSourceLabel,
     minimumFetchedSourceExcerpt,
     header,
@@ -3241,11 +3266,20 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ...minimumDurableRecordSummaries,
   ].filter(Boolean);
   const joinPromptParts = (parts: string[]) => parts.filter(Boolean).join("\n\n");
-  const mandatoryMinimumTail = joinPromptParts(mandatoryMinimumParts);
+  let mandatoryMinimumTail = joinPromptParts(mandatoryMinimumParts);
   if (mandatoryMinimumTail.length > limit) {
-    throw new RangeError(
-      `Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=${limit}; mandatory schema, URLs, scope and latest evidence cannot fit without truncation.`,
+    // Drop only redundant record/marker copies before failing. The compact
+    // observation tail already carries the latest correction/guard explanation;
+    // the single latest record summary carries durable action metadata.
+    const compactMandatoryParts = mandatoryMinimumParts.filter((part) =>
+      part !== markerSuffix && !minimumDurableRecordSummaries.includes(part),
     );
+    mandatoryMinimumTail = joinPromptParts(compactMandatoryParts);
+    if (mandatoryMinimumTail.length > limit) {
+      throw new RangeError(
+        `Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=${limit}; mandatory schema, URLs, scope and latest evidence cannot fit without truncation.`,
+      );
+    }
   }
   const optionalMinimumParts = [
     compactFallbackDiscoveryRule,
@@ -3264,7 +3298,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   }
   const minimumBaseBudget = Math.max(0, limit - minimumTail.length - 2);
   const minimumBase = boundInvestigatorPromptSection(contractText, minimumBaseBudget);
-  const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\\n\\n");
+  const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\n\n");
   if (lastResort.length <= limit) return lastResort;
   // A too-small provider ceiling is not permission to emit a syntactically bounded
   // but semantically broken prompt. Fail explicitly rather than slicing mandatory
