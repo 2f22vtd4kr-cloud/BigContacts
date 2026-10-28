@@ -53,7 +53,7 @@ describe("Investigator credential quota identity", () => {
     ]);
   });
 
-  it("discovers all seven configured Investigator credential slots", () => {
+  it("discovers the base credential plus all seven suffixed Investigator slots", () => {
     const expanded = {
       GROQ_INVESTIGATOR_API_KEY: "credential-0",
       GROQ_INVESTIGATOR_API_KEY_1: "credential-1",
@@ -67,7 +67,7 @@ describe("Investigator credential quota identity", () => {
     expect(getAvailableInvestigatorCapabilities(expanded)).toEqual([
       "groq-investigator-1", "groq-investigator-2", "groq-investigator-3",
       "groq-investigator-4", "groq-investigator-5", "groq-investigator-6",
-      "groq-investigator-7", "groq-investigator-20b",
+      "groq-investigator-7", "groq-investigator-8", "groq-investigator-20b",
     ]);
   });
 
