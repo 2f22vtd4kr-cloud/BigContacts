@@ -3301,7 +3301,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? boundInvestigatorPromptSection(availableActionsSection, 180)
     : "";
   const minimumDiscoveryContract = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: model chooses targets/tools; no preset or registry-first sequence. Preserve relevant company and person leads incrementally with source/provenance and review status. Do not infer HNWI/ownership from seniority. Honor Boss scope; vary source classes by expected information gain. Publishers are evidence, not targets; reject placeholders."
+    ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are the target; organizations are leads. The model chooses targets/tools; no preset or registry-first sequence. Preserve relevant company and person leads incrementally with source/provenance and review status. Do not infer HNWI/ownership from seniority. Honor Boss scope; vary source classes by expected information gain. Publishers are evidence, not targets; reject placeholders."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 120)
