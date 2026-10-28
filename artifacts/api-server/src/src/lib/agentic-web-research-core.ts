@@ -5009,7 +5009,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         (latestRecord?.leadUrls?.length || carryForwardSuccessfulSearch?.leadUrls?.length) ? "LEAD FOLLOW-UP GUIDANCE (non-binding): compare in-scope unvisited lead URLs by expected information gain; URLs/snippets remain leads until fetched. The Investigator retains action choice; this is not evidence or a mandated next action." : "",
         absoluteMinimumOutputContract,
       ].filter(Boolean);
-      const baseWithoutInventory = absoluteMinimumBaseParts.join("\n\n");
       const pinnedInventoryCandidate = extractPinnedDurableUrlInventory(input.durableUrlInventory);
       // Reserve the immutable-event URL inventory explicitly instead of dropping it
       // when the richer absolute-minimum policy happens to consume the remaining
