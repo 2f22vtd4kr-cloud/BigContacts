@@ -1,10 +1,9 @@
 name: Apex Canonical Runtime Proof
 
+# Manual-only: a provider-backed run consumes real credentials and quota.
+# The operator launches the canonical run in Replit; merging source must not
+# silently start a separate GitHub Actions investigation.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/live-batch-trigger.md"
   workflow_dispatch:
 
 permissions:
