@@ -3148,7 +3148,17 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       "One possible path, not a required sequence: Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.",
     ]
     : [];
-  const fallbackProtectedRules = isInvestigatorPrompt ? [...fallbackRuleCandidates, ...discoveryFallbackRules] : [];
+  const fallbackProtectedRules = isInvestigatorPrompt
+    ? [
+      ...fallbackRuleCandidates.filter((rule) => rule.startsWith("PAGE FORMAT / RETRIEVAL LIMITS:")),
+      ...fallbackRuleCandidates.filter((rule) => rule.startsWith("VALID PROVIDERS:")),
+      ...discoveryFallbackRules,
+      ...fallbackRuleCandidates.filter((rule) =>
+        !rule.startsWith("PAGE FORMAT / RETRIEVAL LIMITS:")
+        && !rule.startsWith("VALID PROVIDERS:")
+      ),
+    ]
+    : [];
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const protectedTail = [observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
