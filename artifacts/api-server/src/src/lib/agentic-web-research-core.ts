@@ -2990,7 +2990,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Keep our generated trajectory labels and the exact last-search URL inventory
   // outside the lossy observation compactor. Source text is untrusted; the last
   // matching marker is the explicit durable marker appended after record summaries.
-  const latestSearchMarker = [...observation.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+:\s*\[[^\n]*\]/g)]
+  const latestSearchMarker = [...observation.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+:[^\n]*/g)]
     .map((match) => match[0])
     .at(-1) ?? "";
   const latestTrajectoryMarker = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN \d+/g)]
@@ -4480,7 +4480,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactLatestTrajectoryMarker = latestRecord
         ? "LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn
           + (carryForwardSuccessfulSearch && carryForwardSuccessfulSearch !== latestRecord
-            ? "; LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN " + carryForwardSuccessfulSearch.turn + ": " + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, 0, 2).leadUrls)
+            ? "; LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN " + carryForwardSuccessfulSearch.turn + ": " + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, 0, 2))
             : (latestRecord.leadUrls?.length ? "; LEAD URLS: " + JSON.stringify(compactRecordEnvelope(latestRecord, 0, 2).leadUrls) : ""))
         : "";
       const compactOrganizationTargetabilityMarker = input.mode === "discovery"
@@ -4673,7 +4673,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 160)
         : "CASE OBJECTIVE: find real people with credible ownership evidence and a realistic public/professional route.";
       const ultimateDiscoveryGate = input.mode === "discovery"
-        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: people—not companies or executive prestige—are targets; organizations are leads. Avoid generic wealth/net-worth/private-equity-profile searches alone; avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor approved Boss scope; topic/geography must match but source class need not appear in every discovery query. Official-source discovery must not introduce a competing subject or jurisdiction. No preset targets/placeholders. News publishers/articles are leads, never targets/access routes. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
+        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: people—not companies or executive prestige—are targets; organizations are leads. Avoid generic wealth/net-worth/private-equity-profile searches alone; avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor approved Boss scope; topic/geography must match but source class need not appear in every discovery query. Official-source discovery must not introduce a competing subject or jurisdiction. No preset targets/placeholders. News publishers/articles are leads, never targets/access routes. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Press/profile pages are leads, not targets or access routes."
         : "";
       const ultimateAdmission = input.mode === "discovery"
         ? "DISCOVERY LEAD HANDOFF CONTRACT: review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages are acceptable only when directly binding exact name and role. Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. This is not an HNWI conclusion. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion."
@@ -4776,6 +4776,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactCriticalRetrievalGuidance,
         shortestDiscoveryGate,
         shortestAdmission,
+        shortestLeadFollowUp,
         "EVIDENCE: snippets are leads, not evidence. Never invent identities, ownership, URLs or contacts.",
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ".",
         hardMinimumOutputContract,
