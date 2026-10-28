@@ -3179,9 +3179,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? "MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice. OUTPUT CONTRACT: one JSON root object; required fields: action,"
+    ? `MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice. No fixed action sequence; the Investigator chooses actions. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. Required top-level fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive fields are null/[]; example: {"url":null,"searches":[],"findings":[]}. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain numeric [0,1]. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
     : "";
-  const protectedTail = [fallbackOutputContract, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
+  const fallbackEvidenceContract = isInvestigatorPrompt
+    ? "EVIDENCE: search-result URLs/snippets are leads, not observed facts. Failed/blocked retrievals are unobserved. Fetched claims must be bound to the exact fetched URL. Search-only organizations remain review-only leads; they do not prove ownership, wealth, person identity or contact. Person/HNWI claims require exact name, page-stated role and ownership/control/equity/investment clue co-bound in one fetched claim-grade source; never infer wealth from seniority. PDF/text-bearing binary sources use visit; browser_fetch is HTML-oriented; do not retry the same binary URL through another fetch action."
+    : "";
+  const protectedTail = [fallbackOutputContract, fallbackEvidenceContract, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
     ? contractText
@@ -3191,7 +3194,36 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Dynamic evidence and corrective feedback come first in the last-resort layout.
   // Truncation must never discard the newest model correction merely to retain
   // repeated static policy text that is already represented in the base contract.
-  const minimumTail = [fallbackOutputContract, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
+  const minimumProviderRule = isInvestigatorPrompt
+    ? fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? ""
+    : "";
+  const minimumPdfRetrievalRule = isInvestigatorPrompt
+    ? "RETRIEVAL: visit for text-bearing PDFs; browser_fetch is HTML-oriented. Failed/blocked extraction is unobserved; do not retry the same binary URL through another fetch action."
+    : "";
+  const minimumDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
+    ? "DISCOVERY GATE: people—not organizations—are targets. A search-only company is review-only and remains a lead. Person/HNWI needs exact name, stated role, and an ownership/control/equity/investment clue in one fetched claim-grade source; never infer wealth from seniority. No preset targets or registry-first sequence; the Investigator chooses actions."
+    : "";
+  // The final layout keeps a complete minimal schema/evidence contract independent
+  // of the larger, lossy base sections. Drop optional duplicated guidance first.
+  const minimumTail = [
+    fallbackOutputContract,
+    fallbackEvidenceContract,
+    minimumProviderRule,
+    terminalEvidenceRule,
+    minimumPdfRetrievalRule,
+    minimumDiscoveryRule,
+    urlInventory,
+    observationTail,
+    activeScopeContext,
+    availableActionsSection,
+    fetchedSourceLabel,
+    fetchedSourceExcerpt,
+    header,
+    markerSuffix,
+    ...durableRecordSummaries,
+    leadGuidance,
+    compactCaseObjective,
+  ].filter(Boolean).join("\n\n");
   const minimumBase = boundInvestigatorPromptSection(contractText, Math.max(0, limit - minimumTail.length - 2));
   const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\n\n");
   if (lastResort.length <= limit) return lastResort;

@@ -3214,7 +3214,7 @@ describe("small emergency observation budgets", () => {
       "APEX INVESTIGATOR",
       "OUTPUT CONTRACT: Return one root JSON object; required fields action, query, provider, url, searches, findings.",
       "EVIDENCE: URLs are leads, not evidence.",
-    ].join("\\n\\n");
+    ].join("\n\n");
     const observation = 'LATEST TRAJECTORY RECORD — TURN 17: {"turn":17,"action":"web_search","execution":"success","leadUrls":["https://registry.example.test/company-search"],"leadUrlsOmittedFromPromptCount":0}';
 
     expect(() => appendEmergencyObservationContext(basePrompt, observation, 24)).toThrow(
