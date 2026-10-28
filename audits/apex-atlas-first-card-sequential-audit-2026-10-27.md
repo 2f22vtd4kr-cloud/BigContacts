@@ -220,3 +220,11 @@ Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at en
 - This is a second syntax repair and further proof that earlier claims of the prompt compiling were premature. Fresh CI for `c3be44c` must be checked; no compile/test success is claimed yet.
 - Runtime identity remains unresolved: Vercel has no BigContacts project/deployments under the currently connected team; the known Replit BigContacts app has not been updated since 2026-07-23 and the Replit agent returned an empty response to a non-mutating runtime identity question. The PR's Netlify deploy preview is a frontend preview, not proof of the canonical API/database runtime. Do not launch through a guessed preview or local CI database and call it production success.
 - No canonical live run, model decision trace, real web result, persisted company card, evidence ID, or normal API/UI read-back has been observed. Acceptance remains blocked.
+
+
+## 16. Typecheck uncovered an unbound durable-URL inventory variable — 2026-10-28, 03:51 UTC
+
+- After removing the stale ternary branches, TypeScript progressed past parsing and found a separate compile error at `agentic-web-research-core.ts:4787`: `pinnedInventoryCandidate` was referenced in the absolute-minimum prompt budget calculation but never declared in that scope. This was introduced during the earlier emergency prompt compaction and was masked by syntax failures.
+- Added a local binding from the existing safe `extractPinnedDurableUrlInventory(input.durableUrlInventory)` helper immediately before the existing budget check. This preserves the current exact-URL/lead-only safety behavior and does not reconstruct URLs or mandate action order.
+- Source commit: `34ccb3149c96ca53d9ab470bffa99bd733248f2f`. CI on the prior source commit `c3be44c` exposed this typecheck failure; fresh checks on `34ccb31` are required. No positive compile result is claimed yet.
+- The runtime and first-card acceptance gates remain unsatisfied: the known Replit app has no published deployment and has not provided runtime identity evidence; Vercel has no matching project/deployment under the connected account/team. The Replit agent has been asked to establish exact source/runtime identity before any canonical launch; its update is asynchronous. Do not treat this request as completion.
