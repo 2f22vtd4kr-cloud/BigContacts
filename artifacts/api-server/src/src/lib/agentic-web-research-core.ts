@@ -3010,11 +3010,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const contractStart = base.lastIndexOf("OUTPUT CONTRACT:");
   const originalOutputContract = contractStart >= 0 ? base.slice(contractStart).trim() : "";
   const outputContract = [
-    "OUTPUT CONTRACT: Return exactly ONE root JSON object; no prose.",
-    "Press/profile pages are leads, not targets/access routes.",
+    "OUTPUT CONTRACT: Return exactly ONE root JSON object; no prose. Required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
+    "Press/profile pages are leads, not targets/access routes. DISCOVERY LEAD HANDOFF: review-only PersonCandidate requires exact full name, page-stated role, and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source.",
     "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead when expected information gain is high; the Investigator retains action choice and this is not a required action sequence.",
-    originalOutputContract,
-  ].filter(Boolean).join("\n\n");
+  ].join("\n\n");
   const policy = contractStart >= 0 ? base.slice(0, contractStart).trim() : base;
   const markerText = markers.join("\n\n");
   const fixedTail = [outputContract, header, markerText].filter(Boolean).join("\n\n");
