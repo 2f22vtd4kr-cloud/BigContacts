@@ -3013,12 +3013,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "OUTPUT CONTRACT: Return exactly ONE root JSON object; no prose.",
     "Press/profile pages are leads, not targets/access routes.",
     "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead when expected information gain is high; the Investigator retains action choice and this is not a required action sequence.",
-    originalOutputContract.slice(0, 1_200),
+    originalOutputContract,
   ].filter(Boolean).join("\n\n");
   const policy = contractStart >= 0 ? base.slice(0, contractStart).trim() : base;
   const markerText = markers.join("\n\n");
   const fixedTail = [outputContract, header, markerText].filter(Boolean).join("\n\n");
-  const policyBudget = Math.max(0, limit - fixedTail.length - 4);
+  const policyBudget = Math.max(0, limit - fixedTail.length - 604);
   const compactPolicy = policyBudget > 0
     ? compactPromptSectionPreservingUrlTokens(
         policy,
@@ -3026,7 +3026,15 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         "[Emergency prompt policy compacted; durable case state remains authoritative.]",
       ).slice(0, policyBudget)
     : "";
-  const fallback = [compactPolicy, outputContract, header, markerText].filter(Boolean).join("\n\n");
+  const contentBudget = Math.max(0, limit - compactPolicy.length - fixedTail.length - 6);
+  const compactedContent = contentBudget > 0
+    ? compactPromptSectionPreservingUrlTokens(
+        compacted,
+        contentBudget,
+        "[Middle of emergency observation omitted; complete record remains durable.]",
+      ).slice(0, contentBudget)
+    : "";
+  const fallback = [compactPolicy, outputContract, header, compactedContent, markerText].filter(Boolean).join("\n\n");
   return fallback.length <= limit ? fallback : base;
 }
 
