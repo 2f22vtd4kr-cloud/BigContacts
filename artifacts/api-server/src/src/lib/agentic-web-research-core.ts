@@ -3013,9 +3013,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     .slice(-6);
   const baseSections = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const requiredSections = baseSections.filter((part) =>
-    /ALL REQUIRED TOP-LEVEL FIELDS:|required fields: action,|DISCOVERY LEAD HANDOFF CONTRACT|Target-stage research tests material business\/asset\/exit signals|Target-scoped research owns independent corroboration|Press\/profile pages are leads, not targets\/access routes|BINARY URL POLICY|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:/.test(part)
+    /ALL REQUIRED TOP-LEVEL FIELDS:|required fields: action,|DISCOVERY LEAD HANDOFF CONTRACT|Target-stage research tests material business\/asset\/exit signals|Target-scoped research owns independent corroboration|Press\/profile pages are leads, not targets\/access routes|BINARY URL POLICY|PAGE FORMAT \/ RETRIEVAL LIMITS|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
-  const leadGuidance = "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched.";
+  const leadGuidance = latestSearchMarker ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
   const urlInventory = durableUrls.length ? "EXACT DURABLE URL INVENTORY (leads, not evidence): " + JSON.stringify(durableUrls) : "";
   const observationTail = observation.slice(-420);
   const protectedTail = [leadGuidance, urlInventory, observationTail, header, markerSuffix].filter(Boolean).join("\n\n");
