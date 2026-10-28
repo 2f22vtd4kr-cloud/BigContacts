@@ -4819,7 +4819,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const rawBasePrompt = absoluteMinimumBase.join("\n\n");
       // Reserve enough budget for the latest durable action and current correction
       // even when the absolute-minimum policy/schema nearly fills the provider cap.
-      const emergencyObservationReserveChars = Math.min(1_000, Math.max(160, maxUserPromptChars - 700));
+      const emergencyObservationReserveChars = Math.min(700, Math.max(160, maxUserPromptChars - 700));
       const basePromptBudget = Math.max(700, maxUserPromptChars - emergencyObservationReserveChars - 2);
       const compactAbsoluteMinimumBaseParts = [
         finalEmergencyAssignment,
