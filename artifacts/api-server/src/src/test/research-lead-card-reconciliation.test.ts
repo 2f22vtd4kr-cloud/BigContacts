@@ -44,6 +44,9 @@ describe("terminal review-card reconciliation", () => {
     expect(organizationMaterializer).toContain("payload.args?.registrySearchOutcomes");
     expect(organizationMaterializer).toContain("companyLeads");
     expect(organizationMaterializer).toContain("if (!leadNames.length) return { materialized: 0, evidenceRows: 0 };");
+    expect(organizationMaterializer).toContain("...observations\n        .filter((observation) => bindExactSourceSpan(observation.observation, name)?.exact)");
+    expect(canonical).toContain("if (!runId) continue;");
+    expect(canonical).not.toContain("if (!runId || findings.length === 0) continue;");
     expect(bureauPass).toContain('["web_search","parallel_web_search","registry_search","parallel_registry_search","visit","browser_fetch"].includes(record.action)');
     expect(bureauPass).toContain('["success","partial"].includes(record.execution)');
     expect(bureauPass).not.toContain('if(record.findings.length>0){await input.onDiscoveryCheckpoint');
@@ -105,7 +108,7 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("do not infer intimate relationships from surnames or clues");
     expect(orientation).toContain("Never use medical/clinic records, private intimate details");
     expect(orientation).toContain("private personal numbers from those contexts");
-    expect(orientation).toContain("Never infer intimacy or use health/clinic/spa/casino data as contact routes.");
+    expect(orientation).toContain("do not infer intimate relationships or use medical, clinic, spa, or casino records/private personal numbers as backdoor contact routes.");
   });
 
   it("persists only exact organization findings from successful search observations as review leads", () => {
