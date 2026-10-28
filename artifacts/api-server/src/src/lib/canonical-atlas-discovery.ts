@@ -380,7 +380,7 @@ export async function reconcileCanonicalDiscoveryCaseReviewCards(input: {
       if (payload.jobId !== input.atlasJobId) continue;
       const runId = typeof payload.runId === "string" ? payload.runId : "";
       const findings = Array.isArray(payload.findings) ? payload.findings as AgenticFinding[] : [];
-      if (!runId || findings.length === 0) continue;
+      if (!runId) continue;
       const result = await checkpointCanonicalDiscoveryFindings({
         discoveryRunId: runId,
         findings,
@@ -809,14 +809,24 @@ async function materializePartialOrganizationLeadCards(input: {
   let evidenceRows = 0;
   let wroteDurableState = false;
   for (const name of leadNames) {
-    const claimedUrls = new Set(input.findings
-      .filter((finding) => finding.scope === "organization" && finding.vectorType === "other"
-        && finding.promotionDecision !== "reject"
-        && !finding.personName?.trim() && !finding.role?.trim()
-        && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name))
-      .flatMap((finding) => finding.sourceUrls)
-      .map(normalizeSourceUrl)
-      .filter((url): url is string => Boolean(url)));
+    const claimedUrls = new Set([
+      ...input.findings
+        .filter((finding) => finding.scope === "organization" && finding.vectorType === "other"
+          && finding.promotionDecision !== "reject"
+          && !finding.personName?.trim() && !finding.role?.trim()
+          && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name))
+        .flatMap((finding) => finding.sourceUrls)
+        .map(normalizeSourceUrl)
+        .filter((url): url is string => Boolean(url)),
+      // Typed registry adapters are themselves structured, source-attributed
+      // company observations. Their exact name + notes are the observed span,
+      // so they must not be dropped merely because the model emitted no parallel
+      // finding object on this turn.
+      ...observations
+        .filter((observation) => bindExactSourceSpan(observation.observation, name)?.exact)
+        .map((observation) => normalizeSourceUrl(observation.sourceUrl))
+        .filter((url): url is string => Boolean(url)),
+    ]);
     const supports = new Map<string, {
       sourceUrl: string; eventId: number; createdAt: Date; spanText: string;
       spanStart: number; spanEnd: number; verificationLevel: "fetched_source" | "search_result_lead";
