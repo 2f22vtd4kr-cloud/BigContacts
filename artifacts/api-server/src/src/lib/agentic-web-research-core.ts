@@ -3026,13 +3026,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         "[Emergency prompt policy compacted; durable case state remains authoritative.]",
       ).slice(0, policyBudget)
     : "";
-  const contentBudget = Math.max(0, limit - compactPolicy.length - fixedTail.length - 6);
-  const compactedContent = contentBudget > 0
+  const fallbackContentBudget = Math.max(0, limit - compactPolicy.length - fixedTail.length - 6);
+  const compactedContent = fallbackContentBudget > 0
     ? compactPromptSectionPreservingUrlTokens(
         compacted,
-        contentBudget,
+        fallbackContentBudget,
         "[Middle of emergency observation omitted; complete record remains durable.]",
-      ).slice(0, contentBudget)
+      ).slice(0, fallbackContentBudget)
     : "";
   const fallback = [compactPolicy, outputContract, header, compactedContent, markerText].filter(Boolean).join("\n\n");
   return fallback.length <= limit ? fallback : base;
