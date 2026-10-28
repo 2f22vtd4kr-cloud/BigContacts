@@ -3050,7 +3050,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "Press/profile pages are leads, not targets/access routes.",
     "Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion.",
     "Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
+    "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures.",
     "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
+    "LEAD FOLLOW-UP GUIDANCE (non-binding): compare in-scope unvisited lead URLs by expected information gain; URLs/snippets remain leads until fetched. The Investigator retains action choice; this is not evidence or a mandated next action.",
     "Never use placeholders such as CompanyName, companywebsite.com, or example.com.",
     "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
     "After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only].",
@@ -3060,7 +3062,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const protectedRules = isInvestigatorPrompt
     ? protectedRuleCandidates.filter((rule) => !base.includes(rule))
     : [];
-  const leadGuidance = latestSearchMarker ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
+  const hasSearchLeadContext = Boolean(latestSearchMarker)
+    || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|unvisited lead|search results returned a potentially useful/i.test(observation)
+    || /LEAD FOLLOW-UP GUIDANCE|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS/.test(base);
+  const leadGuidance = hasSearchLeadContext ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
   const protectedObservationSuffix = [...protectedRules, leadGuidance, urlInventory, markerSuffix, carriedFetchedSourceSummary, fetchedSourceExcerpt].filter(Boolean).join("\n\n");
   const contentBudget = Math.max(40, observationBudget - protectedObservationSuffix.length - 2);
   const compacted = compactEmergencyTrajectoryObservation(observation, contentBudget);
@@ -3073,7 +3078,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // fall back to the base prompt alone, which loses the latest durable action.
   const baseSections = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const requiredSections = baseSections.filter((part) =>
-    /MISSION PRIORITY:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:/.test(part)
+    /MISSION PRIORITY:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:|LEAD FOLLOW-UP GUIDANCE \(non-binding\):/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
   const compactCaseObjective = caseObjective ? boundInvestigatorPromptSection(caseObjective, 260) : "";
