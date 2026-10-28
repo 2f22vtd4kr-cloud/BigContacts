@@ -394,3 +394,27 @@ Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at en
 - **Prevented unintended provider spend on merge.** The provider-backed GitHub runtime-proof workflow is now manual-dispatch only. Merging the PR must not automatically launch a second isolated investigation because the user has chosen to launch the next canonical run on Replit.
 - On the preceding source revision, API Build, Prompt Architecture Audit, discovery static checks, Research Quality Contracts, and Python OSINT Worker had passed; the full isolated API test/codebase audit workflows were still running. Later source/docs/workflow edits require checking CI on the final PR head before merge. Do not treat those earlier green workflows as final verification.
 - **Runtime acceptance remains pending.** No Replit launch was performed by this agent. No new canonical job/card/evidence IDs or ordinary API/UI read-back were observed. The next user-controlled run must still prove a real review card and linked evidence persist and are returned by both `/api/dashboard/research-leads` and `/api/entities`, with truthful terminal state and the canonical active-job lock released.
+
+## 33. Pre-run review: early person-role cards, compact prompts, and trace privacy — 2026-10-28
+
+### Confirmed from the supplied pre-#759 run audit
+
+- The reviewed standard-depth UK/Midlands case recorded 20 tool spans: 9 successful executions, 4 external-fetch errors, and 7 guard blocks. It ended at the 20-iteration ceiling with zero entities/cards, zero contact-evidence rows, and zero research-evidence rows.
+- The trajectory repeatedly queried Companies House for UK renewable-energy records and re-encountered the same dissolved TOKERE record. Scrapfly fetches repeatedly failed on one Companies House URL; a model-selected ZenRows fetch succeeded but yielded no eligible person. The failure was not explained by a recorded provider quota/authentication failure or database/schema failure.
+- The evidence supports two concrete problems: a source-selection/trajectory liveness failure (repetition consumed the action budget) and an admission/materialization gap (useful company/page/search leads were not converted into review cards early enough). It does not establish that every research target always has a qualifying person or direct contact.
+
+### Changes added after the latest review of PR #759
+
+- **Incremental person-role review cards:** the canonical discovery checkpoint now reads successful search/registry lead URLs as well as fetched-page URLs for exact, source-bound person+role findings. It can persist a low-confidence `PersonCandidate` review card from the first qualifying source observation, with explicit search-result vs fetched-source evidence tier and limitations. This is not HNWI admission and does not claim wealth, ownership/control, or contactability.
+- **Checkpoint/terminal reconciliation alignment:** checkpoint person cards now use the same `partial_person_role_lead` evidence claim and `roleOnlyLead` metadata that terminal reconciliation expects, so later fetched evidence can upgrade a review lead rather than collide with a differently shaped partial card.
+- **Private-contact boundary in the institutional mission:** publicly documented family/business connections may be recorded when materially relevant to ownership/control/investment/assets. The compact and full mission contracts explicitly prohibit inferring intimate relationships from surnames and using medical/clinic, spa, casino, or private personal-number data as a backdoor contact route.
+- **Raw prompt trace privacy correction:** the manual-only canonical runtime-proof workflow had drifted to writing raw model traces into tracked `audits/` and enabling visible-file output, contrary to the private-trace contract. It now writes to ignored `.local/audits/`, disables visible-file output, and uploads that private path only as a workflow artifact. A regression assertion was added to the model-prompt-audit tests.
+- **Tests added:** contract coverage for first-checkpoint person-role leads, search/fetched evidence-tier preservation, and the public-business vs private-intimate/health-data boundary.
+
+### Verification status at this audit entry
+
+- Source commits on the PR branch: `7a0068f5` (private audit path), `ced4fba6` (private-path regression), `3dedd671` (incremental person-role checkpoint cards), `c5647cc7` (mission/privacy contract), `c67ade19` (regression tests).
+- The branch head is `c67ade1937c16c2910b3ad52c532f392f135218f` at the time of this entry. The PR remains open and unmerged.
+- Required CI workflows were still running when this entry was written; this section is not a claim that those checks passed.
+- No canonical Replit run, persistent database card ID, linked evidence ID, or normal API/UI read-back has been verified. The user's next Replit run remains the separate runtime acceptance gate after codebase checks pass.
+- Continue to preserve model autonomy: no scripted source sequence, no fabricated card, no automatic target/HNWI upgrade, and no direct database insertion outside the canonical checkpoint/reconciliation pipeline.
