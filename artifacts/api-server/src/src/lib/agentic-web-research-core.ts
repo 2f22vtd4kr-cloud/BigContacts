@@ -4479,9 +4479,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactEvidenceLaw = "EVIDENCE: Search snippets are leads, not evidence. Never invent identities, URLs or contacts. Except action=done, top-level hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1] (never null); only done may null them. Prefer independent sources and falsification.";
       const compactLatestTrajectoryMarker = latestRecord
         ? "LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn
+          + "; DURABLE LATEST RECORD ENVELOPE: " + JSON.stringify(compactRecordEnvelope(latestRecord, 0, 2))
           + (carryForwardSuccessfulSearch && carryForwardSuccessfulSearch !== latestRecord
-            ? "; LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN " + carryForwardSuccessfulSearch.turn + ": " + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, 0, 2))
-            : (latestRecord.leadUrls?.length ? "; LEAD URLS: " + JSON.stringify(compactRecordEnvelope(latestRecord, 0, 2).leadUrls) : ""))
+            ? "\\nLAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN " + carryForwardSuccessfulSearch.turn + ": " + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, 0, 2))
+            : "")
         : "";
       const compactOrganizationTargetabilityMarker = input.mode === "discovery"
         ? "An organization is a lead, not the target."
