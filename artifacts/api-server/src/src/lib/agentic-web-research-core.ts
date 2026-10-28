@@ -4381,7 +4381,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const pinnedDurableInventory = extractPinnedDurableUrlInventory(input.durableUrlInventory);
     if (pinnedDurableInventory) parts.push(pinnedDurableInventory);
     if (latestRecord && carryForwardSuccessfulSearch && carryForwardSuccessfulSearch !== latestRecord) {
-      const carriedLeadUrls = compactRecordEnvelope(carryForwardSuccessfulSearch, 0, leadUrlCount).leadUrls;
+      const carriedLeadUrls = compactRecordEnvelope(carryForwardSuccessfulSearch, 0, 2).leadUrls;
       parts.push("LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn + "; CARRIED SEARCH LEAD URLS: " + JSON.stringify(carriedLeadUrls));
     } else if (latestRecord) {
       parts.push("LATEST TRAJECTORY RECORD — TURN " + latestRecord.turn);
