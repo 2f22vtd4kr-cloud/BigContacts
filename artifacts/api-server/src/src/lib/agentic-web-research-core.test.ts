@@ -3212,7 +3212,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toMatch(/after (?:a )?successful visit\/browser_fetch/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
-    expect(prompt).toContain("Higher candidate admission requires a fetched claim-grade source binding name+role+ownership/control/equity/investment clue");
+    expect(prompt).toContain("Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
   });
 });
