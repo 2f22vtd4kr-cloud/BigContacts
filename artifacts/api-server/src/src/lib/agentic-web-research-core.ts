@@ -3004,7 +3004,19 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const compactedWithMarkers = [compacted, ...missingMarkers].filter(Boolean).join("\n\n");
   const combined = base + "\n\n" + header + compactedWithMarkers;
   if (combined.length <= limit) return combined;
-  const markerOnlyTail = [header, markerSuffix].filter(Boolean).join("\n\n");
+  const durableUrls = [...observation.matchAll(/https?:\/\/[^\\s"'<>]+/g)]
+    .map((match) => match[0].replace(/[),.;]+$/, ""))
+    .filter((url, index, all) => all.indexOf(url) === index)
+    .slice(-6);
+  const protectedEmergencyContract = [
+    "OUTPUT CONTRACT: Return exactly ONE root JSON object; no prose.",
+    "Press/profile pages are leads, not targets/access routes.",
+    "Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion.",
+    "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead when expected information gain is high; the Investigator retains action choice.",
+    durableUrls.length ? "EXACT DURABLE URL INVENTORY: " + JSON.stringify(durableUrls) : "",
+    observation.slice(-600),
+  ].filter(Boolean).join("\n\n");
+  const markerOnlyTail = [protectedEmergencyContract, header, markerSuffix].filter(Boolean).join("\n\n");
   const baseBudget = Math.max(0, limit - markerOnlyTail.length - 2);
   const compactBase = baseBudget > 0
     ? boundInvestigatorPromptSection(base, baseBudget)
