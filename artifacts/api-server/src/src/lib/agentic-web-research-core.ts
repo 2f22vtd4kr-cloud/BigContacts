@@ -3152,14 +3152,20 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       "One possible path, not a required sequence: Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page.",
     ]
     : [];
+  const discoveryEvidenceRule = "DISCOVERY LEAD HANDOFF CONTRACT: one successfully fetched claim-grade source must co-bind exact full name, page-stated role, and ownership/control/equity/investment clue; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages are acceptable only when directly binding exact name and role; third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.";
   const fallbackProtectedRules = isInvestigatorPrompt
     ? [
       ...fallbackRuleCandidates.filter((rule) => rule.startsWith("PAGE FORMAT / RETRIEVAL LIMITS:")),
       ...fallbackRuleCandidates.filter((rule) => rule.startsWith("VALID PROVIDERS:")),
       ...discoveryFallbackRules,
+      ...(discoveryFallbackRules.length ? [discoveryEvidenceRule] : []),
       ...fallbackRuleCandidates.filter((rule) =>
         !rule.startsWith("PAGE FORMAT / RETRIEVAL LIMITS:")
         && !rule.startsWith("VALID PROVIDERS:")
+        && !rule.startsWith("DISCOVERY LEAD HANDOFF CONTRACT:")
+        && !rule.startsWith("Target-scoped research owns")
+        && !rule.startsWith("Target-stage research tests")
+        && !rule.startsWith("Third-party people-search/profile-directory aggregators")
       ),
     ]
     : [];
