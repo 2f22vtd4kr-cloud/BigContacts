@@ -3044,7 +3044,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     .map((match) => match[0].replace(/[),.;]+$/, ""))
     .filter((url, index, all) => all.indexOf(url) === index)
     .slice(-6);
-  const urlInventory = durableUrls.length ? "EXACT DURABLE URL INVENTORY (leads, not evidence): " + JSON.stringify(durableUrls) : "";
+  const pinnedInventorySection = base.match(/DURABLE EXACT URL INVENTORY \(verbatim values from immutable research_case_events; URLs are leads, not evidence; never reconstruct or shorten\):[\s\S]*?(?=\n\n|$)/)?.[0] ?? "";
+  const pinnedInventoryUrls = [...pinnedInventorySection.matchAll(/https?:\/\/[^\s"'<>]+/g)]
+    .map((match) => match[0].replace(/[),.;]+$/, ""))
+    .filter((url, index, all) => all.indexOf(url) === index);
+  const exactInventoryUrls = [...new Set([...durableUrls, ...pinnedInventoryUrls])].slice(-6);
+  const urlInventory = exactInventoryUrls.length
+    ? "EXACT DURABLE URL INVENTORY (leads, not evidence; URLs copied verbatim): " + JSON.stringify(exactInventoryUrls)
+    : "";
   const isInvestigatorPrompt = /APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base);
   const protectedRuleCandidates = [
     "Press/profile pages are leads, not targets/access routes.",
@@ -3078,7 +3085,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // fall back to the base prompt alone, which loses the latest durable action.
   const baseSections = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const requiredSections = baseSections.filter((part) =>
-    /MISSION PRIORITY:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:|LEAD FOLLOW-UP GUIDANCE \(non-binding\):/.test(part)
+    /MISSION PRIORITY:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:|LEAD FOLLOW-UP GUIDANCE \(non-binding\):|DURABLE EXACT URL INVENTORY/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
   const compactCaseObjective = caseObjective ? boundInvestigatorPromptSection(caseObjective, 260) : "";
