@@ -3071,7 +3071,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // fall back to the base prompt alone, which loses the latest durable action.
   const baseSections = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const requiredSections = baseSections.filter((part) =>
-    /MISSION PRIORITY:|CASE OBJECTIVE:|ALL REQUIRED TOP-LEVEL FIELDS:|required fields: action,|DISCOVERY LEAD HANDOFF CONTRACT|Target-stage research tests material business\/asset\/exit signals|Target-scoped research owns independent corroboration|Press\/profile pages are leads, not targets\/access routes|BINARY URL POLICY|PAGE FORMAT \/ RETRIEVAL LIMITS|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|SCOPE GUARD BLOCKED ACTION/.test(part)
+    /MISSION PRIORITY:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
   const compactCaseObjective = caseObjective ? boundInvestigatorPromptSection(caseObjective, 260) : "";
@@ -3092,10 +3092,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "Never use placeholders such as CompanyName, companywebsite.com, or example.com.",
     "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
   ];
-  const fallbackProtectedRules = isInvestigatorPrompt
-    ? fallbackRuleCandidates.filter((rule) => !contractText.includes(rule))
-    : [];
-  const protectedTail = [...fallbackProtectedRules, contractText.includes("CASE OBJECTIVE:") ? "" : compactCaseObjective, leadGuidance, urlInventory, fetchedSourceLabel, fetchedSourceExcerpt, observationTail, header, markerSuffix, ...durableRecordSummaries].filter(Boolean).join("\n\n");
+  const fallbackProtectedRules = isInvestigatorPrompt ? fallbackRuleCandidates : [];
+  const protectedTail = [...fallbackProtectedRules, compactCaseObjective, leadGuidance, urlInventory, fetchedSourceLabel, fetchedSourceExcerpt, observationTail, header, markerSuffix, ...durableRecordSummaries].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
     ? contractText
