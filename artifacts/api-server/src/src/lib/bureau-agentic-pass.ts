@@ -14,6 +14,8 @@ import { recordDiscoveryTrace } from "./investigator-trace";
 import { spanFromLiveStep } from "./dig-span";
 import { sanitizeObservableValue, sanitizeUrlForEvidence } from "./url-privacy";
 import { discoveryPivotScopeKey } from "./agentic-web-research-core";
+import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 
 export type BureauAgenticPassResult = { status:"completed"|"unavailable"|"error"|"skipped"|"timeout"|"cancelled"; model:string; iterations:number; searches:number; visits:number; findings:AgenticFinding[]; partialFindings?:AgenticFinding[]; modelFindings?:AgenticFinding[]; contactEvidence:Array<{vectorType:string;value:string;scope:string;personName:string|null;role:string|null;sourceUrls:string[];note:string}>; trajectory:string[]; trajectoryRecords?:AgenticTrajectoryRecord[]; caseId?:number; runId?:string; stopReason?:string; error?:string; consecutiveActionParseFailures?:number };
 const WEB_SPECIALISTS=new Set(["web","contact","footprint"]);
@@ -65,7 +67,43 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
   // same-observation co-binding gate in bureau-contact-persist-strict.ts.
   return supportsReviewableClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
 }
-export function sourceBackedAgenticFindings(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]):AgenticFinding[]{const observed=claimGradeSourceUrlsFromTrajectory(records);return findings.filter((f)=>Array.isArray(f.sourceUrls)).map((f)=>({...f,sourceUrls:[...new Set(f.sourceUrls.map(normalizeObservedUrl).filter((url):url is string=>Boolean(url)))]})).filter((f)=>f.sourceUrls.length>0&&f.sourceUrls.every((url)=>observed.has(url))&&claimAppearsInObservedMaterial(f,records));}
+function isSearchResultOrganizationReviewLead(finding: AgenticFinding): boolean {
+  return finding.scope === "organization"
+    && finding.vectorType === "other"
+    && !finding.personName?.trim()
+    && !finding.role?.trim()
+    && finding.note.includes("LOW-CONFIDENCE REVIEW-ONLY COMPANY LEAD")
+    && finding.note.includes("search_result_lead");
+}
+
+function searchResultReviewLeadIsSupported(finding: AgenticFinding, records: AgenticTrajectoryRecord[]): boolean {
+  const cited = [...new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)))];
+  if (!cited.length || !finding.value.trim() || !cited.every(isClaimGradeDiscoverySourceUrl)) return false;
+  const supported = new Set<string>();
+  for (const record of records) {
+    if (record.execution !== "success"
+      || typeof record.observation !== "string"
+      || !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)
+      || !bindExactSourceSpan(record.observation, finding.value.trim())?.exact) continue;
+    const leadUrls = (record.leadUrls ?? []).map(normalizeObservedUrl).filter((url): url is string => Boolean(url));
+    for (const url of leadUrls) if (cited.includes(url)) supported.add(url);
+  }
+  // Search-result leads are review-only: every cited URL must be a lead URL
+  // from a successful search observation containing the exact organization name.
+  return cited.every((url) => supported.has(url));
+}
+
+export function sourceBackedAgenticFindings(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]):AgenticFinding[]{
+  const observed=claimGradeSourceUrlsFromTrajectory(records);
+  return findings
+    .filter((f)=>Array.isArray(f.sourceUrls))
+    .map((f)=>({...f,sourceUrls:[...new Set(f.sourceUrls.map(normalizeObservedUrl).filter((url):url is string=>Boolean(url)))]}))
+    .filter((f)=>f.sourceUrls.length>0&&(
+      isSearchResultOrganizationReviewLead(f)
+        ? searchResultReviewLeadIsSupported(f,records)
+        : f.sourceUrls.every((url)=>observed.has(url))&&claimAppearsInObservedMaterial(f,records)
+    ));
+}
 export function findingsToContactEvidence(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>({vectorType:f.vectorType,value:f.value,scope:f.scope==="candidate"?"candidate":"organization",personName:f.scope==="candidate"?f.personName:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:f.note}));}
 export function findingsToBureauContacts(findings:AgenticFinding[],_fallbackPersonName:string,trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>{const person=typeof f.personName==="string"?f.personName.trim():"";const candidate=f.scope==="candidate"&&person.length>0;return{vectorType:f.vectorType,value:f.value,scope:candidate?"candidate":"organization",personName:candidate?person:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:`bureau-agentic:${f.note}`,tier:"candidate",state:"review_only",promote:candidate&&f.promotionDecision==="promote"};});}
 async function loadDurableSearchQueries(caseId:number|null):Promise<string[]>{if(caseId==null)return[];const rows=await db.select({payload:researchCaseEventsTable.payload,status:researchCaseEventsTable.status}).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId,caseId));const queries:string[]=[];for(const row of rows){if((row.status!=="success"&&row.status!=="error")||typeof row.payload!=="string")continue;try{const payload=JSON.parse(row.payload) as Record<string,unknown>;const action=typeof payload.action==="string"?payload.action:"";const args=payload.args&&typeof payload.args==="object"?payload.args as Record<string,unknown>:{};if((action==="web_search"||action==="registry_search")&&typeof args.query==="string")queries.push(args.query);if((action==="parallel_web_search"||action==="parallel_registry_search")&&Array.isArray(args.searches))for(const search of args.searches){if(search&&typeof search==="object"&&typeof (search as Record<string,unknown>).query==="string")queries.push((search as Record<string,unknown>).query as string);}}catch{}}return[...new Set(queries.map((query)=>query.trim()).filter(Boolean))];}
