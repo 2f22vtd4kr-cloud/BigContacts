@@ -4755,7 +4755,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // admission rule here instead of repeating the much longer rule already present in
       // hardMinimumOutputContract, so prior action feedback has enough prompt budget.
       const absoluteMinimumDiscoveryContext = input.mode === "discovery"
-        ? "DISCOVERY: people are targets and companies/snippets are leads. Never infer wealth from seniority. Investigator chooses tools/order; no scripted sequence. Target-stage research checks materiality, corroboration/falsification, and realistic public/professional reachability."
+        ? "DISCOVERY: people are targets and companies/snippets are leads. Never infer wealth from seniority. Investigator chooses tools/order; no scripted sequence. Target-stage research checks materiality, corroboration/falsification, and realistic public/professional reachability. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion."
         : "";
       const absoluteMinimumObjective = [
         input.objective?.trim()
@@ -4778,8 +4778,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         absoluteMinimumPdfGuidance,
         "SCOPE AND SOURCE CHOICE: match objective/jurisdiction; no registry-first sequence. Compare plausible hypotheses by strongest expected evidence/value, expected information gain, identity discrimination, and cost. Search-result URLs/snippets are leads, not evidence; blocked/failed routes are not negative evidence. The Investigator retains action choice. Never evade access controls.",
         "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes; no prescribed sequence.",
-        shortestDiscoveryGate,
-        shortestAdmission,
+        absoluteMinimumDiscoveryContext,
         absoluteMinimumOutputContract,
       ].filter(Boolean);
       const baseWithoutInventory = absoluteMinimumBaseParts.join("\\n\\n");
