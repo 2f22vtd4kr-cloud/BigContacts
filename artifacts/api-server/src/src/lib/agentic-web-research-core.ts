@@ -3240,7 +3240,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     markerSuffix,
     ...minimumDurableRecordSummaries,
   ].filter(Boolean);
-  const joinPromptParts = (parts: string[]) => parts.filter(Boolean).join("\\n\\n");
+  const joinPromptParts = (parts: string[]) => parts.filter(Boolean).join("\n\n");
   const mandatoryMinimumTail = joinPromptParts(mandatoryMinimumParts);
   if (mandatoryMinimumTail.length > limit) {
     throw new RangeError(
