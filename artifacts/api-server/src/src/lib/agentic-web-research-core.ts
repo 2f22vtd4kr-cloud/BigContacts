@@ -3036,7 +3036,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const protectedRules = isInvestigatorPrompt
     ? protectedRuleCandidates.filter((rule, index) => !base.includes(protectedRuleKeys[index]))
     : [];
-  const protectedObservationSuffix = [...protectedRules, urlInventory, markerSuffix, ...durableRecordSummaries].filter(Boolean).join("\n\n");
+  const protectedObservationSuffix = [...protectedRules, urlInventory, markerSuffix].filter(Boolean).join("\n\n");
   const contentBudget = Math.max(40, observationBudget - protectedObservationSuffix.length - 2);
   const compacted = compactEmergencyTrajectoryObservation(observation, contentBudget);
   const missingMarkers = markers.filter((marker) => !compacted.includes(marker));
@@ -3051,7 +3051,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     /ALL REQUIRED TOP-LEVEL FIELDS:|required fields: action,|DISCOVERY LEAD HANDOFF CONTRACT|Target-stage research tests material business\/asset\/exit signals|Target-scoped research owns independent corroboration|Press\/profile pages are leads, not targets\/access routes|BINARY URL POLICY|PAGE FORMAT \/ RETRIEVAL LIMITS|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const leadGuidance = latestSearchMarker ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
-  const observationTail = compactEmergencyTrajectoryObservation(observation, Math.min(700, Math.max(40, remaining - 200)));
+  const observationTail = compactEmergencyTrajectoryObservation(observation, 500);
   const fallbackProtectedRules = isInvestigatorPrompt ? [
     "OUTPUT CONTRACT: Return one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
     "DISCOVERY LEAD HANDOFF CONTRACT: a person review lead requires exact full name, page-stated role, and ownership/control/equity/investment clue co-bound in one successfully fetched claim-grade source; never infer wealth from seniority.",
