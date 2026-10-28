@@ -107,7 +107,9 @@ describe("search-result organization review leads", () => {
     args: { query: "investment firms" },
     leadUrls: ["https://blackstone.com"],
     execution: "success",
-    observation: "Blackstone Group\\nURL: https://blackstone.com\\nBlackstone Group is an investment manager.",
+    observation: `Blackstone Group
+URL: https://blackstone.com
+Blackstone Group is an investment manager.`,
     observedUrls: [],
     findings: [lead],
   } as const;
