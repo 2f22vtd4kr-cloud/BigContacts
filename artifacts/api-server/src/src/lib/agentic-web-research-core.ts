@@ -3003,7 +3003,25 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const missingMarkers = markers.filter((marker) => !compacted.includes(marker));
   const compactedWithMarkers = [compacted, ...missingMarkers].filter(Boolean).join("\n\n");
   const combined = base + "\n\n" + header + compactedWithMarkers;
-  return combined.length <= limit ? combined : base;
+  if (combined.length <= limit) return combined;
+
+  // If even the compacted observation cannot fit, compact auxiliary/policy text
+  // rather than dropping the durable record, exact lead URLs, or output contract.
+  const contractStart = base.lastIndexOf("OUTPUT CONTRACT:");
+  const outputContract = contractStart >= 0 ? base.slice(contractStart).trim() : "";
+  const policy = contractStart >= 0 ? base.slice(0, contractStart).trim() : base;
+  const markerText = markers.join("\n\n");
+  const fixedTail = [outputContract, header, markerText].filter(Boolean).join("\n\n");
+  const policyBudget = Math.max(0, limit - fixedTail.length - 4);
+  const compactPolicy = policyBudget > 0
+    ? compactPromptSectionPreservingUrlTokens(
+        policy,
+        policyBudget,
+        "[Emergency prompt policy compacted; durable case state remains authoritative.]",
+      )
+    : "";
+  const fallback = [compactPolicy, outputContract, header, markerText].filter(Boolean).join("\n\n");
+  return fallback.length <= limit ? fallback : base;
 }
 
 /**
