@@ -2988,7 +2988,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : 0;
   const hasDurableObservation = /https?:\/\//i.test(observation)
     || /LATEST TRAJECTORY RECORD|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS/.test(observation);
-  if (observationBudget < 40 && !hasDurableObservation) return base;
+  if (observationBudget < 40 && !hasDurableObservation && base.length <= limit) return base;
   // Keep the latest action's exact source URLs and the critical research contract
   // outside the lossy observation compactor, even when the normal prompt fits.
   const latestSearchMarker = [...observation.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+/g)]
@@ -3194,7 +3194,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const minimumTail = [fallbackOutputContract, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const minimumBase = boundInvestigatorPromptSection(contractText, Math.max(0, limit - minimumTail.length - 2));
   const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\n\n");
-  return lastResort.length <= limit ? lastResort : lastResort.slice(0, limit);
+  if (lastResort.length <= limit) return lastResort;
+  // A too-small provider ceiling is not permission to emit a syntactically bounded
+  // but semantically broken prompt. Fail explicitly rather than slicing mandatory
+  // schema, provenance, exact URLs, or the newest trajectory/correction marker.
+  throw new RangeError(
+    `Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=${limit}; required schema/evidence context cannot fit without truncation.`,
+  );
 }
 
 /**

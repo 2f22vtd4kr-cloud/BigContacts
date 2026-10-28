@@ -3209,6 +3209,19 @@ describe("small emergency observation budgets", () => {
     expect(tinyResult.length).toBeLessThanOrEqual(tinyLimit);
   });
 
+  it("fails explicitly rather than slicing away the action contract when no valid prompt can fit", () => {
+    const basePrompt = [
+      "APEX INVESTIGATOR",
+      "OUTPUT CONTRACT: Return one root JSON object; required fields action, query, provider, url, searches, findings.",
+      "EVIDENCE: URLs are leads, not evidence.",
+    ].join("\\n\\n");
+    const observation = 'LATEST TRAJECTORY RECORD — TURN 17: {"turn":17,"action":"web_search","execution":"success","leadUrls":["https://registry.example.test/company-search"],"leadUrlsOmittedFromPromptCount":0}';
+
+    expect(() => appendEmergencyObservationContext(basePrompt, observation, 24)).toThrow(
+      /Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=24/,
+    );
+  });
+
   it("bounds oversized ordinary observations and retains both ends when budget permits", () => {
     const basePrompt = "Mission and JSON action contract.";
     const observation = "OBSERVATION_START_SENTINEL " + "public source observation ".repeat(300) + " OBSERVATION_END_SENTINEL";
