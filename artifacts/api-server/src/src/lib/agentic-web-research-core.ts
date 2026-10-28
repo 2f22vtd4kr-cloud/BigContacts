@@ -4875,7 +4875,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         shortestLeadFollowUp,
         absoluteMinimumOutputContract,
       ].filter(Boolean);
-      const compactBasePrompt = compactAbsoluteMinimumBaseParts.join("\\n\\n");
+      const compactBasePrompt = compactAbsoluteMinimumBaseParts.join("\n\n");
       const basePrompt = rawBasePrompt.length <= basePromptBudget
         ? rawBasePrompt
         : compactBasePrompt.length <= basePromptBudget
@@ -4893,7 +4893,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const carriedSuccessfulSearchSummary = carryForwardSuccessfulSearch && carryForwardSuccessfulSearch !== latestRecord
         ? "LATEST TRAJECTORY RECORD — TURN " + carryForwardSuccessfulSearch.turn + " (last successful search; carried lead URLs): " + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, 60, 2))
         : "";
-      const emergencyTrajectoryRecordSummary = [carriedSuccessfulSearchSummary, latestTrajectoryRecordSummary, compactLatestTrajectoryMarker].filter(Boolean).join("\\n\\n");
+      const emergencyTrajectoryRecordSummary = [carriedSuccessfulSearchSummary, latestTrajectoryRecordSummary, compactLatestTrajectoryMarker].filter(Boolean).join("\n\n");
       // The absolute-minimum prompt used to preserve only the newest action.
       // When that action was a search, this silently dropped an earlier fetched
       // page containing the exact span needed for a grounded partial finding.
