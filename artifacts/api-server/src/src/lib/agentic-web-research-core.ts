@@ -2989,9 +2989,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const hasDurableObservation = /https?:\/\//i.test(observation)
     || /LATEST TRAJECTORY RECORD|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS/.test(observation);
   if (observationBudget < 40 && !hasDurableObservation) return base;
-  // Keep our generated trajectory labels and the exact last-search URL inventory
-  // outside the lossy observation compactor. Source text is untrusted; the last
-  // matching marker is the explicit durable marker appended after record summaries.
+  // Keep the latest action's exact source URLs and the critical research contract
+  // outside the lossy observation compactor, even when the normal prompt fits.
   const latestSearchMarker = [...observation.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+:[^\n]*/g)]
     .map((match) => match[0])
     .at(-1) ?? "";
@@ -3000,10 +2999,22 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     .at(-1) ?? "";
   const markers = [latestSearchMarker, latestTrajectoryMarker].filter(Boolean);
   const markerSuffix = markers.join("\n\n");
-  const contentBudget = Math.max(40, observationBudget - markerSuffix.length - 2);
+  const durableUrls = [...observation.matchAll(/https?:\/\/[^\s"'<>]+/g)]
+    .map((match) => match[0].replace(/[),.;]+$/, ""))
+    .filter((url, index, all) => all.indexOf(url) === index)
+    .slice(-6);
+  const urlInventory = durableUrls.length ? "EXACT DURABLE URL INVENTORY (leads, not evidence): " + JSON.stringify(durableUrls) : "";
+  const protectedRules = [
+    "Press/profile pages are leads, not targets/access routes.",
+    "Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion.",
+    "Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
+    "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
+  ].filter((rule) => !base.includes(rule));
+  const protectedObservationSuffix = [...protectedRules, urlInventory, markerSuffix].filter(Boolean).join("\n\n");
+  const contentBudget = Math.max(40, observationBudget - protectedObservationSuffix.length - 2);
   const compacted = compactEmergencyTrajectoryObservation(observation, contentBudget);
   const missingMarkers = markers.filter((marker) => !compacted.includes(marker));
-  const compactedWithMarkers = [compacted, ...missingMarkers].filter(Boolean).join("\n\n");
+  const compactedWithMarkers = [compacted, ...protectedRules, urlInventory, ...missingMarkers].filter(Boolean).join("\n\n");
   const combined = base + "\n\n" + header + compactedWithMarkers;
   if (observationBudget >= 40 && combined.length <= limit) return combined;
   // Preserve mandatory semantic contracts and exact durable lead URLs if the
