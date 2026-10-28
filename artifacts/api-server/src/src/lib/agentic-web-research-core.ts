@@ -3262,15 +3262,18 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           : "ACTIVE BOSS SCOPE: " + activeScopeContext;
         return normalizedScope.length <= 420
           ? normalizedScope
-          : compactPromptSectionPreservingUrlTokens(
-              normalizedScope,
-              420,
-              "[scope narration shortened; retain accepted subject, geography, and source-class constraints]",
+          : "ACTIVE BOSS SCOPE: " + compactActiveBossScope(
+              normalizedScope.replace(/^ACTIVE BOSS SCOPE:\s*/i, ""),
+              395,
             );
       })()
     : "";
+  // The excerpt is already bounded to a short head + tail. Use the two-ended
+  // text compactor here so a discriminating fact at the end of a fetched page
+  // survives the last-resort prompt; URL-preserving compaction alone can keep
+  // the head and silently discard the only useful claim span.
   const minimumFetchedSourceExcerpt = fetchedSourceExcerpt
-    ? compactPromptSectionPreservingUrlTokens(fetchedSourceExcerpt, 150, "[source excerpt compacted; full observed text remains in durable trajectory]")
+    ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 260)
     : "";
   const minimumDurableRecordSummaries = durableRecordSummaries.slice(-1).map((summary) => {
     const marker = summary.match(/^LATEST TRAJECTORY RECORD — TURN \d+:/)?.[0] ?? "LATEST TRAJECTORY RECORD:";
@@ -3298,7 +3301,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? boundInvestigatorPromptSection(availableActionsSection, 180)
     : "";
   const minimumDiscoveryContract = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY: model chooses targets/tools; no preset or registry-first sequence. Preserve relevant company and person leads incrementally with source/provenance and review status. Do not infer HNWI/ownership from seniority. Honor Boss scope; vary source classes by expected information gain. Publishers are evidence, not targets; reject placeholders."
+    ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: model chooses targets/tools; no preset or registry-first sequence. Preserve relevant company and person leads incrementally with source/provenance and review status. Do not infer HNWI/ownership from seniority. Honor Boss scope; vary source classes by expected information gain. Publishers are evidence, not targets; reject placeholders."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 120)
