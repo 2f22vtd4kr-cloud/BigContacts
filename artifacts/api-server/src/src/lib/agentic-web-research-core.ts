@@ -3181,7 +3181,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const fallbackOutputContract = isInvestigatorPrompt
     ? "MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice. OUTPUT CONTRACT: one JSON root object; required fields: action,"
     : "";
-  const protectedTail = [fallbackOutputContract, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
+  const protectedTail = [fallbackOutputContract, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
     ? contractText
@@ -3191,7 +3191,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Dynamic evidence and corrective feedback come first in the last-resort layout.
   // Truncation must never discard the newest model correction merely to retain
   // repeated static policy text that is already represented in the base contract.
-  const minimumTail = [fallbackOutputContract, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
+  const minimumTail = [fallbackOutputContract, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const minimumBase = boundInvestigatorPromptSection(contractText, Math.max(0, limit - minimumTail.length - 2));
   const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\n\n");
   return lastResort.length <= limit ? lastResort : lastResort.slice(0, limit);
@@ -5092,9 +5092,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           })())
         : "";
       const emergencyObservation = buildEmergencyPriorTrajectoryObservation(
-        latestFetchedSourceSummary
-          ? [latestFetchedSourceSummary, suppliedObservation.slice(0, 60)].filter(Boolean).join("\n\n")
-          : suppliedObservation,
+        [
+          pinnedInventoryCandidate,
+          ...(latestFetchedSourceSummary ? [latestFetchedSourceSummary] : []),
+          suppliedObservation.slice(0, 60),
+        ].filter(Boolean).join("\n\n"),
         emergencyTrajectoryRecordSummary,
       );
       return appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars);
