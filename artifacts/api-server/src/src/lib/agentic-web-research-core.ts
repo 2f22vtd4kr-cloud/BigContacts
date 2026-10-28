@@ -3072,7 +3072,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     .map((match) => match[0].replace(/[),.;]+$/, ""))
     .filter((url, index, all) => all.indexOf(url) === index)
     .slice(-6);
-  const pinnedInventorySection = base.match(/DURABLE EXACT URL INVENTORY \(verbatim values from immutable research_case_events; URLs are leads, not evidence; never reconstruct or shorten\):[\s\S]*?(?=\n\n|$)/)?.[0] ?? "";
+  const pinnedInventorySection = base.match(/(?:PINNED DURABLE URL INVENTORY \([^\n]*immutable case events[^\n]*\)|DURABLE EXACT URL INVENTORY \([^\n]*immutable research_case_events[^\n]*\)):[\s\S]*?(?=\n\n|$)/)?.[0] ?? "";
   const pinnedInventoryUrls = [...pinnedInventorySection.matchAll(/https?:\/\/[^\s"'<>]+/g)]
     .map((match) => match[0].replace(/[),.;]+$/, ""))
     .filter((url, index, all) => all.indexOf(url) === index);
@@ -3099,7 +3099,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     inventoryUrlChars += url.length;
   }
   const urlInventory = exactInventoryUrls.length
-    ? "EXACT DURABLE URL INVENTORY (leads, not evidence; URLs copied verbatim): " + JSON.stringify(exactInventoryUrls)
+    ? (pinnedInventoryUrls.length
+        ? "PINNED DURABLE URL INVENTORY (exact URLs recovered from immutable case events; leads, not evidence): "
+        : "EXACT DURABLE URL INVENTORY (leads, not evidence; URLs copied verbatim): ")
+      + JSON.stringify(exactInventoryUrls)
       + (omittedInventoryUrlCount ? " " + omittedInventoryUrlCount + " additional URL(s) omitted whole; immutable case-event ledger remains authoritative." : "")
     : "";
   const isInvestigatorPrompt = /APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base);
@@ -3201,18 +3204,18 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice. No fixed action sequence; the Investigator chooses actions. OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Return exactly one root JSON object, no prose. Inactive fields are null/[]; example: {"url":null,"searches":[],"findings":[]}. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain numeric [0,1]. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
+    ? `MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice. No fixed action sequence; the Investigator chooses actions. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. Required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive fields are null/[]; example: {"url":null,"searches":[],"findings":[]}. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain numeric [0,1]. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
     ? "EVIDENCE: search snippets are leads, not evidence; result URLs remain leads until fetched. Failed/blocked retrievals are unobserved. Bind fetched claims to their exact fetched URL. Search-only organizations are review-only leads, not proof of ownership, wealth, identity or contact. Person/HNWI requires exact name, page-stated role and ownership/control/equity/investment clue co-bound in one fetched claim-grade source; never infer wealth from seniority. After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable). BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
     : "";
   // This capability note is already bounded and reflects the current action allowlist;
   // retain it only when the actual base prompt authorizes specialist worker actions.
-  const conditionalCapabilityRule = isInvestigatorPrompt
-    ? boundInvestigatorPromptSection(
-        base.split(/\n{2,}/).find((part) => part.startsWith("Conditional specialist OSINT actions:")) ?? "",
-        300,
-      )
+  const conditionalCapabilitySection = isInvestigatorPrompt
+    ? base.match(/Conditional specialist OSINT actions:[\\s\\S]*?(?=\\n\\n|$)/)?.[0] ?? ""
+    : "";
+  const conditionalCapabilityRule = conditionalCapabilitySection
+    ? compactPromptSectionPreservingUrlTokens(conditionalCapabilitySection, 300, "[specialist capability detail omitted; action allowlist remains authoritative]")
     : "";
   const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
     ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: people—not companies or executive prestige—are the target; organizations are leads. Require source-backed ownership/equity/control/investment clues and never infer wealth from seniority. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor active subject/geography; source class may vary by query. No preset targets/queries. One possible path, not a required sequence: Select a publicly registered company in a defined sector and geography, then identify senior officers from its official leadership page."
@@ -3237,16 +3240,44 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // latest observation/correction, and the newest durable record are protected;
   // optional narration is included only when it fits the remaining provider budget.
   const minimumScopeContext = activeScopeContext
-    ? boundInvestigatorPromptSection(activeScopeContext, 260)
+    ? compactPromptSectionPreservingUrlTokens(
+        /ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:/i.test(activeScopeContext)
+          ? activeScopeContext
+          : "ACTIVE BOSS SCOPE: " + activeScopeContext,
+        360,
+        "[active scope middle omitted; active subject/geography must remain authoritative]",
+      )
     : "";
   const minimumFetchedSourceExcerpt = fetchedSourceExcerpt
-    ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 140)
+    ? compactPromptSectionPreservingUrlTokens(fetchedSourceExcerpt, 240, "[middle of fetched-source excerpt omitted; observed text remains in durable trajectory]")
     : "";
-  const minimumDurableRecordSummaries = durableRecordSummaries
-    .slice(-1)
-    .map((summary) => boundInvestigatorPromptSection(summary, 220));
+  const minimumDurableRecordSummaries = durableRecordSummaries.slice(-1).map((summary) => {
+    const marker = summary.match(/^LATEST TRAJECTORY RECORD — TURN \\d+:/)?.[0] ?? "LATEST TRAJECTORY RECORD:";
+    const jsonAt = summary.indexOf("{");
+    if (jsonAt < 0) return compactPromptSectionPreservingUrlTokens(summary, 300, "[middle omitted]");
+    try {
+      const parsed = JSON.parse(summary.slice(jsonAt)) as Record<string, unknown>;
+      const args = parsed.args && typeof parsed.args === "object" ? parsed.args as Record<string, unknown> : {};
+      const compactArgs: Record<string, unknown> = {};
+      if (typeof args.query === "string") compactArgs.query = args.query.slice(0, 180);
+      if (typeof args.provider === "string") compactArgs.provider = args.provider;
+      if (typeof args.action === "string") compactArgs.action = args.action;
+      const compactRecord: Record<string, unknown> = {};
+      for (const key of ["turn", "action", "execution"]) if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
+      if (Object.keys(compactArgs).length) compactRecord.args = compactArgs;
+      for (const key of ["leadUrlsOmittedFromPromptCount", "observedUrlsOmittedFromPromptCount", "failureDomain", "failureKind"]) {
+        if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
+      }
+      return marker + " " + JSON.stringify(compactRecord);
+    } catch {
+      return compactPromptSectionPreservingUrlTokens(summary, 300, "[middle omitted]");
+    }
+  });
   const minimumAvailableActionsSection = availableActionsSection
     ? boundInvestigatorPromptSection(availableActionsSection, 300)
+    : "";
+  const minimumDiscoveryContract = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
+    ? "DISCOVERY LEAD HANDOFF CONTRACT: one fetched claim-grade source must co-bind exact full name, page-stated role, and ownership/control/equity/investment clue; never infer wealth from seniority. Third-party people-search/profile-directory aggregators are leads only."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 160)
@@ -3259,6 +3290,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     fallbackEvidenceContract,
     conditionalCapabilityRule,
     minimumProviderRule,
+    minimumDiscoveryContract,
     terminalEvidenceRule,
     scopeRecoveryRule,
     urlInventory,
