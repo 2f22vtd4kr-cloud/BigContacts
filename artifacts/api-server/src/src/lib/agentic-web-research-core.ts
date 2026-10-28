@@ -2993,7 +2993,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const latestSearchMarker = [...observation.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+:[^\n]*/g)]
     .map((match) => match[0])
     .at(-1) ?? "";
-  const latestTrajectoryMarker = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN \d+[^\n]*/g)]
+  const latestTrajectoryMarker = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN \d+:[^\n]*/g)]
     .map((match) => match[0])
     .at(-1) ?? "";
   const markers = [latestSearchMarker, latestTrajectoryMarker].filter(Boolean);
@@ -3008,7 +3008,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // If even the compacted observation cannot fit, compact auxiliary/policy text
   // rather than dropping the durable record, exact lead URLs, or output contract.
   const contractStart = base.lastIndexOf("OUTPUT CONTRACT:");
-  const outputContract = contractStart >= 0 ? base.slice(contractStart).trim() : "";
+  const originalOutputContract = contractStart >= 0 ? base.slice(contractStart).trim() : "";
+  const outputContract = [
+    "OUTPUT CONTRACT: Return exactly ONE root JSON object; no prose.",
+    "Press/profile pages are leads, not targets/access routes.",
+    "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead when expected information gain is high; the Investigator retains action choice and this is not a required action sequence.",
+    originalOutputContract.slice(0, 1_200),
+  ].filter(Boolean).join("\n\n");
   const policy = contractStart >= 0 ? base.slice(0, contractStart).trim() : base;
   const markerText = markers.join("\n\n");
   const fixedTail = [outputContract, header, markerText].filter(Boolean).join("\n\n");
