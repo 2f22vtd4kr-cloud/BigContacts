@@ -3011,6 +3011,31 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     } catch {
       fetchedSourceExcerpt = "";
     }
+  } else {
+    // When the latest action itself is the successful fetch, there is no separate
+    // carried-source envelope. Extract its bounded observation directly from the
+    // durable trajectory record so later JSON fields cannot bury the claim text.
+    const trajectoryRecords = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN (\d+)(?:\s*\([^:\n]*\))?:\s*\n?\s*(\{[^\n]*\})/g)];
+    for (const match of trajectoryRecords.reverse()) {
+      try {
+        const parsed = JSON.parse(match[2]) as Record<string, unknown>;
+        if (
+          (parsed.action === "visit" || parsed.action === "browser_fetch")
+          && parsed.execution === "success"
+          && typeof parsed.observation === "string"
+          && parsed.observation.length > 0
+        ) {
+          const sourceObservation = parsed.observation;
+          fetchedSourceExcerpt = [
+            sourceObservation.slice(0, 120),
+            sourceObservation.slice(-500),
+          ].filter(Boolean).join(" … ");
+          break;
+        }
+      } catch {
+        // Ignore malformed untrusted trajectory envelopes; other durable context remains.
+      }
+    }
   }
   const durableRecordSummaries = [...observation.matchAll(/LATEST TRAJECTORY RECORD — TURN (\d+)(?:\s*\([^:\n]*\))?:\s*\n?\s*(\{[^\n]*\})/g)]
     .map((match) => {
