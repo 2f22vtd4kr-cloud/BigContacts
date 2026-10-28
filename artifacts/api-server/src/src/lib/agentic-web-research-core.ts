@@ -3018,22 +3018,29 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const policy = contractStart >= 0 ? base.slice(0, contractStart).trim() : base;
   const markerText = markers.join("\n\n");
   const fixedTail = [outputContract, header, markerText].filter(Boolean).join("\n\n");
+  const fitEmergencySection = (value: string, budget: number, omission: string): string => {
+    const allowed = Math.max(0, Math.floor(budget));
+    if (allowed === 0) return "";
+    if (value.length <= allowed) return value;
+    const marker = "\\n" + omission + "\\n";
+    if (marker.length >= allowed) return value.slice(0, allowed);
+    const available = allowed - marker.length;
+    const head = Math.ceil(available * 0.55);
+    const tail = available - head;
+    return value.slice(0, head) + marker + (tail > 0 ? value.slice(-tail) : "");
+  };
   const policyBudget = Math.max(0, limit - fixedTail.length - 604);
-  const compactPolicy = policyBudget > 0
-    ? compactPromptSectionPreservingUrlTokens(
-        policy,
-        policyBudget,
-        "[Emergency prompt policy compacted; durable case state remains authoritative.]",
-      ).slice(0, policyBudget)
-    : "";
+  const compactPolicy = fitEmergencySection(
+    policy,
+    policyBudget,
+    "[Emergency prompt policy compacted; durable case state remains authoritative.]",
+  );
   const fallbackContentBudget = Math.max(0, limit - compactPolicy.length - fixedTail.length - 6);
-  const compactedContent = fallbackContentBudget > 0
-    ? compactPromptSectionPreservingUrlTokens(
-        compacted,
-        fallbackContentBudget,
-        "[Middle of emergency observation omitted; complete record remains durable.]",
-      ).slice(0, fallbackContentBudget)
-    : "";
+  const compactedContent = fitEmergencySection(
+    compacted,
+    fallbackContentBudget,
+    "[Middle of emergency observation omitted; complete record remains durable.]",
+  );
   const fallback = [compactPolicy, outputContract, header, compactedContent, markerText].filter(Boolean).join("\n\n");
   return fallback.length <= limit ? fallback : base;
 }
