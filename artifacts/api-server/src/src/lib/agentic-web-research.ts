@@ -108,6 +108,33 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
     });
   }
 
+  // Preserve a person+role observation as a review-only card at the first
+  // successful search checkpoint. This is not an HNWI admission: the exact
+  // person name and page-stated role must co-occur in the same observed result,
+  // bind to an eligible lead URL, and carry the explicit low-confidence marker.
+  const isSearchResultPersonReviewLead = finding.scope === "candidate"
+    && finding.vectorType === "other"
+    && Boolean(identity)
+    && Boolean(finding.role?.trim())
+    && normalizeCandidateIdentityName(value) === normalizeCandidateIdentityName(identity)
+    && finding.note.includes("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD")
+    && finding.note.includes("search_result_lead");
+  if (isSearchResultPersonReviewLead) {
+    const eligibleCited = new Set([...cited].filter((url) => isClaimGradeDiscoverySourceUrl(url)));
+    if (!eligibleCited.size) return false;
+    const supportedUrls = new Set<string>();
+    for (const record of records) {
+      if (record.execution !== "success"
+        || typeof record.observation !== "string"
+        || !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)) continue;
+      const span = bindExactSourceSpan(record.observation, finding.role!.trim(), identity, 320);
+      if (!span?.exact || !span.subjectMatched || !span.valueMatched) continue;
+      const leadUrls = (record.leadUrls ?? []).map(normalizedObservedUrl).filter((url): url is string => Boolean(url));
+      for (const url of leadUrls) if (eligibleCited.has(url)) supportedUrls.add(url);
+    }
+    return [...eligibleCited].every((url) => supportedUrls.has(url));
+  }
+
   let valueObserved = false;
   let identityObserved = !identity;
   let support = 0;
