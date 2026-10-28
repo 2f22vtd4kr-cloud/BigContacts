@@ -309,3 +309,9 @@ Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at en
 - The 3cb3f49 run had not yet been verified green; the preceding 4ffe3e7 run's exact diff showed the absolute-minimum fallback still used the old “DISCOVERY PROGRESS GATE” label even though the shorter intermediate tier had the new targetability label. Added “DISCOVERY TARGETABILITY GATE” to the actual absolute-minimum context as well.
 - Source commit: 513a686f4765530aea174eadac743f78014fd46e. The next run must verify the raw source-tail excerpt preserves FACT_AT_END_SENTINEL and the carried successful search record preserves its turn-17 label and lead URL, in addition to the targetability marker.
 - No live deployment or persistent card/evidence read-back has been produced.
+
+## 28. Source-tail token crowding and carried-search label corrected — 2026-10-28, 05:30 UTC
+
+- The 513a686 run remained at 3 failures. The raw source excerpt did contain the end-of-page fact, but repeated URLs embedded in the source text caused the URL-safe compactor to compress the tail again, clipping the final characters of FACT_AT_END_SENTINEL. The targetability wording was present but the absolute-minimum gate did not include the exact “People—not companies or executive prestige—are targets” contract. The final blocked-action tier preserved the successful search record but labeled it only “LAST SUCCESSFUL SEARCH,” so the turn-17 trajectory assertion did not match.
+- Redacted inline URLs from the compact page excerpt (the exact source URL is separately retained atomically in observedUrls), then preserved the raw 220-character tail excerpt; made the absolute-minimum targetability gate explicit; and added the exact latest-trajectory turn label to carried successful-search records in both rich and smallest emergency tails.
+- Source commit: 69685e398026ce679f2e60772fdb35b94af1d6cb. Fresh CI pending. No deployed runtime, card/evidence IDs, or persistent API read-back yet.
