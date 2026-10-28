@@ -79,8 +79,11 @@ Investigator capability mapping:
 - groq-investigator-4 → GROQ_INVESTIGATOR_API_KEY_3
 - groq-investigator-5 → GROQ_INVESTIGATOR_API_KEY_4
 - groq-investigator-6 → GROQ_INVESTIGATOR_API_KEY_5
+- groq-investigator-7 → GROQ_INVESTIGATOR_API_KEY_6
+- groq-investigator-8 → GROQ_INVESTIGATOR_API_KEY_7
+- groq-investigator-20b → model-scoped GPT-OSS 20B recovery using the base Investigator credential; this is a distinct model capability, not an additional credential slot.
 
-Selecting one Investigator capability never silently rotates to another credential.
+The registry currently exposes the base credential plus seven suffixed credential slots (eight selectable credential capabilities), and the explicit 20B model-scoped recovery capability. Selecting an ordinary Investigator capability never silently rotates to another credential; Boss must explicitly select a recovery capability when eligible.
 
 Current Investigator model routes inside Groq are Qwen 3.8 27B, GPT-OSS 20B, and GPT-OSS 120B. Model routing is downstream of capability selection.
 
