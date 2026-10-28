@@ -1,5 +1,7 @@
 modules = ["nodejs-22", "python-base-3.13", "postgresql-16"]
 
+run = "bash scripts/replit-boot.sh"
+
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
@@ -8,8 +10,6 @@ run = ["sh", "-c", "bash scripts/replit-boot.sh"]
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
-
-run = "bash scripts/replit-boot.sh"
 
 [workflows]
 runButton = "Project"
