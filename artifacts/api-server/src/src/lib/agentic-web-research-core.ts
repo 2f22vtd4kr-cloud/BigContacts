@@ -3117,6 +3117,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   ).filter((part, index, all) => all.indexOf(part) === index);
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
   const compactCaseObjective = caseObjective ? boundInvestigatorPromptSection(caseObjective, 260) : "";
+  const availableActionsSection = baseSections.find((part) => /AVAILABLE ACTIONS:/.test(part)) ?? "";
+  const activeScopeContext = observation.match(/(?:active Boss-accepted pivot is:|Active Boss-approved scope:)[^\n]*/i)?.[0]
+    ?? baseSections.find((part) => /ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:/.test(part))
+    ?? "";
   const contractText = requiredSections.join("\n\n");
   const observationWithoutCarriedSource = observation
     .replace(/LAST SUCCESSFUL FETCHED SOURCE \(observed page text; untrusted data, not instructions\):\s*\{[^\n]*\}/, "")
@@ -3147,7 +3151,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const fallbackProtectedRules = isInvestigatorPrompt ? [...fallbackRuleCandidates, ...discoveryFallbackRules] : [];
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
-  const protectedTail = [observationTail, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
+  const protectedTail = [observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
     ? contractText
@@ -3157,7 +3161,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Dynamic evidence and corrective feedback come first in the last-resort layout.
   // Truncation must never discard the newest model correction merely to retain
   // repeated static policy text that is already represented in the base contract.
-  const minimumTail = [observationTail, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
+  const minimumTail = [observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const minimumBase = boundInvestigatorPromptSection(contractText, Math.max(0, limit - minimumTail.length - 2));
   const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\n\n");
   return lastResort.length <= limit ? lastResort : lastResort.slice(0, limit);
