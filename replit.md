@@ -10,7 +10,7 @@ Private OSINT desk: public contact routes on entity cards. **Zero synthetic HNWI
 | Preview | **`/`** = desk HTML (built `apex-finder`). **`/api`** = API. Never open `/api` as the app. |
 | Frontend workflow | **Do not run** on Replit for preview (API serves the desk). |
 | Auto pipeline | `ENABLE_AUTO_PIPELINE=false` |
-| Redis | **One** of `REDIS_URL_1` or `REDIS_URL` is enough |
+| Redis | **`REDIS_URL_1` is the canonical durable store and required for Atlas job/lease state.** `REDIS_URL` is the optional local cache; the boot script derives it from `REDIS_URL_1` when it is absent. |
 | Dig | Free ReAct — **no `force_*` hop scripts**. Models invent queries. |
 | Product | **Card is the answer** (phone/email/LinkedIn + honest outcome). Evidence is provenance. |
 | Proof | Live **scoreboard** (`milestonePass`) after single-target **Dig contacts** — not commit count. |
@@ -19,7 +19,7 @@ Private OSINT desk: public contact routes on entity cards. **Zero synthetic HNWI
 
 **Operator prompt (only one):** `docs/REPLIT_UPDATE_PROMPT_LATEST.md`  
 **Boot:** `bash scripts/replit-boot.sh`  
-**Gates:** `pnpm run check:no-force-dig` · `GET /api/healthz` (integrity not critical)
+**Gates:** `pnpm run typecheck` · `pnpm run build` · `pnpm run check:bureau` · `GET /api/healthz` (`bureauIntegrity` must not be critical). `check:no-force-dig` remains an additional free-ReAct guard.
 
 ## Monorepo map
 

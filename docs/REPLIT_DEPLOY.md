@@ -1,178 +1,92 @@
-# Apex Atlas — Replit Deployment Guide
+# Apex Atlas — Replit deployment and runtime verification
 
-**Product:** Bureau-first OSINT desk for reachable, attributable contacts on mid-market operators and HNWIs.  
-**Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
-**Stack:** pnpm monorepo — `artifacts/api-server` (Express) + `artifacts/apex-finder` (React/Vite) + `lib/db` (Postgres/Drizzle) + Redis (local + Upstash permanent).
+**Canonical repository:** https://github.com/2f22vtd4kr-cloud/BigContacts  
+**Canonical branch:** `main`  
+**Last reconciled:** 2026-10-28
 
----
+Use this guide together with `replit.md` and `docs/APEX_REPLIT_STARTUP_PROMPT.md`. The executable scripts and current provider-role source take precedence over older audit notes.
 
-## 1. Architecture (deploy must match this)
+## Runtime topology
 
-```
-Browser (apex-finder)
-    │  POST /api/ingest/atlas-run   ← Launch Apex Atlas button
-    │  GET  /api/ingest/job/<jobId> (then /api/ingest/atlas-trace/<jobId>)
-    │  GET  /api/healthz
-    ▼
-api-server (always-on process)
-    │  job queue + locks
-    ▼
-Redis permanent (Upstash REDIS_URL_1…_5)  +  optional local REDIS_URL
-    ▼
-Postgres (DATABASE_URL) — entities, contacts, evidence, improvement_logs
-```
+Run **one API Server workflow** on `PORT=8080`. The API server also serves the built desk UI:
 
-**Hard rule:** Static UI alone cannot run the pipeline. `/api` must proxy to api-server. If the UI gets HTML for `/api/*`, you will see `Unexpected token '<'` JSON errors.
+- `/` — Apex desk UI
+- `/api/healthz` — service/provider health
+- `/api/*` — API routes
 
-**Launch control:** Overview hero + header + Reactor call `POST /api/ingest/atlas-run` then route to `/reactor`.
+Do not run a second frontend/Vite server as the Replit preview. Build output is generated at `artifacts/apex-finder/dist/public` and served by the API.
 
----
-
-## 2. Replit project wiring
-
-Existing `.replit` runs **parallel** workflows:
-
-| Workflow | What |
-|----------|------|
-| **Redis** | `redis-server --port 6379` (local cache) |
-| **API Server** | api-server on `PORT` (8080 typical) |
-| **web** | apex-finder Vite / production preview |
-
-**Deployment target:** `autoscale` + `router = application`.
-
-**Safe defaults already in `.replit` `[userenv.shared]`:**
-- `ENABLE_AUTO_PIPELINE=false` — do not flip on until operator explicitly wants continuous runs
-- `REDIS_URL=redis://localhost:6379`
-- `RESEARCH_DEPTH=standard` for research-parity smokes vs a single Grok agent (`fast` is bulk-cheap and can under-dig)
-
-After changing **any** secret: **restart API Server** so provider slot counts refresh (`/api/healthz`). Gemini Right Hand uses `GEMINI_RIGHT_HAND_API_KEY` when configured.
-
-**Research integrity (do not skip):**
-1. Pull latest `main` (free ReAct + full OSINT tool surface + session orientation). See `docs/PRE_REPLIT_GO.md`.
-2. Secrets must include **SERPER_API_KEY** + **GROQ_API_KEY** minimum; Tavily, Exa, Gemini Right Hand, Mistral, Scrapfly/ZenRows strongly recommended.
-3. Set `RESEARCH_DEPTH=standard` (or `deep`) for head-to-head vs plain Grok — `fast` is for bulk cost control.
-4. Open status / `GET /api/healthz` — `bureauIntegrity` must be **ok** before Launch.
-5. Stale cards: re-cook with `POST /api/ingest/atlas-run` `{ "singleTargetId": <id> }`.
-
-
----
-
-## 3. Secrets checklist (Replit Secrets UI)
-
-Map **one secret name → one value**. Never commit values to git.
-
-### Required for boot
-| Secret | Purpose |
-|--------|---------|
-| `DATABASE_URL` | Postgres connection (Replit Postgres or external) |
-| `REDIS_URL` | Local/ephemeral cache — usually `redis://localhost:6379` on Replit |
-| `REDIS_URL_1` | Upstash permanent #1 (jobs, locks, HNWI index) |
-| `REDIS_URL_2` | Upstash #2 (contact cache preferred) |
-| `REDIS_URL_3` … `REDIS_URL_5` | Failover when quota exhausted |
-
-### LLM / bureau (Gemini oversight + Groq/Mistral Investigator)
-| Secret | Purpose |
-|--------|---------|
-| `GROQ_API_KEY` | Primary fast LLM (also `GROQ_API_KEY_2`… if multi) |
-| `GEMINI_API_KEY` | Gemini Boss (add `GEMINI_API_KEY_2`… for rotation) |
-| `MISTRAL_API_KEY` | Mistral web-search lane |
-
-### Search & web surface
-| Secret | Purpose |
-|--------|---------|
-| `TAVILY_API_KEY` | SERP / discovery (also `_1`… slots) |
-| `EXA_API_KEY` / keys as coded | Semantic search |
-| `SERPER_API_KEY` | **Critical** — primary agentic ReAct SERP (also python/Maigret) |
-| `SCRAPFLY_API_KEY` | JS-rendered page fetch |
-| `ZENROWS_API_KEY` | Alternate fetch |
-| `WHOISJSON_API_KEY` or `WHOISJSON_KEY` | Domain WHOIS |
-| `WHOXY_API_KEY` | Reverse WHOIS |
-| `COMPANIES_HOUSE_API_KEY` | UK registry |
-
-### Optional / advanced
-| Secret | Purpose |
-|--------|---------|
-| `PLAYWRIGHT_ENABLED` | `true` only if browser hop is configured |
-| `BROWSERLESS_TOKEN` / `BROWSERLESS_CONTENT_URL` | Remote browser |
-| `LOG_LEVEL` | `info` default |
-| `ENABLE_AUTO_PIPELINE` | **keep `false`** until intentional |
-
-**Operator keys** (paste into Replit Secrets from session handoff; do not put in commits): PAT is for GitHub only — not a Replit runtime secret unless you use deploy-from-git automation.
-
----
-
-## 4. Backend readiness (pre-flight)
-
-On a running Replit after secrets + restart:
+Canonical boot command:
 
 ```bash
-# Health — providers must show non-zero for groq/gemini/tavily/exa when keys are set
-curl -s http://127.0.0.1:8080/api/healthz | jq .
-
-# Expect:
-#   status: ok
-#   redis.status: ok (or permanent slots connected)
-#   registryShallowRisk: false  when Tavily/Exa/Perplexity slots active
-#   autoPipeline: false
-
-# Launch pipeline (same as UI button)
-curl -s -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
-  -H 'content-type: application/json' \
-  -d '{"discoveryFirst":true,"researchLimit":5,"skipFaa":true}' | jq .
-
-# Poll
-JOB_ID=<job returned by canonical launch>
-curl -sS -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | jq .
-curl -sS -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | jq .
+bash scripts/replit-boot.sh
 ```
 
-**DB schema:**
-```bash
-pnpm --filter @workspace/db run push
-pnpm --filter @workspace/db run harden
-```
+The script builds the desk when its static output is absent, builds the API unless a valid clean-revision build stamp can be reused, and starts `@workspace/api-server`. It does **not** mutate the database schema by default. Keep `ENABLE_AUTO_PIPELINE=false` unless continuous runs are deliberately required.
 
-**Floors (when tree complete):**
-```bash
-node scripts/check-trash-phone.mjs
-node scripts/check-visibility-floor.mjs
-```
+## Active providers and resources
 
----
+The current architecture is **Groq Boss → selected Groq Investigator capability**, with Groq Right-hand providing bounded oversight. Boss and Right-hand do not browse, choose fixed research actions, or author evidence. Investigator research remains free-ReAct and model-directed.
 
-## 5. Product posture on Replit
+Do not restore retired Gemini, Mistral, DeepSeek or NVIDIA NIM control-plane transports. Never ask an operator to invent or paste secret values into source files.
 
-1. **Launch Apex Atlas** is the primary control — Overview, header, Reactor.
-2. Persona / Duplicate / Jobs tabs need the same `/api` proxy; they enqueue **server** jobs, not browser LLMs.
-3. **Apply safe fixes** only mutates allow-listed entity state in Postgres — not git commits.
-4. Fail-closed: no invented contacts; org inboxes never Personal; trash-phone gate on.
-5. Grok public-surface parity is the **floor**; maximize attributable people-contacts above it.
+Core runtime configuration:
 
----
+| Name | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection, normally injected by the Replit/Postgres environment |
+| `REDIS_URL_1` | Canonical durable Redis store for Atlas job/lease state; configure a real Redis/Upstash URL |
+| `REDIS_URL` | Optional local cache; boot derives it from `REDIS_URL_1` when unset |
+| `GROQ_BOSS_API_KEY` | Groq Boss control capability |
+| `GROQ_RIGHT_HAND_API_KEY` | Groq Right-hand oversight capability |
+| `GROQ_INVESTIGATOR_API_KEY` | First selectable Groq Investigator capability |
+| `SERPER_API_KEY` | Primary web-search capability |
 
-## 6. Common failure modes
+Other integration secrets such as `GROQ_INVESTIGATOR_API_KEY_1`, `TAVILY_API_KEY`, `EXA_API_KEY`, `SERPAPI_KEY`, `SCRAPFLY_API_KEY`, `ZENROWS_API_KEY`, `COMPANIES_HOUSE_API_KEY`, and `HF_TOKEN` enable additional independently configured capabilities. See `docs/REPLIT_UPDATE_PROMPT_LATEST.md` and `scripts/replit-preflight.mjs` for the current names. Never print or commit values.
 
-| Symptom | Cause | Fix |
-|---------|--------|-----|
-| `Unexpected token '<'` in UI | `/api` returned HTML | Proxy `/api` → api-server; ensure API workflow is running |
-| `registryShallowRisk: true` | No Tavily/Exa/Perplexity | Add secrets + **restart API** |
-| Launch 409 | Atlas already running | Open Reactor; or clear lock via API when stuck |
-| Jobs idle forever | Redis permanent down / quota | Check REDIS_URL_1…_5; rotate exhausted Upstash DBs |
-| Empty DB forever | Never launched / no ingest | Launch Atlas or controlled registry ingest |
+`node scripts/replit-preflight.mjs` is a **presence-only audit of all listed integration capabilities**, not a minimum boot-dependency checker. It exits nonzero if any listed capability is absent and prints names/statuses only; do not invent credentials or treat every missing optional integration as proof that the API cannot boot.
 
----
+## Import and startup
 
-## 7. Deploy order (operator)
+1. Import this repository into Replit and use the current `main` branch after the PR is merged.
+2. Confirm the workspace checkout is on the reviewed commit and install from the lockfile:
 
-1. Import/sync GitHub `main` into Replit (`llhdeunvad/Wait-Instructions` or current Repl).
-2. Provision Postgres → set `DATABASE_URL`.
-3. Paste all secrets from §3.
-4. Start **Project** workflow (Redis + API + web).
-5. `pnpm --filter @workspace/db run push`.
-6. `curl /api/healthz` until providers look healthy.
-7. UI: **Launch Apex Atlas** → Reactor watch.
-8. Keep `ENABLE_AUTO_PIPELINE=false` unless you explicitly want continuous pipeline.
+   ```bash
+   pnpm install --frozen-lockfile
+   ```
 
----
+3. Ensure Replit/Postgres provides `DATABASE_URL`, and configure the canonical `REDIS_URL_1` plus the active provider/search secrets in Replit Secrets. Do not create substitute credentials.
+4. Apply schema/migrations only during an explicit, controlled setup/migration window. The boot script requires the opt-in:
 
-*Last aligned with tip including Launch CTA (`4bddba9`) and handoff (`e46c66e`). Update this doc when env names change in code.*
+   ```bash
+   APEX_ALLOW_SCHEMA_PUSH=true bash scripts/replit-boot.sh
+   ```
+
+   Otherwise, the normal boot intentionally skips schema mutation. Preserve existing database data and inspect migration output.
+5. Start exactly one API workflow with `bash scripts/replit-boot.sh`.
+6. Run the repository gates where appropriate:
+
+   ```bash
+   pnpm run typecheck
+   pnpm run build
+   pnpm run check:bureau
+   node scripts/replit-preflight.mjs
+   ```
+
+7. Verify health and open `/` in the Replit preview:
+
+   ```bash
+   curl -fsS http://127.0.0.1:8080/api/healthz
+   ```
+
+   Confirm `bureauIntegrity` is not critical, the canonical Redis store is available, and the health response reflects the provider configuration. A successful build alone does not establish runtime readiness.
+
+## Controlled model-trace capture
+
+The development config keeps a run-scoped model-prompt capture enabled for the requested audit. It writes to the ignored `.local/audits/` directory, not a tracked `audits/` file, and visible-file override is disabled. Contact data can be retained in this controlled local trace; treat the generated file as private. After the controlled run, disable `APEX_CAPTURE_MODEL_PROMPTS` and `APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA` for ordinary development and do not commit raw traces.
+
+## Runtime acceptance
+
+Do not claim live acceptance because CI is green or the API starts. For the actual Replit smoke test, record the deployed Git SHA, `/api/healthz`, canonical job/case identifiers, actual model-selected actions, successful observations, exact observed source URLs, evidence/promotion decisions, resulting review/card state, stop reason, and active-job/lease state. Failed retrievals and search snippets remain leads, not fetched evidence. If a provider/network boundary fails, preserve the trajectory and report that failure; do not fabricate a card or research result.
+
+The application is runtime-verified only after the running Replit URL is checked against this evidence contract.
