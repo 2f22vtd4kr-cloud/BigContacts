@@ -3053,6 +3053,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
     "Never use placeholders such as CompanyName, companywebsite.com, or example.com.",
     "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
+    "After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only].",
+    "After a successful web/parallel/registry search, exact organization name in observed result text plus its eligible HTTPS URL permits only a low-confidence review-only company finding; snippets are leads, not evidence.",
     "Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence.",
   ];
   const protectedRules = isInvestigatorPrompt
@@ -3071,7 +3073,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // fall back to the base prompt alone, which loses the latest durable action.
   const baseSections = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const requiredSections = baseSections.filter((part) =>
-    /MISSION PRIORITY:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless/.test(part)
+    /MISSION PRIORITY:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
   const compactCaseObjective = caseObjective ? boundInvestigatorPromptSection(caseObjective, 260) : "";
@@ -3101,7 +3103,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : boundInvestigatorPromptSection(contractText, contractBudget);
   const fallback = [boundedContract, protectedTail].filter(Boolean).join("\n\n");
   if (fallback.length <= limit) return fallback;
-  const minimumTail = [...fallbackProtectedRules, compactCaseObjective, leadGuidance, urlInventory, fetchedSourceLabel, fetchedSourceExcerpt, observationTail, header, markerSuffix, ...durableRecordSummaries].filter(Boolean).join("\n\n");
+  // Dynamic evidence and corrective feedback come first in the last-resort layout.
+  // Truncation must never discard the newest model correction merely to retain
+  // repeated static policy text that is already represented in the base contract.
+  const minimumTail = [observationTail, header, markerSuffix, ...durableRecordSummaries, urlInventory, fetchedSourceLabel, fetchedSourceExcerpt, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const minimumBase = boundInvestigatorPromptSection(contractText, Math.max(0, limit - minimumTail.length - 2));
   const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\n\n");
   return lastResort.length <= limit ? lastResort : lastResort.slice(0, limit);
