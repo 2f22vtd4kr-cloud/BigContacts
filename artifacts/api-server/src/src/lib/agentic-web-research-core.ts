@@ -5010,11 +5010,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         absoluteMinimumOutputContract,
       ].filter(Boolean);
       const baseWithoutInventory = absoluteMinimumBaseParts.join("\n\n");
-      const inventoryBudget = maxUserPromptChars - baseWithoutInventory.length - 2 - 800;
       const pinnedInventoryCandidate = extractPinnedDurableUrlInventory(input.durableUrlInventory);
-      const pinnedDurableInventoryForAbsoluteMinimum = pinnedInventoryCandidate && pinnedInventoryCandidate.length <= inventoryBudget
-        ? pinnedInventoryCandidate
-        : "";
+      // Reserve the immutable-event URL inventory explicitly instead of dropping it
+      // when the richer absolute-minimum policy happens to consume the remaining
+      // prompt budget. The current action and full output/admission contract remain
+      // intact; explanatory policy is compacted first.
+      const pinnedDurableInventoryForAbsoluteMinimum = pinnedInventoryCandidate;
       const absoluteMinimumBase = [
         ...absoluteMinimumBaseParts,
         pinnedDurableInventoryForAbsoluteMinimum,
@@ -5037,12 +5038,22 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         shortestLeadFollowUp,
         absoluteMinimumOutputContract,
       ].filter(Boolean);
+      const compactBaseCoreParts = compactAbsoluteMinimumBaseParts.slice(0, -1);
+      const compactBaseCorePrompt = compactBaseCoreParts.join("\n\n");
       const compactBasePrompt = compactAbsoluteMinimumBaseParts.join("\n\n");
+      const pinnedSuffix = pinnedInventoryCandidate ? "\n\n" + pinnedInventoryCandidate : "";
+      const inventoryAndContractReserve = absoluteMinimumOutputContract.length + pinnedSuffix.length + 2;
+      const compactCoreBudget = Math.max(0, basePromptBudget - inventoryAndContractReserve);
+      const compactBaseWithPinnedInventory = [
+        boundInvestigatorPromptSection(compactBaseCorePrompt, compactCoreBudget),
+        absoluteMinimumOutputContract,
+        pinnedInventoryCandidate,
+      ].filter(Boolean).join("\n\n");
       const basePrompt = rawBasePrompt.length <= basePromptBudget
         ? rawBasePrompt
-        : compactBasePrompt.length <= basePromptBudget
+        : compactBasePrompt.length <= basePromptBudget && !pinnedInventoryCandidate
           ? compactBasePrompt
-          : boundInvestigatorPromptSection(compactBasePrompt, basePromptBudget);
+          : compactBaseWithPinnedInventory;
       // A new bounded Investigator episode starts with a generic lastObservation even
       // when durable priorTrajectoryRecords exist. In this last-resort prompt tier,
       // passing only lastObservation silently drops that history and invites repeated
