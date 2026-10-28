@@ -331,7 +331,6 @@ export async function checkpointCanonicalDiscoveryFindings(input: {
   execution?: string;
 }): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[] }>; materialized: number; evidenceRows: number }> {
   const empty = { names: [], candidates: [], materialized: 0, evidenceRows: 0 };
-  if (input.findings.length === 0) return empty;
   try {
     return await materializeAtlasAdmissions({
       discoveryRunId: input.discoveryRunId,
@@ -717,8 +716,6 @@ async function materializePartialOrganizationLeadCards(input: {
     seenNames.add(identity);
     leadNames.push(name);
   }
-  if (!leadNames.length) return { materialized: 0, evidenceRows: 0 };
-
   const caseEvents = await db.select({
     id: researchCaseEventsTable.id,
     eventType: researchCaseEventsTable.eventType,
@@ -734,35 +731,79 @@ async function materializePartialOrganizationLeadCards(input: {
       const payload = JSON.parse(event.payload) as {
         jobId?: string | null; action?: string; execution?: string;
         observedUrls?: unknown[]; leadUrls?: unknown[];
+        args?: Record<string, unknown>;
         observation?: string; runId?: string;
       };
-      if (payload.jobId !== input.atlasJobId || payload.execution !== "success") return [];
+      if (payload.jobId !== input.atlasJobId) return [];
       const action = payload.action ?? "";
       const fetched = action === "visit" || action === "browser_fetch";
       const searched = action === "web_search" || action === "parallel_web_search"
         || action === "registry_search" || action === "parallel_registry_search";
-      // Search-result URLs are leads, not fetched-page evidence. Preserve them
-      // separately so a model finding grounded in an actual result snippet can
-      // become a clearly labelled review card even if the next control turn fails.
+      const registry = action === "registry_search" || action === "parallel_registry_search";
+      const observations: Array<{
+        action: string; execution: string; verificationLevel: "fetched_source" | "search_result_lead";
+        sourceUrl: string; observation: string; eventId: number; createdAt: Date;
+      }> = [];
+
+      // Registry adapters may return typed Corporation leads even when the model
+      // emits no finding. Preserve those source-attributed rows at this checkpoint
+      // rather than waiting for terminal reconciliation or another depth level.
+      if (registry && (payload.execution === "success" || payload.execution === "partial")) {
+        const outcomes = Array.isArray(payload.args?.registrySearchOutcomes) ? payload.args.registrySearchOutcomes : [];
+        for (const rawOutcome of outcomes) {
+          if (!rawOutcome || typeof rawOutcome !== "object" || Array.isArray(rawOutcome)) continue;
+          const outcome = rawOutcome as Record<string, unknown>;
+          if (outcome.error != null || !Array.isArray(outcome.companyLeads)) continue;
+          for (const rawLead of outcome.companyLeads) {
+            if (!rawLead || typeof rawLead !== "object" || Array.isArray(rawLead)) continue;
+            const company = rawLead as Record<string, unknown>;
+            if (typeof company.name !== "string" || !Array.isArray(company.sourceUrls)) continue;
+            const name = company.name.trim().replace(/\\s+/g, " ");
+            const identity = normalizeCandidateIdentityName(name);
+            if (name.length < 3 || identity.length < 3) continue;
+            if (!seenNames.has(identity)) {
+              seenNames.add(identity);
+              leadNames.push(name);
+            }
+            const notes = typeof company.notes === "string" ? company.notes.replace(/\\s+/g, " ").trim().slice(0, 240) : "";
+            for (const rawUrl of company.sourceUrls) {
+              if (typeof rawUrl !== "string") continue;
+              observations.push({
+                action: "registry_search", execution: "success", verificationLevel: "search_result_lead",
+                sourceUrl: rawUrl, observation: name + (notes ? " — " + notes : ""),
+                eventId: event.id, createdAt: event.createdAt,
+              });
+            }
+          }
+        }
+      }
+
+      if (payload.execution !== "success") return observations;
+      // Search-result URLs are leads, not fetched-page evidence. Keep them
+      // separate from fetched-page URLs and bind every claim to the exact URL.
       const sourceUrls = fetched
         ? payload.observedUrls
         : searched && Array.isArray(payload.leadUrls) && payload.leadUrls.length
           ? payload.leadUrls
           : [];
-      if (!Array.isArray(sourceUrls)) return [];
-      return sourceUrls.filter((url): url is string => typeof url === "string").map((url) => ({
-        action,
-        execution: payload.execution ?? "",
-        verificationLevel: fetched ? "fetched_source" as const : "search_result_lead" as const,
-        sourceUrl: url,
-        observation: typeof payload.observation === "string" ? payload.observation : "",
-        eventId: event.id,
-        createdAt: event.createdAt,
-      }));
+      if (Array.isArray(sourceUrls)) {
+        observations.push(...sourceUrls.filter((url): url is string => typeof url === "string").map((url) => ({
+          action,
+          execution: payload.execution ?? "",
+          verificationLevel: fetched ? "fetched_source" as const : "search_result_lead" as const,
+          sourceUrl: url,
+          observation: typeof payload.observation === "string" ? payload.observation : "",
+          eventId: event.id,
+          createdAt: event.createdAt,
+        })));
+      }
+      return observations;
     } catch {
       return [];
     }
   });
+
+  if (!leadNames.length) return { materialized: 0, evidenceRows: 0 };
 
   let materialized = 0;
   let evidenceRows = 0;
