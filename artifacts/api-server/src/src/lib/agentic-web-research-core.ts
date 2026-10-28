@@ -4779,7 +4779,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // admission rule here instead of repeating the much longer rule already present in
       // hardMinimumOutputContract, so prior action feedback has enough prompt budget.
       const absoluteMinimumDiscoveryContext = input.mode === "discovery"
-        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are targets; an organization is a lead, not the target. Require source-backed ownership/equity/control/investment clues; never infer wealth from seniority alone. Honor approved Boss scope: topic/geography must match; source class need not appear in every discovery query; no registry-first sequence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
+        ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are targets; an organization is a lead, not the target. Require source-backed ownership/equity/control/investment clues; never infer wealth from seniority alone. Honor approved Boss scope: topic/geography must match; source class need not appear in every discovery query; no registry-first sequence. No preset targets/queries. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
         : "";
       const absoluteMinimumObjective = [
         input.objective?.trim()
@@ -4852,7 +4852,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const carriedSuccessfulSearchSummary = carryForwardSuccessfulSearch && carryForwardSuccessfulSearch !== latestRecord
         ? "LATEST TRAJECTORY RECORD — TURN " + carryForwardSuccessfulSearch.turn + " (last successful search; carried lead URLs): " + JSON.stringify(compactRecordEnvelope(carryForwardSuccessfulSearch, 60, 2))
         : "";
-      const emergencyTrajectoryRecordSummary = [carriedSuccessfulSearchSummary, latestTrajectoryRecordSummary].filter(Boolean).join("\\n\\n");
+      const emergencyTrajectoryRecordSummary = [carriedSuccessfulSearchSummary, latestTrajectoryRecordSummary, compactLatestTrajectoryMarker].filter(Boolean).join("\\n\\n");
       // The absolute-minimum prompt used to preserve only the newest action.
       // When that action was a search, this silently dropped an earlier fetched
       // page containing the exact span needed for a grounded partial finding.
