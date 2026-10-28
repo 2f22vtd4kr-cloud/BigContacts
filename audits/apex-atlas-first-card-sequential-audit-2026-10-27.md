@@ -418,3 +418,12 @@ Timestamp: 2026-10-27, follow-up implementation pass. Current PR #759 head at en
 - Required CI workflows were still running when this entry was written; this section is not a claim that those checks passed.
 - No canonical Replit run, persistent database card ID, linked evidence ID, or normal API/UI read-back has been verified. The user's next Replit run remains the separate runtime acceptance gate after codebase checks pass.
 - Continue to preserve model autonomy: no scripted source sequence, no fabricated card, no automatic target/HNWI upgrade, and no direct database insertion outside the canonical checkpoint/reconciliation pipeline.
+
+## 34. Closed the no-model-finding checkpoint gap for typed registry results — 2026-10-28
+
+- Further source review found a second gap in the first-card path: the Bureau invoked the checkpoint callback only when `record.findings.length > 0`, and `checkpointCanonicalDiscoveryFindings` returned immediately on an empty findings array. Thus a successful registry adapter could return typed `Corporation` leads, yet the checkpoint never ran if the model omitted a finding; terminal reconciliation was the only remaining chance to create a company card.
+- Corrected the Bureau callback to checkpoint successful/partial search, registry, and fetch observations even when the model emitted no finding. The canonical checkpoint no longer skips empty finding arrays; it reads the durable case events.
+- Extended incremental company materialization to collect typed `companyLeads` from successful registry subqueries and bind each lead to its exact claim-grade source URL and observed name/notes. Registry-only evidence stays a low-confidence company review lead; it does not establish wealth, ownership, HNWI status, or a person route. No synthetic name is derived from a hostname.
+- Added regression assertions for the previously missing callback and registry-only checkpoint path. The changes preserve the model's source/tool choice and do not add a fixed Companies House-first or other registry sequence.
+- Latest source commits for this extension: `7948ee74` (typed registry lead checkpoint), `3dc1eca9` (whitespace normalization), `1cc8505c` (registry checkpoint regression), `244f8ba1` (checkpoint after successful observations without findings), `6c84f8cf` (callback regression).
+- Required CI was queued/running for head `6c84f8cff1233026b2298de96ae61327f441ce5d` when this entry was written. No live Replit run or persistent card read-back has yet been proven.
