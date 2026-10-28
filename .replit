@@ -3,13 +3,37 @@ modules = ["nodejs-22", "python-base-3.13", "postgresql-16"]
 [deployment]
 router = "application"
 deploymentTarget = "autoscale"
+run = ["sh", "-c", "bash scripts/replit-boot.sh"]
 
 [deployment.postBuild]
 args = ["pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
+run = "bash scripts/replit-boot.sh"
+
 [workflows]
 runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "sequential"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/replit-boot.sh"
+waitForPort = 8080
+
+[[ports]]
+localPort = 8080
+externalPort = 80
 
 [agent]
 stack = "PNPM_WORKSPACE"
