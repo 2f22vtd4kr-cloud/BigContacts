@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { groundedFindingsForTrajectory, shouldContinueAfterInvestigatorParseFailure } from "./agentic-web-research";
 import { sourceBackedAgenticFindings } from "./bureau-agentic-pass";
+import type { AgenticFinding, AgenticTrajectoryRecord } from "./agentic-web-research-core";
 
 const targetWrapperSource = readFileSync(
   resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"),
@@ -91,7 +92,7 @@ describe("bounded Investigator action-parse recovery", () => {
 
 
 describe("search-result organization review leads", () => {
-  const lead = {
+  const lead: AgenticFinding = {
     vectorType: "other",
     value: "Blackstone Group",
     personName: null,
@@ -99,8 +100,8 @@ describe("search-result organization review leads", () => {
     scope: "organization",
     sourceUrls: ["https://blackstone.com"],
     note: "LOW-CONFIDENCE REVIEW-ONLY COMPANY LEAD; search_result_lead; exact business-like title returned by the search provider; snippet/title only, underlying page not fetched; no ownership, wealth, person, or contact conclusion.",
-  } as const;
-  const searchRecord = {
+  };
+  const searchRecord: AgenticTrajectoryRecord = {
     turn: 1,
     model: "test-model",
     action: "web_search",
@@ -112,7 +113,7 @@ URL: https://blackstone.com
 Blackstone Group is an investment manager.`,
     observedUrls: [],
     findings: [lead],
-  } as const;
+  };
 
   it("preserves an exact search-result company lead for the review-card checkpoint", () => {
     expect(groundedFindingsForTrajectory([lead], [searchRecord])).toHaveLength(1);
