@@ -3062,6 +3062,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion.",
     "Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
     "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
+    "Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.",
   ] : [];
   const protectedTail = [...fallbackProtectedRules, leadGuidance, urlInventory, carriedFetchedSourceSummary, observationTail, header, markerSuffix, ...durableRecordSummaries].filter(Boolean).join("\n\n");
   const contractText = requiredSections.join("\n\n");
