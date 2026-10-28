@@ -4847,10 +4847,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "SCOPE/SOURCE CHOICE: match topic/geography; source class may vary; no registry-first sequence. Blocks are not negative evidence; the Investigator chooses actions.",
         "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; independentSources=" + terminalContract.minIndependentSourceUnits + "; exactSpan=" + terminalContract.requireExactSpanForFindings + "; falsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes.",
         absoluteMinimumDiscoveryContext,
+        compactDiscoveryAdmissionContract,
         shortestLeadFollowUp,
+        compactOutputContract,
         pinnedDurableInventoryForAbsoluteMinimum,
         compactLatestTrajectoryMarker,
-        compactOutputContract,
       ].filter(Boolean);
       const compactBasePrompt = compactAbsoluteMinimumBaseParts.join("\\n\\n");
       const basePrompt = rawBasePrompt.length <= basePromptBudget
