@@ -427,10 +427,19 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
         // Keep the complete lead inventory visible even when the prompt budget is
         // tight: select the count/scope header, one whole URL line, and the guard.
         const lines = rawPinned.split("\n");
-        const urlLine = lines.find((line) => /https?:\/\//i.test(line)) ?? "";
-        const priority = [lines.slice(0, 3).join("\n"), urlLine, lines.slice(-2).join("\n")]
+        const unfetchedLine = lines.find((line) => line.startsWith("UNFETCHED (")) ?? "";
+        const firstUnfetchedUrl = unfetchedLine.match(/https?:\/\/[^\s|]+/)?.[0] ?? "";
+        const exactUnfetchedUrl = completeAtlasControlPromptUrl(firstUnfetchedUrl);
+        const pinnedUrlLine = exactUnfetchedUrl ? "PINNED UNFETCHED LEAD URL (exact; lead, not evidence): " + exactUnfetchedUrl : "";
+        // Compact the explanatory state first, then append the complete URL as an
+        // atomic suffix so head/tail compaction cannot cut it out or select a failed
+        // route in place of an actually unfetched lead.
+        const core = [lines.slice(0, 3).join("\n"), lines.slice(-2).join("\n")]
           .filter(Boolean).join("\n");
-        return trimPromptSection(priority, pinnedBudget);
+        const coreBudget = Math.max(0, pinnedBudget - (pinnedUrlLine ? pinnedUrlLine.length + 1 : 0));
+        const compactCore = trimPromptSection(core, coreBudget);
+        const compacted = [compactCore, pinnedUrlLine].filter(Boolean).join("\n");
+        return compacted.length <= pinnedBudget ? compacted : trimPromptSection(compacted, pinnedBudget);
       })()
     : "";
   const baseLength = fixedPrefix.length + reportLabel.length +
