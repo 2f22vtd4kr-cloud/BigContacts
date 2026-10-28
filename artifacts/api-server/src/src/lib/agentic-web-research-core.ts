@@ -2986,6 +2986,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const observationBudget = observation
     ? Math.min(1_000, remaining - header.length)
     : 0;
+  const hasDurableObservation = /https?:\/\//i.test(observation)
+    || /LATEST TRAJECTORY RECORD|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS/.test(observation);
+  if (observationBudget < 40 && !hasDurableObservation) return base;
   // Keep our generated trajectory labels and the exact last-search URL inventory
   // outside the lossy observation compactor. Source text is untrusted; the last
   // matching marker is the explicit durable marker appended after record summaries.
@@ -3002,7 +3005,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const missingMarkers = markers.filter((marker) => !compacted.includes(marker));
   const compactedWithMarkers = [compacted, ...missingMarkers].filter(Boolean).join("\n\n");
   const combined = base + "\n\n" + header + compactedWithMarkers;
-  if (combined.length <= limit) return combined;
+  if (observationBudget >= 40 && combined.length <= limit) return combined;
   // Preserve mandatory semantic contracts and exact durable lead URLs if the
   // normal prompt plus observation exceeds the provider ceiling. Never silently
   // fall back to the base prompt alone, which loses the latest durable action.
