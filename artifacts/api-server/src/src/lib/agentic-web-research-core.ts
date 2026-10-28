@@ -4610,7 +4610,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const prefix = composedPrompt.slice(0, stateStart).trimEnd();
   const stateLabel = "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):";
   const dynamicState = composedPrompt.slice(stateStart + stateMarker.length, outputStart).trim();
-  const outputContract = composedPrompt.slice(outputStart + 1).trim();
+  const rawOutputContract = composedPrompt.slice(outputStart + 1).trim();
+  // Keep a minimal, machine-checkable inactive-field shape with the protected
+  // output contract. Prefix compaction may omit the illustrative example that
+  // appears elsewhere in the full prompt; the strict action envelope still needs
+  // to tell the model how inactive URL/search/finding fields are represented.
+  const inactiveActionFieldShape = 'INACTIVE ACTION FIELD SHAPE: {"url":null,"searches":[],"findings":[]}.';
+  const outputContract = rawOutputContract.includes('"url":null')
+    ? rawOutputContract
+    : rawOutputContract + "\n" + inactiveActionFieldShape;
   const separators = "\n\n".length * 4;
   const fixedChars = prefix.length + stateLabel.length + outputContract.length + latestRecordTail.length + separators;
   const dynamicBudget = maxUserPromptChars - fixedChars;
