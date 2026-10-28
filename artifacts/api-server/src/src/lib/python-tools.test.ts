@@ -47,6 +47,21 @@ describe("canonical Python tool adapters", () => {
     expect(outcome.execution).toMatchObject({ requestId: "00000000-0000-4000-8000-000000000001", status: "completed", toolVersion: "test-version" });
   });
 
+  it("passes a grounded public phone seed to SpiderFoot without making the tool globally available", async () => {
+    mockedExecute.mockResolvedValueOnce(result("spiderfoot", "completed", {
+      observations: [], eventsReceived: 0, partial: false,
+    }));
+
+    const outcome = await runSpiderFoot("+12125550198", "phone", "contact-adjacent");
+
+    expect(mockedExecute).toHaveBeenCalledWith(expect.objectContaining({
+      tool: "spiderfoot",
+      args: { target: "+12125550198", targetType: "phone", profile: "contact-adjacent" },
+    }));
+    expect(outcome.targetType).toBe("phone");
+    expect(outcome.available).toBe(true);
+  });
+
   it("does not label an empty partial SpiderFoot scan as successful research", async () => {
     mockedExecute.mockResolvedValueOnce(result("spiderfoot", "partial", { observations: [], eventsReceived: 0, partial: true }, "scan ended early"));
 

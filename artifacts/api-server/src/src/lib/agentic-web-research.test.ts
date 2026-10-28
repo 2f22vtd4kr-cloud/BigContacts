@@ -1,7 +1,9 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { shouldContinueAfterInvestigatorParseFailure } from "./agentic-web-research";
+import { groundedFindingsForTrajectory, shouldContinueAfterInvestigatorParseFailure } from "./agentic-web-research";
+import { sourceBackedAgenticFindings } from "./bureau-agentic-pass";
+import type { AgenticFinding, AgenticTrajectoryRecord } from "./agentic-web-research-core";
 
 const targetWrapperSource = readFileSync(
   resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"),
@@ -85,5 +87,52 @@ describe("bounded Investigator action-parse recovery", () => {
       actionTurn: 1,
       maxActionTurns: 6,
     })).toBe(false);
+  });
+});
+
+
+describe("search-result organization review leads", () => {
+  const lead: AgenticFinding = {
+    vectorType: "other",
+    value: "Blackstone Group",
+    personName: null,
+    role: null,
+    scope: "organization",
+    sourceUrls: ["https://blackstone.com"],
+    note: "LOW-CONFIDENCE REVIEW-ONLY COMPANY LEAD; search_result_lead; exact business-like title returned by the search provider; snippet/title only, underlying page not fetched; no ownership, wealth, person, or contact conclusion.",
+  };
+  const searchRecord: AgenticTrajectoryRecord = {
+    turn: 1,
+    model: "test-model",
+    action: "web_search",
+    args: { query: "investment firms" },
+    leadUrls: ["https://blackstone.com"],
+    execution: "success",
+    observation: `Blackstone Group
+URL: https://blackstone.com
+Blackstone Group is an investment manager.`,
+    observedUrls: [],
+    findings: [lead],
+  };
+
+  it("preserves an exact search-result company lead for the review-card checkpoint", () => {
+    expect(groundedFindingsForTrajectory([lead], [searchRecord])).toHaveLength(1);
+    expect(sourceBackedAgenticFindings([lead], [], [searchRecord])).toHaveLength(1);
+  });
+
+  it("does not let an unrelated URL support the search-result lead", () => {
+    const mismatched = { ...lead, sourceUrls: ["https://unrelated.example"] };
+    expect(groundedFindingsForTrajectory([mismatched], [searchRecord])).toEqual([]);
+    expect(sourceBackedAgenticFindings([mismatched], [], [searchRecord])).toEqual([]);
+  });
+
+  it("does not let a search snippet promote an ordinary organization claim", () => {
+    const ordinaryClaim = {
+      ...lead,
+      note: "The company was founded by Jane Example.",
+      sourceUrls: ["https://blackstone.com"],
+    };
+    expect(groundedFindingsForTrajectory([ordinaryClaim], [searchRecord])).toEqual([]);
+    expect(sourceBackedAgenticFindings([ordinaryClaim], [], [searchRecord])).toEqual([]);
   });
 });

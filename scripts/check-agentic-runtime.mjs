@@ -39,7 +39,7 @@ assert(/decisionGuidance:"Use only after a verified organization domain/.test(re
 assert(/decisionGuidance:"Use only on a real, publicly observed email/.test(registry), "Holehe model guidance requires observed email and explains attribution limits");
 assert(/decisionGuidance:"Use on an observed or strongly grounded username/.test(registry), "Maigret model guidance includes prerequisites and account-candidate limits");
 assert(/decisionGuidance:"Use on an observed username/.test(registry), "Sherlock model guidance includes prerequisites and account-candidate limits");
-assert(/decisionGuidance:"Use for a grounded public seed/.test(registry), "SpiderFoot model guidance includes information value, cost and evidence limits");
+assert(/decisionGuidance:"Use on a grounded public seed/.test(registry) && /high cost\/event volume/.test(registry) && /event values\/URLs are leads/.test(registry), "SpiderFoot model guidance includes identifier fit, information value, cost and evidence limits");
 assert(/availablePythonActions\.size > 0 \? 2_200 : 1_000/.test(source), "available worker capabilities receive enough bounded model-facing guidance");
 assert(/worker_availability_refresh/.test(source) && /await refreshPythonOsintToolAvailability\(runController\.signal\)/.test(source), "Investigator refreshes worker availability before every model action");
 assert(/function getWorkerConfig\(\)/.test(workerClient) && /validateAttestation/.test(workerClient) && /availableTools/.test(workerClient), "canonical Python worker requires an attested available-tool contract");

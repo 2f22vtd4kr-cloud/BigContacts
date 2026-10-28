@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractSearchResultCompanyLeadFindings, extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -13,6 +13,40 @@ const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agent
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(), "src/src/lib/research-lead-card-reconciliation.ts"), "utf8");
+
+describe("search-result company review lead extraction", () => {
+  it("preserves a concrete business-like result title but rejects generic discovery metadata such as Case Co", () => {
+    const realBusinessText = [
+      "Northstar Casino Resort",
+      "URL: https://northstarcasino.si/",
+      "Northstar Casino Resort operates a resort in Slovenia.",
+    ].join("\n");
+    const realBusiness = extractSearchResultCompanyLeadFindings(realBusinessText, ["https://northstarcasino.si/"]);
+    expect(realBusiness).toHaveLength(1);
+    expect(realBusiness[0]).toMatchObject({
+      value: "Northstar Casino Resort",
+      scope: "organization",
+      vectorType: "other",
+      personName: null,
+      role: null,
+      sourceUrls: ["https://northstarcasino.si/"],
+    });
+
+    const genericMetadataText = [
+      "Case Co",
+      "URL: https://caseco.si/",
+      "Case Co is a generic discovery placeholder.",
+    ].join("\n");
+    expect(extractSearchResultCompanyLeadFindings(genericMetadataText, ["https://caseco.si/"])).toEqual([]);
+
+    const categoryHeadlineText = [
+      "Best Casino Hotels in Slovenia",
+      "URL: https://slovenia-casino-hotels.si/",
+      "A list of casino hotels in Slovenia.",
+    ].join("\n");
+    expect(extractSearchResultCompanyLeadFindings(categoryHeadlineText, ["https://slovenia-casino-hotels.si/"])).toEqual([]);
+  });
+});
 
 describe("compact company registry lead retention", () => {
   it("retains only source-attributed Corporation rows and strips duplicates and person rows", () => {
@@ -557,6 +591,8 @@ describe("Investigator prompt URL integrity", () => {
 
   it("retains the last fetched page's claim text after a later search becomes the newest action", () => {
     const sourceUrl = "https://www.uravilamps.com/pdf/announcements/intimation-of-press-release-for-majority-stake-acquisition.pdf";
+    const objective = "Discover real people from public transaction and ownership evidence.";
+    const pivotScopeKey = discoveryPivotScopeKey(objective) ?? undefined;
     const fetchedObservation = [
       "PDF PAGE " + sourceUrl,
       "Issuer boilerplate and repeated document headings. ".repeat(70),
@@ -568,6 +604,7 @@ describe("Investigator prompt URL integrity", () => {
         model: "openai/gpt-oss-120b",
         action: "visit",
         execution: "success",
+        pivotScopeKey,
         args: { url: sourceUrl },
         observation: fetchedObservation,
         observedUrls: [sourceUrl],
@@ -580,6 +617,7 @@ describe("Investigator prompt URL integrity", () => {
         model: "openai/gpt-oss-120b",
         action: "web_search",
         execution: "success",
+        pivotScopeKey,
         args: { query: "independent acquisition corroboration", provider: "serper" },
         observation: "Search returned a further article lead.",
         observedUrls: [],
@@ -590,7 +628,7 @@ describe("Investigator prompt URL integrity", () => {
     ];
     const prompt = buildStepPrompt({
       targetName: "",
-      objective: "Discover real people from public transaction and ownership evidence.",
+      objective,
       history: [],
       trajectoryRecords: records,
       lastObservation: "Search returned a further article lead.",
@@ -2116,14 +2154,16 @@ Choose each next action yourself from the available capabilities and observed ev
   });
 
   it("keeps lead follow-up advisory and leaves search choice with the Investigator", () => {
+    const objective = "discover source-backed people in Ohio manufacturing";
     const records = [{
       ...livenessRecord("web_search", "success"),
+      pivotScopeKey: discoveryPivotScopeKey(objective) ?? undefined,
       leadUrls: ["https://www.ohiosos.gov/business/search"],
       observedUrls: [],
     }];
     const prompt = buildStepPrompt({
       targetName: "",
-      objective: "discover source-backed people in Ohio manufacturing",
+      objective,
       history: [],
       trajectoryRecords: records,
       lastObservation: "Search results returned a potentially useful unvisited lead.",
@@ -3029,7 +3069,7 @@ describe("PDF prompt capability contract", () => {
     });
 
     expect(prompt).toContain("visit supports bounded text extraction for text-bearing PDF documents");
-    expect(prompt).toContain("Scanned/image-only PDFs with no text are marked OCR-required; OCR is not available");
+    expect(prompt).toContain("Scanned/image-only PDFs require OCR (unavailable)");
     expect(prompt).toContain("encrypted/password-protected and malformed PDFs are distinct structured extraction failures");
     expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead");
     expect(prompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
@@ -3203,6 +3243,19 @@ describe("small emergency observation budgets", () => {
     expect(tinyResult.length).toBeLessThanOrEqual(tinyLimit);
   });
 
+  it("fails explicitly rather than slicing away the action contract when no valid prompt can fit", () => {
+    const basePrompt = [
+      "APEX INVESTIGATOR",
+      "OUTPUT CONTRACT: Return one root JSON object; required fields action, query, provider, url, searches, findings.",
+      "EVIDENCE: URLs are leads, not evidence.",
+    ].join("\n\n");
+    const observation = 'LATEST TRAJECTORY RECORD — TURN 17: {"turn":17,"action":"web_search","execution":"success","leadUrls":["https://registry.example.test/company-search"],"leadUrlsOmittedFromPromptCount":0}';
+
+    expect(() => appendEmergencyObservationContext(basePrompt, observation, 24)).toThrow(
+      /Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=24/,
+    );
+  });
+
   it("bounds oversized ordinary observations and retains both ends when budget permits", () => {
     const basePrompt = "Mission and JSON action contract.";
     const observation = "OBSERVATION_START_SENTINEL " + "public source observation ".repeat(300) + " OBSERVATION_END_SENTINEL";
@@ -3242,12 +3295,56 @@ describe("small emergency observation budgets", () => {
     );
     expect(withCurrentFailure).toContain("The distinct provider notice says to avoid a futile retry.");
     expect(withCurrentFailure).toContain("FAILED_FETCH_SENTINEL");
-    expect(agenticCoreSource).toContain(
-      "buildEmergencyPriorTrajectoryObservation(\n        suppliedObservation,\n        latestTrajectoryRecordSummary,\n      )",
-    );
+    // Assert the current emergency path retains each durable evidence class.
+    // The implementation intentionally combines pinned URLs, the latest fetched-source
+    // excerpt when distinct from the newest action, and current correction text instead
+    // of the obsolete nested-ternary call layout.
+    expect(agenticCoreSource).toContain("const emergencyObservation = buildEmergencyPriorTrajectoryObservation(");
+    expect(agenticCoreSource).toContain("pinnedInventoryCandidate,");
+    expect(agenticCoreSource).toContain("...(latestFetchedSourceSummary ? [latestFetchedSourceSummary] : []),");
+    expect(agenticCoreSource).toContain("suppliedObservation.slice(0, 60),");
+    expect(agenticCoreSource).toContain("emergencyTrajectoryRecordSummary,");
     expect(agenticCoreSource).toContain(
       "appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars)",
     );
   });
 
+});
+
+describe("discovery pivot evidence provenance", () => {
+  it("does not let a shared geography token carry an unrelated query across a newly accepted pivot", () => {
+    const objective = [
+      "Discover under-the-radar people with credible wealth potential.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT: Query Texas Secretary of State business entity database for midsize family-owned firms in North Texas, then extract listed officers/beneficial owners for further validation.",
+    ].join("\\n\\n");
+    const scopeKey = discoveryPivotScopeKey(objective);
+    if (!scopeKey) throw new Error("Expected an active discovery pivot scope key");
+    const priorFetchedSource = {
+      turn: 1,
+      model: "openai/gpt-oss-120b",
+      action: "visit",
+      args: { url: "https://example.org/texas-family-business-directory" },
+      pivotScopeKey: scopeKey,
+      execution: "success",
+      observation: "Texas directory page describes Example Fabrication as a family-owned manufacturing firm and lists its public registration.",
+      observedUrls: ["https://example.org/texas-family-business-directory"],
+      findings: [],
+    } as any;
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "30-year-old Texas real estate developer building empire news 2023",
+      provider: "serper",
+    }, [priorFetchedSource])).not.toBeNull();
+
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "North Texas family-owned manufacturing firms Secretary of State business entity registry",
+      provider: "serper",
+    }, [])).toBeNull();
+
+    // A genuinely named entity from the fetched page remains a valid follow-up.
+    expect(discoveryPivotAlignmentReason(objective, "web_search", {
+      query: "Example Fabrication Texas",
+      provider: "serper",
+    }, [priorFetchedSource])).not.toBeNull();
+  });
 });

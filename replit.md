@@ -10,16 +10,17 @@ Private OSINT desk: public contact routes on entity cards. **Zero synthetic HNWI
 | Preview | **`/`** = desk HTML (built `apex-finder`). **`/api`** = API. Never open `/api` as the app. |
 | Frontend workflow | **Do not run** on Replit for preview (API serves the desk). |
 | Auto pipeline | `ENABLE_AUTO_PIPELINE=false` |
-| Redis | **One** of `REDIS_URL_1` or `REDIS_URL` is enough |
+| Redis | **`REDIS_URL_1` is the canonical durable store and required for Atlas job/lease state.** `REDIS_URL` is the optional local cache; the boot script derives it from `REDIS_URL_1` when it is absent. |
 | Dig | Free ReAct — **no `force_*` hop scripts**. Models invent queries. |
 | Product | **Card is the answer** (phone/email/LinkedIn + honest outcome). Evidence is provenance. |
 | Proof | Live **scoreboard** (`milestonePass`) after single-target **Dig contacts** — not commit count. |
+| First-card recovery | Canonical Atlas discovery may persist a low-confidence, review-only company card from one successful search when the exact business-like title and eligible URL are present in the actual observation. It is not a verified person, ownership/wealth finding, or contact route; it does not replace the full Dig-contact acceptance proof. |
 
 **Secrets:** Operator owns Replit Secrets. Agents must never add, edit, delete, or print keys. If `bureauIntegrity` is critical, stop and tell the operator — do not “fix keys.”
 
 **Operator prompt (only one):** `docs/REPLIT_UPDATE_PROMPT_LATEST.md`  
 **Boot:** `bash scripts/replit-boot.sh`  
-**Gates:** `pnpm run check:no-force-dig` · `GET /api/healthz` (integrity not critical)
+**Gates:** `pnpm run typecheck` · `pnpm run build` · `pnpm run check:bureau` · `GET /api/healthz` (`bureauIntegrity` must not be critical). `check:no-force-dig` remains an additional free-ReAct guard.
 
 ## Monorepo map
 

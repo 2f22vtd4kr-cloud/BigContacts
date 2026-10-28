@@ -45,7 +45,7 @@ export interface SherlockResult { username: string; found: SherlockProfile[]; to
 export interface HarvesterResult { domain: string; emails: string[]; subdomains: string[]; ips: string[]; hosts: string[]; totalFound: number; available: boolean; execution?: PythonToolExecution; error?: string; }
 export interface OpenDeepResearchResult { status: "completed" | "failed" | "timeout" | "unavailable"; report: string | null; citations: string[]; searches: number; pages: number; model: string | null; available: boolean; reviewOnly: true; error?: string; }
 
-export type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "username" | "person" | "asn";
+export type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "phone" | "username" | "person" | "asn";
 export type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
 export interface SpiderFootObservation {
   scanId: string;
@@ -269,7 +269,7 @@ export async function runSpiderFoot(
   };
   if (options.signal?.aborted) return { ...base, error: "OSINT execution was cancelled." };
   const cleanTarget = text(target, 300);
-  const targetTypes: SpiderFootTargetType[] = ["domain", "hostname", "ip", "email", "username", "person", "asn"];
+  const targetTypes: SpiderFootTargetType[] = ["domain", "hostname", "ip", "email", "phone", "username", "person", "asn"];
   const profiles: SpiderFootProfile[] = ["identity-expansion", "domain-infrastructure", "organization-footprint", "contact-adjacent", "broad-osint"];
   if (!cleanTarget || !targetTypes.includes(targetType) || !profiles.includes(profile)) return { ...base, error: "Invalid SpiderFoot target, type, or profile." };
   const response = await executeTool("spiderfoot", { target: cleanTarget, targetType, profile }, options.signal, options.timeoutMs ?? 30_000, options.correlation);

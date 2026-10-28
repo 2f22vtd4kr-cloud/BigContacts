@@ -1,10 +1,10 @@
-# Live Bureau batch trigger
+# Live Bureau batch trigger — historical record
 
-Touch this file to intentionally launch the provider-backed Bureau proof audit on `main`.
+This file preserves the historical acceptance contract for provider-backed canonical proof runs. The workflow `.github/workflows/apex-canonical-runtime-proof.yml` is now **manual-dispatch only**: changing or merging this file must not start a real provider-backed investigation or consume Groq/search quota implicitly.
 
-This narrow path exists for the connected engineering harness because the repository's normal workflow remains manually dispatchable. It is not a product runtime trigger.
+The operator controls the next canonical run in Replit. The isolated GitHub Actions proof remains available only when deliberately dispatched, and is not a substitute for verifying the user's Replit database, job state, or UI.
 
-Current proof regime: bounded 3-target discovery-first exploration, with a minimum acceptance of 1 real investigator-promoted person. The strict audit must prove model-owned discovery, explicit investigator promotion, HTTPS source-backed admission, free-ReAct target research, honest contact provenance, and the absence of deterministic promotion shortcuts.
+Current proof regime: bounded 3-target discovery-first exploration, with minimum acceptance of one real source-backed review card (company/business or person) visible in both API projections. Person-target promotion remains a separate, stricter gate; a company card never implies person-level qualification. The audit must prove model-owned discovery, explicit provenance, HTTPS source-backed admission, free-ReAct target research, honest contact provenance, and the absence of deterministic target-promotion shortcuts.
 
 This trigger follows the discovery completion-contract repair: discovery investigators must not treat deterministic FINDINGS SO FAR as a substitute for an explicit promotion finding, and web-search provider choice may be model-selected when useful.
 
@@ -125,3 +125,24 @@ Canonical proof trigger: PR #752 Investigator action-contract recovery; run the 
 After merging the Right-hand quota-recovery repair, run the canonical API proof with the exact UI-default launch body only: `targetCount=3`, `researchDepth=standard`, and `targetTimeoutMs=420000`. This run checks that an explicit Groq tokens-per-day error is classified distinctly from a short token-window limit and does not trigger a redundant retry of the same model; the bounded same-role fallback remains available. Do not seed targets, findings, candidates, or cards.
 
 The release gate remains the same: require the actual canonical Boss → Right-hand → Investigator run to finish in the correct terminal state, prove a real source-backed person candidate passes existing identity/admission checks, verify durable person-card/evidence persistence and the same card from both `/api/dashboard/research-leads` and `/api/entities`, and prove the active-job lock is released. Preserve the complete runtime artifact and model-audit/trace files. A provider-quota failure or empty person-card result remains a failed acceptance; do not weaken gates or treat a green workflow wrapper as success.
+
+
+## First-card acceptance repair — 2026-10-27
+
+This trigger now exercises the source-backed company-card contract, not only the harder person-promotion contract. The bounded canonical run uses the objective “casino in Slovenia” as an unanchored local/business discovery example. The Investigator remains responsible for choosing its query, provider and next action; no provider or registry sequence is hardcoded.
+
+Acceptance is a real card that appears in both `/api/dashboard/research-leads` and `/api/entities`, with the same entity ID/name/type and at least one real HTTPS source URL. Either a `Corporation` with `partial_review` stage and explicit search-result evidence tier, or a properly source-backed `PersonCandidate` review/admission qualifies. If the job later fails at a Boss/Right-hand control turn, the run can still pass only when that real card exists and the canonical active-job lock is released. A failed run with no card fails acceptance. No synthetic card or direct test insertion is allowed.
+
+
+## First-card proof after exact-title admission and bounded Groq recovery — 2026-10-27
+
+This intentional touch must launch one real canonical discovery case from the UI/API route on the merged main revision, using `targetCount=1`, `researchDepth=standard`, and `targetTimeoutMs=420000`. The environment sets discovery batch size to one to minimize provider/token cost while preserving the model-owned choice of query, provider, and source class. The example objective is a real casino operator/business in Slovenia; Companies House is not the default and is irrelevant absent evidence of a UK entity.
+
+The code now preserves exact business-like titles and their exact HTTPS result URLs as low-confidence, review-only company leads immediately after a successful web search, without deriving names from hostnames and without deterministic person/wealth claims or model promotion decisions. Boss credential fallback is capped to three distinct credentials per control turn; Right-hand fallback deduplicates credentials and is bounded; all seven Investigator slots are wired. The model request audit is written under the visible `audits/` directory with contact data excluded from that raw prompt capture.
+
+Do not seed any target, finding, evidence, entity, or card. Acceptance requires the actual job to terminalize, the same real `Corporation` or valid `PersonCandidate` review card to appear in `/api/dashboard/research-leads` and `/api/entities`, an HTTPS source URL, and proof that the canonical active Atlas lock was released. Upload/retain the run ID, launch/job/trace payloads, model request audit, entity projection, dashboard projection, health and server log even on failure. Append the exact job/card/evidence IDs and source URLs to `audits/apex-atlas-first-card-sequential-audit-2026-10-27.md`. A green workflow without a matching persisted card is a failure.
+
+
+## Runtime trigger safety — 2026-10-28
+
+Automatic push-on-touch was removed because a normal code merge must not launch a second, isolated provider-backed investigation behind the operator's back. Keep the workflow manually dispatchable for an explicitly authorized proof run. The upcoming acceptance run is the user's Replit run, and its result must be evaluated from the actual Replit job, database, and API/UI evidence.

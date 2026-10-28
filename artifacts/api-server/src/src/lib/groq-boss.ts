@@ -57,6 +57,10 @@ const MAX_OVERALL_TIMEOUT_MS = 180_000;
 const MAX_PROMPT_CHARS = 20_000;
 const MODEL_CATALOG_TIMEOUT_MS = 5_000;
 const MAX_MODEL_ATTEMPTS = 2;
+// Control turns must not fan out across every configured key after a quota response.
+// Try the selected credential plus at most two distinct fallbacks; duplicated key slots
+// are one quota pool, not extra capacity.
+const MAX_CREDENTIALS_PER_CONTROL_TURN = 3;
 const MAX_503_RETRIES_PER_MODEL = 1;
 const MAX_429_RETRIES_PER_MODEL = 1;
 const MAX_TOKEN_WINDOW_RECOVERY_WAIT_MS = 120_000;
@@ -103,9 +107,16 @@ function cacheKey(key: string): string {
 
 async function resolveGroqBossModelImpl(preferredKeyName?: string): Promise<GroqBossModelSelection> {
   const configured = keys();
-  const ordered = preferredKeyName
+  const preferredOrder = preferredKeyName
     ? [...configured.filter((entry) => entry.name === preferredKeyName), ...configured.filter((entry) => entry.name !== preferredKeyName)]
     : configured;
+  const seenCredentialFingerprints = new Set<string>();
+  const ordered = preferredOrder.filter((entry) => {
+    const fingerprint = cacheKey(entry.key);
+    if (seenCredentialFingerprints.has(fingerprint)) return false;
+    seenCredentialFingerprints.add(fingerprint);
+    return true;
+  }).slice(0, MAX_CREDENTIALS_PER_CONTROL_TURN);
 
   if (ordered.length === 0) {
     return { model: GROQ_BOSS_MODEL_PENDING, status: "pending", inspectedKeyCount: 0, candidateCount: 0 };
@@ -246,7 +257,14 @@ async function generateGroqBossTextImpl(
 ): Promise<GroqBossTextGenerationResult> {
   const configured = keys();
   const primary = configured.find((entry) => entry.name === selection.keyName);
-  const ordered = primary ? [primary, ...configured.filter((entry) => entry.name !== primary.name)] : configured;
+  const preferredOrder = primary ? [primary, ...configured.filter((entry) => entry.name !== primary.name)] : configured;
+  const seenCredentialFingerprints = new Set<string>();
+  const ordered = preferredOrder.filter((entry) => {
+    const fingerprint = cacheKey(entry.key);
+    if (seenCredentialFingerprints.has(fingerprint)) return false;
+    seenCredentialFingerprints.add(fingerprint);
+    return true;
+  }).slice(0, MAX_CREDENTIALS_PER_CONTROL_TURN);
   if (ordered.length === 0) return { model: selection.model, raw: null, error: "GROQ_BOSS_API_KEY is not configured.", attempts: [] };
 
   const config = getGroqBossLatencyConfig();

@@ -60,7 +60,7 @@ const checks = [
     const block = start >= 0 && end > start ? rightHand.slice(start, end) : "";
     return block.includes("isTokenPerDayQuotaError(response.status,responseBody)")
       && block.includes('if(!dailyTokenQuota&&kind==="tokens"')
-      && block.includes("failures.push(diagnostic);break;")
+      && block.includes('failures.push(diagnostic);if(kind==="requests")quotaBlockedCredentials.add(fingerprint(candidate.entry.key));break;')
       && rightHand.includes('if(response.status===429)break;');
   })(), "Groq Right-hand must skip same-model token-window retries on explicit TPD exhaustion while preserving bounded same-role model fallback."],
   [rightHand.includes('if(response.status===429)break;'), "Groq Right-hand generic HTTP 429 handling must advance to the next bounded candidate after its retry budget is exhausted."],
@@ -74,7 +74,7 @@ const checks = [
   [!/generativelanguage\\.googleapis\\.com|GEMINI_API_KEY|GOOGLE_API_KEY/i.test(activeControlFiles), "Canonical Atlas control files must not contain an active Gemini endpoint or credential."],
   [!/mistral\\.ai|MISTRAL_API_KEY/i.test(activeControlFiles), "Canonical Atlas control files must not contain an active Mistral endpoint or credential."],
   [providerGate.includes('"mistral"') && providerGate.includes('"gemini"'), "Dormant provider-gate classifications for Gemini/Mistral must remain preserved."],
-  [read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts").includes('return kind === "requests" || kind === "tokens";'), "Unknown Right-hand 429s must remain eligible for bounded transient retry."],
+  [read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts").includes('return kind === "requests" || kind === "tokens" || kind === "model";'), "Explicit request/token/model-scoped Right-hand 429s must be classified for bounded recovery; unknown 429s remain on the transient retry path."],
 ];
 
 const failed = checks.filter(([ok]) => !ok);

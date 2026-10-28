@@ -18,6 +18,7 @@ import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective } from "./investigation-context-compaction";
 import { sanitizeUrlsInText } from "./url-privacy";
+import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import type { AgenticFinding } from "./agentic-web-research-core";
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
@@ -82,6 +83,31 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   if (!cited.size) return false;
   const value = finding.value.trim();
   const identity = finding.scope === "candidate" && finding.personName ? finding.personName.trim() : "";
+
+  // A deterministic search-result organization lead is deliberately not claim-grade
+  // evidence, but it must survive long enough to create a clearly labelled review
+  // card. This exception cannot admit people, contacts, wealth, or model-authored
+  // claims: it requires the extractor's marker, exact name text in a successful
+  // search observation, and the exact eligible URL in that action's leadUrls.
+  const isSearchResultReviewLead = finding.scope === "organization"
+    && finding.vectorType === "other"
+    && !finding.personName?.trim()
+    && !finding.role?.trim()
+    && finding.note.includes("LOW-CONFIDENCE REVIEW-ONLY COMPANY LEAD")
+    && finding.note.includes("search_result_lead");
+  if (isSearchResultReviewLead) {
+    const eligibleCited = new Set([...cited].filter((url) => isClaimGradeDiscoverySourceUrl(url)));
+    if (!eligibleCited.size) return false;
+    return records.some((record) => {
+      if (record.execution !== "success"
+        || typeof record.observation !== "string"
+        || !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)
+        || !bindExactSourceSpan(record.observation, value)?.exact) return false;
+      const leadUrls = (record.leadUrls ?? []).map(normalizedObservedUrl).filter((url): url is string => Boolean(url));
+      return leadUrls.some((url) => eligibleCited.has(url));
+    });
+  }
+
   let valueObserved = false;
   let identityObserved = !identity;
   let support = 0;

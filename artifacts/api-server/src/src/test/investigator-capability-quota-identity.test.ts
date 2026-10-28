@@ -53,6 +53,24 @@ describe("Investigator credential quota identity", () => {
     ]);
   });
 
+  it("discovers the base credential plus all seven suffixed Investigator slots", () => {
+    const expanded = {
+      GROQ_INVESTIGATOR_API_KEY: "credential-0",
+      GROQ_INVESTIGATOR_API_KEY_1: "credential-1",
+      GROQ_INVESTIGATOR_API_KEY_2: "credential-2",
+      GROQ_INVESTIGATOR_API_KEY_3: "credential-3",
+      GROQ_INVESTIGATOR_API_KEY_4: "credential-4",
+      GROQ_INVESTIGATOR_API_KEY_5: "credential-5",
+      GROQ_INVESTIGATOR_API_KEY_6: "credential-6",
+      GROQ_INVESTIGATOR_API_KEY_7: "credential-7",
+    } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(expanded)).toEqual([
+      "groq-investigator-1", "groq-investigator-2", "groq-investigator-3",
+      "groq-investigator-4", "groq-investigator-5", "groq-investigator-6",
+      "groq-investigator-7", "groq-investigator-8", "groq-investigator-20b",
+    ]);
+  });
+
   it("permits the explicit 20B model fallback only for a model-scoped quota recovery", () => {
     const singleCredential = {
       GROQ_INVESTIGATOR_API_KEY: "one-credential",

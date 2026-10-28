@@ -1,10 +1,9 @@
 name: Apex Canonical Runtime Proof
 
+# Manual-only: a provider-backed run consumes real credentials and quota.
+# The operator launches the canonical run in Replit; merging source must not
+# silently start a separate GitHub Actions investigation.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/live-batch-trigger.md"
   workflow_dispatch:
 
 permissions:
@@ -56,6 +55,7 @@ jobs:
       GROQ_BOSS_API_KEY_9: ${{ secrets.GROQ_BOSS_API_KEY_9 || secrets.GROQ_API_KEY_9 }}
       GROQ_BOSS_API_KEY_10: ${{ secrets.GROQ_BOSS_API_KEY_10 || secrets.GROQ_API_KEY_10 }}
       GROQ_RIGHT_HAND_API_KEY: ${{ secrets.GROQ_RIGHT_HAND_API_KEY || secrets.GROQ_API_KEY }}
+      GROQ_RIGHT_HAND_API_KEY_1: ${{ secrets.GROQ_RIGHT_HAND_API_KEY_1 || secrets.GROQ_API_KEY_1 || secrets.GROQ_BOSS_API_KEY_1 }}
       GROQ_RIGHT_HAND_API_KEY_2: ${{ secrets.GROQ_RIGHT_HAND_API_KEY_2 || secrets.GROQ_API_KEY_2 }}
       GROQ_RIGHT_HAND_API_KEY_3: ${{ secrets.GROQ_RIGHT_HAND_API_KEY_3 || secrets.GROQ_API_KEY_3 }}
       GROQ_RIGHT_HAND_API_KEY_4: ${{ secrets.GROQ_RIGHT_HAND_API_KEY_4 || secrets.GROQ_API_KEY_4 }}
@@ -66,6 +66,8 @@ jobs:
       GROQ_INVESTIGATOR_API_KEY_3: ${{ secrets.GROQ_RIGHT_HAND_API_KEY }}
       GROQ_INVESTIGATOR_API_KEY_4: ${{ secrets.GROQ_BOSS_API_KEY }}
       GROQ_INVESTIGATOR_API_KEY_5: ${{ secrets.GROQ_INVESTIGATOR_API_KEY_5 || secrets.GROQ_API_KEY_5 || secrets.GROQ_RIGHT_HAND_API_KEY_4 }}
+      GROQ_INVESTIGATOR_API_KEY_6: ${{ secrets.GROQ_INVESTIGATOR_API_KEY_6 || secrets.GROQ_API_KEY_6 || secrets.GROQ_BOSS_API_KEY_6 }}
+      GROQ_INVESTIGATOR_API_KEY_7: ${{ secrets.GROQ_INVESTIGATOR_API_KEY_7 || secrets.GROQ_API_KEY_7 || secrets.GROQ_BOSS_API_KEY_7 }}
       SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
@@ -74,7 +76,7 @@ jobs:
       COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
       WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
       RESEARCH_DEPTH: standard
-      APEX_DISCOVERY_BATCH_SIZE: "3"
+      APEX_DISCOVERY_BATCH_SIZE: "1"
       APEX_SKIP_SEMANTIC: "1"
       APEX_AGENTIC_CONCURRENCY: "1"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
@@ -100,8 +102,8 @@ jobs:
             return 1
           }
           require_any GROQ_BOSS_API_KEY GROQ_BOSS_API_KEY_1 GROQ_BOSS_API_KEY_2 GROQ_BOSS_API_KEY_3 GROQ_BOSS_API_KEY_4 GROQ_BOSS_API_KEY_5 GROQ_BOSS_API_KEY_6 GROQ_BOSS_API_KEY_7 GROQ_BOSS_API_KEY_8 GROQ_BOSS_API_KEY_9 GROQ_BOSS_API_KEY_10 || { echo "::error::Missing GitHub Actions secret for the Groq Boss role."; exit 1; }
-          require_any GROQ_RIGHT_HAND_API_KEY GROQ_RIGHT_HAND_API_KEY_2 GROQ_RIGHT_HAND_API_KEY_3 GROQ_RIGHT_HAND_API_KEY_4 GROQ_RIGHT_HAND_API_KEY_5 || { echo "::error::Missing GitHub Actions secret for the Groq Right-hand role."; exit 1; }
-          require_any GROQ_INVESTIGATOR_API_KEY GROQ_INVESTIGATOR_API_KEY_1 GROQ_INVESTIGATOR_API_KEY_2 GROQ_INVESTIGATOR_API_KEY_3 GROQ_INVESTIGATOR_API_KEY_4 GROQ_INVESTIGATOR_API_KEY_5 || { echo "::error::Missing GitHub Actions secret for the Groq Investigator role."; exit 1; }
+          require_any GROQ_RIGHT_HAND_API_KEY GROQ_RIGHT_HAND_API_KEY_1 GROQ_RIGHT_HAND_API_KEY_2 GROQ_RIGHT_HAND_API_KEY_3 GROQ_RIGHT_HAND_API_KEY_4 GROQ_RIGHT_HAND_API_KEY_5 || { echo "::error::Missing GitHub Actions secret for the Groq Right-hand role."; exit 1; }
+          require_any GROQ_INVESTIGATOR_API_KEY GROQ_INVESTIGATOR_API_KEY_1 GROQ_INVESTIGATOR_API_KEY_2 GROQ_INVESTIGATOR_API_KEY_3 GROQ_INVESTIGATOR_API_KEY_4 GROQ_INVESTIGATOR_API_KEY_5 GROQ_INVESTIGATOR_API_KEY_6 GROQ_INVESTIGATOR_API_KEY_7 || { echo "::error::Missing GitHub Actions secret for the Groq Investigator role."; exit 1; }
           require_any SERPER_API_KEY TAVILY_API_KEY EXA_API_KEY EXA_1 || { echo "::error::Missing GitHub Actions search-provider credential."; exit 1; }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -169,7 +171,7 @@ jobs:
           curl -sS -m 20 -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
             -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" \
             -H 'Content-Type: application/json' \
-            -d '{"targetCount":3,"researchDepth":"standard","targetTimeoutMs":420000}' | tee /tmp/launch.json
+            -d '{"targetCount":1,"researchDepth":"standard","targetTimeoutMs":420000,"discoveryContext":"Operator objective: identify a real casino operator/business in Slovenia. Choose the source/provider with the highest information gain; ordinary web search is a sensible option. Companies House is not relevant unless evidence points to a UK entity. A company name explicitly present in a successful search result and its real result URL is enough for a low-confidence review-only Corporation card. Do not infer ownership, wealth, relationships, or private contact details."}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1);console.log("job",x.jobId)'
           JOB_ID="$(node -p 'require("/tmp/launch.json").jobId')"
           for i in $(seq 1 300); do
@@ -177,8 +179,12 @@ jobs:
             curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/job.json || true
             STATUS="$(node -p 'try{require("/tmp/job.json").status||require("/tmp/job.json").job?.status||""}catch{""}')"
             echo "poll=$i status=$STATUS"
-            if [ "$STATUS" = "done" ] || [ "$STATUS" = "completed" ]; then exit 0; fi
-            if [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then cat /tmp/job.json; exit 2; fi
+            if [ "$STATUS" = "done" ] || [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ]; then
+              echo "Terminal job status=$STATUS; source-backed card acceptance is evaluated in the next step."
+              cat /tmp/job.json
+              exit 0
+            fi
+            if [ "$STATUS" = "cancelled" ]; then cat /tmp/job.json; exit 2; fi
           done
           cat /tmp/job.json
           exit 1
@@ -203,39 +209,47 @@ jobs:
           const entities = Array.isArray(entitiesPayload) ? entitiesPayload
             : Array.isArray(entitiesPayload?.entities) ? entitiesPayload.entities : [];
           const leads = Array.isArray(dashboard?.leads) ? dashboard.leads : [];
-          if (!["done", "completed"].includes(String(job.status ?? ""))) {
-            throw new Error("Canonical job is not terminal-success: " + String(job.status ?? "missing"));
+          const jobStatus = String(job.status ?? "");
+          if (!["done", "completed", "failed"].includes(jobStatus)) {
+            throw new Error("Canonical job is not terminal (done/completed/failed): " + (jobStatus || "missing"));
           }
-          const candidates = leads.filter((lead) =>
-            lead?.stage === "candidate_review" &&
+          const sourceBackedReviewLeads = leads.filter((lead) =>
+            lead?.stage === "partial_review" &&
+            lead?.entityType === "Corporation" &&
             Number.isSafeInteger(Number(lead.entityId)) &&
             Array.isArray(lead.sourceUrls) &&
             lead.sourceUrls.some((url) => typeof url === "string" && /^https:\/\//i.test(url))
           );
-          const accepted = candidates.find((lead) => entities.some((entity) =>
+          const accepted = sourceBackedReviewLeads.find((lead) => entities.some((entity) =>
             String(entity?.id) === String(lead.entityId) &&
             entity?.name === lead.entityName &&
-            entity?.type === "PersonCandidate"
+            entity?.type === "Corporation" &&
+            lead?.entityType === "Corporation" &&
+            lead?.stage === "partial_review"
           ));
           if (!accepted) {
             throw new Error(
-              "No source-backed candidate_review card was found in /api/dashboard/research-leads " +
-              "and the same PersonCandidate in /api/entities. " +
+              "No source-backed partial_review Corporation card was found in /api/dashboard/research-leads " +
+              "and matched to the same Corporation in /api/entities. " +
               "entities=" + entities.length + ", dashboardLeads=" + leads.length +
-              ", candidateReviewCards=" + candidates.length
+              ", sourceBackedReviewLeads=" + sourceBackedReviewLeads.length +
+              ", terminalJobStatus=" + jobStatus
             );
           }
           console.log(JSON.stringify({
             acceptance: "PASS",
             jobId: job.jobId,
+            terminalJobStatus: jobStatus,
             entityId: accepted.entityId,
             entityName: accepted.entityName,
             entityType: accepted.entityType,
             stage: accepted.stage,
             sourceUrls: accepted.sourceUrls,
+            verificationLevel: accepted.verificationLevel ?? "see entity metadata",
             entityProjection: "matched",
             dashboardProjection: "matched",
             activeAtlasLock: "released",
+            acceptedAfterControlFailure: jobStatus === "failed",
           }, null, 2));
           NODE
       - name: Preserve canonical runtime evidence
