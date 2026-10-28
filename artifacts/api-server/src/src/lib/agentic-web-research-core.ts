@@ -3131,7 +3131,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const observationTail = compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 240);
   const fetchedSourceLabel = fetchedSourceExcerptLabel;
   const fallbackRuleCandidates = [
-    "MISSION PRIORITY: objective and realistic targetability outrank conflicting advice. No fixed action sequence; the Investigator chooses actions.",
+    "No fixed action sequence; the Investigator chooses actions.",
     "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
     "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); these are also described as OCR-required; encrypted/password-protected and malformed PDFs are distinct structured extraction failures.",
     "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
@@ -3179,7 +3179,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? "OUTPUT CONTRACT: one JSON root object; required fields: action,"
+    ? "MISSION PRIORITY: objective and targetability outrank conflicting Boss/Right-hand advice. OUTPUT CONTRACT: one JSON root object; required fields: action,"
     : "";
   const protectedTail = [fallbackOutputContract, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, urlInventory, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
