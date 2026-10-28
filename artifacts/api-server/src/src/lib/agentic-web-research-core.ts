@@ -3091,7 +3091,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // Prompt sampling is bounded separately from the immutable ledger. Keep
     // complete URLs only, prioritizing canonical pinned values and then recent
     // trajectory URLs; omitted values remain recoverable from durable events.
-    if (exactInventoryUrls.length >= 2 || url.length > 420 - inventoryUrlChars) {
+    if (exactInventoryUrls.length >= 2 || url.length > 760 - inventoryUrlChars) {
       omittedInventoryUrlCount += 1;
       continue;
     }
