@@ -3070,11 +3070,11 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
         ? " The query field itself must include the geographic term from that scope; market/locale metadata or registry-domain text alone do not satisfy this check."
         : "";
       return preserveSourceAlongsideGuard(
-        `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}.${geographyGuidance} web discovery may search in-scope topic terms and company terms without repeating source class wording; match registry adapters to geography. Revise the failed dimensions; fetch only an observed aligned URL; do not repeat unchanged without new evidence or ask Boss/Right-hand to revise scope.${activeScope}`,
+        `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}.${geographyGuidance} web discovery may search in-scope topic terms and company terms without repeating source-class wording; choose a registry adapter matching the active geography. Fetch only to geography. Revise the failed dimensions; fetch only an observed aligned URL; do not repeat unchanged without new evidence or ask Boss/Right-hand to revise scope.${activeScope}`,
       );
     }
     return preserveSourceAlongsideGuard(
-      `SCOPE GUARD BLOCKED ACTION (no request): no evidence was added. Correct active subject, geography, or source class. web discovery may search in-scope topic terms and company terms without repeating source class wording. Fetch only an observed aligned URL; otherwise revise the failed dimension or request new scope from Boss. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 180) + "." : "Use the active Boss-approved objective to recover scope."}`,
+      `SCOPE GUARD BLOCKED ACTION (no request): no evidence was added. Correct active subject, geography, or source class. web discovery may search in-scope topic terms and company terms without repeating source-class wording. Fetch only an observed aligned URL; otherwise revise the failed dimension or request new scope from Boss. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 180) + "." : "Use the active Boss-approved objective to recover scope."}`,
     );
   }
   // Ordinary fetched-page observations can carry the exact company/person facts
@@ -3405,7 +3405,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION PRIORITY: objective/targetability outrank conflicting advice; the Investigator chooses actions, pivots and stops—no fixed action sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null, unused arrays []. Except done, hypothesis/purpose must be non-empty and expectedInformationGain a number in [0,1]; only done may null them. Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
+    ? `MISSION PRIORITY: objective/targetability outrank conflicting advice; the Investigator chooses actions, pivots and stops—no fixed action sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null, unused arrays []. Except action=done, top-level hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
     : "";
         const fallbackEvidenceContract = isInvestigatorPrompt
     ? (isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: " : "")
