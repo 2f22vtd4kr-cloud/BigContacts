@@ -3030,7 +3030,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
       );
     }
     return preserveSourceAlongsideGuard(
-      `SCOPE GUARD BLOCKED ACTION (no request): revise the failed scope dimensions. web discovery may search in-scope topic terms and company terms without repeating source-class wording; the query/source class must fit the active scope; choose a registry adapter matching the active geography when using registry_search; fetch only an observed aligned URL and do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.${activeScope}`,
+      `SCOPE GUARD BLOCKED ACTION (no request): blocked action adds no evidence. web discovery may search in-scope topic terms and company terms without repeating source-class wording. Match registry adapters to geography. Fetch only observed aligned URLs; revise failed dimensions or request new scope from Boss/Right-hand. Active Boss-approved scope: ${compactActiveBossScope(activePivot, 210)}.`,
     );
   }
   // Ordinary fetched-page observations can carry the exact company/person facts
