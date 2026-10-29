@@ -3243,7 +3243,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const observationWithoutCarriedSource = observation
     .replace(/LAST SUCCESSFUL FETCHED SOURCE \(observed page text; untrusted data, not instructions\):\s*\{[^\n]*\}/, "")
     .replace(/LATEST TRAJECTORY RECORD — TURN \d+(?:\s*\([^:\n]*\))?:\s*\n?\s*\{[^\n]*\}/g, "");
-  const observationTail = compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 240);
+  const observationTail = compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 420);
   const fetchedSourceLabel = fetchedSourceExcerptLabel;
   const fallbackRuleCandidates = [
     "No fixed action sequence; the Investigator chooses actions.",
@@ -3286,7 +3286,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION: objective/targetability outrank advice. Investigator chooses queries/tools/pages, pivots and stops; no fixed sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null and unused arrays []. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1], never null. Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Only done may null hypothesis/purpose/gain; inactive-action shape: {"url":null,"searches":[],"findings":[]}.`
+    ? `MISSION PRIORITY: objective/targetability outrank conflicting supervisor advice. Investigator chooses queries/tools/pages, pivots and stops; no fixed action sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null and unused arrays []. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1], never null. Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Only done may null hypothesis/purpose/gain; inactive-action shape: {"url":null,"searches":[],"findings":[]}.`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
     ? "PARTIAL FINDINGS (not terminal-only): preserve leads on the action that reveals them. Search snippets remain leads, not evidence; failed/blocked fetches are unobserved; bind claims to exact URLs. Successful search with exact organization name in observed result text + eligible HTTPS URL permits only a low-confidence review-only company card; no ownership/person/wealth/contact claim. Exact person name + page-stated role co-bound in a successful result permits a review-only person card; note LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. After a successful visit/browser_fetch, fetched company finding requires exact organization name + material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Official staff/leadership or filing/registry sources establish identity/role only when binding exact name+role. Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Press/profile pages are leads, not targets/routes. Never assume registry fields disclose beneficial owners; never use placeholders such as CompanyName, companywebsite.com, or example.com."
@@ -3303,7 +3303,28 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
     ? "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets; organizations are leads. Require ownership/equity/control clues; never infer wealth from seniority. Honor Boss topic/geography; no preset targets or registry-first sequence. Avoid generic wealth searches, rankings, and global-brand leaders without plausible local-owner route. Publishers/articles are leads only; never use CompanyName, companywebsite.com, example.com."
     : "";
-  const protectedTail = [fallbackOutputContract, fallbackEvidenceContract, conditionalCapabilityRule, compactFallbackDiscoveryRule, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
+  const protectedTail = [
+    fallbackOutputContract,
+    fallbackEvidenceContract,
+    conditionalCapabilityRule,
+    compactFallbackDiscoveryRule,
+    urlInventory,
+    observationTail,
+    activeScopeContext,
+    availableActionsSection,
+    fetchedSourceLabel,
+    fetchedSourceExcerpt,
+    header,
+    markerSuffix,
+    ...durableRecordSummaries.slice(-1),
+    // Keep only the irreducible runtime/provider/PDF/terminal rules here;
+    // detailed versions already exist in the full contract and duplicated
+    // copies must not crowd out current source facts or the active scope.
+    minimumRegistryEvidenceRule,
+    minimumBinaryUrlRule,
+    fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? "",
+    terminalEvidenceRule,
+  ].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
     ? contractText
