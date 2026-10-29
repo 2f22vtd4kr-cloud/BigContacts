@@ -24,7 +24,7 @@ The roles remain:
 
 SpiderFoot upstream documents 200+ modules, multiple target types, publisher/subscriber module chaining, correlation rules, infrastructure/entity discovery, social/account enumeration, metadata analysis, threat-intelligence integrations and breach-related discovery. Upstream also recommends a packaged release rather than development master because master can contain insufficiently tested features. citeturn0search0turn0search6
 
-## 2. Phase 0 — reconnaissance before implementation
+## 2. Phase 0 — reconnaissance (historical design record)
 
 Before touching production code:
 
@@ -38,7 +38,7 @@ Before touching production code:
 
 **Deliverable:** a concrete integration map before implementation begins.
 
-## 3. Phase 1 — canonical capability contract
+## 3. Phase 1 — canonical capability contract (implemented in current source)
 
 Add one semantic capability, conceptually `osint.spiderfoot`.
 
@@ -74,7 +74,7 @@ Do not expose all 200+ modules directly to the model. Start with bounded profile
 
 Apex owns the profile allowlist; SpiderFoot owns its internal publisher/subscriber graph.
 
-## 4. Phase 2 — isolated worker
+## 4. Phase 2 — isolated worker (code implemented; deployment pending)
 
 SpiderFoot is Python and network-capable. The isolated worker and attestation client are implemented, but Python-backed network OSINT remains fail-closed until an enforceable worker/egress-proxy deployment is configured and the runtime verifies its fresh signed attestation. **Do not bypass that rule.**
 
@@ -98,7 +98,7 @@ The worker should:
 
 SpiderFoot's scanner supports explicit module lists and target types, and its CLI exposes JSON/CSV output; this makes a bounded adapter preferable to embedding its application/database model into Apex. citeturn1search0turn1search1turn1search2
 
-## 5. Phase 3 — observation normalization
+## 5. Phase 3 — observation normalization (runtime verification pending)
 
 Normalize SpiderFoot's event-oriented output into Apex observations rather than importing its database.
 
