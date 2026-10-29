@@ -144,7 +144,7 @@ async function requestSummary(
     if (retryPrompt.length > config.maximumPromptChars) return null;
     const retry = await generateGroqBossText(selection, retryPrompt, {
       responseFormat: { type: "json_object" },
-      maxOutputTokens: Math.min(1_200, Math.max(350, Math.ceil(maxChars / 2))),
+      maxOutputTokens: Math.min(3_000, Math.max(350, Math.ceil(maxChars / 2))),
       thinkingLevel: "low",
       jobId: input.jobId ?? null,
       caseId: input.caseId ?? null,
