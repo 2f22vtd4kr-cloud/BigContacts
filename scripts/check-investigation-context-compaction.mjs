@@ -25,8 +25,8 @@ const checks = [
   ["AI compaction preserves exact source URLs and refuses invented provenance", /summaryUrlsAreGrounded\(summary, allowedSource\)/.test(aiCompaction) && /Every URL in the summary must be an exact URL token copied from the source/.test(aiCompaction)],
   ["continuation compaction fails closed rather than substituting a deterministic excerpt", discoveryContinuation.includes("refusing a deterministic excerpt of durable case context") && /Do not invent, strengthen, merge, or infer facts/.test(aiCompaction)],
   ["Boss compaction supports the bounded continuation memory size", /MAX_SUMMARY_CHARS = 7_000/.test(aiCompaction) && /maxOutputTokens: Math.min\(3_000/.test(aiCompaction)],
-  ["oversized latest observations use Boss-generated semantic summaries before prompt construction", /const sourceToSummarize = \[/.test(core) && /maxChars: 900/.test(core) && /ai_latest_observation_compaction_unavailable/.test(core) && /latestPromptRecord\.observation = compactedLatestObservation/.test(core)],
-  ["latest-observation compaction fails closed instead of sending a code-truncated substitute", /No action was sent with a deterministically truncated substitute observation/.test(core)],
+  ["oversized recent observations use cached Boss-generated semantic summaries before prompt construction", /const sourceToSummarize = \[/.test(core) && /maxChars: 900/.test(core) && /ai_recent_observation_compaction_unavailable/.test(core) && /promptRecord\.observation = compactedObservation/.test(core) && /aiCompactedObservationBySource\.set\(cacheKey, compactedObservation\)/.test(core)],
+  ["recent-observation compaction fails closed instead of sending a code-truncated substitute", /No action was sent with a deterministically truncated substitute observation/.test(core)],
 ];
 let failed = false;
 for (const [name, ok] of checks) {
