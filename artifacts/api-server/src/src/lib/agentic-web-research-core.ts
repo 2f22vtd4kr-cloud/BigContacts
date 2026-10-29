@@ -3070,7 +3070,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
         ? " The query field itself must include the geographic term from that scope; market/locale metadata or registry-domain text alone do not satisfy this check."
         : "";
       return preserveSourceAlongsideGuard(
-        `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}. Request new scope from Boss/Right-hand when needed if active scope is infeasible or ambiguous. ${geographyGuidance} Fetch only an observed aligned URL; do not retry unchanged; choose a registry adapter matching the active geography.${activeScope}`,
+        `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}. market/locale metadata is not a substitute: query must name geography. Request new scope from Boss/Right-hand when needed. ${geographyGuidance} Fetch only observed aligned URLs; choose an in-scope registry adapter; do not retry unchanged.${activeScope}`,
       );
     }
     return preserveSourceAlongsideGuard(
