@@ -173,6 +173,22 @@ describe("investigator context compaction", () => {
     expect(context).toContain("https://example.com/b");
   });
 
+  it("reallocates space lost to a leading long URL so the fetched-page tail claim survives", () => {
+    const longUrl = "https://registry.example.test/filings/" + "a".repeat(95);
+    const source = [
+      "PDF PAGE " + longUrl,
+      "Issuer boilerplate and repeated document headings. ".repeat(70),
+      "FACT_AT_END_SENTINEL: The filing states that the company acquired a majority stake in Example Components Private Limited.",
+    ].join(" ");
+    const compacted = compactPromptSectionPreservingUrlTokens(source, 300);
+
+    expect(compacted.length).toBeLessThanOrEqual(300);
+    expect(compacted).toContain("URL tokens intersecting excerpt edges are omitted whole");
+    expect(compacted).not.toContain(longUrl.slice(0, 80));
+    expect(compacted).toContain("FACT_AT_END_SENTINEL");
+    expect(compacted).toContain("acquired a majority stake");
+  });
+
   it("omits whole URL tokens when emergency head-tail compaction would split one", () => {
     const longUrl = "https://registry.example.test/filings/" + "a".repeat(250);
     const source = "H".repeat(60) + " " + longUrl + " " + "T".repeat(140);
