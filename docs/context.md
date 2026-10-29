@@ -1,10 +1,14 @@
 # Apex Atlas / BigContacts — Living Context
 
-> **Updated:** 2026-10-23<br>
+> **Updated:** 2026-10-29<br>
 > **Canonical branch:** `main`<br>
 > **Status:** model-led ReAct control loop demonstrated in live execution; end-to-end research/card creation is not yet live-accepted.
 
-> **Current verified run status — 2026-10-23:** The 2026-10-22 README and `audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-21_FRESH_REPLIT_IMPORT_RUN_02.md` supersede the older 2026-10-19 checkpoint below. The latest cited job (`81a955bf-f44f-4faf-a39a-e2bcffbc5014`) ended `failed/incomplete`: 12/20 mission actions, four successful fetched pages, and zero findings, admissions, evidence rows, or cards. Two Investigator JSON-validation 400s recovered on retry; no quota exhaustion was recorded. That runtime used source SHA `03f9f7398799a2c510781eacfed71c5beebd8258`, before later changes. An older job (`0bc6087d-4070-4420-a645-ca2606549052`) was later reconciled by the 2026-10-20 audit as failed/incomplete after 20 turns with zero admissions/cards and an idle lock. Before another launch, reconcile the exact job and active pointer in the runtime that used them, and verify its deployed SHA. Old-run state is not this fresh project's PostgreSQL state.
+> **Current verified status — 2026-10-29:** PRs #766 and #767 are merged to `main`. Durable Investigator replay now preserves structured source-span bindings and typed failure diagnostics; SpiderFoot action parsing accepts the already-supported `phone` target and compact prompt guidance explains profile choice, cost, and evidence limits. Focused API/build, research-quality, Python-worker contract, and frontend checks passed on the PR head. Check Actions for the exact current `main` SHA; CI is not live acceptance.
+>
+> The latest tracked live-run audit is [2026-10-27](../audits/apex-atlas-live-run-sequential-audit-2026-10-27.md). It records review-only company cards from one terminally reconciled failed/incomplete job, but subsequent attempts failed before research under provider quota exhaustion; the last captured job checkpoint was not terminally reconciled. Historical job IDs are not current runtime state. No canonical Replit workspace/deployed SHA has been verified through the available integration, and no new research run was launched during this engineering work.
+>
+> Python network OSINT remains conditional: the code and worker contract exist, but SpiderFoot/Sherlock-family tools are exposed only when the runtime verifies a fresh signed worker attestation, exact immutable worker/proxy image digests, and the required isolated egress boundary. CI builds/tests the worker images; it does not deploy or attest a live worker. Never bypass this gate to make a tool appear available.
 
 > **Audit trace boundary (corrected 2026-10-25):** Both Replit development configurations enable model-visible request/response capture to .local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-25_REPLIT_RUN_01.md. Explicit contact-data capture is true for this private local trace only, so source-published professional email addresses and phone numbers remain available for attribution and pipeline-quality analysis. The .local directory is git-ignored; the audit writer refuses tracked raw-prompt destinations and always redacts credentials and secret-shaped values. Test prompt capture and visible/tracked-file opt-in remain false. The public tracked audits/*.md report must contain a sanitized chronology and source references, never raw contact values or a copy of the private trace. Provider-hidden chain-of-thought is never logged; visible prompts, completions, structured action rationale, tool calls, and job/case/run IDs are auditable.
 
@@ -19,9 +23,9 @@
 
 The live records confirm that Boss directs, Right-hand reviews, and the selected Investigator makes model-owned action and pivot decisions. The runtime actually executed accepted web actions and blocked unauthorized or out-of-scope proposals without outbound requests. This is evidence the architecture's live control loop runs; it is not evidence that the whole bureau is productive or accepted.
 
-The repeated failure pattern is upstream of card projection: investigations spend turns on scope blocks, generic recovery feedback, provider output-validation failures, source leads that do not become claim-grade evidence, and local action-contract rejection. No inspected run demonstrates a person crossing candidate admission and then failing to render as a card. Do not declare the card layer broken without that proof, and do not relax admission thresholds to manufacture positive output.
+The live records show two distinct outcomes that must not be conflated. The 2026-10-27 audit demonstrated that exact source-backed organization leads can become durable review-only company cards during terminal reconciliation, even when the overall job ends failed/incomplete. Other attempts in that same audit failed before executing a search because provider capacity was unavailable, so no card was possible from those runs. This is not proof that every run will find a person or HNWI, and it does not justify weakening the person/wealth evidence gates. Continue to distinguish execution failure, search leads, observed sources, review-only cards, candidate admission, and UI projection.
 
-The latest code-validation snapshot is SHA `4c09192d0b747635ad7fa830018d1e3d7831f47f`. All five release workflows were green on that SHA; verify the exact final `main` SHA and Actions after any subsequent commits.
+Historical CI snapshot: SHA `4c09192d0b747635ad7fa830018d1e3d7831f47f` passed the five release workflows at that time. It is superseded by subsequent main changes; verify the exact current `main` SHA and Actions before every readiness claim.
 
 ## 1. Current architecture
 
@@ -72,7 +76,7 @@ Gemini, Mistral, and DeepSeek/NVIDIA control/Investigator transports are retired
 
 ## 3. Investigator capability and credential law
 
-The runtime registry exposes up to six separately selectable Groq Investigator capabilities:
+The runtime registry exposes up to eight separately selectable Groq Investigator credential capabilities, plus the model-scoped `groq-investigator-20b` fallback:
 
 | Capability | Credential |
 |---|---|
@@ -82,6 +86,8 @@ The runtime registry exposes up to six separately selectable Groq Investigator c
 | `groq-investigator-4` | `GROQ_INVESTIGATOR_API_KEY_3` |
 | `groq-investigator-5` | `GROQ_INVESTIGATOR_API_KEY_4` |
 | `groq-investigator-6` | `GROQ_INVESTIGATOR_API_KEY_5` |
+| `groq-investigator-7` | `GROQ_INVESTIGATOR_API_KEY_6` |
+| `groq-investigator-8` | `GROQ_INVESTIGATOR_API_KEY_7` |
 
 Only configured capabilities are advertised. Selecting one capability never authorizes silent rotation to another Investigator credential. Provider/model retries remain bounded and within the selected role/capability boundary.
 

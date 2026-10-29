@@ -1,7 +1,11 @@
 # Apex Atlas — SpiderFoot Integration Roadmap
 
-**Status:** implementation planning only  
+**Status:** code-level integration implemented; live worker deployment and empirical availability remain unverified  
 **Purpose:** make SpiderFoot one ordinary Apex Atlas capability alongside Sherlock and the existing research tools.
+
+> **Current implementation override — 2026-10-29:** The repository contains the `footprint_spiderfoot` Investigator action, Python worker client/adapter, bounded profiles, structured observations, cancellation/resource controls, signed worker attestation, and worker/proxy deployment manifests. The Python worker also supports Sherlock, Maigret, Holehe, and TheHarvester. The canonical roles are **Groq Boss**, **Groq Right-hand**, and the selected **Groq Investigator**; older Gemini/Mistral role labels in the original planning text below are historical and superseded. The Investigator chooses tools dynamically; no SpiderFoot/Sherlock stage is forced.
+>
+> **Deployment caveat:** this repository's CI builds and tests the isolated worker images but does not publish or deploy them. The Kubernetes manifests still contain placeholder image digests/host values. These capabilities remain fail-closed and are not established as available in any running Replit app until the runtime has a real worker URL/token, pinned immutable worker and egress-proxy digests, and a fresh signed attestation proving the required network namespace and public-egress broker. Do not replace this boundary with in-process network execution.
 
 ## 1. Mission and architecture law
 
@@ -20,7 +24,7 @@ The roles remain:
 
 SpiderFoot upstream documents 200+ modules, multiple target types, publisher/subscriber module chaining, correlation rules, infrastructure/entity discovery, social/account enumeration, metadata analysis, threat-intelligence integrations and breach-related discovery. Upstream also recommends a packaged release rather than development master because master can contain insufficiently tested features. citeturn0search0turn0search6
 
-## 2. Phase 0 — reconnaissance before implementation
+## 2. Phase 0 — reconnaissance (historical design record)
 
 Before touching production code:
 
@@ -34,7 +38,7 @@ Before touching production code:
 
 **Deliverable:** a concrete integration map before implementation begins.
 
-## 3. Phase 1 — canonical capability contract
+## 3. Phase 1 — canonical capability contract (implemented in current source)
 
 Add one semantic capability, conceptually `osint.spiderfoot`.
 
@@ -57,7 +61,8 @@ Initial target classes:
 - email;
 - username;
 - person name;
-- ASN.
+- ASN;
+- phone.
 
 Do not expose all 200+ modules directly to the model. Start with bounded profiles:
 
@@ -69,9 +74,9 @@ Do not expose all 200+ modules directly to the model. Start with bounded profile
 
 Apex owns the profile allowlist; SpiderFoot owns its internal publisher/subscriber graph.
 
-## 4. Phase 2 — isolated worker
+## 4. Phase 2 — isolated worker (code implemented; deployment pending)
 
-SpiderFoot is Python and network-capable. Current Apex architecture deliberately keeps Python-backed network OSINT fail-closed until enforceable sandbox egress exists. **Do not bypass that rule.**
+SpiderFoot is Python and network-capable. The isolated worker and attestation client are implemented, but Python-backed network OSINT remains fail-closed until an enforceable worker/egress-proxy deployment is configured and the runtime verifies its fresh signed attestation. **Do not bypass that rule.**
 
 Preferred boundary:
 
@@ -93,7 +98,7 @@ The worker should:
 
 SpiderFoot's scanner supports explicit module lists and target types, and its CLI exposes JSON/CSV output; this makes a bounded adapter preferable to embedding its application/database model into Apex. citeturn1search0turn1search1turn1search2
 
-## 5. Phase 3 — observation normalization
+## 5. Phase 3 — observation normalization (runtime verification pending)
 
 Normalize SpiderFoot's event-oriented output into Apex observations rather than importing its database.
 
@@ -395,28 +400,17 @@ SpiderFoot is naturally adopted only when:
 - empirical tests show incremental value;
 - the final implementation passes **five consecutive complete Apex audits**.
 
-## 19. Future implementation order
+## 19. Remaining deployment and acceptance order
 
-1. Re-study current `main` and existing Sherlock/tool seam.
-2. Verify the current Python sandbox/egress contract.
-3. Pin/package SpiderFoot v4.0 in an isolated worker.
-4. Build worker health/version contract.
-5. Build Apex adapter.
-6. Add target/profile/action schemas.
-7. Add capability-registry semantics.
-8. Add normalized observation/provenance mapping.
-9. Connect the existing evidence gateway.
-10. Add cancellation/resource fences.
-11. Add failure/partial-scan semantics.
-12. Add collaboration/pivot metadata.
-13. Add architecture checks.
-14. Add unit/integration/adversarial tests.
-15. Add truthful UI projection.
-16. Run controlled research comparisons.
-17. Fix every defect found.
-18. Run the five-consecutive full-code audit.
-19. On any audit failure, fix root cause and restart all five passes.
-20. Report completion only when all five are green on the final implementation tree.
+1. Provision the isolated worker and public-egress proxy in the supported Kubernetes boundary.
+2. Build/publish immutable worker and proxy images; replace manifest placeholders with actual image digests and the real service host.
+3. Configure the runtime worker URL/token, expected image digests, and attestation verification key without exposing secret values.
+4. Verify the live worker's signed attestation and advertised tool versions; confirm the Investigator sees only currently attested tools.
+5. Exercise cancellation, timeout, resource ceilings, partial scans, malformed events, prompt-injection strings, source attribution, and source independence against the real isolated worker.
+6. Confirm UI/provenance/terminal state reflects actual worker events without elevating SpiderFoot correlations to independent corroboration.
+7. Run matched research-quality comparisons to establish incremental value.
+8. Run the required five consecutive full-code audits on the final implementation tree; fix every defect and restart the five passes after any failure.
+9. Report completion only when all five passes are green and the worker deployment/empirical acceptance are supported by evidence.
 
 ## 20. Success principle
 
