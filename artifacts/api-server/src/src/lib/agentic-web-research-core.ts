@@ -2056,11 +2056,57 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
 }
 
 
+/**
+ * Keep the structured action contract intact when the provider-boundary budget
+ * is tighter than an upstream prompt tier expected. Generic head/tail compaction
+ * can cut through the output contract; that silently removes required schema
+ * fields and causes malformed model actions. Compact auxiliary prefix first,
+ * then only compact the newest trajectory tail if it alone consumes the budget.
+ */
+function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): string {
+  const normalized = typeof prompt === "string" ? prompt.trim() : "";
+  if (normalized.length <= maxChars) return normalized;
+
+  const outputStart = normalized.lastIndexOf("OUTPUT CONTRACT:");
+  if (outputStart < 0) return boundInvestigatorPromptSection(normalized, maxChars);
+
+  const prefix = normalized.slice(0, outputStart).trim();
+  const suffix = normalized.slice(outputStart).trim();
+  const latestMarker = "LATEST TRAJECTORY RECORD";
+  const latestStart = suffix.lastIndexOf(latestMarker);
+  const contract = latestStart > 0 ? suffix.slice(0, latestStart).trimEnd() : suffix;
+  const latestTail = latestStart > 0 ? suffix.slice(latestStart).trim() : "";
+
+  // The complete contract (including every top-level field) has priority over
+  // optional context. If it unexpectedly exceeds the whole budget, preserve its
+  // beginning and end rather than clipping only the required field list.
+  if (contract.length >= maxChars) {
+    return boundInvestigatorPromptSection(contract, maxChars);
+  }
+
+  const separator = "\\n\\n";
+  const availableForTail = maxChars - contract.length - (latestTail ? separator.length : 0);
+  let boundedTail = "";
+  if (latestTail && availableForTail > 0) {
+    boundedTail = latestTail.length <= availableForTail
+      ? latestTail
+      : availableForTail >= 100
+        ? boundInvestigatorPromptSection(latestTail, availableForTail)
+        : "";
+  }
+  const protectedSuffix = [contract, boundedTail].filter(Boolean).join(separator);
+  const prefixBudget = maxChars - protectedSuffix.length - (prefix ? separator.length : 0);
+  if (prefix && prefixBudget > 0) {
+    return [boundInvestigatorPromptSection(prefix, prefixBudget), protectedSuffix].join(separator);
+  }
+  return protectedSuffix.slice(0, maxChars);
+}
+
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[] }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
   const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - systemPrompt.length));
-  const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
+  const boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars);
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
   const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
   return {
