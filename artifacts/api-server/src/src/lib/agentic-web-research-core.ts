@@ -3435,11 +3435,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       return compactPromptSectionPreservingUrlTokens(summary, 300, "[middle omitted]");
     }
   });
-  const minimumAvailableActionsSection = availableActionsSection && availableActionsSection.length <= 700
-    ? availableActionsSection
-    : availableActionsSection
-      ? "AVAILABLE ACTIONS: " + availableActions.join(" | ") + "."
-      : "";
+  const minimumAvailableActionsSection = availableActionsSection
+    ? compactPromptSectionPreservingUrlTokens(availableActionsSection, 700, "[action detail omitted; see available action list above]")
+    : "";
       const minimumDiscoveryContract = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
     ? "DISCOVERY TARGETABILITY: people are targets; organizations/articles are leads. Require source-backed ownership/equity/control/investment clues; seniority is not wealth. Honor Boss topic/geography; source class may vary by query. MIXED DISCOVERY: local/sector web plus relevant official business/ownership/transaction/asset sources; no fixed order or repeated registry after no new hit. No preset targets or registry-first sequence. Avoid generic wealth searches, rankings and global prestige without a plausible local-owner route."
     : "";
