@@ -6074,6 +6074,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           aiCompactedHistoricalThroughTurn,
         });
       } catch (promptCompositionError) {
+        usedPromptRecoveryFallback = true;
         const diagnostic = safeAgenticError(promptCompositionError);
         emit("prompt_context_recovery", {
           status: "partial",
@@ -6101,6 +6102,69 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
           aiCompactedHistoricalThroughTurn,
         });
+      }
+      // Historical memory is required working context, not optional padding. If an
+      // emergency prompt tier dropped it, ask Boss to condense the memory further and
+      // rebuild once. If it still cannot fit alongside the action/schema contracts,
+      // stop this turn rather than silently lose prior research.
+      let usedPromptRecoveryFallback = false;
+      if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
+        const shorterMemory = await summarizeInvestigatorContextWithBoss({
+          rawContext: aiCompactedHistoricalContext,
+          maxChars: 900,
+          jobId: input.jobId,
+          caseId: input.caseId,
+        });
+        if (!shorterMemory || shorterMemory === aiCompactedHistoricalContext) {
+          const message = "AI historical research memory could not fit in the complete Investigator prompt without removing required schema/action contracts. No action was sent with that memory omitted.";
+          emit("ai_context_compaction_unavailable", { status: "error", summary: message });
+          return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+        }
+        aiCompactedHistoricalContext = shorterMemory;
+        try {
+          prompt = usedPromptRecoveryFallback
+            ? buildStepPrompt({
+                targetName: name || "",
+                companyName: input.companyName,
+                objective,
+                history: history.slice(-3).map((entry) => String(entry).slice(0, 900)),
+                trajectoryRecords: [],
+                lastObservation: promptLastObservation,
+                findings: [],
+                priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
+                durableUrlInventory: undefined,
+                intelligenceContext: "RESEARCH INTELLIGENCE STATE is unavailable for this turn. Use only the stated objective and visible observations; do not infer omitted evidence or treat missing context as a negative finding.",
+                mode: input.mode,
+                actionAllowlist: actionAllowlistForTurn,
+                aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
+                aiCompactedHistoricalThroughTurn,
+              })
+            : buildStepPrompt({
+                targetName: name || "",
+                companyName: input.companyName,
+                objective,
+                history,
+                trajectoryRecords: promptTrajectoryRecords,
+                lastObservation: promptLastObservation,
+                findings: sanitizeObservableValue(findings),
+                priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
+                durableUrlInventory: input.durableUrlInventory,
+                intelligenceContext: renderIntelligenceContext(intelligenceState),
+                mode: input.mode,
+                actionAllowlist: actionAllowlistForTurn,
+                aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
+                aiCompactedHistoricalThroughTurn,
+              });
+        } catch {
+          const message = "Investigator prompt could not be rebuilt with its required AI historical memory. No action was sent.";
+          emit("ai_context_compaction_unavailable", { status: "error", summary: message });
+          return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+        }
+        if (!prompt.includes(aiCompactedHistoricalContext)) {
+          const message = "AI historical memory still did not fit in the full Investigator prompt after model compaction. No action was sent with memory silently omitted.";
+          emit("ai_context_compaction_unavailable", { status: "error", summary: message });
+          return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+        }
       }
       runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: "error", summary: lastObservation }); return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
       const parseFailure = describeAgentActionParseFailure(llm.raw, actionAllowlistForTurn);
