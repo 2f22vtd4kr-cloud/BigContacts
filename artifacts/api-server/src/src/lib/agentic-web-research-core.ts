@@ -5967,7 +5967,8 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           || (input.priorContext?.length ?? 0) > 800
           || historicalRecords.length > 6
         );
-      const shouldUpdateAiMemory = Boolean(aiCompactedHistoricalContext) && pendingHistoricalRecords.length >= 1;
+      const shouldUpdateAiMemory = Boolean(aiCompactedHistoricalContext)
+        && (pendingHistoricalRecords.length >= 1 || objective.length > 1_600 || (input.priorContext?.length ?? 0) > 800);
       if (shouldCreateAiMemory || shouldUpdateAiMemory) {
         const memorySource = shouldCreateAiMemory
           ? initialMemorySource
