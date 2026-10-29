@@ -953,15 +953,17 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts supported text-bearing PDFs)/);
     expect(prompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text|browser_fetch is HTML-only)/);
     expect(prompt).toMatch(/search snippets (?:remain leads, not evidence|are leads, not evidence)/i);
-    expect(prompt).toMatch(/MISSION PRIORITY: (?:objective and targetability outrank conflicting Boss\/Right-hand advice|objective\/targetability outrank conflicting supervisor advice)\./);
+    expect(prompt).toMatch(/MISSION PRIORITY:/);
     expect(prompt).toMatch(/no fixed action sequence|not a prescribed action sequence/i);
+    expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(prompt).toMatch(/people, not companies\/prestige|People—not companies|DISCOVERY TARGETABILITY/i);
     expect(prompt).toMatch(/ownership\/equity\/control|ownership\/control\/equity\/investment clue/i);
     expect(prompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority/i);
     expect(prompt).toMatch(/LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD|PERSON REVIEW/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toMatch(/no ownership\/wealth\/relationship\/HNWI claim|no ownership, wealth, relationship, or HNWI claim/i);
-    expect(prompt).toMatch(/contact-route verification|public professional route/i);
+    expect(prompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public professional route/i);
+    expect(prompt).toMatch(/Target-scoped research owns independent corroboration|independent corroboration, falsification, and contact-route verification/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
