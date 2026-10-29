@@ -3293,9 +3293,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const protectedRules = isInvestigatorPrompt
     ? protectedRuleCandidates.filter((rule) => !base.includes(rule))
     : [];
+  // Follow-up advice is only actionable when the current-scope observation
+  // actually contains a successful search/lead inventory. A generic discovery
+  // contract in the base prompt is not evidence that a live lead exists.
   const hasSearchLeadContext = Boolean(latestSearchMarker)
     || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|unvisited lead|search results returned a potentially useful/i.test(observation)
-    || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|LEAD_URLS \(search results only; not evidence until fetched\)|"leadUrls"\s*:\s*\[|DISCOVERY LEAD HANDOFF CONTRACT|DISCOVERY TARGETABILITY/i.test(base);
+    || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|LEAD_URLS \(search results only; not evidence until fetched\)|"leadUrls"\s*:\s*\[\s*"https?:\/\//i.test(observation);
   const leadGuidance = hasSearchLeadContext ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
   const protectedObservationSuffix = [...protectedRules, leadGuidance, urlInventory, markerSuffix, carriedFetchedSourceSummary, fetchedSourceExcerptLabel, fetchedSourceExcerpt].filter(Boolean).join("\n\n");
   // Never reduce a current correction/source excerpt below a useful minimum
@@ -3389,7 +3392,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
         const fallbackEvidenceContract = isInvestigatorPrompt
     ? (isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: " : "")
-      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like title + eligible URL => low-confidence review-only, not ownership/wealth/person/contact. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Search snippets are leads, not evidence; aggregators/unattributed contacts are not identity evidence; CONTACT FACTS (observed, not attributed) are not identity evidence; failed/blocked fetches are unobserved. After successful visit/browser_fetch, use fetched text only for claims it substantiates. Fetched company finding requires exact name + material fact and sourceUrls=[that fetched URL only]. No intimate-relationship inference or private health/customer-service contact routes."
+      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like title + eligible URL => low-confidence review-only, not ownership/wealth/person/contact. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Search snippets are leads, not evidence; aggregators/unattributed contacts are not identity evidence; CONTACT FACTS (observed, not attributed) are not identity evidence; failed/blocked fetches are unobserved. After successful visit/browser_fetch, use fetched text only for claims it substantiates. Fetched company finding requires exact name + material fact and sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. No intimate-relationship inference or private health/customer-service contact routes."
     : "";
 
   const conditionalCapabilitySection = isInvestigatorPrompt
@@ -3404,6 +3407,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const protectedTail = [
     fallbackOutputContract,
     fallbackEvidenceContract,
+    ...(leadGuidance ? [leadGuidance] : []),
     conditionalCapabilityRule,
     compactFallbackDiscoveryRule,
     urlInventory,
