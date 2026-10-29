@@ -3070,7 +3070,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
         ? " The query field itself must include the geographic term from that scope; market/locale metadata or registry-domain text alone do not satisfy this check."
         : "";
       return preserveSourceAlongsideGuard(
-        `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}.${geographyGuidance} web discovery may search in-scope topic terms and company terms without repeating source-class wording; choose a registry adapter matching the active geography. Fetch only to geography. Revise the failed dimensions; fetch only an observed aligned URL; do not repeat unchanged without new evidence or ask Boss/Right-hand to revise scope.${activeScope}`,
+        `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}. web discovery may search in-scope topic terms and company terms without repeating source-class wording; choose a registry adapter matching the active geography. Fetch only an observed aligned URL; do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.${geographyGuidance}${activeScope}`,
       );
     }
     return preserveSourceAlongsideGuard(
@@ -3576,7 +3576,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         : "";
     const compactRecordSummary = minimumDurableRecordSummaries.slice(-1);
     const compactLeadGuidance = hasSearchLeadContext
-      ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; search-result URLs remain leads, not evidence until fetched. This is advisory, not evidence or a mandated next action; the Investigator chooses the action."
+      ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; search-result URLs are leads, not evidence until fetched; the Investigator chooses the action."
       : "";
     const compactParts = [
       fallbackOutputContract,
@@ -5188,10 +5188,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ? pivotScopeGeographyOptions(activeScopeForRecovery).flat()
       : [];
     const latestQuery = typeof latestRecord?.args?.query === "string" ? latestRecord.args.query.trim() : "";
+    const latestArgsEnvelope = latestRecord
+      ? '"args":' + JSON.stringify(compactLatestArgs(latestRecord.args ?? {}))
+      : "";
     const hasRequiredPromptContract = /OUTPUT CONTRACT:/.test(normalizedBase)
       && /ALL REQUIRED TOP-LEVEL FIELDS:/.test(normalizedBase);
     const hasLatestRecordContext = !latestRecord || /LATEST TRAJECTORY RECORD/.test(normalizedBase);
-    const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestQuery.slice(0, 90));
+    const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope);
     const hasFetchedSourceContext = !latestSuccessfulFetchRecord || /LAST SUCCESSFUL FETCHED SOURCE/.test(normalizedBase);
     const hasLeadFollowupContext = !(carryForwardSuccessfulSearch?.leadUrls?.length)
       || /consider inspecting a promising in-scope lead URL next|LEAD FOLLOW-UP GUIDANCE/.test(normalizedBase);
