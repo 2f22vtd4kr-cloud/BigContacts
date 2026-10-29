@@ -6080,7 +6080,9 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           findings: sanitizeObservableValue(findings),
           priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
           durableUrlInventory: input.durableUrlInventory,
-          intelligenceContext: renderIntelligenceContext(intelligenceState),
+          intelligenceContext: aiCompactedHistoricalContext
+            ? "Current structured intelligence has been integrated into the Boss-generated historical memory above; use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative, and omitted details are not negative evidence."
+            : renderIntelligenceContext(intelligenceState),
           mode: input.mode,
           actionAllowlist: actionAllowlistForTurn,
           aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
@@ -6161,7 +6163,9 @@ export async function runAgenticWebResearch(input: { targetName: string; company
                 findings: sanitizeObservableValue(findings),
                 priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
                 durableUrlInventory: input.durableUrlInventory,
-                intelligenceContext: renderIntelligenceContext(intelligenceState),
+                intelligenceContext: aiCompactedHistoricalContext
+            ? "Current structured intelligence has been integrated into the Boss-generated historical memory above; use fresh observations and the active objective to update it. The durable evidence ledger remains authoritative, and omitted details are not negative evidence."
+            : renderIntelligenceContext(intelligenceState),
                 mode: input.mode,
                 actionAllowlist: actionAllowlistForTurn,
                 aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
