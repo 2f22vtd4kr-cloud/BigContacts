@@ -3,6 +3,7 @@ import fs from "node:fs";
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const discoveryContinuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts", "utf8");
+const aiCompaction = fs.readFileSync("artifacts/api-server/src/src/lib/ai-investigation-context-compaction.ts", "utf8");
 const checks = [
   ["bounded Investigator working context exists", /export function buildInvestigatorContext/.test(source)],
   ["working-context budget is configurable and bounded", /APEX_INVESTIGATOR_CONTEXT_MAX_CHARS/.test(source) && /MIN_MAX_CHARS/.test(source) && /MAX_MAX_CHARS/.test(source)],
@@ -20,9 +21,10 @@ const checks = [
   ["archived trajectory retains both early and recent entries", /headTail\(input\.trajectoryRecords \?\? \[\], 10\)/.test(source)],
   ["shared URL-safe reducer enforces requested prompt bounds", /export function compactPromptSectionPreservingUrlTokens/.test(source) && /const limit = Math\.max\(0, requested\)/.test(source) && /source\.length <= limit/.test(source) && /return source\.slice\(0, limit\)/.test(source)],
   ["unbounded whole-trajectory prompt assembly is absent", !/trajectoryRecords\.map\(.*observation.*join\(/s.test(source)],
-  ["canonical continuation uses the bounded model-facing context compactor", /export function compactCanonicalDiscoveryContinuationContext/.test(source) && /MAX_CANONICAL_CONTINUATION_CONTEXT_CHARS = 8_000/.test(source) && discoveryContinuation.includes("compactCanonicalDiscoveryContinuationContext(context,7000)") && !discoveryContinuation.includes("context.length<=16000")],
-  ["continuation compactor uses URL-atomic head/tail retention over durable context", /compactCanonicalDiscoveryContinuationContext/.test(source) && /compactPromptSectionPreservingUrlTokens\(normalized, maxChars, continuationMarker\)/.test(source) && /CANONICAL_CONTINUATION_CONTEXT_MARKER/.test(source) && /middle detail omitted; URL tokens intersecting excerpt edges are omitted whole/.test(source)],
-  ["continuation compactor uses a real newline bound marker", /const CANONICAL_CONTINUATION_CONTEXT_MARKER\s*=\s*"\\n\\n\[DISCOVERY CONTINUATION CONTEXT COMPACTED:/.test(source)],
+  ["canonical continuation uses Boss-generated semantic memory compaction", discoveryContinuation.includes("summarizeInvestigatorContextWithBoss") && /await summarizeInvestigatorContextWithBoss\(\{rawContext:initialContext,maxChars:7000,jobId:jobId!,caseId\}\)/.test(discoveryContinuation) && !discoveryContinuation.includes("compactCanonicalDiscoveryContinuationContext(context,7000)")],
+  ["AI compaction preserves exact source URLs and refuses invented provenance", /summaryUrlsAreGrounded\(summary, allowedSource\)/.test(aiCompaction) && /Every URL in the summary must be an exact URL token copied from the source/.test(aiCompaction)],
+  ["continuation compaction fails closed rather than substituting a deterministic excerpt", discoveryContinuation.includes("refusing a deterministic excerpt of durable case context") && /Do not invent, strengthen, merge, or infer facts/.test(aiCompaction)],
+  ["Boss compaction supports the bounded continuation memory size", /MAX_SUMMARY_CHARS = 7_000/.test(aiCompaction) && /maxOutputTokens: Math.min\(3_000/.test(aiCompaction)],
 ];
 let failed = false;
 for (const [name, ok] of checks) {
