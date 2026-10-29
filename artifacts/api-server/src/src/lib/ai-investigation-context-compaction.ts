@@ -11,7 +11,6 @@ const DEFAULT_SUMMARY_CHARS = 2_300;
 const MIN_SUMMARY_CHARS = 900;
 const MAX_SUMMARY_CHARS = 7_000;
 const SUMMARY_PROMPT_RESERVE_CHARS = 2_400;
-const MAX_SUMMARY_CHUNKS = 12;
 
 /**
  * Extract URL tokens for provenance validation. Trailing sentence punctuation
