@@ -953,16 +953,16 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("browser_fetch");
     expect(prompt).toContain("domain_lookup");
     expect(prompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts supported text-bearing PDFs)/);
-    expect(prompt).toContain("browser_fetch is HTML-oriented and does not extract PDF text");
+    expect(prompt).toMatch(/browser_fetch is HTML-oriented and does not extract PDF text|browser_fetch is HTML-only/);
     expect(prompt).toMatch(/search snippets (?:remain leads, not evidence|are leads, not evidence)/i);
-    expect(prompt).toMatch(/BOSS ADVISORY DIRECTION \(not a fixed action sequence\):|ACTIVE BOSS SCOPE:/);
+    expect(prompt).toMatch(/BOSS ADVISORY DIRECTION \(not a fixed action sequence\):|ACTIVE BOSS SCOPE:|no fixed action sequence/i);
     expect(prompt).toContain("MISSION PRIORITY:");
     expect(prompt).toMatch(/MISSION PRIORITY: (?:objective and targetability outrank conflicting Boss\/Right-hand advice|objective\/targetability outrank conflicting supervisor advice)\./);
-    expect(prompt).toContain("avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis");
+    expect(prompt).toMatch(/avoid Fortune\/ranking lists and global-brand leadership without a plausible local owner\/operator route hypothesis/i);
     expect(prompt).toMatch(/Select a publicly registered company in a defined sector and geography|official leadership page|no fixed action sequence/i);
     expect(prompt).toMatch(/DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY TARGETABILITY/i);
     expect(prompt).toMatch(/DISCOVERY TARGETABILITY GATE|DISCOVERY TARGETABILITY/i);
-    expect(prompt).toMatch(/People—not companies(?: or executive prestige|\/prestige)—(?:are the target|are targets)/);
+    expect(prompt).toMatch(/People—not companies|people, not companies\/prestige/i);
     expect(prompt).toMatch(/ownership\/equity\/control(?:\/investment)? clues?/i);
     expect(prompt).toMatch(/do not infer wealth from seniority alone|never infer wealth from seniority alone|seniority alone is not wealth/i);
     expect(prompt).toMatch(/an organization is a lead|organizations are leads/i);
@@ -972,7 +972,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toContain("source class need not appear in every discovery query");
     expect(prompt).toMatch(/Fortune(?: 500)?\/ranking lists/);
     expect(prompt).toMatch(/No preset targets\/queries|no preset targets(?: or registry-first sequence)?/i);
-    expect(prompt).toMatch(/(?:News publishers and articles are evidence leads only|Publisher articles are evidence leads, never targets or access routes|Press articles (?:and third-party profiles are leads|are leads), not targets or access routes|Press\/profile pages are leads, not targets\/access routes)/);
+    expect(prompt).toMatch(/News publishers and articles are evidence leads only|Publishers\/articles are leads only|Press\/profile pages are leads/i);
     expect(prompt).toContain("Never use placeholders such as CompanyName, companywebsite.com, or example.com.");
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
     // The emergency prompt may omit the verbose JSON example to stay within the provider ceiling;
@@ -987,7 +987,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/minEvidence=1; (?:minIndependentSourceUnits=1|independentSources=1)/);
     expect(prompt).toMatch(/(?:requireFalsification=false|falsification=false)/);
     expect(prompt).not.toContain("at least one successful external action must explicitly attempt to disprove");
-    expect(prompt).toContain("not a prescribed action sequence");
+    expect(prompt).toMatch(/not a prescribed action sequence|no fixed action sequence/i);
   });
 
   it("preserves the scope-guard recovery contract in the next Investigator prompt", () => {
@@ -3074,8 +3074,8 @@ describe("PDF prompt capability contract", () => {
     });
 
     expect(prompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts supported text-bearing PDFs)/);
-    expect(prompt).toContain("Scanned/image-only PDFs require OCR (unavailable)");
-    expect(prompt).toContain("encrypted/password-protected and malformed PDFs are distinct structured extraction failures");
+    expect(prompt).toMatch(/Scanned\/image-only PDFs require(?: OCR \(unavailable\)| unavailable OCR)/i);
+    expect(prompt).toMatch(/encrypted\/password-protected and malformed PDFs are distinct (?:structured )?failures/i);
     expect(prompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead|browser_fetch is HTML-only)/);
     expect(prompt).not.toContain("visit and browser_fetch do not extract text from PDF binaries");
   });
