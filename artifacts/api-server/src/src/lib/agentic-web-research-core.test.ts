@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
 import { extractSearchResultCompanyLeadFindings, extractObservedOrganizationIdentity, isGenericDiscoveryMetadataTitle, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
@@ -3400,5 +3401,30 @@ describe("AI-generated historical Investigator memory", () => {
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
     expect(prompt).toContain("AVAILABLE ACTIONS: web_search | visit | done.");
     expect(prompt).not.toContain("OLD_HISTORY_THAT_SHOULD_NOT_BE_RECONSTRUCTED");
+  });
+});
+
+
+describe("AI research-memory compaction transport", () => {
+  it("preserves every source character and keeps URL tokens whole across chunk boundaries", () => {
+    const url = "https://example.com/filing?ref=" + "x".repeat(90);
+    const source = "OPENING FACTS\n" + "A".repeat(52) + "\n" + url + "\n" + "B".repeat(140) + "\nFINAL OWNERSHIP FACT";
+    const chunks = splitAiContextIntoChunks(source, 64);
+
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.join("")).toBe(source);
+    expect(chunks.some((chunk) => chunk.includes(url))).toBe(true);
+    expect(chunks.every((chunk) => !chunk.includes("https://example.com/filing?ref=") || chunk.includes(url))).toBe(true);
+    expect(extractAiContextUrls(source)).toEqual([url]);
+  });
+
+  it("allows a long URL to exceed the soft chunk budget rather than splitting provenance", () => {
+    const url = "https://registry.example/public/record/" + "segment".repeat(18);
+    const source = "prefix " + url + " suffix";
+    const chunks = splitAiContextIntoChunks(source, 20);
+
+    expect(chunks.join("")).toBe(source);
+    expect(chunks.some((chunk) => chunk.includes(url))).toBe(true);
+    expect(extractAiContextUrls(source)).toEqual([url]);
   });
 });
