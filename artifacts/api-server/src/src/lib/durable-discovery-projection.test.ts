@@ -8,6 +8,7 @@ import {
   extractSearchResultSnippetForLead,
   hasDurableUrlProjectionOmissions,
   mergeSourceCardTrajectoryRecords,
+  rehydrateDurableDiscoveryTrajectoryRecords,
 } from "./durable-discovery-projection";
 
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
@@ -41,6 +42,90 @@ function recordWithUrl(url: string): AgenticTrajectoryRecord {
     }],
   };
 }
+
+describe("durable Investigator trajectory rehydration", () => {
+  it("restores append-only history across continuations, normalizes reset turns, and preserves source bindings", () => {
+    const event = (id: number, runId: string, turn: number, action: string, sourceBindings: unknown[] = []) => ({
+      id,
+      iteration: id,
+      actorRole: "head_investigator",
+      eventType: "tool_observation",
+      status: "success",
+      payload: JSON.stringify({
+        jobId: "job-" + runId,
+        runId,
+        runModel: "test-model",
+        turn,
+        action,
+        args: action.includes("search") ? { query: "public organization evidence" } : { url: "https://registry.example.test/record/" + id },
+        thought: null,
+        pivotScopeKey: "scope-a",
+        leadUrls: ["https://registry.example.test/record/" + id],
+        execution: "success",
+        observation: "Observed record " + id,
+        observedUrls: ["https://registry.example.test/record/" + id],
+        findings: [],
+        sourceBindings,
+        providerFallback: [],
+        stopReason: null,
+      }),
+    });
+    const binding = (sourceTurn: number) => ({
+      findingValue: "Example Organization",
+      sourceUrl: "https://registry.example.test/record/1",
+      sourceTurn,
+      spanStart: 0,
+      spanEnd: 19,
+      pageNumber: null,
+    });
+    const rows = [
+      event(1, "run-a", 1, "web_search"),
+      event(2, "run-a", 2, "visit", [binding(1)]),
+      event(3, "run-b", 1, "web_search"),
+      event(4, "run-b", 2, "visit", [binding(1)]),
+      event(5, "run-c", 3, "visit", [binding(2)]),
+      {
+        id: 6,
+        iteration: 6,
+        actorRole: "specialist",
+        eventType: "tool_observation",
+        status: "success",
+        payload: JSON.stringify({ action: "visit", execution: "success", turn: 6 }),
+      },
+      {
+        id: 7,
+        iteration: 7,
+        actorRole: "head_investigator",
+        eventType: "claim",
+        status: "recorded",
+        payload: JSON.stringify({ action: "claim", execution: "success", turn: 7 }),
+      },
+    ];
+
+    const records = rehydrateDurableDiscoveryTrajectoryRecords([...rows].reverse());
+
+    expect(records.map((record) => record.turn)).toEqual([1, 2, 3, 4, 5]);
+    expect(records.map((record) => record.durableEventId)).toEqual([1, 2, 3, 4, 5]);
+    expect(records[1]?.sourceBindings?.[0]?.sourceTurn).toBe(1);
+    // The same-run legacy turn 1 was normalized from 1 to 3.
+    expect(records[3]?.sourceBindings?.[0]?.sourceTurn).toBe(3);
+    // Newer runs already use globally offset turns for cross-run bindings.
+    expect(records[4]?.sourceBindings?.[0]?.sourceTurn).toBe(2);
+    expect(records[0]).toMatchObject({
+      action: "web_search",
+      model: "test-model",
+      execution: "success",
+      args: { query: "public organization evidence" },
+      observedUrls: ["https://registry.example.test/record/1"],
+    });
+  });
+
+  it("wires event-ledger rehydration into standalone discovery continuations, not only in-memory episodes", () => {
+    expect(bureauAgenticPassSource).toContain("loadDurableDiscoveryTrajectoryRecords(durableCaseId)");
+    expect(bureauAgenticPassSource).toContain("priorTrajectoryRecords:effectivePriorTrajectoryRecords");
+    expect(bureauAgenticPassSource).toContain('inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision", "provider_error"])');
+  });
+});
 
 describe("durable discovery projection URL integrity", () => {
   it("keeps sticky URL omission state after its original trajectory record rolls out", () => {
