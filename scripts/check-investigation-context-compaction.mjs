@@ -4,6 +4,7 @@ const source = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-c
 const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const discoveryContinuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts", "utf8");
 const aiCompaction = fs.readFileSync("artifacts/api-server/src/src/lib/ai-investigation-context-compaction.ts", "utf8");
+const targetOversight = fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts", "utf8");
 const checks = [
   ["bounded Investigator working context exists", /export function buildInvestigatorContext/.test(source)],
   ["working-context budget is configurable and bounded", /APEX_INVESTIGATOR_CONTEXT_MAX_CHARS/.test(source) && /MIN_MAX_CHARS/.test(source) && /MAX_MAX_CHARS/.test(source)],
@@ -28,6 +29,7 @@ const checks = [
   ["oversized recent observations use cached Boss-generated semantic summaries before prompt construction", /const sourceToSummarize = \[/.test(core) && /maxChars: 900/.test(core) && /ai_recent_observation_compaction_unavailable/.test(core) && /promptRecord\.observation = compactedObservation/.test(core) && /aiCompactedObservationBySource\.set\(cacheKey, compactedObservation\)/.test(core)],
   ["recent-observation compaction fails closed instead of sending a code-truncated substitute", /No action was sent with a deterministically truncated substitute observation/.test(core)],
   ["full AI historical memory must survive final prompt budgeting or be model-condensed/fail-closed", /if \(aiCompactedHistoricalContext && !prompt\.includes\(aiCompactedHistoricalContext\)\)/.test(core) && /maxChars: 900/.test(core) && /AI historical memory still did not fit in the full Investigator prompt/.test(core) && /No action was sent with memory silently omitted/.test(core)],
+  ["oversized Right-hand oversight state/observations use Boss semantic compaction and fail closed on failure", /summarizeInvestigatorContextWithBoss/.test(targetOversight) && /Boss could not produce a bounded provenance-safe summary of shared case state/.test(targetOversight) && /Boss could not semantically compact the current act observation/.test(targetOversight)],
 ];
 let failed = false;
 for (const [name, ok] of checks) {
