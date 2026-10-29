@@ -3588,6 +3588,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         minimumProviderRule,
         terminalEvidenceRule,
         scopeRecoveryRule,
+        // Keep complete immutable-event URLs in every emergency tier. If this
+        // makes the second tier too large, the smaller core below drops optional
+        // narration and re-budgets around the exact URL instead.
+        urlInventory,
         compactScope,
         minimumAvailableActionsSection,
         compactLeadGuidance,
