@@ -3302,6 +3302,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only].",
     "After a successful web/parallel/registry search, exact organization name in observed result text plus its eligible HTTPS URL permits only a low-confidence review-only company finding; snippets are leads, not evidence.",
     "Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence.",
+    "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets in person-centric wealth discovery; company-target objectives may select organizations directly. Do not infer personal wealth from company prestige.",
   ];
   const protectedRules = isInvestigatorPrompt
     ? protectedRuleCandidates.filter((rule) => !base.includes(rule))
@@ -3371,7 +3372,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only].",
     "After a successful web/parallel/registry search, exact organization name in observed result text plus its eligible HTTPS URL permits only a low-confidence review-only company finding; snippets are leads, not evidence.",
     "Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence.",
-    "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets in person-centric wealth discovery; company-target objectives may select organizations directly. Do not infer personal wealth from company prestige.",
   ];
   const discoveryFallbackRules = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
     ? [
