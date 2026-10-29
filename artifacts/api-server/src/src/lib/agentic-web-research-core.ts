@@ -5185,7 +5185,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     // ahead of the schema and shed only optional narration if space is needed.
     const memorySection = "AI-COMPACTED HISTORICAL RESEARCH MEMORY (Boss-generated; durable evidence ledger remains authoritative; omissions are not negative evidence):\n" + historicalMemory;
     const sections = appended.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
-    const schemaIndex = sections.findIndex((part) => /OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(part));
     const insertMemory = (parts: string[]) => {
       const index = parts.findIndex((part) => /OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(part));
       const at = index >= 0 ? index : parts.length;
