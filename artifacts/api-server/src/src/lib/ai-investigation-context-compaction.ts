@@ -134,9 +134,11 @@ async function requestSummary(
     let summary = parseSummary(result.raw);
 
     if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource)) {
-      const repairSource = summary && summaryUrlsAreGrounded(summary, allowedSource)
-        ? summary
-        : source;
+      // An invalid/oversized first summary may already have dropped facts from
+      // the canonical input. Never summarize that lossy intermediate as though
+      // it were the source of truth: every repair attempt must be grounded in
+      // the original, complete source segment.
+      const repairSource = source;
       const retryPrompt = buildSummaryPrompt(
         "PRIOR SUMMARY / SOURCE TO COMPACT:\n" + repairSource,
         maxChars,
