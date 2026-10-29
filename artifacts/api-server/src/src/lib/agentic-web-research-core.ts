@@ -3275,7 +3275,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? [
       minimumRegistryEvidenceRule,
       minimumBinaryUrlRule,
-      minimumProviderRule,
+      ...fallbackRuleCandidates.filter((rule) => rule.startsWith("VALID PROVIDERS:")),
       terminalEvidenceRule,
     ]
     : [];
