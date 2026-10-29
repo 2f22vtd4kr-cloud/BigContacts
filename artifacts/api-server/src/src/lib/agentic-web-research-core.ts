@@ -3282,10 +3282,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION: objective/targetability outrank advice. Investigator chooses queries/tools/pages, pivots and stops; no fixed sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null and unused arrays []. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1] (never null). Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Only done may null hypothesis/purpose/gain. INACTIVE ACTION FIELD SHAPE: {"url":null,"searches":[],"findings":[]}.`
+    ? `MISSION: objective/targetability outrank advice. Investigator chooses queries/tools/pages, pivots and stops; no fixed sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null and unused arrays []. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1], never null. Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Only done may null hypothesis/purpose/gain; inactive-action shape: {"url":null,"searches":[],"findings":[]}.`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
-    ? "EVIDENCE/PARTIAL FINDINGS: search snippets/URLs are leads, not evidence; failed/blocked fetches are unobserved; bind claims to exact URLs. Successful search with exact organization name in observed result text + eligible HTTPS URL permits only a low-confidence review-only company card; no ownership/person/wealth/contact claim. Exact person name + page-stated role co-bound in a successful result permits a review-only person card; note LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Fetched company finding requires exact organization name + material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. Higher admission needs a successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Official staff/leadership or filing/registry sources establish identity/role only when binding exact name+role. Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Press/profile pages are leads, not targets/routes. Registry fields may not disclose beneficial owners. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
+    ? "PARTIAL FINDINGS (not terminal-only): preserve leads on the action that reveals them. Search snippets remain leads, not evidence; failed/blocked fetches are unobserved; bind claims to exact URLs. Successful search with exact organization name in observed result text + eligible HTTPS URL permits only a low-confidence review-only company card; no ownership/person/wealth/contact claim. Exact person name + page-stated role co-bound in a successful result permits a review-only person card; note LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. After a successful visit/browser_fetch, fetched company finding requires exact organization name + material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Official staff/leadership or filing/registry sources establish identity/role only when binding exact name+role. Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Press/profile pages are leads, not targets/routes. Never assume registry fields disclose beneficial owners; never use placeholders such as CompanyName, companywebsite.com, or example.com."
     : "";
   // Keep specialist tool instructions only when the base prompt authorizes those actions.
 
@@ -3293,11 +3293,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? base.match(/Conditional specialist OSINT actions:[\s\S]*?(?=\n\n|$)/)?.[0] ?? ""
     : "";
 
-  const conditionalCapabilityRule = conditionalCapabilitySection
-    ? compactPromptSectionPreservingUrlTokens(conditionalCapabilitySection, 180, "[specialist detail omitted; turn allowlist is authoritative]")
+  const conditionalCapabilityRule = isInvestigatorPrompt
+    ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST; AVAILABLE ACTIONS is authoritative. " + (conditionalCapabilitySection ? compactPromptSectionPreservingUrlTokens(conditionalCapabilitySection, 90, "[specialist detail omitted]") : "")
     : "";
   const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets; organizations are leads. Require ownership/equity/control/investment clues; never infer wealth from seniority. Honor Boss topic/geography; source class need not appear in every query. No preset targets or registry-first sequence. Avoid generic wealth searches, rankings, and global-brand leaders without plausible local-owner route. Publishers/articles are leads only; never use CompanyName, companywebsite.com, example.com."
+    ? "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets; organizations are leads. Require ownership/equity/control clues; never infer wealth from seniority. Honor Boss topic/geography; no preset targets or registry-first sequence. Avoid generic wealth searches, rankings, and global-brand leaders without plausible local-owner route. Publishers/articles are leads only; never use CompanyName, companywebsite.com, example.com."
     : "";
   const protectedTail = [fallbackOutputContract, fallbackEvidenceContract, conditionalCapabilityRule, compactFallbackDiscoveryRule, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
@@ -3323,12 +3323,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         const normalizedScope = /ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:/i.test(activeScopeContext)
           ? activeScopeContext
           : "ACTIVE BOSS SCOPE: " + activeScopeContext;
-        return normalizedScope.length <= 300
-          ? normalizedScope
-          : "ACTIVE BOSS SCOPE: " + compactActiveBossScope(
-              normalizedScope.replace(/^ACTIVE BOSS SCOPE:\s*/i, ""),
-              275,
-            );
+        if (normalizedScope.length <= 300) return normalizedScope;
+        return normalizedScope.slice(0, 110) + " … " + normalizedScope.slice(-185);
       })()
     : "";
   // The excerpt is already bounded to a short head + tail. Use the two-ended
@@ -3364,13 +3360,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? boundInvestigatorPromptSection(availableActionsSection, 140)
     : "";
   const minimumDiscoveryContract = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets; organizations are leads. Require ownership/equity/control/investment clues; never infer wealth from seniority. Honor Boss topic/geography; source class need not appear in every query. No preset targets or registry-first sequence. Avoid generic wealth/net-worth searches, rankings, and global-brand leaders without a plausible local owner/operator route hypothesis. Publishers/articles are leads, not targets/routes; never use CompanyName, companywebsite.com, or example.com."
+    ? "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets; organizations are leads. Require ownership/equity/control/investment clues; never infer wealth from seniority. Honor Boss topic/geography; source class need not appear in every query. No preset targets or registry-first sequence. Avoid generic wealth searches, rankings, and global-brand leaders without a plausible local owner/operator route. Publishers/articles are leads, not targets/routes; never use CompanyName, companywebsite.com, example.com."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 80)
     : "";
   const scopeRecoveryRule = isInvestigatorPrompt
-    ? "SCOPE GUARD: blocked action made no request/evidence. Correct active subject, geography or source class; use only observed aligned URLs and callable registries, or request new scope. Investigator chooses actions."
+    ? "SCOPE GUARD BLOCKED ACTION: blocked requests provide no evidence. Correct active subject, geography or source class; use only observed aligned URLs and callable registries, or request new scope. Investigator chooses actions."
     : "";
   const mandatoryMinimumParts = [
     fallbackOutputContract,
@@ -3400,10 +3396,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // research episode. Preserve schema/evidence/source rules, exact URLs, active
     // scope and latest action; shrink only narration, excerpts and record detail.
     const compactScope = minimumScopeContext
-      ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(
-          minimumScopeContext.replace(/^ACTIVE BOSS SCOPE:\s*/i, ""),
-          220,
-        )
+      ? (() => {
+          const scopeText = minimumScopeContext.replace(/^ACTIVE BOSS SCOPE:\s*/i, "");
+          const boundedScope = scopeText.length <= 230 ? scopeText : scopeText.slice(0, 75) + " … " + scopeText.slice(-150);
+          return "ACTIVE BOSS SCOPE: " + boundedScope;
+        })()
       : "";
     const compactObservation = observationTail
       ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 60)
@@ -3411,9 +3408,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     const compactFetchedExcerpt = fetchedSourceExcerpt
       ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 100)
       : "";
-    const compactRecordSummary = minimumDurableRecordSummaries.slice(-1).map((summary) =>
-      compactPromptSectionPreservingUrlTokens(summary, 160, "[record detail omitted; durable event retained]"),
-    );
+    const compactRecordSummary = minimumDurableRecordSummaries.slice(-1);
     const compactLeadGuidance = hasSearchLeadContext
       ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched."
       : "";
@@ -3481,11 +3476,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       const protectedDynamicParts = [
         fetchedSourceLabel,
         compactFetchedExcerpt,
-        markerSuffix,
         ...compactRecordSummary,
+        compactLeadGuidance,
         compactObservation,
         header,
-        compactLeadGuidance,
       ].filter(Boolean);
       const selectedDynamic: string[] = [];
       let dynamicRemaining = spare;
@@ -3496,9 +3490,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           dynamicRemaining -= part.length + separatorCost;
           continue;
         }
-        if (dynamicRemaining >= 100 && (part === compactFetchedExcerpt || part === compactObservation || part === compactLeadGuidance)) {
+        if (dynamicRemaining >= 90 && (part === compactFetchedExcerpt || part === compactObservation || part === compactLeadGuidance)) {
           const compressed = compactPromptSectionPreservingUrlTokens(part, dynamicRemaining - separatorCost, "[detail omitted]");
-          if (compressed.length >= 70 && compressed.length + separatorCost <= dynamicRemaining) {
+          if (compressed.length >= 60 && compressed.length + separatorCost <= dynamicRemaining) {
             selectedDynamic.push(compressed);
             dynamicRemaining -= compressed.length + separatorCost;
           }
