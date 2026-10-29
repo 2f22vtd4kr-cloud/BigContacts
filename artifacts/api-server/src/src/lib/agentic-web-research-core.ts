@@ -3125,7 +3125,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const suppliedRegistryList = typeof registryIds === "string" ? registryIds.trim() : "";
   const suppliedMemory = typeof aiHistoricalMemory === "string" ? aiHistoricalMemory.trim() : "";
   const suppliedScope = typeof activeScope === "string" ? activeScope.trim() : "";
-  const isInvestigatorPrompt = /APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base);
+  const isInvestigatorPrompt = mode === "discovery" || mode === "target" || /APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base);
   const baseHasRequiredRecoveryContext =
     (!suppliedRegistryList || base.includes(suppliedRegistryList))
     && (!suppliedMemory || base.includes(suppliedMemory))
@@ -3134,8 +3134,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     && (!/LAST SUCCESSFUL FETCHED SOURCE/.test(base) || /LAST SUCCESSFUL FETCHED SOURCE EXCERPT/.test(base))
     // A tiny/empty observation is not permission to send an incomplete action
     // prompt. Fast-return only if the protected structured schema is already there.
-    && (!/APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base)
-      || (/OUTPUT CONTRACT:/.test(base) && /ALL REQUIRED TOP-LEVEL FIELDS:/.test(base)));
+    && (!isInvestigatorPrompt || (/OUTPUT CONTRACT:/.test(base) && /ALL REQUIRED TOP-LEVEL FIELDS:/.test(base)));
   if (observationBudget < 40 && !hasDurableObservation && base.length <= limit && baseHasRequiredRecoveryContext) return base;
   // Keep the latest action's exact source URLs and the critical research contract
   // outside the lossy observation compactor, even when the normal prompt fits.
