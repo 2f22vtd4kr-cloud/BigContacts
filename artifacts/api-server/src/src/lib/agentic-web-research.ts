@@ -454,6 +454,10 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
        try {
        const requestedMaxActionTurns = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_TARGET_ACTION_TURNS;
        const maxActionTurns = Math.min(MAX_TARGET_ACTION_TURNS, Math.max(0, requestedMaxActionTurns));
+       let aiCompactedHistoricalContext = input.aiCompactedHistoricalContext?.trim() ?? "";
+       let aiCompactedHistoricalThroughTurn = Number.isFinite(input.aiCompactedHistoricalThroughTurn)
+         ? Math.max(0, Math.floor(input.aiCompactedHistoricalThroughTurn!))
+         : 0;
        try {
 for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
          targetWrapperFailureStage = "continuation_preparation";
@@ -470,7 +474,9 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
            priorTrajectoryRecords: [...historyRecords, ...records],
            cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }),
            objective: intelligenceObjective(objective, direction),
-           priorContext: buildContinuationState([oversightContext.contextDocument, input.priorContext].filter((value) => typeof value === "string" && value.trim()).join("\n\n"), [...historyRecords, ...records]),
+           priorContext: buildContinuationState([oversightContext.contextDocument, input.priorContext].filter((value) => typeof value === "string" && value.trim()).join("\n\n")),
+           aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
+           aiCompactedHistoricalThroughTurn,
            maxIterations: 1,
            hardTimeoutMs: perActTimeout,
            signal: overallController.signal,
@@ -479,6 +485,13 @@ for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
          };
          targetWrapperFailureStage = "core_execution";
          const actResult = await core.runAgenticWebResearch(actInput);
+         if (actResult.aiCompactedHistoricalContext) {
+           aiCompactedHistoricalContext = actResult.aiCompactedHistoricalContext;
+           aiCompactedHistoricalThroughTurn = Math.max(
+             aiCompactedHistoricalThroughTurn,
+             actResult.aiCompactedHistoricalThroughTurn ?? aiCompactedHistoricalThroughTurn,
+           );
+         }
          targetWrapperFailureStage = "result_normalization";
          consecutiveActionParseFailures = actResult.consecutiveActionParseFailures ?? consecutiveActionParseFailures;
          model = actResult.model;
