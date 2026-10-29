@@ -3382,7 +3382,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 420)
     : "";
   const scopeRecoveryRule = isInvestigatorPrompt
-    ? "SCOPE GUARD BLOCKED ACTION: no outbound request means no evidence. Revise the failed scope dimension, match active subject/geography, use only observed URLs and compatible registry adapters, or request new scope; Investigator chooses actions."
+    ? "SCOPE GUARD BLOCKED ACTION: no outbound request means no evidence. Revise the failed scope dimension, match active subject/geography, and fetch only an observed aligned URL or compatible registry adapter; otherwise request new scope."
     : "";
   const mandatoryMinimumParts = [
     fallbackOutputContract,
@@ -3442,14 +3442,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         minimumProviderRule,
         terminalEvidenceRule,
         scopeRecoveryRule,
-        urlInventory,
-        compactObservation,
-        minimumScopeContext,
-        minimumAvailableActionsSection,
+        urlInventory ? boundInvestigatorPromptSection(urlInventory, 300) : "",
+        compactObservation ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 320) : "",
+        minimumScopeContext ? boundInvestigatorPromptSection(minimumScopeContext, 320) : "",
+        minimumAvailableActionsSection ? boundInvestigatorPromptSection(minimumAvailableActionsSection, 140) : "",
         fetchedSourceLabel,
-        compactFetched,
+        compactFetched ? boundInvestigatorPromptSection(compactFetched, 320) : "",
         header,
-        ...minimumDurableRecordSummaries.slice(-1),
+        ...minimumDurableRecordSummaries.slice(-1).map((summary) => boundInvestigatorPromptSection(summary, 220)),
       ].filter(Boolean);
       mandatoryMinimumTail = joinPromptParts(compactTailParts);
     }
