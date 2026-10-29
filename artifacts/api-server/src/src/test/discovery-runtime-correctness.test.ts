@@ -588,7 +588,14 @@ describe("discovery runtime architecture", () => {
 
   it("only treats durably source-backed discovery candidates as admissions or terminal proof", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    expect(canonicalSource).toContain("return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows }");
+    expect(canonicalSource).toContain("function mergeDurablyAdmittedAtlasTargetSources");
+    expect(canonicalSource).toContain("const personTargets = durableCandidates.map");
+    expect(canonicalSource).toContain('targetType: "person" as const');
+    expect(canonicalSource).toContain("const organizationTargets = partialOrganizations.candidates.map");
+    expect(canonicalSource).toContain('targetType: "organization" as const');
+    expect(canonicalSource).toContain("return { names: targetCandidates.map(({ name }) => name), candidates: targetCandidates, materialized, evidenceRows }");
+    expect(canonicalSource).toContain("metadata.partialOrganizationLead === true");
+    expect(canonicalSource).toContain("isClaimGradeDiscoverySourceUrl(url)");
     expect(canonicalSource).toContain("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) })");
     expect(canonicalSource).toContain("durableSourceCount >= 1");
     expect(canonicalSource).toContain("hasDiscoveryOwnershipLeadSignal");
