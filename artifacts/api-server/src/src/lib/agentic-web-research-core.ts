@@ -3355,7 +3355,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ]
     : [];
   const discoveryEvidenceRule = "DISCOVERY LEAD HANDOFF CONTRACT: PERSON REVIEW: exact name+stated role co-bound in a successful result => review-only card. Search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages are acceptable only when directly binding exact name and role; third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Search snippets remain leads, not evidence; failed/blocked fetches are unobserved. Press/profile pages are leads, not targets/access routes. Never use placeholders such as CompanyName, companywebsite.com, or example.com. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
-  const terminalEvidenceRule = base.match(/RESEARCH TERMINAL GATE \(authoritative\): minEvidence=\d+; minIndependentSourceUnits=\d+; requireExactSpanForFindings=(?:true|false); requireFalsification=(?:true|false)(?:;[^\n.]*)?(?:\.[^\n]*)?/i)?.[0] ?? "RESEARCH TERMINAL GATE (authoritative): preserve the current mode-specific evidence thresholds; this is a stopping condition, not a prescribed action sequence.";
+  const recoveryTerminalContract = defaultTerminalContract(mode === "discovery" ? "discovery" : "target");
+  const terminalEvidenceRule = "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + recoveryTerminalContract.minEvidence + "; minIndependentSourceUnits=" + recoveryTerminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + recoveryTerminalContract.requireExactSpanForFindings + "; requireFalsification=" + recoveryTerminalContract.requireFalsification + "; preserve this mode-specific stopping condition; action order remains model-owned.";
       const runtimeRegistryIdsRule = typeof registryIds === "string" && registryIds.trim()
     ? "RUNTIME REGISTRY IDS ONLY: " + registryIds.trim() + "."
     : base.match(/RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY:[^\n]*/)?.[0] ?? "";
@@ -3380,8 +3381,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
         const fallbackEvidenceContract = isInvestigatorPrompt
     ? (isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: " : "")
-      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like name/title + eligible URL => low-confidence review-only, not proof of ownership/wealth/person/contact. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Search snippets remain leads, not evidence; aggregators and unattributed contacts are not identity evidence. After successful visit/browser_fetch, fetched company findings need exact organization name + material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. No ownership/wealth/relationship/HNWI/contact claim without evidence; never infer intimate relationships or use private health/customer-service data as personal contact routes."
-    : "";
+      + "PARTIAL FINDINGS: emit source-backed review cards on the first successful action. Company: exact business-like name/title + eligible URL => low-confidence review-only; no ownership/wealth/person/contact claim. Search-only note says search_result_lead, snippet-only/page not fetched, and unverified; promotion is review queue only. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Snippets, aggregators and unattributed contacts are leads, not identity evidence; failed/blocked fetches are unobserved. Fetched company finding needs exact organization name + material fact in fetched text and sourceUrls=[that fetched URL only]. Target research independently corroborates/falsifies and verifies public/professional routes before any HNWI/contact conclusion. Never infer intimate relationships or use private health/customer-service records as personal contact routes."
 
   const conditionalCapabilitySection = isInvestigatorPrompt
     ? base.match(/Conditional specialist OSINT actions:[\s\S]*?(?=\n\n|$)/)?.[0] ?? ""
@@ -3596,17 +3596,20 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         scopeRecoveryRule,
         compactScope,
         minimumAvailableActionsSection,
+        urlInventory,
+        markerSuffix,
       ].filter(Boolean));
       const spare = Math.max(0, limit - core.length - 2);
       const protectedDynamicParts = [
-        aiMemorySection,
         activeScopeContext,
-        ...compactRecordSummary,
         urlInventory,
         fetchedSourceLabel,
         compactFetchedExcerpt,
-        compactLeadGuidance,
+        ...compactRecordSummary,
+        markerSuffix,
         compactObservation,
+        compactLeadGuidance,
+        aiMemorySection,
         header,
       ].filter(Boolean);
       const selectedDynamic: string[] = [];
