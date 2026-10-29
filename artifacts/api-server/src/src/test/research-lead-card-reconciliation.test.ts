@@ -218,7 +218,7 @@ describe("canonical Atlas organization target selection", () => {
 
   it("keeps the default discovery objective consistent with organization target selection", () => {
     expect(canonicalAtlas).toContain("Companies are leads and may be selected for target-scoped research");
-    expect(canonicalAtlas).toContain("a person is the ultimate investor-identification goal");
+    expect(canonicalAtlas).toContain("A person is the ultimate investor-identification goal");
     expect(canonicalAtlas).toContain("The Investigator chooses each action; no fixed sequence.");
     expect(canonicalAtlas).not.toContain("People—not companies or executive prestige—are the target; companies are leads.");
   });
