@@ -48,23 +48,23 @@ export function splitAiContextIntoChunks(value: string, maxChars: number): strin
       const newline = source.lastIndexOf("\n", end);
       const whitespace = source.lastIndexOf(" ", end);
       const candidate = newline > start + Math.floor(limit * 0.55)
-        ? newline
+        ? newline + 1
         : whitespace > start + Math.floor(limit * 0.55)
-          ? whitespace
+          ? whitespace + 1
           : end;
       end = candidate;
       const crossing = urls.find((span) => span.start < end && span.end > end);
       if (crossing) {
+        // Prefer a boundary before the URL if it leaves a useful chunk. Otherwise
+        // allow the complete URL to overrun the soft budget rather than split it.
         end = crossing.start > start + Math.floor(limit * 0.5)
           ? crossing.start
           : crossing.end;
       }
       if (end <= start) end = Math.min(source.length, start + limit);
     }
-    const chunk = source.slice(start, end).trim();
-    if (chunk) chunks.push(chunk);
+    chunks.push(source.slice(start, end));
     start = end;
-    while (start < source.length && /\s/u.test(source[start] ?? "")) start++;
   }
   return chunks;
 }
