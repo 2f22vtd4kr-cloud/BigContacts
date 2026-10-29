@@ -3222,7 +3222,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           // newest observed action, not only its action/URL metadata. Without
           // this, the smallest tier can omit the evidence the next decision
           // needs to respond to even though the immutable trajectory has it.
-          ...(match[1] === (latestTrajectoryMarker.match(/TURN\\s+(\\d+)/)?.[1] ?? "")
+          ...(match[1] === (latestTrajectoryMarker.match(/TURN\s+(\d+)/)?.[1] ?? "")
             && typeof parsed.observation === "string"
             && parsed.observation.trim()
             ? { observation: compactEmergencyTrajectoryObservation(parsed.observation, 180) }
