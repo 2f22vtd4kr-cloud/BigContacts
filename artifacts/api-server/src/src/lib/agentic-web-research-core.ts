@@ -2118,8 +2118,13 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
   // boundInvestigatorPromptSection has a minimum marker size; do not call it when
   // that marker itself could exceed the remaining budget.
   if (prefix && prefixBudget >= 120) {
-    boundedPrefix = boundInvestigatorPromptSection(prefix, prefixBudget);
-    if (boundedPrefix.length > prefixBudget) boundedPrefix = compactPromptSectionPreservingUrlTokens(prefix, prefixBudget);
+    // At the provider boundary, exact source URLs must survive whenever they can
+    // fit. Prefer the URL-aware reducer instead of generic head/tail extraction.
+    boundedPrefix = compactPromptSectionPreservingUrlTokens(
+      prefix,
+      prefixBudget,
+      "[auxiliary context omitted whole; durable case events remain authoritative]",
+    );
     if (boundedPrefix.length > prefixBudget) boundedPrefix = "";
   }
   const result = [boundedPrefix, protectedSuffix].filter(Boolean).join(separator);
@@ -3125,7 +3130,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     && (!suppliedMemory || base.includes(suppliedMemory))
     && (!suppliedScope || base.includes(suppliedScope) || /ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:/.test(base))
     && (!/LATEST TRAJECTORY RECORD/.test(base) || /leadUrlsOmittedFromPromptCount/.test(base))
-    && (!/LAST SUCCESSFUL FETCHED SOURCE/.test(base) || /LAST SUCCESSFUL FETCHED SOURCE EXCERPT/.test(base));
+    && (!/LAST SUCCESSFUL FETCHED SOURCE/.test(base) || /LAST SUCCESSFUL FETCHED SOURCE EXCERPT/.test(base))
+    // A tiny/empty observation is not permission to send an incomplete action
+    // prompt. Fast-return only if the protected structured schema is already there.
+    && (!isInvestigatorPrompt || (/OUTPUT CONTRACT:/.test(base) && /ALL REQUIRED TOP-LEVEL FIELDS:/.test(base)));
   if (observationBudget < 40 && !hasDurableObservation && base.length <= limit && baseHasRequiredRecoveryContext) return base;
   // Keep the latest action's exact source URLs and the critical research contract
   // outside the lossy observation compactor, even when the normal prompt fits.
@@ -3381,7 +3389,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
         const fallbackEvidenceContract = isInvestigatorPrompt
     ? (isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: " : "")
-      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like name/title + eligible URL => low-confidence review-only; no ownership/wealth/person/contact claim. Search-only note: search_result_lead, snippet-only/page not fetched, unverified; promote only to review queue. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Search snippets are leads, not evidence; aggregators/unattributed contacts are not identity evidence; failed/blocked fetches are unobserved. Fetched company finding requires exact organization name + material fact in fetched text and sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Never infer intimate relationships or use private health/customer-service records as personal contact routes."
+      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like title + eligible URL => low-confidence review-only, not ownership/wealth/person/contact. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Search snippets are leads, not evidence; aggregators/unattributed contacts are not identity evidence; failed/blocked fetches are unobserved. Fetched company finding requires exact name + material fact and sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. No intimate-relationship inference or private health/customer-service contact routes."
     : "";
 
   const conditionalCapabilitySection = isInvestigatorPrompt
@@ -3536,7 +3544,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         : "";
     const compactRecordSummary = minimumDurableRecordSummaries.slice(-1);
     const compactLeadGuidance = hasSearchLeadContext
-      ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched."
+      ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; search-result URLs remain leads, not evidence until fetched. The Investigator chooses the action."
       : "";
     const compactParts = [
       fallbackOutputContract,
@@ -3584,33 +3592,43 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       ].filter(Boolean));
     }
     if (mandatoryMinimumTail.length > limit) {
-      const core = joinPromptParts([
+      // Keep a small irreducible core and reserve space for the fetched source
+      // claim. Optional duplicate guidance is added only when the exact provider
+      // ceiling leaves room; otherwise the durable event ledger remains authoritative.
+      const coreParts = [
         fallbackOutputContract,
         fallbackEvidenceContract,
-        compactCaseObjective,
-        minimumDiscoveryContract,
-        minimumRegistryEvidenceRule,
-        minimumBinaryUrlRule,
-        conditionalCapabilityRule,
-        minimumProviderRule,
         terminalEvidenceRule,
         scopeRecoveryRule,
-        compactScope || (activeScopeContext ? activeScopeContext : ""),
+        compactScope || compactCaseObjective,
         minimumAvailableActionsSection,
         urlInventory,
-        markerSuffix,
+        latestSearchMarker,
         ...compactRecordSummary,
         compactLeadGuidance,
-      ].filter(Boolean));
+      ].filter(Boolean);
+      const dynamicReserve = Math.min(620, Math.max(420, Math.floor(limit * 0.12)));
+      const optionalCoreParts = [
+        minimumProviderRule,
+        conditionalCapabilityRule,
+        minimumRegistryEvidenceRule,
+        minimumBinaryUrlRule,
+      ].filter(Boolean);
+      let core = joinPromptParts(coreParts);
+      for (const optionalPart of optionalCoreParts) {
+        const candidate = joinPromptParts([...coreParts, ...optionalCoreParts.slice(0, optionalCoreParts.indexOf(optionalPart) + 1)]);
+        if (candidate.length <= limit - dynamicReserve) {
+          coreParts.push(optionalPart);
+          core = joinPromptParts(coreParts);
+        }
+      }
       const spare = Math.max(0, limit - core.length - 2);
-      // The compact core already contains the active scope, URL inventory, and latest
-      // marker(s). Do not spend the remaining budget duplicating those same sections:
-      // that starves the fetched claim excerpt and can leave a model with a URL lead
-      // but not the factual sentence that makes it useful.
+      // Source URL identity is in the URL inventory above. Use the remaining
+      // capacity first for the associated fetched claim, then current feedback;
+      // do not duplicate scope/URLs ahead of the source facts they qualify.
       const protectedDynamicParts = [
         fetchedSourceLabel,
         compactFetchedExcerpt,
-        activeScopeContext,
         compactObservation,
         aiMemorySection,
         header,
