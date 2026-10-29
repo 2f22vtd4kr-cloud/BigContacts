@@ -3531,6 +3531,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     terminalEvidenceRule,
     scopeRecoveryRule,
     urlInventory,
+    // Boss-generated memory is a required representation of historical
+    // findings. Keep it in the complete minimal tail rather than adding it only
+    // when space happens to remain after generic observation narration.
+    aiMemorySection,
     minimumObservationTail,
     minimumScopeContext,
     minimumAvailableActionsSection,
@@ -3629,7 +3633,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         scopeRecoveryRule,
         compactScope || compactCaseObjective,
         minimumAvailableActionsSection,
+        // These are not optional policy extras: the exact URL inventory,
+        // compact Boss-generated memory, and binary retrieval contract must
+        // survive every tier. Compact/dismiss narration before these invariants.
         urlInventory,
+        aiMemorySection,
+        minimumBinaryUrlRule,
         latestSearchMarker,
         ...compactRecordSummary,
         compactLeadGuidance,
@@ -3639,7 +3648,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         minimumProviderRule,
         conditionalCapabilityRule,
         minimumRegistryEvidenceRule,
-        minimumBinaryUrlRule,
       ].filter(Boolean);
       const includedOptionalCoreParts: string[] = [];
       for (const optionalPart of optionalCoreParts) {
