@@ -2950,7 +2950,7 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
   const raw = rawObjective.trim();
   if (!raw) return "";
 
-  const primaryMarker = "PRIMARY CASE OBJECTIVE:\n";
+  const primaryMarker = "PRIMARY CASE OBJECTIVE:";
   const structuredPivotMarker = "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):";
   const decisionLawMarker = "\n\nChoose each next action yourself from the available capabilities and observed evidence.";
   const legacyPivotMarker = "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:";
