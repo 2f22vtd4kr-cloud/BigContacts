@@ -2899,12 +2899,46 @@ function compactActiveBossScope(direction: string, maxChars: number): string {
   const candidate = [lead, suffix].filter(Boolean).join("; ");
   if (candidate.length <= maxChars) return candidate;
 
-  // Reserve space for all parsed geography/source alternatives before
-  // shortening the subject description. Never clip alternatives independently.
-  const suffixWithSeparator = suffix ? "; " + suffix : "";
-  const availableLeadChars = maxChars - suffixWithSeparator.length;
-  if (availableLeadChars >= 24) return lead.slice(0, availableLeadChars).trimEnd() + suffixWithSeparator;
-  return candidate;
+  // Large Boss pivots can list a dozen jurisdictions and many synonymous source
+  // classes. Preserve every geography alternative, compress redundant source
+  // examples into functional source families, and cap the final string itself.
+  const sourceFamilies = [
+    /\b(?:official|state|business|corporate|regulatory)\b[^;,.]{0,60}\b(?:filings?|registr(?:y|ies)|database|portals?)\b/i.test(source) ? "official filings" : "",
+    /\b(?:ownership|beneficial ownership|corporate registration|corporate filings)\b/i.test(source) ? "ownership records" : "",
+    /\b(?:licensee|licensing|trade association|membership lists?|directories)\b/i.test(source) ? "license/trade directories" : "",
+    /\b(?:transaction|announcements?|releases?)\b/i.test(source) ? "transaction announcements" : "",
+  ].filter((item, index, all) => Boolean(item) && all.indexOf(item) === index);
+  let compactSource = sourceFamilies.join(", ");
+  if (!compactSource && source) compactSource = sourceNoun;
+  let compactSuffix = [
+    geography ? "geographies: " + geography : "",
+    compactSource ? "source classes: " + compactSource : "",
+  ].filter(Boolean).join("; ");
+  let compactCandidate = [lead, compactSuffix].filter(Boolean).join("; ");
+  if (compactCandidate.length <= maxChars) return compactCandidate;
+
+  // If the full family labels still overrun the budget, keep all geography names
+  // and a minimal, semantically broad source-family inventory before trimming the
+  // less critical sector lead. Never return an over-budget scope for later slicing.
+  compactSource = source
+    ? "filings, ownership records, directories, transactions"
+    : "";
+  compactSuffix = [
+    geography ? "geographies: " + geography : "",
+    compactSource ? "source classes: " + compactSource : "",
+  ].filter(Boolean).join("; ");
+  const remainingLeadChars = maxChars - compactSuffix.length - (compactSuffix ? 2 : 0);
+  if (remainingLeadChars > 0) {
+    const boundedLead = lead.length > remainingLeadChars
+      ? lead.slice(0, remainingLeadChars).trimEnd()
+      : lead;
+    const bounded = [boundedLead, compactSuffix].filter(Boolean).join("; ");
+    if (bounded.length <= maxChars) return bounded;
+  }
+  if (compactSuffix.length <= maxChars) return compactSuffix;
+  // A pathological geography alone may exceed the budget; clip only that final
+  // fallback while preserving a clear label rather than allowing prompt overflow.
+  return compactSuffix.slice(0, Math.max(0, maxChars));
 }
 
 /**
