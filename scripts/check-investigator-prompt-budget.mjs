@@ -16,7 +16,9 @@ assert(/MAX_PROVIDER_PROMPT_CHARS = 7_200/.test(core) && /const maxUserPromptCha
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 assert(/trajectoryRecords:\s*(?:sanitizeObservableValue\()?\[\.\.\.priorTrajectoryRecords,\s*\.\.\.records\]\.slice\(-MAX_TRAJECTORY_RECORDS\)\)?/.test(core), "each act prompt must include bounded prior durable observations as well as current-act records, sanitizing the projection when enabled");
 assert(/INVESTIGATOR_SYSTEM_PROMPT/.test(core) && /MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT\(\)\.length/.test(core), "final prompt ceiling must reserve space for the stable system message");
-assert(/buildGroqInvestigatorRequestBody[\s\S]*?boundInvestigatorPromptSection\(prompt, maxUserPromptChars\)/.test(core), "provider request-body boundary must independently cap the user message");
+assert(/buildGroqInvestigatorRequestBody[\s\S]*?boundInvestigatorProviderPrompt\(prompt, maxUserPromptChars\)/.test(core), "provider request-body boundary must use the contract-preserving budget reducer");
+assert(/if \(prompt\.length > maxUserPromptChars\)[\s\S]*?investigator_prompt_budget_exceeded/.test(core) && /const boundedPrompt = prompt;/.test(core), "assembled prompts must fail closed on overflow rather than be silently head/tail-truncated");
+assert(!/tightenInvestigatorPrompt\(\s*workingPrompt/.test(core) && /upstream_request_size_rejected/.test(core), "HTTP 413 must not trigger deterministic deletion of arbitrary prompt content");
 const stepStart = core.indexOf("export function buildStepPrompt");
 const stepEnd = core.indexOf("export function discoveryTerminalGate", stepStart);
 const stepPrompt = stepStart >= 0 && stepEnd > stepStart ? core.slice(stepStart, stepEnd) : "";
