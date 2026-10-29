@@ -3636,18 +3636,31 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         fallbackEvidenceContract,
         terminalEvidenceRule,
         scopeRecoveryRule,
-        compactScope || compactCaseObjective,
-        minimumAvailableActionsSection,
-        // These are not optional policy extras: the exact URL inventory,
-        // compact Boss-generated memory, and binary retrieval contract must
-        // survive every tier. Compact/dismiss narration before these invariants.
+        compactScope
+          ? compactPromptSectionPreservingUrlTokens(compactScope, 180, "[scope detail omitted]")
+          : compactCaseObjective,
+        minimumAvailableActionsSection
+          ? compactPromptSectionPreservingUrlTokens(minimumAvailableActionsSection, 360, "[action detail omitted]")
+          : "",
+        // Exact observed URLs remain intact. Compress secondary narration first
+        // to reserve space for the newest successful fetched-page claim; without
+        // this reserve the last-resort tier silently drops the only evidence
+        // capable of grounding the next partial finding.
         urlInventory,
-        aiMemorySection,
+        aiMemorySection
+          ? compactPromptSectionPreservingUrlTokens(aiMemorySection, 240, "[older memory omitted; durable ledger remains authoritative]")
+          : "",
         minimumTargetabilityMarker,
         minimumBinaryUrlRule,
         latestSearchMarker,
-        ...compactRecordSummary,
-        compactLeadGuidance,
+        ...compactRecordSummary.map((summary) => compactPromptSectionPreservingUrlTokens(summary, 220, "[record detail omitted]")),
+        compactLeadGuidance
+          ? compactPromptSectionPreservingUrlTokens(compactLeadGuidance, 170, "[lead guidance omitted]")
+          : "",
+        fetchedSourceLabel,
+        compactFetchedExcerpt
+          ? compactPromptSectionPreservingUrlTokens(compactFetchedExcerpt, 260, "[source excerpt detail omitted]")
+          : "",
       ].filter(Boolean);
       const dynamicReserve = Math.min(620, Math.max(420, Math.floor(limit * 0.12)));
       const optionalCoreParts = [
