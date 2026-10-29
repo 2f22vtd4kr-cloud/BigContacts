@@ -35,10 +35,10 @@ export function splitAiContextIntoChunks(value: string, maxChars: number): strin
   const limit = Math.max(1, Math.floor(maxChars));
   if (source.length <= limit) return source ? [source] : [];
 
-  const urls = extractAiContextUrls(source).map((url) => {
-    const start = source.indexOf(url);
-    return { start, end: start + url.length };
-  }).filter((span) => span.start >= 0);
+  const urls = [...source.matchAll(/https?:\/\/[^\s"'<>]+/giu)].map((match) => {
+    const start = match.index ?? 0;
+    return { start, end: start + match[0].length };
+  });
   const chunks: string[] = [];
   let start = 0;
 
