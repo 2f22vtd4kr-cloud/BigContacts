@@ -5767,7 +5767,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       return appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars, input.mode, extractBossPivotDirectionForCompactPrompt(input.objective), registryIdList, aiHistoricalMemory);
     }
     const boundedState = boundedAuxiliaryState(dynamicState, compactBudget);
-    return [compactPrefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n");
+    // This is still an emergency-compacted prompt: route it through the final
+    // evidence-aware assembler so Boss memory is rehydrated if prefix compaction
+    // trimmed it out of the working-context section.
+    return finalizeEmergencyPrompt([compactPrefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n"));
   }
   const boundedState = boundedAuxiliaryState(dynamicState, dynamicBudget);
   return [prefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n");
