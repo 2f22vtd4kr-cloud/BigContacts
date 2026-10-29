@@ -3377,11 +3377,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION PRIORITY: objective/targetability outrank conflicting supervisor advice. Investigator chooses queries/tools/pages, pivots and stops; no fixed action sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null and unused arrays []. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1], never null. Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Only done may null hypothesis/purpose/gain; inactive-action shape: {"url":null,"searches":[],"findings":[]}.`
+    ? `MISSION PRIORITY: objective/targetability outrank conflicting advice; the Investigator chooses actions, pivots and stops—no fixed sequence. OUTPUT CONTRACT: return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null, unused arrays []. Except done, hypothesis/purpose must be non-empty and expectedInformationGain a number in [0,1]; only done may null them. Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
     : "";
         const fallbackEvidenceContract = isInvestigatorPrompt
     ? (isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: " : "")
-      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like name/title + eligible URL => low-confidence review-only; no ownership/wealth/person/contact claim. Search-only note says search_result_lead, snippet-only/page not fetched, and unverified; promotion is review queue only. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Search snippets are leads, not evidence; aggregators and unattributed contacts are not identity evidence; failed/blocked fetches are unobserved. Fetched company finding needs exact organization name + material fact in fetched text and sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Never infer intimate relationships or use private health/customer-service records as personal contact routes."
+      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like name/title + eligible URL => low-confidence review-only; no ownership/wealth/person/contact claim. Search-only note: search_result_lead, snippet-only/page not fetched, unverified; promote only to review queue. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Search snippets are leads, not evidence; aggregators/unattributed contacts are not identity evidence; failed/blocked fetches are unobserved. Fetched company finding requires exact organization name + material fact in fetched text and sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Never infer intimate relationships or use private health/customer-service records as personal contact routes."
     : "";
 
   const conditionalCapabilitySection = isInvestigatorPrompt
@@ -3595,10 +3595,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         minimumProviderRule,
         terminalEvidenceRule,
         scopeRecoveryRule,
-        compactScope,
+        compactScope || (activeScopeContext ? activeScopeContext : ""),
         minimumAvailableActionsSection,
         urlInventory,
         markerSuffix,
+        ...compactRecordSummary,
+        compactLeadGuidance,
       ].filter(Boolean));
       const spare = Math.max(0, limit - core.length - 2);
       // The compact core already contains the active scope, URL inventory, and latest
@@ -3608,9 +3610,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       const protectedDynamicParts = [
         fetchedSourceLabel,
         compactFetchedExcerpt,
-        ...compactRecordSummary,
+        activeScopeContext,
         compactObservation,
-        compactLeadGuidance,
         aiMemorySection,
         header,
       ].filter(Boolean);
