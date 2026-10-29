@@ -5410,7 +5410,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const shortestPrompt = [
         finalEmergencyAssignment,
         shortestScope,
-        "SCOPE: honor topic/geography; source class may vary per query; registry jurisdiction must match; no registry-first sequence; Companies House is UK-only, not a US Secretary-of-State substitute; broad web search is often better for unanchored local/sector discovery; blocks are not evidence.",
+        "SCOPE RECOVERY: honor Boss-approved topic/geography; source class may vary per query, but never silently pivot to homonyms, unrelated sectors or another jurisdiction. After a block revise only the failed dimension or request new scope from Boss; failure is not disproof. Registry jurisdiction must match; no registry-first sequence; Companies House is UK-only, not a US Secretary-of-State substitute; broad web search is often better for unanchored local/sector discovery; blocks are not evidence.",
         shortestActionsGuidance,
         compactWorkerCapabilityGuidance,
         shortestRegistryGuidance,
@@ -5443,6 +5443,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         activeScope
           ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 260)
           : "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective || "source-backed public research for real people and realistic routes; never invent.", 100),
+        "SCOPE RECOVERY: preserve Boss-approved subject/geography; source class may vary, but no silent pivot. After a block revise only the failed dimension or request new scope from Boss; failure is not disproof.",
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
         "RUNTIME REGISTRY IDS ONLY: " + registryIdList + ". Never invent an ID based on a jurisdiction or agency name; unavailable is not a no-hit.",
