@@ -3561,6 +3561,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       mandatoryMinimumTail = joinPromptParts([
         fallbackOutputContract,
         fallbackEvidenceContract,
+        compactCaseObjective,
         minimumDiscoveryContract,
         minimumRegistryEvidenceRule,
         minimumBinaryUrlRule,
@@ -3583,6 +3584,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       const core = joinPromptParts([
         fallbackOutputContract,
         fallbackEvidenceContract,
+        compactCaseObjective,
         minimumDiscoveryContract,
         minimumRegistryEvidenceRule,
         minimumBinaryUrlRule,
