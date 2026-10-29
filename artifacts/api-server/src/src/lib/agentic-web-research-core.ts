@@ -3379,7 +3379,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? (runtimeRegistryIdsRule ? runtimeRegistryIdsRule + " " : "RUNTIME REGISTRY IDS ONLY: callable adapters only. ") + "Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers without documented fields."
     : "";
       const minimumBinaryUrlRule = isInvestigatorPrompt
-    ? "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
+    ? "PAGE FORMAT / RETRIEVAL LIMITS: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
     : "";
   const fallbackProtectedRules = isInvestigatorPrompt
     ? [
