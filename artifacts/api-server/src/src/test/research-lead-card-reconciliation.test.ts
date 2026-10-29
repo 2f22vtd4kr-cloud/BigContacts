@@ -112,6 +112,7 @@ describe("terminal review-card reconciliation", () => {
   });
 
   it("persists only exact organization findings from successful search observations as review leads", () => {
+    const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
     expect(reconciler).toContain('finding.scope !== "organization"');
     expect(reconciler).toContain("isGenericDiscoveryMetadataTitle(name)");
     expect(canonical).toContain("isGenericDiscoveryMetadataTitle(name)");
