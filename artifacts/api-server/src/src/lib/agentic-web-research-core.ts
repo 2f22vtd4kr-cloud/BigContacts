@@ -3297,7 +3297,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? `MISSION PRIORITY: objective/realistic targetability outrank conflicting supervisor advice; no fixed action sequence; Investigator chooses actions/tools. Specialist OSINT actions are usable ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose; inactive fields are null/[], hypothesis/purpose non-empty except done, expectedInformationGain in [0,1]. PARTIAL FINDINGS (not terminal-only): emit source-backed leads on the action that reveals them.`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
-    ? "EVIDENCE: snippets/URLs are leads, not proof; failed/blocked fetches are unobserved. Emit source-backed company/person review leads immediately. PERSON REVIEW: exact name+stated role may create LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Fetched company claims require exact name+material business fact and sourceUrls=[that fetched URL only]. Do not assume records expose owners, shareholders, members, or managers without observed documentation. Official staff/filing pages must bind exact name/role; people-search aggregators are leads only. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Do not infer intimate relationships or use medical/clinic/spa/casino or private personal-number data as outreach routes. RUNTIME REGISTRY IDS ONLY: never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. BINARY URL POLICY: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); failed extraction is unobserved."
+    ? "EVIDENCE: snippets/URLs are leads, not proof; failed/blocked fetches are unobserved. Emit company/person review leads immediately. PERSON REVIEW: exact name+stated role may create LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Fetched company claims need exact name+material business fact and sourceUrls=[that fetched URL only]. Do not assume records expose owners, shareholders, members, or managers without observed documentation. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies routes before promotion. Official staff/filing pages must bind exact name/role; aggregators are leads only. Never infer intimate relationships or use medical/clinic/spa/casino/private personal-number data as outreach routes. RUNTIME REGISTRY IDS ONLY: never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. BINARY URL POLICY: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable)."
     : "";
   // This capability note is already bounded and reflects the current action allowlist;
   // retain it only when the actual base prompt authorizes specialist worker actions.
@@ -3437,25 +3437,29 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         : "";
       const compactTailParts = [
         fallbackOutputContract,
-        compactEvidence,
+        boundInvestigatorPromptSection(compactEvidence, 1_000),
         conditionalCapabilityRule,
         minimumProviderRule,
         terminalEvidenceRule,
         scopeRecoveryRule,
-        urlInventory ? boundInvestigatorPromptSection(urlInventory, 300) : "",
-        compactObservation ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 320) : "",
-        minimumScopeContext ? boundInvestigatorPromptSection(minimumScopeContext, 320) : "",
-        minimumAvailableActionsSection ? boundInvestigatorPromptSection(minimumAvailableActionsSection, 140) : "",
+        urlInventory ? boundInvestigatorPromptSection(urlInventory, 240) : "",
+        compactObservation ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 260) : "",
+        minimumScopeContext ? boundInvestigatorPromptSection(minimumScopeContext, 300) : "",
+        minimumAvailableActionsSection ? boundInvestigatorPromptSection(minimumAvailableActionsSection, 120) : "",
         fetchedSourceLabel,
-        compactFetched ? boundInvestigatorPromptSection(compactFetched, 320) : "",
+        compactFetched ? boundInvestigatorPromptSection(compactFetched, 260) : "",
         header,
-        ...minimumDurableRecordSummaries.slice(-1).map((summary) => boundInvestigatorPromptSection(summary, 220)),
+        ...minimumDurableRecordSummaries.slice(-1).map((summary) => boundInvestigatorPromptSection(summary, 160)),
       ].filter(Boolean);
       mandatoryMinimumTail = joinPromptParts(compactTailParts);
     }
     if (mandatoryMinimumTail.length > limit) {
-      throw new RangeError(
-        `Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=${limit}; mandatory schema, URLs, scope and latest evidence cannot fit without truncation.`,
+      // Final bounded fallback: preserve schema/evidence at the front and latest
+      // fetched-source/URL material at the tail instead of throwing away the turn.
+      mandatoryMinimumTail = compactPromptSectionPreservingUrlTokens(
+        mandatoryMinimumTail,
+        Math.max(0, limit),
+        "[middle policy detail omitted; latest source and scope retained]",
       );
     }
   }
