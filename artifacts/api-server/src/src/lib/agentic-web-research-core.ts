@@ -6159,7 +6159,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       ].join("\n\n");
       const shouldCreateAiMemory = !aiCompactedHistoricalContext
         && (
-          initialMemorySource.length > 3_500
+          (historicalRecords.length > 0 && initialMemorySource.length > 3_500)
           || objective.length > 1_600
           || (input.priorContext?.length ?? 0) > 800
           || historicalRecords.length > 6
