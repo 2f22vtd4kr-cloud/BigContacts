@@ -3385,11 +3385,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION PRIORITY: objective/targetability outrank conflicting advice; the Investigator chooses actions, pivots and stops—no fixed sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null, unused arrays []. Except done, hypothesis/purpose must be non-empty and expectedInformationGain a number in [0,1]; only done may null them. Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
+    ? `MISSION PRIORITY: objective/targetability outrank conflicting advice; the Investigator chooses actions, pivots and stops—no fixed action sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null, unused arrays []. Except done, hypothesis/purpose must be non-empty and expectedInformationGain a number in [0,1]; only done may null them. Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
     : "";
         const fallbackEvidenceContract = isInvestigatorPrompt
     ? (isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: " : "")
-      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like title + eligible URL => low-confidence review-only, not ownership/wealth/person/contact. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Search snippets are leads, not evidence; aggregators/unattributed contacts are not identity evidence; failed/blocked fetches are unobserved. Fetched company finding requires exact name + material fact and sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. No intimate-relationship inference or private health/customer-service contact routes."
+      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like title + eligible URL => low-confidence review-only, not ownership/wealth/person/contact. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Search snippets are leads, not evidence; aggregators/unattributed contacts are not identity evidence; failed/blocked fetches are unobserved. After a successful visit/browser_fetch, use fetched text only for claims it substantiates. Fetched company finding requires exact name + material fact and sourceUrls=[that fetched URL only]. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before promotion. No intimate-relationship inference or private health/customer-service contact routes."
     : "";
 
   const conditionalCapabilitySection = isInvestigatorPrompt
@@ -5140,9 +5140,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const outputStart = composedPrompt.indexOf(outputMarker, stateStart + stateMarker.length);
   if (stateStart < 0 || outputStart < 0 || outputStart <= stateStart) {
     // Fail safe to a bounded prompt rather than silently returning an incomplete contract.
-    return boundInvestigatorPromptSection(
+    // The normal state/output markers are absent, so generic head/tail extraction
+    // cannot protect the required action schema and research constraints. Rebuild
+    // through evidence-aware recovery rather than slicing the prompt.
+    return finalizeEmergencyPrompt(
       [composedPrompt, latestRecordTail, "OUTPUT CONTRACT: Return one root JSON object that satisfies the provider schema."].join("\n\n"),
-      maxUserPromptChars,
     );
   }
 
