@@ -43,6 +43,21 @@ describe("durable Investigator intelligence replay", () => {
     expect(records[0]?.pivotScopeKey).toBe(scopeKey);
     expect(records[0]?.leadUrls).toEqual([leadUrl]);
   });
+  it("restores source-span bindings and typed failure metadata from durable events", () => {
+    const sourceBindings = [{ findingValue: "Example Holdings", sourceUrl: "https://registry.example.test/company/1", sourceTurn: 3, spanStart: 12, spanEnd: 28, pageNumber: 2 }];
+    const records = investigatorRecordsFromEvents([{
+      id: 77, actorRole: "head_investigator", eventType: "tool_observation", status: "partial",
+      payload: JSON.stringify({
+        action: "visit", execution: "partial", observation: "Retrieved a partial page after provider failure.",
+        observedUrls: ["https://registry.example.test/company/1"], findings: [], sourceBindings,
+        failureDomain: "tool_execution", failureKind: "request_failure",
+      }),
+    }]);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      execution: "partial", failureDomain: "tool_execution", failureKind: "request_failure", sourceBindings,
+    });
+  });
   it("retains split identity/contact observations as review-only evidence during replay", () => {
     const identityUrl = "https://example.test/team", contactUrl = "https://example.test/contact";
     const records: AgenticTrajectoryRecord[] = [
