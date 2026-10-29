@@ -5575,7 +5575,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactCoreWithoutProtectedScope = compactBaseCoreParts
         .filter((part) => part !== absoluteMinimumObjective
           && part !== finalEmergencyAssignment
-          && part !== absoluteMinimumAvailableActions)
+          && part !== absoluteMinimumAvailableActions
+          && part !== absoluteMinimumTerminalContract)
         .join("\n\n");
       const compactCoreBudget = Math.max(
         0,
