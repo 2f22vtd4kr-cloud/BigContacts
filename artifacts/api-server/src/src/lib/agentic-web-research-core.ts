@@ -3030,7 +3030,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
       );
     }
     return preserveSourceAlongsideGuard(
-      `SCOPE GUARD BLOCKED ACTION (no request): blocked action adds no evidence. web discovery may search in-scope topic terms and company terms without repeating source-class wording. Match registry adapters to geography. Fetch only observed aligned URLs; revise failed dimensions or request new scope from Boss/Right-hand. Active Boss-approved scope: ${compactActiveBossScope(activePivot, 210)}.`,
+      `SCOPE GUARD BLOCKED ACTION (no request): blocked action adds no evidence. Web discovery may search in-scope topic terms and company terms without repeating source-class wording. Match registry adapters to geography. Fetch only observed aligned URLs; revise failed dimensions or request new scope from Boss/Right-hand. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 210) + "." : "Use the active Boss-approved objective to recover scope."}`,
     );
   }
   // Ordinary fetched-page observations can carry the exact company/person facts
