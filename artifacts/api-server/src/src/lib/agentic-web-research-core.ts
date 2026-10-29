@@ -5954,7 +5954,12 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           + historicalRecords.map((record) => JSON.stringify(renderMemoryRecord(record))).join("\n"),
       ].join("\n\n");
       const shouldCreateAiMemory = !aiCompactedHistoricalContext
-        && (initialMemorySource.length > 3_500 || (input.priorContext?.length ?? 0) > 1_000 || historicalRecords.length > 6);
+        && (
+          initialMemorySource.length > 3_500
+          || objective.length > 1_600
+          || (input.priorContext?.length ?? 0) > 800
+          || historicalRecords.length > 6
+        );
       const shouldUpdateAiMemory = Boolean(aiCompactedHistoricalContext) && pendingHistoricalRecords.length >= 1;
       if (shouldCreateAiMemory || shouldUpdateAiMemory) {
         const memorySource = shouldCreateAiMemory
