@@ -3074,7 +3074,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
       );
     }
     return preserveSourceAlongsideGuard(
-      `SCOPE GUARD BLOCKED ACTION (no request): no evidence was added. web discovery may search in-scope topic terms and company terms without repeating source-class wording. Correct active subject, geography, or source class; choose a registry adapter matching the active geography. Fetch only an observed aligned URL; do not retry unchanged without new evidence; request new scope from Boss/Right-hand. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 140) + "." : "Use the active Boss-approved objective to recover scope."}`,
+      `SCOPE GUARD BLOCKED ACTION (no request): no evidence was added. Fetch only an observed aligned URL. web discovery may search in-scope topic terms and company terms without repeating source-class wording. Correct subject, geography, or source class; choose a registry adapter matching the active geography. Do not retry unchanged without new evidence; request new scope from Boss/Right-hand. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 140) + "." : "Use the active Boss-approved objective to recover scope."}`,
     );
   }
   // Ordinary fetched-page observations can carry the exact company/person facts
