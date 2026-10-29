@@ -3064,7 +3064,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
       );
     }
     return preserveSourceAlongsideGuard(
-      `SCOPE GUARD BLOCKED ACTION (no request): blocked action adds no evidence. Correct the active subject, geography, or required source class; web discovery may search in-scope topic terms and company terms without repeating source class wording; source-class wording need not appear in every query. Match registry adapters to jurisdiction. Fetch only observed aligned URLs; revise failed dimensions or request new scope from Boss/Right-hand. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 210) + "." : "Use the active Boss-approved objective to recover scope."}`,
+      `SCOPE GUARD BLOCKED ACTION (no request): no evidence was added. Correct active subject, geography, or source class. web discovery may search in-scope topic terms and company terms without repeating source class wording. Fetch only an observed aligned URL; otherwise revise the failed dimension or request a new Boss scope. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 180) + "." : "Use the active Boss-approved objective to recover scope."}`,
     );
   }
   // Ordinary fetched-page observations can carry the exact company/person facts
@@ -3112,7 +3112,16 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : 0;
   const hasDurableObservation = /https?:\/\//i.test(observation)
     || /LATEST TRAJECTORY RECORD|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS/.test(observation);
-  if (observationBudget < 40 && !hasDurableObservation && base.length <= limit) return base;
+  const suppliedRegistryList = typeof registryIds === "string" ? registryIds.trim() : "";
+  const suppliedMemory = typeof aiHistoricalMemory === "string" ? aiHistoricalMemory.trim() : "";
+  const suppliedScope = typeof activeScope === "string" ? activeScope.trim() : "";
+  const baseHasRequiredRecoveryContext =
+    (!suppliedRegistryList || base.includes(suppliedRegistryList))
+    && (!suppliedMemory || base.includes(suppliedMemory))
+    && (!suppliedScope || base.includes(suppliedScope) || /ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:/.test(base))
+    && (!/LATEST TRAJECTORY RECORD/.test(base) || /leadUrlsOmittedFromPromptCount/.test(base))
+    && (!/LAST SUCCESSFUL FETCHED SOURCE/.test(base) || /LAST SUCCESSFUL FETCHED SOURCE EXCERPT/.test(base));
+  if (observationBudget < 40 && !hasDurableObservation && base.length <= limit && baseHasRequiredRecoveryContext) return base;
   // Keep the latest action's exact source URLs and the critical research contract
   // outside the lossy observation compactor, even when the normal prompt fits.
   const latestSearchMarker = [...combinedSourceText.matchAll(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS — TURN \d+/g)]
@@ -3366,7 +3375,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
         const fallbackEvidenceContract = isInvestigatorPrompt
     ? (isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: " : "")
-      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like name/title + eligible URL => low-confidence review-only, not proof of ownership/wealth/person/contact. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/HNWI claim. Higher admission requires a fetched claim-grade source binding name+role+ownership/control/equity/investment clue. Search snippets remain leads, not evidence; aggregators and unattributed contacts are not identity evidence. After successful visit/browser_fetch, fetched company findings need exact organization name + material business/ownership/transaction fact in fetched text and sourceUrls=[that URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. No intimate-relationship inference or private health/customer-service data as personal contact routes."
+      + "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the first successful action. Company: exact business-like name/title + eligible URL => low-confidence review-only, not proof of ownership/wealth/person/contact. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/HNWI claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Search snippets remain leads, not evidence; aggregators and unattributed contacts are not identity evidence. After successful visit/browser_fetch, fetched company findings need exact organization name + material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. No intimate-relationship inference or private health/customer-service data as personal contact routes."
     : "";
 
   const conditionalCapabilitySection = isInvestigatorPrompt
