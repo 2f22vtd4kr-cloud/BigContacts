@@ -46,7 +46,9 @@ describe("canonicalCaseContinuationGuard", () => {
   });
   it("compacts durable context before model review and preserves the specific Boss rejection", () => {
     const source = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/research/canonical-case-continuation.ts"), "utf8");
-    expect(source).toContain("compactCanonicalDiscoveryContinuationContext(context,7000)");
+    expect(source).toContain("summarizeInvestigatorContextWithBoss({rawContext:initialContext,maxChars:7000,jobId:jobId!,caseId})");
+    expect(source).toContain("refusing a deterministic excerpt of durable case context");
+    expect(source).not.toContain("compactCanonicalDiscoveryContinuationContext(context,7000)");
     expect(source).not.toContain("context.length<=16000");
     expect(source).toContain('new Error(boss.error??"Groq Boss did not select a Groq Investigator.")');
   });
