@@ -23,9 +23,9 @@
 
 The live records confirm that Boss directs, Right-hand reviews, and the selected Investigator makes model-owned action and pivot decisions. The runtime actually executed accepted web actions and blocked unauthorized or out-of-scope proposals without outbound requests. This is evidence the architecture's live control loop runs; it is not evidence that the whole bureau is productive or accepted.
 
-The repeated failure pattern is upstream of card projection: investigations spend turns on scope blocks, generic recovery feedback, provider output-validation failures, source leads that do not become claim-grade evidence, and local action-contract rejection. No inspected run demonstrates a person crossing candidate admission and then failing to render as a card. Do not declare the card layer broken without that proof, and do not relax admission thresholds to manufacture positive output.
+The live records show two distinct outcomes that must not be conflated. The 2026-10-27 audit demonstrated that exact source-backed organization leads can become durable review-only company cards during terminal reconciliation, even when the overall job ends failed/incomplete. Other attempts in that same audit failed before executing a search because provider capacity was unavailable, so no card was possible from those runs. This is not proof that every run will find a person or HNWI, and it does not justify weakening the person/wealth evidence gates. Continue to distinguish execution failure, search leads, observed sources, review-only cards, candidate admission, and UI projection.
 
-The latest code-validation snapshot is SHA `4c09192d0b747635ad7fa830018d1e3d7831f47f`. All five release workflows were green on that SHA; verify the exact final `main` SHA and Actions after any subsequent commits.
+Historical CI snapshot: SHA `4c09192d0b747635ad7fa830018d1e3d7831f47f` passed the five release workflows at that time. It is superseded by subsequent main changes; verify the exact current `main` SHA and Actions before every readiness claim.
 
 ## 1. Current architecture
 
@@ -76,7 +76,7 @@ Gemini, Mistral, and DeepSeek/NVIDIA control/Investigator transports are retired
 
 ## 3. Investigator capability and credential law
 
-The runtime registry exposes up to six separately selectable Groq Investigator capabilities:
+The runtime registry exposes up to eight separately selectable Groq Investigator credential capabilities, plus the model-scoped `groq-investigator-20b` fallback:
 
 | Capability | Credential |
 |---|---|
@@ -86,6 +86,8 @@ The runtime registry exposes up to six separately selectable Groq Investigator c
 | `groq-investigator-4` | `GROQ_INVESTIGATOR_API_KEY_3` |
 | `groq-investigator-5` | `GROQ_INVESTIGATOR_API_KEY_4` |
 | `groq-investigator-6` | `GROQ_INVESTIGATOR_API_KEY_5` |
+| `groq-investigator-7` | `GROQ_INVESTIGATOR_API_KEY_6` |
+| `groq-investigator-8` | `GROQ_INVESTIGATOR_API_KEY_7` |
 
 Only configured capabilities are advertised. Selecting one capability never authorizes silent rotation to another Investigator credential. Provider/model retries remain bounded and within the selected role/capability boundary.
 
