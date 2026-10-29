@@ -120,6 +120,17 @@ describe("durable Investigator trajectory rehydration", () => {
     });
   });
 
+  it("fails closed when a durable Investigator event cannot be restored", () => {
+    expect(() => rehydrateDurableDiscoveryTrajectoryRecords([{
+      id: 42,
+      iteration: 42,
+      actorRole: "head_investigator",
+      eventType: "tool_observation",
+      status: "success",
+      payload: "{not valid json",
+    }])).toThrow("event 42: payload is not valid JSON");
+  });
+
   it("wires event-ledger rehydration into standalone discovery continuations, not only in-memory episodes", () => {
     expect(bureauAgenticPassSource).toContain("loadDurableDiscoveryTrajectoryRecords(durableCaseId)");
     expect(bureauAgenticPassSource).toContain("priorTrajectoryRecords:effectivePriorTrajectoryRecords");
