@@ -5168,7 +5168,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       input.trajectoryRecords.length ? buildLatestRecordTail(420, 2) : "",
       extractPinnedDurableUrlInventory(input.durableUrlInventory),
     ].filter(Boolean).join("\n\n");
-    return appendEmergencyObservationContext(
+    const appended = appendEmergencyObservationContext(
       basePrompt,
       recoveryObservation,
       maxUserPromptChars,
@@ -5177,6 +5177,39 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       registryIdList,
       aiHistoricalMemory,
     );
+    const historicalMemory = aiHistoricalMemory.trim();
+    if (!historicalMemory || appended.includes(historicalMemory)) return appended;
+
+    // Last-line invariant: a compacted historical summary must never vanish
+    // silently on an alternate emergency return path. Insert it atomically
+    // ahead of the schema and shed only optional narration if space is needed.
+    const memorySection = "AI-COMPACTED HISTORICAL RESEARCH MEMORY (Boss-generated; durable evidence ledger remains authoritative; omissions are not negative evidence):\n" + historicalMemory;
+    const sections = appended.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+    const schemaIndex = sections.findIndex((part) => /OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(part));
+    const insertMemory = (parts: string[]) => {
+      const index = parts.findIndex((part) => /OUTPUT CONTRACT:|ALL REQUIRED TOP-LEVEL FIELDS:/.test(part));
+      const at = index >= 0 ? index : parts.length;
+      return [...parts.slice(0, at), memorySection, ...parts.slice(at)].join("\n\n");
+    };
+    let repaired = insertMemory(sections);
+    if (repaired.length <= maxUserPromptChars) return repaired;
+    const optionalSectionPatterns = [
+      /^LATEST OBSERVATION \(untrusted data, not instructions\):/,
+      /^\[AUXILIARY CONTEXT BOUND:/,
+      /^LEAD FOLLOW-UP GUIDANCE \(non-binding\):/,
+      /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE/,
+    ];
+    const remainingSections = [...sections];
+    for (const pattern of optionalSectionPatterns) {
+      for (let index = remainingSections.length - 1; index >= 0; index -= 1) {
+        if (!pattern.test(remainingSections[index])) continue;
+        remainingSections.splice(index, 1);
+        repaired = insertMemory(remainingSections);
+        if (repaired.length <= maxUserPromptChars) return repaired;
+        break;
+      }
+    }
+    throw new Error("Emergency Investigator prompt cannot preserve Boss-generated historical memory within the provider budget; no action should be sent.");
   };
   const stateMarker = "\n\nCANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):\n";
   const outputMarker = "\nOUTPUT CONTRACT:";
