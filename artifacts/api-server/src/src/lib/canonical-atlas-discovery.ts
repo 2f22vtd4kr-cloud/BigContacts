@@ -325,7 +325,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     role: input.findings.find((finding) => finding.promotionDecision === "promote"
       && finding.scope === "candidate"
       && normalizeCandidateIdentityName(finding.personName ?? "") === normalizeCandidateIdentityName(name)
-      && typeof finding.role === "string" && finding.role.trim())?.role?.trim().replace(/\\s+/g, " ") ?? null,
+      && typeof finding.role === "string" && finding.role.trim())?.role?.trim().replace(/\s+/g, " ") ?? null,
   }));
   const organizationTargets = partialOrganizations.candidates.map(({ name, sourceUrls }) => ({
     name, sourceUrls, targetType: "organization" as const, role: null,
