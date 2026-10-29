@@ -399,24 +399,35 @@ export function rehydrateDurableDiscoveryTrajectoryRecords(
 
   for (const row of orderedRows) {
     if (row.actorRole !== "head_investigator" || typeof row.eventType !== "string"
-      || !DURABLE_TRAJECTORY_EVENT_TYPES.has(row.eventType)
-      || typeof row.payload !== "string" || !row.payload.trim()) {
+      || !DURABLE_TRAJECTORY_EVENT_TYPES.has(row.eventType)) {
       continue;
+    }
+    if (typeof row.payload !== "string" || !row.payload.trim()) {
+      throw new Error(`Cannot restore durable Investigator trajectory event ${row.id}: payload is missing.`);
     }
 
     let payload: Record<string, unknown> | null = null;
     try {
       payload = recordObject(JSON.parse(row.payload));
     } catch {
-      payload = null;
+      throw new Error(`Cannot restore durable Investigator trajectory event ${row.id}: payload is not valid JSON.`);
     }
-    if (!payload || typeof payload.action !== "string" || !payload.action.trim()) continue;
+    if (!payload || typeof payload.action !== "string" || !payload.action.trim()) {
+      throw new Error(`Cannot restore durable Investigator trajectory event ${row.id}: action is missing.`);
+    }
     const execution = typeof payload.execution === "string" && DURABLE_TRAJECTORY_EXECUTIONS.has(payload.execution)
       ? payload.execution
       : typeof row.status === "string" && DURABLE_TRAJECTORY_EXECUTIONS.has(row.status)
         ? row.status
         : null;
-    if (!execution) continue;
+    if (!execution) {
+      throw new Error(`Cannot restore durable Investigator trajectory event ${row.id}: execution status is invalid.`);
+    }
+    if ((row.eventType === "decision" && payload.action !== "done")
+      || (row.eventType === "provider_error" && payload.action !== "investigator_provider_error")
+      || (row.eventType === "tool_observation" && (payload.action === "done" || payload.action === "investigator_provider_error"))) {
+      throw new Error(`Cannot restore durable Investigator trajectory event ${row.id}: event type does not match the recorded action.`);
+    }
 
     const rawTurn = Number(payload.turn);
     const originalTurn = Number.isFinite(rawTurn) && rawTurn > 0 ? Math.floor(rawTurn) : lastTurn + 1;
