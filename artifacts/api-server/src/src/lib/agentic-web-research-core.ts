@@ -3272,10 +3272,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? `MISSION PRIORITY: objective/realistic targetability outrank conflicting supervisor advice; Investigator chooses actions, no fixed sequence. OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. Inactive fields are null/[]. Except done, hypothesis/purpose are non-empty and expectedInformationGain is [0,1]. Parallel search has 2–4 query/provider/locale/market/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
-    ? "EVIDENCE / PARTIAL FINDINGS (not terminal-only): preserve source-backed leads on the revealing action. Snippets/URLs are leads, not evidence; failed/blocked fetches are unobserved. Bind claims to exact URLs. Company: exact organization name+eligible URL in a successful result => review-only card; fetched lead requires exact name+material business fact and sourceUrls=[that fetched URL only]. Person: exact name+stated role co-bound in a successful result => review-only card; search-only note=LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Official leadership/staff and filing/registry pages qualify only when directly binding exact name+role. Do not assume records expose owners, shareholders, members, or managers without observed documentation. Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. BINARY URL POLICY: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures; failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
+    ? "EVIDENCE / PARTIAL FINDINGS (not terminal-only): preserve source-backed leads on the revealing action. Search snippets/URLs are leads, not evidence; failed/blocked fetches are unobserved. Bind claims to exact URLs. Company: exact organization name+eligible URL in a successful result => review-only card; fetched lead requires exact name+material business fact and sourceUrls=[that fetched URL only]. Person: exact name+stated role co-bound in a successful result => review-only card; search-only note=LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. HNWI admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Official leadership/staff and filing/registry pages qualify only when directly binding exact name+role. Do not assume records expose owners, shareholders, members, or managers without observed documentation. Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. PDF: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures; failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
     : "";
-  // This capability note is already bounded and reflects the current action allowlist;
-  // retain it only when the actual base prompt authorizes specialist worker actions.
+  // Keep specialist tool instructions only when the base prompt authorizes those actions.
+
   const conditionalCapabilitySection = isInvestigatorPrompt
     ? base.match(/Conditional specialist OSINT actions:[\s\S]*?(?=\n\n|$)/)?.[0] ?? ""
     : "";
@@ -3351,7 +3351,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? boundInvestigatorPromptSection(availableActionsSection, 140)
     : "";
   const minimumDiscoveryContract = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies/executive prestige—are targets; organizations are leads, not the target. Require an ownership/equity/control/investment clue; never infer wealth from seniority alone. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. Honor approved Boss scope; topic/geography must match, but source class need not appear in every discovery query. Official-source discovery must not introduce a competing subject or jurisdiction. No preset targets/queries and no registry-first sequence; the Investigator chooses actions. News publishers and articles are evidence leads only, never targets or access routes. After bounded negative/blocked results, change the hypothesis or source class rather than paraphrasing the same query. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
+    ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies/executive prestige—are targets; organizations are leads, not the target. Require ownership/equity/control/investment clues; never infer wealth from seniority alone. Honor approved Boss scope; topic/geography must match, but source class need not appear in every discovery query. No preset targets/queries or registry-first sequence. News publishers and articles are evidence leads only, never targets or access routes. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 80)
@@ -3380,17 +3380,80 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const joinPromptParts = (parts: string[]) => parts.filter(Boolean).join("\n\n");
   let mandatoryMinimumTail = joinPromptParts(mandatoryMinimumParts);
   if (mandatoryMinimumTail.length > limit) {
-    // Drop only redundant record/marker copies before failing. The compact
-    // observation tail already carries the latest correction/guard explanation;
-    // the single latest record summary carries durable action metadata.
-    // Keep the newest durable record (including its exact turn marker and URL-omission
-    // counters); discard the redundant marker-only copy first to reduce framing overhead.
-    const compactMandatoryParts = mandatoryMinimumParts.filter((part) => part !== markerSuffix);
-    mandatoryMinimumTail = joinPromptParts(compactMandatoryParts);
+    // Emergency recovery must compact auxiliary context rather than abort the
+    // research episode. Preserve schema/evidence/source rules, exact URLs, active
+    // scope and latest action; shrink only narration, excerpts and record detail.
+    const compactScope = minimumScopeContext
+      ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(
+          minimumScopeContext.replace(/^ACTIVE BOSS SCOPE:\s*/i, ""),
+          220,
+        )
+      : "";
+    const compactObservation = observationTail
+      ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 60)
+      : "";
+    const compactFetchedExcerpt = fetchedSourceExcerpt
+      ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 100)
+      : "";
+    const compactRecordSummary = minimumDurableRecordSummaries.slice(-1).map((summary) =>
+      compactPromptSectionPreservingUrlTokens(summary, 160, "[record detail omitted; durable event retained]"),
+    );
+    const compactLeadGuidance = hasSearchLeadContext
+      ? "LEAD FOLLOW-UP GUIDANCE (non-binding): compare in-scope unvisited URLs by expected information gain; URLs remain leads until fetched; the Investigator retains action choice."
+      : "";
+    const compactParts = [
+      fallbackOutputContract,
+      fallbackEvidenceContract,
+      minimumDiscoveryContract,
+      minimumProviderRule,
+      terminalEvidenceRule,
+      scopeRecoveryRule,
+      urlInventory,
+      compactObservation,
+      compactScope,
+      minimumAvailableActionsSection,
+      compactLeadGuidance,
+      fetchedSourceLabel,
+      compactFetchedExcerpt,
+      header,
+      ...compactRecordSummary,
+    ].filter(Boolean);
+    mandatoryMinimumTail = joinPromptParts(compactParts);
     if (mandatoryMinimumTail.length > limit) {
-      throw new RangeError(
-        `Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=${limit}; mandatory schema, URLs, scope and latest evidence cannot fit without truncation.`,
-      );
+      mandatoryMinimumTail = joinPromptParts([
+        fallbackOutputContract,
+        fallbackEvidenceContract,
+        minimumDiscoveryContract,
+        minimumProviderRule,
+        terminalEvidenceRule,
+        scopeRecoveryRule,
+        urlInventory,
+        compactScope,
+        minimumAvailableActionsSection,
+        fetchedSourceLabel,
+        compactFetchedExcerpt,
+        compactObservation,
+        ...compactRecordSummary,
+      ].filter(Boolean));
+    }
+    if (mandatoryMinimumTail.length > limit) {
+      const core = joinPromptParts([
+        fallbackOutputContract,
+        fallbackEvidenceContract,
+        minimumDiscoveryContract,
+        minimumProviderRule,
+        terminalEvidenceRule,
+        scopeRecoveryRule,
+        urlInventory,
+        compactScope,
+        minimumAvailableActionsSection,
+      ].filter(Boolean));
+      const spare = Math.max(0, limit - core.length - 2);
+      mandatoryMinimumTail = [core, compactPromptSectionPreservingUrlTokens(
+        [compactObservation, compactFetchedExcerpt].filter(Boolean).join("\n\n"),
+        spare,
+        "[latest observation excerpt omitted; durable source URLs retained]",
+      )].filter(Boolean).join("\n\n");
     }
   }
   const optionalMinimumParts = [
