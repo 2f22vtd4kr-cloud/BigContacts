@@ -68,7 +68,17 @@ try {
   assert.notEqual(mutatedResult.status, 0, `guard must reject losing the executable Boss-directed control call even when its old text survives in a comment:\\n${mutatedResult.stdout}\\n${mutatedResult.stderr}`);
   assert.match(mutatedResult.stderr + mutatedResult.stdout, /model-owned next-action decision in its control loop/i);
 
-  console.log("PASS: unified Investigator guard rejects a comment-only Boss control marker after the executable transition call is removed.");
+  // The target contract must validate an exact admitted name/type pair, not fall back to a name-only lookup.
+  const controlPath = path.join(fixtureRoot, "artifacts/api-server/src/src/lib/atlas-control-decision.ts");
+  const controlSource = readFileSync(controlPath, "utf8");
+  const targetMatchCall = "const selectedTarget = matchAtlasAdmittedTarget(candidateTargets, requestedCandidate, requestedCandidateType);";
+  assert.equal(controlSource.split(targetMatchCall).length - 1, 1, "fixture must contain the executable typed target matcher");
+  writeFileSync(controlPath, controlSource.replace(targetMatchCall, "const selectedTarget = null;"), "utf8");
+  const untypedTargetResult = runGuard(fixtureRoot);
+  assert.notEqual(untypedTargetResult.status, 0, "guard must reject removing the executable admitted name/type matcher");
+  assert.match(untypedTargetResult.stderr + untypedTargetResult.stdout, /typed target selection.*explicit admissions.*fail closed/i);
+
+  console.log("PASS: unified Investigator guard rejects comment-only control markers and removal of the admitted name/type target matcher.");
 } finally {
   rmSync(fixtureRoot, { recursive: true, force: true });
 }
