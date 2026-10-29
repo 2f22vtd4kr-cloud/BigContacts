@@ -3262,7 +3262,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // Prompt sampling is bounded separately from the immutable ledger. Keep
     // complete URLs only, prioritizing canonical pinned values and then recent
     // trajectory URLs; omitted values remain recoverable from durable events.
-    if (exactInventoryUrls.length >= 2 || url.length > 400 - inventoryUrlChars) {
+    // URLs admitted to the durable inventory may be up to MAX_PROMPT_URL_CHARS
+    // (512 chars); the old 400-character aggregate cap silently dropped every
+    // such long URL even when the provider prompt had ample room.
+    const inventoryUrlBudget = 1_200;
+    if (exactInventoryUrls.length >= 2 || url.length > inventoryUrlBudget - inventoryUrlChars) {
       omittedInventoryUrlCount += 1;
       continue;
     }
