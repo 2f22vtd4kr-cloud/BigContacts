@@ -3266,27 +3266,26 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const discoveryEvidenceRule = "DISCOVERY LEAD HANDOFF CONTRACT: PERSON REVIEW: exact name+stated role co-bound in a successful result => review-only card. Search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages are acceptable only when directly binding exact name and role; third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Search snippets remain leads, not evidence; failed/blocked fetches are unobserved. Press/profile pages are leads, not targets/access routes. Never use placeholders such as CompanyName, companywebsite.com, or example.com. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
   const terminalEvidenceRule = "RESEARCH TERMINAL GATE (authoritative): minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false; this is a stopping condition, not a prescribed action sequence.";
   const minimumRegistryEvidenceRule = isInvestigatorPrompt
-    ? "RUNTIME REGISTRY IDS ONLY: use only adapters advertised as callable in this runtime. Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Do not assume registry fields disclose beneficial owners."
+    ? "RUNTIME REGISTRY IDS: callable adapters only; never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Registry fields may not disclose beneficial owners."
     : "";
   const minimumBinaryUrlRule = isInvestigatorPrompt
-    ? "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
+    ? "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; use visit for PDFs. Scanned/image-only PDFs require unavailable OCR; encrypted/password-protected and malformed PDFs are distinct failures. BINARY URL POLICY: failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
     : "";
   const fallbackProtectedRules = isInvestigatorPrompt
     ? [
-      ...fallbackRuleCandidates.filter((rule) => rule.startsWith("PAGE FORMAT / RETRIEVAL LIMITS:")),
       minimumRegistryEvidenceRule,
       minimumBinaryUrlRule,
-      ...fallbackRuleCandidates.filter((rule) => rule.startsWith("VALID PROVIDERS:")),
+      minimumProviderRule,
       terminalEvidenceRule,
     ]
     : [];
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION PRIORITY: objective/targetability outrank conflicting advice. Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop; no fixed action sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalar fields null, unused arrays []. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1] (never null). Parallel web searches need 2–4 query/provider/locale/market/purpose objects; parallel registry searches need 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}.`
+    ? \`MISSION: objective/targetability outrank advice. Investigator chooses queries/tools/pages, pivots and stops; no fixed sequence. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include every field; inactive scalars null and unused arrays []. Except action=done, hypothesis/purpose must be non-empty strings and expectedInformationGain a number in [0,1] (never null). Parallel web: 2–4 query/provider/locale/market/purpose objects; parallel registry: 2–4 query/registry/purpose objects. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Only done may null hypothesis/purpose/gain. INACTIVE ACTION FIELD SHAPE: {\\"url\\":null,\\"searches\\":[],\\"findings\\":[]}.\`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
-    ? "EVIDENCE / PARTIAL FINDINGS (not terminal-only): preserve leads on the action that reveals them. Search snippets/URLs are leads, not evidence; failed/blocked fetches are unobserved. Bind claims to exact URLs. Successful search: exact organization name in observed result text + eligible HTTPS URL => low-confidence review-only company card only; no ownership/person/wealth/contact claim. Exact person name + page-stated role co-bound in a successful result => review-only person card; note LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. After successful visit/browser_fetch, company finding needs exact organization name + material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Staff/leadership or filing/registry sources establish identity/role only when directly binding exact name+role. Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Press/profile pages are leads, not targets/access routes. Registry fields may not disclose beneficial owners; never assume owners/shareholders/members/managers. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
+    ? "EVIDENCE/PARTIAL FINDINGS: search snippets/URLs are leads, not evidence; failed/blocked fetches are unobserved; bind claims to exact URLs. Successful search with exact organization name in observed result text + eligible HTTPS URL permits only a low-confidence review-only company card; no ownership/person/wealth/contact claim. Exact person name + page-stated role co-bound in a successful result permits a review-only person card; note LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Fetched company finding requires exact organization name + material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. Higher admission needs a successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Official staff/leadership or filing/registry sources establish identity/role only when binding exact name+role. Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Press/profile pages are leads, not targets/routes. Registry fields may not disclose beneficial owners. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
     : "";
   // Keep specialist tool instructions only when the base prompt authorizes those actions.
 
@@ -3295,10 +3294,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
 
   const conditionalCapabilityRule = conditionalCapabilitySection
-    ? compactPromptSectionPreservingUrlTokens(conditionalCapabilitySection, 300, "[specialist capability detail omitted; action allowlist remains authoritative]")
+    ? compactPromptSectionPreservingUrlTokens(conditionalCapabilitySection, 180, "[specialist detail omitted; turn allowlist is authoritative]")
     : "";
   const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are targets; organizations are leads. Require ownership/equity/control/investment clues; never infer wealth from seniority alone. Honor Boss topic/geography; source class need not appear in every query. No preset targets or registry-first sequence. Avoid generic wealth/net-worth/private-equity-profile searches alone. avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. News publishers/articles are leads only, not targets/routes. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
+    ? "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets; organizations are leads. Require ownership/equity/control/investment clues; never infer wealth from seniority. Honor Boss topic/geography; source class need not appear in every query. No preset targets or registry-first sequence. Avoid generic wealth searches, rankings, and global-brand leaders without plausible local-owner route. Publishers/articles are leads only; never use CompanyName, companywebsite.com, example.com."
     : "";
   const protectedTail = [fallbackOutputContract, fallbackEvidenceContract, conditionalCapabilityRule, compactFallbackDiscoveryRule, urlInventory, observationTail, activeScopeContext, availableActionsSection, fetchedSourceLabel, fetchedSourceExcerpt, header, markerSuffix, ...durableRecordSummaries, leadGuidance, compactCaseObjective, ...fallbackProtectedRules].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
@@ -3311,7 +3310,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Truncation must never discard the newest model correction merely to retain
   // repeated static policy text that is already represented in the base contract.
   const minimumProviderRule = isInvestigatorPrompt
-    ? fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? ""
+    ? "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=unavailable; domain_lookup=rdap|whoisjson."
     : "";
   // The final layout keeps a complete minimal schema/evidence contract independent
   // of the larger, lossy base sections. Drop optional duplicated guidance first.
@@ -3365,13 +3364,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? boundInvestigatorPromptSection(availableActionsSection, 140)
     : "";
   const minimumDiscoveryContract = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
-    ? "DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: People—not companies or executive prestige—are targets; organizations are leads. Require ownership/equity/control/investment clues; never infer wealth from seniority alone. Honor Boss scope: topic/geography must match; source class need not appear in every query. No preset targets or registry-first sequence. Avoid generic wealth/net-worth/private-equity-profile searches alone. avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. News publishers/articles are evidence leads only, not targets/routes. Never use placeholders such as CompanyName, companywebsite.com, or example.com."
+    ? "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets; organizations are leads. Require ownership/equity/control/investment clues; never infer wealth from seniority. Honor Boss topic/geography; source class need not appear in every query. No preset targets or registry-first sequence. Avoid generic wealth/net-worth searches, rankings, and global-brand leaders without a plausible local owner/operator route hypothesis. Publishers/articles are leads, not targets/routes; never use CompanyName, companywebsite.com, or example.com."
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 80)
     : "";
   const scopeRecoveryRule = isInvestigatorPrompt
-    ? "SCOPE GUARD BLOCKED ACTION: no outbound request means no evidence. Revise the failed scope dimension, match active subject/geography, use only observed URLs and compatible registry adapters, or request new scope; Investigator chooses actions."
+    ? "SCOPE GUARD: blocked action made no request/evidence. Correct active subject, geography or source class; use only observed aligned URLs and callable registries, or request new scope. Investigator chooses actions."
     : "";
   const mandatoryMinimumParts = [
     fallbackOutputContract,
@@ -3479,20 +3478,33 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         minimumAvailableActionsSection,
       ].filter(Boolean));
       const spare = Math.max(0, limit - core.length - 2);
-      const protectedDynamic = [
+      const protectedDynamicParts = [
         fetchedSourceLabel,
         compactFetchedExcerpt,
-        compactObservation,
-        header,
         markerSuffix,
         ...compactRecordSummary,
+        compactObservation,
+        header,
         compactLeadGuidance,
-      ].filter(Boolean).join("\n\n");
-      mandatoryMinimumTail = [core, compactPromptSectionPreservingUrlTokens(
-        protectedDynamic,
-        spare,
-        "[latest observation/record detail omitted; source URL inventory remains authoritative]",
-      )].filter(Boolean).join("\n\n");
+      ].filter(Boolean);
+      const selectedDynamic: string[] = [];
+      let dynamicRemaining = spare;
+      for (const part of protectedDynamicParts) {
+        const separatorCost = selectedDynamic.length ? 2 : 0;
+        if (part.length + separatorCost <= dynamicRemaining) {
+          selectedDynamic.push(part);
+          dynamicRemaining -= part.length + separatorCost;
+          continue;
+        }
+        if (dynamicRemaining >= 100 && (part === compactFetchedExcerpt || part === compactObservation || part === compactLeadGuidance)) {
+          const compressed = compactPromptSectionPreservingUrlTokens(part, dynamicRemaining - separatorCost, "[detail omitted]");
+          if (compressed.length >= 70 && compressed.length + separatorCost <= dynamicRemaining) {
+            selectedDynamic.push(compressed);
+            dynamicRemaining -= compressed.length + separatorCost;
+          }
+        }
+      }
+      mandatoryMinimumTail = joinPromptParts([core, ...selectedDynamic]);
     }
   }
   if (mandatoryMinimumTail.length > limit) {
