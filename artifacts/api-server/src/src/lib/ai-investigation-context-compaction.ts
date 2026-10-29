@@ -9,7 +9,7 @@ export type AiInvestigationContextCompactionInput = {
 
 const DEFAULT_SUMMARY_CHARS = 2_300;
 const MIN_SUMMARY_CHARS = 900;
-const MAX_SUMMARY_CHARS = 3_000;
+const MAX_SUMMARY_CHARS = 7_000;
 const SUMMARY_PROMPT_RESERVE_CHARS = 2_400;
 const MAX_SUMMARY_CHUNKS = 12;
 
@@ -125,7 +125,7 @@ async function requestSummary(
   if (selection.status !== "resolved" || !selection.model) return null;
   const result = await generateGroqBossText(selection, prompt, {
     responseFormat: { type: "json_object" },
-    maxOutputTokens: Math.min(1_200, Math.max(350, Math.ceil(maxChars / 2))),
+    maxOutputTokens: Math.min(3_000, Math.max(350, Math.ceil(maxChars / 2))),
     thinkingLevel: "low",
     jobId: input.jobId ?? null,
     caseId: input.caseId ?? null,
