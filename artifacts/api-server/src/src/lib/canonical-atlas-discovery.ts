@@ -167,7 +167,7 @@ async function persistAcceptedAtlasDiscoveryObjective(input: {
   }, { isolationLevel: "serializable" });
 }
 
-async function materializeAtlasAdmissions(input: { discoveryRunId: string; findings: AgenticFinding[]; atlasJobId: string; discoveryCaseId: number }): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[] }>; materialized: number; evidenceRows: number }> {
+async function materializeAtlasAdmissions(input: { discoveryRunId: string; findings: AgenticFinding[]; atlasJobId: string; discoveryCaseId: number }): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[]; role: string | null; targetType: "person" | "organization" }>; materialized: number; evidenceRows: number }> {
   const candidates = uniqueNames(input.findings
     .filter((finding) => finding.promotionDecision === "promote" && finding.scope === "candidate")
     .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length >= 3)
@@ -318,7 +318,20 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   materialized += partialOrganizations.materialized;
   evidenceRows += partialOrganizations.evidenceRows;
   const durableCandidates = mergeDurablyAdmittedCandidateSources([durableCandidateSources.map(({ name, sourceUrls }) => ({ name, sourceUrls }))]);
-  return { names: durableCandidates.map(({ name }) => name), candidates: durableCandidates, materialized, evidenceRows };
+  const personTargets = durableCandidates.map(({ name, sourceUrls }) => ({
+    name,
+    sourceUrls,
+    targetType: "person" as const,
+    role: input.findings.find((finding) => finding.promotionDecision === "promote"
+      && finding.scope === "candidate"
+      && normalizeCandidateIdentityName(finding.personName ?? "") === normalizeCandidateIdentityName(name)
+      && typeof finding.role === "string" && finding.role.trim())?.role?.trim().replace(/\\s+/g, " ") ?? null,
+  }));
+  const organizationTargets = partialOrganizations.candidates.map(({ name, sourceUrls }) => ({
+    name, sourceUrls, targetType: "organization" as const, role: null,
+  }));
+  const targetCandidates = [...personTargets, ...organizationTargets];
+  return { names: targetCandidates.map(({ name }) => name), candidates: targetCandidates, materialized, evidenceRows };
 }
 
 export async function checkpointCanonicalDiscoveryFindings(input: {
@@ -329,7 +342,7 @@ export async function checkpointCanonicalDiscoveryFindings(input: {
   turn?: number;
   action?: string;
   execution?: string;
-}): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[] }>; materialized: number; evidenceRows: number }> {
+}): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[]; role: string | null; targetType: "person" | "organization" }>; materialized: number; evidenceRows: number }> {
   const empty = { names: [], candidates: [], materialized: 0, evidenceRows: 0 };
   try {
     return await materializeAtlasAdmissions({
@@ -702,7 +715,7 @@ async function materializePartialOrganizationLeadCards(input: {
   findings: AgenticFinding[];
   atlasJobId: string;
   discoveryCaseId: number;
-}): Promise<{ materialized: number; evidenceRows: number }> {
+}): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; sourceUrls: string[] }> }> {
   // These are source-backed organization leads only. They are distinct from
   // admitted person candidates and never imply ownership, wealth, or HNWI status.
   const seenNames = new Set<string>();
@@ -804,11 +817,12 @@ async function materializePartialOrganizationLeadCards(input: {
     }
   });
 
-  if (!leadNames.length) return { materialized: 0, evidenceRows: 0 };
+  if (!leadNames.length) return { materialized: 0, evidenceRows: 0, candidates: [] };
 
   let materialized = 0;
   let evidenceRows = 0;
   let wroteDurableState = false;
+  const candidates: Array<{ name: string; sourceUrls: string[] }> = [];
   for (const name of leadNames) {
     const claimedUrls = new Set([
       ...input.findings
@@ -864,7 +878,7 @@ async function materializePartialOrganizationLeadCards(input: {
         sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${input.atlasJobId}`,
         sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
       )).for("update").limit(1);
-      if (!ownedCase) return { created: 0, evidenceRows: 0, changed: false };
+      if (!ownedCase) return { created: 0, evidenceRows: 0, changed: false, candidate: null };
 
       const existingRows = await tx.select({
         id: entitiesTable.id,
@@ -884,7 +898,7 @@ async function materializePartialOrganizationLeadCards(input: {
       });
       // Never merge a new partial lead into another case's corporation or
       // duplicate an existing corporation on a name-only match.
-      if (existingRows.length > 0 && !sameCase) return { created: 0, evidenceRows: 0, changed: false };
+      if (existingRows.length > 0 && !sameCase) return { created: 0, evidenceRows: 0, changed: false, candidate: null };
 
       let entityId = sameCase?.id ?? null;
       let created = false;
@@ -927,7 +941,7 @@ async function materializePartialOrganizationLeadCards(input: {
         await tx.update(entitiesTable).set({ notes, metadata, updatedAt: new Date() })
           .where(eq(entitiesTable.id, entityId));
       }
-      if (!entityId) return { created: 0, evidenceRows: 0, changed: false };
+      if (!entityId) return { created: 0, evidenceRows: 0, changed: false, candidate: null };
 
       let addedEvidence = 0;
       for (const support of supports.values()) {
@@ -979,11 +993,12 @@ async function materializePartialOrganizationLeadCards(input: {
         });
         addedEvidence++;
       }
-      return { created: created ? 1 : 0, evidenceRows: addedEvidence, changed: created || addedEvidence > 0 || Boolean(sameCase) };
+      return { created: created ? 1 : 0, evidenceRows: addedEvidence, changed: created || addedEvidence > 0 || Boolean(sameCase), candidate: { name, sourceUrls } };
     }, { isolationLevel: "serializable" });
 
     materialized += persisted.created;
     evidenceRows += persisted.evidenceRows;
+    if (persisted.candidate) candidates.push(persisted.candidate);
     wroteDurableState ||= persisted.changed;
   }
   if (wroteDurableState) {
@@ -992,7 +1007,7 @@ async function materializePartialOrganizationLeadCards(input: {
       delCachePattern("dashboard:*").catch(() => undefined),
     ]);
   }
-  return { materialized, evidenceRows };
+  return { materialized, evidenceRows, candidates };
 }
 
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
@@ -1776,7 +1791,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       await assertAtlasJobActive(atlasJobId);
       const [current] = await db.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`)).limit(1);
       let caseFile: Record<string, any> = {}; try { const parsed = current?.caseFile ? JSON.parse(current.caseFile) : {}; if (parsed && typeof parsed === "object") caseFile = parsed; } catch { caseFile = {}; }
-      const candidates = admittedCandidateSources.map(({ name, sourceUrls }) => ({ name, type: "review_candidate", relevance: "Explicit Investigator discovery admission candidate", reachability: "Requires target-scoped Investigator research", sourceUrls, contactEvidence: [], state: "review_only", admittedEntityId: null }));
+      const candidates = admittedCandidateSources.map(({ name, sourceUrls, role, targetType }) => ({ name, type: "review_candidate", targetType, role, relevance: targetType === "organization" ? "Source-backed organization lead available for target-scoped research; not an ownership or wealth conclusion" : "Explicit Investigator discovery admission candidate", reachability: "Requires target-scoped Investigator research", sourceUrls, contactEvidence: [], state: "review_only", admittedEntityId: null }));
       const discoveryHealth = summarizeAtlasDiscoveryResearchHealth(discovery.trajectoryRecords ?? [], admitted.length);
       await assertAtlasJobActive(atlasJobId);
       failureStage = "case_persistence";
@@ -1875,8 +1890,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       failureStage = "oversight_control_decision";
       const controlFindings = [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])];
       const controlLeadInventory = buildDiscoveryLeadUtilizationState(discovery.trajectoryRecords ?? []);
-      const pinnedControlState = buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective), leadInventory: controlLeadInventory, admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls }) => { const finding = controlFindings.find((candidate) => normalizeCandidateIdentityName(candidate.personName ?? "") === normalizeCandidateIdentityName(name) && candidate.promotionDecision === "promote" && candidate.scope === "candidate"); return { name, role: finding?.role ?? null, sourceUrls }; }), findings: controlFindings });
-      const decision = await decideAtlasNextAction({ objective: activeDiscoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, sourceUrls }) => { const finding = controlFindings.find((candidate) => normalizeCandidateIdentityName(candidate.personName ?? "") === normalizeCandidateIdentityName(name) && candidate.promotionDecision === "promote" && candidate.scope === "candidate"); return { name, role: finding?.role ?? null, sourceUrls }; }), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: controlFindings.map((finding) => ({ value: finding.value, personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, pinnedControlState, investigatorReport: JSON.stringify({
+      const pinnedControlState = buildAtlasPinnedControlState({ activeScope: discoveryPivotScopeKey(activeDiscoveryObjective), leadInventory: controlLeadInventory, admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })), findings: controlFindings });
+      const decision = await decideAtlasNextAction({ objective: activeDiscoveryObjective, admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType })), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: controlFindings.map((finding) => ({ value: finding.value, personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns, jobId: atlasJobId, pinnedControlState, investigatorReport: JSON.stringify({
         provider: boss.investigatorLlm,
         controlValidationFeedback: controlValidationFeedback ? (controlValidationFeedback.kind === "pivot_direction"
           ? `The previous Boss discovery direction at control turn ${controlValidationFeedback.controlTurn} was rejected by deterministic control validation: ${controlValidationFeedback.reason}. No Investigator tool was executed. Choose a corrected structured research direction or a different valid control action; do not include a concrete URL or prescribe a provider/tool. This feedback is control state, not research evidence.`
@@ -2017,11 +2032,19 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await assertAtlasJobActive(atlasJobId);
         const name = decision.candidateName; if (!name) continue;
         failureStage = "case_persistence";
-        const entityRows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata }).from(entitiesTable).where(and(sql`LOWER(${entitiesTable.name}) = LOWER(${name})`, inArray(entitiesTable.type, ["HNWI", "Gatekeeper", "PersonCandidate"]))).limit(16);
+        const selectedTargetType = decision.candidateType ?? "person";
+        const targetKey = `${selectedTargetType}:${name.toLowerCase()}`;
+        const eligibleEntityTypes = selectedTargetType === "organization" ? ["Corporation"] : ["HNWI", "Gatekeeper", "PersonCandidate"];
+        const entityRows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata }).from(entitiesTable).where(and(sql`LOWER(${entitiesTable.name}) = LOWER(${name})`, inArray(entitiesTable.type, eligibleEntityTypes))).limit(16);
         const entity = entityRows.find((row) => {
-          try { const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; return Number(metadata.discoveryCaseId) === discoveryCaseId; } catch { return false; }
+          try {
+            const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+            return Number(metadata.discoveryCaseId) === discoveryCaseId
+              && (selectedTargetType !== "organization" || metadata.partialOrganizationLead === true);
+          } catch { return false; }
         });
-        if (!entity) { phaseSummary[`control_${controlTurns}_candidate_binding`] = `No durable entity binding for admitted candidate ${name}; refusing ambiguous same-name target research.`; continue; } if (decision.action === "research_candidate" && researchedNames.has(name.toLowerCase())) continue;
+        if (!entity) { phaseSummary[`control_${controlTurns}_candidate_binding`] = `No durable entity binding for admitted ${selectedTargetType} target ${name}; refusing ambiguous same-name target research.`; continue; }
+        if (decision.action === "research_candidate" && researchedNames.has(targetKey)) continue;
         const before = await db.select({ email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1); const beforeCard = before[0] ?? null;
         await assertAtlasJobActive(atlasJobId);
         const targetBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (targetBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for target investigation.");
@@ -2051,7 +2074,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           lastOversight: targetState.lastOversight ?? null,
           contextDocument: typeof targetState.contextDocument === "string" ? targetState.contextDocument : null,
         };
-        researched += 1; researchedNames.add(name.toLowerCase());
+        researched += 1; researchedNames.add(`${selectedTargetType}:${name.toLowerCase()}`);
         const after = await db.select({ email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1); const afterCard = after[0] ?? null;
         if (beforeCard && afterCard) { const cardFields: Array<keyof typeof beforeCard> = ["email", "phone", "linkedinUrl", "twitterHandle", "instagramHandle", "telegramHandle", "personalWebsite"]; contactsFound += cardFields.filter((field) => beforeCard[field] !== afterCard[field] && afterCard[field]).length; }
         continue;
