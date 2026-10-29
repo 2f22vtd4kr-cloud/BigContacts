@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { extractSearchResultCompanyLeadFindings } from "../lib/agentic-web-research-core";
+import { matchAtlasAdmittedTarget, validateAtlasBossControl } from "../lib/atlas-control-decision";
+import { buildTargetContactInvestigatorObjective } from "../lib/target-contact-agent";
 const reconciler = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
 const launchRoute = readFileSync(new URL("../routes/research/canonical-atlas-launch.ts", import.meta.url), "utf8");
 const dashboardRoute = readFileSync(new URL("../routes/dashboard.ts", import.meta.url), "utf8");
@@ -8,6 +10,7 @@ const agenticCore = readFileSync(new URL("../lib/agentic-web-research-core.ts", 
 const bureauPass = readFileSync(new URL("../lib/bureau-agentic-pass.ts", import.meta.url), "utf8");
 const orientation = readFileSync(new URL("../lib/apex-bureau-orientation.ts", import.meta.url), "utf8");
 const runtimeProofWorkflow = readFileSync(new URL("../../../../../.github/workflows/apex-canonical-runtime-proof.yml", import.meta.url), "utf8");
+const canonicalAtlas = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
 describe("terminal review-card reconciliation", () => {
   it("chooses source classes by expected information gain and jurisdiction, not a registry-first habit", () => {
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION");
@@ -43,7 +46,7 @@ describe("terminal review-card reconciliation", () => {
     expect(organizationMaterializer).toContain("Registry adapters may return typed Corporation leads even when the model");
     expect(organizationMaterializer).toContain("payload.args?.registrySearchOutcomes");
     expect(organizationMaterializer).toContain("companyLeads");
-    expect(organizationMaterializer).toContain("if (!leadNames.length) return { materialized: 0, evidenceRows: 0 };");
+    expect(organizationMaterializer).toContain("if (!leadNames.length) return { materialized: 0, evidenceRows: 0, candidates: [] };");
     expect(organizationMaterializer).toContain("...observations\n        .filter((observation) => bindExactSourceSpan(observation.observation, name)?.exact)");
     expect(canonical).toContain("if (!runId) continue;");
     expect(canonical).not.toContain("if (!runId || findings.length === 0) continue;");
@@ -176,5 +179,56 @@ describe("search-result company lead extraction", () => {
       "A page with no explicit business title\nURL: https://www.rathbones.co.uk/insights\nFinancial commentary",
       ["https://www.rathbones.co.uk/insights"],
     )).toEqual([]);
+  });
+});
+
+
+describe("canonical Atlas organization target selection", () => {
+  it("matches an admitted target by both name and target type", () => {
+    const targets = [
+      { name: "Northstar", role: "Director", sourceUrls: ["https://example.org/person"], targetType: "person" as const },
+      { name: "Northstar", role: null, sourceUrls: ["https://example.org/company"], targetType: "organization" as const },
+    ];
+    expect(matchAtlasAdmittedTarget(targets, "Northstar", "organization")).toEqual(targets[1]);
+    expect(matchAtlasAdmittedTarget(targets, "Northstar", "person")).toEqual(targets[0]);
+    expect(matchAtlasAdmittedTarget(targets, "Unadmitted GmbH", "organization")).toBeNull();
+    expect(matchAtlasAdmittedTarget(targets, "Northstar", null)).toBeNull();
+  });
+
+  it("requires target type for Boss target actions and forbids it for non-target actions", () => {
+    expect(validateAtlasBossControl({ action: "research_candidate", candidateName: "Acme GmbH", candidateType: "organization", direction: null, reason: "Source-backed company lead is worth investigating.", confidence: 0.8 })).toBe(true);
+    expect(validateAtlasBossControl({ action: "research_candidate", candidateName: "Acme GmbH", candidateType: null, direction: null, reason: "Source-backed company lead is worth investigating.", confidence: 0.8 })).toBe(false);
+    expect(validateAtlasBossControl({ action: "stop", candidateName: null, candidateType: "organization", direction: null, reason: "Evidence is sufficient.", confidence: 0.8 })).toBe(false);
+    expect(validateAtlasBossControl({ action: "stop", candidateName: null, candidateType: null, direction: null, reason: "Evidence is sufficient.", confidence: 0.8 })).toBe(true);
+  });
+
+  it("gives a Corporation an organization-focused research objective", () => {
+    const objective = buildTargetContactInvestigatorObjective({ targetName: "Acme GmbH", targetType: "organization", reachabilityControl: "" });
+    expect(objective).toContain("Investigate the organization itself");
+    expect(objective).toContain("owners/beneficial owners, controllers, directors/officers");
+    expect(objective).not.toContain("Investigate the person, not generic company contacts");
+  });
+
+  it("connects only persisted same-case Corporation review leads to the organization target kind", () => {
+    expect(canonicalAtlas).toContain("const organizationTargets = partialOrganizations.candidates.map");
+    expect(canonicalAtlas).toContain('targetType: "organization" as const');
+    expect(canonicalAtlas).toContain("metadata.partialOrganizationLead === true");
+    expect(canonicalAtlas).toContain("inArray(entitiesTable.type, eligibleEntityTypes)");
+  });
+
+  it("keeps the default discovery objective consistent with organization target selection", () => {
+    expect(canonicalAtlas).toContain("Companies are leads and may be selected for target-scoped research");
+    expect(canonicalAtlas).toContain("A person is the ultimate investor-identification goal");
+    expect(canonicalAtlas).toContain("The Investigator chooses each action; no fixed sequence.");
+    expect(canonicalAtlas).not.toContain("People—not companies or executive prestige—are the target; companies are leads.");
+  });
+
+  it("preserves typed target identity and evidence URLs when discovery continues", () => {
+    expect(canonicalAtlas).toContain("function mergeDurablyAdmittedAtlasTargetSources");
+    expect(canonicalAtlas).toContain('const key = `${targetType}:${identity}`;');
+    expect(canonicalAtlas).toMatch(/candidate\.sourceUrls\s*\.map\(normalizeSourceUrl\)/);
+    expect(canonicalAtlas).toContain("isClaimGradeDiscoverySourceUrl(url)");
+    expect(canonicalAtlas.match(/mergeDurablyAdmittedAtlasTargetSources\(\[admittedCandidateSources, admission\.candidates\]\)/g)).toHaveLength(2);
+    expect(canonicalAtlas).not.toContain("admittedCandidateSources = mergeDurablyAdmittedCandidateSources");
   });
 });

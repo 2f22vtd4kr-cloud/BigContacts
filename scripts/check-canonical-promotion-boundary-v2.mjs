@@ -45,6 +45,14 @@ assert(hasAll(strict, [
   "hasCanonicalPromotionJobBinding(provenance)",
   "if(!(await isCanonicalJobOwner(\"atlas-run\",promotionJobId)))return false;",
 ]), "trusted candidate promotion independently requires same-observation identity/value binding and live case/job ownership");
+assert(
+  ![target, bureau, atlas, targetRunner, targetContinuation].some((source) =>
+    source.includes("expandSecondaryPublicSurface")
+    || source.includes("persistBureauContactsForEntity(")
+    || source.includes('from "./bureau-contact-persist"')
+    || source.includes('from "../lib/bureau-contact-persist"')),
+  "canonical research/control paths must not reintroduce deterministic secondary-surface expansion or the legacy contact persistence module",
+);
 assert(hasAll(target, ['promote: isExplicitCandidate && f.promotionDecision === "promote"', "state: \"review_only\"", "tier: \"candidate\""]), "target preserves explicit Investigator promotion semantics");
 assert(hasAll(target, ["execution=success", "observed=(https?:", "claimAppearsInObservedMaterial", "record.observation"]), "target validates claims against successful observed material");
 const targetOversightIndex = targetRunner.indexOf("lastOversight = await reviewTargetInvestigationAct({");

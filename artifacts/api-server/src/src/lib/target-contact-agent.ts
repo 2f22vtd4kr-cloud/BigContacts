@@ -149,12 +149,24 @@ function compactReachabilityControl(raw: string): string {
 export function buildTargetContactInvestigatorObjective(input: {
   targetName: string;
   companyName?: string | null;
+  targetType?: "person" | "organization";
   reachabilityControl: string;
 }): string {
   // Bound the identity labels and realism annotation before composing the prompt.
   // The substantive research and provenance clauses below are fixed, not sliced.
   const targetName = input.targetName.trim().slice(0, 80);
   const companyName = input.companyName?.trim().slice(0, 80);
+  if (input.targetType === "organization") {
+    const organizationObjective = [
+      `Research the organization ${targetName}${companyName ? ` (linked to ${companyName})` : ""} and establish its public business identity and relevant owner/operator/investor routes.`,
+      compactReachabilityControl(input.reachabilityControl),
+      "Investigate the organization itself, not a guessed person. Verify legal/trading identity, jurisdiction, aliases, operating status, and official website using attributable sources.",
+      "Trace directly sourced owners/beneficial owners, controllers, directors/officers, parent/subsidiary links, investments, exits, assets, filings, and material business activity. Distinguish ownership/control from an officer title; do not infer wealth or targetability merely from company size, fame, or a person's role. A relevant person is a separate lead whose name, role, and evidence must remain attributable to that person.",
+      "Use exact public source URLs and distinguish a search-result lead from fetched-page evidence. Never invent or infer owners, relationships, contacts, assets, or URLs. Keep source-backed company information reviewable even if no person qualifies. No fixed provider/tool/query sequence: the Investigator chooses the next action from observed evidence.",
+    ].join("\n");
+    if (organizationObjective.length > 1_900) throw new Error("Organization Investigator objective exceeds its hard prompt budget.");
+    return organizationObjective;
+  }
   const sections = [
     `Research public identity, business interests and realistic public/professional/intermediary routes for ${targetName}${companyName ? ` linked to ${companyName}` : ""}.`,
     compactReachabilityControl(input.reachabilityControl),
@@ -183,7 +195,7 @@ export function buildTargetContactInvestigatorObjective(input: {
   return compactObjective;
 }
 
-export async function runTargetContactAgent(input: { entityId: number; caseId?: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: InvestigatorCapability; contextDocument?: string; priorTrajectoryRecords?: readonly AgenticTrajectoryRecord[]; oversightMode?: "internal" | "caller"; shouldCancel?: () => boolean | Promise<boolean>; onTrajectoryRecord?: (record: AgenticTrajectoryRecord) => void | Promise<void>; onInvestigationAct?: (step: InvestigationAct) => void | Promise<void> }): Promise<TargetContactAgentResult> {
+export async function runTargetContactAgent(input: { entityId: number; caseId?: number; targetName: string; companyName?: string | null; targetType?: "person" | "organization"; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: InvestigatorCapability; contextDocument?: string; priorTrajectoryRecords?: readonly AgenticTrajectoryRecord[]; oversightMode?: "internal" | "caller"; shouldCancel?: () => boolean | Promise<boolean>; onTrajectoryRecord?: (record: AgenticTrajectoryRecord) => void | Promise<void>; onInvestigationAct?: (step: InvestigationAct) => void | Promise<void> }): Promise<TargetContactAgentResult> {
   const name = (input.targetName ?? "").trim(); const empty = (): TargetContactAgentResult => ({ iterations: 0, status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], trajectoryRecords: [], evidenceGraphs: [], phone: null, email: null, phoneSource: null, contactOutcome: null }); if (!input.entityId || name.length < 2) return empty(); const contextDocument = typeof input.contextDocument === "string" ? input.contextDocument.trim() : ""; if (!contextDocument) { logger.error({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] refusing context-free Investigator run"); return { ...empty(), status: "unavailable" }; } const depth = resolveResearchDepth(); const selected = await resolveSelectedInvestigator(input); if (!selected) return { ...empty(), status: "unavailable" }; const investigatorLlm = selected.investigator;
   const baselineRows = await db.select({
     type: entitiesTable.type,
@@ -243,6 +255,7 @@ export async function runTargetContactAgent(input: { entityId: number; caseId?: 
   const objective = buildTargetContactInvestigatorObjective({
     targetName: name,
     companyName: input.companyName,
+    targetType: input.targetType ?? "person",
     reachabilityControl: formatReachabilityDirective(reachability),
   });
 
