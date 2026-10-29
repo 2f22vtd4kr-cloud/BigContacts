@@ -2069,43 +2069,64 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
  */
 function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): string {
   const normalized = typeof prompt === "string" ? prompt.trim() : "";
-  if (normalized.length <= maxChars) return normalized;
+  const limit = Number.isFinite(maxChars) ? Math.max(0, Math.floor(maxChars)) : 0;
+  if (normalized.length <= limit) return normalized;
 
-  const outputStart = normalized.lastIndexOf("OUTPUT CONTRACT:");
-  if (outputStart < 0) return boundInvestigatorPromptSection(normalized, maxChars);
+  // Use the explicit schema-bearing marker, never an incidental OUTPUT CONTRACT
+  // phrase inside observation text. The structured prompt builder and emergency
+  // fallback both emit one of these full markers.
+  const contractMarkers = [
+    "OUTPUT CONTRACT: Return one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS:",
+    "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS:",
+  ];
+  let outputStart = -1;
+  for (const marker of contractMarkers) outputStart = Math.max(outputStart, normalized.lastIndexOf(marker));
+  if (outputStart < 0) {
+    throw new Error("Cannot compact an oversized Investigator prompt without its protected top-level action schema (maxPromptChars=" + limit + ").");
+  }
 
   const prefix = normalized.slice(0, outputStart).trim();
   const suffix = normalized.slice(outputStart).trim();
-  const latestMarker = "LATEST TRAJECTORY RECORD";
+  const latestMarker = "\\n\\nLATEST TRAJECTORY RECORD";
   const latestStart = suffix.lastIndexOf(latestMarker);
-  const contract = latestStart > 0 ? suffix.slice(0, latestStart).trimEnd() : suffix;
+  const contract = (latestStart > 0 ? suffix.slice(0, latestStart) : suffix).trimEnd();
   const latestTail = latestStart > 0 ? suffix.slice(latestStart).trim() : "";
 
-  // The complete contract (including every top-level field) has priority over
-  // optional context. If it unexpectedly exceeds the whole budget, preserve its
-  // beginning and end rather than clipping only the required field list.
-  if (contract.length >= maxChars) {
-    return boundInvestigatorPromptSection(contract, maxChars);
+  // Never head/tail-slice a schema-bearing contract: that can silently remove a
+  // required property while leaving the request superficially well-formed.
+  if (contract.length > limit) {
+    throw new Error("Cannot preserve the complete Investigator action contract within maxPromptChars=" + limit + ".");
   }
 
   const separator = "\\n\\n";
-  const availableForTail = maxChars - contract.length - (latestTail ? separator.length : 0);
   let boundedTail = "";
-  if (latestTail && availableForTail > 0) {
+  const availableForTail = Math.max(0, limit - contract.length - (latestTail ? separator.length : 0));
+  if (latestTail && availableForTail >= 100) {
     boundedTail = latestTail.length <= availableForTail
       ? latestTail
-      : availableForTail >= 100
-        ? boundInvestigatorPromptSection(latestTail, availableForTail)
-        : "";
+      : compactPromptSectionPreservingUrlTokens(latestTail, availableForTail, "[latest record detail omitted whole; durable source inventory remains authoritative]");
+    if (boundedTail.length > availableForTail) boundedTail = "";
   }
   const protectedSuffix = [contract, boundedTail].filter(Boolean).join(separator);
-  const prefixBudget = maxChars - protectedSuffix.length - (prefix ? separator.length : 0);
-  if (prefix && prefixBudget > 0) {
-    return [boundInvestigatorPromptSection(prefix, prefixBudget), protectedSuffix].join(separator);
+  if (protectedSuffix.length > limit) {
+    throw new Error("Cannot preserve the complete Investigator action contract within maxPromptChars=" + limit + ".");
   }
-  return protectedSuffix.slice(0, maxChars);
-}
 
+  const prefixBudget = limit - protectedSuffix.length - (prefix ? separator.length : 0);
+  let boundedPrefix = "";
+  // boundInvestigatorPromptSection has a minimum marker size; do not call it when
+  // that marker itself could exceed the remaining budget.
+  if (prefix && prefixBudget >= 120) {
+    boundedPrefix = boundInvestigatorPromptSection(prefix, prefixBudget);
+    if (boundedPrefix.length > prefixBudget) boundedPrefix = compactPromptSectionPreservingUrlTokens(prefix, prefixBudget);
+    if (boundedPrefix.length > prefixBudget) boundedPrefix = "";
+  }
+  const result = [boundedPrefix, protectedSuffix].filter(Boolean).join(separator);
+  if (result.length > limit || !result.includes("ALL REQUIRED TOP-LEVEL FIELDS:")) {
+    throw new Error("Cannot compose a contract-preserving Investigator provider prompt within maxPromptChars=" + limit + ".");
+  }
+  return result;
+}
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[] }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
