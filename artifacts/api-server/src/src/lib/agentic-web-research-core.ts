@@ -3060,11 +3060,11 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
         ? " The query field itself must include the geographic term from that scope; market/locale metadata or registry-domain text alone do not satisfy this check."
         : "";
       return preserveSourceAlongsideGuard(
-        `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}.${geographyGuidance} Revise the failed dimensions; fetch only an observed aligned URL; do not repeat unchanged without new evidence or ask Boss/Right-hand to revise scope.${activeScope}`,
+        `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}.${geographyGuidance} web discovery may search in-scope topic terms and company terms without repeating source-class wording; match registry adapters to geography. Revise the failed dimensions; fetch only an observed aligned URL; do not repeat unchanged without new evidence or ask Boss/Right-hand to revise scope.${activeScope}`,
       );
     }
     return preserveSourceAlongsideGuard(
-      `SCOPE GUARD BLOCKED ACTION (no request): blocked action adds no evidence. Web discovery may search in-scope topic terms and company terms without repeating source-class wording. Match registry adapters to geography. Fetch only observed aligned URLs; revise failed dimensions or request new scope from Boss/Right-hand. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 210) + "." : "Use the active Boss-approved objective to recover scope."}`,
+      `SCOPE GUARD BLOCKED ACTION (no request): blocked action adds no evidence. web discovery may search in-scope topic terms and company terms without repeating source-class wording. Match registry adapters to geography. Fetch only observed aligned URLs; revise failed dimensions or request new scope from Boss/Right-hand. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 210) + "." : "Use the active Boss-approved objective to recover scope."}`,
     );
   }
   // Ordinary fetched-page observations can carry the exact company/person facts
@@ -5414,7 +5414,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // policy prose. Mandatory schema, review-lead rules, and source provenance
       // remain present even when prior trajectory is large.
       const absoluteMinimumOutputContract = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. HARD RULE: top-level hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them (action=done only). ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Inactive fields null/[]; inactive-action example: {\"url\":null,\"searches\":[],\"findings\":[]}. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. Non-done requires hypothesis/purpose and numeric expectedInformationGain [0,1]. After successful web/parallel/registry search, exact organization name in observed result text + eligible HTTPS URL admits only a low-confidence review-only company finding bound to that URL; note search_result_lead/snippet-only/page not fetched/no ownership, wealth, person or contact claims; reason search-only/unverified; never infer name from hostname. After successful visit/browser_fetch, a fetched company lead requires exact name + material business/ownership/transaction fact in fetched text and sourceUrls=[that fetched URL only]. DISCOVERY LEAD HANDOFF CONTRACT: person review requires PERSON LEAD TIERS: if a successful result/fetched source co-binds exact full name + page-stated role, emit a review-only person finding with value=personName, scope=candidate, vectorType=other, role, sourceUrls=[exact URL]; search-only note must include LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead and explicitly no ownership/wealth/HNWI conclusion. Higher candidate admission requires a fetched claim-grade source binding name+role+ownership/control/equity/investment clue; no wealth inference from seniority. Official leadership/staff or filing/registry pages qualify only if directly binding exact name/role; third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Search snippets remain leads, not evidence; failed/blocked fetches are unobserved. Emit source-backed leads on the action that reveals them.";
-      const absoluteMinimumPdfGuidance = compactCriticalRetrievalGuidance;
+      const absoluteMinimumPdfGuidance = "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only; image-only scans need unavailable OCR; encrypted/password-protected and malformed PDFs are distinct structured extraction failures.";
       const absoluteMinimumBaseParts = [
         finalEmergencyAssignment,
         absoluteMinimumObjective,
@@ -5450,7 +5450,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
-        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + "; never invent an ID or treat unavailable/failed as a no-hit.",
+        "RUNTIME REGISTRY IDS ONLY: " + registryIdList + "; never invent an ID or treat unavailable/failed as a no-hit. Do not assume records expose owners, shareholders, members or managers without evidence.",
         absoluteMinimumPdfGuidance,
         "SCOPE/SOURCE CHOICE: match topic/geography; source class may vary; no registry-first sequence. Blocks are not negative evidence; the Investigator chooses actions.",
         "RESEARCH TERMINAL GATE: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". Do not claim done unless the gate passes.",
@@ -5458,11 +5458,15 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         shortestLeadFollowUp,
         absoluteMinimumOutputContract,
       ].filter(Boolean);
-      const compactBaseCoreParts = compactAbsoluteMinimumBaseParts.slice(0, -1);
+      const pinnedLeadFollowUp = shortestLeadFollowUp
+        ? "LEAD FOLLOW-UP (advisory): consider inspecting a promising in-scope lead URL next; search-result URLs remain leads until fetched; action choice stays with the Investigator."
+        : "";
+      const compactBaseCoreParts = compactAbsoluteMinimumBaseParts
+        .filter((part) => part !== absoluteMinimumOutputContract && part !== shortestLeadFollowUp);
       const compactBaseCorePrompt = compactBaseCoreParts.join("\n\n");
       const compactBasePrompt = compactAbsoluteMinimumBaseParts.join("\n\n");
       const pinnedSuffix = pinnedInventoryCandidate ? "\n\n" + pinnedInventoryCandidate : "";
-      const inventoryAndContractReserve = absoluteMinimumOutputContract.length + pinnedSuffix.length + 2;
+      const inventoryAndContractReserve = absoluteMinimumOutputContract.length + pinnedLeadFollowUp.length + pinnedSuffix.length + 4;
       // The active Boss-approved objective/geography is a protected component. Do
       // not let middle compaction erase explicit countries or source alternatives.
       const compactCoreWithoutProtectedScope = compactBaseCoreParts
@@ -5476,6 +5480,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         finalEmergencyAssignment,
         absoluteMinimumObjective,
         boundInvestigatorPromptSection(compactCoreWithoutProtectedScope, compactCoreBudget),
+        pinnedLeadFollowUp,
         absoluteMinimumOutputContract,
         pinnedInventoryCandidate,
       ].filter(Boolean).join("\n\n");
