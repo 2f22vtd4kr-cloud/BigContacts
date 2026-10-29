@@ -5,6 +5,17 @@ export type DurableInvestigatorEvent = { id: number; actorRole: string; eventTyp
 const EXECUTIONS = new Set<AgenticTrajectoryRecord["execution"]>(["selected", "success", "partial", "http_error", "blocked", "timeout", "error", "cancelled"]);
 const VECTORS = new Set<AgenticFinding["vectorType"]>(["email", "phone", "linkedin", "website", "other", "social"]);
 const SCOPES = new Set<AgenticFinding["scope"]>(["organization", "candidate", "unknown"]);
+const FAILURE_DOMAINS = new Set<NonNullable<AgenticTrajectoryRecord["failureDomain"]>>([
+  "model_provider", "model_action", "tool_execution", "external_page_fetch", "persistence_database", "lease_job_state", "unexpected_programming_error",
+]);
+const FAILURE_KINDS = new Set<NonNullable<AgenticTrajectoryRecord["failureKind"]>>([
+  "request_failure", "hard_request_quota", "local_provider_cooldown", "local_provider_budget_exhausted", "provider_rate_limited",
+  "invalid_provider_request", "provider_auth_failure", "provider_endpoint_not_found", "provider_capacity_exhausted", "invalid_contract",
+  "out_of_scope_action", "pdf_unsupported", "pdf_encrypted", "pdf_malformed", "pdf_extraction_failed", "pdf_ocr_required", "pdf_no_text",
+  "registry_unavailable", "registry_auth_required", "registry_malformed_response", "registry_http_error", "registry_transport_error",
+  "registry_timeout", "registry_request_failure", "registry_partial_failure", "response_size_limit", "http_error", "provider_unavailable",
+  "timeout", "cancelled", "job_missing", "job_state_unavailable", "job_state_mismatch", "lease_lost", "no_usable_action", "unexpected_exception",
+]);
 function asObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
@@ -71,8 +82,8 @@ export function investigatorRecordsFromEvents(events: readonly DurableInvestigat
       findings,
       ...(Array.isArray(payload.providerFallback) ? { providerFallback: payload.providerFallback.filter((v): v is string => typeof v === "string") } : {}),
       ...(typeof payload.stopReason === "string" ? { stopReason: payload.stopReason as AgenticTrajectoryRecord["stopReason"] } : {}),
-      ...(typeof payload.failureDomain === "string" ? { failureDomain: payload.failureDomain as NonNullable<AgenticTrajectoryRecord["failureDomain"]> } : {}),
-      ...(typeof payload.failureKind === "string" ? { failureKind: payload.failureKind as NonNullable<AgenticTrajectoryRecord["failureKind"]> } : {}),
+      ...(typeof payload.failureDomain === "string" && FAILURE_DOMAINS.has(payload.failureDomain as NonNullable<AgenticTrajectoryRecord["failureDomain"]>) ? { failureDomain: payload.failureDomain as NonNullable<AgenticTrajectoryRecord["failureDomain"]> } : {}),
+      ...(typeof payload.failureKind === "string" && FAILURE_KINDS.has(payload.failureKind as NonNullable<AgenticTrajectoryRecord["failureKind"]>) ? { failureKind: payload.failureKind as NonNullable<AgenticTrajectoryRecord["failureKind"]> } : {}),
       ...(parseSourceBindings(payload.sourceBindings) !== undefined ? { sourceBindings: parseSourceBindings(payload.sourceBindings) } : {}),
     });
   }
