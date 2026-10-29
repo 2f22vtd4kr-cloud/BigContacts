@@ -13,7 +13,7 @@ import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences
 import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
-import { boundInvestigatorPromptSection, buildInvestigatorContext, compactPromptSectionPreservingUrlTokens, tightenInvestigatorPrompt } from "./investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildInvestigatorContext, compactPromptSectionPreservingUrlTokens } from "./investigation-context-compaction";
 import { summarizeInvestigatorContextWithBoss } from "./ai-investigation-context-compaction";
 import { ATLAS_CAPABILITIES, renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
 import { getAvailablePythonOsintActions, refreshPythonOsintToolAvailability } from "./python-osint-worker-client";
@@ -2312,7 +2312,6 @@ async function callGroqJson(
   if (!key) return null;
   let attempt = 0;
   let workingPrompt = prompt;
-  let sizeReductionApplied = false;
   let lastProviderError: string | null = null;
   // A selected Investigator capability owns one explicit model. Do not silently
   // rotate to another model after provider failure; cross-capability recovery is
@@ -2525,21 +2524,13 @@ async function callGroqJson(
             continue;
           }
 
-          if (response.status === 413 && !sizeReductionApplied) {
-            // A 413 is an explicit request-size rejection, not token-window
-            // pressure. Preserve the selected model/capability, compact only
-            // this rejected request, and retry it once before failing closed.
-            const compactedPrompt = tightenInvestigatorPrompt(
-              workingPrompt,
-              Math.max(1_000, Math.min(6_000, Math.floor(workingPrompt.length * 0.65))),
-            );
-            // Never spend a retry on an identical payload. If the user prompt
-            // is already too small to reduce, report the upstream rejection.
-            if (compactedPrompt.length >= workingPrompt.length) break;
-            workingPrompt = compactedPrompt;
-            sizeReductionApplied = true;
-            jsonObjectFallbackUsed = false;
-            continue;
+          if (response.status === 413) {
+            // Do not deterministically delete arbitrary prompt spans after the
+            // provider rejects the request. The structured prompt builder and
+            // Boss-generated memory compactor own context reduction; the full
+            // action schema, active scope, evidence rules, and latest findings
+            // must never be silently clipped as a generic retry.
+            return { model, raw: "", error: "upstream_request_size_rejected" };
           }
           if (response.status === 401 || response.status === 403) break;
 
@@ -2651,8 +2642,16 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
   try {
     const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
     const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars));
-    const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
+    if (prompt.length > maxUserPromptChars) {
+      // A prompt budget breach is a composition bug, not permission to truncate
+      // the assembled instructions. Fail closed so no model sees a damaged scope,
+      // schema, or evidence contract; fix the upstream context composition instead.
+      const reason = "investigator_prompt_budget_exceeded";
+      setAgenticLlmHealth(false, selectedInvestigatorLlm, reason);
+      return { model: selectedInvestigatorLlm, raw: "", fallback: [], providerError: reason };
+    }
+    const boundedPrompt = prompt;
     let localProviderGateFailure: "local_provider_cooldown" | "local_provider_budget_exhausted" | null = null;
     let localProviderGateModel: string | null = null;
     const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist)) : null;
