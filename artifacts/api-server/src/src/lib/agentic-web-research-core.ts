@@ -2643,15 +2643,20 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
     const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars));
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
+    let boundedPrompt = prompt;
     if (prompt.length > maxUserPromptChars) {
-      // A prompt budget breach is a composition bug, not permission to truncate
-      // the assembled instructions. Fail closed so no model sees a damaged scope,
-      // schema, or evidence contract; fix the upstream context composition instead.
-      const reason = "investigator_prompt_budget_exceeded";
-      setAgenticLlmHealth(false, selectedInvestigatorLlm, reason);
-      return { model: selectedInvestigatorLlm, raw: "", fallback: [], providerError: reason };
+      // Last-resort provider safety only: AI-generated memory compaction and the
+      // structured prompt tiers should normally fit first. If they do not, use
+      // the contract-aware reducer that pins active scope, action/schema rules,
+      // evidence provenance, and complete URL tokens—not a generic head/tail slice.
+      try {
+        boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars);
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : "investigator_prompt_budget_exceeded";
+        setAgenticLlmHealth(false, selectedInvestigatorLlm, reason);
+        return { model: selectedInvestigatorLlm, raw: "", fallback: [], providerError: reason };
+      }
     }
-    const boundedPrompt = prompt;
     let localProviderGateFailure: "local_provider_cooldown" | "local_provider_budget_exhausted" | null = null;
     let localProviderGateModel: string | null = null;
     const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist)) : null;
