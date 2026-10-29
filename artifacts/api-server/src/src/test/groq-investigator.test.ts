@@ -196,7 +196,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     ]);
   });
 
-  it("retries an HTTP 413 once with emergency prompt compaction on the same model and capability", async () => {
+  it("fails closed on HTTP 413 instead of retrying with lossy prompt compaction", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-413-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     const submitted: Array<{ model: string; userPrompt: string; authorization: string }> = [];
@@ -210,15 +210,10 @@ describe.sequential("Groq Investigator provider boundary", () => {
         userPrompt: body.messages?.find((message) => message.role === "user")?.content ?? "",
         authorization: String(new Headers(init?.headers).get("authorization")),
       });
-      if (submitted.length === 1) {
-        return new Response(JSON.stringify({ error: { code: "request_too_large" } }), {
-          status: 413,
-          headers: { "content-type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({
-        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
-      }), { status: 200, headers: { "content-type": "application/json" } });
+      return new Response(JSON.stringify({ error: { code: "request_too_large" } }), {
+        status: 413,
+        headers: { "content-type": "application/json" },
+      });
     });
 
     const result = await runAgenticWebResearch({
@@ -228,15 +223,11 @@ describe.sequential("Groq Investigator provider boundary", () => {
       hardTimeoutMs: 30_000,
     });
 
-    expect(result.status).toBe("completed");
-    expect(submitted).toHaveLength(2);
-    expect(submitted[1]?.model).toBe(submitted[0]?.model);
-    expect(submitted[1]?.userPrompt.length).toBeLessThan(submitted[0]?.userPrompt.length);
-    expect(submitted[1]?.userPrompt.length).toBeLessThanOrEqual(6_000);
-    expect(submitted.map((request) => request.authorization)).toEqual([
-      "Bearer test-groq-investigator-413-key",
-      "Bearer test-groq-investigator-413-key",
-    ]);
+    expect(result.status).toBe("unavailable");
+    expect(submitted).toHaveLength(1);
+    expect(submitted[0]?.userPrompt).toContain("OUTPUT CONTRACT:");
+    expect(submitted[0]?.userPrompt.length).toBeLessThanOrEqual(6_000);
+    expect(submitted[0]?.authorization).toBe("Bearer test-groq-investigator-413-key");
   });
 
   it("does not promote a browser-fetched source URL when the selected scraper cannot attest its final navigation URL", async () => {
