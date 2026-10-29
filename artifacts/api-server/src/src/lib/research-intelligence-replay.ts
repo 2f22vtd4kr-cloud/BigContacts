@@ -2,11 +2,26 @@ import type { AgenticFinding, AgenticTrajectoryRecord } from "./agentic-web-rese
 import type { IntelligenceContext, ResearchIntelligenceEngine } from "./research-intelligence-engine";
 
 export type DurableInvestigatorEvent = { id: number; actorRole: string; eventType: string; status: string; payload: string };
-const EXECUTIONS = new Set<AgenticTrajectoryRecord["execution"]>(["selected", "success", "http_error", "blocked", "timeout", "error", "cancelled"]);
+const EXECUTIONS = new Set<AgenticTrajectoryRecord["execution"]>(["selected", "success", "partial", "http_error", "blocked", "timeout", "error", "cancelled"]);
 const VECTORS = new Set<AgenticFinding["vectorType"]>(["email", "phone", "linkedin", "website", "other", "social"]);
 const SCOPES = new Set<AgenticFinding["scope"]>(["organization", "candidate", "unknown"]);
 function asObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+function parseSourceBindings(value: unknown): NonNullable<AgenticTrajectoryRecord["sourceBindings"]> | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const bindings: NonNullable<AgenticTrajectoryRecord["sourceBindings"]> = [];
+  for (const raw of value) {
+    const item = asObject(raw);
+    if (!item || typeof item.findingValue !== "string" || typeof item.sourceUrl !== "string"
+      || typeof item.sourceTurn !== "number" || !Number.isInteger(item.sourceTurn) || item.sourceTurn < 0
+      || typeof item.spanStart !== "number" || !Number.isInteger(item.spanStart) || item.spanStart < 0
+      || typeof item.spanEnd !== "number" || !Number.isInteger(item.spanEnd) || item.spanEnd < item.spanStart
+      || !(item.pageNumber === null || (typeof item.pageNumber === "number" && Number.isInteger(item.pageNumber) && item.pageNumber >= 0))) continue;
+    bindings.push({ findingValue: item.findingValue, sourceUrl: item.sourceUrl, sourceTurn: item.sourceTurn, spanStart: item.spanStart, spanEnd: item.spanEnd, pageNumber: item.pageNumber as number | null });
+    if (bindings.length >= 64) break;
+  }
+  return bindings;
 }
 function parseFinding(value: unknown): AgenticFinding | null {
   const item = asObject(value);
@@ -56,6 +71,9 @@ export function investigatorRecordsFromEvents(events: readonly DurableInvestigat
       findings,
       ...(Array.isArray(payload.providerFallback) ? { providerFallback: payload.providerFallback.filter((v): v is string => typeof v === "string") } : {}),
       ...(typeof payload.stopReason === "string" ? { stopReason: payload.stopReason as AgenticTrajectoryRecord["stopReason"] } : {}),
+      ...(typeof payload.failureDomain === "string" ? { failureDomain: payload.failureDomain as NonNullable<AgenticTrajectoryRecord["failureDomain"]> } : {}),
+      ...(typeof payload.failureKind === "string" ? { failureKind: payload.failureKind as NonNullable<AgenticTrajectoryRecord["failureKind"]> } : {}),
+      ...(parseSourceBindings(payload.sourceBindings) !== undefined ? { sourceBindings: parseSourceBindings(payload.sourceBindings) } : {}),
     });
   }
   return records;
