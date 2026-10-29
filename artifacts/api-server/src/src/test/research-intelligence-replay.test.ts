@@ -58,6 +58,50 @@ describe("durable Investigator intelligence replay", () => {
       execution: "error", failureDomain: "tool_execution", failureKind: "request_failure", sourceBindings,
     });
   });
+  it("bounds source-binding replay to capped array, string, and span sizes", () => {
+    const valid = {
+      findingValue: "Example Holdings",
+      sourceUrl: "https://registry.example.test/company/1",
+      sourceTurn: 3,
+      spanStart: 12,
+      spanEnd: 28,
+      pageNumber: 2,
+    };
+    const oversizedUrl = "https://registry.example.test/" + "x".repeat(4_100);
+    const records = investigatorRecordsFromEvents([{
+      id: 79, actorRole: "head_investigator", eventType: "tool_observation", status: "success",
+      payload: JSON.stringify({
+        action: "visit", execution: "success", observation: "Example Holdings", observedUrls: [], findings: [],
+        sourceBindings: [
+          { ...valid, findingValue: "x".repeat(2_001) },
+          { ...valid, sourceUrl: oversizedUrl },
+          { ...valid, spanStart: Number.MAX_SAFE_INTEGER + 1, spanEnd: Number.MAX_SAFE_INTEGER + 2 },
+          { ...valid, spanEnd: 2_000_001 },
+        ],
+      }),
+    }]);
+    expect(records[0]?.sourceBindings).toEqual([]);
+  });
+
+  it("does not scan unbounded malformed source-binding arrays to find later valid entries", () => {
+    const valid = {
+      findingValue: "Example Holdings",
+      sourceUrl: "https://registry.example.test/company/1",
+      sourceTurn: 3,
+      spanStart: 12,
+      spanEnd: 28,
+      pageNumber: 2,
+    };
+    const records = investigatorRecordsFromEvents([{
+      id: 80, actorRole: "head_investigator", eventType: "tool_observation", status: "success",
+      payload: JSON.stringify({
+        action: "visit", execution: "success", observation: "Example Holdings", observedUrls: [], findings: [],
+        sourceBindings: [...Array.from({ length: 256 }, () => ({})), valid],
+      }),
+    }]);
+    expect(records[0]?.sourceBindings).toEqual([]);
+  });
+
   it("rejects unknown durable failure labels instead of injecting arbitrary values into replayed prompt memory", () => {
     const records = investigatorRecordsFromEvents([{
       id: 78, actorRole: "head_investigator", eventType: "tool_observation", status: "error",
