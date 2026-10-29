@@ -339,7 +339,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain("generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain('required: ["decision", "reason", "direction", "confidence"]');
     expect(controlSource).toContain('action: { type: "string", enum: ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"] }');
-    expect(controlSource).toContain('required: ["action", "candidateName", "direction", "reason", "confidence"]');
+    expect(controlSource).toContain('required: ["action", "candidateName", "candidateType", "direction", "reason", "confidence"]');
     expect(controlSource).toContain("additionalProperties: false");
     expect(rightHandSource).toContain('response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat');
     expect(rightHandSource).toContain('type:"json_schema"');
@@ -480,7 +480,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(diagnoseAtlasBossControlContract("{not-json}", null)).toEqual(expect.objectContaining({ parseStatus: "malformed_json", contentChars: 10 }));
     expect(diagnoseAtlasBossControlContract(JSON.stringify({ action: "bogus", candidateName: 7, direction: null, confidence: "high" }), {
       action: "bogus", candidateName: 7, direction: null, confidence: "high", extra: true,
-    })).toEqual(expect.objectContaining({ parseStatus: "object", unexpectedFields: ["extra"], invalidFields: ["action", "candidateName", "confidence", "reason"] }));
+    })).toEqual(expect.objectContaining({ parseStatus: "object", unexpectedFields: ["extra"], invalidFields: ["action", "candidateName", "candidateType", "confidence", "reason"], missingFields: ["candidateType", "reason"] }));
   });
 
   it("replays valid and malformed provider contracts through the real validators", () => {
@@ -518,6 +518,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(validateAtlasBossControl({
       action: "research_candidate",
       candidateName: "Example Person",
+      candidateType: "person",
       direction: "Verify the role.",
       reason: "Candidate is admitted.",
       confidence: 0.8,
@@ -525,6 +526,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(validateAtlasBossControl({
       action: "stop",
       candidateName: null,
+      candidateType: null,
       direction: null,
       reason: "No further justified work.",
       confidence: 0.9,
@@ -533,6 +535,7 @@ describe("Atlas control-plane contract regression", () => {
     const paddedStop = {
       action: " stop ",
       candidateName: null,
+      candidateType: null,
       direction: null,
       reason: "Whitespace should not change a valid control transition.",
       confidence: 0.9,
@@ -566,6 +569,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(validateAtlasBossControl({
       action: "research_candidate",
       candidateName: "Example Person",
+      candidateType: "person",
       direction: "Verify the role.",
       reason: "Candidate is admitted.",
       confidence: 0.8,
