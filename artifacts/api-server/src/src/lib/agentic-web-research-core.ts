@@ -3218,6 +3218,15 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           turn: parsed.turn ?? Number(match[1]),
           action: parsed.action,
           execution: parsed.execution,
+          // The emergency record summary must retain a bounded excerpt of the
+          // newest observed action, not only its action/URL metadata. Without
+          // this, the smallest tier can omit the evidence the next decision
+          // needs to respond to even though the immutable trajectory has it.
+          ...(Number(parsed.turn ?? match[1]) === latestRecord?.turn
+            && typeof parsed.observation === "string"
+            && parsed.observation.trim()
+            ? { observation: compactEmergencyTrajectoryObservation(parsed.observation, 180) }
+            : {}),
           args: parsed.args,
           observedUrls: parsed.observedUrls,
           observedUrlCount: parsed.observedUrlCount,
