@@ -961,7 +961,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority/i);
     expect(prompt).toMatch(/LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD|PERSON REVIEW/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
-    expect(prompt).toMatch(/no ownership\/wealth\/relationship\/HNWI claim|no ownership, wealth, relationship, or HNWI claim/i);
+    expect(prompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
     expect(prompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public professional route/i);
     expect(prompt).toMatch(/Target-scoped research owns independent corroboration|independent corroboration, falsification, and contact-route verification/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
@@ -2637,6 +2637,24 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).not.toContain("inbiz");
     expect(prompt).toMatch(/never invent an ID based on a jurisdiction or agency name|Never invent an adapter ID/i);
     expect(prompt).toMatch(/Do not assume records expose owners, shareholders, members, or managers|Never assume registry fields disclose beneficial owners|registry fields may not disclose beneficial owners|verify data fields rather than assuming ownership disclosure/i);
+  });
+
+  it("bounds oversized active scope while preserving named geography alternatives and source families", () => {
+    const states = "Illinois, Indiana, Ohio, Michigan, Wisconsin, Minnesota, Iowa, Missouri, North Dakota, South Dakota, Kansas, Nebraska";
+    const sourceClasses = "official Secretary of State business entity search portals, public corporate registration filings, official state registries, corporate filings, government databases, beneficial ownership records, licensee directories, trade association membership lists, transaction announcements";
+    const direction = `Search privately held mid-market manufacturing businesses in geographies (${states}) using source classes (${sourceClasses}) to find attributable owners.`;
+    const compact = compactEmergencyInvestigatorObjective([
+      "PRIMARY CASE OBJECTIVE: Discover under-the-radar people with credible wealth potential and realistic routes.",
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      direction,
+      "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      "RECENT PRIOR ACTS (newest last): prior searches produced unvisited leads."
+    ].join("\\n"));
+    const activeScope = compact.split("ACTIVE SCOPE CONSTRAINT: ")[1] ?? "";
+    expect(activeScope.length).toBeLessThanOrEqual(240);
+    for (const state of states.split(", ")) expect(activeScope).toContain(state);
+    expect(activeScope).toContain("source classes:");
+    expect(activeScope).toMatch(/filings|ownership|directories|transactions/i);
   });
 
   it("keeps a final compact Investigator prompt within the ceiling for oversized geographic/source alternatives", () => {
