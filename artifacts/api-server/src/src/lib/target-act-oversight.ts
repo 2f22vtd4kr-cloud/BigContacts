@@ -240,7 +240,6 @@ if (typeof input.act.observation === "string" && input.act.observation.length > 
         args: input.act.args,
         execution: input.act.execution,
         observedUrls: input.act.observedUrls,
-        leadUrls: input.act.leadUrls,
         findings: input.act.findings,
         stopReason: input.act.stopReason,
       }),
