@@ -218,6 +218,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Verbose synthetic target ".repeat(500),
+      objective: "Test emergency compaction after an oversized provider request.",
       investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
