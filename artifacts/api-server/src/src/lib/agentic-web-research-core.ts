@@ -4755,7 +4755,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           history: input.history.slice(-3),
           trajectoryRecords: input.trajectoryRecords.filter((record) => record.turn > (input.aiCompactedHistoricalThroughTurn ?? 0)),
           lastObservation: input.lastObservation,
-          findings: input.findings,
+          // The Boss-generated memory already carries the full prior findings
+          // ledger; newest findings remain attached to the recent trajectory
+          // records above. Do not head/tail-trim a second duplicate findings list.
+          findings: [],
           priorContext: undefined,
           mode: input.mode,
           maxChars: 1_500,
