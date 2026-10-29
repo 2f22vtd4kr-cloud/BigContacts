@@ -2,7 +2,7 @@ import type { AgenticFinding, AgenticTrajectoryRecord } from "./agentic-web-rese
 import type { IntelligenceContext, ResearchIntelligenceEngine } from "./research-intelligence-engine";
 
 export type DurableInvestigatorEvent = { id: number; actorRole: string; eventType: string; status: string; payload: string };
-const EXECUTIONS = new Set<AgenticTrajectoryRecord["execution"]>(["selected", "success", "http_error", "blocked", "timeout", "error", "cancelled"]);
+const EXECUTIONS = new Set<AgenticTrajectoryRecord["execution"]>(["selected", "success", "partial", "http_error", "blocked", "timeout", "error", "cancelled"]);
 const VECTORS = new Set<AgenticFinding["vectorType"]>(["email", "phone", "linkedin", "website", "other", "social"]);
 const SCOPES = new Set<AgenticFinding["scope"]>(["organization", "candidate", "unknown"]);
 function asObject(value: unknown): Record<string, unknown> | null {
