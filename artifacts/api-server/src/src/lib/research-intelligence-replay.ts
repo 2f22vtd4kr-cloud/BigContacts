@@ -19,18 +19,27 @@ const FAILURE_KINDS = new Set<NonNullable<AgenticTrajectoryRecord["failureKind"]
 function asObject(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
+const MAX_SOURCE_BINDINGS_TO_INSPECT = 256;
+const MAX_SOURCE_BINDINGS_TO_RESTORE = 64;
+const MAX_SOURCE_BINDING_VALUE_CHARS = 2_000;
+const MAX_SOURCE_BINDING_URL_CHARS = 4_096;
+const MAX_SOURCE_SPAN_OFFSET = 2_000_000;
 function parseSourceBindings(value: unknown): NonNullable<AgenticTrajectoryRecord["sourceBindings"]> | undefined {
   if (!Array.isArray(value)) return undefined;
   const bindings: NonNullable<AgenticTrajectoryRecord["sourceBindings"]> = [];
-  for (const raw of value) {
+  // Bound both the amount inspected and the amount retained. Capping only valid
+  // outputs still lets a malformed durable event force an unbounded scan.
+  for (const raw of value.slice(0, MAX_SOURCE_BINDINGS_TO_INSPECT)) {
     const item = asObject(raw);
-    if (!item || typeof item.findingValue !== "string" || typeof item.sourceUrl !== "string"
-      || typeof item.sourceTurn !== "number" || !Number.isInteger(item.sourceTurn) || item.sourceTurn < 0
-      || typeof item.spanStart !== "number" || !Number.isInteger(item.spanStart) || item.spanStart < 0
-      || typeof item.spanEnd !== "number" || !Number.isInteger(item.spanEnd) || item.spanEnd < item.spanStart
-      || !(item.pageNumber === null || (typeof item.pageNumber === "number" && Number.isInteger(item.pageNumber) && item.pageNumber >= 0))) continue;
+    if (!item || typeof item.findingValue !== "string" || !item.findingValue.trim()
+      || item.findingValue.length > MAX_SOURCE_BINDING_VALUE_CHARS
+      || typeof item.sourceUrl !== "string" || !item.sourceUrl.trim() || item.sourceUrl.length > MAX_SOURCE_BINDING_URL_CHARS
+      || typeof item.sourceTurn !== "number" || !Number.isSafeInteger(item.sourceTurn) || item.sourceTurn < 0
+      || typeof item.spanStart !== "number" || !Number.isSafeInteger(item.spanStart) || item.spanStart < 0 || item.spanStart > MAX_SOURCE_SPAN_OFFSET
+      || typeof item.spanEnd !== "number" || !Number.isSafeInteger(item.spanEnd) || item.spanEnd < item.spanStart || item.spanEnd > MAX_SOURCE_SPAN_OFFSET
+      || !(item.pageNumber === null || (typeof item.pageNumber === "number" && Number.isSafeInteger(item.pageNumber) && item.pageNumber >= 0))) continue;
     bindings.push({ findingValue: item.findingValue, sourceUrl: item.sourceUrl, sourceTurn: item.sourceTurn, spanStart: item.spanStart, spanEnd: item.spanEnd, pageNumber: item.pageNumber as number | null });
-    if (bindings.length >= 64) break;
+    if (bindings.length >= MAX_SOURCE_BINDINGS_TO_RESTORE) break;
   }
   return bindings;
 }
@@ -70,6 +79,7 @@ export function investigatorRecordsFromEvents(events: readonly DurableInvestigat
       throw new Error(`Durable Investigator event ${event.id} has an unknown execution state; refusing partial evidence replay.`);
     }
     const findings = Array.isArray(payload.findings) ? payload.findings.map(parseFinding).filter((item): item is AgenticFinding => item !== null) : [];
+    const sourceBindings = parseSourceBindings(payload.sourceBindings);
     const model = typeof payload.model === "string" ? payload.model : typeof payload.runModel === "string" ? payload.runModel : "durable-replay";
     records.push({
       turn: records.length + 1, durableEventId: event.id, model, action: payload.action, args: asObject(payload.args) ?? {},
@@ -84,7 +94,7 @@ export function investigatorRecordsFromEvents(events: readonly DurableInvestigat
       ...(typeof payload.stopReason === "string" ? { stopReason: payload.stopReason as AgenticTrajectoryRecord["stopReason"] } : {}),
       ...(typeof payload.failureDomain === "string" && FAILURE_DOMAINS.has(payload.failureDomain as NonNullable<AgenticTrajectoryRecord["failureDomain"]>) ? { failureDomain: payload.failureDomain as NonNullable<AgenticTrajectoryRecord["failureDomain"]> } : {}),
       ...(typeof payload.failureKind === "string" && FAILURE_KINDS.has(payload.failureKind as NonNullable<AgenticTrajectoryRecord["failureKind"]>) ? { failureKind: payload.failureKind as NonNullable<AgenticTrajectoryRecord["failureKind"]> } : {}),
-      ...(parseSourceBindings(payload.sourceBindings) !== undefined ? { sourceBindings: parseSourceBindings(payload.sourceBindings) } : {}),
+      ...(sourceBindings !== undefined ? { sourceBindings } : {}),
     });
   }
   return records;
