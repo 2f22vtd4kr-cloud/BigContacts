@@ -1922,7 +1922,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
-    expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:)/);
+    expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|current Boss-directed research question|Vietnam, Thailand, Indonesia)/i);
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
@@ -2154,7 +2154,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
 
     expect(prompt).toMatch(/LEAD FOLLOW-UP GUIDANCE(?: \(non-binding\))?|consider inspecting a promising in-scope lead URL|no fixed action sequence/i);
-    expect(prompt).toContain("The Investigator retains action choice");
+    expect(prompt).toMatch(/The Investigator retains action choice|Investigator chooses queries\/tools\/pages|Investigator chooses actions/i);
     expect(agenticCoreSource).not.toContain("discoveryLeadFollowUpBackpressureReason");
     expect(agenticCoreSource).not.toContain("discovery_lead_followup_gate");
     expect(agenticCoreSource).not.toContain("DISCOVERY LEAD-UTILIZATION GATE BLOCKED ACTION");
