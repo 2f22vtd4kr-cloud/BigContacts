@@ -5102,6 +5102,22 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   };
   const latestRecordTail = buildLatestRecordTail(220, 3);
   const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length));
+  const finalizeEmergencyPrompt = (basePrompt: string): string => {
+    const recoveryObservation = [
+      String(input.lastObservation ?? "").trim(),
+      input.trajectoryRecords.length ? buildLatestRecordTail(420, 2) : "",
+      extractPinnedDurableUrlInventory(input.durableUrlInventory),
+    ].filter(Boolean).join("\n\n");
+    return appendEmergencyObservationContext(
+      basePrompt,
+      recoveryObservation,
+      maxUserPromptChars,
+      input.mode,
+      extractBossPivotDirectionForCompactPrompt(input.objective ?? ""),
+      registryIdList,
+      aiHistoricalMemory,
+    );
+  };
   const stateMarker = "\n\nCANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):\n";
   const outputMarker = "\nOUTPUT CONTRACT:";
   const stateStart = composedPrompt.indexOf(stateMarker);
@@ -5171,7 +5187,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const emergencyBudget = maxUserPromptChars - emergencyFixed;
       if (emergencyBudget >= 0) {
         const emergencyState = boundedAuxiliaryState(dynamicState, emergencyBudget);
-        return [emergencyPrefix, stateLabel, emergencyState, outputContract, latestRecordTail].filter(Boolean).join("\n\n");
+        return finalizeEmergencyPrompt([emergencyPrefix, stateLabel, emergencyState, outputContract, latestRecordTail].filter(Boolean).join("\n\n"));
       }
 
       // If even the essential prose cannot fit, keep the schema/output example
@@ -5227,7 +5243,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const minimalBudget = maxUserPromptChars - minimalEmergencyPrefix.length - stateLabel.length - compactOutputContract.length - latestRecordTail.length - separators;
       if (minimalBudget >= 0) {
         const minimumState = boundedAuxiliaryState(dynamicState, minimalBudget);
-        return [minimalEmergencyPrefix, stateLabel, minimumState, compactOutputContract, latestRecordTail].filter(Boolean).join("\n\n");
+        return finalizeEmergencyPrompt([minimalEmergencyPrefix, stateLabel, minimumState, compactOutputContract, latestRecordTail].filter(Boolean).join("\n\n"));
       }
       // The rich and emergency prompts can still overflow when the latest durable
       // observation is unusually large. Drop advisory and duplicated mission prose
@@ -5267,7 +5283,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         const finalState = finalStateBudget > 0
           ? boundedAuxiliaryState(dynamicState, Math.min(240, finalStateBudget))
           : "";
-        return [finalEmergencyPrefix, stateLabel, finalState, compactOutputContract, finalLatestRecordTail].filter(Boolean).join("\n\n");
+        return finalizeEmergencyPrompt([finalEmergencyPrefix, stateLabel, finalState, compactOutputContract, finalLatestRecordTail].filter(Boolean).join("\n\n"));
       }
 
       // One final compaction tier handles a contract that only narrowly misses the
@@ -5290,7 +5306,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ].filter(Boolean).join("\n\n");
       const absoluteMinimumLatestTail = buildLatestRecordTail(60, 1);
       const absoluteMinimumPrompt = [absoluteMinimumPrefix, compactOutputContract, absoluteMinimumLatestTail].join("\n\n");
-      if (absoluteMinimumPrompt.length <= maxUserPromptChars) return absoluteMinimumPrompt;
+      if (absoluteMinimumPrompt.length <= maxUserPromptChars) return finalizeEmergencyPrompt(absoluteMinimumPrompt);
 
       // If the standard compact objective itself is unexpectedly responsible for
       // an overrun, preserve the explicit active pivot separately and discard the
@@ -5314,7 +5330,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ...(input.mode === "discovery" ? [compactDiscoveryQualityGate, compactDiscoveryAdmissionContract ?? ""] : []),
       ].filter(Boolean).join("\n\n");
       const smallestEmergencyPrompt = [smallestEmergencyPrefix, compactOutputContract, absoluteMinimumLatestTail].join("\n\n");
-      if (smallestEmergencyPrompt.length <= maxUserPromptChars) return smallestEmergencyPrompt;
+      if (smallestEmergencyPrompt.length <= maxUserPromptChars) return finalizeEmergencyPrompt(smallestEmergencyPrompt);
 
       // A final compact fallback must never turn optional prompt composition into
       // a run-ending programming error. Retain the active Boss scope, lead-vs-evidence
@@ -5347,7 +5363,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         preservedLatestRecordTail,
       ].filter(Boolean);
       const finalFallbackPrompt = finalFallbackParts.join("\n\n");
-      if (finalFallbackPrompt.length <= maxUserPromptChars) return finalFallbackPrompt;
+      if (finalFallbackPrompt.length <= maxUserPromptChars) return finalizeEmergencyPrompt(finalFallbackPrompt);
 
       // Last-resort budgeting shortens optional prose, never by clipping the
       // required output contract or newest trajectory/lead tail. Proper-name
@@ -5370,7 +5386,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactOutputContract,
         minimalTail,
       ].filter(Boolean).join("\n\n");
-      if (minimalFallback.length <= maxUserPromptChars) return minimalFallback;
+      if (minimalFallback.length <= maxUserPromptChars) return finalizeEmergencyPrompt(minimalFallback);
 
       // Final ultra-compact recovery: the completed schema and newest action/lead
       // tail are non-discardable. Keep core scope, provenance, PDF, terminal, and
@@ -5401,7 +5417,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         buildLatestRecordTail(20, 2),
       ].filter(Boolean);
       const ultimatePrompt = ultimatePromptParts.join("\n\n");
-      if (ultimatePrompt.length <= maxUserPromptChars) return ultimatePrompt;
+      if (ultimatePrompt.length <= maxUserPromptChars) return finalizeEmergencyPrompt(ultimatePrompt);
 
       // The normal supported provider ceiling is 5,600 chars. This last pass
       // shortens optional scope narration and observation prose, never the schema,
@@ -5433,7 +5449,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         && !latestRecord
         && !latestSuccessfulFetchRecord
         && !carryForwardSuccessfulSearch
-        && !input.durableUrlInventory?.trim()) return shortestPrompt;
+        && !input.durableUrlInventory?.trim()) return finalizeEmergencyPrompt(shortestPrompt);
       // Last-resort provider-safe prompt. Do not truncate JSON/schema or URLs: drop
       // optional narration and context first, while retaining live actions, scope,
       // provenance, terminal rules, review-lead admission, and the latest durable URLs.
@@ -5463,7 +5479,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         hardMinimumTail,
         shortestFetchedSourceContext,
       ].filter(Boolean).join("\n\n");
-      if (hardMinimumPrompt.length <= maxUserPromptChars) return hardMinimumPrompt;
+      if (hardMinimumPrompt.length <= maxUserPromptChars) return finalizeEmergencyPrompt(hardMinimumPrompt);
       // Preserve atomic evidence URLs even when the provider ceiling is unusually small.
       // This last form uses fewer trajectory fields and keeps the complete output envelope.
       const hasInScopeLeadForEmergencyFollowUp = Boolean(
@@ -5494,7 +5510,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         hardMinimumTail,
         shortestFetchedSourceContext,
       ].join("\n\n");
-      if (ultraCompactEmergencyPrompt.length <= maxUserPromptChars) return ultraCompactEmergencyPrompt;
+      if (ultraCompactEmergencyPrompt.length <= maxUserPromptChars) return finalizeEmergencyPrompt(ultraCompactEmergencyPrompt);
       // Absolute last-resort recovery: do not abort a canonical discovery run
       // because durable history cannot fit in the provider prompt budget. Preserve
       // the latest observation instead of omitting it, which caused the fallback
