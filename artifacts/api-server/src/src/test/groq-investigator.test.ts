@@ -48,7 +48,7 @@ describe("Groq rate-limit header parsing", () => {
   });
 });
 
-describe("Groq Investigator provider boundary", () => {
+describe.sequential("Groq Investigator provider boundary", () => {
   it("advertises exactly the configured key-bound capabilities", () => {
     const env = {
       GROQ_INVESTIGATOR_API_KEY: "key-1",
