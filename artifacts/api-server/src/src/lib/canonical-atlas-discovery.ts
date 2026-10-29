@@ -63,6 +63,44 @@ function uniqueNames(values: string[]): string[] {
 function isObservedHttpsSource(value: unknown): value is string { return typeof value === "string" && /^https:\/\/\S+$/i.test(value); }
 function normalizeSourceUrl(raw: string): string | null { try { const safe = sanitizeUrlForEvidence(raw); if (safe.startsWith("[")) return null; const url = new URL(safe); if (url.protocol !== "https:") return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
 
+type CanonicalAdmittedTargetSource = {
+  name: string;
+  sourceUrls: string[];
+  role: string | null;
+  targetType: "person" | "organization";
+};
+
+/** Preserve entity kind while merging only source URLs that satisfy the existing durable-admission rules. */
+function mergeDurablyAdmittedAtlasTargetSources(
+  groups: readonly (readonly CanonicalAdmittedTargetSource[])[],
+): CanonicalAdmittedTargetSource[] {
+  const merged = new Map<string, { name: string; role: string | null; targetType: "person" | "organization"; sourceUrls: Set<string> }>();
+  for (const group of groups) {
+    for (const candidate of group) {
+      const name = candidate.name.trim().replace(/\\s+/g, " ");
+      const identity = normalizeCandidateIdentityName(name);
+      const targetType = candidate.targetType === "organization" ? "organization" : "person";
+      if (name.length < 3 || identity.length < 3) continue;
+      const validUrls = candidate.sourceUrls
+        .map(normalizeSourceUrl)
+        .filter((url): url is string => Boolean(url) && isClaimGradeDiscoverySourceUrl(url as string));
+      if (!validUrls.length) continue;
+      const key = `${targetType}:${identity}`;
+      let entry = merged.get(key);
+      if (!entry) {
+        entry = { name, role: targetType === "person" ? candidate.role : null, targetType, sourceUrls: new Set<string>() };
+        merged.set(key, entry);
+      } else if (targetType === "person" && !entry.role && candidate.role?.trim()) {
+        entry.role = candidate.role.trim().replace(/\\s+/g, " ");
+      }
+      for (const url of validUrls) entry.sourceUrls.add(url);
+    }
+  }
+  return [...merged.values()].map(({ name, role, targetType, sourceUrls }) => ({
+    name, role, targetType, sourceUrls: [...sourceUrls],
+  }));
+}
+
 async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: string; investigatorLlm: InvestigatorCapability; directorModel: string }): Promise<number> {
   const [created] = await db.insert(researchCasesTable).values({ caseType: "discovery", status: "active", directorMode: "groq_boss", directorProvider: "groq", directorModel: input.directorModel || "unknown", objective: input.objective, motivation: "Durable memory for canonical Atlas Investigator discovery.", openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.", caseFile: JSON.stringify({ caseType: "discovery", contextDocument: ["CANONICAL ATLAS DISCOVERY CASE", `JOB: ${input.atlasJobId}`, `INVESTIGATOR: ${input.investigatorLlm}`, `OBJECTIVE: ${input.objective}`, "STATE: Initial discovery; Investigator owns the next action.", "TRAJECTORY: []"].join("\n"), investigatorLlm: input.investigatorLlm, baseDiscoveryObjective: input.objective, activeDiscoveryObjective: input.objective, investigatorTrajectory: [], investigatorTrajectoryRecords: [], investigationTimeline: [], jobId: input.atlasJobId }), currentAction: "canonical-investigator-discovery", iteration: 0 }).returning({ id: researchCasesTable.id });
   const caseId = created?.id; if (!caseId) throw new Error("Failed to create durable Atlas discovery case.");
@@ -2227,7 +2265,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
             atlasJobId,
             discoveryCaseId,
           });
-          admittedCandidateSources = mergeDurablyAdmittedCandidateSources([admittedCandidateSources, admission.candidates]);
+          admittedCandidateSources = mergeDurablyAdmittedAtlasTargetSources([admittedCandidateSources, admission.candidates]);
           admitted = admittedCandidateSources.map(({ name }) => name);
           materialized += admission.materialized;
           evidenceRows += admission.evidenceRows;
@@ -2450,7 +2488,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         // trajectory/finding records on every Boss-directed continuation.
         failureStage = "candidate_admission_persistence";
       admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: [...(discovery.findings ?? []), ...(discovery.partialFindings ?? [])], atlasJobId, discoveryCaseId });
-        admittedCandidateSources = mergeDurablyAdmittedCandidateSources([admittedCandidateSources, admission.candidates]);
+        admittedCandidateSources = mergeDurablyAdmittedAtlasTargetSources([admittedCandidateSources, admission.candidates]);
         admitted = admittedCandidateSources.map(({ name }) => name);
         materialized += admission.materialized;
         evidenceRows += admission.evidenceRows;
