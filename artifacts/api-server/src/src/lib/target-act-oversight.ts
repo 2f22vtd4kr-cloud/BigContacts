@@ -245,7 +245,13 @@ if (oversightContext.length > 4_500) {
   oversightContext = summarizedContext;
 }
 let actForPrompt = input.act;
-if (typeof input.act.observation === "string" && input.act.observation.length > 2_200) {
+const rawActArgumentSize = JSON.stringify(sanitizeObservableValue(input.act.args ?? {})).length;
+const rawActFindings = Array.isArray(input.act.findings) ? input.act.findings : [];
+const shouldSummarizeCurrentAct =
+  (typeof input.act.observation === "string" && input.act.observation.length > 2_200)
+  || rawActFindings.length > 6
+  || rawActArgumentSize > 2_000;
+if (shouldSummarizeCurrentAct) {
   const actSummary = await summarizeInvestigatorContextWithBoss({
     rawContext: [
       "CURRENT CASE OBJECTIVE (authoritative control input):\n" + safePromptObjective,
@@ -268,7 +274,7 @@ if (typeof input.act.observation === "string" && input.act.observation.length > 
   if (!actSummary) {
     return failClosedBeforePrompt("Boss could not semantically compact the current act observation; oversight was not asked to decide from a deterministic head/tail excerpt.");
   }
-  actForPrompt = { ...input.act, observation: actSummary };
+  actForPrompt = { ...input.act, observation: actSummary, ...(rawActFindings.length > 6 ? { findings: [] } : {}) };
 }
 const currentAct=compactOversightAct(actForPrompt);
 const priorActs=input.recentActs.filter((record)=>record!==input.act).slice(-3);
