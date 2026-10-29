@@ -6056,6 +6056,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         promptLastObservation = compactedObservation;
       }
       let prompt: string;
+      let usedPromptRecoveryFallback = false;
       try {
         prompt = buildStepPrompt({
           targetName: name || "",
@@ -6107,7 +6108,6 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       // emergency prompt tier dropped it, ask Boss to condense the memory further and
       // rebuild once. If it still cannot fit alongside the action/schema contracts,
       // stop this turn rather than silently lose prior research.
-      let usedPromptRecoveryFallback = false;
       if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
         const shorterMemory = await summarizeInvestigatorContextWithBoss({
           rawContext: aiCompactedHistoricalContext,
