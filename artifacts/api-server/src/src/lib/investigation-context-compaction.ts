@@ -141,6 +141,22 @@ export function compactPromptSectionPreservingUrlTokens(
     const safeTailStart = Math.max(tailStart, source.length - (revisedAvailable - safeHead));
     headEnd = safeHead;
     tailStart = safeTailStart;
+  } else {
+    // If the head was shortened to avoid slicing through a long URL, reallocate
+    // the unused characters to the tail. Otherwise the prompt can spend most of
+    // its budget on the marker while dropping a key fact at the end of a fetched
+    // page (for example, a filing's ownership finding).
+    const spare = revisedAvailable - (headEnd + source.length - tailStart);
+    if (spare > 0) {
+      let expandedTailStart = Math.max(headEnd, tailStart - spare);
+      for (const span of spans) {
+        if (span.start < expandedTailStart && span.end > expandedTailStart) {
+          // Move past a URL rather than disclose a misleading partial token.
+          expandedTailStart = span.end;
+        }
+      }
+      tailStart = Math.max(headEnd, expandedTailStart);
+    }
   }
   return source.slice(0, headEnd).trimEnd()
     + "\n" + effectiveMarker + "\n"
