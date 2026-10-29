@@ -117,51 +117,57 @@ async function requestSummary(
   maxChars: number,
   input: AiInvestigationContextCompactionInput,
 ): Promise<string | null> {
-  const config = getGroqBossLatencyConfig();
-  const prompt = buildSummaryPrompt(source, maxChars);
-  if (prompt.length > config.maximumPromptChars) return null;
+  try {
+    const config = getGroqBossLatencyConfig();
+    const prompt = buildSummaryPrompt(source, maxChars);
+    if (prompt.length > config.maximumPromptChars) return null;
 
-  const selection = await resolveGroqBossModel();
-  if (selection.status !== "resolved" || !selection.model) return null;
-  const result = await generateGroqBossText(selection, prompt, {
-    responseFormat: { type: "json_object" },
-    maxOutputTokens: Math.min(3_000, Math.max(350, Math.ceil(maxChars / 2))),
-    thinkingLevel: "low",
-    jobId: input.jobId ?? null,
-    caseId: input.caseId ?? null,
-  });
-  let summary = parseSummary(result.raw);
-
-  if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource)) {
-    const repairSource = summary && summaryUrlsAreGrounded(summary, allowedSource)
-      ? summary
-      : source;
-    const retryPrompt = buildSummaryPrompt(
-      "PRIOR SUMMARY / SOURCE TO COMPACT:\n" + repairSource,
-      maxChars,
-      true,
-    );
-    if (retryPrompt.length > config.maximumPromptChars) return null;
-    const retry = await generateGroqBossText(selection, retryPrompt, {
+    const selection = await resolveGroqBossModel();
+    if (selection.status !== "resolved" || !selection.model) return null;
+    const outputBudget = Math.min(3_000, Math.max(350, Math.ceil(maxChars / 2)));
+    const result = await generateGroqBossText(selection, prompt, {
       responseFormat: { type: "json_object" },
-      maxOutputTokens: Math.min(3_000, Math.max(350, Math.ceil(maxChars / 2))),
+      maxOutputTokens: outputBudget,
       thinkingLevel: "low",
       jobId: input.jobId ?? null,
       caseId: input.caseId ?? null,
     });
-    summary = parseSummary(retry.raw);
-  }
+    let summary = parseSummary(result.raw);
 
-  if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource)) return null;
-  return summary;
+    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource)) {
+      const repairSource = summary && summaryUrlsAreGrounded(summary, allowedSource)
+        ? summary
+        : source;
+      const retryPrompt = buildSummaryPrompt(
+        "PRIOR SUMMARY / SOURCE TO COMPACT:\n" + repairSource,
+        maxChars,
+        true,
+      );
+      if (retryPrompt.length > config.maximumPromptChars) return null;
+      const retry = await generateGroqBossText(selection, retryPrompt, {
+        responseFormat: { type: "json_object" },
+        maxOutputTokens: outputBudget,
+        thinkingLevel: "low",
+        jobId: input.jobId ?? null,
+        caseId: input.caseId ?? null,
+      });
+      summary = parseSummary(retry.raw);
+    }
+
+    if (!summary || summary.length > maxChars || !summaryUrlsAreGrounded(summary, allowedSource)) return null;
+    return summary;
+  } catch {
+    // Model/provider failures must become an explicit "no summary" result. The
+    // caller then fails closed instead of falling back to deterministic excerpts.
+    return null;
+  }
 }
 
 /**
- * Use Boss model reasoning to compact an oversized historical case context.
- * This is deliberately not a deterministic excerpt reducer: if the model cannot
- * produce a bounded, provenance-safe summary, the caller must not silently
- * replace it with lossy head/tail trimming. The source and evidence ledger remain
- * durable and unchanged; only the model-facing working memory is summarized.
+ * Summarize long case memory in model-owned layers. Transport chunking is lossless;
+ * semantic reduction is always performed by Boss, including the final merge. A
+ * resource cap protects the provider from pathological input sizes but never
+ * substitutes an excerpt for the source.
  */
 export async function summarizeInvestigatorContextWithBoss(
   input: AiInvestigationContextCompactionInput,
@@ -172,24 +178,75 @@ export async function summarizeInvestigatorContextWithBoss(
   const maxChars = Math.min(MAX_SUMMARY_CHARS, Math.max(MIN_SUMMARY_CHARS, requested));
   if (source.length <= maxChars) return source;
 
-  const config = getGroqBossLatencyConfig();
+  let config;
+  try {
+    config = getGroqBossLatencyConfig();
+  } catch {
+    return null;
+  }
+
+  // Reject only pathological inputs by size; never silently discard their middle
+  // or tail. Ordinary multi-chunk contexts are reduced hierarchically by Boss.
+  const MAX_SOURCE_CHARS = 2_000_000;
+  if (source.length > MAX_SOURCE_CHARS) return null;
   const chunkLimit = Math.min(12_000, Math.max(4_000, config.maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS));
-  const chunks = splitAiContextIntoChunks(source, chunkLimit);
-  if (!chunks.length || chunks.length > MAX_SUMMARY_CHUNKS) return null;
+  const sourceChunks = splitAiContextIntoChunks(source, chunkLimit);
+  if (!sourceChunks.length) return null;
+  if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input);
 
-  if (chunks.length === 1) {
-    return requestSummary(source, source, maxChars, input);
-  }
-
-  const partialTarget = Math.min(1_600, Math.max(650, Math.floor((maxChars * 1.5) / chunks.length)));
+  const partialTarget = Math.min(1_600, Math.max(900, Math.floor((maxChars * 1.5) / sourceChunks.length)));
   const partialSummaries: string[] = [];
-  for (const chunk of chunks) {
-    const summary = await requestSummary(chunk, chunk, partialTarget, input);
-    if (!summary) return null;
-    partialSummaries.push(summary);
+  // Keep provider concurrency low while avoiding a needless serial wait for every
+  // independent source segment. Each chunk is summarized from its complete text.
+  for (let offset = 0; offset < sourceChunks.length; offset += 2) {
+    const batch = sourceChunks.slice(offset, offset + 2);
+    const summaries = await Promise.all(batch.map((chunk) => requestSummary(chunk, chunk, partialTarget, input)));
+    if (summaries.some((summary) => !summary)) return null;
+    partialSummaries.push(...summaries as string[]);
   }
 
-  const combined = partialSummaries.map((summary, index) => "MEMORY SEGMENT " + (index + 1) + ":\n" + summary).join("\n\n");
-  if (combined.length <= maxChars) return combined;
-  return requestSummary(combined, combined, maxChars, input);
+  const promptInputBudget = Math.max(2_000, config.maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS);
+  const combine = (summaries: string[]) => summaries
+    .map((summary, index) => "MEMORY SEGMENT " + (index + 1) + ":\n" + summary)
+    .join("\n\n");
+
+  let summaries = partialSummaries;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const combined = combine(summaries);
+    if (combined.length <= promptInputBudget) {
+      // Do not return a mechanical concatenation as though it were a summary.
+      return requestSummary(combined, combined, maxChars, input);
+    }
+
+    const batches: string[][] = [];
+    let pending: string[] = [];
+    for (const summary of summaries) {
+      const candidate = combine([...pending, summary]);
+      if (pending.length && candidate.length > promptInputBudget) {
+        batches.push(pending);
+        pending = [summary];
+      } else {
+        pending.push(summary);
+      }
+    }
+    if (pending.length) batches.push(pending);
+    if (batches.length >= summaries.length) return null;
+
+    const nextTarget = Math.min(
+      maxChars,
+      Math.max(MIN_SUMMARY_CHARS, Math.floor((maxChars * 1.5) / batches.length)),
+    );
+    const reduced: string[] = [];
+    for (let offset = 0; offset < batches.length; offset += 2) {
+      const currentBatch = batches.slice(offset, offset + 2);
+      const values = await Promise.all(currentBatch.map((batch) => {
+        const batchSource = combine(batch);
+        return requestSummary(batchSource, batchSource, nextTarget, input);
+      }));
+      if (values.some((summary) => !summary)) return null;
+      reduced.push(...values as string[]);
+    }
+    summaries = reduced;
+  }
+  return null;
 }
