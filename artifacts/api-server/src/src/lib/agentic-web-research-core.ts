@@ -4737,10 +4737,16 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     && /^(?:case\s+co|case\s+company|default\s+company|test\s+company)$/i.test(rawCompanyName);
   // Generic case labels including Case Co are metadata, not actual target entities; never use them as discovery entity anchors.
   const aiHistoricalMemory = input.aiCompactedHistoricalContext?.trim() ?? "";
+  const currentObjectiveContext = input.objective.length <= 1_600
+    ? input.objective
+    : "The full objective is represented in Boss-generated memory; the current explicit scope and mission contracts below remain authoritative.";
+  const currentControlContext = (input.priorContext?.length ?? 0) <= 800
+    ? (input.priorContext ?? "")
+    : "Long prior control context is represented in Boss-generated memory; the current objective and active scope remain authoritative.";
   const workingContext = aiHistoricalMemory
     ? [
-        "CURRENT CASE OBJECTIVE / ACTIVE BOSS SCOPE (authoritative; current, not historical):\n" + input.objective,
-        "CURRENT CONTROL / OVERSIGHT CONTEXT (fresh for this turn; never replaced by historical memory):\n" + (input.priorContext ?? ""),
+        "CURRENT CASE OBJECTIVE / ACTIVE BOSS SCOPE (authoritative; current, not historical):\n" + currentObjectiveContext,
+        "CURRENT CONTROL / OVERSIGHT CONTEXT (fresh for this turn; never replaced by historical memory):\n" + currentControlContext,
         "AI-COMPACTED HISTORICAL RESEARCH MEMORY (Boss-generated; the durable trajectory/evidence ledger remains authoritative; omissions are not negative evidence):\n" + aiHistoricalMemory,
         buildInvestigatorContext({
           targetName: input.targetName,
