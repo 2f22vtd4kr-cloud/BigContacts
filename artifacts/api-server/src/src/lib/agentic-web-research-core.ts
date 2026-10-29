@@ -5974,7 +5974,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       // durable trajectory; only this model-facing copy is replaced.
       const promptTrajectoryRecords = allPromptRecords.map((record) => ({
         ...record,
-        args: record.args ? { ...record.args } : undefined,
+        args: { ...(record.args ?? {}) },
         observedUrls: [...(record.observedUrls ?? [])],
         leadUrls: [...(record.leadUrls ?? [])],
         findings: [...(record.findings ?? [])],
