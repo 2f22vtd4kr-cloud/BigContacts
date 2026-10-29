@@ -3351,3 +3351,42 @@ describe("discovery pivot evidence provenance", () => {
     }, [priorFetchedSource])).not.toBeNull();
   });
 });
+
+
+describe("AI-generated historical Investigator memory", () => {
+  it("keeps active scope, current fetched evidence, and the action schema outside historical memory", () => {
+    const url = "https://registry.example.test/filings/current-control";
+    const latestRecord = {
+      turn: 2,
+      model: "test-model",
+      action: "visit",
+      execution: "success",
+      args: { url },
+      observation: "LATEST_FETCH_EVIDENCE_SENTINEL: the observed filing names the current director.",
+      observedUrls: [url],
+      leadUrls: [],
+      findings: [],
+      providerFallback: [],
+    } as AgenticTrajectoryRecord;
+    const prompt = buildStepPrompt({
+      targetName: "Example Owner",
+      objective: "ACTIVE_SCOPE_SENTINEL: investigate the owner of Example Components in Delaware.",
+      history: [],
+      trajectoryRecords: [latestRecord],
+      lastObservation: "The latest filing was fetched successfully.",
+      findings: [],
+      mode: "target",
+      actionAllowlist: ["web_search", "visit", "done"],
+      aiCompactedHistoricalContext: "BOSS_MEMORY_SENTINEL: an earlier verified filing names Alex Example as a director; this historical fact is not a current ownership conclusion.",
+      aiCompactedHistoricalThroughTurn: 1,
+    });
+
+    expect(prompt).toContain("BOSS_MEMORY_SENTINEL");
+    expect(prompt).toContain("ACTIVE_SCOPE_SENTINEL");
+    expect(prompt).toContain(url);
+    expect(prompt).toContain("LATEST_FETCH_EVIDENCE_SENTINEL");
+    expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS:");
+    expect(prompt).toContain("AVAILABLE ACTIONS: web_search | visit | done.");
+    expect(prompt).not.toContain("OLD_HISTORY_THAT_SHOULD_NOT_BE_RECONSTRUCTED");
+  });
+});
