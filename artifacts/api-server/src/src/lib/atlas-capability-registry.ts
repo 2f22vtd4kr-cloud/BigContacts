@@ -83,6 +83,7 @@ const COMPACT_CAPABILITY_GUIDANCE: Record<string, string> = {
   "contact.email": "observed public email only; service hits need corroboration",
   "identity.maigret": "grounded username; account candidates need corroboration",
   "identity.sherlock": "observed username; profiles are candidates, not identity",
+  "osint.spiderfoot": "grounded seed; match targetType/profile to hypothesis; high cost; correlated events/URLs are leads, not independent proof",
 };
 
 export function renderAtlasCapabilityGuidanceCompact(capabilities: readonly AtlasCapability[] = ATLAS_CAPABILITIES): string {

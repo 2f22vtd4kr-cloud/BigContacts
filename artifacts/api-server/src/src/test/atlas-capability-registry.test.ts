@@ -28,6 +28,18 @@ describe("Atlas capability prompt guidance", () => {
     expect(guidance).not.toContain("provider=serper|tavily|exa");
   });
 
+  it("gives an attested SpiderFoot capability actionable compact guidance", () => {
+    const attestedCapabilities = ATLAS_CAPABILITIES.map((capability) =>
+      capability.id === "osint.spiderfoot"
+        ? { ...capability, investigatorSelectable: true }
+        : capability,
+    );
+    const guidance = renderAtlasCapabilityGuidanceCompact(attestedCapabilities);
+
+    expect(guidance).toContain("- osint.spiderfoot (footprint_spiderfoot): grounded seed; match targetType/profile to hypothesis; high cost; correlated events/URLs are leads, not independent proof");
+    expect(guidance.length).toBeLessThanOrEqual(2_200);
+  });
+
   it("preserves retrieval limitations and evidence boundaries in the compact guidance", () => {
     const guidance = renderAtlasCapabilityGuidanceCompact();
 

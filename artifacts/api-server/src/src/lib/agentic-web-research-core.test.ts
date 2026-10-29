@@ -487,6 +487,27 @@ describe("attested Python OSINT capabilities remain model-selectable when the ru
   });
 });
 
+describe("SpiderFoot phone target action parsing", () => {
+  it("accepts phone as a supported target type when the attested SpiderFoot action is available", () => {
+    const raw = JSON.stringify({
+      action: "footprint_spiderfoot",
+      target: "+1 212 555 0198",
+      targetType: "phone",
+      profile: "contact-adjacent",
+      hypothesis: "The public business phone may reveal attributable public business relationships.",
+      purpose: "Explore a source-observed phone number for public, relevant business context.",
+      expectedInformationGain: 0.6,
+    });
+    expect(describeAgentActionParseFailure(raw, ["footprint_spiderfoot"])).toBe("");
+    expect(parseAgentAction(raw, ["footprint_spiderfoot"])).toMatchObject({
+      action: "footprint_spiderfoot",
+      target: "+1 212 555 0198",
+      targetType: "phone",
+      profile: "contact-adjacent",
+    });
+  });
+});
+
 describe("Investigator prompt URL integrity", () => {
   it("keeps a complete source URL when it fits the prompt inventory", () => {
     const url = "https://registry.example.test/filings/" + "a".repeat(300);
