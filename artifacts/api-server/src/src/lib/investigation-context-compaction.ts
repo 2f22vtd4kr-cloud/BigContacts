@@ -29,6 +29,9 @@ export type CompactionTrajectoryRecord = {
   findings?: CompactionFinding[];
   providerFallback?: string[];
   stopReason?: string;
+  failureDomain?: string;
+  failureKind?: string;
+  sourceBindings?: Array<{ findingValue: string; sourceUrl: string; sourceTurn: number; spanStart: number; spanEnd: number; pageNumber: number | null }>;
 };
 
 export interface InvestigatorContextInput {
@@ -202,8 +205,17 @@ function compactRecord(record: CompactionTrajectoryRecord, observationChars: num
   const leadUrls = unique(record.leadUrls ?? []).map((url) => sanitizeUrlForEvidence(url)).slice(0, 4);
   const findings = (record.findings ?? []).map((finding) => compactFinding(finding, 700)).filter(Boolean);
   const observation = trim(record.observation, observationChars);
+  const sourceBindings = (record.sourceBindings ?? []).slice(0, 3).map((binding) => {
+    const sourceUrl = sanitizeUrlForEvidence(binding.sourceUrl);
+    return trim(`${trim(binding.findingValue, 100)} | source=${sourceUrl} | sourceTurn=${binding.sourceTurn} | span=${binding.spanStart}-${binding.spanEnd}${binding.pageNumber === null ? "" : ` | page=${binding.pageNumber}`}`, 260);
+  }).filter(Boolean);
+  const failure = record.failureDomain || record.failureKind
+    ? "FAILURE_DIAGNOSTIC: domain=" + trim(record.failureDomain || "unknown", 48) + " kind=" + trim(record.failureKind || "unknown", 64)
+    : "";
   return trim([
     "TURN " + record.turn + " | action=" + trim(record.action, 80) + " | execution=" + trim(record.execution || "unknown", 40),
+    failure,
+    sourceBindings.length ? "SOURCE_SPAN_BINDINGS (provenance metadata, not independent corroboration):\n" + sourceBindings.join("\n") : "",
     // Put fetchable leads before long free-text observations so ordinary head
     // truncation cannot silently erase every URL that the Investigator could fetch.
     leadUrls.length ? "LEAD_URLS (search results only; not evidence until fetched): " + leadUrls.join(" | ") : "",
@@ -217,10 +229,16 @@ function archiveRecord(record: CompactionTrajectoryRecord, max: number): string 
   const urls = unique(record.observedUrls ?? []).map((url) => sanitizeUrlForEvidence(url));
   const leadUrls = unique(record.leadUrls ?? []).map((url) => sanitizeUrlForEvidence(url)).slice(0, 2);
   const findings = (record.findings ?? []).map((finding) => compactFinding(finding, 500)).filter(Boolean);
+  const sourceBindings = (record.sourceBindings ?? []).slice(0, 2).map((binding) => {
+    const sourceUrl = sanitizeUrlForEvidence(binding.sourceUrl);
+    return trim(`${trim(binding.findingValue, 70)} @ ${sourceUrl} turn=${binding.sourceTurn} span=${binding.spanStart}-${binding.spanEnd}`, 180);
+  }).filter(Boolean);
   return trim([
     "turn=" + record.turn,
     "action=" + trim(record.action, 70),
     "execution=" + trim(record.execution || "unknown", 30),
+    record.failureDomain || record.failureKind ? "failure=" + trim(record.failureDomain || "unknown", 40) + "/" + trim(record.failureKind || "unknown", 48) : "",
+    sourceBindings.length ? "source_spans=" + sourceBindings.join(" ; ") : "",
     leadUrls.length ? "lead_urls (unfetched; not evidence)=" + leadUrls.join(" | ") : "",
     urls.length ? "urls=" + urls.join(" | ") : "",
     findings.length ? "findings=" + findings.join(" ; ") : "",

@@ -150,6 +150,27 @@ describe("investigator context compaction", () => {
     expect(objective).toContain("Cross-check the officer role on an official company leadership page.");
   });
 
+  it("preserves durable source-span bindings and typed failure diagnostics in compacted trajectory memory", () => {
+    const context = buildInvestigatorContext({
+      targetName: "Example Holdings",
+      objective: "Verify the company and its ownership using public sources.",
+      trajectoryRecords: [{
+        turn: 4, action: "visit", execution: "error", observedUrls: ["https://registry.example.test/company/1"],
+        observation: "The provider failed before the page could be observed.",
+        failureDomain: "external_page_fetch", failureKind: "request_failure",
+        sourceBindings: [{ findingValue: "Example Holdings", sourceUrl: "https://registry.example.test/company/1", sourceTurn: 3, spanStart: 12, spanEnd: 28, pageNumber: 2 }],
+      }],
+      lastObservation: "The provider failed before the page could be observed.",
+      findings: [],
+    });
+    expect(context).toContain("FAILURE_DIAGNOSTIC: domain=external_page_fetch kind=request_failure");
+    expect(context).toContain("SOURCE_SPAN_BINDINGS");
+    expect(context).toContain("Example Holdings");
+    expect(context).toContain("https://registry.example.test/company/1");
+    expect(context).toContain("sourceTurn=3");
+    expect(context).toContain("span=12-28");
+    expect(context).toContain("page=2");
+  });
   it("keeps the objective and latest observation explicit", () => {
     const context = buildInvestigatorContext({ targetName: "Alice Example", objective: "Resolve whether Alice Example is the same person as the executive in source B.", trajectoryRecords: [{ turn: 1, action: "web_search", execution: "success", observedUrls: ["https://source-a.example/profile"], observation: "Long old observation" }], lastObservation: "Current source says the role changed.", findings: [] });
     expect(context).toContain("OBJECTIVE: Resolve whether Alice Example is the same person as the executive in source B.");
