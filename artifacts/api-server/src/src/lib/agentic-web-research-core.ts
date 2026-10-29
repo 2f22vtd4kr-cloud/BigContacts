@@ -3615,14 +3615,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         minimumRegistryEvidenceRule,
         minimumBinaryUrlRule,
       ].filter(Boolean);
-      let core = joinPromptParts(coreParts);
+      const includedOptionalCoreParts: string[] = [];
       for (const optionalPart of optionalCoreParts) {
-        const candidate = joinPromptParts([...coreParts, ...optionalCoreParts.slice(0, optionalCoreParts.indexOf(optionalPart) + 1)]);
-        if (candidate.length <= limit - dynamicReserve) {
-          coreParts.push(optionalPart);
-          core = joinPromptParts(coreParts);
-        }
+        const candidate = joinPromptParts([...coreParts, ...includedOptionalCoreParts, optionalPart]);
+        if (candidate.length <= limit - dynamicReserve) includedOptionalCoreParts.push(optionalPart);
       }
+      const core = joinPromptParts([...coreParts, ...includedOptionalCoreParts]);
       const spare = Math.max(0, limit - core.length - 2);
       // Source URL identity is in the URL inventory above. Use the remaining
       // capacity first for the associated fetched claim, then current feedback;
