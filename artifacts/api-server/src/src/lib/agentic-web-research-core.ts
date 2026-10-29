@@ -3074,7 +3074,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
       );
     }
     return preserveSourceAlongsideGuard(
-      `SCOPE GUARD BLOCKED ACTION (no request): no evidence was added. Correct active subject, geography, or source class. web discovery may search in-scope topic terms and company terms without repeating source-class wording; choose a registry adapter matching the active geography. Fetch only an observed aligned URL; do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 180) + "." : "Use the active Boss-approved objective to recover scope."}`,
+      `SCOPE GUARD BLOCKED ACTION (no request): no evidence was added. web discovery may search in-scope topic terms and company terms without repeating source-class wording. Correct active subject, geography, or source class; choose a registry adapter matching the active geography. Fetch only an observed aligned URL; do not retry unchanged without new evidence; request new scope from Boss/Right-hand. ${activePivot ? "Active Boss-approved scope: " + compactActiveBossScope(activePivot, 140) + "." : "Use the active Boss-approved objective to recover scope."}`,
     );
   }
   // Ordinary fetched-page observations can carry the exact company/person facts
@@ -3228,9 +3228,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
             ? { observation: compactEmergencyTrajectoryObservation(parsed.observation, 180) }
             : {}),
           args: parsed.args,
-          observedUrls: parsed.observedUrls,
-          observedUrlCount: parsed.observedUrlCount,
-          observedUrlsOmittedFromPromptCount: parsed.observedUrlsOmittedFromPromptCount,
           leadUrls: parsed.leadUrls,
           leadUrlCount: parsed.leadUrlCount,
           leadUrlsOmittedFromPromptCount: parsed.leadUrlsOmittedFromPromptCount,
@@ -3576,7 +3573,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         : "";
     const compactRecordSummary = minimumDurableRecordSummaries.slice(-1);
     const compactLeadGuidance = hasSearchLeadContext
-      ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; search-result URLs are leads, not evidence until fetched; the Investigator chooses the action."
+      ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads, not evidence until fetched. This is not evidence or a mandated next action."
       : "";
     const compactParts = [
       fallbackOutputContract,
@@ -3636,9 +3633,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         fallbackEvidenceContract,
         terminalEvidenceRule,
         scopeRecoveryRule,
-        compactScope
-          ? compactPromptSectionPreservingUrlTokens(compactScope, 180, "[scope detail omitted]")
-          : compactCaseObjective,
+        compactScope || compactCaseObjective,
         minimumAvailableActionsSection
           ? compactPromptSectionPreservingUrlTokens(minimumAvailableActionsSection, 360, "[action detail omitted]")
           : "",
@@ -3653,7 +3648,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         minimumTargetabilityMarker,
         minimumBinaryUrlRule,
         latestSearchMarker,
-        ...compactRecordSummary.map((summary) => compactPromptSectionPreservingUrlTokens(summary, 220, "[record detail omitted]")),
+        ...compactRecordSummary,
         compactLeadGuidance
           ? compactPromptSectionPreservingUrlTokens(compactLeadGuidance, 240, "[lead guidance omitted]")
           : "",
@@ -5197,7 +5192,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope);
     const hasFetchedSourceContext = !latestSuccessfulFetchRecord || /LAST SUCCESSFUL FETCHED SOURCE/.test(normalizedBase);
     const hasLeadFollowupContext = !(carryForwardSuccessfulSearch?.leadUrls?.length)
-      || /consider inspecting a promising in-scope lead URL next|LEAD FOLLOW-UP GUIDANCE/.test(normalizedBase);
+      || /consider inspecting a promising in-scope lead URL next/.test(normalizedBase)
+        && /not evidence or a mandated next action/.test(normalizedBase);
+    const hasHistoricalMemoryContext = !aiHistoricalMemory.trim() || normalizedBase.includes(aiHistoricalMemory.trim());
     const hasGeographicScope = requiredGeographies.every((geography) => normalizedBase.toLowerCase().includes(geography.toLowerCase()));
     const hasRecoveryContext = /LATEST OBSERVATION|LATEST TRAJECTORY RECORD|LAST SUCCESSFUL FETCHED SOURCE|EXACT DURABLE URL INVENTORY|PINNED DURABLE URL INVENTORY|SCOPE GUARD BLOCKED ACTION/.test(normalizedBase);
     // appendEmergencyObservationContext has already done the contract-aware
@@ -5212,6 +5209,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       && hasLatestQueryContext
       && hasFetchedSourceContext
       && hasLeadFollowupContext
+      && hasHistoricalMemoryContext
       && hasGeographicScope
     ) return normalizedBase;
     // The final provider-boundary pass runs a second compaction only when a
