@@ -3494,6 +3494,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       const compactRecord: Record<string, unknown> = {};
       for (const key of ["turn", "action", "execution"]) if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
       if (Object.keys(compactArgs).length) compactRecord.args = compactArgs;
+      // Carry the newest observation through this second projection as well;
+      // otherwise the prior summary retains it only to have the minimal-tail
+      // builder silently discard it before the model request is finalized.
+      if (typeof parsed.observation === "string" && parsed.observation.trim()) {
+        compactRecord.observation = compactEmergencyTrajectoryObservation(parsed.observation, 100);
+      }
       for (const key of ["leadUrlsOmittedFromPromptCount", "observedUrlsOmittedFromPromptCount", "failureDomain", "failureKind"]) {
         if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
       }
