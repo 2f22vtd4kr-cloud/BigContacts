@@ -3648,9 +3648,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       const protectedDynamicParts = [
         fetchedSourceLabel,
         compactFetchedExcerpt,
-        compactObservation,
+        // Boss-generated historical memory is already a semantic summary. Keep
+        // it ahead of generic observation narration so a tight budget does not
+        // silently suppress the only compact representation of older findings.
         aiMemorySection,
         header,
+        compactObservation,
       ].filter(Boolean);
       const selectedDynamic: string[] = [];
       let dynamicRemaining = spare;
