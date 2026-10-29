@@ -3548,7 +3548,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         : "";
     const compactRecordSummary = minimumDurableRecordSummaries.slice(-1);
     const compactLeadGuidance = hasSearchLeadContext
-      ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; search-result URLs remain leads, not evidence until fetched. The Investigator chooses the action."
+      ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; search-result URLs remain leads, not evidence until fetched. This is advisory, not evidence or a mandated next action; the Investigator chooses the action."
       : "";
     const compactParts = [
       fallbackOutputContract,
