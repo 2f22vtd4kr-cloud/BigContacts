@@ -4818,11 +4818,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const currentControlContext = (input.priorContext?.length ?? 0) <= 800
     ? (input.priorContext ?? "")
     : "Long prior control context is represented in Boss-generated memory; the current objective and active scope remain authoritative.";
+  const aiHistoricalMemorySection = aiHistoricalMemory
+    ? "AI-COMPACTED HISTORICAL RESEARCH MEMORY (Boss-generated; the durable trajectory/evidence ledger remains authoritative; omissions are not negative evidence):\n" + aiHistoricalMemory
+    : "";
   const workingContext = aiHistoricalMemory
     ? [
         "CURRENT CASE OBJECTIVE / ACTIVE BOSS SCOPE (authoritative; current, not historical):\n" + currentObjectiveContext,
         "CURRENT CONTROL / OVERSIGHT CONTEXT (fresh for this turn; never replaced by historical memory):\n" + currentControlContext,
-        "AI-COMPACTED HISTORICAL RESEARCH MEMORY (Boss-generated; the durable trajectory/evidence ledger remains authoritative; omissions are not negative evidence):\n" + aiHistoricalMemory,
         buildInvestigatorContext({
           targetName: input.targetName,
           companyName: genericDiscoveryCompanyLabel ? null : input.companyName,
@@ -4918,6 +4920,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     discoveryQualityGate,
     ...(discoveryAdmissionContract ? [discoveryAdmissionContract, ...(discoveryAdmissionExample ? [discoveryAdmissionExample] : [])] : []),
     ...(discoveryLivenessAdvisory ? ["OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available):", discoveryLivenessAdvisory, "Choose the next action from evidence and expected information gain; this suggestion does not mandate visiting, browsing, or any particular provider."] : []),
+    // Keep Boss-generated semantic memory outside the lossy auxiliary-state
+    // slice. Its length is charged to the fixed prompt budget, while canonical
+    // state/history can be compacted independently without erasing memory.
+    aiHistoricalMemorySection,
     "",
     "CANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):",
     cognitiveState,
