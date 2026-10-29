@@ -3477,7 +3477,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     const compactScope = minimumScopeContext
       ? (() => {
           const scopeText = minimumScopeContext.replace(/^ACTIVE BOSS SCOPE:\s*/i, "");
-          const boundedScope = scopeText.length <= 230 ? scopeText : scopeText.slice(0, 75) + " … " + scopeText.slice(-150);
+          // Keep the semantic scope compressor responsible for preserving all named
+          // geographies and source families; raw head/tail slicing can silently drop
+          // a country or the source class that defines the approved pivot.
+          const boundedScope = compactActiveBossScope(scopeText, 230);
           return "ACTIVE BOSS SCOPE: " + boundedScope;
         })()
       : "";
