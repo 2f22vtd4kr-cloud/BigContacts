@@ -3356,6 +3356,18 @@ describe("discovery pivot evidence provenance", () => {
 describe("AI-generated historical Investigator memory", () => {
   it("keeps active scope, current fetched evidence, and the action schema outside historical memory", () => {
     const url = "https://registry.example.test/filings/current-control";
+    const historicalRecord = {
+      turn: 1,
+      model: "test-model",
+      action: "web_search",
+      execution: "success",
+      args: { query: "historical search" },
+      observation: "OLD_HISTORY_THAT_SHOULD_NOT_BE_RECONSTRUCTED",
+      observedUrls: [],
+      leadUrls: ["https://registry.example.test/filings/old"],
+      findings: [],
+      providerFallback: [],
+    } as AgenticTrajectoryRecord;
     const latestRecord = {
       turn: 2,
       model: "test-model",
@@ -3372,7 +3384,7 @@ describe("AI-generated historical Investigator memory", () => {
       targetName: "Example Owner",
       objective: "ACTIVE_SCOPE_SENTINEL: investigate the owner of Example Components in Delaware.",
       history: [],
-      trajectoryRecords: [latestRecord],
+      trajectoryRecords: [historicalRecord, latestRecord],
       lastObservation: "The latest filing was fetched successfully.",
       findings: [],
       mode: "target",
