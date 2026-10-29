@@ -77,13 +77,13 @@ function mergeDurablyAdmittedAtlasTargetSources(
   const merged = new Map<string, { name: string; role: string | null; targetType: "person" | "organization"; sourceUrls: Set<string> }>();
   for (const group of groups) {
     for (const candidate of group) {
-      const name = candidate.name.trim().replace(/\\s+/g, " ");
+      const name = candidate.name.trim().replace(/\s+/g, " ");
       const identity = normalizeCandidateIdentityName(name);
       const targetType = candidate.targetType === "organization" ? "organization" : "person";
       if (name.length < 3 || identity.length < 3) continue;
       const validUrls = candidate.sourceUrls
         .map(normalizeSourceUrl)
-        .filter((url): url is string => Boolean(url) && isClaimGradeDiscoverySourceUrl(url as string));
+        .filter((url): url is string => url !== null && isClaimGradeDiscoverySourceUrl(url));
       if (!validUrls.length) continue;
       const key = `${targetType}:${identity}`;
       let entry = merged.get(key);
@@ -91,7 +91,7 @@ function mergeDurablyAdmittedAtlasTargetSources(
         entry = { name, role: targetType === "person" ? candidate.role : null, targetType, sourceUrls: new Set<string>() };
         merged.set(key, entry);
       } else if (targetType === "person" && !entry.role && candidate.role?.trim()) {
-        entry.role = candidate.role.trim().replace(/\\s+/g, " ");
+        entry.role = candidate.role.trim().replace(/\s+/g, " ");
       }
       for (const url of validUrls) entry.sourceUrls.add(url);
     }
