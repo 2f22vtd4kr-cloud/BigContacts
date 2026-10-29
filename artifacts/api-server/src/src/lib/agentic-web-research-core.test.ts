@@ -3209,6 +3209,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
       findings: [],
       mode: "discovery",
     });
+    expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE EXCERPT");
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
     expect(prompt).toMatch(/after (?:a )?successful visit\/browser_fetch/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
