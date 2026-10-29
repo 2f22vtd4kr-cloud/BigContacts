@@ -215,4 +215,13 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).toContain("metadata.partialOrganizationLead === true");
     expect(canonicalAtlas).toContain("inArray(entitiesTable.type, eligibleEntityTypes)");
   });
+
+  it("preserves typed target identity and evidence URLs when discovery continues", () => {
+    expect(canonicalAtlas).toContain("function mergeDurablyAdmittedAtlasTargetSources");
+    expect(canonicalAtlas).toContain('const key = `${targetType}:${identity}`;');
+    expect(canonicalAtlas).toContain("candidate.sourceUrls.map(normalizeSourceUrl)");
+    expect(canonicalAtlas).toContain("isClaimGradeDiscoverySourceUrl(url)");
+    expect(canonicalAtlas.match(/mergeDurablyAdmittedAtlasTargetSources\(\[admittedCandidateSources, admission\.candidates\]\)/g)).toHaveLength(2);
+    expect(canonicalAtlas).not.toContain("admittedCandidateSources = mergeDurablyAdmittedCandidateSources");
+  });
 });
