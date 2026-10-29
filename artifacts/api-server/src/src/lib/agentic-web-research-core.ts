@@ -3346,6 +3346,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "PARTIAL FINDINGS (not terminal-only): emit source-backed review cards on the successful action that first reveals them. A search may create a company review card only when the exact title/name is in observed result text and bound to its eligible URL; this proves no ownership, wealth, person or contact. Person review requires exact full name + page-stated role co-bound in one successful source; note LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Fetched company findings require exact name + material business/ownership/transaction fact and sourceUrls=[that fetched URL only]. Higher person admission requires fetched claim-grade name+role+ownership/control/equity/investment evidence; never infer wealth from seniority. Snippets, aggregators and unattributed contact facts are leads, not evidence or identity proof. Target-scoped research independently corroborates/falsifies claims and verifies legitimate public/professional contact routes. Never infer intimate relationships or use health/clinic records or private spa/casino customer-service data as personal contact routes; public business records remain eligible. Never assume undisclosed registry owners; never invent identities, sources or contacts; no generic placeholders."
     : "";
 
+  const conditionalCapabilitySection = isInvestigatorPrompt
+    ? base.match(/Conditional specialist OSINT actions:[\\s\\S]*?(?=\\n\\n|$)/)?.[0] ?? ""
+    : "";
   const conditionalCapabilityRule = isInvestigatorPrompt
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST; AVAILABLE ACTIONS is authoritative. " + (conditionalCapabilitySection ? compactPromptSectionPreservingUrlTokens(conditionalCapabilitySection, 90, "[specialist detail omitted]") : "")
     : "";
