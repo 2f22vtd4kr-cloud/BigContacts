@@ -3294,7 +3294,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION PRIORITY: objective/realistic targetability outrank conflicting supervisor advice; no fixed action sequence; Investigator chooses actions/tools. Specialist OSINT actions are usable ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Return exactly ONE root JSON object, no prose; inactive fields are null/[], hypothesis/purpose non-empty except done, expectedInformationGain in [0,1]. PARTIAL FINDINGS (not terminal-only): emit source-backed leads on the action that reveals them.`
+    ? `MISSION PRIORITY: objective/realistic targetability outrank conflicting supervisor advice; no fixed action sequence; Investigator chooses actions/tools. Specialist OSINT actions are usable ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn. Avoid Fortune/ranking lists and global-brand leadership without a plausible local owner/operator route hypothesis. OUTPUT CONTRACT: one JSON root object; required fields: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose; inactive fields are null/[], hypothesis/purpose non-empty except done, expectedInformationGain in [0,1]. PARTIAL FINDINGS (not terminal-only): emit source-backed leads on the action that reveals them.`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
     ? "EVIDENCE: snippets/URLs are leads, not proof; failed/blocked fetches are unobserved. Emit source-backed company/person review leads immediately. PERSON REVIEW: exact name+stated role may create LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Fetched company claims require exact name+material business fact and sourceUrls=[that fetched URL only]. Do not assume records expose owners, shareholders, members, or managers without observed documentation. Official staff/filing pages must bind exact name/role; people-search aggregators are leads only. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Do not infer intimate relationships or use medical/clinic/spa/casino or private personal-number data as outreach routes. RUNTIME REGISTRY IDS ONLY: never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. BINARY URL POLICY: visit supports bounded text extraction for text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); failed extraction is unobserved."
@@ -3406,13 +3406,53 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const joinPromptParts = (parts: string[]) => parts.filter(Boolean).join("\n\n");
   let mandatoryMinimumTail = joinPromptParts(mandatoryMinimumParts);
   if (mandatoryMinimumTail.length > limit) {
-    // Drop only redundant record/marker copies before failing. The compact
-    // observation tail already carries the latest correction/guard explanation;
-    // the single latest record summary carries durable action metadata.
-    // Keep the newest durable record (including its exact turn marker and URL-omission
-    // counters); discard the redundant marker-only copy first to reduce framing overhead.
-    const compactMandatoryParts = mandatoryMinimumParts.filter((part) => part !== markerSuffix);
+    // Emergency recovery removes duplicate narration and advisory guidance before
+    // dropping any source-backed lead. The compact fallback retains the JSON schema,
+    // evidence/admission tiers, callable actions, terminal gate, active scope, exact
+    // URL inventory, and the latest fetched-source excerpt.
+    const compactMandatoryParts = [
+      fallbackOutputContract,
+      fallbackEvidenceContract,
+      conditionalCapabilityRule,
+      minimumProviderRule,
+      terminalEvidenceRule,
+      scopeRecoveryRule,
+      urlInventory,
+      minimumObservationTail,
+      minimumScopeContext,
+      minimumAvailableActionsSection,
+      fetchedSourceLabel,
+      minimumFetchedSourceExcerpt,
+      header,
+      ...minimumDurableRecordSummaries.slice(-1),
+    ].filter(Boolean);
     mandatoryMinimumTail = joinPromptParts(compactMandatoryParts);
+    if (mandatoryMinimumTail.length > limit) {
+      const compactEvidence = boundInvestigatorPromptSection(fallbackEvidenceContract, 1_300);
+      const compactObservation = minimumObservationTail
+        ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 320)
+        : "";
+      const compactFetched = fetchedSourceExcerpt
+        ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 320)
+        : "";
+      const compactTailParts = [
+        fallbackOutputContract,
+        compactEvidence,
+        conditionalCapabilityRule,
+        minimumProviderRule,
+        terminalEvidenceRule,
+        scopeRecoveryRule,
+        urlInventory,
+        compactObservation,
+        minimumScopeContext,
+        minimumAvailableActionsSection,
+        fetchedSourceLabel,
+        compactFetched,
+        header,
+        ...minimumDurableRecordSummaries.slice(-1),
+      ].filter(Boolean);
+      mandatoryMinimumTail = joinPromptParts(compactTailParts);
+    }
     if (mandatoryMinimumTail.length > limit) {
       throw new RangeError(
         `Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=${limit}; mandatory schema, URLs, scope and latest evidence cannot fit without truncation.`,
