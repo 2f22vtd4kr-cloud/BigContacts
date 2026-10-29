@@ -1436,12 +1436,13 @@ async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa
 const SEARCH_RESULT_BUSINESS_MARKER = /\b(?:casino|hotel|resort|bank|holdings?|group|capital|industr(?:y|ies)|manufacturing|motors|energy|airlines?|airways|properties|estates|construction|technolog(?:y|ies)|foods?|gaming|entertainment|marina|yachts?|investments?|partners|ventures|corporation|corp\.?|company|co\.?|incorporated|inc\.?|limited|ltd\.?|llc|gmbh|s\.?r\.?o\.?|d\.?o\.?o\.?|d\.?d\.?|plc|s\.?a\.?|b\.?v\.?|a\/s|ag|oy|ou|uab|ab|srl)\b/i;
 const SEARCH_RESULT_HEADLINE_MARKER = /\b(?:announces?|according to|breaking|earnings|explained|guide|how to|latest news|market outlook|press release|ranking|report|review|share price|top \d+|what is|when|where|who|why)\b|^(?:the\s+)?(?:best|top|leading|largest)\s+(?:casinos?|hotels?|resorts?|banks?|restaurants?|businesses|companies|operators|properties|marinas|yachts?)\b|^(?:list of|directory of|companies in|businesses in|hotels in|casinos in|resorts in|banks in|restaurants in|members directory)\b/i;
 
-function isGenericDiscoveryMetadataTitle(title: string): boolean {
+export function isGenericDiscoveryMetadataTitle(title: string): boolean {
   const normalized = title.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
-  // Reject obvious labels/placeholders that can appear in generated discovery
-  // metadata. This is a narrow identity guard, not a target list or search plan.
-  return /^(?:case|example|sample|test|demo|placeholder|unknown|unnamed|generic|company|business|organization|organisation)(?: (?:co|company|corp|corporation|inc|incorporated|limited|ltd|llc|group|holdings?))?$/.test(normalized)
-    || /^(?:company|business|organization|organisation) (?:name|target|lead|entity)$/.test(normalized);
+  // Search-result titles often append a page descriptor to a placeholder. Strip
+  // only common page labels before applying the narrow generic-name guard.
+  const identityTitle = normalized.replace(/\s+(?:officers?|directors?|leadership|management|company profile|business profile|contact(?: details)?|overview|company information|business information)$/, "").trim();
+  return /^(?:case|example|sample|test|demo|placeholder|unknown|unnamed|generic|company|business|organization|organisation)(?: (?:co|company|corp|corporation|inc|incorporated|limited|ltd|llc|group|holdings?))?$/.test(identityTitle)
+    || /^(?:company|business|organization|organisation) (?:name|target|lead|entity)$/.test(identityTitle);
 }
 
 /**
@@ -1460,7 +1461,10 @@ export function extractSearchResultCompanyLeadFindings(resultText: string, resul
     const rawTitle = (match[1] ?? "").trim();
     const url = normalizedUrl((match[2] ?? "").trim());
     if (!url || !allowedUrls.has(url)) continue;
-    const title = rawTitle.replace(/\s*[|–—-]\s*(?:official website|official site|homepage|home)\s*$/i, "").trim();
+    const title = rawTitle
+      .replace(/\s*[|–—-]\s*(?:official website|official site|homepage|home|officers?|directors?|leadership|management|company profile|business profile|contact(?: details)?|overview|company information|business information)\s*$/i, "")
+      .replace(/\s+(?:officers?|directors?|leadership|management|company profile|business profile|contact(?: details)?|overview|company information|business information)\s*$/i, "")
+      .trim();
     if (title.length < 3 || title.length > 180 || !/[a-z0-9]/i.test(title)) continue;
     if (isGenericDiscoveryMetadataTitle(title)) continue;
     if (!SEARCH_RESULT_BUSINESS_MARKER.test(title) || SEARCH_RESULT_HEADLINE_MARKER.test(title)) continue;

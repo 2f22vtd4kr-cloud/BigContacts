@@ -113,6 +113,8 @@ describe("terminal review-card reconciliation", () => {
 
   it("persists only exact organization findings from successful search observations as review leads", () => {
     expect(reconciler).toContain('finding.scope !== "organization"');
+    expect(reconciler).toContain("isGenericDiscoveryMetadataTitle(name)");
+    expect(canonical).toContain("isGenericDiscoveryMetadataTitle(name)");
     expect(reconciler).toContain('payload.execution === "success"');
     expect(reconciler).toContain("bindExactSourceSpan(observation.text, lead.name)");
     expect(reconciler).toContain('const verificationLevel = hasFetched ? "fetched_source" : "search_result_lead"');
