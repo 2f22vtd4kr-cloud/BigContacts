@@ -47,7 +47,8 @@ describe("Apex Atlas prompt budget optimization", () => {
   it("enforces the message envelope again at the provider request-body boundary", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",
-      prompt: "OVERSIZED DYNAMIC STATE ".repeat(2_000),
+      prompt: "OVERSIZED DYNAMIC STATE ".repeat(2_000)
+        + "\n\nOUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
       cognitiveTask: "identity_resolution",
     });
     const messages = body.messages as Array<{ role: string; content: string }>;

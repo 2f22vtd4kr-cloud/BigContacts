@@ -1,5 +1,32 @@
 import { describe, expect, it } from "vitest";
+import { extractAiContextUrls, splitAiContextIntoChunks } from "../lib/ai-investigation-context-compaction";
 import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
+
+describe("AI-driven investigation memory compaction transport", () => {
+  it("splits only for transport and retains every source character and repeated URL", () => {
+    const url = "https://registry.example.test/filings/ownership-record-123";
+    const source = (
+      "EARLY FACT: The filing names Alice Example as a director. " +
+      "Historical evidence and unresolved question. ".repeat(8) +
+      "FIRST SOURCE: " + url + ". The filing is a lead until fetched.\n" +
+      "MIDDLE CONTEXT: " + "boilerplate that must be summarized by the model, not dropped by chunking. ".repeat(3) +
+      "\nSECOND SOURCE REFERENCE: " + url + ". Re-check only if new evidence justifies it."
+    );
+    const chunks = splitAiContextIntoChunks(source, 180);
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.join("")).toBe(source);
+    expect(chunks.reduce((count, chunk) => count + chunk.split(url).length - 1, 0)).toBe(2);
+    expect(extractAiContextUrls(source)).toEqual([url]);
+  });
+
+  it("keeps oversized URL tokens atomic even if the soft chunk budget must be exceeded", () => {
+    const url = "https://registry.example.test/" + "x".repeat(230);
+    const source = "A".repeat(90) + " " + url + " " + "B".repeat(90);
+    const chunks = splitAiContextIntoChunks(source, 160);
+    expect(chunks.join("")).toBe(source);
+    expect(chunks.reduce((count, chunk) => count + chunk.split(url).length - 1, 0)).toBe(1);
+  });
+});
 
 describe("investigator context compaction", () => {
   it("bounds working context while retaining old source URLs in the archive index", () => {
@@ -171,6 +198,22 @@ describe("investigator context compaction", () => {
     ], lastObservation: "latest", findings: [] });
     expect(context).toContain("https://example.com/a#fragment");
     expect(context).toContain("https://example.com/b");
+  });
+
+  it("reallocates space lost to a leading long URL so the fetched-page tail claim survives", () => {
+    const longUrl = "https://registry.example.test/filings/" + "a".repeat(95);
+    const source = [
+      "PDF PAGE " + longUrl,
+      "Issuer boilerplate and repeated document headings. ".repeat(70),
+      "FACT_AT_END_SENTINEL: The filing states that the company acquired a majority stake in Example Components Private Limited.",
+    ].join(" ");
+    const compacted = compactPromptSectionPreservingUrlTokens(source, 300);
+
+    expect(compacted.length).toBeLessThanOrEqual(300);
+    expect(compacted).toContain("URL tokens intersecting excerpt edges are omitted whole");
+    expect(compacted).not.toContain(longUrl.slice(0, 80));
+    expect(compacted).toContain("FACT_AT_END_SENTINEL");
+    expect(compacted).toContain("acquired a majority stake");
   });
 
   it("omits whole URL tokens when emergency head-tail compaction would split one", () => {

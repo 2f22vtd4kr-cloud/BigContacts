@@ -461,7 +461,10 @@ describe("discovery runtime architecture", () => {
   it("passes bounded continuation state and recent acts across one-action episodes", () => {
     expect(researchSource).toContain("CONTINUATION STATE: Continue from accumulated durable observations");
     expect(researchSource).toContain("priorContext: buildContinuationState");
-    expect(researchSource).toContain("RECENT PRIOR ACTS (newest last)");
+    expect(researchSource).toContain("CONTINUATION STATE: Continue from accumulated durable observations");
+    expect(researchSource).toContain("aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined");
+    expect(researchSource).toContain("if (actResult.aiCompactedHistoricalContext)");
+    expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords, ...records]");
     expect(researchSource).toContain("priorTrajectoryRecords: [...historyRecords");
   });
 

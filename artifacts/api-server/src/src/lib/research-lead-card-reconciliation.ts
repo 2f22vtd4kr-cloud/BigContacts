@@ -1,6 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchSessionsTable, researchEvidenceTable } from "@workspace/db";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { isGenericDiscoveryMetadataTitle } from "./agentic-web-research-core";
 import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { sanitizeUrlForEvidence } from "./url-privacy";
@@ -74,6 +75,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           const finding = raw as Record<string, unknown>;
           if (finding.scope !== "organization" || finding.vectorType !== "other" || finding.promotionDecision === "reject" || finding.personName || finding.role || typeof finding.value !== "string") continue;
           const name = finding.value.trim().replace(/\s+/g, " ");
+          if (isGenericDiscoveryMetadataTitle(name)) continue;
           const identity = normalizeCandidateIdentityName(name);
           if (name.length < 3 || identity.length < 3) continue;
           const entry = findings.get(identity) ?? { name, urls: new Set<string>(), notes: new Set<string>() };
