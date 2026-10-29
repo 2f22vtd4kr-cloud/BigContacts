@@ -3310,7 +3310,7 @@ describe("small emergency observation budgets", () => {
     expect(agenticCoreSource).toContain("const emergencyObservation = buildEmergencyPriorTrajectoryObservation(");
     expect(agenticCoreSource).toContain("pinnedInventoryCandidate,");
     expect(agenticCoreSource).toContain("...(latestFetchedSourceSummary ? [latestFetchedSourceSummary] : []),");
-    expect(agenticCoreSource).toContain("suppliedObservation.slice(0, 60),");
+    expect(agenticCoreSource).toContain("compactEmergencyTrajectoryObservation(suppliedObservation, 420),");
     expect(agenticCoreSource).toContain("emergencyTrajectoryRecordSummary,");
     expect(agenticCoreSource).toContain(
       "appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars)",
