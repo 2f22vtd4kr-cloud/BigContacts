@@ -137,10 +137,24 @@ export function compactPromptSectionPreservingUrlTokens(
     : marker.replace("URL tokens intersecting excerpt edges are omitted whole; ", "");
   const revisedAvailable = limit - effectiveMarker.length - 2;
   if (headEnd + source.length - tailStart > revisedAvailable) {
-    const safeHead = Math.min(headEnd, Math.ceil(revisedAvailable * 0.55));
-    const safeTailStart = Math.max(tailStart, source.length - (revisedAvailable - safeHead));
+    // Rebalance from the *adjusted* head boundary. Keeping the old tailStart as
+    // a lower bound silently discards tail facts when a leading URL forces the
+    // head to move left (notably the final ownership claim in a fetched filing).
+    let safeHead = Math.min(headEnd, Math.ceil(revisedAvailable * 0.55));
+    for (const span of spans) {
+      if (span.start < safeHead && span.end > safeHead) {
+        safeHead = span.start;
+      }
+    }
+    let safeTailStart = Math.max(safeHead, source.length - (revisedAvailable - safeHead));
+    for (const span of spans) {
+      if (span.start < safeTailStart && span.end > safeTailStart) {
+        // Omit a complete URL rather than revealing a misleading partial token.
+        safeTailStart = span.end;
+      }
+    }
     headEnd = safeHead;
-    tailStart = safeTailStart;
+    tailStart = Math.max(headEnd, safeTailStart);
   } else {
     // If the head was shortened to avoid slicing through a long URL, reallocate
     // the unused characters to the tail. Otherwise the prompt can spend most of
