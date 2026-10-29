@@ -2999,7 +2999,11 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
       limit,
       "[Middle of emergency context omitted; complete durable source observation remains stored.]",
     )
-    : summary;
+    : compactPromptSectionPreservingUrlTokens(
+      summary,
+      limit,
+      "[Guard detail omitted; no outbound request or new evidence was produced.]",
+    );
   if (/SCOPE FILTERED PARALLEL SEARCHES:/i.test(normalized)) {
     const rejectedDimensions = normalized.match(/Rejected dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
     return preserveSourceAlongsideGuard(
@@ -3016,17 +3020,17 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
   if (/pivot_alignment_guard/i.test(normalized)) {
     const mismatch = normalized.match(/Scope mismatch dimensions:\s*([^\n.]+)/i)?.[1]?.trim();
     const activePivot = normalized.match(/active Boss-accepted pivot is:\s*((?:(?:e\.g\.|i\.e\.)|[^.\n])*)/i)?.[1]?.trim();
-    const activeScope = activePivot ? ` Active Boss-approved scope: ${activePivot.slice(0, 260)}.` : "";
+    const activeScope = activePivot ? ` Active Boss-approved scope: ${compactActiveBossScope(activePivot, 260)}.` : "";
     if (mismatch) {
       const geographyGuidance = /\bquery geography\b/i.test(mismatch)
         ? " The query field itself must include the geographic term from that scope; market/locale metadata or registry-domain text alone do not satisfy this check."
         : "";
       return preserveSourceAlongsideGuard(
-        `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}.${activeScope}${geographyGuidance} Revise the failed dimensions; fetch only an observed aligned URL; do not repeat unchanged without new evidence or ask Boss/Right-hand to revise scope.`,
+        `SCOPE GUARD BLOCKED ACTION (no request): failed scope dimension(s): ${mismatch}.${geographyGuidance} Revise the failed dimensions; fetch only an observed aligned URL; do not repeat unchanged without new evidence or ask Boss/Right-hand to revise scope.${activeScope}`,
       );
     }
     return preserveSourceAlongsideGuard(
-      `SCOPE GUARD BLOCKED ACTION (no request): revise the failed scope dimensions.${activeScope} web discovery may search in-scope topic terms and company terms without repeating source-class wording; the query/source class must fit the active scope; choose a registry adapter matching the active geography when using registry_search; fetch only an observed aligned URL and do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.`,
+      `SCOPE GUARD BLOCKED ACTION (no request): revise the failed scope dimensions. web discovery may search in-scope topic terms and company terms without repeating source-class wording; the query/source class must fit the active scope; choose a registry adapter matching the active geography when using registry_search; fetch only an observed aligned URL and do not retry unchanged without new evidence; request new scope from Boss/Right-hand when needed.${activeScope}`,
     );
   }
   // Ordinary fetched-page observations can carry the exact company/person facts
