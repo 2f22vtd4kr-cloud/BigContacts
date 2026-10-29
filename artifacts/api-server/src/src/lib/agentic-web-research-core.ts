@@ -3313,14 +3313,14 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|unvisited lead|search results returned a potentially useful/i.test(observation)
     || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|LEAD_URLS \(search results only; not evidence until fetched\)|"leadUrls"\s*:\s*\[\s*"https?:\/\//i.test(observation);
   const leadGuidance = hasSearchLeadContext ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
-  const protectedObservationSuffix = [...protectedRules, leadGuidance, urlInventory, markerSuffix, carriedFetchedSourceSummary, fetchedSourceExcerptLabel, fetchedSourceExcerpt].filter(Boolean).join("\n\n");
+  const protectedObservationSuffix = [...protectedRules, leadGuidance, urlInventory, aiMemorySection, markerSuffix, carriedFetchedSourceSummary, fetchedSourceExcerptLabel, fetchedSourceExcerpt].filter(Boolean).join("\n\n");
   // Never reduce a current correction/source excerpt below a useful minimum
   // merely because static policy text is repeated in the suffix; if this exceeds
   // the combined budget, the fallback compacts the base contract instead.
   const contentBudget = Math.max(240, observationBudget - protectedObservationSuffix.length - 2);
   const compacted = compactEmergencyTrajectoryObservation(observation, contentBudget);
   const missingMarkers = markers.filter((marker) => !compacted.includes(marker));
-  const compactedWithMarkers = [compacted, ...protectedRules, leadGuidance, urlInventory, carriedFetchedSourceSummary, fetchedSourceExcerptLabel, fetchedSourceExcerpt, ...durableRecordSummaries, ...missingMarkers].filter(Boolean).join("\n\n");
+  const compactedWithMarkers = [compacted, ...protectedRules, leadGuidance, urlInventory, aiMemorySection, carriedFetchedSourceSummary, fetchedSourceExcerptLabel, fetchedSourceExcerpt, ...durableRecordSummaries, ...missingMarkers].filter(Boolean).join("\n\n");
   const combined = base + "\n\n" + header + compactedWithMarkers;
   if (observationBudget >= 40 && combined.length <= limit) return combined;
   // Preserve mandatory semantic contracts and exact durable lead URLs if the
@@ -3371,6 +3371,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only].",
     "After a successful web/parallel/registry search, exact organization name in observed result text plus its eligible HTTPS URL permits only a low-confidence review-only company finding; snippets are leads, not evidence.",
     "Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence.",
+    "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets in person-centric wealth discovery; company-target objectives may select organizations directly. Do not infer personal wealth from company prestige.",
   ];
   const discoveryFallbackRules = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
     ? [
