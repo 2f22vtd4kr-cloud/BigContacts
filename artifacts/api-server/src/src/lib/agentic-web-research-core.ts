@@ -5770,7 +5770,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         ].filter(Boolean).join("\n\n"),
         emergencyTrajectoryRecordSummary,
       );
-      return appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars, input.mode, extractBossPivotDirectionForCompactPrompt(input.objective), registryIdList, aiHistoricalMemory);
+      return finalizeEmergencyPrompt(appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars, input.mode, extractBossPivotDirectionForCompactPrompt(input.objective), registryIdList, aiHistoricalMemory));
     }
     const boundedState = boundedAuxiliaryState(dynamicState, compactBudget);
     // This is still an emergency-compacted prompt: route it through the final
