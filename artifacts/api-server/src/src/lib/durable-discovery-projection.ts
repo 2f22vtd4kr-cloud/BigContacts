@@ -312,6 +312,197 @@ export function mergeSourceCardTrajectoryRecords<T extends Record<string, unknow
 }
 
 
+export type DurableDiscoveryTrajectoryEventRow = {
+  id: number | string;
+  iteration?: number | string | null;
+  actorRole?: string | null;
+  eventType?: string | null;
+  status?: string | null;
+  payload: string | null;
+};
+
+const DURABLE_TRAJECTORY_EVENT_TYPES = new Set(["tool_observation", "decision", "provider_error"]);
+const DURABLE_TRAJECTORY_EXECUTIONS = new Set(["selected", "success", "partial", "http_error", "blocked", "timeout", "error", "cancelled"]);
+const DURABLE_FINDING_VECTOR_TYPES = new Set(["email", "phone", "linkedin", "website", "other", "social"]);
+const DURABLE_FINDING_SCOPES = new Set(["organization", "candidate", "unknown"]);
+
+function recordObject(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function durableFindingList(value: unknown): AgenticFinding[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): AgenticFinding[] => {
+    const finding = recordObject(item);
+    if (!finding
+      || typeof finding.value !== "string"
+      || typeof finding.vectorType !== "string"
+      || !DURABLE_FINDING_VECTOR_TYPES.has(finding.vectorType)
+      || typeof finding.scope !== "string"
+      || !DURABLE_FINDING_SCOPES.has(finding.scope)
+      || typeof finding.note !== "string"
+      || !(finding.personName === null || typeof finding.personName === "string")
+      || !(finding.role === null || typeof finding.role === "string")
+      || !Array.isArray(finding.sourceUrls)
+      || !finding.sourceUrls.every((url) => typeof url === "string")) {
+      return [];
+    }
+    const result: AgenticFinding = {
+      vectorType: finding.vectorType as AgenticFinding["vectorType"],
+      value: finding.value,
+      personName: finding.personName,
+      role: finding.role,
+      scope: finding.scope as AgenticFinding["scope"],
+      sourceUrls: finding.sourceUrls as string[],
+      note: finding.note,
+      ...(finding.promotionDecision === "promote" || finding.promotionDecision === "reject"
+        ? { promotionDecision: finding.promotionDecision }
+        : {}),
+      ...(typeof finding.promotionReason === "string" ? { promotionReason: finding.promotionReason } : {}),
+    };
+    return [result];
+  });
+}
+
+type ParsedDurableTrajectoryRecord = {
+  runId: string | null;
+  originalTurn: number;
+  record: AgenticTrajectoryRecord;
+};
+
+/**
+ * Rehydrates source observation, action, and terminal-decision records from the
+ * append-only case ledger. Case-file trajectory projections intentionally keep
+ * only a bounded recent window, so continuation must use the event ledger when
+ * a complete historical trajectory is needed for AI memory compaction.
+ *
+ * Event IDs establish append order. Legacy continuations may have restarted the
+ * local Investigator turn counter; normalize those turns monotonically while
+ * retaining a per-run map so existing same-run source bindings remain valid.
+ */
+export function rehydrateDurableDiscoveryTrajectoryRecords(
+  rows: readonly DurableDiscoveryTrajectoryEventRow[],
+): AgenticTrajectoryRecord[] {
+  const orderedRows = [...rows].sort((left, right) => {
+    const idDifference = Number(left.id) - Number(right.id);
+    if (Number.isFinite(idDifference) && idDifference !== 0) return idDifference;
+    return (Number(left.iteration) || 0) - (Number(right.iteration) || 0);
+  });
+  const parsed: ParsedDurableTrajectoryRecord[] = [];
+  let lastTurn = 0;
+
+  for (const row of orderedRows) {
+    if (row.actorRole !== "head_investigator" || typeof row.eventType !== "string"
+      || !DURABLE_TRAJECTORY_EVENT_TYPES.has(row.eventType)
+      || typeof row.payload !== "string" || !row.payload.trim()) {
+      continue;
+    }
+
+    let payload: Record<string, unknown> | null = null;
+    try {
+      payload = recordObject(JSON.parse(row.payload));
+    } catch {
+      payload = null;
+    }
+    if (!payload || typeof payload.action !== "string" || !payload.action.trim()) continue;
+    const execution = typeof payload.execution === "string" && DURABLE_TRAJECTORY_EXECUTIONS.has(payload.execution)
+      ? payload.execution
+      : typeof row.status === "string" && DURABLE_TRAJECTORY_EXECUTIONS.has(row.status)
+        ? row.status
+        : null;
+    if (!execution) continue;
+
+    const rawTurn = Number(payload.turn);
+    const originalTurn = Number.isFinite(rawTurn) && rawTurn > 0 ? Math.floor(rawTurn) : lastTurn + 1;
+    const turn = Math.max(lastTurn + 1, originalTurn);
+    lastTurn = turn;
+    const args = recordObject(payload.args) ?? {};
+    const rawBindings = Array.isArray(payload.sourceBindings) ? payload.sourceBindings : [];
+    const sourceBindings = rawBindings.flatMap((raw): NonNullable<AgenticTrajectoryRecord["sourceBindings"]> => {
+      const binding = recordObject(raw);
+      if (!binding
+        || typeof binding.findingValue !== "string"
+        || typeof binding.sourceUrl !== "string"
+        || !Number.isFinite(Number(binding.sourceTurn))
+        || !Number.isFinite(Number(binding.spanStart))
+        || !Number.isFinite(Number(binding.spanEnd))
+        || !(binding.pageNumber === null || Number.isFinite(Number(binding.pageNumber)))) {
+        return [];
+      }
+      return [{
+        findingValue: binding.findingValue,
+        sourceUrl: binding.sourceUrl,
+        sourceTurn: Math.floor(Number(binding.sourceTurn)),
+        spanStart: Math.floor(Number(binding.spanStart)),
+        spanEnd: Math.floor(Number(binding.spanEnd)),
+        pageNumber: binding.pageNumber === null ? null : Math.floor(Number(binding.pageNumber)),
+      }];
+    });
+    const eventId = Number(row.id);
+    parsed.push({
+      runId: typeof payload.runId === "string" && payload.runId ? payload.runId : null,
+      originalTurn,
+      record: {
+        turn,
+        model: typeof payload.runModel === "string" && payload.runModel
+          ? payload.runModel
+          : typeof payload.model === "string" && payload.model ? payload.model : "unknown",
+        action: payload.action,
+        args,
+        ...(typeof payload.thought === "string" ? { thought: payload.thought } : {}),
+        ...(typeof payload.pivotScopeKey === "string" && payload.pivotScopeKey ? { pivotScopeKey: payload.pivotScopeKey } : {}),
+        leadUrls: stringList(payload.leadUrls),
+        execution: execution as AgenticTrajectoryRecord["execution"],
+        ...(typeof payload.observation === "string" ? { observation: payload.observation } : {}),
+        observedUrls: stringList(payload.observedUrls),
+        findings: durableFindingList(payload.findings),
+        providerFallback: stringList(payload.providerFallback),
+        ...(typeof payload.stopReason === "string" && payload.stopReason
+          ? { stopReason: payload.stopReason as AgenticTrajectoryRecord["stopReason"] }
+          : {}),
+        ...(Number.isFinite(eventId) && eventId > 0 ? { durableEventId: Math.floor(eventId) } : {}),
+        ...(typeof payload.failureDomain === "string" && payload.failureDomain
+          ? { failureDomain: payload.failureDomain as AgenticTrajectoryRecord["failureDomain"] }
+          : {}),
+        ...(typeof payload.failureKind === "string" && payload.failureKind
+          ? { failureKind: payload.failureKind as AgenticTrajectoryRecord["failureKind"] }
+          : {}),
+        ...(sourceBindings.length ? { sourceBindings } : {}),
+      },
+    });
+  }
+
+  const turnByRun = new Map<string, Map<number, number>>();
+  for (const item of parsed) {
+    if (!item.runId) continue;
+    const byOriginalTurn = turnByRun.get(item.runId) ?? new Map<number, number>();
+    byOriginalTurn.set(item.originalTurn, item.record.turn);
+    turnByRun.set(item.runId, byOriginalTurn);
+  }
+
+  return parsed.map((item) => {
+    if (!item.record.sourceBindings?.length || !item.runId) return item.record;
+    const sameRunTurns = turnByRun.get(item.runId);
+    if (!sameRunTurns) return item.record;
+    return {
+      ...item.record,
+      sourceBindings: item.record.sourceBindings.map((binding) => ({
+        ...binding,
+        // Old same-run bindings use the old run-local number. Cross-run bindings
+        // from fixed code already point to a normalized historical turn and do
+        // not match the current run's local turn map, so they remain unchanged.
+        sourceTurn: sameRunTurns.get(binding.sourceTurn) ?? binding.sourceTurn,
+      })),
+    };
+  });
+}
+
 export type DurableUrlInventory = {
   text: string;
   urls: string[];
