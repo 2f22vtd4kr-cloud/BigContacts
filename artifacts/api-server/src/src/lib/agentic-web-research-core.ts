@@ -2846,7 +2846,7 @@ function compactActiveBossScope(direction: string, maxChars: number): string {
   const geographyGroup = primaryScopeClause.match(/\b(?:geographies|countries|jurisdictions|regions|states|provinces)\s*\((?:e\.g\.?\,?\s*)?([^)]{1,180})\)/i);
   const geography = geographyGroup?.[1]?.trim()
     || pivotScopeGeographyOptions(primaryScopeClause).map((option) => option.join(" ")).join(", ");
-  const sourceGroup = raw.match(/\bsource classes?\s*\(([^)]{1,180})\)/i);
+  const sourceGroup = raw.match(/\bsource classes?\s*\(([^)]{1,1000})\)/i);
   const sourceNoun = String.raw`(?:filings?|registr(?:y|ies)|registers?|databases?|directories|associations?|chambers?|lists?|announcements?|releases?)`;
   const sourceModifier = String.raw`(?:transaction|regulatory|ownership|local|public(?:ly)?(?: listed)?|official|state|corporate|business|company|trade)`;
   const sourcePattern = new RegExp(
