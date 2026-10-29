@@ -5494,8 +5494,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const inventoryAndContractReserve = absoluteMinimumOutputContract.length + pinnedLeadFollowUp.length + pinnedSuffix.length + 4;
       // The active Boss-approved objective/geography is a protected component. Do
       // not let middle compaction erase explicit countries or source alternatives.
+      // The runtime action allowlist is a control-plane contract, not expendable
+      // narration. Keep it as a separate atomic section so head/tail compaction can
+      // never turn a valid action into a truncated token or hide available tools.
+      const absoluteMinimumAvailableActions = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
       const compactCoreWithoutProtectedScope = compactBaseCoreParts
-        .filter((part) => part !== absoluteMinimumObjective && part !== finalEmergencyAssignment)
+        .filter((part) => part !== absoluteMinimumObjective
+          && part !== finalEmergencyAssignment
+          && part !== absoluteMinimumAvailableActions)
         .join("\n\n");
       const compactCoreBudget = Math.max(
         0,
@@ -5504,6 +5510,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactBaseWithPinnedInventory = [
         finalEmergencyAssignment,
         absoluteMinimumObjective,
+        absoluteMinimumAvailableActions,
         boundInvestigatorPromptSection(compactCoreWithoutProtectedScope, compactCoreBudget),
         pinnedLeadFollowUp,
         absoluteMinimumOutputContract,
