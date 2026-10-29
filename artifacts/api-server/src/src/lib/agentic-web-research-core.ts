@@ -3382,6 +3382,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         const fallbackEvidenceContract = isInvestigatorPrompt
     ? (isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: " : "")
       + "PARTIAL FINDINGS: emit source-backed review cards on the first successful action. Company: exact business-like name/title + eligible URL => low-confidence review-only; no ownership/wealth/person/contact claim. Search-only note says search_result_lead, snippet-only/page not fetched, and unverified; promotion is review queue only. Person: exact full name + page-stated role co-bound in one successful source => LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact claim. Higher admission requires one fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Snippets, aggregators and unattributed contacts are leads, not identity evidence; failed/blocked fetches are unobserved. Fetched company finding needs exact organization name + material fact in fetched text and sourceUrls=[that fetched URL only]. Target research independently corroborates/falsifies and verifies public/professional routes before any HNWI/contact conclusion. Never infer intimate relationships or use private health/customer-service records as personal contact routes."
+    : "";
 
   const conditionalCapabilitySection = isInvestigatorPrompt
     ? base.match(/Conditional specialist OSINT actions:[\s\S]*?(?=\n\n|$)/)?.[0] ?? ""
