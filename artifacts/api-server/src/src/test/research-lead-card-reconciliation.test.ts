@@ -46,7 +46,7 @@ describe("terminal review-card reconciliation", () => {
     expect(organizationMaterializer).toContain("Registry adapters may return typed Corporation leads even when the model");
     expect(organizationMaterializer).toContain("payload.args?.registrySearchOutcomes");
     expect(organizationMaterializer).toContain("companyLeads");
-    expect(organizationMaterializer).toContain("if (!leadNames.length) return { materialized: 0, evidenceRows: 0 };");
+    expect(organizationMaterializer).toContain("if (!leadNames.length) return { materialized: 0, evidenceRows: 0, candidates: [] };");
     expect(organizationMaterializer).toContain("...observations\n        .filter((observation) => bindExactSourceSpan(observation.observation, name)?.exact)");
     expect(canonical).toContain("if (!runId) continue;");
     expect(canonical).not.toContain("if (!runId || findings.length === 0) continue;");
@@ -219,7 +219,7 @@ describe("canonical Atlas organization target selection", () => {
   it("preserves typed target identity and evidence URLs when discovery continues", () => {
     expect(canonicalAtlas).toContain("function mergeDurablyAdmittedAtlasTargetSources");
     expect(canonicalAtlas).toContain('const key = `${targetType}:${identity}`;');
-    expect(canonicalAtlas).toContain("candidate.sourceUrls.map(normalizeSourceUrl)");
+    expect(canonicalAtlas).toMatch(/candidate\.sourceUrls\s*\.map\(normalizeSourceUrl\)/);
     expect(canonicalAtlas).toContain("isClaimGradeDiscoverySourceUrl(url)");
     expect(canonicalAtlas.match(/mergeDurablyAdmittedAtlasTargetSources\(\[admittedCandidateSources, admission\.candidates\]\)/g)).toHaveLength(2);
     expect(canonicalAtlas).not.toContain("admittedCandidateSources = mergeDurablyAdmittedCandidateSources");
