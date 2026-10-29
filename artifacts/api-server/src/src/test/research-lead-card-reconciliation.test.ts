@@ -78,7 +78,7 @@ describe("terminal review-card reconciliation", () => {
     expect(agenticCore).toContain('actual returned result text contains an exact organization name');
     expect(agenticCore).toContain("promotionDecision=promote means admit only to the review-only company-card queue");
     expect(agenticCore).toContain('Search snippets are leads, not claim-grade evidence');
-    expect(agenticCore).toContain('SOURCE CHOICE: no registry-first sequence; choose by expected information gain and jurisdiction. For unanchored local/sector discovery, ordinary web search is often the better first move. Companies House is UK-only');
+    expect(agenticCore).toContain("MIXED DISCOVERY: compare model-selected local/sector web hypotheses with relevant official business, ownership, transaction and public-asset sources; choose by information gain, never a fixed order, and do not repeat one registry after no new hit.");
     expect(agenticCore).toContain("SOURCE-NEUTRAL RESEARCH: compare plausible hypotheses and choose complementary source classes");
     expect(agenticCore).toContain("never default to Companies House or query registries merely because they are available");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
