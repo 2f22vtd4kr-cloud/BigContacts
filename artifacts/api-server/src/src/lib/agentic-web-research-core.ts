@@ -3470,15 +3470,16 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     }
   }
   const minimumBaseBudget = Math.max(0, limit - minimumTail.length - 2);
-  const minimumBase = boundInvestigatorPromptSection(contractText, minimumBaseBudget);
+  const minimumBase = minimumBaseBudget >= 160
+    ? boundInvestigatorPromptSection(contractText, minimumBaseBudget)
+    : "";
   const lastResort = [minimumBase, minimumTail].filter(Boolean).join("\n\n");
   if (lastResort.length <= limit) return lastResort;
-  // A too-small provider ceiling is not permission to emit a syntactically bounded
-  // but semantically broken prompt. Fail explicitly rather than slicing mandatory
-  // schema, provenance, exact URLs, or the newest trajectory/correction marker.
-  throw new RangeError(
-    `Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=${limit}; required schema/evidence context cannot fit without truncation.`,
-  );
+  // The minimum tail has already been compacted with schema, evidence rules, exact
+  // URLs, active scope, and the latest action prioritized. If no room remains for
+  // the duplicate base contract, return that bounded tail instead of aborting the run.
+  if (minimumTail.length <= limit) return minimumTail;
+  return boundInvestigatorPromptSection(minimumTail, limit);
 }
 
 /**
