@@ -4,6 +4,7 @@ import fs from "node:fs";
 const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const telemetry = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-llm-telemetry.ts", "utf8");
 const compaction = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
+const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-bureau-orientation.ts", "utf8");
 
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
@@ -34,6 +35,8 @@ assert(/remainingRequests.*=== 0/.test(core) && /quota_exceeded/.test(core) && /
 assert(/!hardQuota && tokenWaitMs !== null/.test(core) && /tokenWaitMs <= AGENTIC_PROVIDER_DECISION_TIMEOUT_MS - MIN_GROQ_INFERENCE_BUDGET_MS/.test(core), "provider token-window 429s must receive one bounded wait/retry while reserving time for inference and without being relabeled as hard quota");
 assert(/waitForKnownGroqTokenWindow\([\s\S]*?workingPrompt\.length \+ INVESTIGATOR_SYSTEM_PROMPT\(\)\.length/.test(core), "known token-window estimation must include the transmitted Investigator system prompt");
 assert(/Absolute last-resort recovery: do not abort a canonical discovery run/.test(core), "prompt-budget overflow must degrade to a schema-preserving emergency prompt instead of aborting the run");
+assert(/ACTIVE SCOPE & RECOVERY:/.test(orientation), "institutional orientation must define how active scope survives blocks and recovery");
+assert(/const absoluteMinimumObjective = \[[\s\S]*?SCOPE RECOVERY: preserve Boss-approved subject\/geography; source class may vary; no silent pivot/.test(core), "the absolute-minimum prompt must preserve scope-recovery rules even under the tightest budget");
 assert(/genericDiscoveryCompanyLabel/.test(core) && /Generic case labels including Case Co are metadata/.test(core), "generic case labels must not become discovery entity anchors");
 assert(/const DEFAULT_MAX_CHARS = 4_200/.test(compaction), "context compaction default must remain reduced");
 assert(/LATEST TRAJECTORY RECORD \(must remain visible to the next Investigator\)/.test(compaction), "latest trajectory record must have an explicit prompt-preservation section");
