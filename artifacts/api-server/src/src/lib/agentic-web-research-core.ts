@@ -4714,6 +4714,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const workingContext = aiHistoricalMemory
     ? [
         "CURRENT CASE OBJECTIVE / ACTIVE BOSS SCOPE (authoritative; current, not historical):\n" + input.objective,
+        "CURRENT CONTROL / OVERSIGHT CONTEXT (fresh for this turn; it may refine scope and must not be replaced by historical memory):\n" + (input.priorContext ?? ""),
         "AI-COMPACTED HISTORICAL RESEARCH MEMORY (Boss-generated; the durable trajectory/evidence ledger remains authoritative; omissions are not negative evidence):\n" + aiHistoricalMemory,
         buildInvestigatorContext({
           targetName: input.targetName,
