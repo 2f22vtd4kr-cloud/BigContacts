@@ -78,9 +78,9 @@ function extractPinnedDurableUrlInventory(rawContext: unknown): string {
       omitted += 1;
       continue;
     }
-    urls.push(safe);
-    seen.add(safe);
-    usedChars += safe.length;
+    urls.push(candidate);
+    seen.add(candidate);
+    usedChars += candidate.length;
   }
   if (!urls.length) return "";
   const parts = [
@@ -3229,7 +3229,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     })
     .filter((summary, index, all) => all.indexOf(summary) === index)
     .slice(-2);
-  const urlSource = observation || base;
+  const urlSource = [observation, base].filter(Boolean).join("\n");
   const durableUrls = [...urlSource.matchAll(/https?:\/\/[^\s"'<>]+/g)]
     .map((match) => match[0].replace(/[),.;]+$/, ""))
     .filter((url, index, all) => all.indexOf(url) === index)
