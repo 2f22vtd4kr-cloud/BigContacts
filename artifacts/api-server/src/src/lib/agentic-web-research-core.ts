@@ -3125,6 +3125,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const suppliedRegistryList = typeof registryIds === "string" ? registryIds.trim() : "";
   const suppliedMemory = typeof aiHistoricalMemory === "string" ? aiHistoricalMemory.trim() : "";
   const suppliedScope = typeof activeScope === "string" ? activeScope.trim() : "";
+  const isInvestigatorPrompt = /APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base);
   const baseHasRequiredRecoveryContext =
     (!suppliedRegistryList || base.includes(suppliedRegistryList))
     && (!suppliedMemory || base.includes(suppliedMemory))
@@ -3275,7 +3276,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       + JSON.stringify(exactInventoryUrls)
       + (omittedInventoryUrlCount ? " " + omittedInventoryUrlCount + " additional URL(s) omitted whole; immutable case-event ledger remains authoritative." : "")
     : "";
-  const isInvestigatorPrompt = /APEX INVESTIGATOR|CASE OBJECTIVE|ACTIVE BOSS SCOPE|DISCOVERY PROGRESS GATE|DISCOVERY LEAD HANDOFF CONTRACT|ALL REQUIRED TOP-LEVEL FIELDS|Target-stage research/i.test(base);
   const isDiscoveryPrompt = mode === "discovery" || /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base);
   const protectedRuleCandidates = [
     "Press/profile pages are leads, not targets/access routes.",
