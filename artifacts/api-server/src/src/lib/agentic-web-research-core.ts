@@ -3124,9 +3124,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   let fetchedSourceExcerpt = "";
   let fetchedSourceClaimExcerpt = "";
   const extractEndingClaimSentence = (value: unknown): string => {
-    const normalized = typeof value === "string" ? value.replace(/\\s+/g, " ").trim() : "";
+    const normalized = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
     if (!normalized) return "";
-    const breaks = [...normalized.matchAll(/[.!?]\\s+/g)];
+    const breaks = [...normalized.matchAll(/[.!?]\s+/g)];
     const lastBreak = breaks.at(-1);
     const sentenceStart = lastBreak ? (lastBreak.index ?? 0) + lastBreak[0].length : 0;
     const lastSentence = normalized.slice(sentenceStart).trim();
