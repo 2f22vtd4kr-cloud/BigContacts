@@ -3263,8 +3263,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? protectedRuleCandidates.filter((rule) => !base.includes(rule))
     : [];
   const hasSearchLeadContext = Boolean(latestSearchMarker)
-    || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|unvisited lead|search results returned a potentially useful/i.test(observation)
-    || /LEAD FOLLOW-UP GUIDANCE|LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS/.test(base);
+    || /LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|unvisited lead|search results returned a potentially useful/i.test(observation);
   const leadGuidance = hasSearchLeadContext ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched." : "";
   const protectedObservationSuffix = [...protectedRules, leadGuidance, urlInventory, markerSuffix, carriedFetchedSourceSummary, fetchedSourceExcerptLabel, fetchedSourceExcerpt].filter(Boolean).join("\n\n");
   // Never reduce a current correction/source excerpt below a useful minimum
@@ -3281,13 +3280,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // fall back to the base prompt alone, which loses the latest durable action.
   const baseSections = base.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   const requiredSections = baseSections.filter((part) =>
-    /MISSION PRIORITY:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|AVAILABLE ACTIONS:|VALID PROVIDERS:|OUTPUT CONTRACT:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:|LEAD FOLLOW-UP GUIDANCE \(non-binding\):|DURABLE EXACT URL INVENTORY/.test(part)
+    /MISSION PRIORITY:|ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION|AVAILABLE ACTIONS:|VALID PROVIDERS:|OUTPUT CONTRACT:|SCOPE GUARD BLOCKED ACTION|Pursue this question unless|PAGE FORMAT \/ RETRIEVAL LIMITS:|ALL REQUIRED TOP-LEVEL FIELDS:|DISCOVERY LEAD HANDOFF CONTRACT:|LEAD FOLLOW-UP GUIDANCE \(non-binding\):|DURABLE EXACT URL INVENTORY/.test(part)
   ).filter((part, index, all) => all.indexOf(part) === index);
   const caseObjective = baseSections.find((part) => /CASE OBJECTIVE:/.test(part));
   const compactCaseObjective = caseObjective ? boundInvestigatorPromptSection(caseObjective, 260) : "";
   const availableActionsSection = baseSections.find((part) => /AVAILABLE ACTIONS:/.test(part)) ?? "";
   const observedActiveScopeContext = observation.match(/(?:active Boss-accepted pivot is:|Active Boss-approved scope:)[^\n]*/i)?.[0]?.trim() ?? "";
-  const baseActiveScopeContext = baseSections.find((part) => /ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:/.test(part)) ?? "";
+  const baseActiveScopeContext = baseSections.find((part) => /ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|ACTIVE BOSS-DIRECTED QUESTION:|BOSS-DIRECTED RESEARCH QUESTION/.test(part)) ?? "";
   // Preserve the accepted topic, full geography and source class constraint
   // verbatim whenever it fits; the last-resort path must not trim away a country.
   const activeScopeContext = observedActiveScopeContext.length > 0 && observedActiveScopeContext.length <= 800
@@ -3323,11 +3322,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : [];
   const discoveryEvidenceRule = "DISCOVERY LEAD HANDOFF CONTRACT: PERSON REVIEW: exact name+stated role co-bound in a successful result => review-only card. Search-only note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI claim. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue; never infer wealth from seniority. Official company leadership/staff pages and official filing/registry pages are acceptable only when directly binding exact name and role; third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Search snippets remain leads, not evidence; failed/blocked fetches are unobserved. Press/profile pages are leads, not targets/access routes. Never use placeholders such as CompanyName, companywebsite.com, or example.com. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
   const terminalEvidenceRule = "RESEARCH TERMINAL GATE (authoritative): minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false; this is a stopping condition, not a prescribed action sequence.";
-      const minimumRegistryEvidenceRule = isInvestigatorPrompt
-    ? "RUNTIME REGISTRY IDS: callable adapters only; never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers without documented fields."
+      const runtimeRegistryIdsRule = base.match(/RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY:[^\\n]*/)?.[0] ?? "";
+  const minimumRegistryEvidenceRule = isInvestigatorPrompt
+    ? (runtimeRegistryIdsRule ? runtimeRegistryIdsRule + " " : "RUNTIME REGISTRY IDS: callable adapters only. ") + "Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers without documented fields."
     : "";
       const minimumBinaryUrlRule = isInvestigatorPrompt
-    ? "PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL."
+    ? "BINARY URL POLICY: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
     : "";
   const fallbackProtectedRules = isInvestigatorPrompt
     ? [
@@ -5154,7 +5154,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // observation is unusually large. Drop advisory and duplicated mission prose
       // before ever abandoning a model-owned turn; the full output schema and
       // admission/falsification laws remain non-discardable.
-      const finalEmergencyAssignment = "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope. Choose actions from AVAILABLE ACTIONS using evidence and information gain; no fixed sequence. PARTIAL FINDINGS (not terminal-only): retain source-backed company/person review leads on the first successful action. Search-only company needs exact business-like name/title + eligible URL; person needs exact full name + page-stated role co-bound in one successful source. Review leads are not proof of wealth/ownership/contact; higher admission requires fetched name+role+ownership/control/equity/investment evidence. Blocked actions are no evidence; revise subject, geography or source class and fetch only observed aligned URLs. Never invent identities, facts, URLs or contacts.";
+      const finalEmergencyAssignment = "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope. Choose actions from AVAILABLE ACTIONS using evidence and information gain; no fixed action sequence. PARTIAL FINDINGS (not terminal-only): retain source-backed company/person review leads on the first successful action. Company review requires exact business-like name/title + eligible result URL; person review requires exact full name + page-stated role co-bound in one successful source. Review-only leads are not proof of wealth/ownership/contact; higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Blocked actions are no evidence; revise subject, geography or source class and fetch only observed aligned URLs. Never infer intimate relationships or use health/clinic or private customer-service records as personal contact routes; public business records remain eligible. Never invent identities, facts, URLs or contacts.";
       const finalEmergencyObjective = input.objective?.trim()
         ? (() => {
             const compactObjective = compactEmergencyInvestigatorObjective(input.objective);
