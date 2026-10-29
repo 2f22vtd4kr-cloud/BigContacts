@@ -65,6 +65,64 @@ describe("durable Investigator intelligence replay", () => {
     expect(state.contacts).toContainEqual(expect.objectContaining({ personName: "Alex Example", value: "alex@example.test", state: "DISCOVERED", sourceUrls: expect.arrayContaining([identityUrl, contactUrl]) }));
   });
 
+  it("replays persisted partial tool outcomes without aborting the rest of the durable history", () => {
+    const records = investigatorRecordsFromEvents([
+      {
+        id: 41,
+        actorRole: "head_investigator",
+        eventType: "tool_observation",
+        status: "partial",
+        payload: JSON.stringify({
+          jobId: "atlas-job",
+          runId: "run-partial",
+          turn: 1,
+          runModel: "test-model",
+          action: "parallel_web_search",
+          args: { searches: [{ query: "company acquisition registry" }] },
+          execution: "partial",
+          observation: "One search provider succeeded; another returned an error.",
+          observedUrls: ["https://registry.example.test/acquisition"],
+          findings: [],
+          providerFallback: [],
+          stopReason: null,
+          failureDomain: "tool_execution",
+          failureKind: "request_failure",
+        }),
+      },
+      {
+        id: 42,
+        actorRole: "head_investigator",
+        eventType: "tool_observation",
+        status: "success",
+        payload: JSON.stringify({
+          jobId: "atlas-job",
+          runId: "run-partial",
+          turn: 2,
+          runModel: "test-model",
+          action: "visit",
+          args: { url: "https://registry.example.test/acquisition" },
+          execution: "success",
+          observation: "The registry page was fetched successfully.",
+          observedUrls: ["https://registry.example.test/acquisition"],
+          findings: [],
+        }),
+      },
+    ]);
+
+    expect(records).toHaveLength(2);
+    expect(records.map((record) => record.durableEventId)).toEqual([41, 42]);
+    expect(records[0]).toMatchObject({
+      action: "parallel_web_search",
+      execution: "partial",
+      observation: "One search provider succeeded; another returned an error.",
+    });
+    expect(records[1]).toMatchObject({
+      action: "visit",
+      execution: "success",
+      observation: "The registry page was fetched successfully.",
+    });
+  });
+
   it("refuses partial replay when a selected durable Investigator event has a valid JSON payload without an action", () => {
     const events = [
       {
