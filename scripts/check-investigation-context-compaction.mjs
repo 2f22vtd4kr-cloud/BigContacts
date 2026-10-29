@@ -27,6 +27,7 @@ const checks = [
   ["Boss compaction supports the bounded continuation memory size", /MAX_SUMMARY_CHARS = 7_000/.test(aiCompaction) && /const outputBudget = Math.min\(3_000/.test(aiCompaction) && /maxOutputTokens: outputBudget/.test(aiCompaction)],
   ["oversized recent observations use cached Boss-generated semantic summaries before prompt construction", /const sourceToSummarize = \[/.test(core) && /maxChars: 900/.test(core) && /ai_recent_observation_compaction_unavailable/.test(core) && /promptRecord\.observation = compactedObservation/.test(core) && /aiCompactedObservationBySource\.set\(cacheKey, compactedObservation\)/.test(core)],
   ["recent-observation compaction fails closed instead of sending a code-truncated substitute", /No action was sent with a deterministically truncated substitute observation/.test(core)],
+  ["full AI historical memory must survive final prompt budgeting or be model-condensed/fail-closed", /if \(aiCompactedHistoricalContext && !prompt\.includes\(aiCompactedHistoricalContext\)\)/.test(core) && /maxChars: 900/.test(core) && /AI historical memory still did not fit in the full Investigator prompt/.test(core) && /No action was sent with memory silently omitted/.test(core)],
 ];
 let failed = false;
 for (const [name, ok] of checks) {
