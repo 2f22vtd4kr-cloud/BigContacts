@@ -5773,7 +5773,14 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     return finalizeEmergencyPrompt([compactPrefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n"));
   }
   const boundedState = boundedAuxiliaryState(dynamicState, dynamicBudget);
-  return [prefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n");
+  const boundedPrompt = [prefix, stateLabel, boundedState, outputContract, latestRecordTail].join("\n\n");
+  // Mid-budget state compaction uses a generic head/tail bound, which can drop
+  // the Boss-written historical summary from the middle of workingContext.
+  // Re-assemble through the protected path only when that actual loss occurred.
+  if (aiHistoricalMemory.trim() && !boundedPrompt.includes(aiHistoricalMemory.trim())) {
+    return finalizeEmergencyPrompt(boundedPrompt);
+  }
+  return boundedPrompt;
 }
 
 export function discoverySearchLivenessAdvisory(records: readonly AgenticTrajectoryRecord[]): string | null {
