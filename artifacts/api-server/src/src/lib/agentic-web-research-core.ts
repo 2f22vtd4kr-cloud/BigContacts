@@ -3290,6 +3290,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       + (omittedInventoryUrlCount ? " " + omittedInventoryUrlCount + " additional URL(s) omitted whole; immutable case-event ledger remains authoritative." : "")
     : "";
   const isDiscoveryPrompt = mode === "discovery" || /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base);
+  const minimumTargetabilityMarker = isDiscoveryPrompt
+    ? "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets in person-centric wealth discovery; company-target objectives may select organizations directly. Do not infer personal wealth from company prestige."
+    : "";
   const protectedRuleCandidates = [
     "Press/profile pages are leads, not targets/access routes.",
     "Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion.",
@@ -3302,7 +3305,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "After successful visit/browser_fetch, a fetched company lead requires exact organization name and material business/ownership/transaction fact in fetched text, with sourceUrls=[that fetched URL only].",
     "After a successful web/parallel/registry search, exact organization name in observed result text plus its eligible HTTPS URL permits only a low-confidence review-only company finding; snippets are leads, not evidence.",
     "Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence.",
-    "DISCOVERY TARGETABILITY: people, not companies/prestige, are targets in person-centric wealth discovery; company-target objectives may select organizations directly. Do not infer personal wealth from company prestige.",
+    minimumTargetabilityMarker,
   ];
   const protectedRules = isInvestigatorPrompt
     ? protectedRuleCandidates.filter((rule) => !base.includes(rule))
@@ -3524,6 +3527,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const mandatoryMinimumParts = [
     fallbackOutputContract,
     fallbackEvidenceContract,
+    minimumTargetabilityMarker,
     minimumDiscoveryContract,
     minimumRegistryEvidenceRule,
     minimumBinaryUrlRule,
@@ -3639,6 +3643,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
         // survive every tier. Compact/dismiss narration before these invariants.
         urlInventory,
         aiMemorySection,
+        minimumTargetabilityMarker,
         minimumBinaryUrlRule,
         latestSearchMarker,
         ...compactRecordSummary,
