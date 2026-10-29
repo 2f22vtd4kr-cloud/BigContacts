@@ -3196,12 +3196,14 @@ describe("latest fetched source evidence survives emergency Investigator compact
 
   it("keeps fetched page facts and organization partial-finding instructions in the model prompt", () => {
     const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(180) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
+    const objective = "Discover public-source leads for under-the-radar business owners and operators.";
     const prompt = buildStepPrompt({
       targetName: "",
-      objective: "Discover public-source leads for under-the-radar business owners and operators.",
+      objective,
       history: [],
       trajectoryRecords: [{
         turn: 1, model: "openai/gpt-oss-120b", action: "visit", execution: "success",
+        pivotScopeKey: discoveryPivotScopeKey(objective) ?? undefined,
         args: { url: "https://www.example.org/filing" }, observation,
         observedUrls: ["https://www.example.org/filing"], findings: [],
       }],
