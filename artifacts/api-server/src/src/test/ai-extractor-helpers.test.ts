@@ -1,7 +1,45 @@
 import { describe, expect, it } from "vitest";
-import { buildPerplexityPrompt, buildProviderSearchQuery, extractJsonObject } from "../lib/ai-extractor";
+import { buildPerplexityPrompt, buildProviderSearchQuery, extractJsonObject, getAIKeyStatus } from "../lib/ai-extractor";
 
 describe("AI response safety helpers", () => {
+  it("reports only the active canonical model/search capability pools", () => {
+    const names = [
+      "GROQ_INVESTIGATOR_API_KEY",
+      ...Array.from({ length: 7 }, (_, index) => `GROQ_INVESTIGATOR_API_KEY_${index + 1}`),
+      "GROQ_BOSS_API_KEY",
+      "GROQ_RIGHT_HAND_API_KEY",
+      "GEMINI_API_KEY",
+      "MISTRAL_API_KEY",
+      "PERPLEXITY_API_KEY",
+      "TAVILY_API_KEY",
+      "EXA_API_KEY",
+      "SERPER_API_KEY",
+      "SERPAPI_KEY",
+    ];
+    const previous = new Map(names.map((name) => [name, process.env[name]]));
+    try {
+      for (const name of names) delete process.env[name];
+      process.env.GROQ_INVESTIGATOR_API_KEY = "test-investigator";
+      process.env.GEMINI_API_KEY = "retired-gemini";
+      process.env.MISTRAL_API_KEY = "retired-mistral";
+      process.env.PERPLEXITY_API_KEY = "retired-perplexity";
+      process.env.TAVILY_API_KEY = "test-tavily";
+      process.env.EXA_API_KEY = "test-exa";
+      process.env.SERPER_API_KEY = "test-serper";
+      process.env.SERPAPI_KEY = "test-serpapi";
+
+      const status = getAIKeyStatus();
+      expect(Object.keys(status).sort()).toEqual(["exa", "groqInvestigator", "serper", "serpapi", "tavily"]);
+      expect(status.groqInvestigator).toHaveLength(8);
+      expect(status.groqInvestigator[0]).toMatchObject({ state: "active" });
+      expect(status.groqInvestigator.slice(1).every((slot) => slot.state === "missing")).toBe(true);
+    } finally {
+      for (const [name, value] of previous) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
+  });
   it("extracts the first balanced JSON object instead of greedily merging objects", () => {
     const raw = '```json\n{"email":"first@example.org","nested":{"ok":true}}\n```\n{"ignored":true}';
     expect(extractJsonObject(raw)).toBe('{"email":"first@example.org","nested":{"ok":true}}');
