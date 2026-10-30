@@ -189,7 +189,6 @@ function providerUnavailable(e: OpsEvent, slots?: ProviderSlotMap | null): boole
   const isTavily = /\btavily\b/i.test(tool);
   const isExa = /\bexa\b/i.test(tool);
   const isSerper = /\bserper\b/i.test(tool);
-  const isSerpApi = /\bserpapi\b/i.test(tool);
 
   // Health counts come from /api/healthz/details and match canonical roles/pools.
   if (slots) {
@@ -199,7 +198,6 @@ function providerUnavailable(e: OpsEvent, slots?: ProviderSlotMap | null): boole
     if (isTavily && (slots.tavily ?? 0) <= 0) return true;
     if (isExa && (slots.exa ?? 0) <= 0) return true;
     if (isSerper && (slots.serper ?? 0) <= 0) return true;
-    if (isSerpApi && (slots.serpapi ?? 0) <= 0) return true;
   }
 
   const blob = `${e.resultSummary || ""} ${e.inputSummary || ""} ${e.status || ""}`;
@@ -428,7 +426,7 @@ export function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | nul
   else if (e.methodKind === "persona" || /persona-review/i.test(toolBlob)) kind = "persona";
   else if (e.methodKind === "domain" || provider === "domain" || /domain-surface|domain-resolver|rdap|whois|whoxy|dns/i.test(toolBlob)) kind = "domain";
   else if (provider === "google" || /\bgoogle\b/i.test(toolBlob)) kind = "google";
-  else if (e.methodKind === "search" || ["serp", "serper", "serpapi", "tavily", "exa"].includes(provider) || /tavily|exa|serper|serpapi|web.?search/i.test(tool)) kind = "serp";
+  else if (e.methodKind === "search" || ["serp", "serper", "tavily", "exa"].includes(provider) || /tavily|exa|serper|web.?search/i.test(tool)) kind = "serp";
   else if (e.methodKind === "extract" || provider === "prompt" || e.prompt || /groq|llm|extract/i.test(tool)) kind = "prompt";
   else if (e.methodKind === "footprint" || provider === "sherlock" || provider === "maigret" || provider === "holehe" || /footprint|holehe|sherlock|maigret|harvest/i.test(toolBlob)) kind = "footprint";
   else if (/browser_fetch|scrapfly|zenrows/i.test(toolBlob)) kind = "browser";
@@ -442,7 +440,7 @@ export function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | nul
   let honestSubtitle = e.resultSummary || undefined;
   if (unavailable) {
     const tool = pickTool(e);
-    if (/serper|serpapi/i.test(tool)) {
+    if (/serper/i.test(tool)) {
       honestSubtitle = "Serper is not configured or returned no usable result — not a live search";
       kind = "serp";
     } else if (/groq/i.test(tool) && /rate.?limit|no usable/i.test(`${e.resultSummary||""}`)) {
@@ -452,7 +450,7 @@ export function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | nul
 
   const discovery = isDiscoveryPhase(e.stage, tool, e.methodKind);
   const title =
-    unavailable && /serper|serpapi|tavily|exa/i.test(tool) ? "Search offline"
+    unavailable && /serper|tavily|exa/i.test(tool) ? "Search offline"
       : kind === "boss" ? "Team briefing"
       : kind === "case" ? "Case file"
       : kind === "registry" ? "Official records"
@@ -1505,7 +1503,6 @@ export function BureauOpsStage({
             tavily: Number(d.providers.tavily) || 0,
             exa: Number(d.providers.exa) || 0,
             serper: Number(d.providers.serper) || 0,
-            serpapi: Number(d.providers.serpapi) || 0,
           });
         })
         .catch(() => {});
