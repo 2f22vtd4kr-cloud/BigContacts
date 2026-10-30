@@ -45,11 +45,11 @@ The API has no local subprocess/network fallback. A missing URL/token/image pin,
 
 The review identified concrete source-of-truth drift:
 
-1. The in-app manual still named retired model roles and showed old secret names. It is corrected to Groq roles and the current 13-name Replit preflight list, with optional numbered Groq slots distinguished.
+1. The in-app manual still named retired model roles and showed old secret names. It is corrected to Groq roles and the current 12-name Replit preflight list; the unused `SERPAPI_KEY` was removed from preflight, manual, and readiness because no model-selectable executor action supports it, with optional numbered Groq slots distinguished.
 2. The System Status page dynamically rendered old provider arrays and contained obsolete Open Research/provider copy. It is replaced with Groq Boss/Right-hand role cards, canonical Investigator/search key pools, integrity state, database health, and Upstash status.
 3. The Python OSINT panel expected `{tools, gliner, installCommand}`, but `/api/system/status` returns a direct `pythonTools` boolean map. The panel therefore failed to read the actual API contract. It now reads the map directly, includes SpiderFoot, removes stale GLiNER/local pip-install advice, and clearly reports attestation-based availability.
 4. The Sherlock description previously called it a Maigret fallback. It now describes an independent optional capability; tool choice remains model-owned.
-5. The header launch control rendered a Crosshair glyph. The glyph is removed.
+5. The profile research-launch control rendered a Crosshair glyph in the mobile web view. It now uses a Play glyph; the header launch control is also free of the aim/crosshair glyph.
 6. The API's `getAIKeyStatus` snapshot exposed retired provider arrays. It now reports only Groq Investigator, Serper, Tavily, and Exa capability pools.
 7. The runtime's attested worker action exposure is made explicit through `exposeAttestedCapabilities`; default-disabled worker actions are exposed only when their exact action is present in the fresh turn allowlist. Tests cover both default-hidden and attested-visible behavior.
 8. UI contract tests prevent retired-provider/manual drift, incorrect Python worker shape, missing SpiderFoot visibility, and launch-glyph regression.
