@@ -14,7 +14,6 @@ export type LanesHonestySnapshot = {
   groqRightHand: number;
   groqInvestigator: number;
   serper: number;
-  serpapi: number;
   tavily: number;
   exa: number;
   companiesHouse: number;
@@ -40,10 +39,9 @@ export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
   const groqRightHand = getGroqRightHandStatus().configured ? 1 : 0;
   const groqInvestigator = activeCount(status.groqInvestigator);
   const serper = activeCount(status.serper);
-  const serpapi = activeCount(status.serpapi);
   const tavily = activeCount(status.tavily);
   const exa = activeCount(status.exa);
-  const webSearchActive = serper + serpapi + tavily + exa;
+  const webSearchActive = serper + tavily + exa;
   const companiesHouse = process.env.COMPANIES_HOUSE_API_KEY?.trim() ? 1 : 0;
 
   const agenticLlmSlots = groqInvestigator;
@@ -70,7 +68,6 @@ export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
     groqRightHand,
     groqInvestigator,
     serper,
-    serpapi,
     tavily,
     exa,
     companiesHouse,
