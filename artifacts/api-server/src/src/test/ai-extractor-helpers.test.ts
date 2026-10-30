@@ -14,6 +14,7 @@ describe("AI response safety helpers", () => {
       "TAVILY_API_KEY",
       "EXA_API_KEY",
       "SERPER_API_KEY",
+      "SERPAPI_KEY",
     ];
     const previous = new Map(names.map((name) => [name, process.env[name]]));
     try {
@@ -25,6 +26,7 @@ describe("AI response safety helpers", () => {
       process.env.TAVILY_API_KEY = "test-tavily";
       process.env.EXA_API_KEY = "test-exa";
       process.env.SERPER_API_KEY = "test-serper";
+      process.env.SERPAPI_KEY = "unused-serpapi";
 
       const status = getAIKeyStatus();
       expect(Object.keys(status).sort()).toEqual(["exa", "groqInvestigator", "serper", "tavily"]);
