@@ -858,7 +858,7 @@ const TOOL_META: Record<string, ToolMeta> = {
     desc: "An independent public username-footprint capability. The Investigator may choose it when its coverage is useful; it is not a mandatory fallback stage.",
     input: "Observed username / handle",
   },
-  theharvester: {
+  theHarvester: {
     label: "theHarvester",
     action: "harvest_domain",
     desc: "Collects public domain-related email, host, DNS, and certificate leads for subsequent source verification.",
