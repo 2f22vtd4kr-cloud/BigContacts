@@ -4892,8 +4892,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? selectableActions
     : selectableActions.filter((action) => action !== "browser_fetch");
   const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
-  const availablePythonActions = selectableActions.filter((action) => pythonActionNames.includes(action));
-  const promptCapabilities = exposeAttestedCapabilities(availablePythonActions);
+  const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
+  const promptCapabilities = exposeAttestedCapabilities([...availablePythonActions]);
   const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), availablePythonActions.size > 0 ? 2_200 : 1_000);
   const discoveryLivenessAdvisory = input.mode === "discovery" ? discoverySearchLivenessAdvisory(input.trajectoryRecords) : null;
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
