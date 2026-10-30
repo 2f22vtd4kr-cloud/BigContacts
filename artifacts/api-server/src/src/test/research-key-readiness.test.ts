@@ -14,7 +14,7 @@ describe("hasResearchProviderKey", () => {
     expect(hasResearchProviderKey({ GROQ_BOSS_API_KEY: "redacted" })).toBe(true);
     expect(hasResearchProviderKey({ GROQ_INVESTIGATOR_API_KEY_1: "redacted" })).toBe(true);
     expect(hasResearchProviderKey({ SERPER_API_KEY: "redacted" })).toBe(true);
-    expect(hasResearchProviderKey({ SERPAPI_KEY: "redacted" })).toBe(true);
+    expect(hasResearchProviderKey({ SERPAPI_KEY: "redacted" })).toBe(false);
   });
 
   it("does not count retired/generic model keys, HF_TOKEN alone, or unrelated environment values as research readiness", () => {
