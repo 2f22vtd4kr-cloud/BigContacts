@@ -11,6 +11,9 @@ const jobsPage = readFileSync(new URL("../pages/jobs.tsx", import.meta.url), "ut
 const liveSurface = readFileSync(new URL("../components/reactor-live-surface.tsx", import.meta.url), "utf8");
 const profilePage = readFileSync(new URL("../pages/profile.tsx", import.meta.url), "utf8");
 const mockData = readFileSync(new URL("./dev-mock-data.ts", import.meta.url), "utf8");
+const providerIcons = readFileSync(new URL("../components/provider-icons.tsx", import.meta.url), "utf8");
+const bureauOps = readFileSync(new URL("../components/bureau-ops-stage.tsx", import.meta.url), "utf8");
+const integrityBanner = readFileSync(new URL("../components/bureau-integrity-banner.tsx", import.meta.url), "utf8");
 
 describe("current Apex UI contract", () => {
   it("documents only the canonical Groq model roles and current Replit secret names", () => {
@@ -48,6 +51,16 @@ describe("current Apex UI contract", () => {
     }
     expect(reactorPage).toContain("GROQ RIGHT-HAND");
     expect(mobileReactor).toContain("right_hand");
+  });
+
+  it("keeps provider chrome and operational telemetry aligned with active provider contracts", () => {
+    expect(providerIcons).not.toMatch(/Gemini|Perplexity|gemini|perplexity/);
+    expect(bureauOps).not.toMatch(/Gemini|Mistral|Perplexity|NVIDIA|gemini|mistral|perplexity/i);
+    expect(bureauOps).toContain("/api/healthz/details");
+    expect(bureauOps).toContain("groqInvestigator");
+    expect(bureauOps).toContain("groqRightHand");
+    expect(integrityBanner).toContain("/api/system/status");
+    expect(integrityBanner).not.toMatch(/Perplexity|multi-LLM/);
   });
 
   it("keeps all launch surfaces and secondary desk copy free of retired roles and aim glyphs", () => {
