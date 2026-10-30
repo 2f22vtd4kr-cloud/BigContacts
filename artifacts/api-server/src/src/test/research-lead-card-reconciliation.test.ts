@@ -46,6 +46,11 @@ describe("terminal review-card reconciliation", () => {
     expect(organizationMaterializer).toContain("Registry adapters may return typed Corporation leads even when the model");
     expect(organizationMaterializer).toContain("payload.args?.registrySearchOutcomes");
     expect(organizationMaterializer).toContain("companyLeads");
+    const typedRegistryLeadBlock = organizationMaterializer.slice(
+      organizationMaterializer.indexOf("const name = company.name"),
+      organizationMaterializer.indexOf("const notes ="),
+    );
+    expect(typedRegistryLeadBlock).toContain("isGenericDiscoveryMetadataTitle(name)");
     expect(organizationMaterializer).toContain("if (!leadNames.length) return { materialized: 0, evidenceRows: 0, candidates: [] };");
     expect(organizationMaterializer).toContain("...observations\n        .filter((observation) => bindExactSourceSpan(observation.observation, name)?.exact)");
     expect(canonical).toContain("if (!runId) continue;");
@@ -104,6 +109,22 @@ describe("terminal review-card reconciliation", () => {
     // This remains a PersonCandidate review card, never automatic HNWI admission.
     expect(personMaterializer).toContain('type: "PersonCandidate"');
     expect(personMaterializer).toContain('stage: "partial_review"');
+
+    // Review-only candidate/company cards must be persisted before strict
+    // promotion/admission work. A later admission exception must not prevent
+    // an already observed lead from becoming a durable review card.
+    const materialization = canonical.slice(
+      canonical.indexOf("async function materializeAtlasAdmissions"),
+      canonical.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+    );
+    const partialPeopleCall = materialization.indexOf("const partialPeople = await materializePartialPersonLeadCards(");
+    const partialOrganizationsCall = materialization.indexOf("const partialOrganizations = await materializePartialOrganizationLeadCards(");
+    const strictAdmissionLoop = materialization.indexOf("for (const name of candidates)");
+    expect(partialPeopleCall).toBeGreaterThanOrEqual(0);
+    expect(partialOrganizationsCall).toBeGreaterThanOrEqual(0);
+    expect(strictAdmissionLoop).toBeGreaterThanOrEqual(0);
+    expect(partialPeopleCall).toBeLessThan(strictAdmissionLoop);
+    expect(partialOrganizationsCall).toBeLessThan(strictAdmissionLoop);
   });
 
   it("keeps public business-relevant relationship research separate from private intimate or health-data contact hunting", () => {

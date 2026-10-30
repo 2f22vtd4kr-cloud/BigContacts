@@ -47,7 +47,7 @@ type AuditEnvironment = {
 };
 
 function shouldCaptureModelPromptAudit(env: AuditEnvironment): boolean {
-  if (env.APEX_CAPTURE_MODEL_PROMPTS !== "true" || !env.APEX_MODEL_AUDIT_FILE?.trim()) return false;
+  if (env.APEX_CAPTURE_MODEL_PROMPTS !== "true") return false;
   const isTestRunner = env.VITEST === "true"
     || Boolean(env.VITEST_POOL_ID)
     || Boolean(env.VITEST_WORKER_ID)
@@ -56,6 +56,11 @@ function shouldCaptureModelPromptAudit(env: AuditEnvironment): boolean {
   if (isTestRunner) return env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST === "true";
   if (env.NODE_ENV === "development") return true;
   return env.NODE_ENV === "test" && env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST === "true";
+}
+
+/** True only when this process has explicitly opted into required prompt capture. */
+export function isModelPromptAuditCaptureEnabled(env: AuditEnvironment = process.env): boolean {
+  return shouldCaptureModelPromptAudit(env);
 }
 
 type AuditInput = {
@@ -394,6 +399,10 @@ export function emitModelPromptAudit(
   cwd: string = process.cwd(),
 ): string | null {
   if (!shouldCaptureModelPromptAudit(env)) return null;
+  if (!env.APEX_MODEL_AUDIT_FILE?.trim()) {
+    process.stderr.write("[atlas_model_prompt_audit] capture is enabled but APEX_MODEL_AUDIT_FILE is missing; model request was not sent.\n");
+    return null;
+  }
 
   const requestId = randomUUID();
   const record = {
@@ -442,6 +451,7 @@ type AuditResponseInput = {
   responseBody?: string;
   latencyMs?: number;
   transportFailure?: string;
+  auditCaptureFailure?: string;
 };
 
 function summarizeProviderErrorDetails(error: Record<string, unknown>, includeContactData = false): Record<string, unknown> {
@@ -528,8 +538,12 @@ export function emitModelPromptAuditResponse(
   env: AuditEnvironment = process.env,
   write: AuditWriter = appendFileSync,
   cwd: string = process.cwd(),
-): void {
-  if (!input.requestId || !shouldCaptureModelPromptAudit(env)) return;
+): boolean {
+  if (!input.requestId || !shouldCaptureModelPromptAudit(env)) return false;
+  if (!env.APEX_MODEL_AUDIT_FILE?.trim()) {
+    process.stderr.write("[atlas_model_prompt_audit] capture is enabled but APEX_MODEL_AUDIT_FILE is missing; model response was not written.\n");
+    return false;
+  }
 
   const responseBody = input.responseBody ?? "";
   const record = {
@@ -542,6 +556,7 @@ export function emitModelPromptAuditResponse(
     httpStatus: input.httpStatus ?? null,
     latencyMs: input.latencyMs ?? null,
     transportFailure: input.transportFailure ?? null,
+    auditCaptureFailure: input.auditCaptureFailure ?? null,
     response: responseBody
       ? visibleProviderResponse(
           responseBody,
@@ -560,14 +575,16 @@ export function emitModelPromptAuditResponse(
     );
     if (!auditPath) {
       process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\n");
-      return;
+      return false;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
     write(
       auditPath,
       `\n\n### Model response ${input.requestId}\n\n${fence}json\n${serialized}\n${fence}\n`,
     );
+    return true;
   } catch {
     process.stderr.write("[atlas_model_prompt_audit] append failed; model response was not written to the audit file.\n");
+    return false;
   }
 }

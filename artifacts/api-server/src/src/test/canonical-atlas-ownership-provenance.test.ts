@@ -5,6 +5,14 @@ import { describe, expect, it } from "vitest";
 const read = (file: string) => readFileSync(resolve(process.cwd(), file), "utf8");
 
 describe("canonical Atlas ownership/provenance seam guards", () => {
+  it("polls cancellation and verifies lease ownership during every canonical discovery Investigator pass", () => {
+    const discovery = read("src/src/lib/canonical-atlas-discovery.ts");
+    expect(discovery).toContain("const shouldCancelAtlasInvestigator = async (): Promise<boolean> =>");
+    expect(discovery.match(/shouldCancel: shouldCancelAtlasInvestigator/g)).toHaveLength(3);
+    expect(discovery).toContain("await getJobStrict(atlasJobId)");
+    expect(discovery).toContain("isCanonicalJobOwner(lockKey, atlasJobId)");
+  });
+
   it("binds canonical discovery control persistence to the current job", () => {
     const source = read("src/src/lib/atlas-control-decision.ts");
     expect(source).toContain("jobId?: string | null");

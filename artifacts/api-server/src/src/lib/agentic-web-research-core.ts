@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { logger } from "./logger";
 import { emitInvestigatorProviderRequestAudit } from "./investigator-request-audit";
-import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
+import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
@@ -2370,6 +2370,9 @@ async function callGroqJson(
           caseId: caseId ?? null,
           requestBody,
         });
+        if (isModelPromptAuditCaptureEnabled() && !modelAuditRequestId) {
+          throw new Error("model_prompt_audit_request_capture_failed; refusing an untraced Investigator request");
+        }
         const response = await withProviderRetryOwnership("groq", "caller", () =>
           runProviderCall({ provider: "groq", account: quotaAccount, signal }, () =>
             safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -2386,7 +2389,7 @@ async function callGroqJson(
         // same text rather than attempting a second read of an already-consumed
         // Response stream.
         const body = await readResponseTextCapped(response, signal);
-        emitModelPromptAuditResponse({
+        modelAuditResponseRecorded = emitModelPromptAuditResponse({
           requestId: modelAuditRequestId,
           provider: "groq",
           role: "groq_investigator",
@@ -2395,7 +2398,9 @@ async function callGroqJson(
           responseBody: body,
           latencyMs: Date.now() - started,
         });
-        modelAuditResponseRecorded = true;
+        if (isModelPromptAuditCaptureEnabled() && !modelAuditResponseRecorded) {
+          throw new Error("model_prompt_audit_response_capture_failed; refusing to process an untraced Investigator response");
+        }
 
         if (response.status === 429) {
           // An explicit tokens-per-day cap is neither a request-count quota nor
@@ -2598,13 +2603,29 @@ async function callGroqJson(
         if (raw) return { model, raw };
         break;
       } catch (error: any) {
+        if (error instanceof Error && error.message.startsWith("model_prompt_audit_")) {
+          if (modelAuditRequestId && !modelAuditResponseRecorded) {
+            const auditCaptureFailed = error.message.startsWith("model_prompt_audit_response_capture_failed");
+            emitModelPromptAuditResponse({
+              requestId: modelAuditRequestId,
+              provider: "groq",
+              role: "groq_investigator",
+              model,
+              transportFailure: auditCaptureFailed ? undefined : error.name,
+              auditCaptureFailure: auditCaptureFailed ? "response_write_failed" : undefined,
+            });
+          }
+          return { model, raw: "", error: error.message };
+        }
         if (modelAuditRequestId && !modelAuditResponseRecorded) {
+          const auditCaptureFailed = error instanceof Error && error.message.startsWith("model_prompt_audit_response_capture_failed");
           emitModelPromptAuditResponse({
             requestId: modelAuditRequestId,
             provider: "groq",
             role: "groq_investigator",
             model,
-            transportFailure: error instanceof Error ? error.name : "unknown_error",
+            transportFailure: auditCaptureFailed ? undefined : error instanceof Error ? error.name : "unknown_error",
+            auditCaptureFailure: auditCaptureFailed ? "response_write_failed" : undefined,
           });
         }
         if (signal.aborted) throw new Error("cancelled");

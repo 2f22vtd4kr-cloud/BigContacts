@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
+import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 
 const input = {
   provider: "groq",
@@ -55,7 +55,7 @@ describe("model prompt audit", () => {
     for (const config of [artifactConfig, workspaceConfig]) {
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
       expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
-      expect(config).toContain('APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-28_CANONICAL_RUN_01.md"');
+      expect(config).toContain('APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-30_CANONICAL_RUN_01.md"');
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
     }
@@ -99,6 +99,26 @@ describe("model prompt audit", () => {
     }, (path, contents) => writes.push({ path, contents }));
     expect(requestId).toBeTruthy();
     expect(writes).toHaveLength(1);
+  });
+
+  it("fails closed when capture is explicitly enabled but the audit destination is missing", () => {
+    const writes: Array<{ path: string; contents: string }> = [];
+    const write = (path: string, contents: string) => writes.push({ path, contents });
+    const environment = {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+    };
+
+    expect(isModelPromptAuditCaptureEnabled(environment)).toBe(true);
+    expect(emitModelPromptAudit(input, environment, write)).toBeNull();
+    expect(emitModelPromptAuditResponse({
+      requestId: "previously-captured-request",
+      provider: "groq",
+      role: "groq_investigator",
+      model: input.model,
+      responseBody: "{}",
+    }, environment, write)).toBe(false);
+    expect(writes).toHaveLength(0);
   });
 
   it("is disabled unless explicitly enabled in development or test", () => {
@@ -229,6 +249,8 @@ describe("model prompt audit", () => {
     }, (path, contents) => writes.push({ path, contents }));
 
     expect(writes).toHaveLength(1);
+    expect(writes[0]?.contents.startsWith("\n\n### Model response request-visible-output\n\n\x60\x60\x60json\n")).toBe(true);
+    expect(writes[0]?.contents.endsWith("\n\x60\x60\x60\n")).toBe(true);
     expect(writes[0]?.contents).toContain("safe_search");
     expect(writes[0]?.contents).toContain("public company registry");
     expect(writes[0]?.contents).not.toContain("PRIVATE_MODEL_THOUGHT_SENTINEL");
@@ -553,5 +575,50 @@ describe("model prompt audit", () => {
       APEX_CAPTURE_MODEL_PROMPTS: "true",
     }, (_path, contents) => writes.push(contents))).toBeNull();
     expect(writes).toHaveLength(0);
+  });
+
+  it("prevents opted-in model roles from sending or consuming untraced provider responses", () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const investigator = readFileSync(resolve(workspaceRoot, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts"), "utf8");
+    const boss = readFileSync(resolve(workspaceRoot, "artifacts/api-server/src/src/lib/groq-boss.ts"), "utf8");
+    const rightHand = readFileSync(resolve(workspaceRoot, "artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
+    for (const source of [investigator, boss, rightHand]) {
+      expect(source).toContain("isModelPromptAuditCaptureEnabled()");
+      expect(source).toContain("model_prompt_audit_request_capture_failed");
+      expect(source).toContain("model_prompt_audit_response_capture_failed");
+    }
+  });
+
+  it("treats explicitly enabled capture as required and reports request/response write failures", () => {
+    const env = {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    };
+    expect(isModelPromptAuditCaptureEnabled(env)).toBe(true);
+    expect(emitModelPromptAudit(input, env, () => { throw new Error("disk unavailable"); })).toBeNull();
+    expect(emitModelPromptAuditResponse({
+      requestId: "request-write-failure",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "openai/gpt-oss-120b",
+      httpStatus: 200,
+      responseBody: "visible completion",
+    }, env, () => { throw new Error("disk unavailable"); })).toBe(false);
+    const captured: string[] = [];
+    expect(emitModelPromptAuditResponse({
+      requestId: "request-audit-capture-failure",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "openai/gpt-oss-120b",
+      auditCaptureFailure: "response_write_failed",
+    }, env, (_path, contents) => captured.push(contents))).toBe(true);
+    expect(captured[0]).toContain('"auditCaptureFailure": "response_write_failed"');
+    expect(captured[0]).toContain('"transportFailure": null');
+    expect(isModelPromptAuditCaptureEnabled({
+      NODE_ENV: "production",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    })).toBe(false);
   });
 });
