@@ -1,28 +1,38 @@
 import { describe, expect, it } from "vitest";
 import { checkPythonToolsAvailability, runHolehe, runMaigret, runSherlock, runTheHarvester, runOpenDeepResearch, runSpiderFoot } from "../lib/python-tools";
-import { ATLAS_CAPABILITIES, renderAtlasCapabilityGuidanceCompact } from "../lib/atlas-capability-registry";
+import { ATLAS_CAPABILITIES, exposeAttestedCapabilities, renderAtlasCapabilityGuidanceCompact } from "../lib/atlas-capability-registry";
 
 const trustedWorkerUnavailable = (tool: string) =>
   `No trusted, healthy Apex Python OSINT worker is available for ${tool}.`;
 
 describe("Investigator-visible capability truth", () => {
-  it("documents planned Python OSINT tools without presenting non-executors as selectable capabilities", () => {
-    const disabled = [
+  it("keeps worker actions out of the default prompt until runtime attestation supplies them", () => {
+    const workerActions = [
       "harvest_domain",
       "footprint_email",
       "footprint_username_maigret",
       "footprint_username_sherlock",
       "footprint_spiderfoot",
     ];
-    const promptCapabilities = renderAtlasCapabilityGuidanceCompact();
-    for (const action of disabled) {
+    const defaultPrompt = renderAtlasCapabilityGuidanceCompact();
+    for (const action of workerActions) {
       expect(ATLAS_CAPABILITIES.some((capability) =>
         capability.action === action && capability.investigatorSelectable === false,
       )).toBe(true);
-      expect(promptCapabilities).not.toContain(`: ${action};`);
+      expect(defaultPrompt).not.toContain(`(${action})`);
     }
-    expect(promptCapabilities).toContain("registry.search");
-    expect(promptCapabilities).toContain("web.visit");
+    expect(defaultPrompt).toContain("registry.search");
+    expect(defaultPrompt).toContain("web.visit");
+  });
+
+  it("exposes each worker tool to the model only when its exact action is attested for this turn", () => {
+    const attestedActions = ["footprint_email", "footprint_spiderfoot"];
+    const prompt = renderAtlasCapabilityGuidanceCompact(exposeAttestedCapabilities(attestedActions));
+    expect(prompt).toContain("(footprint_email)");
+    expect(prompt).toContain("(footprint_spiderfoot)");
+    expect(prompt).not.toContain("(footprint_username_maigret)");
+    expect(prompt).not.toContain("(footprint_username_sherlock)");
+    expect(prompt).not.toContain("(harvest_domain)");
   });
 });
 
