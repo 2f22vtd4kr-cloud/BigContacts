@@ -118,7 +118,7 @@ function schemeNodesFromSpans(spans: DigSpanView[] | undefined | null): Set<stri
     if (String(s.status ?? "").toLowerCase() !== "active") continue;
     const blob = `${s.name} ${s.inputSummary ?? ""} ${s.spanType} ${s.toolName ?? ""}`.toLowerCase();
     let toolHit = false;
-    if (/web_search|serper|\bsearch\b/.test(blob)) { out.add("serper"); toolHit = true; }
+    if (/web_search|serper|serpapi|\bsearch\b/.test(blob)) { out.add("serper"); toolHit = true; }
     if (/tavily/.test(blob)) { out.add("tavily"); toolHit = true; }
     if (/\bexa\b/.test(blob)) { out.add("exa"); toolHit = true; }
     if (/visit|browser_fetch|page-fetch|scrapfly|zenrows|open.?page/.test(blob)) { out.add("webdisc"); toolHit = true; }
@@ -2556,7 +2556,7 @@ export default function IntelligenceReactorPage() {
 
       // ── Key exhaustion ────────────────────────────────────────────────────────
       if (sysData?.ai) {
-        const LABELS: Record<string, string> = { groqInvestigator: "Groq Investigator", serper: "Serper", tavily: "Tavily", exa: "Exa" };
+        const LABELS: Record<string, string> = { groqInvestigator: "Groq Investigator", serper: "Serper", serpapi: "SerpAPI", tavily: "Tavily", exa: "Exa" };
         const providerWarnings = (Object.entries(sysData.ai) as [string, any[]][])
           .flatMap(([k, slots]) => {
             const configured = slots.filter((s: any) => s.state !== "missing").length;
