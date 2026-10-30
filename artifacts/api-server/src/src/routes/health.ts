@@ -66,7 +66,7 @@ router.get("/healthz/details", async (_req, res) => {
     bureauIntegrity: lanesHonesty?.bureauIntegrity ?? "critical",
     bureauIntegrityReasons: lanesHonesty?.bureauIntegrityReasons ?? [],
     note: registryShallowRisk
-      ? "registryShallowRisk=true: no Serper/Tavily/Exa search slots — discovery may be registry-only."
+      ? "registryShallowRisk=true: no Serper/SerpAPI/Tavily/Exa search slots — discovery may be registry-only."
       : "Provider slots are configured. Restart the API after secret changes. ENABLE_AUTO_PIPELINE=false is the safe operator floor.",
     autoPipeline: process.env.ENABLE_AUTO_PIPELINE === "true",
   });
