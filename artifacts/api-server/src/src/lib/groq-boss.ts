@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { logger } from "./logger";
-import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
+import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, isTokenPerDayQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
 import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 
@@ -315,6 +315,9 @@ async function generateGroqBossTextImpl(
           caseId: options?.caseId ?? null,
           requestBody,
         });
+        if (isModelPromptAuditCaptureEnabled() && !modelAuditRequestId) {
+          throw new Error("model_prompt_audit_request_capture_failed; refusing an untraced Boss request");
+        }
         let modelAuditResponseRecorded = false;
         const body = JSON.stringify(requestBody);
 
@@ -330,7 +333,7 @@ async function generateGroqBossTextImpl(
             signal: controller.signal,
           }));
           const responseBody = await response.text();
-          emitModelPromptAuditResponse({
+          modelAuditResponseRecorded = emitModelPromptAuditResponse({
             requestId: modelAuditRequestId,
             provider: "groq",
             role: "groq_boss",
@@ -338,7 +341,9 @@ async function generateGroqBossTextImpl(
             httpStatus: response.status,
             responseBody,
           });
-          modelAuditResponseRecorded = true;
+          if (isModelPromptAuditCaptureEnabled() && !modelAuditResponseRecorded) {
+            throw new Error("model_prompt_audit_response_capture_failed; refusing to process an untraced Boss response");
+          }
 
           if (response.status === 503) {
             const failureClass = classifyProviderHttpStatus(response.status);
