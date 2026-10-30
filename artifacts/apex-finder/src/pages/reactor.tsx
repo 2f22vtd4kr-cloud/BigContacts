@@ -267,7 +267,7 @@ const NODES: NodeDef[] = [
 
   /* Dig core — unconstrained ReAct agent */
   { id:"mcts",    label:"FREE DIG",        sub:"Model chooses next step",    cx:800,  cy:200, w:240, h:72,  type:"reactor",  Icon:ReactorMark,        color:"#b8ff4d" },
-  { id:"groq",    label:"DIG LLM",         sub:"Groq Investigator",             cx:560,  cy:200, w:150, h:56,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
+  { id:"groq",    label:"INVESTIGATOR",     sub:"Selected Groq capability",             cx:560,  cy:200, w:150, h:56,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
   { id:"boss",  label:"GROQ BOSS",          sub:"Case direction · selection",            cx:1040, cy:200, w:150, h:56,  type:"ai-yellow",Icon:Sparkles,   color:"#9CFF1A" },
   { id:"right_hand", label:"GROQ RIGHT-HAND", sub:"Independent oversight", cx:1260, cy:200, w:170, h:56, type:"ai-yellow", Icon:Sparkles, color:"#9CFF1A" },
   { id:"followup",  label:"FOLLOW-UP",       sub:"Adaptive re-query",          cx:1460, cy:200, w:150, h:56,  type:"ai-yellow",Icon:RefreshCw,  color:"#9CFF1A" },
@@ -358,7 +358,7 @@ const MOBILE_PHASES = [
   { label:"INPUT",      detail:"Target becomes a research brief", nodeIds:["target"]                                              },
   { label:"TOOLS", detail:"Registries the model may call", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp","brreg"] },
   { label:"SEARCH",  detail:"Web search and page visits the model chooses", nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"]     },
-  { label:"AI LAYER",   detail:"Search, extraction, and adaptive follow-up", nodeIds:["serper","exa","tavily","boss","groq","followup"]       },
+  { label:"MODEL & SEARCH", detail:"Groq roles and search capabilities the Investigator may choose", nodeIds:["serper","exa","tavily","boss","right_hand","groq","followup"] },
   { label:"SYNTHESIS",  detail:"Evidence becomes vectors and priority", nodeIds:["semantic","bayesian"]                                 },
   { label:"CORE",       detail:"Relationships and paths are evaluated", nodeIds:["graph","mcts","prac"]                                 },
   { label:"OUTPUT",     detail:"An evidence path ready for analyst review", nodeIds:["evidence"]                                 },
@@ -413,8 +413,8 @@ const JOB_NODE_MAP: Record<string, string[]> = {
   "atlas-run":            ["target","faa","hnwi","webdisc","ch","occrp","opensky"],
   // ── Enrichment ───────────────────────────────────────────────────────────────
   "in-house-enrich":      ["inhouse","serper","exa"],
-  "web-osint-enrich":     ["webdisc","serper","exa","tavily","boss","groq","maigret"],
-  "deep-web-osint":       ["deepweb","boss","followup"],
+  "web-osint-enrich":     ["webdisc","serper","exa","tavily","groq","maigret"],
+  "deep-web-osint":       ["deepweb","followup"],
   "social-discovery":     ["webdisc","inhouse"],
   // ── Registry cross-reference ─────────────────────────────────────────────────
   "occrp":                ["occrp"],
