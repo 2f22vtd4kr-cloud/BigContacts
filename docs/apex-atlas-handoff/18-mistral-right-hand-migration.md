@@ -1,3 +1,5 @@
+> **HISTORICAL MIGRATION RECORD — NOT THE CURRENT PROVIDER CONTRACT (2026-10-30).** This document records an earlier Mistral Right-hand design. Mistral is not an active Apex control-plane or Investigator role. Current roles are Groq Boss, Groq Right-hand, and the selected Groq Investigator capability. Read [current system introduction](./01_SYSTEM_INTRODUCTION.md) and [handoff 22](./22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md).
+
 # Mistral Right-hand Control-Plane Migration
 
 Date: 2026-10-02
