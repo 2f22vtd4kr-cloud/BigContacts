@@ -83,17 +83,17 @@ const SECTIONS = [
         <div className="grid gap-2 sm:grid-cols-3 my-4">
           <div className="rounded-xl border border-primary/15 bg-card/50 p-3">
             <div className="text-[10px] font-mono uppercase text-primary">Boss</div>
-            <div className="text-sm font-semibold mt-1">Gemini</div>
+            <div className="text-sm font-semibold mt-1">Groq</div>
             <div className="text-[11px] text-muted-foreground mt-1">Case direction and oversight.</div>
           </div>
           <div className="rounded-xl border border-primary/15 bg-card/50 p-3">
             <div className="text-[10px] font-mono uppercase text-primary">Right-hand</div>
-            <div className="text-sm font-semibold mt-1">Gemini</div>
+            <div className="text-sm font-semibold mt-1">Groq</div>
             <div className="text-[11px] text-muted-foreground mt-1">Independent bounded critique.</div>
           </div>
           <div className="rounded-xl border border-primary/15 bg-card/50 p-3">
             <div className="text-[10px] font-mono uppercase text-primary">Investigator</div>
-            <div className="text-sm font-semibold mt-1">Groq or Mistral</div>
+            <div className="text-sm font-semibold mt-1">Groq Investigator pool</div>
             <div className="text-[11px] text-muted-foreground mt-1">Owns the research trajectory.</div>
           </div>
         </div>
@@ -115,7 +115,7 @@ const SECTIONS = [
           can choose when they are useful.
         </p>
         <div className="rounded-xl border border-primary/12 bg-muted/20 p-4 my-4 font-mono text-[11px] leading-6 overflow-x-auto">
-          Gemini oversight → Investigator selection → model-selected action → validated tool
+          Groq Boss → Groq Right-hand oversight → Boss-selected Groq Investigator capability → model-selected action → validated tool
           → observation + provenance → evidence state → oversight → next act
         </div>
         <ul className="space-y-3 text-sm text-muted-foreground">
@@ -253,8 +253,9 @@ const SECTIONS = [
           <StatusRow icon={Cpu} title="Groq">
             Uses structured JSON/schema output on supported models and keeps reasoning separate from the action payload.
           </StatusRow>
-          <StatusRow icon={Cpu} title="Mistral">
-            Uses strict JSON-schema response formatting.
+          <StatusRow icon={Cpu} title="Groq Investigator pool">
+            The Boss selects from configured Groq Investigator credential capabilities. Model routing remains
+            inside the selected capability; a selected credential is never silently swapped for another.
           </StatusRow>
           <StatusRow icon={Database} title="Bounded context">
             The prompt receives a compact high-signal projection; durable observations and trajectory history remain outside the prompt.
@@ -263,6 +264,14 @@ const SECTIONS = [
         <Callout title="Important">
           Context compaction changes presentation, not history. Apex must never delete or rewrite durable evidence just
           to make a provider request smaller.
+        </Callout>
+        <Callout title="Specialist OSINT worker availability">
+          Holehe, Maigret, Sherlock, theHarvester, and SpiderFoot are conditional specialist capabilities. They
+          are exposed to the Investigator only when the runtime verifies a fresh signed worker attestation,
+          independently pinned immutable worker/proxy images, and the isolated egress boundary. If a capability
+          is not in the turn's available-action list, the model cannot call it. When available, the Investigator
+          chooses whether it is useful from the case hypothesis and observed identifiers; there is no fixed tool
+          sequence. Worker output is a lead, not automatic identity or contact proof.
         </Callout>
       </>
     ),
@@ -312,31 +321,28 @@ const SECTIONS = [
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono text-muted-foreground mb-4">
           {[
-            "REDIS_URL_1",
-            "GROQ_API_KEY",
-            "GEMINI_API_KEY",
-            "MISTRAL_API_KEY",
+            "COMPANIES_HOUSE_API_KEY",
+            "EXA_API_KEY",
+            "GROQ_BOSS_API_KEY",
+            "GROQ_RIGHT_HAND_API_KEY",
+            "GROQ_INVESTIGATOR_API_KEY",
             "HF_TOKEN",
+            "GROQ_INVESTIGATOR_API_KEY_1",
+            "REDIS_URL_1",
+            "SCRAPFLY_API_KEY",
+            "SERPAPI_KEY",
             "SERPER_API_KEY",
             "TAVILY_API_KEY",
-            "SERPAPI_KEY",
-            "EXA_API_KEY",
-            "SCRAPFLY_API_KEY",
             "ZENROWS_API_KEY",
-            "COMPANIES_HOUSE_API_KEY",
-            "GEMINI_RIGHT_HAND_API_KEY",
           ].map((key) => (
             <div key={key} className="border border-primary/12 rounded p-2">{key}</div>
           ))}
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Separate browser/API security controls are <span className="font-mono text-foreground">APEX_API_AUTH_TOKEN</span>,
-          <span className="font-mono text-foreground"> APEX_OPERATOR_PASSWORD</span>, and
-          <span className="font-mono text-foreground"> APEX_SESSION_SECRET</span>.
+          Additional numbered Groq Boss, Right-hand, and Investigator slots are optional capabilities.
+          The current Replit deployment intentionally does not require operator-auth secrets; do not add
+          retired provider keys to satisfy an old checklist.
         </p>
-        <Callout title="Retired providers" tone="warn">
-          DeepSeek/NVIDIA and WHOISJSON are legacy/retired. They are not part of the active Investigator or Right-hand contract.
-        </Callout>
       </>
     ),
   },
