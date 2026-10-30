@@ -1,3 +1,5 @@
+> **Current override — 2026-10-30:** This dated file is historical incident chronology. Use [handoff 22](./apex-atlas-handoff/22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md), `README.md`, and `docs/context.md` for current source/UI/worker state. Do not rely on the 29 October override below for current-main SHA, CI, or Replit runtime status.
+
 # Apex Atlas — Current Verified Status
 
 > **Current override — 2026-10-29:** This file retains historical incident chronology under its dated filename. PRs #766 and #767 are merged to `main`; focused code checks passed on their PR head, but the exact current-main workflows and the separate live-runtime gate must be checked before any readiness claim. The latest tracked live audit is `audits/apex-atlas-live-run-sequential-audit-2026-10-27.md`; it records review-only company cards in one failed/incomplete run, later provider-quota failures before research, and a final job checkpoint that was not terminally reconciled. No canonical current Replit workspace/deployed SHA has been verified. Do not launch until the actual runtime source, active-job lock, and worker/provider availability are verified.
