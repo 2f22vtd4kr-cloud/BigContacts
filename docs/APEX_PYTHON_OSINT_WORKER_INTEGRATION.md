@@ -1,6 +1,6 @@
 # Apex canonical Python OSINT worker integration
 
-Status: code integration proposal; **not live-accepted**.
+**Status (2026-10-30):** worker adapters and fail-closed per-turn model exposure are integrated in the repository; live worker deployment and signed attestation are not verified.
 
 ## Architecture path
 
