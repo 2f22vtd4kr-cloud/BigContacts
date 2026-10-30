@@ -284,7 +284,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     const omitProviderResponseFormat = candidate.model.toLowerCase().includes("gpt-oss");
     const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:currentUser}],max_completion_tokens:currentCompletionTokens,temperature:0.1,stream:false,...(omitProviderResponseFormat?{}:{response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat}), reasoning_effort:currentReasoningEffort, include_reasoning:false};
      const modelAuditRequestId=emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:outboundAttemptCount+1,jobId:auditContext?.jobId??null,caseId:auditContext?.caseId??null,requestBody});
-     if(isModelPromptAuditCaptureEnabled()&&!modelAuditRequestId)throw new Error("model_prompt_audit_request_capture_failed; refusing an untraced Right-hand request");
+     if(isModelPromptAuditCaptureEnabled()&&!modelAuditRequestId)return {raw:"",error:"model_prompt_audit_request_capture_failed",model:candidate.model};
     const body=JSON.stringify(requestBody);
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
     let modelAuditResponseRecorded=false;
