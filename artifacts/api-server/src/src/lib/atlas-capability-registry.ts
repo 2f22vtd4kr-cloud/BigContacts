@@ -11,7 +11,7 @@
 export type AtlasCapability = {
   id: string;
   action: string;
-  /** False means the adapter is deliberately not selectable by models in this deployment. */
+  /** False by default; the current turn may expose it only after the runtime attests that adapter. */
   investigatorSelectable?: boolean;
   purpose: string;
   reveals: string[];
@@ -85,6 +85,23 @@ const COMPACT_CAPABILITY_GUIDANCE: Record<string, string> = {
   "identity.sherlock": "observed username; profiles are candidates, not identity",
   "osint.spiderfoot": "grounded seed; match targetType/profile to hypothesis; high cost; correlated events/URLs are leads, not independent proof",
 };
+
+/**
+ * Promote only worker-backed capabilities whose actions were placed in this
+ * turn's allowlist by the freshly attested runtime. The registry's false
+ * default prevents an unverified worker from leaking into model context.
+ */
+export function exposeAttestedCapabilities(
+  availableActions: readonly string[],
+  capabilities: readonly AtlasCapability[] = ATLAS_CAPABILITIES,
+): AtlasCapability[] {
+  const available = new Set(availableActions);
+  return capabilities.map((capability) =>
+    capability.investigatorSelectable === false && available.has(capability.action)
+      ? { ...capability, investigatorSelectable: true }
+      : capability,
+  );
+}
 
 export function renderAtlasCapabilityGuidanceCompact(capabilities: readonly AtlasCapability[] = ATLAS_CAPABILITIES): string {
   return capabilities
