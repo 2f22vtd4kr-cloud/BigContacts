@@ -250,14 +250,14 @@ export function safeThrownErrorMessagePreview(error: unknown, maxChars = 180): s
       : "";
   if (!raw.trim()) return null;
   const safe = raw
-    .replace(/\\bBearer\\s+[A-Za-z0-9._~+\\/-]+=*/gi, "Bearer [redacted]")
-    .replace(/\\b(?:gsk_|sk-|xox[baprs]-)[A-Za-z0-9_-]{8,}\\b/gi, "[redacted-token]")
-    .replace(/\\b((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|authorization)\\s*[:=]\\s*)(?:"[^"]*"|'[^']*'|[^\\s,;]+)/gi, "$1[redacted]")
-    .replace(/https?:\\/\\/[^\\s"'<>]+/gi, "[url]")
-    .replace(/\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b/gi, "[email]")
-    .replace(/(?:\\/(?:home|Users|mnt|tmp|var|workspace)\\/)[^\\s"'<>)]*/g, "[path]")
-    .replace(/[\\r\\n\\t]+/g, " ")
-    .replace(/\\s{2,}/g, " ")
+    .replace(/\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi, "Bearer [redacted]")
+    .replace(/\b(?:gsk_|sk-|xox[baprs]-)[A-Za-z0-9_-]{8,}\b/gi, "[redacted-token]")
+    .replace(/\b((?:api[_-]?key|access[_-]?token|refresh[_-]?token|secret|password|authorization)\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi, "$1[redacted]")
+    .replace(/https?:\/\/[^\s"'<>]+/gi, "[url]")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[email]")
+    .replace(/(?:\/(?:home|Users|mnt|tmp|var|workspace)\/)[^\s"'<>)]*/g, "[path]")
+    .replace(/[\r\n\t]+/g, " ")
+    .replace(/\s{2,}/g, " ")
     .trim();
   if (!safe) return null;
   const limit = Number.isFinite(maxChars) ? Math.max(40, Math.min(300, Math.floor(maxChars))) : 180;
