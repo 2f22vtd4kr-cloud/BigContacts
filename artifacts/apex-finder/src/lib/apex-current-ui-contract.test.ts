@@ -24,7 +24,7 @@ describe("current Apex UI contract", () => {
   });
 
   it("shows every attested Python OSINT tool, including SpiderFoot, without a scripted order", () => {
-    for (const tool of ["holehe", "maigret", "sherlock", "theharvester", "spiderfoot"]) {
+    for (const tool of ["holehe", "maigret", "sherlock", "theHarvester", "spiderfoot"]) {
       expect(dataSources).toContain(`${tool}:`);
     }
     expect(dataSources).toContain('label: "SpiderFoot"');
