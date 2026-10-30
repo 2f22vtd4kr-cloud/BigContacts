@@ -815,7 +815,7 @@ async function materializePartialOrganizationLeadCards(input: {
             if (typeof company.name !== "string" || !Array.isArray(company.sourceUrls)) continue;
             const name = company.name.trim().replace(/\s+/g, " ");
             const identity = normalizeCandidateIdentityName(name);
-            if (name.length < 3 || identity.length < 3) continue;
+            if (name.length < 3 || identity.length < 3 || isGenericDiscoveryMetadataTitle(name)) continue;
             if (!seenNames.has(identity)) {
               seenNames.add(identity);
               leadNames.push(name);
