@@ -465,12 +465,14 @@ async function generateGroqBossTextImpl(
           break;
         } catch (error) {
           if (!modelAuditResponseRecorded) {
+            const auditCaptureFailed = error instanceof Error && error.message.startsWith("model_prompt_audit_response_capture_failed");
             emitModelPromptAuditResponse({
               requestId: modelAuditRequestId,
               provider: "groq",
               role: "groq_boss",
               model,
-              transportFailure: error instanceof Error ? error.name : "unknown_error",
+              transportFailure: auditCaptureFailed ? undefined : error instanceof Error ? error.name : "unknown_error",
+              auditCaptureFailure: auditCaptureFailed ? "response_write_failed" : undefined,
             });
           }
           const isAbort = error instanceof Error && error.name === "AbortError";
