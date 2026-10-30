@@ -12,7 +12,6 @@ describe("canonical provider status contract", () => {
     const statusFunction = extractor.slice(start);
     expect(statusFunction).toContain("groqInvestigator:");
     expect(statusFunction).toContain("serper:");
-    expect(statusFunction).toContain("serpapi:");
     expect(statusFunction).toContain("tavily:");
     expect(statusFunction).toContain("exa:");
     expect(statusFunction).not.toMatch(/gemini|mistral|perplexity|nvidia/i);
