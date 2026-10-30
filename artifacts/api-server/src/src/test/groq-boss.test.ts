@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const caseBureauSource = readFileSync(resolve(process.cwd(), "src/src/lib/case-bureau.ts"), "utf8");
+const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { compactCanonicalDiscoveryContinuationContext } from "../lib/investigation-context-compaction";
 import { generateGroqBossText } from "../lib/groq-boss";
@@ -13,6 +14,20 @@ describe("Groq Boss discovery prompt grounding", () => {
     expect(caseBureauSource).toContain("The case context is the durable shared record for this Bureau.");
     expect(caseBureauSource).toContain("Internal memory, storage, and workflow terminology are infrastructure concepts only");
     expect(caseBureauSource).toContain("do not turn wording from these instructions into a research premise.");
+  });
+
+
+  it("compares opening hypotheses without privileging Companies House or prescribing a research itinerary", () => {
+    const prompt = buildGroqBossDiscoveryPrompt({
+      objective: "Discover under-the-radar people with credible wealth potential and realistic public contact routes.",
+      motivation: "Identify source-backed ownership, assets, and approach paths.",
+    }, ["groq-investigator-1"]);
+    expect(prompt).toContain("Compare materially different, mission-consistent hypotheses");
+    expect(prompt).toContain("Do not prefer a registry merely because its adapter is callable");
+    expect(prompt).toContain("Companies House is only an illustrative UK-specific example, not a default or preferred source");
+    expect(prompt).toContain("This is comparative judgment, not a fixed research itinerary");
+    expect(canonicalAtlasDiscoverySource).toContain("defensible advantage over plausible alternatives");
+    expect(canonicalAtlasDiscoverySource).toContain("Companies House is not a preferred default");
   });
 
   it("uses medium reasoning for the opening discovery assignment", () => {
