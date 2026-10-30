@@ -182,28 +182,29 @@ export type ProviderSlotMap = Partial<Record<string, number>>;
  */
 function providerUnavailable(e: OpsEvent, slots?: ProviderSlotMap | null): boolean {
   const tool = `${pickTool(e)} ${e.toolIds?.join(" ") || ""}`;
-  const isPerp = /perp|perplexity/i.test(tool);
-  const isGroq = /\bgroq\b/i.test(tool);
+  const roleContext = `${tool} ${e.actor || ""}`;
+  const isBoss = /\bboss\b/i.test(roleContext);
+  const isRightHand = /right.?hand|advisor/i.test(roleContext);
+  const isGroqInvestigator = !isBoss && !isRightHand && (/\bgroq\b|investigator/i.test(roleContext));
   const isTavily = /\btavily\b/i.test(tool);
   const isExa = /\bexa\b/i.test(tool);
-  const isSerper = /\bserper|serpapi\b/i.test(tool);
+  const isSerper = /\bserper\b/i.test(tool);
+  const isSerpApi = /\bserpapi\b/i.test(tool);
 
-  // Hard truth from healthz: zero slots ⇒ never LIVE
+  // Health counts come from /api/healthz/details and match canonical roles/pools.
   if (slots) {
-    if (isPerp && (slots.perplexity ?? 0) <= 0) return true;
-    if (isGroq && (slots.groq ?? 0) <= 0) return true;
+    if (isBoss && (slots.groqBoss ?? 0) <= 0) return true;
+    if (isRightHand && (slots.groqRightHand ?? 0) <= 0) return true;
+    if (isGroqInvestigator && (slots.groqInvestigator ?? 0) <= 0) return true;
     if (isTavily && (slots.tavily ?? 0) <= 0) return true;
     if (isExa && (slots.exa ?? 0) <= 0) return true;
     if (isSerper && (slots.serper ?? 0) <= 0) return true;
+    if (isSerpApi && (slots.serpapi ?? 0) <= 0) return true;
   }
 
   const blob = `${e.resultSummary || ""} ${e.inputSummary || ""} ${e.status || ""}`;
   if (/no usable result|not configured|provider availability|quota|missing key|api key|returned no usable|0 citation|rate.?limit/i.test(blob)
-    && /perplexity|perp0|groq|provider/i.test(tool + blob)) {
-    return true;
-  }
-  // Fan-out telemetry that only lists template inventory — not a real search
-  if (isPerp && /query template|0 domain target|HNWI target/i.test(blob) && !(e.sourceUrls && e.sourceUrls.length)) {
+    && /serper|groq|investigator|provider/i.test(roleContext + blob)) {
     return true;
   }
   return false;
@@ -427,8 +428,8 @@ export function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | nul
   else if (e.methodKind === "persona" || /persona-review/i.test(toolBlob)) kind = "persona";
   else if (e.methodKind === "domain" || provider === "domain" || /domain-surface|domain-resolver|rdap|whois|whoxy|dns/i.test(toolBlob)) kind = "domain";
   else if (provider === "google" || /\bgoogle\b/i.test(toolBlob)) kind = "google";
-  else if (e.methodKind === "search" || ["serp", "serper", "serpapi", "tavily", "exa", "perplexity"].includes(provider) || /tavily|exa|perplexity|serper|serpapi|web.?search/i.test(tool)) kind = "serp";
-  else if (e.methodKind === "extract" || provider === "prompt" || e.prompt || /groq|llm|extract|gemini/i.test(tool)) kind = "prompt";
+  else if (e.methodKind === "search" || ["serp", "serper", "serpapi", "tavily", "exa"].includes(provider) || /tavily|exa|serper|serpapi|web.?search/i.test(tool)) kind = "serp";
+  else if (e.methodKind === "extract" || provider === "prompt" || e.prompt || /groq|llm|extract/i.test(tool)) kind = "prompt";
   else if (e.methodKind === "footprint" || provider === "sherlock" || provider === "maigret" || provider === "holehe" || /footprint|holehe|sherlock|maigret|harvest/i.test(toolBlob)) kind = "footprint";
   else if (/browser_fetch|scrapfly|zenrows/i.test(toolBlob)) kind = "browser";
   else if (
@@ -441,8 +442,8 @@ export function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | nul
   let honestSubtitle = e.resultSummary || undefined;
   if (unavailable) {
     const tool = pickTool(e);
-    if (/perp|perplexity/i.test(tool)) {
-      honestSubtitle = "Perplexity not configured or returned no result — not a live search";
+    if (/serper|serpapi/i.test(tool)) {
+      honestSubtitle = "Serper is not configured or returned no usable result — not a live search";
       kind = "serp";
     } else if (/groq/i.test(tool) && /rate.?limit|no usable/i.test(`${e.resultSummary||""}`)) {
       honestSubtitle = "Groq unavailable or rate-limited";
@@ -451,7 +452,7 @@ export function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | nul
 
   const discovery = isDiscoveryPhase(e.stage, tool, e.methodKind);
   const title =
-    unavailable && /perp|perplexity/i.test(tool) ? "Search offline"
+    unavailable && /serper|serpapi|tavily|exa/i.test(tool) ? "Search offline"
       : kind === "boss" ? "Team briefing"
       : kind === "case" ? "Case file"
       : kind === "registry" ? "Official records"
@@ -1484,12 +1485,12 @@ export function BureauOpsStage({
   onEdgeSwipe?: (dir: "prev" | "next") => void;
   jumpToLiveSignal?: number;
 }) {
-  // Live provider slot counts — never paint LIVE for a zero-slot provider (e.g. Perplexity)
+  // Live provider slot counts — never paint LIVE for an unavailable canonical role/search capability
   const [providerSlots, setProviderSlots] = React.useState<ProviderSlotMap | null>(null);
   React.useEffect(() => {
     let cancelled = false;
     const load = () => {
-      fetch("/api/healthz")
+      fetch("/api/healthz/details")
         .then(async (r) => {
           const t = await r.text();
           if (t.trimStart().startsWith("<")) return null;
@@ -1498,14 +1499,13 @@ export function BureauOpsStage({
         .then((d) => {
           if (cancelled || !d?.providers) return;
           setProviderSlots({
-            perplexity: Number(d.providers.perplexity) || 0,
-            groq: Number(d.providers.groq) || 0,
+            groqBoss: Number(d.providers.groqBoss) || 0,
+            groqRightHand: Number(d.providers.groqRightHand) || 0,
+            groqInvestigator: Number(d.providers.groqInvestigator) || 0,
             tavily: Number(d.providers.tavily) || 0,
             exa: Number(d.providers.exa) || 0,
             serper: Number(d.providers.serper) || 0,
-            gemini: Number(d.providers.gemini) || 0,
-            mistral: Number(d.providers.mistral) || 0,
-            nvidiaNim: Number(d.providers.nvidiaNim) || 0,
+            serpapi: Number(d.providers.serpapi) || 0,
           });
         })
         .catch(() => {});
