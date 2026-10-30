@@ -19,7 +19,7 @@ interface AIKeySlot {
   state: "active" | "rate_limited" | "missing";
   expiresAt: string | null;
 }
-type AIKeyStatus = Partial<Record<"groqInvestigator" | "tavily" | "exa" | "serper", AIKeySlot[]>>;
+type AIKeyStatus = Partial<Record<"groqInvestigator" | "tavily" | "exa" | "serper" | "serpapi", AIKeySlot[]>>;
 interface RoleStatus { configured: boolean; model: string; provider?: string }
 interface UpstashSlot { slot: number; status: string; quotaExhausted: boolean; latencyMs?: number | null }
 interface SystemStatus {
@@ -49,6 +49,7 @@ interface SystemStatus {
 const POOLS: Array<{ key: keyof AIKeyStatus; label: string; description: string }> = [
   { key: "groqInvestigator", label: "Groq Investigator capabilities", description: "Separately selectable credentials; the Boss selects a capability for the case." },
   { key: "serper", label: "Serper search", description: "Investigator-selected web-search capability." },
+  { key: "serpapi", label: "SerpAPI search", description: "Investigator-selected web-search capability." },
   { key: "tavily", label: "Tavily search", description: "Investigator-selected web-search capability." },
   { key: "exa", label: "Exa search", description: "Investigator-selected semantic-search capability." },
 ];
