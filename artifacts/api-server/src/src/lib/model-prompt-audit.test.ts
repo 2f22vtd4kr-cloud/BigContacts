@@ -583,6 +583,16 @@ describe("model prompt audit", () => {
       httpStatus: 200,
       responseBody: "visible completion",
     }, env, () => { throw new Error("disk unavailable"); })).toBe(false);
+    const captured: string[] = [];
+    expect(emitModelPromptAuditResponse({
+      requestId: "request-audit-capture-failure",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "openai/gpt-oss-120b",
+      auditCaptureFailure: "response_write_failed",
+    }, env, (_path, contents) => captured.push(contents))).toBe(true);
+    expect(captured[0]).toContain('"auditCaptureFailure": "response_write_failed"');
+    expect(captured[0]).toContain('"transportFailure": null');
     expect(isModelPromptAuditCaptureEnabled({
       NODE_ENV: "production",
       APEX_CAPTURE_MODEL_PROMPTS: "true",
