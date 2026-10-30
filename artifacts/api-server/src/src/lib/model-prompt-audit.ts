@@ -400,7 +400,7 @@ export function emitModelPromptAudit(
 ): string | null {
   if (!shouldCaptureModelPromptAudit(env)) return null;
   if (!env.APEX_MODEL_AUDIT_FILE?.trim()) {
-    process.stderr.write("[atlas_model_prompt_audit] capture is enabled but APEX_MODEL_AUDIT_FILE is missing; model request was not sent.\\n");
+    process.stderr.write("[atlas_model_prompt_audit] capture is enabled but APEX_MODEL_AUDIT_FILE is missing; model request was not sent.\n");
     return null;
   }
 
@@ -541,7 +541,7 @@ export function emitModelPromptAuditResponse(
 ): boolean {
   if (!input.requestId || !shouldCaptureModelPromptAudit(env)) return false;
   if (!env.APEX_MODEL_AUDIT_FILE?.trim()) {
-    process.stderr.write("[atlas_model_prompt_audit] capture is enabled but APEX_MODEL_AUDIT_FILE is missing; model response was not written.\\n");
+    process.stderr.write("[atlas_model_prompt_audit] capture is enabled but APEX_MODEL_AUDIT_FILE is missing; model response was not written.\n");
     return false;
   }
 
