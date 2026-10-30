@@ -1613,7 +1613,6 @@ export interface AIKeySlot {
 export interface AIKeyStatus {
   groqInvestigator: AIKeySlot[];
   serper:     AIKeySlot[];
-  serpapi:    AIKeySlot[];
   tavily:     AIKeySlot[];
   exa:        AIKeySlot[];
 }
@@ -1648,12 +1647,10 @@ export function getAIKeyStatus(): AIKeyStatus {
   const tavNames = ["TAVILY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
   const exaNames = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
   const serperNames = ["SERPER_API_KEY", "SERPER_KEY", "SERPER_API_KEY_2", "SERPER_API_KEY_3"];
-  const serpapiNames = ["SERPAPI_KEY"];
 
   return {
     groqInvestigator: investigatorNames.map((n, i) => slotState(n, _exhaustedGroqKeys, i)),
     serper: serperNames.map((n, i) => slotState(n, new Map(), i)),
-    serpapi: serpapiNames.map((n, i) => slotState(n, new Map(), i)),
     tavily: tavNames.map((n, i) => slotState(n, _exhaustedTavilyKeys, i, _quotaExhaustedTavilyKeys)),
     exa: exaNames.map((n, i) => slotState(n, _exhaustedExaKeys, i)),
   };
