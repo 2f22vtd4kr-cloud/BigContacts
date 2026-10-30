@@ -447,6 +447,7 @@ type AuditResponseInput = {
   responseBody?: string;
   latencyMs?: number;
   transportFailure?: string;
+  auditCaptureFailure?: string;
 };
 
 function summarizeProviderErrorDetails(error: Record<string, unknown>, includeContactData = false): Record<string, unknown> {
@@ -547,6 +548,7 @@ export function emitModelPromptAuditResponse(
     httpStatus: input.httpStatus ?? null,
     latencyMs: input.latencyMs ?? null,
     transportFailure: input.transportFailure ?? null,
+    auditCaptureFailure: input.auditCaptureFailure ?? null,
     response: responseBody
       ? visibleProviderResponse(
           responseBody,
