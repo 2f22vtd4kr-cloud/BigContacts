@@ -27,7 +27,7 @@ describe("AI response safety helpers", () => {
       process.env.SERPER_API_KEY = "test-serper";
 
       const status = getAIKeyStatus();
-      expect(Object.keys(status).sort()).toEqual(["exa", "groqInvestigator", "serpapi", "serper", "tavily"]);
+      expect(Object.keys(status).sort()).toEqual(["exa", "groqInvestigator", "serper", "tavily"]);
       expect(status.groqInvestigator).toHaveLength(8);
       expect(status.groqInvestigator[0]).toMatchObject({ state: "active" });
       expect(status.groqInvestigator.slice(1).every((slot) => slot.state === "missing")).toBe(true);
