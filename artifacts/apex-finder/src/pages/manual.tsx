@@ -83,18 +83,18 @@ const SECTIONS = [
         <div className="grid gap-2 sm:grid-cols-3 my-4">
           <div className="rounded-xl border border-primary/15 bg-card/50 p-3">
             <div className="text-[10px] font-mono uppercase text-primary">Boss</div>
-            <div className="text-sm font-semibold mt-1">Gemini</div>
-            <div className="text-[11px] text-muted-foreground mt-1">Case direction and oversight.</div>
+            <div className="text-sm font-semibold mt-1">Groq</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Case direction and Investigator selection.</div>
           </div>
           <div className="rounded-xl border border-primary/15 bg-card/50 p-3">
             <div className="text-[10px] font-mono uppercase text-primary">Right-hand</div>
-            <div className="text-sm font-semibold mt-1">Gemini</div>
-            <div className="text-[11px] text-muted-foreground mt-1">Independent bounded critique.</div>
+            <div className="text-sm font-semibold mt-1">Groq</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Independent bounded oversight.</div>
           </div>
           <div className="rounded-xl border border-primary/15 bg-card/50 p-3">
             <div className="text-[10px] font-mono uppercase text-primary">Investigator</div>
-            <div className="text-sm font-semibold mt-1">Groq or Mistral</div>
-            <div className="text-[11px] text-muted-foreground mt-1">Owns the research trajectory.</div>
+            <div className="text-sm font-semibold mt-1">Groq capability</div>
+            <div className="text-[11px] text-muted-foreground mt-1">Owns the research trajectory and selects tools.</div>
           </div>
         </div>
         <Callout title="The central rule">
@@ -115,8 +115,8 @@ const SECTIONS = [
           can choose when they are useful.
         </p>
         <div className="rounded-xl border border-primary/12 bg-muted/20 p-4 my-4 font-mono text-[11px] leading-6 overflow-x-auto">
-          Gemini oversight → Investigator selection → model-selected action → validated tool
-          → observation + provenance → evidence state → oversight → next act
+          Groq Boss → Groq Right-hand review → selected Groq Investigator
+          → model-selected action → validated capability → observation + provenance → next act
         </div>
         <ul className="space-y-3 text-sm text-muted-foreground">
           <StatusRow icon={Cpu} title="Investigator chooses the next act.">
@@ -253,8 +253,8 @@ const SECTIONS = [
           <StatusRow icon={Cpu} title="Groq">
             Uses structured JSON/schema output on supported models and keeps reasoning separate from the action payload.
           </StatusRow>
-          <StatusRow icon={Cpu} title="Mistral">
-            Uses strict JSON-schema response formatting.
+          <StatusRow icon={Cpu} title="Groq control and research roles">
+            Boss and Right-hand use bounded structured decisions; the selected Investigator emits model-owned research actions. The runtime validates every role contract before execution or state transition.
           </StatusRow>
           <StatusRow icon={Database} title="Bounded context">
             The prompt receives a compact high-signal projection; durable observations and trajectory history remain outside the prompt.
@@ -307,35 +307,31 @@ const SECTIONS = [
     content: (
       <>
         <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-          Apex has exactly 13 active provider/integration secret names. They belong in the deployment secret store,
-          never in source control or the client.
+          Provider credentials belong in Replit Secrets or the deployment secret store, never in source control or the browser. The active model roles use separate Groq credentials.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] font-mono text-muted-foreground mb-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-[11px] font-mono text-muted-foreground mb-4">
           {[
+            "GROQ_BOSS_API_KEY",
+            "GROQ_RIGHT_HAND_API_KEY",
+            "GROQ_INVESTIGATOR_API_KEY",
             "REDIS_URL_1",
-            "GROQ_API_KEY",
-            "GEMINI_API_KEY",
-            "MISTRAL_API_KEY",
-            "HF_TOKEN",
             "SERPER_API_KEY",
             "TAVILY_API_KEY",
-            "SERPAPI_KEY",
             "EXA_API_KEY",
             "SCRAPFLY_API_KEY",
             "ZENROWS_API_KEY",
             "COMPANIES_HOUSE_API_KEY",
-            "GEMINI_RIGHT_HAND_API_KEY",
+            "SERPAPI_API_KEY",
+            "HF_TOKEN",
           ].map((key) => (
             <div key={key} className="border border-primary/12 rounded p-2">{key}</div>
           ))}
         </div>
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          Separate browser/API security controls are <span className="font-mono text-foreground">APEX_API_AUTH_TOKEN</span>,
-          <span className="font-mono text-foreground"> APEX_OPERATOR_PASSWORD</span>, and
-          <span className="font-mono text-foreground"> APEX_SESSION_SECRET</span>.
+        <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+          Optional numbered credential slots are supported for the Groq roles and search providers. The Replit preflight script is the source of truth for required presence checks; it reports names only, never values. <span className="font-mono text-foreground">DATABASE_URL</span> is supplied by the platform.
         </p>
-        <Callout title="Retired providers" tone="warn">
-          DeepSeek/NVIDIA and WHOISJSON are legacy/retired. They are not part of the active Investigator or Right-hand contract.
+        <Callout title="Separate Python worker contract">
+          SpiderFoot, Maigret, Sherlock, Holehe and theHarvester require the dedicated isolated worker URL/token, exact pinned worker and egress-proxy image digests, and a fresh signed attestation. Installing a Python package in the app workspace alone does not make network execution available.
         </Callout>
       </>
     ),
