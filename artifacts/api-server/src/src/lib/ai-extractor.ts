@@ -1617,6 +1617,7 @@ export interface AIKeyStatus {
   tavily: AIKeySlot[];
   exa: AIKeySlot[];
   serper: AIKeySlot[];
+  serpapi: AIKeySlot[];
 }
 
 /**
@@ -1658,5 +1659,6 @@ export function getAIKeyStatus(): AIKeyStatus {
     tavily: tavilyNames.map((name, index) => slotState(name, _exhaustedTavilyKeys, index, _quotaExhaustedTavilyKeys)),
     exa: exaNames.map((name, index) => slotState(name, _exhaustedExaKeys, index)),
     serper: serperNames.map((name, index) => slotState(name, new Map(), index)),
+    serpapi: ["SERPAPI_KEY"].map((name, index) => slotState(name, new Map(), index)),
   };
 }
