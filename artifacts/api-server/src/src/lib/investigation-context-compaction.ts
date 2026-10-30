@@ -61,6 +61,22 @@ const DEFAULT_MAX_CHARS = 4_200;
 const MIN_MAX_CHARS = 3_900;
 const MAX_MAX_CHARS = 12_000;
 
+/**
+ * AI memory compaction is for historical research, not for re-summarizing a
+ * fresh case's Boss/Right-hand control instructions. A long control prompt on
+ * turn one must remain direct context and must not trigger a synthetic memory
+ * pass when there are no prior Investigator observations to compact.
+ */
+export function shouldCreateInvestigatorResearchMemory(input: {
+  hasExistingMemory: boolean;
+  historicalRecordCount: number;
+  sourceChars: number;
+  priorContextChars: number;
+}): boolean {
+  if (input.hasExistingMemory || input.historicalRecordCount <= 0) return false;
+  return input.sourceChars > 3_500 || input.priorContextChars > 800 || input.historicalRecordCount > 6;
+}
+
 function positiveBounded(raw: string | undefined, fallback: number, min: number, max: number): number {
   const value = Number(raw);
   return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;

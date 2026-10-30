@@ -8,9 +8,21 @@ import {
   isTokenPerDayQuotaError,
   summarizeProviderBody,
   safeThrownErrorSummary,
+  safeThrownErrorMessagePreview,
 } from "../lib/provider-error-diagnostics";
 
 describe("provider error diagnostics", () => {
+  it("exposes recognizable JavaScript failures but never persists arbitrary exception messages", () => {
+    expect(safeThrownErrorMessagePreview(new TypeError("Cannot read properties of undefined (reading 'profile')"))).toBe("Cannot read properties of undefined (reading 'profile')");
+    expect(safeThrownErrorMessagePreview(new Error("synthetic-db-write-failure-sensitive-value"))).toBeNull();
+    expect(safeThrownErrorMessagePreview(new Error("Bearer super-secret-token is not a function"))).toBeNull();
+    expect(safeThrownErrorMessagePreview(new Error("Bearer super-secret-token https://example.test/path?api_key=secret /home/user/private.ts user@example.test"))).toBeNull();
+    const wrapped = Object.assign(new Error("internal wrapper failure"), {
+      cause: new TypeError("Cannot read properties of null (reading 'trim')"),
+    });
+    expect(safeThrownErrorMessagePreview(wrapped)).toBe("Cannot read properties of null (reading 'trim')");
+  });
+
   it("identifies local provider-gate quota errors without exposing their messages", async () => {
     const { ProviderQuotaError } = await import("../lib/provider-gate");
     const error = new ProviderQuotaError("budget_exhausted", "groq", 30_000);
