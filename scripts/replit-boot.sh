@@ -58,4 +58,4 @@ if [[ "$API_BUILD_REUSABLE" == "true" ]]; then
 else
   pnpm --dir artifacts/api-server run build
 fi
-exec pnpm --filter @workspace/api-server run start
+exec npm exec --yes --package=pnpm@9.15.9 -- pnpm --filter @workspace/api-server run start
