@@ -286,35 +286,25 @@ export function mockSystemStatus() {
     }));
   return {
     ai: {
-      groq: slots(11, 1),
-      perplexity: slots(9, 0),
-      gemini: slots(11, 1),
+      groqInvestigator: slots(8, 1),
+      serper: slots(4, 1),
       tavily: slots(9, 1),
       exa: slots(11, 2),
     },
-    openResearch: {
-      state: "ready" as const,
-      huggingFace: { configured: true },
-      serper: { configured: true },
-      adapter: { available: true, model: "demo" },
-      mistral: { configured: true, model: "mistral-small", rateLimit: null },
-    },
-    bureauReasoning: {
-      configured: true,
-      model: "demo-nim",
-      endpoint: "https://example.invalid",
-      role: "right_hand_advisor" as const,
-      capability: "case_file_reasoning_only" as const,
-    },
-    geminiBoss: {
-      configured: true,
-      model: "gemini-demo",
-      role: "head_investigator" as const,
+    groqBoss: { configured: true, model: "groq-boss-demo", provider: "groq" },
+    groqRightHand: { configured: true, model: "groq-right-hand-demo", provider: "groq" },
+    pythonTools: {
+      holehe: false,
+      maigret: false,
+      sherlock: false,
+      theHarvester: false,
+      spiderfoot: false,
+      openDeepResearch: false,
     },
     databases: {
       postgres: { status: "ok" as const, latencyMs: 12 },
       localRedis: { status: "ok", latencyMs: 1 },
-      upstash: [1, 2, 3, 4, 5].map((index) => ({ index, status: "ok", latencyMs: 20 + index })),
+      upstash: [1, 2, 3, 4, 5].map((slot) => ({ slot, status: "ok", latencyMs: 20 + slot, quotaExhausted: false })),
     },
     generatedAt: new Date().toISOString(),
     cached: false,
