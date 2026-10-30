@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "../lib/ai-investigation-context-compaction";
-import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("AI-driven investigation memory compaction transport", () => {
   it("splits only for transport and retains every source character and repeated URL", () => {
@@ -28,7 +28,7 @@ describe("AI-driven investigation memory compaction transport", () => {
   });
 });
 
-describe("investigator context compaction", () => {
+describe("investigator context compaction", () => {\n  it("does not invoke AI memory compaction on a fresh first turn with no historical Investigator records", () => {\n    expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 0, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(false);\n  });\n\n  it("compacts long control context only when there is actual historical research to summarize", () => {\n    expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 2, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(true);\n    expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: true, historicalRecordCount: 2, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(false);\n  });
   it("bounds working context while retaining old source URLs in the archive index", () => {
     const records = Array.from({ length: 30 }, (_, index) => ({
       turn: index + 1, model: "groq:test", action: index % 2 ? "visit" : "web_search", execution: "success",
