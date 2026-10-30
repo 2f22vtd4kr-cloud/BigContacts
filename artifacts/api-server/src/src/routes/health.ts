@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { pingRedis, getPermanentClient, getRedisHealthSnapshot } from "../lib/redis";
 import { getAIKeyStatus } from "../lib/ai-extractor";
+import { getGroqBossStatus } from "../lib/groq-boss";
 import { getGroqRightHandStatus } from "../lib/groq-right-hand-reasoning";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 import { hasResearchProviderKey } from "../lib/research-key-readiness";
@@ -41,17 +42,22 @@ router.get("/healthz/details", async (_req, res) => {
   try {
     const status = getAIKeyStatus();
     const active = (slots: Array<{ state: string }>) => slots.filter((s) => s.state === "active").length;
+    const groqBoss = getGroqBossStatus();
     const groqRightHand = getGroqRightHandStatus();
     providers = {
-      groq: active(status.groq), gemini: active(status.gemini), perplexity: active(status.perplexity), tavily: active(status.tavily), exa: active(status.exa),
+      groqInvestigator: active(status.groqInvestigator),
+      groqBoss: groqBoss.configured ? 1 : 0,
       groqRightHand: groqRightHand.configured ? 1 : 0,
+      tavily: active(status.tavily),
+      exa: active(status.exa),
+      serper: active(status.serper),
       companiesHouse: process.env.COMPANIES_HOUSE_API_KEY ? 1 : 0,
-      serper: [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].some((k) => Boolean(k?.trim())) ? 1 : 0,
-      scrapfly: process.env.SCRAPFLY_API_KEY ? 1 : 0, zenrows: process.env.ZENROWS_API_KEY ? 1 : 0,
-          };
+      scrapfly: process.env.SCRAPFLY_API_KEY ? 1 : 0,
+      zenrows: process.env.ZENROWS_API_KEY ? 1 : 0,
+    };
     lanesHonesty = buildLanesHonestySnapshot();
   } catch { providers = undefined; lanesHonesty = undefined; }
-  const registryShallowRisk = lanesHonesty?.registryShallowRisk ?? (providers ? (providers.perplexity + providers.tavily + providers.exa + providers.serper) === 0 : true);
+  const registryShallowRisk = lanesHonesty?.registryShallowRisk ?? (providers ? (providers.tavily + providers.exa + providers.serper) === 0 : true);
   res.json({
     status: "ok",
     redis: { status: snap.status, latencyMs: snap.latencyMs, cached: snap.cached },
@@ -59,7 +65,7 @@ router.get("/healthz/details", async (_req, res) => {
     bureauIntegrity: lanesHonesty?.bureauIntegrity ?? "critical",
     bureauIntegrityReasons: lanesHonesty?.bureauIntegrityReasons ?? [],
     note: registryShallowRisk
-      ? "registryShallowRisk=true: no Serper/Tavily/Exa/Perplexity slots — discovery may be registry-only."
+      ? "registryShallowRisk=true: no Serper/Tavily/Exa search slots — discovery may be registry-only."
       : "Provider slots are configured. Restart the API after secret changes. ENABLE_AUTO_PIPELINE=false is the safe operator floor.",
     autoPipeline: process.env.ENABLE_AUTO_PIPELINE === "true",
   });
