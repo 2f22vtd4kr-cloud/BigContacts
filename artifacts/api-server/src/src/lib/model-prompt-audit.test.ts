@@ -101,6 +101,26 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(1);
   });
 
+  it("fails closed when capture is explicitly enabled but the audit destination is missing", () => {
+    const writes: Array<{ path: string; contents: string }> = [];
+    const write = (path: string, contents: string) => writes.push({ path, contents });
+    const environment = {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+    };
+
+    expect(isModelPromptAuditCaptureEnabled(environment)).toBe(true);
+    expect(emitModelPromptAudit(input, environment, write)).toBeNull();
+    expect(emitModelPromptAuditResponse({
+      requestId: "previously-captured-request",
+      provider: "groq",
+      role: "groq_investigator",
+      model: input.model,
+      responseBody: "{}",
+    }, environment, write)).toBe(false);
+    expect(writes).toHaveLength(0);
+  });
+
   it("is disabled unless explicitly enabled in development or test", () => {
     const writes: Array<{ path: string; contents: string }> = [];
     const write = (path: string, contents: string) => writes.push({ path, contents });
