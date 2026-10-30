@@ -286,35 +286,49 @@ export function mockSystemStatus() {
     }));
   return {
     ai: {
-      groq: slots(11, 1),
-      perplexity: slots(9, 0),
-      gemini: slots(11, 1),
-      tavily: slots(9, 1),
-      exa: slots(11, 2),
+      // Mock mode is intentionally non-affirmative: it never pretends that real
+      // deployment credentials or an attested Python worker are connected.
+      groqInvestigator: slots(8, 0),
+      serper: slots(4, 0),
+      tavily: slots(9, 0),
+      exa: slots(11, 0),
     },
-    openResearch: {
-      state: "ready" as const,
-      huggingFace: { configured: true },
-      serper: { configured: true },
-      adapter: { available: true, model: "demo" },
-      mistral: { configured: true, model: "mistral-small", rateLimit: null },
+    groqBoss: {
+      configured: false,
+      model: "openai/gpt-oss-120b",
+      fallbackModels: ["openai/gpt-oss-20b"],
+      role: "head_investigator" as const,
+      capability: "text_generation_and_case_planning" as const,
+      webSearchGrounding: false as const,
+      provider: "groq" as const,
     },
-    bureauReasoning: {
-      configured: true,
-      model: "demo-nim",
-      endpoint: "https://example.invalid",
+    groqRightHand: {
+      configured: false,
+      model: "openai/gpt-oss-120b",
+      fallbackModels: ["openai/gpt-oss-20b"],
+      endpoint: "https://api.groq.com/openai/v1/chat/completions",
       role: "right_hand_advisor" as const,
       capability: "case_file_reasoning_only" as const,
+      provider: "groq" as const,
     },
-    geminiBoss: {
-      configured: true,
-      model: "gemini-demo",
-      role: "head_investigator" as const,
+    groqRightHandLatency: {
+      requestTimeoutMs: 30_000,
+      overallTimeoutMs: 90_000,
+      minimumOverallTimeoutMs: 30_000,
+      overallTimeoutClamped: false,
+    },
+    pythonTools: {
+      holehe: false,
+      maigret: false,
+      sherlock: false,
+      theharvester: false,
+      spiderfoot: false,
+      openDeepResearch: false,
     },
     databases: {
       postgres: { status: "ok" as const, latencyMs: 12 },
       localRedis: { status: "ok", latencyMs: 1 },
-      upstash: [1, 2, 3, 4, 5].map((index) => ({ index, status: "ok", latencyMs: 20 + index })),
+      upstash: [1, 2, 3, 4, 5].map((slot) => ({ slot, status: "unknown", quotaExhausted: false, latencyMs: null })),
     },
     generatedAt: new Date().toISOString(),
     cached: false,
