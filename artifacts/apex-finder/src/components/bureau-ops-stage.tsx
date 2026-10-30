@@ -188,7 +188,8 @@ function providerUnavailable(e: OpsEvent, slots?: ProviderSlotMap | null): boole
   const isGroqInvestigator = !isBoss && !isRightHand && (/\bgroq\b|investigator/i.test(roleContext));
   const isTavily = /\btavily\b/i.test(tool);
   const isExa = /\bexa\b/i.test(tool);
-  const isSerper = /\bserper|serpapi\b/i.test(tool);
+  const isSerper = /\bserper\b/i.test(tool);
+  const isSerpApi = /\bserpapi\b/i.test(tool);
 
   // Health counts come from /api/healthz/details and match canonical roles/pools.
   if (slots) {
@@ -198,6 +199,7 @@ function providerUnavailable(e: OpsEvent, slots?: ProviderSlotMap | null): boole
     if (isTavily && (slots.tavily ?? 0) <= 0) return true;
     if (isExa && (slots.exa ?? 0) <= 0) return true;
     if (isSerper && (slots.serper ?? 0) <= 0) return true;
+    if (isSerpApi && (slots.serpapi ?? 0) <= 0) return true;
   }
 
   const blob = `${e.resultSummary || ""} ${e.inputSummary || ""} ${e.status || ""}`;
@@ -1503,6 +1505,7 @@ export function BureauOpsStage({
             tavily: Number(d.providers.tavily) || 0,
             exa: Number(d.providers.exa) || 0,
             serper: Number(d.providers.serper) || 0,
+            serpapi: Number(d.providers.serpapi) || 0,
           });
         })
         .catch(() => {});
