@@ -1,3 +1,5 @@
+> **Current-state override — 2026-10-30:** This September handoff is historical background only. The current source/UI/worker state and next steps are in [handoff 22](./apex-atlas-handoff/22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md), `README.md`, and `docs/context.md`. Any older provider, SHA, CI, Replit, or audit instruction below is superseded by current executable `main` and the latest verified handoff.
+
 # CURRENT OVERRIDE — VERIFIED 2026-10-16
 
 > This September handoff is historical background. This override plus `README.md`, `docs/CURRENT_STATUS_2026-10-15.md`, current source and run-specific audits govern current work.
