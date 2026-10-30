@@ -5,14 +5,16 @@ export interface AIKeySlot {
 }
 
 export interface AIKeyStatus {
-  groq: AIKeySlot[];
-  perplexity: AIKeySlot[];
-  gemini: AIKeySlot[];
+  groqInvestigator: AIKeySlot[];
   tavily: AIKeySlot[];
   exa: AIKeySlot[];
   serper: AIKeySlot[];
-  mistral: AIKeySlot[];
-  nvidia: AIKeySlot[];
+}
+
+export interface RoleStatus {
+  configured: boolean;
+  model: string;
+  provider?: string;
 }
 
 export interface UpstashSlot {
@@ -24,6 +26,17 @@ export interface UpstashSlot {
 
 export interface SystemStatus {
   ai: AIKeyStatus;
+  groqBoss?: RoleStatus;
+  groqRightHand?: RoleStatus;
+  pythonTools?: Record<string, boolean>;
+  lanesHonesty?: {
+    bureauIntegrity?: string;
+    bureauIntegrityReasons?: string[];
+    agenticLlmSlots?: number;
+    webSearchActive?: number;
+    agenticLlmLastOk?: boolean | null;
+    agenticLlmLastModel?: string | null;
+  };
   databases: {
     postgres: { status: "ok" | "error"; latencyMs: number | null };
     localRedis: { status: string; latencyMs: number | null };
@@ -35,25 +48,17 @@ export interface SystemStatus {
 }
 
 export const AI_PROVIDERS: Array<keyof AIKeyStatus> = [
-  "groq",
-  "perplexity",
-  "gemini",
+  "groqInvestigator",
+  "serper",
   "tavily",
   "exa",
-  "serper",
-  "mistral",
-  "nvidia",
 ];
 
 export const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
-  groq: "Groq LLaMA",
-  perplexity: "Perplexity",
-  gemini: "Gemini",
+  groqInvestigator: "Groq Investigator",
+  serper: "Serper",
   tavily: "Tavily",
   exa: "Exa",
-  serper: "Serper",
-  mistral: "Mistral",
-  nvidia: "NVIDIA NIM",
 };
 
 export interface ApiKeySummary {
@@ -65,20 +70,34 @@ export interface ApiKeySummary {
 }
 
 export function summarizeApiKeys(status: SystemStatus | null): ApiKeySummary {
-  return AI_PROVIDERS.reduce<ApiKeySummary>(
-    (summary, provider) => {
+  const summary = AI_PROVIDERS.reduce<ApiKeySummary>(
+    (current, provider) => {
       const slots = status?.ai?.[provider] ?? [];
       for (const slot of slots) {
-        summary.total += 1;
-        if (slot.state !== "missing") summary.configured += 1;
-        if (slot.state === "active") summary.active += 1;
-        if (slot.state === "rate_limited") summary.rateLimited += 1;
-        if (slot.state === "missing") summary.missing += 1;
+        current.total += 1;
+        if (slot.state !== "missing") current.configured += 1;
+        if (slot.state === "active") current.active += 1;
+        if (slot.state === "rate_limited") current.rateLimited += 1;
+        if (slot.state === "missing") current.missing += 1;
       }
-      return summary;
+      return current;
     },
     { active: 0, rateLimited: 0, missing: 0, configured: 0, total: 0 },
   );
+
+  // Control-plane roles are separate single credentials, not search-key pools.
+  if (status) {
+    for (const role of [status.groqBoss, status.groqRightHand]) {
+      summary.total += 1;
+      if (role?.configured) {
+        summary.configured += 1;
+        summary.active += 1;
+      } else {
+        summary.missing += 1;
+      }
+    }
+  }
+  return summary;
 }
 
 export function getSoonestReset(status: SystemStatus | null): string | null {
