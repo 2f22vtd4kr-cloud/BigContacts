@@ -24,7 +24,6 @@ interface AIKeySlot {
 interface AIKeyStatus {
   groqInvestigator: AIKeySlot[];
   serper: AIKeySlot[];
-  serpapi: AIKeySlot[];
   tavily: AIKeySlot[];
   exa: AIKeySlot[];
 }
@@ -91,7 +90,6 @@ const PROVIDER_LABELS: Record<string, string> = {
 const PROVIDER_COLORS: Record<string, string> = {
   groqInvestigator: "from-[#9CFF1A]/15 border-[#9CFF1A]/30",
   serper: "from-[#9CFF1A]/12 border-[#9CFF1A]/28",
-  serpapi: "from-[#9CFF1A]/10 border-[#9CFF1A]/25",
   tavily: "from-[#b8ff4d]/15 border-[#b8ff4d]/30",
   exa: "from-[#9CFF1A]/20 border-[#9CFF1A]/30",
 };
