@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# Replit's globally managed pnpm can recursively attempt to bootstrap the
+# workspace-pinned version. Always invoke the exact packageManager version
+# declared by this repository instead of relying on Replit's global shim.
+pnpm() {
+  npm exec --yes --package=pnpm@9.15.9 -- pnpm "$@"
+}
 export CI=true
 export PORT="${PORT:-8080}"
 export ENABLE_AUTO_PIPELINE="${ENABLE_AUTO_PIPELINE:-false}"
