@@ -20,6 +20,8 @@ export type LanesHonestySnapshot = {
   companiesHouse: number;
   webSearchActive: number;
   registryShallowRisk: boolean;
+  /** No alternate model-provider admission fallback exists in the canonical Groq-only control plane. */
+  groqAdmissionFallback: boolean;
   agenticLlmSlots: number;
   agenticLlmLastOk: boolean | null;
   agenticLlmLastModel: string | null;
@@ -74,6 +76,7 @@ export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
     companiesHouse,
     webSearchActive,
     registryShallowRisk: webSearchActive === 0,
+    groqAdmissionFallback: false,
     agenticLlmSlots,
     agenticLlmLastOk,
     agenticLlmLastModel,
