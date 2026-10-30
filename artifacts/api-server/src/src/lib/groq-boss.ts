@@ -316,7 +316,7 @@ async function generateGroqBossTextImpl(
           requestBody,
         });
         if (isModelPromptAuditCaptureEnabled() && !modelAuditRequestId) {
-          throw new Error("model_prompt_audit_request_capture_failed; refusing an untraced Boss request");
+          return { model, raw: null, error: "model_prompt_audit_request_capture_failed", attempts };
         }
         let modelAuditResponseRecorded = false;
         const body = JSON.stringify(requestBody);
