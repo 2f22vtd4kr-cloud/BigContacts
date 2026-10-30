@@ -7,7 +7,6 @@ export interface AIKeySlot {
 export interface AIKeyStatus {
   groqInvestigator: AIKeySlot[];
   serper: AIKeySlot[];
-  serpapi: AIKeySlot[];
   tavily: AIKeySlot[];
   exa: AIKeySlot[];
 }
@@ -34,7 +33,7 @@ export interface SystemStatus {
 export const AI_PROVIDERS: Array<keyof AIKeyStatus> = [
   "groqInvestigator",
   "serper",
-  "serpapi",
+ 
   "tavily",
   "exa",
 ];
@@ -42,7 +41,6 @@ export const AI_PROVIDERS: Array<keyof AIKeyStatus> = [
 export const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
   groqInvestigator: "Groq Investigator",
   serper: "Serper search",
-  serpapi: "SerpAPI search",
   tavily: "Tavily search",
   exa: "Exa search",
 };
