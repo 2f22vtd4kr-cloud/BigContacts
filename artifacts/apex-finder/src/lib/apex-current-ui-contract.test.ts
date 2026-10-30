@@ -29,6 +29,7 @@ describe("current Apex UI contract", () => {
     expect(statusPage).toContain("Groq Boss");
     expect(statusPage).toContain("Groq Right-hand");
     expect(statusPage).toContain("Groq Investigator capabilities");
+    expect(statusPage).toContain("SerpAPI search");
     expect(statusPage).not.toMatch(/Gemini|Mistral|Perplexity|NVIDIA|geminiBoss|openResearch/);
   });
 
@@ -59,6 +60,7 @@ describe("current Apex UI contract", () => {
     expect(bureauOps).toContain("/api/healthz/details");
     expect(bureauOps).toContain("groqInvestigator");
     expect(bureauOps).toContain("groqRightHand");
+    expect(bureauOps).toContain("serpapi");
     expect(integrityBanner).toContain("/api/system/status");
     expect(integrityBanner).not.toMatch(/Perplexity|multi-LLM/);
   });
