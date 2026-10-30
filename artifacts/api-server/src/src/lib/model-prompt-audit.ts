@@ -564,15 +564,17 @@ export function emitModelPromptAuditResponse(
       env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
     );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\n");
-      return;
+      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\\n");
+      return false;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
     write(
       auditPath,
-      `\n\n### Model response ${input.requestId}\n\n${fence}json\n${serialized}\n${fence}\n`,
+      `\\n\\n### Model response ${input.requestId}\\n\\n${fence}json\\n${serialized}\\n${fence}\\n`,
     );
+    return true;
   } catch {
-    process.stderr.write("[atlas_model_prompt_audit] append failed; model response was not written to the audit file.\n");
+    process.stderr.write("[atlas_model_prompt_audit] append failed; model response was not written to the audit file.\\n");
+    return false;
   }
 }
