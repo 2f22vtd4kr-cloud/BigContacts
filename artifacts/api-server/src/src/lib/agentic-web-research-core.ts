@@ -15,7 +15,7 @@ import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-e
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, compactPromptSectionPreservingUrlTokens } from "./investigation-context-compaction";
 import { summarizeInvestigatorContextWithBoss } from "./ai-investigation-context-compaction";
-import { ATLAS_CAPABILITIES, renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
+import { ATLAS_CAPABILITIES, exposeAttestedCapabilities, renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
 import { getAvailablePythonOsintActions, refreshPythonOsintToolAvailability } from "./python-osint-worker-client";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
 import { ResearchIntelligenceEngine, renderIntelligenceContext, type IntelligenceContext } from "./research-intelligence-engine";
@@ -4892,12 +4892,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     ? selectableActions
     : selectableActions.filter((action) => action !== "browser_fetch");
   const pythonActionNames = ["footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "harvest_domain", "footprint_spiderfoot"];
-  const availablePythonActions = new Set(selectableActions.filter((action) => pythonActionNames.includes(action)));
-  const promptCapabilities = ATLAS_CAPABILITIES.map((capability) =>
-    capability.investigatorSelectable === false && availablePythonActions.has(capability.action)
-      ? { ...capability, investigatorSelectable: true }
-      : capability,
-  );
+  const availablePythonActions = selectableActions.filter((action) => pythonActionNames.includes(action));
+  const promptCapabilities = exposeAttestedCapabilities(availablePythonActions);
   const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(promptCapabilities), availablePythonActions.size > 0 ? 2_200 : 1_000);
   const discoveryLivenessAdvisory = input.mode === "discovery" ? discoverySearchLivenessAdvisory(input.trajectoryRecords) : null;
   const terminalContract = defaultTerminalContract(input.mode === "discovery" ? "discovery" : "target");
