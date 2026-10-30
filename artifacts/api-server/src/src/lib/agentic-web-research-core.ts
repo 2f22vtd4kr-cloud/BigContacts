@@ -2603,6 +2603,20 @@ async function callGroqJson(
         if (raw) return { model, raw };
         break;
       } catch (error: any) {
+        if (error instanceof Error && error.message.startsWith("model_prompt_audit_")) {
+          if (modelAuditRequestId && !modelAuditResponseRecorded) {
+            const auditCaptureFailed = error.message.startsWith("model_prompt_audit_response_capture_failed");
+            emitModelPromptAuditResponse({
+              requestId: modelAuditRequestId,
+              provider: "groq",
+              role: "groq_investigator",
+              model,
+              transportFailure: auditCaptureFailed ? undefined : error.name,
+              auditCaptureFailure: auditCaptureFailed ? "response_write_failed" : undefined,
+            });
+          }
+          return { model, raw: "", error: error.message };
+        }
         if (modelAuditRequestId && !modelAuditResponseRecorded) {
           const auditCaptureFailed = error instanceof Error && error.message.startsWith("model_prompt_audit_response_capture_failed");
           emitModelPromptAuditResponse({
