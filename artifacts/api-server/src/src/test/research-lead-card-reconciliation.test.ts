@@ -115,9 +115,9 @@ describe("terminal review-card reconciliation", () => {
     expect(materialization.indexOf("materializePartialPersonLeadCards")).toBeGreaterThanOrEqual(0);
     expect(materialization.indexOf("materializePartialOrganizationLeadCards")).toBeGreaterThanOrEqual(0);
     expect(materialization.indexOf("materializePartialPersonLeadCards"))
-      .toBeLessThan(materialization.indexOf("const candidates = uniqueNames(input.findings"));
+      .toBeLessThan(materialization.indexOf("for (const name of candidates)"));
     expect(materialization.indexOf("materializePartialOrganizationLeadCards"))
-      .toBeLessThan(materialization.indexOf("const candidates = uniqueNames(input.findings"));
+      .toBeLessThan(materialization.indexOf("for (const name of candidates)"));
   });
 
   it("keeps public business-relevant relationship research separate from private intimate or health-data contact hunting", () => {
