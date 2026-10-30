@@ -17,6 +17,9 @@ describe("canonical provider status contract", () => {
     expect(statusFunction).toContain("exa:");
     expect(statusFunction).not.toMatch(/gemini|mistral|perplexity|nvidia/i);
 
+    const lanes = fs.readFileSync(path.join(sourceRoot, "lib/lanes-honesty.ts"), "utf8");
+    expect(lanes).toContain("groqAdmissionFallback: false");
+
     const health = fs.readFileSync(path.join(sourceRoot, "routes/health.ts"), "utf8");
     expect(health).toContain("getGroqBossStatus");
     expect(health).toContain("groqRightHand");
