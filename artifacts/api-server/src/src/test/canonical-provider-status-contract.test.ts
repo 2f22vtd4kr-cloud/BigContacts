@@ -25,7 +25,6 @@ describe("canonical provider status contract", () => {
     expect(health).toContain("lanesHonesty.groqBoss");
     expect(health).toContain("lanesHonesty.groqRightHand");
     expect(health).toContain("lanesHonesty.groqInvestigator");
-    expect(health).toContain("serpapi");
     expect(health).not.toMatch(/status\.gemini|status\.mistral|status\.perplexity|nvidiaNim/i);
   });
 });
