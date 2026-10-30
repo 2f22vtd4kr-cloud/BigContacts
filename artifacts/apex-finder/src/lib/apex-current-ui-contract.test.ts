@@ -5,6 +5,8 @@ const manual = readFileSync(new URL("../pages/manual.tsx", import.meta.url), "ut
 const statusPage = readFileSync(new URL("../pages/status.tsx", import.meta.url), "utf8");
 const dataSources = readFileSync(new URL("../pages/data-sources.tsx", import.meta.url), "utf8");
 const launchButton = readFileSync(new URL("../components/launch-atlas-button.tsx", import.meta.url), "utf8");
+const reactorPage = readFileSync(new URL("../pages/reactor.tsx", import.meta.url), "utf8");
+const mobileReactor = readFileSync(new URL("../components/mobile-reactor-flow.tsx", import.meta.url), "utf8");
 
 describe("current Apex UI contract", () => {
   it("documents only the canonical Groq model roles and current Replit secret names", () => {
@@ -32,6 +34,16 @@ describe("current Apex UI contract", () => {
     expect(dataSources).toContain("status?.[key] === true");
     expect(dataSources).not.toContain("scripts/install-python-tools.sh");
     expect(dataSources).not.toContain("Review-only fallback after Maigret");
+  });
+
+  it("keeps desktop and mobile Reactor diagrams aligned to the active Groq roles and search providers", () => {
+    for (const source of [reactorPage, mobileReactor]) {
+      expect(source).toContain("GROQ BOSS");
+      expect(source).toContain("Groq Investigator");
+      expect(source).not.toMatch(/Gemini|Mistral|Perplexity|NVIDIA|gemini|mistral|perplexity/i);
+    }
+    expect(reactorPage).toContain("GROQ RIGHT-HAND");
+    expect(mobileReactor).toContain("right_hand");
   });
 
   it("keeps the header launch control free of the aim/crosshair glyph", () => {
