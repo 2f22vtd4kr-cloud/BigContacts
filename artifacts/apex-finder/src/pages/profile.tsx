@@ -42,7 +42,7 @@ import {
   Instagram,
   Mail,
   Phone,
-  Crosshair, Flame,
+  Flame,
 } from "lucide-react";
 import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge } from "@/lib/utils";
 import { ContactSurface } from "@/components/contact-surface";
@@ -2313,7 +2313,7 @@ export default function ApexProfile() {
           data-testid="button-dig-contacts-mobile"
           className="flex-1 h-[44px] bg-primary text-primary-foreground rounded font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50"
         >
-          {isEnriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
+          {isEnriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
           {isEnriching ? "Digging…" : "Dig contacts"}
         </button>
         <Link
