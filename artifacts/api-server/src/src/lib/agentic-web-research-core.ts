@@ -34,6 +34,7 @@ import {
   classifyThrownProviderError,
   describeThrownProviderError,
   digestDiagnosticText,
+  safeThrownErrorMessagePreview,
   summarizeProviderBody,
   providerErrorCode,
   type ProviderFailureClass,
@@ -1159,7 +1160,9 @@ function safeAgenticError(error: unknown, aborted = false): string {
   const failureClass = classifyThrownProviderError(error, aborted);
   const code = diagnostic.errorCode ? `:${diagnostic.errorCode}` : "";
   const digest = diagnostic.messageDigest ? ` digest=${diagnostic.messageDigest}` : "";
-  return `${failureClass.toUpperCase()} (${diagnostic.errorName}${code}, messageChars=${diagnostic.messageChars}${digest})`;
+  const message = safeThrownErrorMessagePreview(error);
+  const detail = message ? ` detail=${JSON.stringify(message)}` : "";
+  return `${failureClass.toUpperCase()} (${diagnostic.errorName}${code}, messageChars=${diagnostic.messageChars}${digest}${detail})`;
 }
 
 function safeToolError(value: unknown): string {
