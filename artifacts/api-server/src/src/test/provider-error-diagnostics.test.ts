@@ -12,17 +12,14 @@ import {
 } from "../lib/provider-error-diagnostics";
 
 describe("provider error diagnostics", () => {
-  it("preserves useful local exception text while redacting credentials, URLs, paths, and email addresses", () => {
-    expect(safeThrownErrorMessagePreview(new TypeError("Cannot read properties of undefined (reading 'foo')"))).toBe("Cannot read properties of undefined (reading 'foo')");
-    const preview = safeThrownErrorMessagePreview(new Error("Bearer super-secret-token https://example.test/path?api_key=secret /home/user/private.ts user@example.test"));
-    expect(preview).toContain("Bearer [redacted]");
-    expect(preview).toContain("[url]");
-    expect(preview).toContain("[path]");
-    expect(preview).toContain("[email]");
-    expect(preview).not.toContain("super-secret-token");
-    expect(preview).not.toContain("api_key=secret");
-    expect(preview).not.toContain("private.ts");
-    expect(preview).not.toContain("user@example.test");
+  it("exposes recognizable JavaScript failures but never persists arbitrary exception messages", () => {
+    expect(safeThrownErrorMessagePreview(new TypeError("Cannot read properties of undefined (reading 'profile')"))).toBe("Cannot read properties of undefined (reading 'profile')");
+    expect(safeThrownErrorMessagePreview(new Error("synthetic-db-write-failure-sensitive-value"))).toBeNull();
+    expect(safeThrownErrorMessagePreview(new Error("Bearer super-secret-token https://example.test/path?api_key=secret /home/user/private.ts user@example.test"))).toBeNull();
+    const wrapped = Object.assign(new Error("internal wrapper failure"), {
+      cause: new TypeError("Cannot read properties of null (reading 'trim')"),
+    });
+    expect(safeThrownErrorMessagePreview(wrapped)).toBe("Cannot read properties of null (reading 'trim')");
   });
 
   it("identifies local provider-gate quota errors without exposing their messages", async () => {
