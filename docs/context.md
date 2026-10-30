@@ -4,7 +4,7 @@
 > **Canonical branch:** `main`<br>
 > **Status:** model-led ReAct control loop demonstrated in live execution; end-to-end research/card creation is not yet live-accepted.
 
-> **Current source/UI audit — 2026-10-30:** The current UI manual, System Status page, Data Sources specialist-worker panel, and header Launch control are being brought into alignment with the canonical Groq architecture and actual API status contracts. The patch also removes retired provider arrays from the system-status snapshot and adds tests for conditional attested-worker exposure. Treat these changes as pending until GitHub confirms their PR is merged to `main`; do not use a feature branch as the Replit import source.
+> **Current source/UI audit — 2026-10-30:** The current UI manual, System Status page, Data Sources specialist-worker panel, Replit preflight, and profile research-launch control are being brought into alignment with the canonical Groq architecture and actual API status contracts. The patch also removes retired provider arrays from the system-status snapshot and adds tests for conditional attested-worker exposure. Treat these changes as pending until GitHub confirms their PR is merged to `main`; do not use a feature branch as the Replit import source.
 >
 > **Latest known live-run evidence:** [2026-10-27 audit](../audits/apex-atlas-live-run-sequential-audit-2026-10-27.md). Its final captured checkpoint did not terminally reconcile the most recent job. Historical job IDs do not establish the current Replit active-job state. No Replit workspace/deployed SHA or active-job pointer has been verified by this GitHub-only work.
 >
