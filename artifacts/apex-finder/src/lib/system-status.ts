@@ -9,6 +9,7 @@ export interface AIKeyStatus {
   tavily: AIKeySlot[];
   exa: AIKeySlot[];
   serper: AIKeySlot[];
+  serpapi: AIKeySlot[];
 }
 
 export interface RoleStatus {
