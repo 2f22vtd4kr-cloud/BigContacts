@@ -22,35 +22,37 @@ interface AIKeySlot {
 }
 
 interface AIKeyStatus {
-  groq:       AIKeySlot[];
-  perplexity: AIKeySlot[];
-  gemini:     AIKeySlot[];
-  tavily:     AIKeySlot[];
-  exa:        AIKeySlot[];
+  groqInvestigator: AIKeySlot[];
+  serper: AIKeySlot[];
+  tavily: AIKeySlot[];
+  exa: AIKeySlot[];
 }
 
-interface OpenResearchStatus {
-  state: "ready" | "incomplete" | "unavailable";
-  huggingFace: { configured: boolean };
-  serper: { configured: boolean };
-  adapter: { available: boolean; model: string };
-  mistral: { configured: boolean; model: string; rateLimit: string };
-}
-
-interface BureauReasoningStatus {
+interface GroqBossStatus {
   configured: boolean;
   model: string;
-  endpoint: string;
-  role: "right_hand_advisor";
-  capability: "case_file_reasoning_only";
-}
-
-interface GeminiBossStatus {
-  configured: boolean;
-  model: string;
+  fallbackModels: string[];
   role: "head_investigator";
   capability: "text_generation_and_case_planning";
   webSearchGrounding: false;
+  provider: "groq";
+}
+
+interface GroqRightHandStatus {
+  configured: boolean;
+  model: string;
+  fallbackModels: string[];
+  endpoint: string;
+  role: "right_hand_advisor";
+  capability: "case_file_reasoning_only";
+  provider: "groq";
+}
+
+interface GroqRightHandLatency {
+  requestTimeoutMs: number;
+  overallTimeoutMs: number;
+  minimumOverallTimeoutMs: number;
+  overallTimeoutClamped: boolean;
 }
 
 interface UpstashSlot {
@@ -62,9 +64,10 @@ interface UpstashSlot {
 
 interface SystemStatus {
   ai: AIKeyStatus;
-  openResearch?: OpenResearchStatus;
-  bureauReasoning?: BureauReasoningStatus;
-  geminiBoss?: GeminiBossStatus;
+  groqBoss: GroqBossStatus;
+  groqRightHand: GroqRightHandStatus;
+  groqRightHandLatency: GroqRightHandLatency;
+  pythonTools: Record<string, boolean>;
   databases: {
     postgres:   { status: "ok" | "error"; latencyMs: number | null };
     localRedis: { status: string;         latencyMs: number | null };
@@ -78,29 +81,17 @@ interface SystemStatus {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const PROVIDER_LABELS: Record<string, string> = {
-  groq:       "Groq",
-  perplexity: "Perplexity",
-  gemini:     "Gemini",
-  tavily:     "Tavily",
-  exa:        "Exa",
-  serper:     "Serper",
-  mistral:    "Mistral",
-  nvidia:     "NVIDIA",
-  nvidiaNim:  "NVIDIA NIM",
+  groqInvestigator: "Groq Investigator",
+  serper: "Serper search",
+  tavily: "Tavily search",
+  exa: "Exa search",
 };
 
-const OPEN_RESEARCH_LABELS = {
-  ready: "ready",
-  incomplete: "incomplete",
-  unavailable: "unavailable",
-} as const;
-
 const PROVIDER_COLORS: Record<string, string> = {
-  groq:       "from-[#9CFF1A]/15 border-[#9CFF1A]/30",
-  perplexity: "from-[#9CFF1A]/12 border-[#9CFF1A]/28",
-  gemini:     "from-[#059669]/15 border-[#059669]/30",
-  tavily:     "from-[#b8ff4d]/15 border-[#b8ff4d]/30",
-  exa:        "from-[#9CFF1A]/20 border-[#9CFF1A]/30",
+  groqInvestigator: "from-[#9CFF1A]/15 border-[#9CFF1A]/30",
+  serper: "from-[#9CFF1A]/12 border-[#9CFF1A]/28",
+  tavily: "from-[#b8ff4d]/15 border-[#b8ff4d]/30",
+  exa: "from-[#9CFF1A]/20 border-[#9CFF1A]/30",
 };
 
 function SlotBar({ active, cooling }: { active: number; cooling: number }) {
@@ -315,7 +306,7 @@ export default function SystemStatusPage() {
 
   const aiProviders = status?.ai
     ? Object.keys(status.ai).filter((k) => Array.isArray((status.ai as any)[k]))
-    : (["groq", "perplexity", "gemini", "tavily", "exa"]);
+    : (["groqInvestigator", "serper", "tavily", "exa"]);
 
   const totalActive = status?.ai
     ? aiProviders.reduce((sum, k) => sum + (status.ai[k]?.filter(s => s.state === "active").length ?? 0), 0)
@@ -445,97 +436,44 @@ export default function SystemStatusPage() {
         </p>
       </section>
 
-      <section>
+      <section data-testid="canonical-model-roles">
         <div className="mb-4 flex items-center gap-2">
           <Wifi className="h-4 w-4 text-primary" />
           <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
-            Open Research Lane
+            Canonical model roles
           </h2>
-          <span className={cn(
-            "ml-auto rounded-full px-2 py-0.5 font-mono text-[12px] font-bold uppercase tracking-wider",
-            status?.openResearch?.state === "ready"
-              ? "bg-primary/15 text-primary"
-              : status?.openResearch?.state === "incomplete"
-                ? "bg-[#9CFF1A]/15 text-[#9CFF1A]"
-                : "bg-muted/30 text-muted-foreground",
-          )}>
-            {OPEN_RESEARCH_LABELS[status?.openResearch?.state ?? "unavailable"]}
-          </span>
         </div>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {[
-            { label: "Hugging Face", sub: "Model host", configured: status?.openResearch?.huggingFace?.configured ?? false },
-            { label: "Serper", sub: "Live search", configured: status?.openResearch?.serper?.configured ?? false },
-            { label: "Mistral", sub: "Web search", configured: status?.openResearch?.mistral?.configured ?? false },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className={cn(
-                "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 transition-colors",
-                item.configured
-                  ? "border-[#9CFF1A]/20 bg-lime-500/[0.06]"
-                  : "border-[#9CFF1A]/10 bg-card/25",
-              )}
-            >
+            {
+              label: "Groq Boss",
+              sub: "Case direction · Investigator selection",
+              configured: status?.groqBoss?.configured ?? false,
+              model: status?.groqBoss?.model,
+            },
+            {
+              label: "Groq Right-hand",
+              sub: "Independent bounded oversight · no browsing",
+              configured: status?.groqRightHand?.configured ?? false,
+              model: status?.groqRightHand?.model,
+            },
+          ].map((role) => (
+            <div key={role.label} className="flex min-w-0 items-center justify-between gap-3 rounded-2xl border border-[#9CFF1A]/15 bg-card/30 px-4 py-3.5">
               <div className="min-w-0">
-                <div className="text-[13px] font-semibold tracking-tight text-foreground">{item.label}</div>
-                <div className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.12em] text-muted-foreground/65">{item.sub}</div>
+                <div className="text-[13px] font-semibold tracking-tight text-foreground">{role.label}</div>
+                <div className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground/70">{role.sub}</div>
+                <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">{role.model ?? "Model route not reported"}</div>
               </div>
-              <span
-                className={cn(
-                  "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em]",
-                  item.configured
-                    ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/10 text-[#fef08a]"
-                    : "border-[#9CFF1A]/12 bg-muted/20 text-muted-foreground",
-                )}
-              >
-                {item.configured ? "ready" : "off"}
-              </span>
+              <span className={cn(
+                "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold uppercase",
+                role.configured ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/10 text-[#d4ff8a]" : "border-border bg-muted/20 text-muted-foreground",
+              )}>{role.configured ? "configured" : "missing"}</span>
             </div>
           ))}
         </div>
-        <div className="mt-2 rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px]">
-            <span className="text-muted-foreground">Bounded smolagents adapter</span>
-            <span className={status?.openResearch?.adapter?.available ? "text-primary" : "text-muted-foreground"}>
-              {status?.openResearch?.adapter?.available ? "installed" : "unavailable"}
-            </span>
-          </div>
-          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
-            {status?.openResearch?.adapter?.model ?? "Qwen/Qwen2.5-7B-Instruct"} · review-only, no direct promotion
-          </div>
-          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
-            {status?.openResearch?.mistral?.configured
-              ? `Mistral ${status.openResearch.mistral.model} · ${status.openResearch.mistral.rateLimit}`
-              : "Mistral web search not configured"}
-          </div>
-        </div>
-        <div className="mt-3 rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px]">
-            <span className="text-muted-foreground">Gemini Boss</span>
-            <span className={status?.geminiBoss?.configured ? "text-primary" : "text-muted-foreground"}>
-              {status?.geminiBoss?.configured ? "configured" : "missing"}
-            </span>
-          </div>
-          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
-            {status?.geminiBoss?.configured
-              ? `${status.geminiBoss.model} · head investigator · text only · no web grounding`
-              : "Gemini Boss text-planning model not configured"}
-          </div>
-        </div>
-        <div className="mt-3 rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px]">
-            <span className="text-muted-foreground">Boss's right-hand advisor</span>
-            <span className={status?.bureauReasoning?.configured ? "text-primary" : "text-muted-foreground"}>
-              {status?.bureauReasoning?.configured ? "configured" : "missing"}
-            </span>
-          </div>
-          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
-            {status?.bureauReasoning?.configured
-              ? `${status.bureauReasoning.model} · advisory only · no web search`
-              : "NVIDIA NIM right-hand advisor not configured"}
-          </div>
-        </div>
+        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
+          The selected Groq Investigator owns research choices and tool selection. Runtime-generated availability and authorization determine which capabilities can execute; role credentials are never crossed over.
+        </p>
       </section>
 
       {/* Databases */}
