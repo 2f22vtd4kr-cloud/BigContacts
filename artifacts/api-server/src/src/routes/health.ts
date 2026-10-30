@@ -43,7 +43,6 @@ router.get("/healthz/details", async (_req, res) => {
       groqRightHand: lanesHonesty.groqRightHand,
       groqInvestigator: lanesHonesty.groqInvestigator,
       serper: lanesHonesty.serper,
-      serpapi: lanesHonesty.serpapi,
       tavily: lanesHonesty.tavily,
       exa: lanesHonesty.exa,
       companiesHouse: lanesHonesty.companiesHouse,
@@ -62,7 +61,7 @@ router.get("/healthz/details", async (_req, res) => {
     bureauIntegrity: lanesHonesty?.bureauIntegrity ?? "critical",
     bureauIntegrityReasons: lanesHonesty?.bureauIntegrityReasons ?? [],
     note: registryShallowRisk
-      ? "No active Serper/SerpAPI/Tavily/Exa search capability is configured; registry-only discovery is not a substitute for broad web search."
+      ? "No active Serper/Tavily/Exa search capability is configured; registry-only discovery is not a substitute for broad web search."
       : "Canonical Groq roles and search-provider configuration are summarized above. Restart the API after secret changes; ENABLE_AUTO_PIPELINE=false is the safe operator floor.",
     autoPipeline: process.env.ENABLE_AUTO_PIPELINE === "true",
   });
