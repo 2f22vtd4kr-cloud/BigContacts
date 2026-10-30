@@ -1611,14 +1611,12 @@ export interface AIKeySlot {
 }
 
 export interface AIKeyStatus {
-  groq:       AIKeySlot[];
-  perplexity: AIKeySlot[];
-  gemini:     AIKeySlot[];
-  tavily:     AIKeySlot[];
-  exa:        AIKeySlot[];
-  serper:     AIKeySlot[];
+  /** Eight canonical, separately selectable Groq Investigator credential slots. */
   groqInvestigator: AIKeySlot[];
-  nvidia:     AIKeySlot[];
+  /** Active web-search capabilities; not model/control-plane roles. */
+  tavily: AIKeySlot[];
+  exa: AIKeySlot[];
+  serper: AIKeySlot[];
 }
 
 /**
@@ -1633,37 +1631,32 @@ export function getAIKeyStatus(): AIKeyStatus {
   const now = Date.now();
 
   function slotState(
-    envName:   string,
+    envName: string,
     exhausted: Map<string, number>,
-    index:     number,
+    index: number,
     quotaExhausted?: Map<string, number>,
   ): AIKeySlot {
-    const val = process.env[envName];
-    if (!val) return { index, state: "missing", expiresAt: null };
-    const quotaExp = quotaExhausted?.get(val);
-    if (quotaExp && quotaExp > now) return { index, state: "rate_limited", expiresAt: new Date(quotaExp).toISOString() };
-    const exp = exhausted.get(val);
-    if (exp && exp > now) return { index, state: "rate_limited", expiresAt: new Date(exp).toISOString() };
+    const value = process.env[envName];
+    if (!value) return { index, state: "missing", expiresAt: null };
+    const quotaExpiry = quotaExhausted?.get(value);
+    if (quotaExpiry && quotaExpiry > now) return { index, state: "rate_limited", expiresAt: new Date(quotaExpiry).toISOString() };
+    const expiry = exhausted.get(value);
+    if (expiry && expiry > now) return { index, state: "rate_limited", expiresAt: new Date(expiry).toISOString() };
     return { index, state: "active", expiresAt: null };
   }
 
-  const groqNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
-  const pplxNames = ["PERPLEXITY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `PERPLEXITY_API_KEY_${i + 1}`)];
-  const gemNames  = ["GEMINI_API_KEY", "GEMINI_KEY", ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
-  const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
-  const exaNames  = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
+  const investigatorNames = [
+    "GROQ_INVESTIGATOR_API_KEY",
+    ...Array.from({ length: 7 }, (_, index) => `GROQ_INVESTIGATOR_API_KEY_${index + 1}`),
+  ];
+  const tavilyNames = ["TAVILY_API_KEY", ...Array.from({ length: 8 }, (_, index) => `TAVILY_API_KEY_${index + 1}`)];
+  const exaNames = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, index) => `EXA_API_KEY_${index + 1}`)];
   const serperNames = ["SERPER_API_KEY", "SERPER_KEY", "SERPER_API_KEY_2", "SERPER_API_KEY_3"];
-  const investigatorNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
-  const nvidiaNames = ["GEMINI_API_KEY", "GEMINI_API_KEY", "GEMINI_API_KEY"];
 
   return {
-    groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),
-    perplexity: pplxNames.map((n, i) => slotState(n, _exhaustedPerplexityDirectKeys, i)),
-    gemini:     gemNames .map((n, i) => slotState(n, new Map(),                            i)),
-    tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i, _quotaExhaustedTavilyKeys)),
-    exa:        exaNames .map((n, i) => slotState(n, _exhaustedExaKeys,              i)),
-    serper:     serperNames.map((n, i) => slotState(n, new Map(), i)),
-    groqInvestigator: investigatorNames.map((n, i) => slotState(n, new Map(), i)),
-    nvidia:     nvidiaNames.map((n, i) => slotState(n, new Map(), i)),
+    groqInvestigator: investigatorNames.map((name, index) => slotState(name, _exhaustedGroqKeys, index)),
+    tavily: tavilyNames.map((name, index) => slotState(name, _exhaustedTavilyKeys, index, _quotaExhaustedTavilyKeys)),
+    exa: exaNames.map((name, index) => slotState(name, _exhaustedExaKeys, index)),
+    serper: serperNames.map((name, index) => slotState(name, new Map(), index)),
   };
 }
