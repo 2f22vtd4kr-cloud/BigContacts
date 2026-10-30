@@ -55,7 +55,7 @@ describe("model prompt audit", () => {
     for (const config of [artifactConfig, workspaceConfig]) {
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
       expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
-      expect(config).toContain('APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-28_CANONICAL_RUN_01.md"');
+      expect(config).toContain('APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-30_CANONICAL_RUN_01.md"');
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "false"');
     }
@@ -553,6 +553,18 @@ describe("model prompt audit", () => {
       APEX_CAPTURE_MODEL_PROMPTS: "true",
     }, (_path, contents) => writes.push(contents))).toBeNull();
     expect(writes).toHaveLength(0);
+  });
+
+  it("prevents opted-in model roles from sending or consuming untraced provider responses", () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const investigator = readFileSync(resolve(workspaceRoot, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts"), "utf8");
+    const boss = readFileSync(resolve(workspaceRoot, "artifacts/api-server/src/src/lib/groq-boss.ts"), "utf8");
+    const rightHand = readFileSync(resolve(workspaceRoot, "artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
+    for (const source of [investigator, boss, rightHand]) {
+      expect(source).toContain("isModelPromptAuditCaptureEnabled()");
+      expect(source).toContain("model_prompt_audit_request_capture_failed");
+      expect(source).toContain("model_prompt_audit_response_capture_failed");
+    }
   });
 
   it("treats explicitly enabled capture as required and reports request/response write failures", () => {
