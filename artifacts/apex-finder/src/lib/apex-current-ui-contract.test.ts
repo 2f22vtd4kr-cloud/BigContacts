@@ -21,8 +21,6 @@ describe("current Apex UI contract", () => {
     expect(manual).toContain("Groq Boss");
     expect(manual).toContain("Groq Right-hand");
     expect(manual).toContain("GROQ_INVESTIGATOR_API_KEY");
-    expect(manual).toContain("SERPAPI_KEY");
-    expect(manual).not.toContain("SERPAPI_API_KEY");
     expect(manual).toContain("GROQ_BOSS_API_KEY");
     expect(manual).toContain("GROQ_RIGHT_HAND_API_KEY");
     expect(manual).not.toMatch(/GEMINI_API_KEY|GEMINI_RIGHT_HAND_API_KEY|MISTRAL_API_KEY|Gemini|Mistral/);
@@ -32,10 +30,9 @@ describe("current Apex UI contract", () => {
     expect(statusPage).toContain("Groq Boss");
     expect(statusPage).toContain("Groq Right-hand");
     expect(statusPage).toContain("Groq Investigator capabilities");
-    expect(statusPage).toContain("SerpAPI search");
     expect(statusPage).toContain("Serper search");
     expect(statusPage).not.toMatch(/Gemini|Mistral|Perplexity|NVIDIA|geminiBoss/);
-    expect(sharedStatus).toContain("serpapi");
+    expect(sharedStatus).not.toContain("serpapi");
   });
 
   it("shows every attested Python OSINT tool, including SpiderFoot, without a scripted order", () => {
