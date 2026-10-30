@@ -569,7 +569,7 @@ describe("model prompt audit", () => {
       role: "groq_investigator",
       model: "openai/gpt-oss-120b",
       httpStatus: 200,
-      responseBody: JSON.stringify({ choices: [{ message: { role: "assistant", content: "{\\"action\\":\\"stop\\"}" } }] }),
+      responseBody: "visible completion",
     }, env, () => { throw new Error("disk unavailable"); })).toBe(false);
     expect(isModelPromptAuditCaptureEnabled({
       NODE_ENV: "production",
