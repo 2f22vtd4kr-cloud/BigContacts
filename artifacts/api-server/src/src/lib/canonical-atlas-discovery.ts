@@ -215,6 +215,15 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
   let materialized = 0;
   let evidenceRows = 0;
+  // Persist provisional review cards before attempting stricter target admission.
+  // A later ownership/corroboration admission error must not erase an already
+  // observed person/company lead from this discovery checkpoint.
+  const partialPeople = await materializePartialPersonLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
+  materialized += partialPeople.materialized;
+  evidenceRows += partialPeople.evidenceRows;
+  const partialOrganizations = await materializePartialOrganizationLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
+  materialized += partialOrganizations.materialized;
+  evidenceRows += partialOrganizations.evidenceRows;
 
   for (const name of candidates) {
     const identity = normalizeCandidateIdentityName(name);
@@ -349,12 +358,6 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
     evidenceRows += materializedAdmission.evidenceRows;
   }
 
-  const partialPeople = await materializePartialPersonLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
-  materialized += partialPeople.materialized;
-  evidenceRows += partialPeople.evidenceRows;
-  const partialOrganizations = await materializePartialOrganizationLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
-  materialized += partialOrganizations.materialized;
-  evidenceRows += partialOrganizations.evidenceRows;
   const durableCandidates = mergeDurablyAdmittedCandidateSources([durableCandidateSources.map(({ name, sourceUrls }) => ({ name, sourceUrls }))]);
   const personTargets = durableCandidates.map(({ name, sourceUrls }) => ({
     name,
