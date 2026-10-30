@@ -247,7 +247,7 @@ export function safeThrownErrorMessagePreview(error: unknown, maxChars = 180): s
   for (let depth = 0; depth < 3 && current && typeof current === "object"; depth += 1) {
     const record = current as { message?: unknown; cause?: unknown };
     const message = typeof record.message === "string" ? record.message.trim() : "";
-    const safeRuntimeFailure = /^(?:Cannot read properties of (?:undefined|null) \((?:reading|setting) '[A-Za-z_$][\w$]*'\)|.+ is not a function|.+ is not iterable|.+ is not defined|Maximum call stack size exceeded|Invalid left-hand side in assignment)$/i.test(message);
+    const safeRuntimeFailure = /^(?:Cannot read properties of (?:undefined|null) \\((?:reading|setting) '[A-Za-z_$][\\w$]*'\\)|[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)* is not a function|[A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)* is not iterable|[A-Za-z_$][\\w$]* is not defined|Maximum call stack size exceeded|Invalid left-hand side in assignment)$/i.test(message);
     if (safeRuntimeFailure) {
       const limit = Number.isFinite(maxChars) ? Math.max(40, Math.min(300, Math.floor(maxChars))) : 180;
       return message.slice(0, limit);
