@@ -58,6 +58,11 @@ function shouldCaptureModelPromptAudit(env: AuditEnvironment): boolean {
   return env.NODE_ENV === "test" && env.APEX_CAPTURE_MODEL_PROMPTS_IN_TEST === "true";
 }
 
+/** True only when this process has explicitly opted into required prompt capture. */
+export function isModelPromptAuditCaptureEnabled(env: AuditEnvironment = process.env): boolean {
+  return shouldCaptureModelPromptAudit(env);
+}
+
 type AuditInput = {
   provider: string;
   role: "groq_boss" | "groq_right_hand" | "groq_investigator";
@@ -528,8 +533,8 @@ export function emitModelPromptAuditResponse(
   env: AuditEnvironment = process.env,
   write: AuditWriter = appendFileSync,
   cwd: string = process.cwd(),
-): void {
-  if (!input.requestId || !shouldCaptureModelPromptAudit(env)) return;
+): boolean {
+  if (!input.requestId || !shouldCaptureModelPromptAudit(env)) return false;
 
   const responseBody = input.responseBody ?? "";
   const record = {
