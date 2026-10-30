@@ -9,7 +9,6 @@ const RESEARCH_PROVIDER_KEY_NAMES = [
   "SERPER_API_KEY_2",
   "SERPER_API_KEY_3",
   "SERPER_KEY",
-  "SERPAPI_KEY",
   "TAVILY_API_KEY",
   ...Array.from({ length: 8 }, (_, index) => `TAVILY_API_KEY_${index + 1}`),
   "EXA_API_KEY",
