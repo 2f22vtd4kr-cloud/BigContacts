@@ -229,8 +229,8 @@ describe("model prompt audit", () => {
     }, (path, contents) => writes.push({ path, contents }));
 
     expect(writes).toHaveLength(1);
-    expect(writes[0]?.contents.startsWith("\\n\\n### Model response request-visible-output\\n\\n\x60\x60\x60json\\n")).toBe(true);
-    expect(writes[0]?.contents.endsWith("\\n\x60\x60\x60\\n")).toBe(true);
+    expect(writes[0]?.contents.startsWith("\n\n### Model response request-visible-output\n\n\x60\x60\x60json\n")).toBe(true);
+    expect(writes[0]?.contents.endsWith("\n\x60\x60\x60\n")).toBe(true);
     expect(writes[0]?.contents).toContain("safe_search");
     expect(writes[0]?.contents).toContain("public company registry");
     expect(writes[0]?.contents).not.toContain("PRIVATE_MODEL_THOUGHT_SENTINEL");
