@@ -36,16 +36,6 @@ export function GoogleIcon(props: IconProps) {
   );
 }
 
-/** Perplexity-style mark */
-export function PerplexityIcon(props: IconProps) {
-  return (
-    <Svg {...props} title={props.title ?? "Perplexity"}>
-      <rect width="24" height="24" rx="6" fill="#20808D" />
-      <path fill="#fff" d="M7 6h2.2l2.3 6.2L14 6h2.2l-3.6 9.2h-2.1L7 6zm9.5 0h2v12h-2V6z" />
-    </Svg>
-  );
-}
-
 /** Tavily */
 export function TavilyIcon(props: IconProps) {
   return (
@@ -73,24 +63,6 @@ export function SerpIcon(props: IconProps) {
       <circle cx="12" cy="12" r="11" fill="#0F172A" stroke="#38BDF8" strokeWidth="1.5" />
       <circle cx="11" cy="11" r="4.5" fill="none" stroke="#38BDF8" strokeWidth="1.8" />
       <path d="M14.5 14.5L18 18" stroke="#38BDF8" strokeWidth="2" strokeLinecap="round" />
-    </Svg>
-  );
-}
-
-/** Gemini (Google AI) — four-point sparkle in Google blue */
-export function GeminiIcon(props: IconProps) {
-  // Stable unique gradient id (never Math.random — that re-rolls every render)
-  const gid = `gem-${useId().replace(/:/g, "")}`;
-  return (
-    <Svg {...props} title={props.title ?? "Gemini"}>
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="24" y2="24">
-          <stop offset="0%" stopColor="#4285F4" />
-          <stop offset="45%" stopColor="#9B72CB" />
-          <stop offset="100%" stopColor="#D96570" />
-        </linearGradient>
-      </defs>
-      <path fill={`url(#${gid})`} d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8L12 2z" />
     </Svg>
   );
 }
@@ -194,8 +166,6 @@ export function AtlasIcon(props: IconProps) {
 
 export type ProviderKind =
   | "google"
-  | "gemini"
-  | "perplexity"
   | "tavily"
   | "exa"
   | "serp"
@@ -222,12 +192,7 @@ export type ProviderKind =
 /** Map tool id / stage / free text → provider kind */
 export function detectProviderKind(raw: string): ProviderKind {
   const s = String(raw || "").toLowerCase();
-  if (/gemini|google\s*search|grounded/.test(s) && /gemini|google/.test(s)) {
-    if (/gemini/.test(s)) return "gemini";
-  }
   if (/\bgoogle\b|site:google|google\.com\/search/.test(s)) return "google";
-  if (/gemini/.test(s)) return "gemini";
-  if (/perplexity|perp0|perpfu/.test(s)) return "perplexity";
   if (/tavily/.test(s)) return "tavily";
   if (/\bexa\b/.test(s)) return "exa";
   if (/serpapi/.test(s)) return "serpapi";
@@ -261,10 +226,6 @@ export function ProviderIcon({ kind, size = 14, ...rest }: IconProps & { kind: P
   switch (kind) {
     case "google":
       return <GoogleIcon size={size} {...rest} />;
-    case "gemini":
-      return <GeminiIcon size={size} {...rest} />;
-    case "perplexity":
-      return <PerplexityIcon size={size} {...rest} />;
     case "tavily":
       return <TavilyIcon size={size} {...rest} />;
     case "exa":
@@ -306,8 +267,6 @@ export function ProviderIcon({ kind, size = 14, ...rest }: IconProps & { kind: P
 export function providerLabel(kind: ProviderKind): string {
   const map: Record<ProviderKind, string> = {
     google: "Google",
-    gemini: "Gemini",
-    perplexity: "Perplexity",
     tavily: "Tavily",
     exa: "Exa",
     serp: "Web search",
