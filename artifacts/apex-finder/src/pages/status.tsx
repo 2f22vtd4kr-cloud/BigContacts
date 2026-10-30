@@ -84,7 +84,6 @@ interface SystemStatus {
 const PROVIDER_LABELS: Record<string, string> = {
   groqInvestigator: "Groq Investigator",
   serper: "Serper search",
-  serpapi: "SerpAPI search",
   tavily: "Tavily search",
   exa: "Exa search",
 };
@@ -309,7 +308,7 @@ export default function SystemStatusPage() {
 
   const aiProviders = status?.ai
     ? Object.keys(status.ai).filter((k) => Array.isArray((status.ai as any)[k]))
-    : (["groqInvestigator", "serper", "serpapi", "tavily", "exa"]);
+    : (["groqInvestigator", "serper", "tavily", "exa"]);
 
   const totalActive = status?.ai
     ? aiProviders.reduce((sum, k) => sum + (status.ai[k]?.filter(s => s.state === "active").length ?? 0), 0)
