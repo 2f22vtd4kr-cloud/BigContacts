@@ -5,14 +5,10 @@ export interface AIKeySlot {
 }
 
 export interface AIKeyStatus {
-  groq: AIKeySlot[];
-  perplexity: AIKeySlot[];
-  gemini: AIKeySlot[];
+  groqInvestigator: AIKeySlot[];
+  serper: AIKeySlot[];
   tavily: AIKeySlot[];
   exa: AIKeySlot[];
-  serper: AIKeySlot[];
-  mistral: AIKeySlot[];
-  nvidia: AIKeySlot[];
 }
 
 export interface UpstashSlot {
@@ -35,25 +31,17 @@ export interface SystemStatus {
 }
 
 export const AI_PROVIDERS: Array<keyof AIKeyStatus> = [
-  "groq",
-  "perplexity",
-  "gemini",
+  "groqInvestigator",
+  "serper",
   "tavily",
   "exa",
-  "serper",
-  "mistral",
-  "nvidia",
 ];
 
 export const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
-  groq: "Groq LLaMA",
-  perplexity: "Perplexity",
-  gemini: "Gemini",
-  tavily: "Tavily",
-  exa: "Exa",
-  serper: "Serper",
-  mistral: "Mistral",
-  nvidia: "NVIDIA NIM",
+  groqInvestigator: "Groq Investigator",
+  serper: "Serper search",
+  tavily: "Tavily search",
+  exa: "Exa search",
 };
 
 export interface ApiKeySummary {
