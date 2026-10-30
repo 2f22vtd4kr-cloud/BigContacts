@@ -1611,14 +1611,10 @@ export interface AIKeySlot {
 }
 
 export interface AIKeyStatus {
-  groq:       AIKeySlot[];
-  perplexity: AIKeySlot[];
-  gemini:     AIKeySlot[];
+  groqInvestigator: AIKeySlot[];
+  serper:     AIKeySlot[];
   tavily:     AIKeySlot[];
   exa:        AIKeySlot[];
-  serper:     AIKeySlot[];
-  groqInvestigator: AIKeySlot[];
-  nvidia:     AIKeySlot[];
 }
 
 /**
@@ -1647,23 +1643,15 @@ export function getAIKeyStatus(): AIKeyStatus {
     return { index, state: "active", expiresAt: null };
   }
 
-  const groqNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
-  const pplxNames = ["PERPLEXITY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `PERPLEXITY_API_KEY_${i + 1}`)];
-  const gemNames  = ["GEMINI_API_KEY", "GEMINI_KEY", ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
-  const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
-  const exaNames  = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
+  const investigatorNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 7 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
+  const tavNames = ["TAVILY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
+  const exaNames = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
   const serperNames = ["SERPER_API_KEY", "SERPER_KEY", "SERPER_API_KEY_2", "SERPER_API_KEY_3"];
-  const investigatorNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
-  const nvidiaNames = ["GEMINI_API_KEY", "GEMINI_API_KEY", "GEMINI_API_KEY"];
 
   return {
-    groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),
-    perplexity: pplxNames.map((n, i) => slotState(n, _exhaustedPerplexityDirectKeys, i)),
-    gemini:     gemNames .map((n, i) => slotState(n, new Map(),                            i)),
-    tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i, _quotaExhaustedTavilyKeys)),
-    exa:        exaNames .map((n, i) => slotState(n, _exhaustedExaKeys,              i)),
-    serper:     serperNames.map((n, i) => slotState(n, new Map(), i)),
     groqInvestigator: investigatorNames.map((n, i) => slotState(n, new Map(), i)),
-    nvidia:     nvidiaNames.map((n, i) => slotState(n, new Map(), i)),
+    serper: serperNames.map((n, i) => slotState(n, new Map(), i)),
+    tavily: tavNames.map((n, i) => slotState(n, _exhaustedTavilyKeys, i, _quotaExhaustedTavilyKeys)),
+    exa: exaNames.map((n, i) => slotState(n, _exhaustedExaKeys, i)),
   };
 }
