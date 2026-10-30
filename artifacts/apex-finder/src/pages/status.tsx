@@ -24,6 +24,7 @@ interface AIKeySlot {
 interface AIKeyStatus {
   groqInvestigator: AIKeySlot[];
   serper: AIKeySlot[];
+  serpapi: AIKeySlot[];
   tavily: AIKeySlot[];
   exa: AIKeySlot[];
 }
@@ -83,6 +84,7 @@ interface SystemStatus {
 const PROVIDER_LABELS: Record<string, string> = {
   groqInvestigator: "Groq Investigator",
   serper: "Serper search",
+  serpapi: "SerpAPI search",
   tavily: "Tavily search",
   exa: "Exa search",
 };
@@ -90,6 +92,7 @@ const PROVIDER_LABELS: Record<string, string> = {
 const PROVIDER_COLORS: Record<string, string> = {
   groqInvestigator: "from-[#9CFF1A]/15 border-[#9CFF1A]/30",
   serper: "from-[#9CFF1A]/12 border-[#9CFF1A]/28",
+  serpapi: "from-[#9CFF1A]/10 border-[#9CFF1A]/25",
   tavily: "from-[#b8ff4d]/15 border-[#b8ff4d]/30",
   exa: "from-[#9CFF1A]/20 border-[#9CFF1A]/30",
 };
@@ -306,7 +309,7 @@ export default function SystemStatusPage() {
 
   const aiProviders = status?.ai
     ? Object.keys(status.ai).filter((k) => Array.isArray((status.ai as any)[k]))
-    : (["groqInvestigator", "serper", "tavily", "exa"]);
+    : (["groqInvestigator", "serper", "serpapi", "tavily", "exa"]);
 
   const totalActive = status?.ai
     ? aiProviders.reduce((sum, k) => sum + (status.ai[k]?.filter(s => s.state === "active").length ?? 0), 0)
@@ -407,8 +410,8 @@ export default function SystemStatusPage() {
               : "Bureau is degraded"}
           </div>
           <p className="mt-1 text-[11px] leading-relaxed text-stone-300">
-            Apex should outperform general agents via multi-LLM ReAct plus OSINT tools. This state means
-            it may currently underperform Grok / Perplexity / Replit-class agents until providers recover.
+            Apex uses the canonical Groq roles and model-selected public-source capabilities. This state means
+            one or more configured capabilities are currently unavailable or rate-limited.
           </p>
           <ul className="mt-2 list-inside list-disc space-y-0.5 text-[11px] text-stone-300">
             {(integrity.reasons.length ? integrity.reasons : ["See healthz.lanesHonesty"]).slice(0, 5).map((r, i) => (
