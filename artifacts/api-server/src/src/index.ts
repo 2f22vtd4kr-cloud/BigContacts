@@ -2,7 +2,6 @@ import app from "./app";
 import { logger } from "./lib/logger";
 import { connectRedis, connectPermanentRedis, disconnectRedis } from "./lib/redis";
 import { coldStartRecovery } from "./lib/startup-recovery";
-import { getAIKeyStatus } from "./lib/ai-extractor";
 import { buildLanesHonestySnapshot } from "./lib/lanes-honesty";
 import { installExternalQuotaGuard } from "./lib/provider-gate";
 
@@ -43,29 +42,25 @@ const server = app.listen(port, (err) => {
   }
   logger.info({ port }, "Server listening");
   try {
-    const status = getAIKeyStatus();
-    const countActive = (slots: Array<{ state: string }>) =>
-      slots.filter((s) => s.state === "active").length;
     const lanes = buildLanesHonestySnapshot();
     logger.info(
       {
-        groq: countActive(status.groq),
-        gemini: countActive(status.gemini),
-        perplexity: countActive(status.perplexity),
-        tavily: countActive(status.tavily),
-        exa: countActive(status.exa),
-        serper: lanes.serper,
+        groqBoss: lanes.groqBoss,
+        groqRightHand: lanes.groqRightHand,
         groqInvestigator: lanes.groqInvestigator,
+        serper: lanes.serper,
+        tavily: lanes.tavily,
+        exa: lanes.exa,
         agenticLlmSlots: lanes.agenticLlmSlots,
         webSearchActive: lanes.webSearchActive,
         bureauIntegrity: lanes.bureauIntegrity,
       },
-      "AI provider keys loaded (active slots)",
+      "Canonical model roles and active search capabilities loaded",
     );
     if (lanes.bureauIntegrity === "critical") {
       logger.warn(
         { reasons: lanes.bureauIntegrityReasons },
-        "bureauIntegrity=critical — do not compare research quality until search + agentic LLM slots are live (restart API after adding secrets)",
+        "bureauIntegrity=critical — do not compare research quality until all canonical Groq roles and at least one search capability are configured",
       );
     } else if (lanes.bureauIntegrity === "degraded") {
       logger.warn({ reasons: lanes.bureauIntegrityReasons }, "bureauIntegrity=degraded — some lanes missing");
