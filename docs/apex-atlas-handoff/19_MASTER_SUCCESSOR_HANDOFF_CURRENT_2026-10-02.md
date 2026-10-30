@@ -1,3 +1,5 @@
+> **SUPERSEDED CURRENT-STATE OVERRIDE — 2026-10-30.** This 2 October handoff is retained for historical incident chronology. Its 16 October override, provider notes, SHA and run instructions are not current. Use [handoff 22](./22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md), `docs/context.md`, and current executable `main`.
+
 # CURRENT OVERRIDE — VERIFIED 2026-10-16
 
 > This override supersedes all older current-state, role, source-SHA and CI summaries below. The dated body is retained as historical incident lineage, not today's status.

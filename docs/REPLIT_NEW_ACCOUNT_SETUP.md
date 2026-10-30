@@ -1,10 +1,13 @@
 # Apex Atlas — new Replit account setup contract
 
-> **Current status override — 2026-10-29:** The canonical code fixes in PRs #766 and #767 are merged to `main`. The most recent tracked run audit is 2026-10-27, but its final captured job checkpoint was not terminally reconciled; do not assume it describes the current Replit runtime. The available Replit integration has not established a canonical current workspace or deployed SHA. Import/sync the reviewed `main` before the next user-controlled run, and inspect that workspace's own active-job pointer/lock and deployed source revision before launching.
+> **Current status override — 2026-10-30:** Use handoff [22 — 30 October 2026](./apex-atlas-handoff/22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md) as the current UI/provider/worker status. Refresh GitHub `main` and Actions after the UI patch is merged; do not import a feature branch as the canonical Replit source. The most recent tracked run audit is 2026-10-27, but its final captured job checkpoint was not terminally reconciled; do not assume it describes the current Replit runtime. The available Replit integration has not established a canonical current workspace or deployed SHA. Import/sync the reviewed `main` before the next user-controlled run, and inspect that workspace's own active-job pointer/lock and deployed source revision before launching.
 >
 > Python network OSINT tools (SpiderFoot, Sherlock, Maigret, Holehe, TheHarvester) are conditional capabilities. They are exposed only after the runtime verifies a fresh signed attestation from the isolated worker with pinned worker/proxy image digests and the required egress boundary. The repository CI builds/tests images but does not deploy the worker; never assume these tools are available from source code alone.
 
 ## Repository
+
+The current successor handoff is `docs/apex-atlas-handoff/22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md`; older numbered volumes are historical chronology unless explicitly superseded by current source.
+
 
 Before modifying code or launching research, read `README.md`, `docs/context.md`, and the current master handoff; verify current GitHub `main` HEAD and Actions, then inspect the newest **actual job-bound live audit**. The 2026-10-19 launch references below are historical only; the latest tracked audit is [the 2026-10-27 live-run audit](../audits/apex-atlas-live-run-sequential-audit-2026-10-27.md). Its final captured checkpoint for job `69904b9c-ceb4-4fa6-be55-8172c4b24c77` was not terminally reconciled. Do not assume that historical job describes the current runtime. Inspect the active-job pointer/lock and deployed source revision in the actual workspace before another launch; never launch concurrently while state is active or ambiguous. The bureau remains not live-accepted until a user-controlled run demonstrates source-backed evidence, durable card persistence, ordinary API/UI read-back, truthful terminal status, and released lock.
 
@@ -46,7 +49,6 @@ HF_TOKEN
 GROQ_INVESTIGATOR_API_KEY_1
 REDIS_URL_1
 SCRAPFLY_API_KEY
-SERPAPI_KEY
 SERPER_API_KEY
 TAVILY_API_KEY
 ZENROWS_API_KEY

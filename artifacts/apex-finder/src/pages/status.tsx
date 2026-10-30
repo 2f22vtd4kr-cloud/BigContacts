@@ -407,8 +407,8 @@ export default function SystemStatusPage() {
               : "Bureau is degraded"}
           </div>
           <p className="mt-1 text-[11px] leading-relaxed text-stone-300">
-            Apex should outperform general agents via multi-LLM ReAct plus OSINT tools. This state means
-            it may currently underperform Grok / Perplexity / Replit-class agents until providers recover.
+            Apex uses the canonical Groq roles and model-selected public-source capabilities. This state means
+            one or more configured capabilities are currently unavailable or rate-limited.
           </p>
           <ul className="mt-2 list-inside list-disc space-y-0.5 text-[11px] text-stone-300">
             {(integrity.reasons.length ? integrity.reasons : ["See healthz.lanesHonesty"]).slice(0, 5).map((r, i) => (

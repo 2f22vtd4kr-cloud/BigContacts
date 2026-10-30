@@ -4,7 +4,7 @@ import { Link } from "wouter";
 const desks = [
   {
     title: "Research Reactor",
-    description: "Launch and observe the canonical Gemini Boss → DeepSeek Right Hand → Groq/Mistral Investigator control plane.",
+    description: "Launch and observe the canonical Groq Boss, Groq Right-hand, and model-led Groq Investigator control plane.",
     href: "/reactor",
     icon: Brain,
   },

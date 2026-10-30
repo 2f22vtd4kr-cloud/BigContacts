@@ -1649,7 +1649,7 @@ export function getAIKeyStatus(): AIKeyStatus {
   const serperNames = ["SERPER_API_KEY", "SERPER_KEY", "SERPER_API_KEY_2", "SERPER_API_KEY_3"];
 
   return {
-    groqInvestigator: investigatorNames.map((n, i) => slotState(n, new Map(), i)),
+    groqInvestigator: investigatorNames.map((n, i) => slotState(n, _exhaustedGroqKeys, i)),
     serper: serperNames.map((n, i) => slotState(n, new Map(), i)),
     tavily: tavNames.map((n, i) => slotState(n, _exhaustedTavilyKeys, i, _quotaExhaustedTavilyKeys)),
     exa: exaNames.map((n, i) => slotState(n, _exhaustedExaKeys, i)),

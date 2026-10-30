@@ -290,6 +290,7 @@ export function mockSystemStatus() {
       // deployment credentials or an attested Python worker are connected.
       groqInvestigator: slots(8, 0),
       serper: slots(4, 0),
+      serpapi: slots(1, 0),
       tavily: slots(9, 0),
       exa: slots(11, 0),
     },
@@ -321,7 +322,7 @@ export function mockSystemStatus() {
       holehe: false,
       maigret: false,
       sherlock: false,
-      theharvester: false,
+      theHarvester: false,
       spiderfoot: false,
       openDeepResearch: false,
     },

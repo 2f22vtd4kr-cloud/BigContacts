@@ -33,6 +33,7 @@ export interface SystemStatus {
 export const AI_PROVIDERS: Array<keyof AIKeyStatus> = [
   "groqInvestigator",
   "serper",
+ 
   "tavily",
   "exa",
 ];

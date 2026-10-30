@@ -59,7 +59,8 @@ describe("operator authentication boundary", () => {
     expect(preflightSource).not.toContain("APEX_API_AUTH_TOKEN");
     expect(preflightSource).not.toContain("APEX_OPERATOR_PASSWORD");
     expect(preflightSource).not.toContain("APEX_SESSION_SECRET");
-    expect(preflightSource).toContain('"SERPAPI_KEY"');
+    expect(preflightSource).toContain('"SERPER_API_KEY"');
+    expect(preflightSource).not.toContain('"SERPAPI_KEY"');
   });
 
 

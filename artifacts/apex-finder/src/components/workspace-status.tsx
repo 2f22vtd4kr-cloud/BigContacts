@@ -344,9 +344,9 @@ export function WorkspaceStatus() {
                 </div>
               </div>
               <div className="rounded-lg border border-border/60 px-3 py-2">
-                <div className="font-mono text-[13px] uppercase tracking-widest text-muted-foreground/55">AI capacity</div>
+                <div className="font-mono text-[13px] uppercase tracking-widest text-muted-foreground/55">Bureau capacity</div>
                 <div className={cn("mt-1 font-mono text-[11px] font-bold", summary.active > 0 ? "text-primary" : "text-[#d4ff8a]")}>
-                  WEB {summary.active}/{summary.configured || "—"}
+                  READY {summary.active}/{summary.configured || "—"}
                 </div>
               </div>
             </div>

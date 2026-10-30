@@ -1,3 +1,5 @@
+> **HISTORICAL RELEASE REVIEW — NOT CURRENT PROVIDER OR RELEASE STATUS (2026-10-30).** This 20 September 2026 review was written against an older branch and older model-role assignments. Its Gemini/Mistral role checklist and release judgments are preserved for chronology only. Current roles, worker availability, source status, and acceptance requirements are defined by [handoff 22](./apex-atlas-handoff/22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md), `README.md`, `docs/context.md`, and executable `main`.
+
 # Apex Atlas — CEO / Lead-Engineer Release Review
 
 **Review date:** 2026-09-20  

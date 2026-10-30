@@ -4,7 +4,7 @@
 
 Apex Atlas is an OSINT research desk built to identify decision-makers, owners, founders, operators, and high-net-worth individuals connected to private companies and capital, then surface **real, attributable contact paths** from public sources.
 
-> **Current acceptance status — 2026-10-29:** Source fixes in PRs [#766](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/766) and [#767](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/767) are merged to `main`. They restore typed provenance/failure diagnostics during durable Investigator replay and fix a valid SpiderFoot phone-target action being rejected by the parser, while preserving attestation-gated tool access. Focused API, research-quality, Python-worker, and frontend checks passed on the PR head; always check current-main CI before running. These checks are not live runtime acceptance.
+> **Current source/UI audit — 2026-10-30:** PRs [#766](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/766), [#767](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/767), and [#772](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/772) are merged. The provider/UI truth reconciliation is in [PR #774](https://github.com/2f22vtd4kr-cloud/BigContacts/pull/774), latest head and base SHAs are shown on the live PR page; the branch is continuously revalidated as changes are pushed. It is not integrated until required CI and audits pass and the PR is merged. Do not import its feature branch into Replit as a substitute for canonical `main`. CI success is not live runtime acceptance.
 >
 > **Latest tracked live-run evidence:** [2026-10-27 audit](audits/apex-atlas-live-run-sequential-audit-2026-10-27.md) records one terminal `failed/incomplete` run that nevertheless persisted five review-only organization cards. Later attempts in that audit failed before any searches because Investigator provider capacity was unavailable; the final captured checkpoint for job `69904b9c-ceb4-4fa6-be55-8172c4b24c77` still showed it running and was not terminally reconciled. Those historical job IDs do not establish the current runtime's state. If using that same environment, reconcile its active-job pointer and lock before another launch.
 >
@@ -27,8 +27,10 @@ The repository default branch is `main`. `main` contains `audit/genuine-five-gre
 
 For a full agent continuation contract, read:
 
-- `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md`
-- `docs/apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md` — current live-run handoff and acceptance loop.
+- `docs/apex-atlas-handoff/00_INDEX.md` — current handoff index and reading order.
+- `docs/apex-atlas-handoff/22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md` — current system, UI, worker, and Replit acceptance handoff.
+- `docs/context.md` — living architecture and latest known run state.
+- `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md` — historical background; its current-state override points to handoff 22.
 - `docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md`
 
 ## Current engineering state
@@ -52,7 +54,7 @@ The current `main` line contains the Very Strong engineering batch and the later
 
 These are architecture/engineering capabilities. They are **not** proof of empirical research superiority or live production readiness.
 
-## Empirical runtime status — 2026-10-16
+## Historical empirical runtime status — 2026-10-16 (superseded by the 2026-10-27 audit)
 
 The live logs demonstrate that Groq Boss, Right-hand and the selected Investigator are executing the model-led control loop, returning structured decisions, changing direction, choosing capabilities and receiving fail-closed runtime feedback. Accepted searches/fetches happened; blocked actions did not create outbound requests. This is evidence of a functioning **AI-driven control loop**, not yet a fully accepted research bureau.
 
@@ -83,6 +85,12 @@ deterministic terminal/admission gate
 ```
 
 **Tools are capabilities, not stages.** There is no mandatory identity → organization → contact hop recipe.
+
+## Model strategy and runtime boundary
+
+The Investigator owns research strategy. Do not introduce fixed search itineraries, mandatory provider ordering, synthetic targets, semantic company-name blacklists, or deterministic scripts that decide which leads or claims are legitimate. The runtime validates safety, authorization, source provenance, identity attribution, evidence scope, persistence, and truthful terminal state. A name such as "Unknown" or "Example Corp" is not rejected merely because it appears on a hard-coded string list; unsupported claims fail the evidence contract, while the model remains responsible for investigative judgment.
+
+Python-backed Holehe, Maigret, Sherlock, theHarvester, and SpiderFoot actions are available to the Investigator only when the running worker passes fresh signed attestation and its exact actions are placed in that turn's allowlist. CI builds worker images; it does not deploy the worker. A UI "unavailable" state is truthful until the runtime proves otherwise.
 
 ## Product law
 

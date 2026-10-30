@@ -140,9 +140,9 @@ The agent must preserve the architecture implemented on current `main`:
 - truthful typed provider/tool/system failures;
 - cancellation, authorization, SSRF/egress and resource ceilings.
 
-Gemini/Mistral control or Investigator references in older incident documents are historical; they must not override `README.md`, `docs/context.md`, or executable code on current `main`.
+Retired-provider references in older incident documents are historical; they must not override `README.md`, `docs/context.md`, handoff 22, or executable code on current `main`.
 
-Do not turn the architecture into a scripted enrichment pipeline.
+Do not turn the architecture into a scripted enrichment pipeline. Do not hard-code semantic name blacklists (for example, placeholder company strings) as a substitute for model judgment and evidence attribution. The model owns investigative strategy; deterministic code enforces provenance, scope, identity support, and execution integrity.
 
 ## Rule 6 — No fake execution
 
@@ -300,9 +300,9 @@ Follow this sequence unless a user explicitly changes the task:
 1. Read `README.md`.
 2. Read `docs/CURRENT_STATUS_2026-10-15.md` and verify the newest audit pointer.
 3. Read `docs/context.md`.
-4. Read `docs/apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md` — follow its 2026-10-19 current override at the top; treat the dated body as historical incident lineage.
+4. Read `docs/apex-atlas-handoff/22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md` — current UI/provider/worker status and successor contract.
 5. Read `docs/BUREAU_REACT_ARCHITECTURE.md`.
-5. Read `docs/APEX_ATLAS_VERY_STRONG_ROADMAP.md`.
+6. Read `docs/APEX_ATLAS_VERY_STRONG_ROADMAP.md`.
 6. Read `docs/APEX_ATLAS_CEO_RELEASE_REVIEW_2026-09-20.md`.
 7. Read `docs/RUN_BUREAU.md`.
 8. Read `docs/REPLIT_NEW_ACCOUNT_SETUP.md`.

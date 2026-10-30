@@ -1,14 +1,14 @@
 # Apex Atlas / BigContacts — Living Context
 
-> **Updated:** 2026-10-29<br>
+> **Updated:** 2026-10-30<br>
 > **Canonical branch:** `main`<br>
 > **Status:** model-led ReAct control loop demonstrated in live execution; end-to-end research/card creation is not yet live-accepted.
 
-> **Current verified status — 2026-10-29:** PRs #766 and #767 are merged to `main`. Durable Investigator replay now preserves structured source-span bindings and typed failure diagnostics; SpiderFoot action parsing accepts the already-supported `phone` target and compact prompt guidance explains profile choice, cost, and evidence limits. Focused API/build, research-quality, Python-worker contract, and frontend checks passed on the PR head. Check Actions for the exact current `main` SHA; CI is not live acceptance.
+> **Current source/UI audit — 2026-10-30:** The current UI manual, System Status page, Data Sources specialist-worker panel, Replit preflight, and profile research-launch control are being brought into alignment with the canonical Groq architecture and actual API status contracts. The patch also removes retired provider arrays from the system-status snapshot and adds tests for conditional attested-worker exposure. Treat these changes as pending until GitHub confirms their PR is merged to `main`; do not use a feature branch as the Replit import source.
 >
-> The latest tracked live-run audit is [2026-10-27](../audits/apex-atlas-live-run-sequential-audit-2026-10-27.md). It records review-only company cards from one terminally reconciled failed/incomplete job, but subsequent attempts failed before research under provider quota exhaustion; the last captured job checkpoint was not terminally reconciled. Historical job IDs are not current runtime state. No canonical Replit workspace/deployed SHA has been verified through the available integration, and no new research run was launched during this engineering work.
+> **Latest known live-run evidence:** [2026-10-27 audit](../audits/apex-atlas-live-run-sequential-audit-2026-10-27.md). Its final captured checkpoint did not terminally reconcile the most recent job. Historical job IDs do not establish the current Replit active-job state. No Replit workspace/deployed SHA or active-job pointer has been verified by this GitHub-only work.
 >
-> Python network OSINT remains conditional: the code and worker contract exist, but SpiderFoot/Sherlock-family tools are exposed only when the runtime verifies a fresh signed worker attestation, exact immutable worker/proxy image digests, and the required isolated egress boundary. CI builds/tests the worker images; it does not deploy or attest a live worker. Never bypass this gate to make a tool appear available.
+> **Python OSINT worker truth:** Holehe, Maigret, Sherlock, theHarvester, and SpiderFoot are worker-backed capabilities. The Investigator sees each exact action only after a fresh signed worker attestation, independently pinned immutable worker/proxy image digests, and isolated egress proof pass. Repository CI builds/tests images; it does not deploy or attest a live worker. Never bypass this gate or call an unavailable tool a no-hit.
 
 > **Audit trace boundary (corrected 2026-10-25):** Both Replit development configurations enable model-visible request/response capture to .local/audits/APEX_ATLAS_MODEL_AUDIT_2026-10-25_REPLIT_RUN_01.md. Explicit contact-data capture is true for this private local trace only, so source-published professional email addresses and phone numbers remain available for attribution and pipeline-quality analysis. The .local directory is git-ignored; the audit writer refuses tracked raw-prompt destinations and always redacts credentials and secret-shaped values. Test prompt capture and visible/tracked-file opt-in remain false. The public tracked audits/*.md report must contain a sanitized chronology and source references, never raw contact values or a copy of the private trace. Provider-hidden chain-of-thought is never logged; visible prompts, completions, structured action rationale, tool calls, and job/case/run IDs are auditable.
 
@@ -193,7 +193,6 @@ HF_TOKEN
 GROQ_INVESTIGATOR_API_KEY_1
 REDIS_URL_1
 SCRAPFLY_API_KEY
-SERPAPI_KEY
 SERPER_API_KEY
 TAVILY_API_KEY
 ZENROWS_API_KEY

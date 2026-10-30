@@ -1,3 +1,5 @@
+> **SUPERSEDED CURRENT-STATE OVERRIDE — 2026-10-30.** PR #715 and the 19 October runtime state described below are historical. Do not treat this as the active code/fix vehicle or current Replit status. Use [handoff 22](./22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md), `docs/context.md`, and current GitHub `main`.
+
 # Apex Atlas — Successor Handoff (19 October 2026)
 
 > **Purpose:** this is a continuation brief for the next ChatGPT/coding agent taking over Apex Atlas. It is not a substitute for the repository study. Start by studying the code and architecture, then continue the exact audit/fix sequence below. Do not ask the user to repeat context already recorded here.

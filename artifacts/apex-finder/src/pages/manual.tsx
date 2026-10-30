@@ -311,18 +311,18 @@ const SECTIONS = [
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 text-[11px] font-mono text-muted-foreground mb-4">
           {[
+            "COMPANIES_HOUSE_API_KEY",
+            "EXA_API_KEY",
             "GROQ_BOSS_API_KEY",
             "GROQ_RIGHT_HAND_API_KEY",
             "GROQ_INVESTIGATOR_API_KEY",
+            "HF_TOKEN",
+            "GROQ_INVESTIGATOR_API_KEY_1",
             "REDIS_URL_1",
+            "SCRAPFLY_API_KEY",
             "SERPER_API_KEY",
             "TAVILY_API_KEY",
-            "EXA_API_KEY",
-            "SCRAPFLY_API_KEY",
             "ZENROWS_API_KEY",
-            "COMPANIES_HOUSE_API_KEY",
-            "SERPAPI_API_KEY",
-            "HF_TOKEN",
           ].map((key) => (
             <div key={key} className="border border-primary/12 rounded p-2">{key}</div>
           ))}

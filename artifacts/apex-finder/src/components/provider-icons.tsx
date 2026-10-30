@@ -36,16 +36,6 @@ export function GoogleIcon(props: IconProps) {
   );
 }
 
-/** Perplexity-style mark */
-export function PerplexityIcon(props: IconProps) {
-  return (
-    <Svg {...props} title={props.title ?? "Perplexity"}>
-      <rect width="24" height="24" rx="6" fill="#20808D" />
-      <path fill="#fff" d="M7 6h2.2l2.3 6.2L14 6h2.2l-3.6 9.2h-2.1L7 6zm9.5 0h2v12h-2V6z" />
-    </Svg>
-  );
-}
-
 /** Tavily */
 export function TavilyIcon(props: IconProps) {
   return (
@@ -176,7 +166,6 @@ export function AtlasIcon(props: IconProps) {
 
 export type ProviderKind =
   | "google"
-  | "perplexity"
   | "tavily"
   | "exa"
   | "serp"
@@ -204,7 +193,6 @@ export type ProviderKind =
 export function detectProviderKind(raw: string): ProviderKind {
   const s = String(raw || "").toLowerCase();
   if (/\bgoogle\b|site:google|google\.com\/search/.test(s)) return "google";
-  if (/perplexity|perp0|perpfu/.test(s)) return "perplexity";
   if (/tavily/.test(s)) return "tavily";
   if (/\bexa\b/.test(s)) return "exa";
   if (/serpapi/.test(s)) return "serpapi";
@@ -238,8 +226,6 @@ export function ProviderIcon({ kind, size = 14, ...rest }: IconProps & { kind: P
   switch (kind) {
     case "google":
       return <GoogleIcon size={size} {...rest} />;
-    case "perplexity":
-      return <PerplexityIcon size={size} {...rest} />;
     case "tavily":
       return <TavilyIcon size={size} {...rest} />;
     case "exa":
@@ -281,7 +267,6 @@ export function ProviderIcon({ kind, size = 14, ...rest }: IconProps & { kind: P
 export function providerLabel(kind: ProviderKind): string {
   const map: Record<ProviderKind, string> = {
     google: "Google",
-    perplexity: "Perplexity",
     tavily: "Tavily",
     exa: "Exa",
     serp: "Web search",

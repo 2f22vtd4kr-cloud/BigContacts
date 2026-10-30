@@ -6,17 +6,26 @@ describe("hasResearchProviderKey", () => {
     expect(hasResearchProviderKey({ REDIS_URL_1: "redacted", REDIS_URL: "redacted" })).toBe(false);
   });
 
-  it("ignores blank provider credentials", () => {
-    expect(hasResearchProviderKey({ GROQ_API_KEY: "   ", SERPER_API_KEY: "\n" })).toBe(false);
+  it("ignores blank canonical provider credentials", () => {
+    expect(hasResearchProviderKey({ GROQ_BOSS_API_KEY: "   ", SERPER_API_KEY: "\n" })).toBe(false);
   });
 
-  it("returns true for a configured model or research-source provider credential", () => {
-    expect(hasResearchProviderKey({ GROQ_API_KEY: "redacted" })).toBe(true);
+  it("returns true for a configured canonical model or research-source credential", () => {
+    expect(hasResearchProviderKey({ GROQ_BOSS_API_KEY: "redacted" })).toBe(true);
+    expect(hasResearchProviderKey({ GROQ_INVESTIGATOR_API_KEY_1: "redacted" })).toBe(true);
     expect(hasResearchProviderKey({ SERPER_API_KEY: "redacted" })).toBe(true);
+    expect(hasResearchProviderKey({ SERPAPI_KEY: "redacted" })).toBe(false);
   });
 
-  it("does not count retired model keys or unrelated environment values as research readiness", () => {
+  it("does not count retired/generic model keys, HF_TOKEN alone, or unrelated environment values as research readiness", () => {
     expect(hasResearchProviderKey({ REDIS_URL_1: "redacted", ANTHROPIC_API_KEY: "redacted" })).toBe(false);
+    expect(hasResearchProviderKey({ GEMINI_API_KEY: "redacted" })).toBe(false);
+    expect(hasResearchProviderKey({ GEMINI_RIGHT_HAND_API_KEY: "redacted" })).toBe(false);
+    expect(hasResearchProviderKey({ MISTRAL_API_KEY: "redacted" })).toBe(false);
+    expect(hasResearchProviderKey({ PERPLEXITY_API_KEY: "redacted" })).toBe(false);
+    expect(hasResearchProviderKey({ GROQ_API_KEY: "redacted" })).toBe(false);
+    expect(hasResearchProviderKey({ SERPAPI_API_KEY: "redacted" })).toBe(false);
+    expect(hasResearchProviderKey({ HF_TOKEN: "redacted" })).toBe(false);
     expect(hasResearchProviderKey({ NODE_ENV: "production" })).toBe(false);
   });
 });
