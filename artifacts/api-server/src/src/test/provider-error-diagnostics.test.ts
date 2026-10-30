@@ -12,8 +12,7 @@ import {
 } from "../lib/provider-error-diagnostics";
 
 describe("provider error diagnostics", () => {
-  it("preserves useful local exception text while redacting credentials, URLs, paths, and email addresses", async () => {
-    const { safeThrownErrorMessagePreview } = await import("../lib/provider-error-diagnostics");
+  it("preserves useful local exception text while redacting credentials, URLs, paths, and email addresses", () => {
     expect(safeThrownErrorMessagePreview(new TypeError("Cannot read properties of undefined (reading 'foo')"))).toBe("Cannot read properties of undefined (reading 'foo')");
     const preview = safeThrownErrorMessagePreview(new Error("Bearer super-secret-token https://example.test/path?api_key=secret /home/user/private.ts user@example.test"));
     expect(preview).toContain("Bearer [redacted]");
