@@ -35,7 +35,8 @@ describe("investigator context compaction", () => {
 
   it("compacts long control context only when there is actual historical research to summarize", () => {
     expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 2, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(true);
-    expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: true, historicalRecordCount: 2, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(false);\n  });
+    expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: true, historicalRecordCount: 2, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(false);
+  });
   it("bounds working context while retaining old source URLs in the archive index", () => {
     const records = Array.from({ length: 30 }, (_, index) => ({
       turn: index + 1, model: "groq:test", action: index % 2 ? "visit" : "web_search", execution: "success",
