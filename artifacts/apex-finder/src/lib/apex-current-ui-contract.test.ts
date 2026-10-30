@@ -30,6 +30,7 @@ describe("current Apex UI contract", () => {
     expect(statusPage).toContain("Groq Right-hand");
     expect(statusPage).toContain("Groq Investigator capabilities");
     expect(statusPage).toContain("SerpAPI search");
+    expect(statusPage).toContain("Serper search");
     expect(statusPage).not.toMatch(/Gemini|Mistral|Perplexity|NVIDIA|geminiBoss|openResearch/);
   });
 
