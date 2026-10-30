@@ -51,13 +51,14 @@ router.get("/healthz/details", async (_req, res) => {
       tavily: active(status.tavily),
       exa: active(status.exa),
       serper: active(status.serper),
+      serpapi: active(status.serpapi),
       companiesHouse: process.env.COMPANIES_HOUSE_API_KEY ? 1 : 0,
       scrapfly: process.env.SCRAPFLY_API_KEY ? 1 : 0,
       zenrows: process.env.ZENROWS_API_KEY ? 1 : 0,
     };
     lanesHonesty = buildLanesHonestySnapshot();
   } catch { providers = undefined; lanesHonesty = undefined; }
-  const registryShallowRisk = lanesHonesty?.registryShallowRisk ?? (providers ? (providers.tavily + providers.exa + providers.serper) === 0 : true);
+  const registryShallowRisk = lanesHonesty?.registryShallowRisk ?? (providers ? (providers.tavily + providers.exa + providers.serper + providers.serpapi) === 0 : true);
   res.json({
     status: "ok",
     redis: { status: snap.status, latencyMs: snap.latencyMs, cached: snap.cached },
