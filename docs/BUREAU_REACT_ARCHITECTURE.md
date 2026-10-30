@@ -1,3 +1,5 @@
+> **Current architecture refresh — 2026-10-30:** This document remains an architecture reference. Current UI/worker details and the verified handoff are maintained in [handoff 22](./apex-atlas-handoff/22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md) and `docs/context.md`. Historical provider names below refer only to retired transports, never active roles.
+
 # Apex Atlas — ReAct Bureau Architecture
 
 **Updated:** 2026-10-16  
