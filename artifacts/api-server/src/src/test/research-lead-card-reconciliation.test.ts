@@ -104,6 +104,20 @@ describe("terminal review-card reconciliation", () => {
     // This remains a PersonCandidate review card, never automatic HNWI admission.
     expect(personMaterializer).toContain('type: "PersonCandidate"');
     expect(personMaterializer).toContain('stage: "partial_review"');
+
+    // Review-only candidate/company cards must be persisted before strict
+    // promotion/admission work. A later admission exception must not prevent
+    // an already observed lead from becoming a durable review card.
+    const materialization = canonical.slice(
+      canonical.indexOf("async function materializeAtlasAdmissions"),
+      canonical.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+    );
+    expect(materialization.indexOf("materializePartialPersonLeadCards")).toBeGreaterThanOrEqual(0);
+    expect(materialization.indexOf("materializePartialOrganizationLeadCards")).toBeGreaterThanOrEqual(0);
+    expect(materialization.indexOf("materializePartialPersonLeadCards"))
+      .toBeLessThan(materialization.indexOf("const candidates = uniqueNames(input.findings"));
+    expect(materialization.indexOf("materializePartialOrganizationLeadCards"))
+      .toBeLessThan(materialization.indexOf("const candidates = uniqueNames(input.findings"));
   });
 
   it("keeps public business-relevant relationship research separate from private intimate or health-data contact hunting", () => {
