@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
+import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 
 const input = {
   provider: "groq",
@@ -553,5 +553,28 @@ describe("model prompt audit", () => {
       APEX_CAPTURE_MODEL_PROMPTS: "true",
     }, (_path, contents) => writes.push(contents))).toBeNull();
     expect(writes).toHaveLength(0);
+  });
+
+  it("treats explicitly enabled capture as required and reports request/response write failures", () => {
+    const env = {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    };
+    expect(isModelPromptAuditCaptureEnabled(env)).toBe(true);
+    expect(emitModelPromptAudit(input, env, () => { throw new Error("disk unavailable"); })).toBeNull();
+    expect(emitModelPromptAuditResponse({
+      requestId: "request-write-failure",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "openai/gpt-oss-120b",
+      httpStatus: 200,
+      responseBody: JSON.stringify({ choices: [{ message: { role: "assistant", content: "{\\"action\\":\\"stop\\"}" } }] }),
+    }, env, () => { throw new Error("disk unavailable"); })).toBe(false);
+    expect(isModelPromptAuditCaptureEnabled({
+      NODE_ENV: "production",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_FILE: "/tmp/audit.md",
+    })).toBe(false);
   });
 });
