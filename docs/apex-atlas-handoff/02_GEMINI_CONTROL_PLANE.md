@@ -1,3 +1,5 @@
+> **HISTORICAL MIGRATION RECORD — NOT THE CURRENT PROVIDER CONTRACT (2026-10-30).** This document records an earlier Gemini control-plane design. Gemini is not an active Apex model role or required secret. Current roles are Groq Boss, Groq Right-hand, and the selected Groq Investigator capability. Read [current system introduction](./01_SYSTEM_INTRODUCTION.md), [handoff 22](./22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md), and `docs/context.md` for current behavior.
+
 # Apex Atlas — Gemini Control Plane Deep Handoff
 
 ## Current implementation
