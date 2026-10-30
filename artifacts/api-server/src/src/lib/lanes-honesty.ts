@@ -1,23 +1,81 @@
 /**
  * Provider / lane honesty snapshots for jobs and Bureau cases.
- * Counts only — never secret values. Fail-closed on missing web search.
+ * Counts only configured active capabilities; never reads or emits secret values.
  */
 import { getAIKeyStatus } from "./ai-extractor";
 import { getAgenticLlmHealth } from "./agentic-llm-health";
+import { getGroqBossStatus } from "./groq-boss";
 import { getGroqRightHandStatus } from "./groq-right-hand-reasoning";
+
 export type BureauIntegrityLevel = "ok" | "degraded" | "critical";
-export type LanesHonestySnapshot = { perplexity:number;tavily:number;exa:number;gemini:number;geminiRightHand:number;groq:number;groqInvestigator:number;companiesHouse:number;serper:number;webSearchActive:number;registryShallowRisk:boolean;groqAdmissionFallback:boolean;agenticLlmSlots:number;agenticLlmLastOk:boolean|null;agenticLlmLastModel:string|null;bureauIntegrity:BureauIntegrityLevel;bureauIntegrityReasons:string[];assessedAt:string };
-function activeCount(slots:Array<{state:string}>|undefined):number{return(slots??[]).filter((s)=>s.state==="active").length}
-export function buildLanesHonestySnapshot():LanesHonestySnapshot{const status=getAIKeyStatus(),perplexity=activeCount(status.perplexity),tavily=activeCount(status.tavily),exa=activeCount(status.exa),serper=[process.env.SERPER_API_KEY,process.env.SERPER_API_KEY_2,process.env.SERPER_API_KEY_3,process.env.SERPER_KEY].some((k)=>Boolean(k?.trim()))?1:0,webSearchActive=perplexity+tavily+exa+serper,groqKeys=[process.env.GROQ_INVESTIGATOR_API_KEY,...Array.from({length:5},(_,i)=>process.env[`GROQ_INVESTIGATOR_API_KEY_${i+1}`])].filter((k)=>typeof k==="string"&&k.trim().length>0),groq=groqKeys.length,gemini=activeCount(status.gemini);
-  // Gemini is Boss/control-plane and Right-hand oversight; it is intentionally NOT an Investigator capacity slot.
-  const geminiRightHand= getGroqRightHandStatus().configured ? 1 : 0;
-  const groqInvestigator=groq; const agenticLlmSlots=groqInvestigator>0?1:0;
-  const agenticHealth=getAgenticLlmHealth(),agenticLlmLastOk=agenticHealth.ok,agenticLlmLastModel=agenticHealth.model,reasons:string[]=[];
-  if(webSearchActive===0)reasons.push("No live web-search providers (Serper/Tavily/Exa/Perplexity) — registry-only research cannot beat general agents.");
-  if(geminiRightHand===0)reasons.push("Groq Right-hand is not configured — canonical Atlas oversight cannot proceed.");
-  if(agenticLlmSlots===0)reasons.push("No Groq Investigator control LLM configured — ReAct web loop cannot run.");
-  if(agenticLlmLastOk===false)reasons.push("Last Groq Investigator LLM step failed — bureau is underperforming.");
-  if(groq===0&&agenticLlmSlots>0)reasons.push("Groq missing — admission/name gate and preferred ReAct lane run on fallbacks only.");
-  let bureauIntegrity:BureauIntegrityLevel="ok";if(webSearchActive===0||geminiRightHand===0||agenticLlmSlots===0||agenticLlmLastOk===false)bureauIntegrity="critical";else if(reasons.length>0)bureauIntegrity="degraded";
-  return{perplexity,tavily,exa,serper,gemini,geminiRightHand,groq,groqInvestigator,companiesHouse:process.env.COMPANIES_HOUSE_API_KEY?1:0,webSearchActive,registryShallowRisk:webSearchActive===0,groqAdmissionFallback:groq===0,agenticLlmSlots,agenticLlmLastOk,agenticLlmLastModel,bureauIntegrity,bureauIntegrityReasons:reasons,assessedAt:new Date().toISOString()};
+
+export type LanesHonestySnapshot = {
+  groqBoss: number;
+  groqRightHand: number;
+  groqInvestigator: number;
+  serper: number;
+  tavily: number;
+  exa: number;
+  companiesHouse: number;
+  webSearchActive: number;
+  registryShallowRisk: boolean;
+  agenticLlmSlots: number;
+  agenticLlmLastOk: boolean | null;
+  agenticLlmLastModel: string | null;
+  bureauIntegrity: BureauIntegrityLevel;
+  bureauIntegrityReasons: string[];
+  assessedAt: string;
+};
+
+function activeCount(slots: Array<{ state: string }> | undefined): number {
+  return (slots ?? []).filter((slot) => slot.state === "active").length;
+}
+
+export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
+  const status = getAIKeyStatus();
+  const groqBoss = getGroqBossStatus().configured ? 1 : 0;
+  const groqRightHand = getGroqRightHandStatus().configured ? 1 : 0;
+  const groqInvestigator = activeCount(status.groqInvestigator);
+  const serper = activeCount(status.serper);
+  const tavily = activeCount(status.tavily);
+  const exa = activeCount(status.exa);
+  const webSearchActive = serper + tavily + exa;
+  const companiesHouse = process.env.COMPANIES_HOUSE_API_KEY?.trim() ? 1 : 0;
+
+  const agenticLlmSlots = groqInvestigator;
+  const agenticHealth = getAgenticLlmHealth();
+  const agenticLlmLastOk = agenticHealth.ok;
+  const agenticLlmLastModel = agenticHealth.model;
+  const reasons: string[] = [];
+
+  if (groqBoss === 0) reasons.push("Groq Boss is not configured; canonical case direction cannot proceed.");
+  if (groqRightHand === 0) reasons.push("Groq Right-hand is not configured; required independent oversight cannot proceed.");
+  if (agenticLlmSlots === 0) reasons.push("No configured Groq Investigator capability is available for the ReAct research loop.");
+  if (webSearchActive === 0) reasons.push("No active web-search provider is configured; discovery cannot inspect public search results.");
+  if (agenticLlmLastOk === false) reasons.push("The last recorded Groq Investigator model attempt failed.");
+
+  let bureauIntegrity: BureauIntegrityLevel = "ok";
+  if (groqBoss === 0 || groqRightHand === 0 || agenticLlmSlots === 0 || webSearchActive === 0 || agenticLlmLastOk === false) {
+    bureauIntegrity = "critical";
+  } else if (reasons.length > 0) {
+    bureauIntegrity = "degraded";
+  }
+
+  return {
+    groqBoss,
+    groqRightHand,
+    groqInvestigator,
+    serper,
+    tavily,
+    exa,
+    companiesHouse,
+    webSearchActive,
+    registryShallowRisk: webSearchActive === 0,
+    agenticLlmSlots,
+    agenticLlmLastOk,
+    agenticLlmLastModel,
+    bureauIntegrity,
+    bureauIntegrityReasons: reasons,
+    assessedAt: new Date().toISOString(),
+  };
 }
