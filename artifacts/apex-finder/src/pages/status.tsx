@@ -1,6 +1,7 @@
 /**
- * System Status — AI key pools, databases, Upstash slots.
- * Auto-refreshes every 15 seconds.
+ * System Status — canonical Groq roles, active search capability keys,
+ * and database health. Specialist worker attestation is shown on Data Sources.
+ * Auto-refreshes every 30 seconds.
  */
 import { useEffect, useState, useCallback } from "react";
 import {
@@ -13,294 +14,164 @@ import { isMockMode, mockSystemStatus } from "@/lib/dev-mock-data";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-// ── Types ─────────────────────────────────────────────────────────────────────
-
 interface AIKeySlot {
   index: number;
   state: "active" | "rate_limited" | "missing";
   expiresAt: string | null;
 }
-
-interface AIKeyStatus {
-  groq:       AIKeySlot[];
-  perplexity: AIKeySlot[];
-  gemini:     AIKeySlot[];
-  tavily:     AIKeySlot[];
-  exa:        AIKeySlot[];
-}
-
-interface OpenResearchStatus {
-  state: "ready" | "incomplete" | "unavailable";
-  huggingFace: { configured: boolean };
-  serper: { configured: boolean };
-  adapter: { available: boolean; model: string };
-  mistral: { configured: boolean; model: string; rateLimit: string };
-}
-
-interface BureauReasoningStatus {
-  configured: boolean;
-  model: string;
-  endpoint: string;
-  role: "right_hand_advisor";
-  capability: "case_file_reasoning_only";
-}
-
-interface GeminiBossStatus {
-  configured: boolean;
-  model: string;
-  role: "head_investigator";
-  capability: "text_generation_and_case_planning";
-  webSearchGrounding: false;
-}
-
-interface UpstashSlot {
-  slot: number;
-  status: string;
-  quotaExhausted: boolean;
-  latencyMs?: number | null;
-}
-
+type AIKeyStatus = Partial<Record<"groqInvestigator" | "tavily" | "exa" | "serper", AIKeySlot[]>>;
+interface RoleStatus { configured: boolean; model: string; provider?: string }
+interface UpstashSlot { slot: number; status: string; quotaExhausted: boolean; latencyMs?: number | null }
 interface SystemStatus {
-  ai: AIKeyStatus;
-  openResearch?: OpenResearchStatus;
-  bureauReasoning?: BureauReasoningStatus;
-  geminiBoss?: GeminiBossStatus;
-  databases: {
-    postgres:   { status: "ok" | "error"; latencyMs: number | null };
-    localRedis: { status: string;         latencyMs: number | null };
-    upstash:    UpstashSlot[];
+  ai?: AIKeyStatus;
+  groqBoss?: RoleStatus;
+  groqRightHand?: RoleStatus;
+  databases?: {
+    postgres?: { status: string; latencyMs: number | null };
+    localRedis?: { status: string; latencyMs: number | null };
+    upstash?: UpstashSlot[];
   };
-  generatedAt: string;
-  cached:      boolean;
-  cachedAgoMs: number;
+  lanesHonesty?: {
+    bureauIntegrity?: string;
+    bureauIntegrityReasons?: string[];
+    agenticLlmSlots?: number;
+    webSearchActive?: number;
+    agenticLlmLastOk?: boolean | null;
+    agenticLlmLastModel?: string | null;
+  };
+  bureauIntegrity?: string;
+  bureauIntegrityReasons?: string[];
+  generatedAt?: string;
+  cached?: boolean;
+  cachedAgoMs?: number;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const PROVIDER_LABELS: Record<string, string> = {
-  groq:       "Groq",
-  perplexity: "Perplexity",
-  gemini:     "Gemini",
-  tavily:     "Tavily",
-  exa:        "Exa",
-  serper:     "Serper",
-  mistral:    "Mistral",
-  nvidia:     "NVIDIA",
-  nvidiaNim:  "NVIDIA NIM",
-};
-
-const OPEN_RESEARCH_LABELS = {
-  ready: "ready",
-  incomplete: "incomplete",
-  unavailable: "unavailable",
-} as const;
-
-const PROVIDER_COLORS: Record<string, string> = {
-  groq:       "from-[#9CFF1A]/15 border-[#9CFF1A]/30",
-  perplexity: "from-[#9CFF1A]/12 border-[#9CFF1A]/28",
-  gemini:     "from-[#059669]/15 border-[#059669]/30",
-  tavily:     "from-[#b8ff4d]/15 border-[#b8ff4d]/30",
-  exa:        "from-[#9CFF1A]/20 border-[#9CFF1A]/30",
-};
+const POOLS: Array<{ key: keyof AIKeyStatus; label: string; description: string }> = [
+  { key: "groqInvestigator", label: "Groq Investigator capabilities", description: "Separately selectable credentials; the Boss selects a capability for the case." },
+  { key: "serper", label: "Serper search", description: "Investigator-selected web-search capability." },
+  { key: "tavily", label: "Tavily search", description: "Investigator-selected web-search capability." },
+  { key: "exa", label: "Exa search", description: "Investigator-selected semantic-search capability." },
+];
 
 function SlotBar({ active, cooling }: { active: number; cooling: number }) {
-  const n = Math.max(active + cooling, 1);
-  // Only draw keys that exist — never a fixed grid of empty slots.
-  const cells = [
-    ...Array.from({ length: active }, () => "active" as const),
-    ...Array.from({ length: cooling }, () => "cool" as const),
-  ];
-  if (active === 0 && cooling === 0) {
-    return (
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/35" role="img" aria-label="No keys" />
-    );
-  }
+  const total = active + cooling;
+  if (total === 0) return <div className="h-1.5 w-full rounded-full bg-muted/35" aria-label="No configured keys" />;
   return (
-    <div
-      className="flex h-1.5 w-full max-w-[12rem] overflow-hidden rounded-full bg-muted/25"
-      role="img"
-      aria-label={`${active} live${cooling ? `, ${cooling} cooling` : ""}`}
-    >
-      {cells.map((kind, i) => (
-        <div
-          key={`${kind}-${i}`}
-          className={cn(
-            "h-full flex-1 border-r border-background/30 last:border-r-0",
-            kind === "active" && "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.45)]",
-            kind === "cool" && "bg-[#9CFF1A]/70 animate-pulse",
-          )}
-          style={{ minWidth: `${Math.max(12, 100 / n)}%`, maxWidth: "100%" }}
-        />
-      ))}
+    <div className="flex h-1.5 w-full max-w-[12rem] overflow-hidden rounded-full bg-muted/25" role="img" aria-label={`${active} active, ${cooling} cooling`}>
+      {Array.from({ length: active }, (_, i) => <span key={`a-${i}`} className="h-full flex-1 bg-[#9CFF1A]" />)}
+      {Array.from({ length: cooling }, (_, i) => <span key={`c-${i}`} className="h-full flex-1 bg-[#9CFF1A]/60 animate-pulse" />)}
     </div>
   );
 }
 
-function ProviderCard({ name, slots }: { name: string; slots: AIKeySlot[] }) {
-  const active = slots.filter((s) => s.state === "active").length;
-  const rateLimited = slots.filter((s) => s.state === "rate_limited").length;
-  const configured = slots.filter((s) => s.state !== "missing").length;
-
-  const tone =
-    active > 0
-      ? "border-[#9CFF1A]/25 bg-gradient-to-br from-lime-500/[0.07] via-[#0d1219] to-transparent"
-      : rateLimited > 0
-        ? "border-[#9CFF1A]/25 bg-gradient-to-br from-[#9CFF1A]/[0.07] via-[#0d1219] to-transparent"
-        : "border-[#9CFF1A]/12 bg-card/30";
-
+function PoolCard({ label, description, slots }: { label: string; description: string; slots: AIKeySlot[] }) {
+  const active = slots.filter((slot) => slot.state === "active").length;
+  const cooling = slots.filter((slot) => slot.state === "rate_limited").length;
+  const configured = slots.filter((slot) => slot.state !== "missing").length;
   return (
-    <article
-      className={cn(
-        "group relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#2a2a2a]/80 p-3.5 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-[#9CFF1A]/30",
-        tone,
-        configured === 0 && "opacity-55",
-      )}
-      data-testid={`provider-card-${name}`}
-    >
-      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#9CFF1A]/[0.06] blur-3xl" />
-      <div className="relative flex items-start justify-between gap-3">
+    <article className="rounded-2xl border border-border bg-card/40 p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-display text-[13px] font-semibold tracking-tight text-foreground">
-            {PROVIDER_LABELS[name] ?? (name.charAt(0).toUpperCase() + name.slice(1))}
-          </div>
-          <div className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.14em] text-muted-foreground/70">
-            {configured === 0
-              ? "No keys configured"
-              : configured === 1
-                ? "1 key configured"
-                : `${configured} keys configured`}
-          </div>
+          <h3 className="text-sm font-semibold text-foreground">{label}</h3>
+          <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{description}</p>
         </div>
-        <span
-          className={cn(
-            "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em]",
-            active > 0
-              ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
-              : rateLimited > 0
-                ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
-                : "border-[#9CFF1A]/10 bg-muted/20 text-muted-foreground",
-          )}
-        >
-          {active > 0 ? `${active} live` : rateLimited > 0 ? "cooldown" : "empty"}
+        <span className="shrink-0 rounded-md border border-border px-2 py-1 text-[10px] font-mono text-muted-foreground">
+          {active ? `${active} active` : cooling ? `${cooling} cooling` : "none"}
         </span>
       </div>
-
-      <div className="relative mt-4 space-y-2">
-        <SlotBar active={active} cooling={rateLimited} />
-        <div className="font-mono text-[12px] text-muted-foreground">
-          {active > 0 && (
-            <span className="text-[#d4ff8a]/90">
-              {active} live now
-              {rateLimited > 0 ? ` · ${rateLimited} cooling` : ""}
-            </span>
-          )}
-          {active === 0 && rateLimited > 0 && (
-            <span className="text-[#d4ff8a]/90">{rateLimited} cooling — will return</span>
-          )}
-          {active === 0 && rateLimited === 0 && (
-            <span className="text-muted-foreground/55">Add a key in Secrets, then restart API</span>
-          )}
-        </div>
-      </div>
+      <SlotBar active={active} cooling={cooling} />
+      <p className="text-[10px] font-mono text-muted-foreground">{configured ? `${configured} configured slot(s)` : "No credentials configured"}</p>
     </article>
   );
 }
 
-function DbRow({
-  label, status, latency, icon: Icon,
-}: {
-  label: string;
-  status: "ok" | "error" | "ready" | "connecting" | string;
-  latency: number | null;
-  icon: React.ElementType;
-}) {
+function RoleCard({ label, role }: { label: string; role?: RoleStatus }) {
+  return (
+    <article className="rounded-2xl border border-border bg-card/40 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-foreground">{label}</h3>
+        <span className={cn("rounded-md border px-2 py-1 text-[10px] font-mono uppercase", role?.configured ? "border-[#9CFF1A]/30 text-[#b8ff4d]" : "border-border text-muted-foreground")}>
+          {role?.configured ? "configured" : "not configured"}
+        </span>
+      </div>
+      <p className="mt-2 text-[11px] font-mono text-muted-foreground">{role?.model ?? "Model not resolved"}</p>
+      <p className="mt-1 text-[10px] text-muted-foreground">
+        {label === "Groq Boss" ? "Case direction and Investigator-capability selection; no browsing." : "Independent bounded case-file oversight; no browsing or tool selection."}
+      </p>
+    </article>
+  );
+}
+
+function DbRow({ label, status, latency, icon: Icon }: { label: string; status: string; latency: number | null; icon: React.ElementType }) {
   const ok = status === "ok" || status === "ready";
   return (
-    <div className="flex items-center justify-between rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
+    <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
       <div className="flex items-center gap-3">
-        <Icon className={cn("h-4 w-4", ok ? "text-primary" : "text-destructive")} />
-        <span className="font-mono text-[12px] text-foreground">{label}</span>
+        <Icon className={cn("h-4 w-4", ok ? "text-primary" : "text-muted-foreground")} />
+        <span className="font-mono text-xs text-foreground">{label}</span>
       </div>
       <div className="flex items-center gap-3">
-        {latency !== null && (
-          <span className="font-mono text-[11px] text-muted-foreground">{latency}ms</span>
-        )}
-        <span className={cn(
-          "flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-[12px] font-bold uppercase tracking-wider",
-          ok ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive",
-        )}>
-          {ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
-          {ok ? "connected" : status}
-        </span>
+        {latency !== null && <span className="font-mono text-[10px] text-muted-foreground">{latency}ms</span>}
+        <span className={cn("font-mono text-[10px] font-bold uppercase", ok ? "text-primary" : "text-muted-foreground")}>{status || "unknown"}</span>
       </div>
     </div>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function SystemStatusPage() {
-  const [status,    setStatus]    = useState<SystemStatus | null>(null);
-  const [integrity, setIntegrity] = useState<{
-    level: string;
-    reasons: string[];
-    agenticSlots?: number;
-    webSearch?: number;
-    lastOk?: boolean | null;
-    lastModel?: string | null;
-  } | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
+  const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [integrity, setIntegrity] = useState<{ level: string; reasons: string[]; agenticSlots?: number; webSearch?: number; lastOk?: boolean | null; lastModel?: string | null } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
-
-  const loadIntegrity = async (fromStatus?: any) => {
-    try {
-      const lanes = fromStatus?.lanesHonesty;
-      if (lanes && (lanes.bureauIntegrity || fromStatus?.bureauIntegrity)) {
-        setIntegrity({
-          level: fromStatus.bureauIntegrity ?? lanes.bureauIntegrity ?? "ok",
-          reasons: fromStatus.bureauIntegrityReasons ?? lanes.bureauIntegrityReasons ?? [],
-          agenticSlots: lanes.agenticLlmSlots,
-          webSearch: lanes.webSearchActive,
-          lastOk: lanes.agenticLlmLastOk,
-          lastModel: lanes.agenticLlmLastModel,
-        });
-        return;
-      }
-      const hr = await fetch(`${BASE}/api/healthz`);
-      if (!hr.ok) return;
-      const hj = await hr.json();
-      const L = hj.lanesHonesty ?? {};
+  const loadIntegrity = async (snapshot?: SystemStatus) => {
+    const lanes = snapshot?.lanesHonesty;
+    if (lanes) {
       setIntegrity({
-        level: L.bureauIntegrity ?? (hj.registryShallowRisk ? "critical" : "ok"),
-        reasons: L.bureauIntegrityReasons ?? [],
-        agenticSlots: L.agenticLlmSlots,
-        webSearch: L.webSearchActive,
-        lastOk: L.agenticLlmLastOk,
-        lastModel: L.agenticLlmLastModel,
+        level: snapshot?.bureauIntegrity ?? lanes.bureauIntegrity ?? "ok",
+        reasons: snapshot?.bureauIntegrityReasons ?? lanes.bureauIntegrityReasons ?? [],
+        agenticSlots: lanes.agenticLlmSlots,
+        webSearch: lanes.webSearchActive,
+        lastOk: lanes.agenticLlmLastOk,
+        lastModel: lanes.agenticLlmLastModel,
       });
-    } catch { /* non-fatal */ }
-  };
-
-  const fetchStatus = useCallback(async () => {
-    if (isMockMode()) {
-      setStatus(mockSystemStatus() as any);
-      setError(null);
-      setLoading(false);
-      await loadIntegrity();
-      setLastFetch(new Date());
       return;
     }
     try {
-      const res = await fetch(`${BASE}/api/system/status`);
-      const data = await readApiJson(res);
-      if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
-      setStatus(data);
-      setError(null);
-      await loadIntegrity(data);
-    } catch (e: any) {
-      setError(e.message ?? "Fetch error");
+      const response = await fetch(`${BASE}/api/healthz`);
+      if (!response.ok) return;
+      const health = await response.json();
+      const current = health?.lanesHonesty ?? {};
+      setIntegrity({
+        level: current.bureauIntegrity ?? (health?.registryShallowRisk ? "critical" : "ok"),
+        reasons: current.bureauIntegrityReasons ?? [],
+        agenticSlots: current.agenticLlmSlots,
+        webSearch: current.webSearchActive,
+        lastOk: current.agenticLlmLastOk,
+        lastModel: current.agenticLlmLastModel,
+      });
+    } catch { /* optional health detail */ }
+  };
+
+  const fetchStatus = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (isMockMode()) {
+        const mock = mockSystemStatus() as SystemStatus;
+        setStatus(mock);
+        setError(null);
+        await loadIntegrity(mock);
+      } else {
+        const response = await fetch(`${BASE}/api/system/status`);
+        const data = await readApiJson(response);
+        if (!response.ok) throw new Error(data?.error ?? `HTTP ${response.status}`);
+        setStatus(data as SystemStatus);
+        setError(null);
+        await loadIntegrity(data as SystemStatus);
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not load system status.");
     } finally {
       setLoading(false);
       setLastFetch(new Date());
@@ -308,323 +179,108 @@ export default function SystemStatusPage() {
   }, []);
 
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 30_000);
-    return () => clearInterval(interval);
+    void fetchStatus();
+    const interval = window.setInterval(() => void fetchStatus(), 30_000);
+    return () => window.clearInterval(interval);
   }, [fetchStatus]);
 
-  const aiProviders = status?.ai
-    ? Object.keys(status.ai).filter((k) => Array.isArray((status.ai as any)[k]))
-    : (["groq", "perplexity", "gemini", "tavily", "exa"]);
-
-  const totalActive = status?.ai
-    ? aiProviders.reduce((sum, k) => sum + (status.ai[k]?.filter(s => s.state === "active").length ?? 0), 0)
-    : 0;
-
+  const pools = POOLS.map((pool) => ({ ...pool, slots: status?.ai?.[pool.key] ?? [] }));
+  const activeCount = pools.reduce((sum, pool) => sum + pool.slots.filter((slot) => slot.state === "active").length, 0);
   const upstashSlots = status?.databases?.upstash ?? [];
 
   return (
     <div className="atlas-page max-w-4xl space-y-5 sm:space-y-8">
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="max-w-full text-[13px] leading-relaxed text-stone-400 break-words">
-            AI search pools, Redis, and database health. Other tools (Scrapfly, Companies House, etc.) show under research lanes below — not in the five pool rows.
+          <h1 className="text-lg font-semibold text-foreground">System status</h1>
+          <p className="mt-1 max-w-2xl text-[12px] leading-relaxed text-muted-foreground">
+            Canonical Groq reasoning roles, Investigator/search capabilities, specialist-worker attestation,
+            and database health. Retired model providers are not displayed as active services.
           </p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          {lastFetch && (
-            <span className="font-mono text-[12px] text-muted-foreground/60">
-              Updated {lastFetch.toLocaleTimeString()}
-            </span>
-          )}
-          <button
-            onClick={fetchStatus}
-            className="atlas-outline-btn atlas-pressable flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-3 py-1.5 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/50"
-          >
-            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-            Refresh
+        <div className="flex items-center gap-3">
+          {lastFetch && <span className="font-mono text-[10px] text-muted-foreground">Updated {lastFetch.toLocaleTimeString()}</span>}
+          <button onClick={() => void fetchStatus()} disabled={loading} className="atlas-outline-btn atlas-pressable flex min-h-[44px] items-center justify-center gap-2 rounded-lg px-3 py-1.5 font-mono text-[11px] disabled:opacity-50">
+            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} /> Refresh
           </button>
         </div>
-      </div>
-
-      {/* Quick-glance banner */}
-      {status && (
-        <div className={cn(
-          "flex min-w-0 flex-col gap-2 rounded-2xl border px-3 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5",
-          totalActive > 0
-            ? "border-[#9CFF1A]/25 bg-gradient-to-r from-lime-500/[0.08] to-transparent"
-            : "border-destructive/30 bg-destructive/5",
-        )}>
-          <div className="flex min-w-0 items-start gap-3">
-            <div className={cn(
-              "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-              totalActive > 0 ? "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.7)]" : "bg-destructive",
-            )} />
-            <span className="min-w-0 text-[13px] font-semibold leading-snug tracking-tight text-stone-100 break-words">
-              {totalActive > 0
-                ? `${totalActive} AI pool slot${totalActive === 1 ? "" : "s"} live (${aiProviders
-                    .filter((k) => (status.ai[k]?.filter((s) => s.state === "active").length ?? 0) > 0)
-                    .map((k) => PROVIDER_LABELS[k] ?? k)
-                    .join(" · ")})`
-                : "No AI pool keys live — check Secrets and restart API"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.12em] text-muted-foreground">
-            <Activity className="h-3.5 w-3.5" />
-            {status.cached ? `Cached · ${Math.round(status.cachedAgoMs / 1000)}s` : "Live feed"}
-          </div>
-        </div>
-      )}
+      </header>
 
       {error && (
-        <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 sm:flex-row sm:items-start sm:gap-3" role="alert">
-          <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" aria-hidden />
-          <div className="min-w-0 space-y-1">
-            <div className="font-mono text-[12px] font-semibold text-destructive">Could not load system status</div>
-            <p className="font-mono text-[11px] leading-relaxed text-destructive/90">{error}</p>
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
-              This page needs api-server at <span className="font-mono">/api/system/status</span>. Static UI alone will show this error.
-            </p>
-          </div>
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3" role="alert">
+          <div className="flex items-center gap-2 text-xs font-semibold text-destructive"><AlertCircle className="h-4 w-4" /> Status unavailable</div>
+          <p className="mt-1 text-[11px] text-muted-foreground">{error}</p>
         </div>
       )}
 
-      {/* AI Key Pools */}
-      <section>
-        <div className="mb-4 flex items-center gap-2">
-          <Zap className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
-            AI Engine Key Pools
-          </h2>
-        </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          
-      {/* Bureau integrity — explicit when Apex cannot beat general agents */}
-      {integrity && integrity.level !== "ok" && (
-        <div
-          data-testid="status-bureau-integrity"
-          className={
-            integrity.level === "critical"
-              ? "rounded-2xl border border-rose-500/40 bg-rose-950/50 px-4 py-3.5"
-              : "rounded-2xl border border-lime-500/35 bg-lime-950/40 px-4 py-3.5"
-          }
-        >
-          <div className="text-[12px] font-semibold tracking-tight text-stone-100">
-            {integrity.level === "critical"
-              ? "Bureau is not functioning correctly"
-              : "Bureau is degraded"}
+      {status && (
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/30 px-4 py-3">
+          <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+            <Activity className="h-4 w-4 text-primary" />
+            {activeCount} active configured capability/search key slot(s)
           </div>
-          <p className="mt-1 text-[11px] leading-relaxed text-stone-300">
-            Apex should outperform general agents via multi-LLM ReAct plus OSINT tools. This state means
-            it may currently underperform Grok / Perplexity / Replit-class agents until providers recover.
-          </p>
-          <ul className="mt-2 list-inside list-disc space-y-0.5 text-[11px] text-stone-300">
-            {(integrity.reasons.length ? integrity.reasons : ["See healthz.lanesHonesty"]).slice(0, 5).map((r, i) => (
-              <li key={i}>{r}</li>
-            ))}
-          </ul>
-          <div className="mt-2 font-mono text-[12px] text-stone-500">
-            agentic LLM slots: {integrity.agenticSlots ?? "—"}
-            {" · "}web search: {integrity.webSearch ?? "—"}
-            {" · "}last step: {integrity.lastOk === false ? "failed" : integrity.lastOk === true ? `ok (${integrity.lastModel ?? "—"})` : "not exercised"}
-          </div>
+          <span className="text-[10px] font-mono text-muted-foreground">{status.cached ? `Cached · ${Math.round((status.cachedAgoMs ?? 0) / 1000)}s` : "Live snapshot"}</span>
         </div>
       )}
 
-{aiProviders.map((key) => (
-            <ProviderCard
-              key={key}
-              name={key}
-              slots={(status?.ai as any)?.[key] ?? []}
-            />
-          ))}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-xs font-mono font-semibold uppercase tracking-[0.18em] text-foreground"><Zap className="h-4 w-4 text-primary" /> Control-plane roles</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <RoleCard label="Groq Boss" role={status?.groqBoss} />
+          <RoleCard label="Groq Right-hand" role={status?.groqRightHand} />
         </div>
-        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
-          Each bar shows only keys you have set. Green = live right now. Cooling keys are dimmer. Empty secret slots are not shown — there is no fixed “out of 11”. Scrapfly, Companies House, Serper, Zenrows and similar tools appear under Open research / tools below.
+      </section>
+
+      <section className="space-y-3">
+        <h2 className="text-xs font-mono font-semibold uppercase tracking-[0.18em] text-foreground">Investigator and web-search capability keys</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {pools.map((pool) => <PoolCard key={pool.key} label={pool.label} description={pool.description} slots={pool.slots} />)}
+        </div>
+        <p className="text-[10px] leading-relaxed text-muted-foreground">
+          A configured key is not proof of provider quota or successful live research. The Investigator chooses
+          among enabled capabilities; these rows do not prescribe a search order.
         </p>
       </section>
 
-      <section>
-        <div className="mb-4 flex items-center gap-2">
-          <Wifi className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
-            Open Research Lane
-          </h2>
-          <span className={cn(
-            "ml-auto rounded-full px-2 py-0.5 font-mono text-[12px] font-bold uppercase tracking-wider",
-            status?.openResearch?.state === "ready"
-              ? "bg-primary/15 text-primary"
-              : status?.openResearch?.state === "incomplete"
-                ? "bg-[#9CFF1A]/15 text-[#9CFF1A]"
-                : "bg-muted/30 text-muted-foreground",
-          )}>
-            {OPEN_RESEARCH_LABELS[status?.openResearch?.state ?? "unavailable"]}
-          </span>
-        </div>
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-          {[
-            { label: "Hugging Face", sub: "Model host", configured: status?.openResearch?.huggingFace?.configured ?? false },
-            { label: "Serper", sub: "Live search", configured: status?.openResearch?.serper?.configured ?? false },
-            { label: "Mistral", sub: "Web search", configured: status?.openResearch?.mistral?.configured ?? false },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className={cn(
-                "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 transition-colors",
-                item.configured
-                  ? "border-[#9CFF1A]/20 bg-lime-500/[0.06]"
-                  : "border-[#9CFF1A]/10 bg-card/25",
-              )}
-            >
-              <div className="min-w-0">
-                <div className="text-[13px] font-semibold tracking-tight text-foreground">{item.label}</div>
-                <div className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.12em] text-muted-foreground/65">{item.sub}</div>
-              </div>
-              <span
-                className={cn(
-                  "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em]",
-                  item.configured
-                    ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/10 text-[#fef08a]"
-                    : "border-[#9CFF1A]/12 bg-muted/20 text-muted-foreground",
-                )}
-              >
-                {item.configured ? "ready" : "off"}
-              </span>
-            </div>
-          ))}
-        </div>
-        <div className="mt-2 rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px]">
-            <span className="text-muted-foreground">Bounded smolagents adapter</span>
-            <span className={status?.openResearch?.adapter?.available ? "text-primary" : "text-muted-foreground"}>
-              {status?.openResearch?.adapter?.available ? "installed" : "unavailable"}
-            </span>
-          </div>
-          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
-            {status?.openResearch?.adapter?.model ?? "Qwen/Qwen2.5-7B-Instruct"} · review-only, no direct promotion
-          </div>
-          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
-            {status?.openResearch?.mistral?.configured
-              ? `Mistral ${status.openResearch.mistral.model} · ${status.openResearch.mistral.rateLimit}`
-              : "Mistral web search not configured"}
-          </div>
-        </div>
-        <div className="mt-3 rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px]">
-            <span className="text-muted-foreground">Gemini Boss</span>
-            <span className={status?.geminiBoss?.configured ? "text-primary" : "text-muted-foreground"}>
-              {status?.geminiBoss?.configured ? "configured" : "missing"}
-            </span>
-          </div>
-          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
-            {status?.geminiBoss?.configured
-              ? `${status.geminiBoss.model} · head investigator · text only · no web grounding`
-              : "Gemini Boss text-planning model not configured"}
-          </div>
-        </div>
-        <div className="mt-3 rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px]">
-            <span className="text-muted-foreground">Boss's right-hand advisor</span>
-            <span className={status?.bureauReasoning?.configured ? "text-primary" : "text-muted-foreground"}>
-              {status?.bureauReasoning?.configured ? "configured" : "missing"}
-            </span>
-          </div>
-          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
-            {status?.bureauReasoning?.configured
-              ? `${status.bureauReasoning.model} · advisory only · no web search`
-              : "NVIDIA NIM right-hand advisor not configured"}
-          </div>
-        </div>
-      </section>
+      {integrity && integrity.level !== "ok" && (
+        <section className={cn("rounded-2xl border px-4 py-3", integrity.level === "critical" ? "border-rose-500/40 bg-rose-950/30" : "border-[#9CFF1A]/25 bg-[#9CFF1A]/5")} data-testid="status-bureau-integrity">
+          <h2 className="text-xs font-semibold text-foreground">{integrity.level === "critical" ? "Bureau integrity critical" : "Bureau degraded"}</h2>
+          <ul className="mt-2 list-inside list-disc space-y-1 text-[11px] text-muted-foreground">
+            {(integrity.reasons.length ? integrity.reasons : ["See /api/healthz lanesHonesty"]).slice(0, 6).map((reason, index) => <li key={index}>{reason}</li>)}
+          </ul>
+          <p className="mt-2 text-[10px] font-mono text-muted-foreground">
+            Investigator slots: {integrity.agenticSlots ?? "—"} · Web search: {integrity.webSearch ?? "—"} · Last step: {integrity.lastOk === false ? "failed" : integrity.lastOk === true ? `ok (${integrity.lastModel ?? "—"})` : "not exercised"}
+          </p>
+        </section>
+      )}
 
-      {/* Databases */}
-      <section>
-        <div className="mb-4 flex items-center gap-2">
-          <Database className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
-            Databases
-          </h2>
-        </div>
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-xs font-mono font-semibold uppercase tracking-[0.18em] text-foreground"><Database className="h-4 w-4 text-primary" /> Databases</h2>
         <div className="space-y-2">
-          <DbRow
-            label="PostgreSQL"
-            status={status?.databases?.postgres?.status ?? "—"}
-            latency={status?.databases?.postgres?.latencyMs ?? null}
-            icon={Server}
-          />
-          <DbRow
-            label="Local Redis (cache)"
-            status={status?.databases?.localRedis?.status ?? "—"}
-            latency={status?.databases?.localRedis?.latencyMs ?? null}
-            icon={Layers}
-          />
+          <DbRow label="PostgreSQL" status={status?.databases?.postgres?.status ?? "unknown"} latency={status?.databases?.postgres?.latencyMs ?? null} icon={Server} />
+          <DbRow label="Redis" status={status?.databases?.localRedis?.status ?? "unknown"} latency={status?.databases?.localRedis?.latencyMs ?? null} icon={Layers} />
         </div>
       </section>
 
-      {/* Upstash Slots */}
-      <section>
-        <div className="mb-4 flex items-center gap-2">
-          <Wifi className="h-4 w-4 text-primary" />
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-foreground">
-            Upstash Permanent Cache Slots
-          </h2>
-        </div>
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-xs font-mono font-semibold uppercase tracking-[0.18em] text-foreground"><Wifi className="h-4 w-4 text-primary" /> Upstash cache slots</h2>
         {upstashSlots.length === 0 ? (
-          <p className="font-mono text-[12px] text-muted-foreground">No Upstash slots configured.</p>
+          <p className="text-[11px] text-muted-foreground">No Upstash slots configured.</p>
         ) : (
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
             {upstashSlots.map((slot) => (
-              <div
-                key={slot.slot}
-                className={cn(
-                  "rounded-lg border px-3 py-3 text-center",
-                  slot.quotaExhausted
-                    ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/5"
-                    : slot.status === "ready"
-                    ? "border-primary/30 bg-primary/5"
-                    : "border-[#9CFF1A]/10 bg-muted/10",
-                )}
-              >
-                <div className="mb-1 font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground/60">
-                  Slot {slot.slot}
+              <div key={slot.slot} className="rounded-xl border border-border bg-card/30 px-3 py-3 text-center">
+                <div className="text-[10px] font-mono text-muted-foreground">Slot {slot.slot}</div>
+                <div className="mt-1 flex items-center justify-center gap-1.5">
+                  {slot.quotaExhausted ? <WifiOff className="h-3.5 w-3.5 text-amber-400" /> : slot.status === "ready" ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" /> : <Clock className="h-3.5 w-3.5 text-muted-foreground" />}
+                  <span className="text-[10px] font-mono uppercase text-muted-foreground">{slot.quotaExhausted ? "quota" : slot.status}</span>
                 </div>
-                <div className="flex items-center justify-center gap-1.5">
-                  {slot.quotaExhausted
-                    ? <WifiOff className="h-3.5 w-3.5 text-[#9CFF1A]" />
-                    : slot.status === "ready"
-                    ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                    : <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  }
-                  <span className={cn(
-                    "font-mono text-[12px] font-bold uppercase",
-                    slot.quotaExhausted ? "text-[#9CFF1A]" :
-                    slot.status === "ready" ? "text-primary" : "text-muted-foreground",
-                  )}>
-                    {slot.quotaExhausted ? "quota" : slot.status}
-                  </span>
-                </div>
-                {typeof slot.latencyMs === "number" && slot.latencyMs !== null && (
-                  <div className="mt-1 font-mono text-[11px] text-muted-foreground/50">{slot.latencyMs}ms</div>
-                )}
+                {typeof slot.latencyMs === "number" && <div className="mt-1 text-[10px] text-muted-foreground">{slot.latencyMs}ms</div>}
               </div>
             ))}
           </div>
         )}
       </section>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-4 border-t border-[#9CFF1A]/08 pt-5 font-mono text-[12px] text-muted-foreground/60">
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded-full bg-primary" /> Active — key operational
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded-full bg-[#9CFF1A]" /> Temporary cooldown — provider returned 429 (auto-recovers)
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded-full border border-muted/50 bg-muted/20" /> Missing — secret not configured
-        </div>
-      </div>
     </div>
   );
 }
