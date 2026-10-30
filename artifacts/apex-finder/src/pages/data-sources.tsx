@@ -828,88 +828,55 @@ function IdentityResolutionPanel() {
 }
 
 
-// ─── Phase L: Python Tools Status Panel ──────────────────────────────────────
+// ─── Attested Python OSINT worker capabilities ───────────────────────────────
 
-type PythonToolsStatus = {
-  tools: Record<string, boolean>;
-  gliner: { available: boolean; port: number };
-  installCommand: string;
-};
+type PythonToolsStatus = Record<string, boolean>;
 
 type ToolMeta = {
   label: string;
+  action: string;
   desc: string;
-  usage: "auto" | "on-demand";
-  usageNote: string;
-  endpoint?: string;
   input: string;
 };
 
 const TOOL_META: Record<string, ToolMeta> = {
   holehe: {
     label: "Holehe",
-    desc: "Checks a known email address against 200+ online platforms to reveal linked social accounts and registrations.",
-    usage: "on-demand",
-    usageNote: "Run after a verified email is found",
-    input: "Email address",
+    action: "footprint_email",
+    desc: "Checks a source-observed email against public service registration signals. Results are leads, not proof that a person owns an account.",
+    input: "Observed email address",
   },
   maigret: {
     label: "Maigret",
-    desc: "Takes a username and searches 3,000+ sites for matching profiles — exposes social footprint across platforms.",
-    usage: "on-demand",
-    usageNote: "Run after a username or handle is found",
-    input: "Username / handle",
+    action: "footprint_username_maigret",
+    desc: "Searches public sites for profiles matching an observed username or handle. Candidate profiles require independent identity verification.",
+    input: "Observed username / handle",
   },
   sherlock: {
     label: "Sherlock",
-    desc: "Supplementary username search across public sites. Used only as a review-only fallback when Maigret has no or limited results.",
-    usage: "on-demand",
-    usageNote: "Review-only fallback after Maigret",
-    input: "Username / handle",
+    action: "footprint_username_sherlock",
+    desc: "An independent public username-footprint capability. The Investigator may choose it when its coverage is useful; it is not a mandatory fallback stage.",
+    input: "Observed username / handle",
   },
-  theHarvester: {
+  theharvester: {
     label: "theHarvester",
-    desc: "Queries public search, DNS, and certificate sources for emails and subdomains belonging to a domain.",
-    usage: "on-demand",
-    usageNote: "On-demand when the upstream tool is available",
-    input: "Domain name",
+    action: "harvest_domain",
+    desc: "Collects public domain-related email, host, DNS, and certificate leads for subsequent source verification.",
+    input: "Observed domain",
   },
-};
-
-const GLINER_META = {
-  label: "GLiNER NER",
-  desc: "Zero-shot name extraction model (urchade/gliner-multi-v2.1) running as a local microservice. Replaces regex in the web enricher — more accurate for non-English names and novel entity types.",
-  usage: "auto" as const,
-  usageNote: "Auto-used in Phases 4 & 1.5 of the enrichment pipeline",
-  startCommand: "python3 scripts/gliner_service.py",
-  fallback: "Falls back to regex NER when offline — no crash",
+  spiderfoot: {
+    label: "SpiderFoot",
+    action: "footprint_spiderfoot",
+    desc: "Runs a bounded footprint scan for a source-anchored person, email, phone, username, or infrastructure hypothesis.",
+    input: "Observed public identifier",
+  },
 };
 
 function ToolStatusBadge({ ready, label }: { ready: boolean; label?: string }) {
   return (
-    <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold ${
-        ready
-          ? "bg-[#9CFF1A]/15 text-[#b8ff4d]"
-          : "bg-rose-500/15 text-rose-400"
-      }`}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${ready ? "bg-[#b8ff4d]" : "bg-rose-400"}`} />
-      {label ?? (ready ? "Ready" : "Not installed")}
-    </span>
-  );
-}
-
-function UsageBadge({ usage }: { usage: "auto" | "on-demand" }) {
-  return (
-    <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono uppercase tracking-wider ${
-        usage === "auto"
-          ? "bg-[#9CFF1A]/10 text-[#9CFF1A]"
-          : "bg-muted/60 text-muted-foreground"
-      }`}
-    >
-      {usage === "auto" ? "Auto" : "On-demand"}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold ${ready ? "bg-[#9CFF1A]/15 text-[#b8ff4d]" : "bg-muted/60 text-muted-foreground"}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${ready ? "bg-[#b8ff4d]" : "bg-muted-foreground/50"}`} />
+      {label ?? (ready ? "Attested · available" : "Not available here")}
     </span>
   );
 }
@@ -918,169 +885,92 @@ function PythonToolsPanel() {
   const [status, setStatus] = useState<PythonToolsStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [checked, setChecked] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const load = () => {
+  const load = async () => {
     setLoading(true);
+    setError(null);
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-    fetch(`${base}/api/system/status`)
-      .then((r) => (r.ok ? readApiJson(r) : Promise.reject(new Error(String(r.status)))))
-      .then((d) => {
-        // Reject non-object / incomplete payloads (mock empty arrays crash status.tools[k]).
-        const pythonTools = d?.pythonTools;
-        // System status is the canonical read-only health surface; legacy enrichment routes stay retired.
-        if (!pythonTools || typeof pythonTools !== "object" || Array.isArray(pythonTools) || !pythonTools.tools || typeof pythonTools.tools !== "object") {
-          setStatus(null);
-        } else {
-          setStatus(pythonTools as PythonToolsStatus);
-        }
-        setLoading(false);
-        setChecked(true);
-      })
-      .catch(() => { setLoading(false); setChecked(true); setStatus(null); });
+    try {
+      const response = await fetch(`${base}/api/system/status`);
+      const data = await readApiJson(response);
+      if (!response.ok) throw new Error(data?.error ?? `HTTP ${response.status}`);
+      const tools = data?.pythonTools;
+      if (!tools || typeof tools !== "object" || Array.isArray(tools)) {
+        throw new Error("The API did not return a Python OSINT capability status map.");
+      }
+      setStatus(tools as PythonToolsStatus);
+    } catch (cause) {
+      setStatus(null);
+      setError(cause instanceof Error ? cause.message : "Could not read worker availability.");
+    } finally {
+      setLoading(false);
+      setChecked(true);
+    }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const toolKeys = Object.keys(TOOL_META);
-  // "pip-installable" tools — the install script can actually fix these
-  const pipTools = ["holehe", "maigret", "sherlock"];
-  const readyCount = status
-    ? toolKeys.filter(k => status.tools?.[k]).length + (status.gliner?.available ? 1 : 0)
-    : 0;
-  const totalCount = toolKeys.length + 1; // +1 for GLiNER
-  const allReady = readyCount === totalCount;
-  // Only suggest the install script when a pip-installable tool is missing
-  const needsInstallScript = checked && status
-    ? pipTools.some(k => !status.tools?.[k])
-    : false;
+  const availableCount = status ? toolKeys.filter((key) => status[key] === true).length : 0;
 
   return (
     <section className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Terminal className="h-4 w-4 text-lime-400" />
-          <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
-            Python OSINT Tools
-          </span>
-          <span className="text-[11px] font-mono bg-lime-500/10 text-lime-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Phase L</span>
+          <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">Specialist OSINT worker</span>
         </div>
-        <button
-          onClick={load}
-          disabled={loading}
-          title="Re-check tool availability"
-          className="h-7 w-7 flex items-center justify-center rounded hover:bg-muted/60 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
-        >
+        <button onClick={() => void load()} disabled={loading} title="Refresh signed worker availability" className="h-9 w-9 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground disabled:opacity-50">
           <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
         </button>
       </div>
 
-      {/* Health summary bar */}
-      <div className={`rounded-lg border px-3 py-2.5 space-y-1.5 ${
-        !checked
-          ? "border-[#9CFF1A]/08 bg-muted/10"
-          : allReady
-            ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/5"
-            : "border-[#9CFF1A]/30 bg-[#9CFF1A]/5"
-      }`}>
-        {/* Count row — always one line */}
-        <div className="flex items-center gap-2">
-          <span className={`h-2 w-2 rounded-full flex-shrink-0 ${
-            !checked ? "bg-muted-foreground/30" : allReady ? "bg-[#9CFF1A]" : "bg-[#9CFF1A] animate-pulse"
-          }`} />
-          <span className={`text-xs font-semibold font-mono ${
-            !checked ? "text-muted-foreground" : allReady ? "text-[#b8ff4d]" : "text-[#9CFF1A]"
-          }`}>
-            {!checked ? "Checking…" : `${readyCount} / ${totalCount} tools ready`}
-            {allReady && " — all operational"}
-          </span>
-        </div>
-        {/* Install hint — only when a pip-installable tool is actually missing */}
-        {needsInstallScript && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-mono text-muted-foreground">Run:</span>
-            <code className="text-[10px] font-mono text-[#d4ff8a] bg-muted/60 px-2 py-0.5 rounded select-all">
-              bash scripts/install-python-tools.sh
-            </code>
-          </div>
+      <div className="rounded-lg border border-border bg-muted/10 px-3 py-2.5 space-y-1">
+        <p className="text-xs font-semibold font-mono text-foreground">
+          {!checked ? "Checking signed worker attestation…" : error ? "Worker availability could not be verified" : `${availableCount} / ${toolKeys.length} specialist capabilities attested in this runtime`}
+        </p>
+        <p className="text-[10px] leading-relaxed text-muted-foreground">
+          These network tools are not enabled by local package installation. The API exposes each action only
+          after fresh signed worker attestation, immutable worker/proxy image pins, and isolated egress checks.
+          If unavailable, the action is omitted from the Investigator's available-action list.
+        </p>
+        {checked && !error && availableCount === 0 && (
+          <p className="text-[10px] leading-relaxed text-muted-foreground">
+            The adapters exist in the repository, but no trusted worker is currently attested for this runtime.
+            They will not be called or simulated.
+          </p>
         )}
+        {error && <p className="text-[10px] text-rose-300" role="alert">{error}</p>}
       </div>
 
-      {/* Tool rows */}
       <div className="space-y-2">
-
-        {/* GLiNER — microservice */}
-        <div className="rounded-lg border border-[#9CFF1A]/08 bg-muted/5 p-3">
-          <div className="flex items-start gap-3">
-            <Cpu className="h-4 w-4 text-lime-300 mt-0.5 flex-shrink-0" />
-            <div className="flex-1 min-w-0 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-foreground">{GLINER_META.label}</span>
-                <ToolStatusBadge
-                  ready={status?.gliner?.available ?? false}
-                  label={!checked ? undefined : status?.gliner?.available ? "Online" : "Offline"}
-                />
-                <UsageBadge usage={GLINER_META.usage} />
-              </div>
-              <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">{GLINER_META.desc}</p>
-              <div className="flex flex-wrap items-center gap-3 pt-0.5">
-                <span className="text-[11px] font-mono text-[#9CFF1A]/80">{GLINER_META.usageNote}</span>
-                <span className="text-[11px] font-mono text-muted-foreground/60">{GLINER_META.fallback}</span>
-              </div>
-              {checked && !status?.gliner?.available && (
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  <span className="text-[11px] font-mono text-muted-foreground">Start:</span>
-                  <code className="text-[11px] font-mono text-[#9CFF1A]/90 bg-muted/60 px-1.5 py-0.5 rounded select-all">
-                    {GLINER_META.startCommand}
-                  </code>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* CLI tools */}
-        {toolKeys.map(key => {
+        {toolKeys.map((key) => {
           const meta = TOOL_META[key]!;
-          const ready = status?.tools[key] ?? false;
+          const ready = status?.[key] === true;
           return (
-            <div key={key} className="rounded-lg border border-[#9CFF1A]/08 bg-muted/5 p-3">
-              <div className="flex items-start gap-3">
-                <Terminal className="h-4 w-4 text-muted-foreground/50 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0 space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold text-foreground">{meta.label}</span>
-                    {checked && <ToolStatusBadge ready={ready} />}
-                    <UsageBadge usage={meta.usage} />
-                    <span className="text-[11px] font-mono text-muted-foreground/60">{meta.input}</span>
-                  </div>
-                  <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">{meta.desc}</p>
-                  <div className="flex flex-wrap items-center gap-3 pt-0.5">
-                    <span className="text-[11px] font-mono text-muted-foreground/70">{meta.usageNote}</span>
-                    {meta.endpoint && (
-                      <code className="text-[11px] font-mono text-muted-foreground/50 bg-muted/40 px-1.5 py-0.5 rounded">
-                        {meta.endpoint}
-                      </code>
-                    )}
-                  </div>
-                </div>
+            <div key={key} className="rounded-lg border border-border/70 bg-muted/5 p-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-foreground">{meta.label}</span>
+                {checked && <ToolStatusBadge ready={ready} />}
+                <span className="text-[10px] font-mono text-muted-foreground">{meta.action}</span>
               </div>
+              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">{meta.desc}</p>
+              <p className="mt-1 text-[10px] font-mono text-muted-foreground/70">Input: {meta.input}</p>
             </div>
           );
         })}
-
       </div>
-
-      {!checked && (
-        <p className="text-[11px] font-mono text-muted-foreground/50">
-          Availability check runs on load — click refresh to re-check after installing.
-        </p>
-      )}
+      <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+        Tool choice remains model-owned: the Investigator selects a capability only when it fits the current
+        evidence gap and expected information gain. There is no fixed tool order. Worker output is untrusted
+        lead material and cannot promote a person or contact by itself.
+      </p>
     </section>
   );
 }
 
+// ─── J9 Source Quality Dashboard ─────────────────────────────────────────────
 // ─── J9 Source Quality Dashboard ─────────────────────────────────────────────
 
 type SourceQualityRow = {
