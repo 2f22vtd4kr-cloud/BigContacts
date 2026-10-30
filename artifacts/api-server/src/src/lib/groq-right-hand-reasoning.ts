@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { logger } from "./logger";
-import { emitModelPromptAudit, emitModelPromptAuditResponse } from "./model-prompt-audit";
+import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import {
   classifyProviderHttpStatus,
@@ -284,6 +284,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     const omitProviderResponseFormat = candidate.model.toLowerCase().includes("gpt-oss");
     const requestBody={model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:currentUser}],max_completion_tokens:currentCompletionTokens,temperature:0.1,stream:false,...(omitProviderResponseFormat?{}:{response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat}), reasoning_effort:currentReasoningEffort, include_reasoning:false};
      const modelAuditRequestId=emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:outboundAttemptCount+1,jobId:auditContext?.jobId??null,caseId:auditContext?.caseId??null,requestBody});
+     if(isModelPromptAuditCaptureEnabled()&&!modelAuditRequestId)throw new Error("model_prompt_audit_request_capture_failed; refusing an untraced Right-hand request");
     const body=JSON.stringify(requestBody);
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
     let modelAuditResponseRecorded=false;
@@ -292,8 +293,8 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     outboundAttemptCount++;
     const response=await withProviderRetryOwnership("groq","caller",()=>fetch(GROQ_RIGHT_HAND_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal}));
     const responseBody=await response.text();
-     emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,httpStatus:response.status,responseBody});
-     modelAuditResponseRecorded=true;
+     modelAuditResponseRecorded=emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,httpStatus:response.status,responseBody});
+     if(isModelPromptAuditCaptureEnabled()&&!modelAuditResponseRecorded)throw new Error("model_prompt_audit_response_capture_failed; refusing to process an untraced Right-hand response");
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
     if(response.status===429&&hardRateLimit(response,responseBody)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const kind=rateLimitKind(response,responseBody);const dailyTokenQuota=isTokenPerDayQuotaError(response.status,responseBody);const waitMs=kind==="tokens"?tokenRateLimitWaitMs(response):null;if(!dailyTokenQuota&&kind==="tokens"&&waitMs!==null&&waitMs<=MAX_TOKEN_RATE_LIMIT_WAIT_MS&&retryTokenRateLimit<MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL&&Date.now()+waitMs<deadline){retryTokenRateLimit++;lastRetryAfterMs=waitMs;lastRetryAfterHeader=response.headers.get("retry-after");await new Promise(r=>setTimeout(r,Math.min(waitMs,Math.max(0,deadline-Date.now()))));continue;}const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:waitMs??null,retryAfterHeader:response.headers.get("retry-after"),rateLimitKind:kind,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(kind==="requests")quotaBlockedCredentials.add(fingerprint(candidate.entry.key));break;}
     if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const retryHeader=response.headers.get("retry-after");const delay=retryHeader?retryAfterMs(response,GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS):GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS;lastRetryAfterMs=delay;lastRetryAfterHeader=retryHeader;if(delay<=2500){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
