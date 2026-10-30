@@ -47,7 +47,7 @@ type AuditEnvironment = {
 };
 
 function shouldCaptureModelPromptAudit(env: AuditEnvironment): boolean {
-  if (env.APEX_CAPTURE_MODEL_PROMPTS !== "true" || !env.APEX_MODEL_AUDIT_FILE?.trim()) return false;
+  if (env.APEX_CAPTURE_MODEL_PROMPTS !== "true") return false;
   const isTestRunner = env.VITEST === "true"
     || Boolean(env.VITEST_POOL_ID)
     || Boolean(env.VITEST_WORKER_ID)
@@ -399,6 +399,10 @@ export function emitModelPromptAudit(
   cwd: string = process.cwd(),
 ): string | null {
   if (!shouldCaptureModelPromptAudit(env)) return null;
+  if (!env.APEX_MODEL_AUDIT_FILE?.trim()) {
+    process.stderr.write("[atlas_model_prompt_audit] capture is enabled but APEX_MODEL_AUDIT_FILE is missing; model request was not sent.\\n");
+    return null;
+  }
 
   const requestId = randomUUID();
   const record = {
@@ -536,6 +540,10 @@ export function emitModelPromptAuditResponse(
   cwd: string = process.cwd(),
 ): boolean {
   if (!input.requestId || !shouldCaptureModelPromptAudit(env)) return false;
+  if (!env.APEX_MODEL_AUDIT_FILE?.trim()) {
+    process.stderr.write("[atlas_model_prompt_audit] capture is enabled but APEX_MODEL_AUDIT_FILE is missing; model response was not written.\\n");
+    return false;
+  }
 
   const responseBody = input.responseBody ?? "";
   const record = {
