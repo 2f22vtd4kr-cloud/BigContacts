@@ -8,7 +8,7 @@ deploymentTarget = "autoscale"
 run = ["sh", "-c", "bash scripts/replit-boot.sh"]
 
 [deployment.postBuild]
-args = ["pnpm", "store", "prune"]
+args = ["npm", "exec", "--yes", "--package=pnpm@9.15.9", "--", "pnpm", "store", "prune"]
 env = { "CI" = "true" }
 
 [workflows]
@@ -24,11 +24,8 @@ agentRequireRestartOnSave = false
 outputType = "webview"
 
 [[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bash scripts/replit-boot.sh"
+args = "npm exec --yes --package=pnpm@9.15.9 -- pnpm install --frozen-lockfile && bash scripts/replit-boot.sh"
 waitForPort = 8080
 
 [[ports]]
