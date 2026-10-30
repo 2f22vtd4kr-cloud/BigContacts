@@ -49,7 +49,6 @@ const server = app.listen(port, (err) => {
         groqRightHand: lanes.groqRightHand,
         groqInvestigator: lanes.groqInvestigator,
         serper: lanes.serper,
-        serpapi: lanes.serpapi,
         tavily: lanes.tavily,
         exa: lanes.exa,
         agenticLlmSlots: lanes.agenticLlmSlots,
