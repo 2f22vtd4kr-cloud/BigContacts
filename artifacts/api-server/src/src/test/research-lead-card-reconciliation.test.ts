@@ -112,12 +112,14 @@ describe("terminal review-card reconciliation", () => {
       canonical.indexOf("async function materializeAtlasAdmissions"),
       canonical.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
     );
-    expect(materialization.indexOf("materializePartialPersonLeadCards")).toBeGreaterThanOrEqual(0);
-    expect(materialization.indexOf("materializePartialOrganizationLeadCards")).toBeGreaterThanOrEqual(0);
-    expect(materialization.indexOf("materializePartialPersonLeadCards"))
-      .toBeLessThan(materialization.indexOf("for (const name of candidates)"));
-    expect(materialization.indexOf("materializePartialOrganizationLeadCards"))
-      .toBeLessThan(materialization.indexOf("for (const name of candidates)"));
+    const partialPeopleCall = materialization.indexOf("const partialPeople = await materializePartialPersonLeadCards(");
+    const partialOrganizationsCall = materialization.indexOf("const partialOrganizations = await materializePartialOrganizationLeadCards(");
+    const strictAdmissionLoop = materialization.indexOf("for (const name of candidates)");
+    expect(partialPeopleCall).toBeGreaterThanOrEqual(0);
+    expect(partialOrganizationsCall).toBeGreaterThanOrEqual(0);
+    expect(strictAdmissionLoop).toBeGreaterThanOrEqual(0);
+    expect(partialPeopleCall).toBeLessThan(strictAdmissionLoop);
+    expect(partialOrganizationsCall).toBeLessThan(strictAdmissionLoop);
   });
 
   it("keeps public business-relevant relationship research separate from private intimate or health-data contact hunting", () => {
