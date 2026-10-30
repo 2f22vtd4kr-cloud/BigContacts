@@ -1,11 +1,13 @@
 # Apex Atlas — precise deployment and bureau run procedure
 
-**Updated:** 2026-10-19  
+**Updated:** 2026-10-30  
 **Canonical branch:** `main`  
 **Historical Very Strong review branch:** `audit/apex-atlas-very-strong-v1` (fully incorporated into `main`)  
 **Historical five-green branch:** `audit/genuine-five-green-final`  
 **Living context:** `docs/context.md`  
-**Master handoff:** `docs/apex-atlas-handoff/20_MASTER_SUCCESSOR_HANDOFF_2026-10-17.md` (read the 2026-10-19 current override first; historical body is incident lineage)
+**Master handoff:** `docs/apex-atlas-handoff/22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md` (current source/UI/worker handoff; older numbered volumes are historical)
+
+> **Run-evidence override — 2026-10-30:** The latest tracked live-run artifact is `audits/apex-atlas-live-run-sequential-audit-2026-10-27.md`. The last captured checkpoint did not terminally reconcile the most recent job. Do not rely on the older 19 October run note below for current Replit active-job or lock state.
 
 **Current acceptance status:** Apex remains **not live-accepted**; see `README.md`, `docs/context.md`, and the current handoff for the release boundary.  
 **Latest tracked Replit run:** [Fresh Replit Import Run 01](../audits/APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-19_FRESH_REPLIT_IMPORT_RUN_01.md), job `0bc6087d-4070-4420-a645-ca2606549052`, last documented at P018 in discovery phase 1/4. The Replit audit agent exhausted its credits at that point. That records where observation stopped, not the Apex job's terminal state; subsequent model actions, durable terminal status, final case/evidence/admission/card counts, and post-run active-lock state are not recorded.
