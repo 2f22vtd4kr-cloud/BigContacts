@@ -11,7 +11,7 @@ function CoolingTowerMark({ size = 28 }: { size?: number }) {
 }
 function methodIcon(method: ReactorMethod) { switch (method) { case "search": return <Search className="h-4 w-4"/>; case "browser": return <Globe2 className="h-4 w-4"/>; case "registry": return <Building2 className="h-4 w-4"/>; case "domain": return <MapPin className="h-4 w-4"/>; case "social": return <UserRound className="h-4 w-4"/>; case "graph": return <Link2 className="h-4 w-4"/>; case "llm": return <Brain className="h-4 w-4"/>; case "case": return <ShieldCheck className="h-4 w-4"/>; default: return <Activity className="h-4 w-4"/>; } }
 function hostname(url?: string) { if (!url) return undefined; try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return undefined; } }
-function actorLabel(value?: string) { const v=String(value??"").toLowerCase(); if(v.includes("right")||v.includes("advisor"))return "RIGHT HAND"; if(v.includes("boss"))return "BOSS"; if(v.includes("groq")||v.includes("mistral")||v.includes("investigator")||v.includes("dig"))return "INVESTIGATOR"; return cleanResearchText(value,36)?.toUpperCase()||"BUREAU"; }
+function actorLabel(value?: string) { const v=String(value??"").toLowerCase(); if(v.includes("right")||v.includes("advisor"))return "RIGHT HAND"; if(v.includes("boss"))return "BOSS"; if(v.includes("groq")||v.includes("investigator")||v.includes("dig"))return "INVESTIGATOR"; return cleanResearchText(value,36)?.toUpperCase()||"BUREAU"; }
 function actionLabel(e: ReactorLiveEvent) {
   if (e.status === "failed") return "Blocked step";
   if (e.status === "cancelled") return "Cancelled step";
