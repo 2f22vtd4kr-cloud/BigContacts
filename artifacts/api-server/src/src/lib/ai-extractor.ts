@@ -1620,7 +1620,7 @@ export interface AIKeyStatus {
 }
 
 /**
- * Returns a per-slot snapshot of every AI provider key pool:
+ * Returns a per-slot snapshot of canonical Investigator and web-search capability pools:
  * active, temporary rate_limited (with expiry timestamp), or missing.
  *
  * "Active" means configured and not in a temporary 429 cooldown. It does not
