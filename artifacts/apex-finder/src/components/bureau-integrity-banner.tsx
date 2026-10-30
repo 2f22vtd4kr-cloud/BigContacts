@@ -24,7 +24,7 @@ export function BureauIntegrityBanner() {
     let cancelled = false;
     const load = async () => {
       try {
-        const res = await fetch(`${BASE}/api/healthz`, { credentials: "same-origin" });
+        const res = await fetch(`${BASE}/api/system/status`, { credentials: "same-origin" });
         if (!res.ok) return;
         const data = await res.json();
         const lanes = data.lanesHonesty ?? {};
@@ -85,8 +85,7 @@ export function BureauIntegrityBanner() {
               : "Bureau is degraded"}
           </div>
           <p className="mt-0.5 text-[11px] leading-snug opacity-90">
-            Apex is designed to beat general agents (Grok / Perplexity / Replit-class) via multi-LLM
-            ReAct plus OSINT tools. Right now it may underperform those agents until this is fixed.
+            Apex runs a Groq Boss, Groq Right-hand, and model-selected Groq Investigator with optional public-source capabilities. This warning reflects the live integrity snapshot; it does not prescribe a research sequence.
           </p>
           <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-[11px] opacity-90">
             {reasons.slice(0, 4).map((r, i) => (
