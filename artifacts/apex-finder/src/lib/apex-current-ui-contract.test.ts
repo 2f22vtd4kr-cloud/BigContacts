@@ -7,6 +7,10 @@ const dataSources = readFileSync(new URL("../pages/data-sources.tsx", import.met
 const launchButton = readFileSync(new URL("../components/launch-atlas-button.tsx", import.meta.url), "utf8");
 const reactorPage = readFileSync(new URL("../pages/reactor.tsx", import.meta.url), "utf8");
 const mobileReactor = readFileSync(new URL("../components/mobile-reactor-flow.tsx", import.meta.url), "utf8");
+const jobsPage = readFileSync(new URL("../pages/jobs.tsx", import.meta.url), "utf8");
+const liveSurface = readFileSync(new URL("../components/reactor-live-surface.tsx", import.meta.url), "utf8");
+const profilePage = readFileSync(new URL("../pages/profile.tsx", import.meta.url), "utf8");
+const mockData = readFileSync(new URL("./dev-mock-data.ts", import.meta.url), "utf8");
 
 describe("current Apex UI contract", () => {
   it("documents only the canonical Groq model roles and current Replit secret names", () => {
@@ -44,6 +48,19 @@ describe("current Apex UI contract", () => {
     }
     expect(reactorPage).toContain("GROQ RIGHT-HAND");
     expect(mobileReactor).toContain("right_hand");
+  });
+
+  it("keeps all launch surfaces and secondary desk copy free of retired roles and aim glyphs", () => {
+    expect(jobsPage).toContain("Groq Boss");
+    expect(jobsPage).toContain("Groq Right-hand");
+    expect(jobsPage).not.toMatch(/Gemini|Mistral|DeepSeek/);
+    expect(liveSurface).not.toMatch(/mistral/i);
+    expect(profilePage).not.toContain("Crosshair");
+    expect(profilePage).toContain('<Play className="w-4 h-4" />');
+    expect(mockData).not.toMatch(/gemini|mistral|perplexity|demo-nim/i);
+    expect(mockData).toContain("groqInvestigator");
+    expect(mockData).toContain("groqBoss");
+    expect(mockData).toContain("groqRightHand");
   });
 
   it("keeps the header launch control free of the aim/crosshair glyph", () => {
