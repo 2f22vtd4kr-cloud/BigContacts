@@ -46,6 +46,11 @@ describe("terminal review-card reconciliation", () => {
     expect(organizationMaterializer).toContain("Registry adapters may return typed Corporation leads even when the model");
     expect(organizationMaterializer).toContain("payload.args?.registrySearchOutcomes");
     expect(organizationMaterializer).toContain("companyLeads");
+    const typedRegistryLeadBlock = organizationMaterializer.slice(
+      organizationMaterializer.indexOf("const name = company.name"),
+      organizationMaterializer.indexOf("const notes ="),
+    );
+    expect(typedRegistryLeadBlock).toContain("isGenericDiscoveryMetadataTitle(name)");
     expect(organizationMaterializer).toContain("if (!leadNames.length) return { materialized: 0, evidenceRows: 0, candidates: [] };");
     expect(organizationMaterializer).toContain("...observations\n        .filter((observation) => bindExactSourceSpan(observation.observation, name)?.exact)");
     expect(canonical).toContain("if (!runId) continue;");
