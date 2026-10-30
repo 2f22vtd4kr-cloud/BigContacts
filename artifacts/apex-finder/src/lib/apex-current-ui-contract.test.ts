@@ -34,7 +34,8 @@ describe("current Apex UI contract", () => {
     expect(statusPage).toContain("Groq Investigator capabilities");
     expect(statusPage).toContain("SerpAPI search");
     expect(statusPage).toContain("Serper search");
-    expect(statusPage).not.toMatch(/Gemini|Mistral|Perplexity|NVIDIA|geminiBoss|openResearch/);
+    expect(statusPage).not.toMatch(/Gemini|Mistral|Perplexity|NVIDIA|geminiBoss/);
+    expect(sharedStatus).toContain("serpapi");
   });
 
   it("shows every attested Python OSINT tool, including SpiderFoot, without a scripted order", () => {
@@ -51,13 +52,15 @@ describe("current Apex UI contract", () => {
   });
 
   it("keeps desktop and mobile Reactor diagrams aligned to the active Groq roles and search providers", () => {
+    expect(reactorPage).toContain("GROQ BOSS");
+    expect(reactorPage).toContain("GROQ RIGHT-HAND");
+    expect(reactorPage).toContain("INVESTIGATOR");
+    expect(mobileReactor).toContain("Groq Boss directs");
+    expect(mobileReactor).toContain("Groq Right-hand reviews");
+    expect(mobileReactor).toContain("Groq Investigator chooses");
     for (const source of [reactorPage, mobileReactor]) {
-      expect(source).toContain("GROQ BOSS");
-      expect(source).toContain("Groq Investigator");
       expect(source).not.toMatch(/Gemini|Mistral|Perplexity|NVIDIA|gemini|mistral|perplexity/i);
     }
-    expect(reactorPage).toContain("GROQ RIGHT-HAND");
-    expect(mobileReactor).toContain("right_hand");
   });
 
   it("keeps provider chrome and operational telemetry aligned with active provider contracts", () => {
