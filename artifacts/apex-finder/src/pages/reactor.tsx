@@ -118,7 +118,7 @@ function schemeNodesFromSpans(spans: DigSpanView[] | undefined | null): Set<stri
     if (String(s.status ?? "").toLowerCase() !== "active") continue;
     const blob = `${s.name} ${s.inputSummary ?? ""} ${s.spanType} ${s.toolName ?? ""}`.toLowerCase();
     let toolHit = false;
-    if (/web_search|serper|\bsearch\b/.test(blob)) { out.add("perp0"); toolHit = true; }
+    if (/web_search|serper|\bsearch\b/.test(blob)) { out.add("serper"); toolHit = true; }
     if (/tavily/.test(blob)) { out.add("tavily"); toolHit = true; }
     if (/\bexa\b/.test(blob)) { out.add("exa"); toolHit = true; }
     if (/visit|browser_fetch|page-fetch|scrapfly|zenrows|open.?page/.test(blob)) { out.add("webdisc"); toolHit = true; }
@@ -130,8 +130,9 @@ function schemeNodesFromSpans(spans: DigSpanView[] | undefined | null): Set<stri
     if (/faa|aircraft/.test(blob)) { out.add("faa"); toolHit = true; }
     if (/occrp/.test(blob)) { out.add("occrp"); toolHit = true; }
     if (/maigret|sherlock|holehe|footprint/.test(blob)) { out.add("maigret"); toolHit = true; }
-    if (/gemini|boss/.test(blob)) out.add("gemini");
-    if (/groq|mistral|llm_step|llm_wait/.test(blob)) { out.add("groq"); toolHit = true; }
+    if (/right.?hand|advisor/.test(blob)) out.add("right_hand");
+    if (/boss/.test(blob)) out.add("boss");
+    if (/groq|llm_step|llm_wait/.test(blob)) { out.add("groq"); toolHit = true; }
     if (/promote|card|phone|email/.test(blob) && s.spanType === "promote") out.add("evidence");
     // Any real dig tool activity lights FREE DIG core
     if (toolHit || s.spanType === "tool" || s.spanType === "llm") out.add("mcts");
@@ -266,12 +267,13 @@ const NODES: NodeDef[] = [
 
   /* Dig core — unconstrained ReAct agent */
   { id:"mcts",    label:"FREE DIG",        sub:"Model chooses next step",    cx:800,  cy:200, w:240, h:72,  type:"reactor",  Icon:ReactorMark,        color:"#b8ff4d" },
-  { id:"groq",    label:"DIG LLM",         sub:"Groq → Mistral",             cx:560,  cy:200, w:150, h:56,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
-  { id:"gemini",  label:"GEMINI",          sub:"Boss · judgment",            cx:1040, cy:200, w:150, h:56,  type:"ai-yellow",Icon:Sparkles,   color:"#9CFF1A" },
-  { id:"perpfu",  label:"FOLLOW-UP",       sub:"Adaptive re-query",          cx:1280, cy:200, w:150, h:56,  type:"ai-yellow",Icon:RefreshCw,  color:"#9CFF1A" },
+  { id:"groq",    label:"DIG LLM",         sub:"Groq Investigator",             cx:560,  cy:200, w:150, h:56,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
+  { id:"boss",  label:"GROQ BOSS",          sub:"Case direction · selection",            cx:1040, cy:200, w:150, h:56,  type:"ai-yellow",Icon:Sparkles,   color:"#9CFF1A" },
+  { id:"right_hand", label:"GROQ RIGHT-HAND", sub:"Independent oversight", cx:1260, cy:200, w:170, h:56, type:"ai-yellow", Icon:Sparkles, color:"#9CFF1A" },
+  { id:"followup",  label:"FOLLOW-UP",       sub:"Adaptive re-query",          cx:1460, cy:200, w:150, h:56,  type:"ai-yellow",Icon:RefreshCw,  color:"#9CFF1A" },
 
   /* Search — model picks queries */
-  { id:"perp0",   label:"SERPER",          sub:"Web search",                 cx:280,  cy:340, w:150, h:56,  type:"ai-yellow",Icon:Zap,        color:"#9CFF1A" },
+  { id:"serper",   label:"SERPER",          sub:"Web search",                 cx:280,  cy:340, w:150, h:56,  type:"ai-yellow",Icon:Zap,        color:"#9CFF1A" },
   { id:"tavily",  label:"TAVILY",          sub:"AI web search",              cx:460,  cy:340, w:150, h:56,  type:"ai-yellow",Icon:Rss,        color:"#9CFF1A" },
   { id:"exa",     label:"EXA",             sub:"Semantic search",            cx:640,  cy:340, w:150, h:56,  type:"ai-yellow",Icon:Compass,    color:"#9CFF1A" },
   { id:"webdisc", label:"VISIT",           sub:"Open pages · extract",       cx:820,  cy:340, w:150, h:56,  type:"discovery",Icon:Eye,        color:"#fb923c" },
@@ -303,12 +305,14 @@ const EDGES: EdgeDef[] = [
   /* Target → dig core */
   {id:"t-dig", from:"target", to:"mcts"},
   {id:"t-groq", from:"target", to:"groq"},
-  {id:"t-gem", from:"target", to:"gemini"},
+  {id:"t-boss", from:"target", to:"boss"},
+  {id:"boss-investigator", from:"boss", to:"groq"},
+  {id:"investigator-review", from:"groq", to:"right_hand", adaptive:true},
   /* Dig capacity links */
   {id:"dig-groq", from:"mcts", to:"groq"},
-  {id:"dig-fu", from:"mcts", to:"perpfu", adaptive:true},
+  {id:"dig-fu", from:"mcts", to:"followup", adaptive:true},
   /* Free dig → search tools (model chooses) */
-  {id:"dig-serper", from:"mcts", to:"perp0"},
+  {id:"dig-serper", from:"mcts", to:"serper"},
   {id:"dig-tav", from:"mcts", to:"tavily"},
   {id:"dig-exa", from:"mcts", to:"exa"},
   {id:"dig-visit", from:"mcts", to:"webdisc"},
@@ -325,7 +329,7 @@ const EDGES: EdgeDef[] = [
   {id:"dig-hnwi", from:"mcts", to:"hnwi"},
   {id:"dig-sky", from:"mcts", to:"opensky"},
   /* Search capacity into dig LLM */
-  {id:"serper-groq", from:"perp0", to:"groq"},
+  {id:"serper-groq", from:"serper", to:"groq"},
   {id:"tav-groq", from:"tavily", to:"groq"},
   {id:"exa-groq", from:"exa", to:"groq"},
   /* Outcome path */
@@ -336,17 +340,17 @@ const EDGES: EdgeDef[] = [
   {id:"dig-card", from:"mcts", to:"evidence"},
   {id:"prac-card", from:"prac", to:"evidence"},
   {id:"bay-card", from:"bayesian", to:"evidence"},
-  {id:"fu-dig", from:"perpfu", to:"mcts", adaptive:true},
+  {id:"fu-dig", from:"followup", to:"mcts", adaptive:true},
 ];
 
 const WAVES: Wave[] = [
-  { nodes:["target"], edges:["t-dig","t-groq"], label:"TARGET  —  entity or query for free dig" },
-  { nodes:["gemini"], edges:["t-gem"], label:"BUREAU DIRECTION  —  Boss may direct the case; it does not browse" },
-  { nodes:["mcts","groq"], edges:["dig-groq"], label:"FREE DIG  —  investigator decides the next tool" },
-  { nodes:["perp0","tavily","exa","webdisc"], edges:["dig-serper","dig-tav","dig-exa","dig-visit","serper-groq","tav-groq","exa-groq"], label:"SEARCH & VISIT  —  queries and pages the investigator chooses" },
+  { nodes:["target"], edges:["t-dig","t-groq","t-boss"], label:"TARGET  —  objective for model-led research" },
+  { nodes:["boss","right_hand","groq"], edges:["boss-investigator","investigator-review"], label:"MODEL ROLES  —  Boss directs, Right-hand reviews, Investigator owns the research trajectory" },
+  { nodes:["mcts"], edges:["dig-groq"], label:"FREE DIG  —  Investigator decides the next tool" },
+  { nodes:["serper","tavily","exa","webdisc"], edges:["dig-serper","dig-tav","dig-exa","dig-visit","serper-groq","tav-groq","exa-groq"], label:"SEARCH & VISIT  —  queries and pages the investigator chooses" },
   { nodes:["edgar","ch","hmlr","faa","brreg","occrp","hnwi","maigret","inhouse","deepweb","opensky"], edges:["dig-edgar","dig-ch","dig-hmlr","dig-faa","dig-eu","dig-occ","dig-hnwi","dig-foot","dig-rdap","dig-harv","dig-sky"], label:"TOOLS  —  registries and OSINT when the model needs them" },
   { nodes:["prac","semantic","bayesian","graph","evidence"], edges:["dig-prac","dig-sem","dig-bay","dig-graph","dig-card","prac-card","bay-card"], label:"CARD  —  contact route and evidence" },
-  { nodes:["perpfu","mcts","groq"], edges:["dig-fu","fu-dig"], label:"ADAPTIVE LOOP  —  re-query with new evidence", adaptive:true },
+  { nodes:["followup","mcts","groq"], edges:["dig-fu","fu-dig"], label:"ADAPTIVE LOOP  —  re-query with new evidence", adaptive:true },
 ];
 
 // ── Mobile phase groups ───────────────────────────────────────────────────────
@@ -354,7 +358,7 @@ const MOBILE_PHASES = [
   { label:"INPUT",      detail:"Target becomes a research brief", nodeIds:["target"]                                              },
   { label:"TOOLS", detail:"Registries the model may call", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp","brreg"] },
   { label:"SEARCH",  detail:"Web search and page visits the model chooses", nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"]     },
-  { label:"AI LAYER",   detail:"Search, extraction, and adaptive follow-up", nodeIds:["perp0","exa","tavily","gemini","groq","perpfu"]       },
+  { label:"AI LAYER",   detail:"Search, extraction, and adaptive follow-up", nodeIds:["serper","exa","tavily","boss","groq","followup"]       },
   { label:"SYNTHESIS",  detail:"Evidence becomes vectors and priority", nodeIds:["semantic","bayesian"]                                 },
   { label:"CORE",       detail:"Relationships and paths are evaluated", nodeIds:["graph","mcts","prac"]                                 },
   { label:"OUTPUT",     detail:"An evidence path ready for analyst review", nodeIds:["evidence"]                                 },
@@ -370,8 +374,8 @@ const MOBILE_NODE_POS: Record<string, { x:number; y:number }> = {
   hnwi: { x:42, y:162 }, occrp: { x:126, y:162 }, brreg: { x:210, y:162 },
   inhouse: { x:42, y:246 }, webdisc: { x:126, y:246 }, deepweb: { x:210, y:246 }, opensky: { x:294, y:246 },
   maigret: { x:180, y:296 },
-  perp0: { x:42, y:378 }, exa: { x:126, y:378 }, tavily: { x:210, y:378 }, groq: { x:294, y:378 },
-  gemini: { x:84, y:428 }, perpfu: { x:168, y:428 },
+  serper: { x:42, y:378 }, exa: { x:126, y:378 }, tavily: { x:210, y:378 }, groq: { x:294, y:378 },
+  boss: { x:84, y:428 }, followup: { x:168, y:428 }, right_hand: { x:252, y:428 },
   semantic: { x:84, y:512 }, bayesian: { x:276, y:512 },
   graph: { x:54, y:594 }, mcts: { x:180, y:594 }, prac: { x:306, y:594 },
   evidence: { x:180, y:690 },
@@ -408,13 +412,13 @@ const JOB_NODE_MAP: Record<string, string[]> = {
   // Atlas orchestrator — lights up the whole input layer while running
   "atlas-run":            ["target","faa","hnwi","webdisc","ch","occrp","opensky"],
   // ── Enrichment ───────────────────────────────────────────────────────────────
-  "in-house-enrich":      ["inhouse","perp0","exa"],
-  "web-osint-enrich":     ["webdisc","perp0","exa","tavily","gemini","groq","maigret"],
-  "deep-web-osint":       ["deepweb","gemini","perpfu"],
+  "in-house-enrich":      ["inhouse","serper","exa"],
+  "web-osint-enrich":     ["webdisc","serper","exa","tavily","boss","groq","maigret"],
+  "deep-web-osint":       ["deepweb","boss","followup"],
   "social-discovery":     ["webdisc","inhouse"],
   // ── Registry cross-reference ─────────────────────────────────────────────────
   "occrp":                ["occrp"],
-  "opensky":              ["opensky","perpfu"],
+  "opensky":              ["opensky","followup"],
   "ch-company-officers":  ["ch","inhouse"],
   "ch-officers":          ["ch","inhouse"],
   "companies-house-enrich":["ch","inhouse"],
@@ -738,11 +742,11 @@ const TELEMETRY_TOOL_LABELS: Record<string, string> = {
   inhouse: "IN-HOUSE",
   webdisc: "WEB DISCOVERY",
   deepweb: "DEEP WEB",
-  perp0: "PERPLEXITY",
-  perpfu: "PERPLEXITY+",
+  serper: "SERPER",
+  followup: "FOLLOW-UP",
   exa: "EXA",
   tavily: "TAVILY",
-  gemini: "GEMINI",
+  boss: "GROQ BOSS",
   groq: "GROQ",
   maigret: "MAIGRET",
   holehe: "HOLEHE",
@@ -948,7 +952,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
     return () => clearInterval(id);
   }, [isLive]);
 
-  // When live: ALL liveNodes are lit simultaneously (they run in parallel, e.g. Perplexity
+  // When live: ALL liveNodes are lit simultaneously (they run in parallel, e.g. Serper
   // + Tavily + Exa + Maigret all fire at once during Phase 6 — show them all active)
   const liveNodesArr = isLive ? [...(liveNodes ?? new Set())] : [];
 
@@ -2552,7 +2556,7 @@ export default function IntelligenceReactorPage() {
 
       // ── Key exhaustion ────────────────────────────────────────────────────────
       if (sysData?.ai) {
-        const LABELS: Record<string, string> = { groq: "Groq", perplexity: "Perplexity", gemini: "Gemini", tavily: "Tavily", exa: "Exa", serper: "Serper", mistral: "Mistral" };
+        const LABELS: Record<string, string> = { groqInvestigator: "Groq Investigator", serper: "Serper", tavily: "Tavily", exa: "Exa" };
         const providerWarnings = (Object.entries(sysData.ai) as [string, any[]][])
           .flatMap(([k, slots]) => {
             const configured = slots.filter((s: any) => s.state !== "missing").length;
