@@ -86,6 +86,12 @@ The helper runs the repository's current schema push, durable hardening migratio
 
 Run preflight, architecture checks, typecheck, builds, and focused tests. Start the canonical API workflow on port `8080`.
 
+### Replit Nix environment stability
+
+The application uses the managed Redis service through `REDIS_URL_1` (mapped to `REDIS_URL` by `scripts/replit-boot.sh`); it does not require a workspace-local Redis server binary. The repository therefore no longer carries a custom `replit.nix` package derivation for Redis. Keep the Replit-managed Node.js, Python, and PostgreSQL modules in `.replit`; do not add ad-hoc Nix packages unless a runtime dependency demonstrably requires a local system executable and has a tested reason to live in Nix.
+
+A Replit error naming a missing internal path such as `nix-internal/derivation-internal.nix` is a failure inside Replit's environment builder, before the project's boot script or application commands execute. It is not evidence of an Apex code, database, lockfile, or schema defect. Removing the redundant Redis derivation reduces custom Nix surface area but cannot repair a corrupted/missing Replit-internal derivation. Do not repeatedly create/import replacement accounts or alter `.replit`/Nix channels to chase this platform error. Preserve the workspace and project data, capture the exact error and timestamp, and use Replit's supported compute-restart/recovery path or support escalation. After recovery, verify the environment with install/typecheck/build and health checks before any schema mutation or research launch.
+
 ## Very Strong engineering state
 
 The reviewed branch adds:
