@@ -15,6 +15,7 @@ const providerIcons = readFileSync(new URL("../components/provider-icons.tsx", i
 const bureauOps = readFileSync(new URL("../components/bureau-ops-stage.tsx", import.meta.url), "utf8");
 const integrityBanner = readFileSync(new URL("../components/bureau-integrity-banner.tsx", import.meta.url), "utf8");
 const sharedStatus = readFileSync(new URL("./system-status.ts", import.meta.url), "utf8");
+const replitPreflight = readFileSync(new URL("../../../../scripts/replit-preflight.mjs", import.meta.url), "utf8");
 
 describe("current Apex UI contract", () => {
   it("documents only the canonical Groq model roles and current Replit secret names", () => {
@@ -23,7 +24,9 @@ describe("current Apex UI contract", () => {
     expect(manual).toContain("GROQ_INVESTIGATOR_API_KEY");
     expect(manual).toContain("GROQ_BOSS_API_KEY");
     expect(manual).toContain("GROQ_RIGHT_HAND_API_KEY");
-    expect(manual).not.toMatch(/GEMINI_API_KEY|GEMINI_RIGHT_HAND_API_KEY|MISTRAL_API_KEY|Gemini|Mistral/);
+    expect(manual).not.toMatch(/GEMINI_API_KEY|GEMINI_RIGHT_HAND_API_KEY|MISTRAL_API_KEY|SERPAPI_KEY|Gemini|Mistral/);
+    expect(replitPreflight).toContain("SERPER_API_KEY");
+    expect(replitPreflight).not.toContain("SERPAPI_KEY");
   });
 
   it("does not render retired providers as active system-status services", () => {
@@ -66,7 +69,7 @@ describe("current Apex UI contract", () => {
     expect(bureauOps).toContain("/api/healthz/details");
     expect(bureauOps).toContain("groqInvestigator");
     expect(bureauOps).toContain("groqRightHand");
-    expect(bureauOps).toContain("serpapi");
+    expect(bureauOps).not.toContain("serpapi");
     expect(integrityBanner).toContain("/api/system/status");
     expect(integrityBanner).not.toMatch(/Perplexity|multi-LLM/);
   });
