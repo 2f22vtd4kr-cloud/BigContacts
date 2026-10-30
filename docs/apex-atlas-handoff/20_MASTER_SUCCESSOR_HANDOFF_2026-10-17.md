@@ -1,3 +1,5 @@
+> **SUPERSEDED CURRENT-STATE OVERRIDE — 2026-10-30.** This 17 October handoff is historical. Its 19 October addendum and PR #715 instructions are not current. Use [handoff 22](./22_MASTER_SUCCESSOR_HANDOFF_2026-10-30.md), `docs/context.md`, and current executable `main` before operating.
+
 # Apex Atlas — Master Successor Handoff (17 October 2026)
 
 
