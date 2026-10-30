@@ -15,6 +15,7 @@ describe("provider error diagnostics", () => {
   it("exposes recognizable JavaScript failures but never persists arbitrary exception messages", () => {
     expect(safeThrownErrorMessagePreview(new TypeError("Cannot read properties of undefined (reading 'profile')"))).toBe("Cannot read properties of undefined (reading 'profile')");
     expect(safeThrownErrorMessagePreview(new Error("synthetic-db-write-failure-sensitive-value"))).toBeNull();
+    expect(safeThrownErrorMessagePreview(new Error("Bearer super-secret-token is not a function"))).toBeNull();
     expect(safeThrownErrorMessagePreview(new Error("Bearer super-secret-token https://example.test/path?api_key=secret /home/user/private.ts user@example.test"))).toBeNull();
     const wrapped = Object.assign(new Error("internal wrapper failure"), {
       cause: new TypeError("Cannot read properties of null (reading 'trim')"),
