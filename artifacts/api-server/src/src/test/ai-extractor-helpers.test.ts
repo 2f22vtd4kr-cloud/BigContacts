@@ -5,7 +5,7 @@ describe("AI response safety helpers", () => {
   it("reports only the active canonical model/search capability pools", () => {
     const names = [
       "GROQ_INVESTIGATOR_API_KEY",
-      "GROQ_INVESTIGATOR_API_KEY_1",
+      ...Array.from({ length: 7 }, (_, index) => `GROQ_INVESTIGATOR_API_KEY_${index + 1}`),
       "GROQ_BOSS_API_KEY",
       "GROQ_RIGHT_HAND_API_KEY",
       "GEMINI_API_KEY",
@@ -27,7 +27,7 @@ describe("AI response safety helpers", () => {
       process.env.SERPER_API_KEY = "test-serper";
 
       const status = getAIKeyStatus();
-      expect(Object.keys(status).sort()).toEqual(["exa", "groqInvestigator", "serper", "tavily"]);
+      expect(Object.keys(status).sort()).toEqual(["exa", "groqInvestigator", "serper", "serpapi", "tavily"]);
       expect(status.groqInvestigator).toHaveLength(8);
       expect(status.groqInvestigator[0]).toMatchObject({ state: "active" });
       expect(status.groqInvestigator.slice(1).every((slot) => slot.state === "missing")).toBe(true);
