@@ -3680,19 +3680,25 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     finalParts.push(fallbackOutputContract);
     // The emergency fallback retains the exact scope, latest durable action,
     // fetchable URLs, available actions and compact evidence/safety gates.
+    // The last-resort prompt is still a complete Investigator contract. Reserve
+    // the semantic admission rules and runtime capability truth before spending
+    // the remaining budget on verbose observations or historical detail.
+    const minimumInvestigatorEvidenceContract =
+      "DISCOVERY LEAD HANDOFF CONTRACT: The Investigator chooses worthwhile person and organization review leads; do not create a card for every result. Preserve the exact observed name and associated public HTTPS URL; a person's role may be null. Search-only person note must say LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact conclusion. Search snippets are leads, not evidence; failed or blocked fetches are unobserved. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue. After successful visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact source span. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Target-scoped research owns independent corroboration, falsification and contact-route verification before any HNWI/contact conclusion.";
+    appendBudgeted(minimumInvestigatorEvidenceContract, 1_050, "[review-lead detail omitted]");
+    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability detail omitted]");
+    appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 240, "[registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 240, "[PDF retrieval detail omitted]");
+    appendBudgeted(terminalEvidenceRule, 220, "[terminal detail omitted]");
+    appendBudgeted(compactFallbackDiscoveryRule, 420, "[discovery strategy detail omitted]");
     appendBudgeted(minimumScopeContext || compactCaseObjective, 260, "[scope detail omitted]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 240, "[older trajectory detail omitted]");
-    appendBudgeted(urlInventory, 1_400, "[additional source URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(fetchedSourceLabel, 120, "[source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 180, "[source excerpt detail omitted]");
-    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 140), 180, "[latest observation detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 500, "[additional runtime actions omitted]");
-    appendBudgeted(minimumRegistryEvidenceRule, 220, "[registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 240, "[binary detail omitted]");
-    appendBudgeted(
-      "DISCOVERY LEAD HANDOFF CONTRACT — PARTIAL FINDINGS: preserve Investigator-selected person/organization review leads; no auto-promotion. Search/registry snippets are leads. After a successful visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact source span. One successfully fetched claim-grade source; minEvidence=1; minIndependentSourceUnits=1. target-scoped research owns independent corroboration and falsification; target-stage research tests match the admitted target type (person, organization, trust, or asset). source class, publisher, fetch mechanism and contributor are distinct; unknown is not inferred. Consider inspecting a promising in-scope lead URL next. SCOPE GUARD BLOCKED ACTION is control state, not negative evidence; explain any material deviation. Conditional specialist OSINT actions only when runtime-exposed. RESEARCH TERMINAL GATE (authoritative): done only at a defensible stop; state remaining gaps. Never invent an ID based on jurisdiction.",
-      1_200, "[review-lead and policy detail omitted]"
-    );
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 320, "[older trajectory detail omitted]");
+    appendBudgeted(urlInventory, 1_200, "[additional source URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(fetchedSourceLabel, 120, "[source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 240, "[source excerpt detail omitted]");
+    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 140), 180, "[latest observation detail omitted]");
     appendBudgeted(aiMemorySection, 150, "[older memory omitted]");
     appendBudgeted(markerSuffix, 80, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
