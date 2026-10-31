@@ -1,4 +1,10 @@
 /**
+ * @deprecated Legacy discovery pipeline. Canonical Apex Atlas launches use
+ * runCanonicalAtlasPipeline -> runBureauAgenticWebPass. Do not route
+ * Investigator-selected provisional review cards through this legacy path:
+ * its candidate fitness/shape helpers are not the canonical admission policy.
+ */
+/**
  * Admit discovery-agent candidates into the ledger (person entities, review notes).
  * Uses target-fitness fame/shell gates only for the legacy non-model-selected path.
  */
