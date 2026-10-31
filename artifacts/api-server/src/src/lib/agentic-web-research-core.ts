@@ -752,32 +752,30 @@ export function isTransientInvestigatorCapacityError(result: { error?: string; t
   if (result.error === "upstream_token_window_wait_exceeded") return true;
   return (result.trajectoryRecords ?? []).some((record) => /upstream_token_window_wait_exceeded/i.test(record.observation ?? ""));
 }
-const DISCOVERY_UNTARGETABLE_PERSON_NAMES = /\b(?:elon musk|jeff bezos|mark zuckerberg|bill gates|warren buffett|larry ellison|larry page|sergey brin|jensen huang|bernard arnault|richard branson|oprah winfrey|kim kardashian|taylor swift|cristiano ronaldo|lionel messi)\b/i;
-const DISCOVERY_PRESS_PUBLISHER_DOMAINS = [
-  "cnbc.com", "reuters.com", "bloomberg.com", "forbes.com", "ft.com", "wsj.com",
-  "nytimes.com", "theguardian.com", "bbc.com", "bbc.co.uk", "apnews.com", "fortune.com",
-  "businessinsider.com", "marketwatch.com", "axios.com", "techcrunch.com", "sifted.eu", "theinformation.com",
-] as const;
+export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
+  const normalized = normalizeDiscoverySearchQuery(query);
+  if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
 
-function hasPressPublisherSiteFilter(query: string): boolean {
-  for (const match of query.matchAll(/\bsite:\s*([^\s]+)/gi)) {
-    const token = (match[1] ?? "")
-      .replace(/[),;]+$/g, "")
-      .replace(/^https?:\/\//i, "")
-      .replace(/^\*\./, "")
-      .split(/[/?#]/, 1)[0]
-      ?.toLowerCase()
-      .replace(/^www\./, "")
-      .replace(/\.+$/, "");
-    if (!token) continue;
-    if (DISCOVERY_PRESS_PUBLISHER_DOMAINS.some((domain) => token === domain || token.endsWith("." + domain))) return true;
+  // Structural/provider-syntax checks only. Query content and source class are
+  // model-owned research choices, not runtime admission or relevance policy.
+  if (/(?:^|\\s)site:\\s*\\.[a-z0-9-]+(?:\\s|$)/i.test(normalized)) {
+    return { allowed: false, reason: "Discovery query contains a malformed bare site filter. Use a concrete hostname or remove the site operator; no provider request was made." };
   }
-  return false;
-}
-export function isUntargetableDiscoveryPersonName(value: string): boolean {
-  return DISCOVERY_UNTARGETABLE_PERSON_NAMES.test(normalizeDiscoverySearchQuery(value));
-}
 
+  // Block literal templates so they cannot waste provider quota.
+  const placeholderQuery = /(?:\\[\\s*(?:companyname|company(?:\\s+name)?|domain|company\\s+website)\\s*\\]|\\{\\{\\s*(?:companyname|company(?:\\s+name)?|domain)\\s*\\}\\}|(?:^|[^\\p{L}\\p{N}.-])example\\.(?:com|org|net|co\\.[a-z]{2})(?![\\p{L}\\p{N}.-]))/iu;
+  if (placeholderQuery.test(query)) {
+    return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with the actual entity/source anchor; no provider request was made." };
+  }
+
+  if (priorQueries.some((prior) => normalizeDiscoverySearchQuery(prior) === normalized)) {
+    return {
+      allowed: true,
+      warning: "This normalized query has been attempted before. A repeat remains a valid research choice; the repeat-action guard considers provider, locale, market, and newly fetched evidence separately.",
+    };
+  }
+  return { allowed: true };
+}
 export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
   const normalized = normalizeDiscoverySearchQuery(query);
   if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
