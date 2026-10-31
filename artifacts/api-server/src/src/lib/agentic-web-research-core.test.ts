@@ -869,6 +869,7 @@ describe("partial model findings", () => {
     expect(parsed?.action).toBe("done");
     expect(parsed?.partialFindings).toEqual([{
       ...finding,
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
