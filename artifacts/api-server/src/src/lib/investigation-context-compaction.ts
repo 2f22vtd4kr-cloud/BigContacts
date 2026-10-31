@@ -500,7 +500,7 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     sections.push(fitSection("LEGACY TRAJECTORY NOTES\n" + input.history.map((item) => trim(item, 420)).filter(Boolean).join("\n"), 2_000));
   }
 
-  sections.push("CONTEXT MANAGEMENT LAW\nThe complete trajectory and evidence remain durable outside this prompt. This working context is deliberately selective. Do not treat omitted raw detail as negative evidence. Prefer a new discriminating action when the archived index shows an unresolved gap. Do not repeat a failed avenue solely because its raw observation is not visible here. Explain any material deviation from the human objective or accepted Boss scope, including the evidence-based reason it was justified.");
+  sections.push("CONTEXT MANAGEMENT LAW\nThe complete trajectory and evidence remain durable outside this prompt. This working context is deliberately selective. Do not treat omitted raw detail as negative evidence. Prefer a new discriminating action when the archived index shows an unresolved gap. Do not repeat a failed avenue solely because its raw observation is not visible here. explain any material deviation from the human objective or accepted Boss scope, including the evidence-based reason it was justified.");
 
   const latestSection = records.length
     ? "LATEST TRAJECTORY RECORD (must remain visible to the next Investigator)\n" +
