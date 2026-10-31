@@ -912,7 +912,8 @@ async function materializePartialOrganizationLeadCards(input: {
     ]);
     const supports = new Map<string, {
       sourceUrl: string; eventId: number; createdAt: Date; spanText: string;
-      spanStart: number; spanEnd: number; verificationLevel: "fetched_source" | "search_result_lead";
+      spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
+      verificationLevel: "fetched_source" | "search_result_lead";
     }>();
     for (const observation of observations) {
       if (!["success", "partial"].includes(observation.execution)
