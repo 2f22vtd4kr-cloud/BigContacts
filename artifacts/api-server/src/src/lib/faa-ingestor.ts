@@ -25,6 +25,7 @@ import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/d
 import type { InsertEntity, InsertAsset, InsertRelationship } from "@workspace/db";
 import { classifyFaaRegistrant, classifyFaaAssetSignal } from "./faa-ownership-classification";
 import { isStructurallyValidCandidateName } from "./llm-name-validator-policy";
+import { validateRegistryCandidateNamesWithLLM, type RegistryCandidateNameValidation } from "./llm-name-validator";
 import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
 
@@ -82,7 +83,34 @@ export interface FaaIngestionResult {
   candidateEntitiesInserted: number;
 }
 
-type FaaBatchRow = { asset: InsertAsset; entity: InsertEntity | null };
+export type FaaBatchRow = { asset: InsertAsset; entity: InsertEntity | null };
+
+export function applyFaaRegistryNameValidation(
+  rows: FaaBatchRow[],
+  validation: RegistryCandidateNameValidation,
+): FaaBatchRow[] {
+  const accepted = new Set(validation.status === "validated" ? validation.validNames : []);
+  return rows.map((row) => {
+    if (!row.entity || row.entity.type !== "PersonCandidate") return row;
+    const metadata = (() => {
+      try { const parsed = JSON.parse(row.entity!.metadata ?? "{}"); return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {}; }
+      catch { return {}; }
+    })();
+    if (validation.status === "validated" && !accepted.has(row.entity.name)) return { ...row, entity: null };
+    return {
+      ...row,
+      entity: {
+        ...row.entity,
+        metadata: JSON.stringify({
+          ...metadata,
+          nameValidationStatus: validation.status === "validated"
+            ? "model_name_shape_checked_pending_identity_resolution"
+            : "provider_unavailable_structural_only_pending_identity_resolution",
+        }),
+      },
+    };
+  });
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -431,9 +459,12 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
 async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; errors: number; candidateEntitiesInserted: number }> {
   if (batch.length === 0) return { inserted: 0, errors: 0, candidateEntitiesInserted: 0 };
   try {
+    const personNames = batch.flatMap((row) => row.entity?.type === "PersonCandidate" ? [row.entity.name] : []);
+    const nameValidation = await validateRegistryCandidateNamesWithLLM(personNames);
+    const rowsForPersistence = applyFaaRegistryNameValidation(batch, nameValidation);
     return await db.transaction(async (tx) => {
       const uniqueRows = new Map<string, FaaBatchRow>();
-      for (const row of batch) {
+      for (const row of rowsForPersistence) {
         const identifier = row.asset.identifier;
         if (identifier && !uniqueRows.has(identifier)) uniqueRows.set(identifier, row);
       }
