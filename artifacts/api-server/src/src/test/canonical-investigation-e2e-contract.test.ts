@@ -438,6 +438,8 @@ describe("canonical application path is wired to the acceptance proof", () => {
     expect(runtimeWorkflow).toContain("verifyCanonicalCardProof");
     expect(runtimeWorkflow).toContain("verifyResearchEvidenceRows");
     expect(runtimeWorkflow).toContain("research_evidence");
+    expect(runtimeWorkflow).toContain('if [ "$STATUS" = "cancelled" ]');
+    expect(runtimeWorkflow).toContain("exit 0; fi");
     expect(runtimeWorkflow).toContain("inputs.objective");
     expect(runtimeWorkflow).toContain("required: true");
     expect(runtimeWorkflow).toContain("ATLAS_OBJECTIVE: ${{ inputs.objective }}");
