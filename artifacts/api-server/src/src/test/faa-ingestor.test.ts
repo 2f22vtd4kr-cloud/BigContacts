@@ -116,6 +116,14 @@ describe("FAA registration status semantics", () => {
 });
 
 describe("legacy FAA registrant repair", () => {
+  it("records FAA source class separately from registry ingestion and corroboration", () => {
+    const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
+    expect(source).toContain('sourceClass: "registry_adapter_source"');
+    expect(source).toContain('sourceMechanism: "faa_registry_import"');
+    expect(source).toContain('sourceName: "FAA Releasable Aircraft Database"');
+    expect(source).toContain('independentCorroborationStatus: "not_assessed"');
+  });
+
   it("keeps SQL migration expressions out of new entity JSON metadata", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
     const builder = source.slice(source.indexOf("export function buildFaaRegistrantEntity"), source.indexOf("export function buildFaaAircraftAsset"));
