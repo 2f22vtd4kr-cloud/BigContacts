@@ -107,11 +107,7 @@ describe("terminal review-card reconciliation", () => {
     expect(personMaterializer).toContain("role: string | null");
     expect(personMaterializer).not.toContain("!finding.role?.trim()");
     expect(personMaterializer).toContain('!["success", "partial"].includes(observation.executionStatus)');
-    expect(organizationMaterializer).toContain('!["success", "partial"].includes(observation.execution)');
     expect(personMaterializer).not.toContain("name.length < 3");
-    expect(organizationMaterializer).not.toContain("name.length < 3");
-    expect(canonicalAtlas.slice(canonicalAtlas.indexOf("function mergeDurablyAdmittedAtlasTargetSources"), canonicalAtlas.indexOf("async function createAtlasDiscoveryCase"))).not.toContain("name.length < 3");
-    expect(reconcilerSource).not.toContain("name.length < 3");
     expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
     expect(personMaterializer).toContain("sourceSpanVerified: support.spanVerified");
     expect(personMaterializer).not.toContain("if (existingRows.length > 0 && !sameCase)");
@@ -301,6 +297,12 @@ describe("canonical Atlas organization target selection", () => {
     expect(organizationMaterializer).not.toContain("finding.role?.trim()");
     expect(personMaterializer).not.toContain("normalizeCandidateIdentityName(finding.value) !==");
     expect(personMaterializer).not.toContain("!finding.role?.trim()");
+    expect(personMaterializer).toContain('!["success", "partial"].includes(observation.executionStatus)');
+    expect(organizationMaterializer).toContain('!["success", "partial"].includes(observation.execution)');
+    expect(personMaterializer).not.toContain("name.length < 3");
+    expect(organizationMaterializer).not.toContain("name.length < 3");
+    expect(canonicalAtlas.slice(canonicalAtlas.indexOf("function mergeDurablyAdmittedAtlasTargetSources"), canonicalAtlas.indexOf("async function createAtlasDiscoveryCase"))).not.toContain("name.length < 3");
+    expect(reconcilerSource).not.toContain("name.length < 3");
     expect(reconcilerSource).not.toContain('typeof finding.role !== "string"');
     expect(personMaterializer).not.toContain("if (!span?.exact");
     expect(organizationMaterializer).not.toContain("if (!span?.exact");
