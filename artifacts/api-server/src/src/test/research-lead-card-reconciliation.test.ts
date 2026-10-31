@@ -281,7 +281,7 @@ describe("canonical Atlas organization target selection", () => {
 
     // Review-only person cards are supplied to Boss as typed targets without
     // displacing stronger, explicitly admitted person candidates.
-    expect(personMaterializer).toContain("candidates: Array<{ name: string; role: string; sourceUrls: string[] }>");
+    expect(personMaterializer).toContain("candidates: Array<{ name: string; role: string | null; sourceUrls: string[] }>");
     expect(admission).toContain("const partialPersonTargets = partialPeople.candidates");
     expect(admission).toContain('targetType: "person" as const');
     expect(admission).toContain("const targetCandidates = [...personTargets, ...partialPersonTargets, ...organizationTargets]");
@@ -303,6 +303,8 @@ describe("canonical Atlas organization target selection", () => {
     expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
     expect(organizationMaterializer).not.toContain('finding.vectorType !== "other"');
     expect(personMaterializer).not.toContain("normalizeCandidateIdentityName(finding.value) !==");
+    expect(personMaterializer).not.toContain("!finding.role?.trim()");
+    expect(reconcilerSource).not.toContain('typeof finding.role !== "string"');
     expect(personMaterializer).not.toContain("if (!span?.exact");
     expect(organizationMaterializer).not.toContain("if (!span?.exact");
     expect(reconcilerSource).not.toContain('finding.vectorType !== "other"');
