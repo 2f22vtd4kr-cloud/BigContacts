@@ -211,7 +211,7 @@ router.post("/ingest/western-hnwi", async (req, res): Promise<void> => {
         skipped: result.skipped,
         errors: result.errors,
         finishedAt: new Date().toISOString(),
-        message: `Done — ${result.inserted.toLocaleString()} records inserted in ${(result.durationMs / 1000).toFixed(1)}s`,
+        message: `Done — ${result.inserted.toLocaleString()} registry records inserted in ${(result.durationMs / 1000).toFixed(1)}s. Person-role records remain provisional candidates; HNWI qualification is unverified.`,
       });
     } catch (err: any) {
       logger.error({ err: err.message }, "Western HNWI ingestion job failed");
@@ -264,7 +264,7 @@ router.post("/ingest/faa", async (req, res): Promise<void> => {
         skipped: result.skipped,
         errors: result.errors,
         finishedAt: new Date().toISOString(),
-        message: `Done — ${result.inserted.toLocaleString()} aircraft owners from FAA registry in ${(result.durationMs / 1000).toFixed(1)}s`,
+        message: `Done — ${result.inserted.toLocaleString()} aircraft assets and ${result.candidateEntitiesInserted.toLocaleString()} provisional registrant entities. FAA registration does not establish beneficial ownership or personal wealth.`,
       });
     } catch (err: any) {
       logger.error({ err: err.message }, "FAA ingestion job failed");
@@ -469,7 +469,7 @@ router.post("/ingest/land-registry", async (req, res): Promise<void> => {
         skipped: result.skipped,
         errors: result.errors,
         finishedAt: new Date().toISOString(),
-        message: `Done — ${result.inserted.toLocaleString()} overseas property owners ingested in ${(result.durationMs / 1000).toFixed(1)}s`,
+        message: `Done — ${result.inserted.toLocaleString()} UK property transaction assets ingested in ${(result.durationMs / 1000).toFixed(1)}s. PPD does not disclose purchasers; owner identity and personal wealth remain unassessed.`,
       });
     } catch (err: any) {
       logger.error({ err: err.message }, "Land Registry ingestion failed");
