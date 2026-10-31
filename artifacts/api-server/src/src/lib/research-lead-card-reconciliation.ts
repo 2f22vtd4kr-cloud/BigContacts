@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchSessionsTable, researchEvidenceTable } from "@workspace/db";
-import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
 import { isGenericDiscoveryMetadataTitle } from "./agentic-web-research-core";
 import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
@@ -65,7 +65,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       .where(and(eq(researchCaseEventsTable.caseId, researchCase.id), inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"])))
       .orderBy(researchCaseEventsTable.id);
     const findings = new Map<string, { name: string; urls: Set<string>; notes: Set<string> }>();
-    const observations: Array<{ action: string; execution: string; url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead" }> = [];
+    const observations: Array<{ action: string; execution: string; url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead"; sourceUrlBoundByAdapter?: boolean }> = [];
     for (const event of events) {
       const payload = parseObject(event.payload);
       if (!payload || payload.jobId !== jobId) continue;
@@ -125,7 +125,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
               observations.push({
                 action: "registry_search", execution: "success", url,
                 text: `${name}${normalizedNotes ? ` — ${normalizedNotes}` : ""}`,
-                eventId: event.id, createdAt: event.createdAt, verificationLevel: "search_result_lead",
+                eventId: event.id, createdAt: event.createdAt, verificationLevel: "search_result_lead", sourceUrlBoundByAdapter: true,
               });
             }
             findings.set(identity, entry);
@@ -187,7 +187,10 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       const supports = new Map<string, typeof observations[number]>();
       for (const observation of observations) {
         if (!lead.urls.has(observation.url)) continue;
-        if (!bindExactSourceSpan(observation.text, lead.name)?.exact) continue;
+        const span = observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
+          ? bindExactSourceSpan(observation.text, lead.name)
+          : bindExactSourceSpanToUrl(observation.text, observation.url, lead.name);
+        if (!span?.exact) continue;
         const previous = supports.get(observation.url);
         if (!previous || (previous.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) {
           supports.set(observation.url, observation);
@@ -372,7 +375,9 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       const supports = new Map<string, typeof observations[number]>();
       for (const observation of observations) {
         if (!lead.urls.has(observation.url)) continue;
-        const span = bindExactSourceSpan(observation.text, lead.role, lead.name, 320);
+        const span = observation.verificationLevel === "fetched_source"
+          ? bindExactSourceSpan(observation.text, lead.role, lead.name, 320)
+          : bindExactSourceSpanToUrl(observation.text, observation.url, lead.role, lead.name, 320);
         if (!span?.exact || !span.subjectMatched || !span.valueMatched) continue;
         const prior = supports.get(observation.url);
         if (!prior || (prior.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) supports.set(observation.url, observation);
