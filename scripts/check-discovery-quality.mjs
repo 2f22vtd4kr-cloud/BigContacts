@@ -10,7 +10,10 @@ import { fileURLToPath } from "url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const discovery = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/discovery-agent.ts"), "utf8");
+const discoveryIntake = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/discovery-intake.ts"), "utf8");
 const admit = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/discovery-agent-admit.ts"), "utf8");
+const canonicalLaunch = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
+const canonicalCaseDiscovery = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts"), "utf8");
 const orientation = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"), "utf8");
 const repair = fs.readFileSync(path.join(root, "scripts/apply-apex-identity-integrity-fix.mjs"), "utf8");
 const canonical = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"), "utf8");
@@ -18,7 +21,9 @@ const activeInvestigator = fs.readFileSync(path.join(root, "artifacts/api-server
 const targetContact = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/target-contact-agent.ts"), "utf8");
 const candidateSources = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/candidate-source-url-union.ts"), "utf8");
 const checks = [
-  [discovery, ["isWellFormedPersonCandidate","LIST_ONLY_SOURCE_PATTERNS","hasIndependentSource","hasStrongIdentityEvidence","DISCOVERY ASSIGNMENT","information gain","Do not spend discovery iterations on Forbes/Bloomberg/richest/billionaire rankings","BAD DISCOVERY BEHAVIOR","GOOD DISCOVERY BEHAVIOR","Before every action, silently sanity-check the direction","If a company is discovered before its principal, that company is an intermediate lead","Before finishing, ask yourself: do I have a full personal name","state\\s+st","proxy_table","deterministic candidate selection rather than model-owned discovery"], "discovery-agent.ts"],
+  [discovery, ["@deprecated Legacy discovery pipeline", "Do not route Investigator-selected provisional review cards through this legacy path"], "discovery-agent.ts"],
+  [discoveryIntake, ["@deprecated Legacy discovery pipeline", "Do not route Investigator-selected provisional review cards through this legacy path"], "discovery-intake.ts"],
+  [admit, ["@deprecated Legacy discovery pipeline", "Do not route Investigator-selected provisional review cards through this legacy path"], "discovery-agent-admit.ts"],
   [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","A billionaire list is usually a low-yield lead, not a discovery strategy","Do not continue a weak search avenue just because it returns many results"], "apex-bureau-orientation.ts"],
   [canonical, ["runGroqBossDiscovery","runBureauAgenticWebPass","runGroqRightHandFreeJson","Investigator chooses every research action","discoveryCaseId","promotionDecision"], "canonical-atlas-discovery.ts"],
   [activeInvestigator, ["DISCOVERY LEAD HANDOFF CONTRACT","YOU decide whether an observed person is worth a provisional review card","source class need not appear in every discovery query","The Investigator decides relevance","News publishers and articles are evidence leads only, never targets or access routes"], "agentic-web-research-core.ts"],
@@ -38,6 +43,13 @@ if (activeInvestigator.includes("hasPressPublisherSiteFilter")
 if (!activeInvestigator.includes("Structural/provider-syntax checks only.")
   || !activeInvestigator.includes("model-owned research choices, not runtime admission or relevance policy.")) {
   console.error("FAIL: active Investigator query validator does not declare model-owned query strategy");
+  process.exit(1);
+}
+if (!canonicalLaunch.includes("runCanonicalAtlasPipeline")
+  || canonicalLaunch.includes("runDiscoveryAgent")
+  || !canonicalCaseDiscovery.includes("runCanonicalAtlasPipeline")
+  || canonicalCaseDiscovery.includes("runDiscoveryAgent")) {
+  console.error("FAIL: canonical launch/case-discovery path must use the model-owned canonical pipeline, not the retired deterministic admission adapter");
   process.exit(1);
 }
 const failures = [];
