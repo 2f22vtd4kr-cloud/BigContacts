@@ -487,7 +487,7 @@ Allowed actions: continue_discovery | research_candidate | revisit_candidate | p
 Rules:
 - Boss owns the next action. The harness does not infer it from candidate count, score, or phase.
 - For research/revisit, candidateName AND candidateType must exactly match one admitted target; type is person or organization. Never invent a target, URL, relationship, contact, or evidence.
-- Right-hand is advisory, never an approval gate. Compare proposed directions with the human objective and observed sources; test whether the proposed direction has a defensible advantage over plausible alternatives. Boss may adopt, modify, or reject its advice. If adopting its advice, carry it into the structured direction field; narrative text does not change accepted scope.
+- Right-hand is advisory, never an approval gate. If Right-hand is unavailable, make an independent Boss decision from the objective and durable evidence. Compare proposed directions with the human objective and observed sources; test whether the proposed direction has a defensible advantage over plausible alternatives. Boss may adopt, modify, or reject its advice. If adopting its advice, carry it into the structured direction field; narrative text does not change accepted scope.
 - On opening, no narrower scope is active until Boss chooses one. A null direction retains the human base objective; an explicit direction activates the accepted scope. On later turns, null keeps the accepted scope.
 - If the preceding Investigator episode executed no external research action, do not silently repeat the same scope after a rejected action. Give a concrete refinement or stop/park.
 - A pivot must be self-contained and executable: the direction field itself must name one substantive subject/sector hypothesis, one actual geography/jurisdiction, and a relevant public-source class. Reject placeholders such as 'a chosen region'; no fixed provider/tool/query/action sequence.
@@ -822,7 +822,7 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
   // For ordinary control turns, both model reviews are required. The opening
   // path may carry an unavailable Right-hand observation to Boss so Boss can
   // decide whether the mission remains safe and feasible without that advice.
-  if (rightHand.status !== "completed" && !input.rightHandOverride) return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Right-hand was unavailable; Atlas transition is fail-closed.", confidence: null, rightHand, bossModel: null, error: rightHand.error ?? "Right-hand unavailable." });
+  // Right-hand is advisory on every turn. Its failure is passed to Boss as context; only Boss unavailability or an invalid Boss contract is fail-closed.
   const selection = await resolveGroqBossModel(); if (!selection?.model) return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Boss unavailable; Atlas transition is fail-closed rather than deterministic.", confidence: null, rightHand, bossModel: null, error: "No Groq Boss model available." });
   const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, rightHand });
   try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: 1024, thinkingLevel: "medium", jobId: input.jobId ?? null, caseId: input.caseId });
