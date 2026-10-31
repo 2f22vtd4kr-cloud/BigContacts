@@ -3677,17 +3677,20 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // Preserve the decision context and exact provenance first; optional
-    // narration is intentionally omitted when the provider window is tight.
-    appendBudgeted(minimumScopeContext || compactCaseObjective, 320, "[scope detail omitted]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 280, "[older trajectory detail omitted]");
-    appendBudgeted(urlInventory, 1_800, "[additional source URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(fetchedSourceLabel, 150, "[source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 300, "[source excerpt detail omitted]");
-    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 90), 160, "[latest observation detail omitted]");
+    // The emergency fallback retains the exact scope, latest durable action,
+    // fetchable URLs, available actions and compact evidence/safety gates.
+    appendBudgeted(minimumScopeContext || compactCaseObjective, 260, "[scope detail omitted]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 240, "[older trajectory detail omitted]");
+    appendBudgeted(urlInventory, 1_400, "[additional source URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(fetchedSourceLabel, 120, "[source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 180, "[source excerpt detail omitted]");
+    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 140), 180, "[latest observation detail omitted]");
+    appendBudgeted(minimumAvailableActionsSection, 500, "[additional runtime actions omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 220, "[registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 240, "[binary detail omitted]");
     appendBudgeted(
-      "DISCOVERY LEAD HANDOFF CONTRACT — PARTIAL FINDINGS (not terminal-only): preserve useful source-backed people and organizations selected by the Investigator; never auto-promote. A company lead needs its exact observed business-like name and associated public URL; a person lead needs the exact observed name, role or null, and associated public URL. These are review-only leads, not identity, role, ownership, wealth, HNWI, relationship or contact proof. Search snippets and registry rows are leads, not evidence. Only after a successful visit/browser_fetch may fetched claims bind to the exact observed URL and source span. One successfully fetched claim-grade source is required before stronger admission; target-scoped research needs independent source classes, corroboration and falsification before HNWI, relationship or contact conclusions. Target-stage research tests must match target type (person, organization, trust or asset). Consider inspecting a promising in-scope lead URL next when expected information gain justifies it; no mandatory sequence. Source class, publisher, fetch mechanism and contributor are distinct; unknown is not inferred. Never invent an ID based on a jurisdiction. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction; scanned/image-only PDFs require OCR (unavailable); image-only content is not text evidence. Explain any material deviation from the objective or active scope. Conditional specialist actions may be called only when that exact action is exposed as available. No fixed action sequence.",
-      1_300, "[review-lead and policy detail omitted]"
+      "DISCOVERY LEAD HANDOFF CONTRACT — PARTIAL FINDINGS: preserve Investigator-selected person/organization review leads; no auto-promotion. Search/registry snippets are leads. After a successful visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact source span. One successfully fetched claim-grade source; minEvidence=1; minIndependentSourceUnits=1. target-scoped research owns independent corroboration and falsification; target-stage research tests match the admitted target type (person, organization, trust, or asset). source class, publisher, fetch mechanism and contributor are distinct; unknown is not inferred. Consider inspecting a promising in-scope lead URL next. SCOPE GUARD BLOCKED ACTION is control state, not negative evidence; explain any material deviation. Conditional specialist OSINT actions only when runtime-exposed. RESEARCH TERMINAL GATE (authoritative): done only at a defensible stop; state remaining gaps. Never invent an ID based on jurisdiction.",
+      1_200, "[review-lead and policy detail omitted]"
     );
     appendBudgeted(aiMemorySection, 150, "[older memory omitted]");
     appendBudgeted(markerSuffix, 80, "[marker omitted]");
