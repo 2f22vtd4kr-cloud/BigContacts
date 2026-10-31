@@ -59,12 +59,12 @@ function sleep(ms: number): Promise<void> {
 }
 
 function normalizeName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z]/g, "");
+  return name.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 }
 
-/** Registry adapters must never admit missing-name placeholders. */
+/** Reject only malformed/placeholders; preserve every usable Unicode candidate for model-led resolution. */
 export function isPlaceholderRegistryName(name: string): boolean {
-  return /^(unknown|unnamed|anonymous|n\/a|not available|entity\s+\d+|unknown company)$/i.test(name.trim());
+  return !isStructurallyValidCandidateName(name);
 }
 
 /**
@@ -80,23 +80,9 @@ export function isPlaceholderRegistryName(name: string): boolean {
  *   "Warren Buffett"      → "Warren Buffett"  (unchanged)
  */
 function normalizeEdgarName(raw: string): string {
-  // Strip "ET AL" / "et al" suffix before processing (means "and others" in SEC filings)
-  const cleaned = raw.trim().replace(/\s+ET\s+AL\.?$/i, "").trim();
-  const t = cleaned;
-  if (!t) return t;
-  const tc = (s: string) =>
-    s.length <= 2 ? s.toUpperCase() : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-  // If name is all-caps (EDGAR format), reverse LAST → end
-  if (t === t.toUpperCase() && /[A-Z]{2}/.test(t)) {
-    const parts = t.split(/\s+/);
-    if (parts.length >= 2) {
-      const [last, ...rest] = parts as [string, ...string[]];
-      return [...rest, last].map(tc).join(" ");
-    }
-    return tc(t);
-  }
-  // Mixed case: just title-case each word
-  return t.split(/\s+/).map(tc).join(" ");
+  // Preserve registry order; name-part parsing and identity resolution belong
+  // to the Investigator, not a first-token surname heuristic.
+  return raw.trim().replace(/\s+/g, " ").toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
 }
 
 /** Rough heuristic: does this look like a person name (not a fund/company)? */
@@ -841,7 +827,7 @@ export interface IngestionResult {
 export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<IngestionResult> {
   const { targetCount, batchSize = 100, jobId, clearDedupFirst = false } = opts;
   // Small Atlas admission budgets must not be burned on random company shells.
-  const preferPersons = Boolean(opts.preferPersons) || (targetCount > 0 && targetCount <= 10);
+  const preferPersons = Boolean(opts.preferPersons);
   const t0 = Date.now();
   let inserted = 0, skipped = 0, errors = 0;
 
