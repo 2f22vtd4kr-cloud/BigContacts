@@ -183,7 +183,7 @@ export function mergeDurablyAdmittedCandidateSources(
     for (const candidate of group) {
       const name = candidate.name.trim().replace(/\s+/g, " ");
       const identity = normalizeCandidateIdentityName(name);
-      if (name.length < 3 || identity.length < 3) continue;
+      if (!name || !identity) continue;
       let entry = merged.get(identity);
       if (!entry) {
         entry = { name, sourceUrls: new Set<string>() };
@@ -244,7 +244,7 @@ export function hasDiscoveryOwnershipLeadSignal(input: {
 }): boolean {
   const person = normalizeTargetabilityText(input.personName);
   const role = normalizeTargetabilityText(input.role);
-  if (person.length < 3 || !role) return false;
+  if (!person || !role) return false;
   return input.observations.some((observation) => {
     if (observation.execution !== "success" || !["visit", "browser_fetch"].includes(observation.action)) return false;
     if (!isClaimGradeDiscoverySourceUrl(observation.sourceUrl)) return false;
@@ -273,7 +273,7 @@ export function hasCredibleDiscoveryWealthPotentialSignal(input: {
 }): boolean {
   const person = normalizeTargetabilityText(input.personName);
   const role = normalizeTargetabilityText(input.role);
-  if (person.length < 3 || !role) return false;
+  if (!person || !role) return false;
 
   // A role proves professional identity/control, not wealth. Admission also
   // requires the observed public source to bind this exact person to a

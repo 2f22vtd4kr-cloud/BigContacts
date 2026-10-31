@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bindExactSourceSpan,
+  bindExactSourceSpanToUrl,
   canonicalHost,
   SourceLineageGraph,
   dependencyAwareBatches,
@@ -23,6 +24,45 @@ describe("research epistemic vNext", () => {
     expect(span?.exact).toBe(true);
     expect(span?.subjectMatched).toBe(true);
     expect(span?.valueMatched).toBe(true);
+  });
+
+  it("binds a search-result lead to the exact URL result block", () => {
+    const observation = [
+      "https://www.linkedin.com/in/michaelfillios",
+      "https://www.linkedin.com/company/francisco-partners",
+      "Michael C. Fillios — Founder & CEO of IT Ally.",
+      "URL: https://www.linkedin.com/in/michaelfillios",
+      "Michael Fillios is an entrepreneur and Founder & CEO of IT Ally.",
+      "Francisco Partners",
+      "URL: https://www.linkedin.com/company/francisco-partners",
+      "Francisco Partners is a private equity firm focused on technology.",
+    ].join("\n");
+    const person = bindExactSourceSpanToUrl(
+      observation,
+      "https://www.linkedin.com/in/michaelfillios",
+      "Founder & CEO",
+      "Michael C. Fillios",
+    );
+    expect(person?.exact).toBe(true);
+    expect(person?.text).toContain("Michael C. Fillios");
+    expect(person?.text).toContain("Founder & CEO");
+
+    const company = bindExactSourceSpanToUrl(
+      observation,
+      "https://www.linkedin.com/company/francisco-partners",
+      "Francisco Partners",
+    );
+    expect(company?.exact).toBe(true);
+    expect(company?.text).toContain("Francisco Partners");
+
+    // A name/role elsewhere in the same search response must not be attributed
+    // to a different URL returned by that response.
+    expect(bindExactSourceSpanToUrl(
+      observation,
+      "https://www.linkedin.com/company/francisco-partners",
+      "Founder & CEO",
+      "Michael C. Fillios",
+    )).toBeNull();
   });
 
   it("rejects values and identities that only match a longer token", () => {
