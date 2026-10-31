@@ -46,7 +46,7 @@ export type FaaRegistrantClassification = {
   beneficialOwnershipStatus: "unresolved";
   confidence: "LOW";
   reviewOnly: true;
-  wealthStatus: "unassessed";
+  wealthStatus: "unverified" | "not_assessed";
   estimatedNetWorth: null;
   bayesianScore: 0.05;
   isHot: false;
@@ -64,7 +64,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     beneficialOwnershipStatus: "unresolved",
     confidence: "LOW",
     reviewOnly: true,
-    wealthStatus: "unassessed",
+    wealthStatus: "unverified",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -78,7 +78,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     beneficialOwnershipStatus: "unresolved",
     confidence: "LOW",
     reviewOnly: true,
-    wealthStatus: "unassessed",
+    wealthStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -92,7 +92,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     beneficialOwnershipStatus: "unresolved",
     confidence: "LOW",
     reviewOnly: true,
-    wealthStatus: "unassessed",
+    wealthStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -106,7 +106,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     beneficialOwnershipStatus: "unresolved",
     confidence: "LOW",
     reviewOnly: true,
-    wealthStatus: "unassessed",
+    wealthStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -120,7 +120,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     beneficialOwnershipStatus: "unresolved",
     confidence: "LOW",
     reviewOnly: true,
-    wealthStatus: "unassessed",
+    wealthStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -134,7 +134,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     beneficialOwnershipStatus: "unresolved",
     confidence: "LOW",
     reviewOnly: true,
-    wealthStatus: "unassessed",
+    wealthStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -148,7 +148,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     beneficialOwnershipStatus: "unresolved",
     confidence: "LOW",
     reviewOnly: true,
-    wealthStatus: "unassessed",
+    wealthStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -162,7 +162,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     beneficialOwnershipStatus: "unresolved",
     confidence: "LOW",
     reviewOnly: true,
-    wealthStatus: "unassessed",
+    wealthStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
