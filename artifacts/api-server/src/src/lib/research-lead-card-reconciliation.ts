@@ -502,7 +502,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
             claim: isFetched
               ? (lead.role ? "A successfully fetched public-source observation co-binds this exact person name and role; wealth potential and contactability remain unverified." : "A successfully fetched public-source observation supports this person name; role, wealth potential, and contactability remain unverified.")
               : (lead.role ? "A source observation supports this person and role lead; wealth potential and contactability remain unverified." : "A source observation supports this person-name lead; role, wealth potential, and contactability remain unverified."),
-            value: lead.name, sourceName: "canonical-agentic-discovery", sourceUrl: support.url,
+            value: lead.name, sourceName: buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt }).sourceName, sourceUrl: support.url,
             sourceDomain: new URL(support.url).hostname, status: "review", confidence: 0.25,
             observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
             metadata: JSON.stringify({ partialReview: true, role: lead.role, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId, sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt }) }),
