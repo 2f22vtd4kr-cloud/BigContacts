@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractSearchResultCompanyLeadFindings, extractObservedOrganizationIdentity, isGenericDiscoveryMetadataTitle, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
-import { apexOrientationFor } from "./apex-bureau-orientation";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -12,48 +12,51 @@ import { classifyThrownProviderError } from "./provider-error-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
-const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
-const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(), "src/src/lib/research-lead-card-reconciliation.ts"), "utf8");
-
-describe("search-result company review lead extraction", () => {
-  it("preserves a concrete business-like result title but rejects generic discovery metadata such as Case Co", () => {
-    const realBusinessText = [
-      "Northstar Casino Resort",
-      "URL: https://northstarcasino.si/",
-      "Northstar Casino Resort operates a resort in Slovenia.",
-    ].join("\n");
-    const realBusiness = extractSearchResultCompanyLeadFindings(realBusinessText, ["https://northstarcasino.si/"]);
-    expect(realBusiness).toHaveLength(1);
-    expect(realBusiness[0]).toMatchObject({
-      value: "Northstar Casino Resort",
-      scope: "organization",
-      vectorType: "other",
-      personName: null,
-      role: null,
-      sourceUrls: ["https://northstarcasino.si/"],
-    });
-
-    const genericMetadataText = [
-      "Case Co",
-      "URL: https://caseco.si/",
-      "Case Co is a generic discovery placeholder.",
-    ].join("\n");
-    expect(extractSearchResultCompanyLeadFindings(genericMetadataText, ["https://caseco.si/"])).toEqual([]);
-    expect(isGenericDiscoveryMetadataTitle("Case Co Officers")).toBe(true);
-    expect(extractSearchResultCompanyLeadFindings(
-      "Case Co Officers\nURL: https://caseco.si/officers\nGeneric placeholder page",
-      ["https://caseco.si/officers"],
-    )).toEqual([]);
-
-    const categoryHeadlineText = [
-      "Best Casino Hotels in Slovenia",
-      "URL: https://slovenia-casino-hotels.si/",
-      "A list of casino hotels in Slovenia.",
-    ].join("\n");
-    expect(extractSearchResultCompanyLeadFindings(categoryHeadlineText, ["https://slovenia-casino-hotels.si/"])).toEqual([]);
+describe("Investigator system prompt budget", () => {
+  it("keeps the system core compact so user-supplied scope and evidence survive provider budgeting", () => {
+    const systemCore = apexInvestigatorSystemCore();
+    expect(systemCore.length).toBeLessThan(2_000);
+    expect(systemCore).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
+    expect(systemCore).toContain("RESEARCH TERMINAL GATE (authoritative)");
+    expect(systemCore).toContain("source class");
+    expect(systemCore).toContain("Virtual Globetrotting");
   });
 });
 
+
+const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(), "src/src/lib/research-lead-card-reconciliation.ts"), "utf8");
+const canonicalAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
+const canonicalCaseDiscoveryRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-case-discovery.ts"), "utf8");
+const legacyAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/atlas.ts"), "utf8");
+
+describe("canonical Atlas discovery path isolation", () => {
+  it("routes live Atlas launches through the model-owned canonical pipeline, not legacy deterministic discovery", () => {
+    expect(canonicalAtlasLaunchRouteSource).toContain("runCanonicalAtlasPipeline");
+    expect(canonicalCaseDiscoveryRouteSource).toContain("runCanonicalAtlasPipeline");
+    expect(canonicalAtlasLaunchRouteSource).not.toContain("runDiscoveryAgent");
+    expect(canonicalAtlasDiscoverySource).not.toContain('from "./discovery-agent"');
+    expect(canonicalAtlasDiscoverySource).not.toContain("runDiscoveryAgent");
+    expect(canonicalAtlasDiscoverySource).not.toContain("discovery-intake");
+    expect(canonicalAtlasLaunchRouteSource).not.toContain("discovery-intake");
+    expect(canonicalCaseDiscoveryRouteSource).not.toContain("runDiscoveryAgent");
+    expect(legacyAtlasLaunchRouteSource).toContain('res.status(410)');
+  });
+});
+
+describe("review and claim finding separation", () => {
+  it("does not merge a provisional review lead into a claim-grade finding with the same identity", () => {
+    expect(agenticCoreSource).toContain('f.reviewOnly === true ? "review" : "claim"');
+  });
+});
+
+describe("model-owned review-lead selection", () => {
+  it("does not create company findings from search-result titles in deterministic runtime code", () => {
+    expect(agenticCoreSource).not.toContain("extractSearchResultCompanyLeadFindings");
+    expect(agenticCoreSource).not.toContain("SEARCH_RESULT_BUSINESS_MARKER");
+    expect(agenticCoreSource).not.toContain("record.findings = mergeFindings(record.findings ?? [], extractedCompanyLeads)");
+  });
+});
 describe("compact company registry lead retention", () => {
   it("retains only source-attributed Corporation rows and strips duplicates and person rows", () => {
     const sourceUrl = "https://find-and-update.company-information.service.gov.uk/company/14943848";
@@ -86,6 +89,23 @@ describe("compact company registry lead retention", () => {
       sourceUrls: [sourceUrl],
       notes: "Status: dissolved Type: ltd",
     }]);
+
+    const nonClaimGradeUrl = "https://www.zoominfo.com/p/example-company/123";
+    const moreThanEightRows = Array.from({ length: 10 }, (_, index) => ({
+      type: "Corporation",
+      name: `Observed Company ${index + 1}`,
+      metadata: JSON.stringify({ urls: [nonClaimGradeUrl + "?row=" + index] }),
+    }));
+    const allObserved = compactRegistryCompanyLeads(moreThanEightRows, ({ metadata }) => {
+      try {
+        const parsed = JSON.parse(metadata ?? "{}") as { urls?: string[] };
+        return Array.isArray(parsed.urls) ? parsed.urls : [];
+      } catch {
+        return [];
+      }
+    });
+    expect(allObserved).toHaveLength(10);
+    expect(allObserved[0]?.sourceUrls[0]).toContain("zoominfo.com");
   });
 });
 
@@ -738,6 +758,7 @@ describe("partial model findings", () => {
     expect(parsed?.action).toBe("web_search");
     expect(parsed?.partialFindings).toEqual([{
       ...finding,
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
@@ -772,9 +793,131 @@ describe("partial model findings", () => {
       scope: "candidate",
       sourceUrls: ["https://example.com/leadership"],
       note: "Candidate claim from a non-terminal action.",
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
+  });
+
+  it("retains a model-selected person lead when role and exact snippet-span attribution are unknown", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Jane Doe company leadership",
+      provider: "serper",
+      hypothesis: "A public profile may identify a relevant operator.",
+      purpose: "Preserve a promising lead for target-scoped verification.",
+      expectedInformationGain: 0.6,
+      findings: [{
+        vectorType: "linkedin",
+        value: "Jane Doe",
+        personName: "Jane Doe",
+        role: null,
+        scope: "candidate",
+        sourceUrls: ["https://www.zoominfo.com/p/Jane-Doe/123"],
+        note: "Investigator-selected lead; professional relevance appears promising but role is not established.",
+        promotionDecision: null,
+        promotionReason: null,
+      }],
+    }), ["web_search"]);
+
+    expect(parsed?.partialFindings).toEqual([{
+      vectorType: "linkedin",
+      value: "Jane Doe",
+      personName: "Jane Doe",
+      role: null,
+      scope: "candidate",
+      sourceUrls: ["https://www.zoominfo.com/p/Jane-Doe/123"],
+      note: "Investigator-selected lead; professional relevance appears promising but role is not established.",
+      reviewOnly: true,
+      promotionDecision: undefined,
+      promotionReason: undefined,
+    }]);
+  });
+
+  it("uses organization scope as the model's selection signal without vector or auxiliary-field gates", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Northstar Casino Resort owners",
+      provider: "serper",
+      hypothesis: "The organization may expose relevant principals.",
+      purpose: "Preserve it for target-scoped research.",
+      expectedInformationGain: 0.7,
+      findings: [{
+        vectorType: "website",
+        value: "Northstar Casino Resort",
+        personName: null,
+      role: null,
+        scope: "organization",
+        sourceUrls: ["https://northstarcasino.si/"],
+        note: "Investigator-selected organization lead.",
+        promotionDecision: null,
+        promotionReason: null,
+      }],
+    }), ["web_search"]);
+
+    expect(parsed?.partialFindings).toEqual([{
+      vectorType: "website",
+      value: "Northstar Casino Resort",
+      personName: null,
+      role: null,
+      scope: "organization",
+      sourceUrls: ["https://northstarcasino.si/"],
+      note: "Investigator-selected organization lead.",
+      reviewOnly: true,
+      promotionDecision: undefined,
+      promotionReason: undefined,
+    }]);
+  });
+
+  it("does not discard short but valid model-selected person or organization names", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Li 3M leadership",
+      provider: "serper",
+      hypothesis: "A short person or company name may identify a relevant lead.",
+      purpose: "Preserve the Investigator's selected leads for verification.",
+      expectedInformationGain: 0.5,
+      findings: [
+        {
+          vectorType: "other",
+          value: "Li",
+          personName: "Li",
+          role: null,
+          scope: "candidate",
+          sourceUrls: ["https://example.org/profile"],
+          note: "Investigator-selected person lead.",
+        },
+        {
+          vectorType: "other",
+          value: "3M",
+          personName: null,
+          role: null,
+          scope: "organization",
+          sourceUrls: ["https://example.org/company"],
+          note: "Investigator-selected organization lead.",
+        },
+      ],
+    }), ["web_search"]);
+    expect(parsed?.partialFindings.map((finding) => finding.value)).toEqual(["Li", "3M"]);
+  });
+
+  it("keeps organization contact values as contact facts, not organization review-card names", () => {
+    const sourceUrl = "https://northstarcasino.si/contact";
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "done",
+      findings: [
+        { vectorType: "email", value: "contact@northstarcasino.si", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public business email." },
+        { vectorType: "phone", value: "+386 1 555 0100", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public business phone." },
+        { vectorType: "website", value: "https://northstarcasino.si/", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public company website." },
+        { vectorType: "other", value: "Northstar Casino Resort", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Investigator-selected company review lead." },
+      ],
+      thought: "Preserve the company lead and keep contact facts separate.",
+    }), ["done"]);
+
+    expect(parsed?.action).toBe("done");
+    if (parsed?.action !== "done") throw new Error("Expected a terminal Investigator action.");
+    expect(parsed.findings.map((finding) => finding.value)).toContain("Northstar Casino Resort");
+    expect(parsed.partialFindings.map((finding) => finding.value)).toEqual(["Northstar Casino Resort"]);
   });
 
   it("preserves an unpromoted lead when the Investigator stops", () => {
@@ -798,6 +941,7 @@ describe("partial model findings", () => {
     expect(parsed?.action).toBe("done");
     expect(parsed?.partialFindings).toEqual([{
       ...finding,
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
@@ -2006,11 +2150,10 @@ Choose each next action yourself from the available capabilities and observed ev
     for (const query of multilingualQueries) {
       expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: true });
     }
+    // Source class and query strategy belong to the Investigator; even a
+    // broad publisher-filtered search is allowed when the model judges it useful.
     for (const broadPublisherQuery of ['site:reuters.com "赌场主要股东"', 'site:reuters.com "مالك الكازينو"']) {
-      expect(validateDiscoverySearchQuery(broadPublisherQuery, [])).toMatchObject({
-        allowed: false,
-        reason: expect.stringContaining("broad press-publisher-only search without an exact named person/business anchor"),
-      });
+      expect(validateDiscoverySearchQuery(broadPublisherQuery, [])).toMatchObject({ allowed: true });
     }
     expect(validateDiscoverySearchQuery('site:reuters.com "Casino Portorož"', [])).toMatchObject({ allowed: true });
 
@@ -3153,13 +3296,16 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain("return await materializeAtlasAdmissions({");
   });
 
-  it("keeps partial-card eligibility tied to fetched, claim-grade, same-case source observations", () => {
-    expect(canonicalAtlasDiscoverySource).toContain('observation.executionStatus !== "success"');
-    expect(canonicalAtlasDiscoverySource).toContain("isClaimGradeDiscoverySourceUrl(sourceUrl)");
-    expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
+  it("keeps model-selected partial cards tied to same-case observed URLs without evidence-grade admission filters", () => {
+    expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.executionStatus)');
+    expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.execution)');
+    expect(researchLeadCardReconciliationSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
+    expect(canonicalAtlasDiscoverySource).toContain('if (!sourceUrl) continue;');
+    expect(researchLeadCardReconciliationSource).toContain("if (!supports.size) continue;");
+    expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.executionStatus !== "success")');
+    expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.execution !== "success")');
     expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
     expect(canonicalAtlasDiscoverySource).toContain('stage: "partial_review"');
-    expect(canonicalAtlasDiscoverySource).not.toContain('notes: "INVESTIGATOR-ADMITTED REVIEW CANDIDATE');
   });
 });
 
@@ -3199,8 +3345,8 @@ describe("single fetched page organization identity", () => {
   });
 
   it("requires page identity metadata to be attached to successful visit and browser-fetch observations", () => {
-    expect(agenticCoreSource).toContain("observedPageIdentity: page.pageIdentity ?? null");
-    expect(agenticCoreSource).toContain("observedPageIdentity: result.html && observedBrowserUrl ? extractObservedOrganizationIdentity(result.html, observedBrowserUrl) : null");
+    expect(agenticCoreSource).toContain("observedPageIdentity: restrictedCommunitySource ? null : page.pageIdentity ?? null");
+    expect(agenticCoreSource).toContain("observedPageIdentity: result.html && observedBrowserUrl && !restrictedCommunitySource ? extractObservedOrganizationIdentity(result.html, observedBrowserUrl) : null");
     expect(researchLeadCardReconciliationSource).toContain("pageIdentitySource === url");
     expect(researchLeadCardReconciliationSource).toContain("organization name only; ownership, wealth, targetability, and person attribution remain unestablished");
   });
@@ -3280,7 +3426,7 @@ describe("small emergency observation budgets", () => {
     const observation = 'LATEST TRAJECTORY RECORD — TURN 17: {"turn":17,"action":"web_search","execution":"success","leadUrls":["https://registry.example.test/company-search"],"leadUrlsOmittedFromPromptCount":0}';
 
     expect(() => appendEmergencyObservationContext(basePrompt, observation, 24)).toThrow(
-      /Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=24/,
+      /(?:Cannot compose a contract-preserving emergency observation prompt|The required Investigator action schema exceeds) maxPromptChars=24/,
     );
   });
 
@@ -3450,5 +3596,17 @@ describe("AI research-memory compaction transport", () => {
     expect(chunks.join("")).toBe(source);
     expect(chunks.some((chunk) => chunk.includes(url))).toBe(true);
     expect(extractAiContextUrls(source)).toEqual([url]);
+  });
+});
+
+
+describe("restricted community source content boundary", () => {
+  it("withholds Virtual Globetrotting content at search and fetch boundaries", () => {
+    const source = readFileSync(new URL("./agentic-web-research-core.ts", import.meta.url), "utf8");
+    expect(source).toContain("isRestrictedCommunitySourceUrl");
+    expect(source).toContain("RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE");
+    expect(source).toContain("hasRestrictedCommunityUrl");
+    expect(source).toContain("restrictedCommunitySource && page.status === \"success\" ? \"partial\" : page.status");
+    expect(source).toContain("observedPageIdentity: restrictedCommunitySource ? null");
   });
 });

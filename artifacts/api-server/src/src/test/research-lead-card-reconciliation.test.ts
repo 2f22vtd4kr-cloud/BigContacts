@@ -1,6 +1,5 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { extractSearchResultCompanyLeadFindings } from "../lib/agentic-web-research-core";
 import { matchAtlasAdmittedTarget, validateAtlasBossControl } from "../lib/atlas-control-decision";
 import { buildTargetContactInvestigatorObjective } from "../lib/target-contact-agent";
 const reconciler = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
@@ -12,6 +11,8 @@ const orientation = readFileSync(new URL("../lib/apex-bureau-orientation.ts", im
 const runtimeProofWorkflow = readFileSync(new URL("../../../../../.github/workflows/apex-canonical-runtime-proof.yml", import.meta.url), "utf8");
 const runtimeProofVerifier = readFileSync(new URL("../../../../../scripts/verify-canonical-card-proof.mjs", import.meta.url), "utf8");
 const canonicalAtlas = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
+const candidateSourcePolicy = readFileSync(new URL("../lib/candidate-source-url-union.ts", import.meta.url), "utf8");
+const checkpointSource = canonicalAtlas.slice(canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"), canonicalAtlas.indexOf("export async function reconcileCanonicalDiscoveryCaseReviewCards"));
 describe("terminal review-card reconciliation", () => {
   it("chooses source classes by expected information gain and jurisdiction, not a registry-first habit", () => {
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION");
@@ -19,46 +20,53 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("Companies House is a UK/Great Britain register");
     expect(orientation).toContain("not a substitute for US state Secretary-of-State filings");
     expect(orientation).toContain("ordinary web search is often the better first move");
-    expect(orientation).toContain("A search result/snippet can justify a low-confidence review-only company lead");
+    expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
   });
 
-  it("retains registry-typed company leads even when the Investigator emitted no finding", () => {
+  it("keeps registry rows as supporting observations and never lets adapters select cards", () => {
     expect(agenticCore).toContain("export function compactRegistryCompanyLeads");
     expect(agenticCore).toContain('row.type !== "Corporation"');
     expect(agenticCore).toContain("companyLeads: error ? [] : companyLeads");
+    expect(agenticCore).not.toContain("extractSearchResultCompanyLeadFindings");
+    expect(agenticCore).not.toContain("SEARCH_RESULT_BUSINESS_MARKER");
+
+    const registryCompactorStart = agenticCore.indexOf("export function compactRegistryCompanyLeads");
+    const registryCompactorEnd = agenticCore.indexOf("\n}", registryCompactorStart) + 2;
+    const registryCompactor = agenticCore.slice(registryCompactorStart, registryCompactorEnd);
+    expect(registryCompactor).not.toContain("isClaimGradeDiscoverySourceUrl");
+    expect(registryCompactor).not.toContain(".slice(0, 8)");
+
     expect(reconciler).toContain("const outcomes = Array.isArray(args.registrySearchOutcomes) ? args.registrySearchOutcomes : []");
     expect(reconciler).toContain('const partialRegistry = registryAction && payload.execution === "partial"');
-    expect(reconciler).toContain("bindExactSourceSpan(observation.text, lead.name)");
-    expect(reconciler).toContain('verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead"');
-    expect(reconciler).toContain("ownership, control, wealth, and targetability remain unestablished");
-    expect(reconciler).toContain("const sourceLeadName = pageIdentity?.name ?? null;");
+    expect(reconciler).toContain("Page metadata may strengthen the provenance of a model-selected organization lead");
+    expect(reconciler).not.toContain("extractSearchResultCompanyLeadFindings");
     expect(reconciler).not.toContain("organizationLabelFromUrl(url)");
 
-    const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
-    const checkpoint = canonical.slice(
-      canonical.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
-      canonical.indexOf("export async function reconcileCanonicalDiscoveryCaseReviewCards"),
+    const organizationStart = canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards");
+    const organizationEnd = canonicalAtlas.indexOf("\nasync function ", organizationStart + 1);
+    const organizationMaterializer = canonicalAtlas.slice(
+      organizationStart,
+      organizationEnd >= 0 ? organizationEnd : undefined,
     );
-    const organizationMaterializer = canonical.slice(
-      canonical.indexOf("async function materializePartialOrganizationLeadCards"),
-      canonical.indexOf("export async function runCanonicalAtlasPipeline"),
+    expect(organizationMaterializer).toContain("Persist only organization leads explicitly selected in Investigator findings");
+    expect(organizationMaterializer).toContain('finding.scope !== "organization"');
+    expect(organizationMaterializer).toContain("Registry adapter rows may support this lead only because the");
+    expect(organizationMaterializer).not.toContain("isGenericDiscoveryMetadataTitle");
+    expect(organizationMaterializer).toContain("isRestrictedCommunitySourceUrl(sourceUrl)");
+    expect(organizationMaterializer).toContain("if (support.restrictedCommunitySource) continue;");
+    expect(organizationMaterializer).toContain('"community-reference-only"');
+    const registryLeadObservationBlock = organizationMaterializer.slice(
+      organizationMaterializer.indexOf("if (registry &&"),
+      organizationMaterializer.indexOf("// Partial provider execution can still contain successful, attributable"),
     );
-    expect(checkpoint).not.toContain("if (input.findings.length === 0) return empty;");
-    expect(organizationMaterializer).toContain("Registry adapters may return typed Corporation leads even when the model");
-    expect(organizationMaterializer).toContain("payload.args?.registrySearchOutcomes");
-    expect(organizationMaterializer).toContain("companyLeads");
-    const typedRegistryLeadBlock = organizationMaterializer.slice(
-      organizationMaterializer.indexOf("const name = company.name"),
-      organizationMaterializer.indexOf("const notes ="),
+    expect(registryLeadObservationBlock).not.toContain("leadNames.push(name)");
+
+    const registryReconciliationBlock = reconciler.slice(
+      reconciler.indexOf("if (registryAction &&"),
+      reconciler.indexOf("const search = /search/i.test(action);"),
     );
-    expect(typedRegistryLeadBlock).toContain("isGenericDiscoveryMetadataTitle(name)");
-    expect(organizationMaterializer).toContain("if (!leadNames.length) return { materialized: 0, evidenceRows: 0, candidates: [] };");
-    expect(organizationMaterializer).toContain("...observations\n        .filter((observation) => bindExactSourceSpan(observation.observation, name)?.exact)");
-    expect(canonical).toContain("if (!runId) continue;");
-    expect(canonical).not.toContain("if (!runId || findings.length === 0) continue;");
-    expect(bureauPass).toContain('["web_search","parallel_web_search","registry_search","parallel_registry_search","visit","browser_fetch"].includes(record.action)');
-    expect(bureauPass).toContain('["success","partial"].includes(record.execution)');
-    expect(bureauPass).not.toContain('if(record.findings.length>0){await input.onDiscoveryCheckpoint');
+    expect(registryReconciliationBlock).not.toContain("findings.set(identity, entry)");
+    expect(checkpointSource).not.toContain("if (input.findings.length === 0) return empty;");
   });
   it("requires a real company or person card even if a later control turn fails", () => {
     expect(runtimeProofWorkflow).toContain('"failed"');
@@ -85,17 +93,17 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('A successful public search observation contains the exact organization name');
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
-    expect(agenticCore).toContain('actual returned result text contains an exact organization name');
-    expect(agenticCore).toContain("promotionDecision=promote means admit only to the review-only company-card queue");
+    expect(agenticCore).toContain('YOU decide whether any observed organization is worth preserving as a provisional review card');
+    expect(agenticCore).toContain("Leave promotionDecision unset for a review-only company card");
     expect(agenticCore).toContain('Search snippets are leads, not claim-grade evidence');
     expect(agenticCore).toContain("MIXED DISCOVERY: compare model-selected local/sector web hypotheses with relevant official business, ownership, transaction and public-asset sources; choose by information gain, never a fixed order, and do not repeat one registry after no new hit.");
     expect(agenticCore).toContain("SOURCE-NEUTRAL RESEARCH: compare plausible hypotheses and choose complementary source classes");
     expect(agenticCore).toContain("never default to Companies House or query registries merely because they are available");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
-    expect(agenticCore).toContain('exact organization name plus eligible HTTPS URL in observed text yields a low-confidence review-only company finding');
+    expect(agenticCore).toContain('YOU decide whether an observed organization is worth a provisional review-only company card');
   });
 
-  it("materializes exact public person/role leads at the first discovery checkpoint", () => {
+  it("materializes model-selected person leads at the first checkpoint even when role is unknown", () => {
     const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
     const personMaterializer = canonical.slice(
       canonical.indexOf("async function materializePartialPersonLeadCards"),
@@ -104,7 +112,17 @@ describe("terminal review-card reconciliation", () => {
     expect(personMaterializer).toContain("payload.leadUrls");
     expect(personMaterializer).toContain('const searched = action === "web_search" || action === "parallel_web_search"');
     expect(personMaterializer).toContain("bindExactSourceSpan(observation.observation, lead.role, lead.name, 320)");
-    expect(personMaterializer).toContain('roleOnlyLead: true');
+    expect(personMaterializer).toContain("role: string | null");
+    expect(personMaterializer).not.toContain("!finding.role?.trim()");
+    expect(personMaterializer).toContain('!["success", "partial"].includes(observation.executionStatus)');
+    expect(personMaterializer).not.toContain("name.length < 3");
+    expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
+    expect(personMaterializer).toContain("sourceSpanVerified: support.spanVerified");
+    expect(personMaterializer).not.toContain("if (existingRows.length > 0 && !sameCase)");
+    expect(personMaterializer).toContain("identityCollisionPossible");
+    expect(personMaterializer).toContain("create a separate provisional lead");
+    expect(personMaterializer).not.toContain('payload.execution !== "success"');
+    expect(personMaterializer).toContain('roleOnlyLead: Boolean(lead.role)');
     expect(personMaterializer).toContain('claimType: "partial_person_role_lead"');
     expect(personMaterializer).toContain('verificationLevel === "search_result_lead"');
     expect(personMaterializer).not.toContain("hasDiscoveryOwnershipLeadSignal");
@@ -137,11 +155,9 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("Never infer intimate relationships or use health/clinic records or private spa/casino customer-service data as personal contact routes; public business records remain eligible.");
   });
 
-  it("persists only exact organization findings from successful search observations as review leads", () => {
+  it("persists only Investigator-selected organization findings and keeps provenance tier honest", () => {
     const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
     expect(reconciler).toContain('finding.scope !== "organization"');
-    expect(reconciler).toContain("isGenericDiscoveryMetadataTitle(name)");
-    expect(canonical).toContain("isGenericDiscoveryMetadataTitle(name)");
     expect(reconciler).toContain('payload.execution === "success"');
     expect(reconciler).toContain("bindExactSourceSpan(observation.text, lead.name)");
     expect(reconciler).toContain('const verificationLevel = hasFetched ? "fetched_source" : "search_result_lead"');
@@ -151,7 +167,13 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain('finding.scope !== "candidate"');
     expect(reconciler).toContain('claimType: "partial_person_role_lead"');
     expect(reconciler).toContain('const fetched = action === "visit" || action === "browser_fetch";');
-    expect(reconciler).toContain('verificationLevel: fetched ? "fetched_source" : "search_result_lead"');
+    expect(reconciler).toContain('verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
+    expect(reconciler).not.toContain('if (!url || (fetched && !isClaimGradeDiscoverySourceUrl(url))) continue;');
+    expect(reconciler).not.toContain('if (!span?.exact) continue;');
+    expect(reconciler).toContain('payload.execution !== "success" && payload.execution !== "partial"');
+    expect(reconciler).toContain('const sourceBearingExecution = successful || payload.execution === "partial"');
+    expect(reconciler).not.toContain("if (existing.length && !sameCase) return { card: false");
+    expect(reconciler).toContain("if (sameCaseExisting && !sameCase) return { card: true");
     expect(reconciler).toContain('if (isFetched && priorEvidenceMetadata.verificationLevel !== "fetched_source")');
     expect(reconciler).toContain('evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result"');
     expect(reconciler).toContain("changed = changed || persisted.updated");
@@ -172,36 +194,6 @@ describe("terminal review-card reconciliation", () => {
     expect(launchRoute).toContain("reconcileOrganizationReviewCardsForJob(atlasJobId)");
     expect(launchRoute).toContain("reconcilePersonReviewCardsForJob(atlasJobId)");
     expect(launchRoute).toContain("await releaseCanonicalJob(\"atlas-run\", atlasJobId)");
-  });
-});
-
-
-describe("search-result company lead extraction", () => {
-  it("uses an exact business-like result title and its exact observed HTTPS URL, not the hostname", () => {
-    const text = "Casino Perla\nURL: https://www.perla.si/casino\nCasino and hotel resort in Nova Gorica";
-    const leads = extractSearchResultCompanyLeadFindings(text, ["https://www.perla.si/casino"]);
-    expect(leads).toHaveLength(1);
-    expect(leads[0]).toMatchObject({
-      value: "Casino Perla",
-      scope: "organization",
-      personName: null,
-      role: null,
-      sourceUrls: ["https://www.perla.si/casino"],
-    });
-    expect(leads[0]?.note).toContain("underlying page not fetched");
-    expect(leads[0]?.note).toContain("LOW-CONFIDENCE REVIEW-ONLY COMPANY LEAD");
-    expect(leads[0]).not.toHaveProperty("promotionDecision");
-  });
-
-  it("rejects article-like headlines and never infers a name from a URL", () => {
-    expect(extractSearchResultCompanyLeadFindings(
-      "Casino Perla announces new investment\nURL: https://www.perla.si/news\nNews story about a deal",
-      ["https://www.perla.si/news"],
-    )).toEqual([]);
-    expect(extractSearchResultCompanyLeadFindings(
-      "A page with no explicit business title\nURL: https://www.rathbones.co.uk/insights\nFinancial commentary",
-      ["https://www.rathbones.co.uk/insights"],
-    )).toEqual([]);
   });
 });
 
@@ -250,8 +242,99 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).toContain("function mergeDurablyAdmittedAtlasTargetSources");
     expect(canonicalAtlas).toContain('const key = `${targetType}:${identity}`;');
     expect(canonicalAtlas).toMatch(/candidate\.sourceUrls\s*\.map\(normalizeSourceUrl\)/);
-    expect(canonicalAtlas).toContain("isClaimGradeDiscoverySourceUrl(url)");
+
     expect(canonicalAtlas.match(/mergeDurablyAdmittedAtlasTargetSources\(\[admittedCandidateSources, admission\.candidates\]\)/g)).toHaveLength(2);
     expect(canonicalAtlas).not.toContain("admittedCandidateSources = mergeDurablyAdmittedCandidateSources");
+  });
+
+  it("keeps worthwhile search-result person and organization leads as review cards and Boss-selectable research targets", () => {
+    const personMaterializer = canonicalAtlas.slice(
+      canonicalAtlas.indexOf("async function materializePartialPersonLeadCards"),
+      canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
+    );
+    const organizationStart = canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards");
+    const organizationEnd = canonicalAtlas.indexOf("\nasync function ", organizationStart + 1);
+    const organizationMaterializer = canonicalAtlas.slice(
+      organizationStart,
+      organizationEnd >= 0 ? organizationEnd : undefined,
+    );
+    const admission = canonicalAtlas.slice(
+      canonicalAtlas.indexOf("async function materializeAtlasAdmissions"),
+      canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+    );
+    const control = readFileSync(new URL("../lib/atlas-control-decision.ts", import.meta.url), "utf8");
+    const reconcilerSource = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
+
+    // Claim-grade classification controls evidence tier, never card creation.
+
+    expect(organizationMaterializer).toContain('&& isClaimGradeDiscoverySourceUrl(sourceUrl)');
+    expect(organizationMaterializer).not.toContain('&& !isClaimGradeDiscoverySourceUrl(sourceUrl)');
+    expect(organizationMaterializer).not.toContain('payload.execution !== "success"');
+    expect(organizationMaterializer).not.toContain("if (existingRows.length > 0 && !sameCase)");
+    expect(organizationMaterializer).toContain("identityCollisionPossible");
+    expect(organizationMaterializer).toContain("isContactLikeOrganizationReviewValue(name)");
+    expect(organizationMaterializer).toContain("does not suppress a separate provisional review card");
+    expect(reconcilerSource).toContain('if (!url) continue;');
+    expect(reconcilerSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
+    expect(canonicalAtlas).toContain("bindExactSourceSpanToUrl");
+    expect(reconcilerSource).toContain("bindExactSourceSpanToUrl");
+    expect(reconcilerSource).toContain("isContactLikeOrganizationReviewValue(name)");
+    expect(reconcilerSource).toContain("sourceUrlBoundByAdapter: true");
+    expect(personMaterializer).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
+
+    // Review-only person cards are supplied to Boss as typed targets without
+    // displacing stronger, explicitly admitted person candidates.
+    expect(personMaterializer).toContain("candidates: Array<{ name: string; role: string | null; sourceUrls: string[] }>");
+    expect(admission).toContain("const partialPersonTargets = partialPeople.candidates");
+    expect(admission).toContain('targetType: "person" as const');
+    expect(admission).toContain("const targetCandidates = [...personTargets, ...partialPersonTargets, ...organizationTargets]");
+    expect(canonicalAtlas).toContain("const validUrls = candidate.sourceUrls");
+    expect(canonicalAtlas).toContain(".filter((url): url is string => url !== null);");
+
+    // The Investigator chooses card-worthiness; this never promotes leads or
+    // turns snippets into wealth/contact evidence.
+    expect(orientation).toContain("DISCOVERY REVIEW-LEAD CAPTURE");
+    expect(orientation).toContain("leave promotionDecision unset");
+    expect(orientation).toContain("selection is not promotion");
+    expect(control).toContain("AVAILABLE REVIEW TARGETS");
+    expect(control).toContain("selecting one authorizes target-scoped verification, not promotion");
+    expect(control).toContain("EARLY REVIEW-TARGET JUDGMENT");
+    expect(control).toContain("Do not accumulate names or wait for a target-count threshold");
+
+    // Runtime integrity checks may grade provenance, but cannot replace the
+    // Investigator's card-worthiness decision with regex/span or vector rules.
+    expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
+    expect(organizationMaterializer).not.toContain('finding.vectorType !== "other"');
+    expect(organizationMaterializer).not.toContain("finding.personName?.trim()");
+    expect(organizationMaterializer).not.toContain("finding.role?.trim()");
+    expect(personMaterializer).not.toContain("normalizeCandidateIdentityName(finding.value) !==");
+    expect(personMaterializer).not.toContain("!finding.role?.trim()");
+    expect(personMaterializer).toContain('!["success", "partial"].includes(observation.executionStatus)');
+    expect(organizationMaterializer).toContain('!["success", "partial"].includes(observation.execution)');
+    expect(personMaterializer).not.toContain("name.length < 3");
+    expect(organizationMaterializer).not.toContain("name.length < 3");
+    expect(candidateSourcePolicy).not.toContain("name.length < 3");
+    expect(candidateSourcePolicy).not.toContain("identity.length < 3");
+    expect(reconcilerSource).not.toContain("name.length < 3");
+    expect(reconcilerSource).not.toContain('typeof finding.role !== "string"');
+    expect(personMaterializer).not.toContain("if (!span?.exact");
+    expect(organizationMaterializer).not.toContain("if (!span?.exact");
+    expect(reconcilerSource).not.toContain('finding.vectorType !== "other"');
+    expect(reconcilerSource).not.toContain("if (!span?.exact) continue;");
+    expect(control).toContain("input.admittedCandidates.map((candidate)");
+    expect(control).not.toContain("input.admittedCandidates.slice(0, 8)");
+    expect(control).toContain("COMPLETE AVAILABLE REVIEW TARGETS");
+    expect(control).toContain("rightHandPinnedControlState");
+    expect(control).toContain("if the total prompt cannot fit, prompt construction fails visibly");
+    const registryLeadObservationBlock = organizationMaterializer.slice(
+      organizationMaterializer.indexOf("if (registry &&"),
+      organizationMaterializer.indexOf("// Partial provider execution can still contain successful, attributable"),
+    );
+    const registryReconciliationBlock = reconcilerSource.slice(
+      reconcilerSource.indexOf("if (registryAction &&"),
+      reconcilerSource.indexOf("const search = /search/i.test(action);"),
+    );
+    expect(registryLeadObservationBlock).not.toContain("leadNames.push(name)");
+    expect(registryReconciliationBlock).not.toContain("findings.set(identity, entry)");
   });
 });

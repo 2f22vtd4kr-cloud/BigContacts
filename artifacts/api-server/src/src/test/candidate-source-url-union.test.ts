@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasCredibleDiscoveryWealthPotentialSignal } from "../lib/candidate-source-url-union";
+import { hasCredibleDiscoveryWealthPotentialSignal, hasDiscoveryOwnershipLeadSignal } from "../lib/candidate-source-url-union";
 import { candidateRoleCorroborationSources, candidateSourceUrlsForIdentity, hasRealisticPersonRouteSource, isClaimGradeDiscoverySourceUrl, isRealisticPersonRouteSourceUrl, mergeDurablyAdmittedCandidateSources } from "../lib/candidate-source-url-union";
 
 function normalizeSourceUrl(raw: string): string | null {
@@ -73,6 +73,25 @@ describe("discovery wealth-potential targetability", () => {
       observations: [
         { action: "browser_fetch", execution: "success", sourceUrl: "https://example.test/business", observation: "Jane Example founded the regional construction business with EUR 18 million in annual revenue." },
       ],
+    })).toBe(true);
+  });
+
+  it("does not reject a short exact person name when source evidence supports it", () => {
+    const observations = [{
+      action: "visit",
+      execution: "success",
+      sourceUrl: "https://example.test/company",
+      observation: "Li owns a regional casino group with 18 hotels.",
+    }];
+    expect(hasDiscoveryOwnershipLeadSignal({
+      personName: "Li",
+      role: "Owner",
+      observations,
+    })).toBe(true);
+    expect(hasCredibleDiscoveryWealthPotentialSignal({
+      personName: "Li",
+      role: "Owner",
+      observations,
     })).toBe(true);
   });
 
@@ -210,6 +229,15 @@ describe("discovery source evidence policy", () => {
   it("rejects DuckDuckGo Instant Answer API URLs, including trailing-dot host aliases", () => {
     expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com/?q=Jane+Example&format=json")).toBe(false);
     expect(isClaimGradeDiscoverySourceUrl("https://api.duckduckgo.com./?q=Jane+Example&format=json")).toBe(false);
+  });
+
+  it("preserves short but non-empty model-selected identities in the durable source union", () => {
+    expect(mergeDurablyAdmittedCandidateSources([
+      [{ name: "Li", sourceUrls: ["https://example.test/profile"] }],
+    ])).toEqual([{
+      name: "Li",
+      sourceUrls: ["https://example.test/profile"],
+    }]);
   });
 
   it("merges only durable supporting page URLs across continuations", () => {

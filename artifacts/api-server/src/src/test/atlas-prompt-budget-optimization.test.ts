@@ -8,7 +8,7 @@ import {
 import { renderAtlasCapabilityGuidanceCompact, renderAtlasCapabilityGuidance } from "../lib/atlas-capability-registry";
 import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
 import { buildGroqInvestigatorRequestBody, buildStepPrompt } from "../lib/agentic-web-research-core";
-import { apexOrientationCompact } from "../lib/apex-bureau-orientation";
+import { apexInvestigatorSystemCore } from "../lib/apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt, getApexAtlasBossPlanPromptMaxChars } from "../lib/case-bureau-prompt";
 
 describe("Apex Atlas prompt budget optimization", () => {
@@ -75,7 +75,7 @@ describe("Apex Atlas prompt budget optimization", () => {
       intelligenceContext: "intelligence ".repeat(2_000),
       mode: "target",
     });
-    const systemInstruction = apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only.";
+    const systemInstruction = apexInvestigatorSystemCore() + "\nReturn one JSON action object only.";
     expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(7_200);
     expect(prompt.length).toBeLessThanOrEqual(7_200 - systemInstruction.length);
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS: action,|Required fields: action,query,provider/);

@@ -8,6 +8,7 @@ const legacyStartup = read("artifacts/api-server/src/lib/startup.ts");
 const jobs = read("artifacts/apex-finder/src/pages/jobs.tsx");
 const secondaryPersist = read("artifacts/api-server/src/src/lib/bureau-contact-persist.ts");
 const canonicalEnrichment = read("artifacts/api-server/src/src/routes/ingest-enrichment.ts");
+const legacyEnrichment = read("artifacts/api-server/src/routes/ingest-enrichment.ts");
 const canonicalPipeline = read("artifacts/api-server/src/src/routes/ingest-pipeline.ts");
 const canonicalResearchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 const legacyMutationGuard = read("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts");
@@ -61,6 +62,11 @@ for (const file of retiredControlPlaneFiles) {
   else console.log(`PASS retired deterministic research control-plane file absent: ${file}`);
 }
 
+if (!/status\(410\)/.test(legacyEnrichment)) { console.log("FAIL duplicate legacy ingest-enrichment router is not quarantined with 410."); failed = true; }
+else console.log("PASS duplicate legacy ingest-enrichment router is quarantined with 410.");
+if (/runBroadDiscovery|deepWebOsintEnrich|enrichInHouse|discoverSocialPresence|discoverMessengerPresence|lookupPublic|fetch\s*\(/.test(legacyEnrichment)) { console.log("FAIL duplicate legacy ingest-enrichment quarantine contains executable research/enrichment implementation."); failed = true; }
+else console.log("PASS duplicate legacy ingest-enrichment quarantine contains no research implementation.");
+
 if (!/status\(410\)/.test(canonicalEnrichment)) { console.log("FAIL canonical ingest-enrichment router is not an explicit 410 quarantine."); failed = true; }
 else console.log("PASS canonical ingest-enrichment router is explicitly quarantined with 410.");
 if (/runBroadDiscovery|deepWebOsintEnrich|enrichInHouse|discoverSocialPresence|discoverMessengerPresence|lookupPublic|fetch\s*\(/.test(canonicalEnrichment)) { console.log("FAIL canonical ingest-enrichment quarantine contains active research/enrichment implementation."); failed = true; }
@@ -79,11 +85,38 @@ if (/\bexpandSecondaryPublicSurface\s*\(/.test(entitiesRoute)) {
   else console.log("PASS secondary-surface endpoint is quarantined at the global mutation boundary.");
 } else console.log("PASS no secondary research caller in entities route.");
 
+const secondaryHelperStart = secondaryPersist.indexOf("export async function expandSecondaryPublicSurface");
+const secondaryHelperEnd = secondaryPersist.indexOf("/** Bounded EDGAR EFTS lookup", secondaryHelperStart);
+const secondaryHelper = secondaryHelperStart >= 0 && secondaryHelperEnd > secondaryHelperStart
+  ? secondaryPersist.slice(secondaryHelperStart, secondaryHelperEnd)
+  : "";
+if (!secondaryHelper || /enrichEntityOsint|fetch\s*\(|lookupCrtShEmails|lookupPublicEmailClaims/.test(secondaryHelper)
+  || !/return \{ linkedin: false, email: false, phone: false, signal: false, website: false, relatedPeople: 0 \}/.test(secondaryHelper)) {
+  console.log("FAIL deterministic secondary-surface helper is not inert.");
+  failed = true;
+} else console.log("PASS deterministic secondary-surface helper is inert and performs no outbound research.");
+
+const walkSourceFiles = (directory) => {
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const full = directory + "/" + entry.name;
+    if (entry.isDirectory()) return walkSourceFiles(full);
+    return /\.(?:ts|tsx|js|mjs)$/.test(entry.name) ? [full] : [];
+  });
+};
+const liveSecondaryCallers = walkSourceFiles("artifacts/api-server/src/src")
+  .filter((file) => !/\.test\.[jt]sx?$/.test(file))
+  .filter((file) => file !== "artifacts/api-server/src/src/lib/bureau-contact-persist.ts")
+  .filter((file) => /\bexpandSecondaryPublicSurface\s*\(/.test(read(file)));
+if (liveSecondaryCallers.length) {
+  console.log("FAIL live canonical secondary-surface callers remain: " + liveSecondaryCallers.join(", "));
+  failed = true;
+} else console.log("PASS no live canonical caller can invoke secondary-surface expansion.");
+
 if (fs.existsSync(retiredAtlasOrchestrator)) { console.log(`FAIL retired deterministic Atlas orchestrator still exists: ${retiredAtlasOrchestrator}`); failed = true; }
 else console.log("PASS retired deterministic Atlas orchestrator removed from the API source tree.");
 
-if (/\bfetch\s*\(/.test(secondaryPersist)) console.log("PASS legacy secondary helper retained only as unreachable compatibility source; no live caller remains.");
-else console.log("PASS secondary helper contains no direct outbound fetch transport.");
+console.log("PASS retired secondary-surface entrypoint is inert; its old helper code cannot be reached through the canonical path.");
 
 const retiredAtlasStatusRoute = "/api/ingest/" + "atlas-status";
 
