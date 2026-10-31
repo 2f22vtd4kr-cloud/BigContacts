@@ -36,7 +36,7 @@ const exactRoleBoundOwnershipLead =
   candidateSourcePolicy.includes('observation.action !== "visit"');
 
 if (!exactRoleBoundOwnershipLead || !source.includes("supportingEventId: support.eventId") || !source.includes("sourceUrl: support.sourceUrl") || source.includes("hasRealisticPersonRouteSource(")) {
-  throw new Error("Canonical discovery admission must persist a same-run, fetched, exact name/role ownership lead without requiring target-stage route or materiality proof.");
+  throw new Error("Strict promoted-person admission must persist a same-run, fetched, exact name/role ownership lead without requiring target-stage route or materiality proof; this must not gate provisional review cards.");
 }
 
 if (!/db\.transaction\(async \(tx\) => \{[\s\S]*tx\.update\(researchCasesTable\)[\s\S]*tx\.insert\(researchCaseEventsTable\)/.test(source)) {
