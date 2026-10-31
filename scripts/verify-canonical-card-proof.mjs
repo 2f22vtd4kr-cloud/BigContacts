@@ -478,6 +478,8 @@ export function verifyModelAudit(input) {
       totalPromptTokens,
       totalCompletionTokens,
       totalTokens: totalPromptTokens + totalCompletionTokens,
+      tokensPerVerifiedCard: totalPromptTokens + totalCompletionTokens,
+      successfulCallsPerVerifiedCard: successful.length,
       totalLatencyMs,
       costUsd: null,
       byRole,
