@@ -266,6 +266,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  }
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
   const structuredResponseFormat=responseFormat(format);
+  const telemetryContext = { role: "right_hand" as const, capability: "groq-right-hand", jobId: auditContext?.jobId ?? null, caseId: auditContext?.caseId ?? null, targetDigest: auditContext?.targetDigest ?? null, iteration: auditContext?.iteration ?? null, decisionId: auditContext?.decisionId ?? null, cognitiveTask: auditContext?.cognitiveTask ?? "control_advisory" };
   const telemetryContext = {
     role: "right_hand" as const,
     capability: "groq-right-hand",
@@ -297,6 +298,8 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
      const modelAuditRequestId=emitModelPromptAudit({provider:"groq",role:"groq_right_hand",model:candidate.model,attempt:outboundAttemptCount+1,jobId:auditContext?.jobId??null,caseId:auditContext?.caseId??null,requestBody});
      if(isModelPromptAuditCaptureEnabled()&&!modelAuditRequestId)return {raw:"",error:"model_prompt_audit_request_capture_failed",model:candidate.model};
     const body=JSON.stringify(requestBody);
+   const attemptStartedAt=Date.now();
+   let attemptTelemetryRecorded=false;
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
     let modelAuditResponseRecorded=false;
    try{
@@ -304,6 +307,9 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
     outboundAttemptCount++;
     const response=await withProviderRetryOwnership("groq","caller",()=>fetch(GROQ_RIGHT_HAND_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal}));
     const responseBody=await response.text();
+     const usage=(()=>{try{const parsed=JSON.parse(responseBody) as {usage?:Record<string,unknown>};const u=parsed.usage??{};const details=u.prompt_tokens_details as Record<string,unknown>|undefined;return{promptTokens:typeof u.prompt_tokens==="number"?u.prompt_tokens:undefined,completionTokens:typeof u.completion_tokens==="number"?u.completion_tokens:undefined,totalTokens:typeof u.total_tokens==="number"?u.total_tokens:undefined,cachedPromptTokens:typeof details?.cached_tokens==="number"?details.cached_tokens:undefined};}catch{return{};}})();
+     recordAgenticLlmAttempt({...telemetryContext,provider:"groq",model:candidate.model,promptChars:systemPrompt.length+currentUser.length,systemPromptChars:systemPrompt.length,userPromptChars:currentUser.length,totalPromptChars:systemPrompt.length+currentUser.length,status:response.status,success:response.ok,...usage,latencyMs:Date.now()-attemptStartedAt,retryIndex:outboundAttemptCount,reason:response.ok?undefined:response.status===429?"rate_limited":"provider_rejected",providerErrorCode:providerErrorCode(responseBody)});
+     attemptTelemetryRecorded=true;
      modelAuditResponseRecorded=emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,httpStatus:response.status,responseBody});
      if(isModelPromptAuditCaptureEnabled()&&!modelAuditResponseRecorded)throw new Error("model_prompt_audit_response_capture_failed; refusing to process an untraced Right-hand response");
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
@@ -353,6 +359,7 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
      }
     failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:null,body:null,rateLimitHeaders:{},failureClass:"invalid_response",keyFingerprint:fingerprint(candidate.entry.key)});break;
    }catch(error){
+      if(!attemptTelemetryRecorded)recordAgenticLlmAttempt({...telemetryContext,provider:"groq",model:candidate.model,promptChars:systemPrompt.length+currentUser.length,systemPromptChars:systemPrompt.length,userPromptChars:currentUser.length,totalPromptChars:systemPrompt.length+currentUser.length,status:"error",success:false,latencyMs:Date.now()-attemptStartedAt,retryIndex:Math.max(1,outboundAttemptCount),reason:error instanceof Error&&error.name==="AbortError"?"timeout":"exception"});
      if(!modelAuditResponseRecorded){const auditCaptureFailed=error instanceof Error&&error.message.startsWith("model_prompt_audit_response_capture_failed");emitModelPromptAuditResponse({requestId:modelAuditRequestId,provider:"groq",role:"groq_right_hand",model:candidate.model,transportFailure:auditCaptureFailed?undefined:error instanceof Error?error.name:"unknown_error",auditCaptureFailure:auditCaptureFailed?"response_write_failed":undefined});}
     const cls=classifyThrownProviderError(error,error instanceof Error&&error.name==="AbortError");
     failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:cls==="rate_limited"&&error instanceof Error&&error.name==="ProviderQuotaError"?(error as any).code:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:cls==="rate_limited"&&error instanceof Error&&error.name==="ProviderQuotaError"&&typeof (error as any).retryAfterMs==="number"?(error as any).retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:cls==="rate_limited"?"unknown":null,body:null,rateLimitHeaders:{},failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)});
