@@ -86,9 +86,29 @@ async function isCacheStale(path: string): Promise<boolean> {
   } catch { return true; }
 }
 
-/** Strip surrounding quotes from a CSV field (PPD uses "" quoting) */
-function unquote(s: string): string {
-  return s.replace(/^"(.*)"$/, "$1").trim();
+/** Parse one PPD CSV row with quoted commas and escaped quotes. */
+export function parsePpdCsvRecord(line: string): string[] {
+  const fields: string[] = [];
+  let value = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index++) {
+    const char = line[index]!;
+    if (char === '"') {
+      if (quoted && line[index + 1] === '"') {
+        value += '"';
+        index++;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === "," && !quoted) {
+      fields.push(value.trim());
+      value = "";
+    } else {
+      value += char;
+    }
+  }
+  fields.push(value.trim());
+  return fields;
 }
 
 export function buildLandRegistryTransactionAsset(input: {
@@ -306,24 +326,24 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
         });
       }
 
-      // PPD CSV: fields are quoted with "" — split by comma then unquote
-      const raw = line.split(",");
+      // PPD CSV fields may contain quoted commas in addresses; use the CSV parser.
+      const raw = parsePpdCsvRecord(line);
       if (raw.length < 15) continue;
 
-      const txId       = unquote(raw[F_TX_ID] ?? "");
-      const priceStr   = unquote(raw[F_PRICE] ?? "");
-      const date       = unquote(raw[F_DATE] ?? "").split(" ")[0] ?? "";
-      const postcode   = unquote(raw[F_POSTCODE] ?? "");
-      const propType   = unquote(raw[F_PROP_TYPE] ?? "");
-      const duration   = unquote(raw[F_DURATION] ?? "");
-      const paon       = unquote(raw[F_PAON] ?? "");
-      const saon       = unquote(raw[F_SAON] ?? "");
-      const street     = unquote(raw[F_STREET] ?? "");
-      const locality   = unquote(raw[F_LOCALITY] ?? "");
-      const town       = unquote(raw[F_TOWN] ?? "");
-      const county     = unquote(raw[F_COUNTY] ?? "");
-      const ppdCat     = unquote(raw[F_PPD_CAT] ?? "");
-      const recStatus  = unquote(raw[F_REC_STATUS] ?? "");
+      const txId       = (raw[F_TX_ID] ?? "").trim();
+      const priceStr   = (raw[F_PRICE] ?? "").trim();
+      const date       = (raw[F_DATE] ?? "").trim().split(" ")[0] ?? "";
+      const postcode   = (raw[F_POSTCODE] ?? "").trim();
+      const propType   = (raw[F_PROP_TYPE] ?? "").trim();
+      const duration   = (raw[F_DURATION] ?? "").trim();
+      const paon       = (raw[F_PAON] ?? "").trim();
+      const saon       = (raw[F_SAON] ?? "").trim();
+      const street     = (raw[F_STREET] ?? "").trim();
+      const locality   = (raw[F_LOCALITY] ?? "").trim();
+      const town       = (raw[F_TOWN] ?? "").trim();
+      const county     = (raw[F_COUNTY] ?? "").trim();
+      const ppdCat     = (raw[F_PPD_CAT] ?? "").trim();
+      const recStatus  = (raw[F_REC_STATUS] ?? "").trim();
 
       // Skip deletes and additional category (B = repo/auction sales)
       if (recStatus === "D" || ppdCat === "B") continue;
