@@ -32,7 +32,7 @@ import { sanitizeUrlForEvidence } from "./url-privacy";
 import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
-import { buildDiscoverySourceAttribution } from "./discovery-source-attribution";
+import { buildDiscoverySourceAttribution, isRestrictedCommunitySourceUrl } from "./discovery-source-attribution";
 
 export type CanonicalAtlasOptions = {
   targetCount?: number;
@@ -731,6 +731,9 @@ async function materializePartialPersonLeadCards(input: {
 
       let addedEvidence = 0;
       for (const support of supports.values()) {
+        // Community-submitted location pages are URL references only; never
+        // create a research_evidence claim or source span from their content.
+        if (support.restrictedCommunitySource) continue;
         const [existingEvidence] = await tx.select({ id: researchEvidenceTable.id })
           .from(researchEvidenceTable).where(and(
             eq(researchEvidenceTable.entityId, entityId),
@@ -938,7 +941,7 @@ async function materializePartialOrganizationLeadCards(input: {
       // Investigator already selected the organization in a structured finding.
     ]);
     const supports = new Map<string, {
-      sourceUrl: string; eventId: number; createdAt: Date; action: string; sourceName?: string; sourceClass?: string; sourceContributor?: string | null; spanText: string;
+      sourceUrl: string; eventId: number; createdAt: Date; action: string; sourceName?: string; sourceClass?: string; sourceContributor?: string | null; restrictedCommunitySource: boolean; spanText: string;
       spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
@@ -950,11 +953,14 @@ async function materializePartialOrganizationLeadCards(input: {
       // The model-selected finding and same-job observed URL establish the
       // review lead's provenance. Exact-span parsing and claim-grade publisher
       // classification grade evidence only; neither can veto provisional cards.
-      const span = observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
-        ? bindExactSourceSpan(observation.observation, name)
-        : bindExactSourceSpanToUrl(observation.observation, sourceUrl, name);
-      const exactSpan = Boolean(span?.exact);
-      const verificationLevel = exactSpan && span
+      const restrictedCommunitySource = isRestrictedCommunitySourceUrl(sourceUrl);
+      const span = restrictedCommunitySource
+        ? null
+        : observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
+          ? bindExactSourceSpan(observation.observation, name)
+          : bindExactSourceSpanToUrl(observation.observation, sourceUrl, name);
+      const exactSpan = !restrictedCommunitySource && Boolean(span?.exact);
+      const verificationLevel = !restrictedCommunitySource && exactSpan && span
         && observation.verificationLevel === "fetched_source"
         && isClaimGradeDiscoverySourceUrl(sourceUrl)
         ? "fetched_source" as const
@@ -963,7 +969,8 @@ async function materializePartialOrganizationLeadCards(input: {
       if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
         supports.set(sourceUrl, {
           sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt, action: observation.action,
-          sourceName: observation.sourceName, sourceClass: observation.sourceClass, sourceContributor: observation.sourceContributor,
+          sourceName: observation.sourceName, sourceClass: observation.sourceClass, sourceContributor: restrictedCommunitySource ? null : observation.sourceContributor,
+          restrictedCommunitySource,
           spanText: exactSpan && span ? span.text : "",
           spanStart: exactSpan && span ? span.start : null,
           spanEnd: exactSpan && span ? span.end : null,
@@ -1026,26 +1033,35 @@ async function materializePartialOrganizationLeadCards(input: {
       let entityId = sameCase?.id ?? null;
       let created = false;
       const sourceUrls = [...supports.keys()];
-      const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
+      const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source" && !support.restrictedCommunitySource);
+      const hasRestrictedCommunitySource = [...supports.values()].some((support) => support.restrictedCommunitySource);
+      const onlyRestrictedCommunitySources = [...supports.values()].every((support) => support.restrictedCommunitySource);
       const verificationLevel = hasFetchedSource ? "fetched_source" : "search_result_lead";
       const collisionNote = identityCollisionPossible ? "Possible same-name entity in another case; kept separate without identity merging. " : "";
-      const notes = collisionNote + (hasFetchedSource
-        ? "FETCHED-SOURCE REVIEW LEAD — a fetched public source contains this organization name. Ownership/control, business materiality, wealth, and targetability remain unverified."
-        : "UNVERIFIED SOURCE REVIEW LEAD — a public source observation supports this organization name. It is not treated as claim-grade evidence; ownership/control, business materiality, wealth, and targetability remain unverified.");
+      const notes = collisionNote + (onlyRestrictedCommunitySources
+        ? "COMMUNITY-SOURCE MANUAL REVIEW — Virtual Globetrotting is user-submitted content; its annotations, images and precise residential coordinates are not retained or treated as evidence. Independently verify the entity through permitted public sources."
+        : hasFetchedSource
+          ? "FETCHED-SOURCE REVIEW LEAD — a fetched public source contains this organization name. Ownership/control, business materiality, wealth, and targetability remain unverified."
+          : "UNVERIFIED SOURCE REVIEW LEAD — a public source observation supports this organization name. It is not treated as claim-grade evidence; ownership/control, business materiality, wealth, and targetability remain unverified.")
+        + (hasRestrictedCommunitySource && !onlyRestrictedCommunitySources
+          ? " A Virtual Globetrotting URL is retained for manual review only; user-submitted annotations, images and precise residential coordinates are not used."
+          : "");
       const metadata = JSON.stringify({
         reviewOnly: true,
         partialOrganizationLead: true,
         stage: "partial_review",
         admission: "source-observed-organization-name",
         verificationLevel,
-        evidenceHierarchy: hasFetchedSource ? "fetched-source-name-only" : "unverified-source-observation",
+        evidenceHierarchy: onlyRestrictedCommunitySources ? "community-reference-only" : hasFetchedSource ? "fetched-source-name-only" : "unverified-source-observation",
         identityCollisionPossible,
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         sourceUrls,
-        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
-        sourceNotes: [...new Set([...supports.values()].map((support) => support.spanVerified ? support.spanText : `Investigator-selected organization lead ${name}; exact source span not independently isolated.`))].slice(0, 4),
-        limitations: ["ownership/control not established", "business materiality not established", "no person or wealth conclusion", "person-level contact route not established"],
+        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.restrictedCommunitySource ? null : support.sourceContributor })),
+        sourceNotes: [...new Set([...supports.values()].map((support) => support.restrictedCommunitySource
+          ? "Virtual Globetrotting URL retained for manual review only; contributor annotations, images and precise residential coordinates are not copied or treated as evidence."
+          : support.spanVerified ? support.spanText : `Investigator-selected organization lead ${name}; exact source span not independently isolated.`))].slice(0, 4),
+        limitations: ["ownership/control not established", "business materiality not established", "no person or wealth conclusion", "person-level contact route not established", ...(hasRestrictedCommunitySource ? ["community-submitted content not used as evidence"] : [])],
       });
       if (!entityId) {
         const [entity] = await tx.insert(entitiesTable).values({
