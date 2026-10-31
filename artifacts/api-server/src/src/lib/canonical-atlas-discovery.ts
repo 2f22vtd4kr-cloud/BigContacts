@@ -566,7 +566,7 @@ async function materializePartialPersonLeadCards(input: {
   for (const lead of leadMap.values()) {
     const claimedUrls = new Set(lead.sourceUrls);
     const supports = new Map<string, {
-      sourceUrl: string; eventId: number; createdAt: Date;
+      sourceUrl: string; eventId: number; createdAt: Date; observationAction: string;
       spanText: string; spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
@@ -595,6 +595,7 @@ async function materializePartialPersonLeadCards(input: {
         sourceUrl,
         eventId: observation.eventId,
         createdAt: observation.createdAt,
+        observationAction: observation.action,
         spanText: exactSpan && span ? span.text : "",
         spanStart: exactSpan && span ? span.start : null,
         spanEnd: exactSpan && span ? span.end : null,
@@ -912,7 +913,7 @@ async function materializePartialOrganizationLeadCards(input: {
       // Investigator already selected the organization in a structured finding.
     ]);
     const supports = new Map<string, {
-      sourceUrl: string; eventId: number; createdAt: Date; spanText: string;
+      sourceUrl: string; eventId: number; createdAt: Date; observationAction: string; spanText: string;
       spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
@@ -936,7 +937,7 @@ async function materializePartialOrganizationLeadCards(input: {
       const previous = supports.get(sourceUrl);
       if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
         supports.set(sourceUrl, {
-          sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt,
+          sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt, observationAction: observation.action,
           spanText: exactSpan && span ? span.text : "",
           spanStart: exactSpan && span ? span.start : null,
           spanEnd: exactSpan && span ? span.end : null,
