@@ -17,7 +17,7 @@ const checks = [
   ["selected capability is not a closed vendor contract", !/FAILOVER_CHAIN:\s*Groq -> Groq/.test(source)],
   ["investigator lane does not call Gemini", !/callGeminiJson|GEMINI_API_KEY/i.test(source)],
   ["investigator lane does not call NVIDIA", !/callNvidiaJson|NVIDIA_API_KEY/i.test(source)],
-  ["Dig lane uses compact orientation", /apexOrientationCompact\("dig_agent"\)/.test(source)],
+  ["Dig lane uses compact Investigator system core", /apexInvestigatorSystemCore\(\)/.test(source) && orientation.includes("export function apexInvestigatorSystemCore")],
   ["raw HTML extractor is observation-only", extractorSource.length > 0 && !/\bPERSON\s*:/.test(extractorSource)],
   ["raw HTML extractor has no name promotion", extractorSource.length > 0 && !/\bNAME\s*:/.test(extractorSource)],
   ["search capability pool exposes multiple backends", /Serper|Tavily|Exa/.test(source)],

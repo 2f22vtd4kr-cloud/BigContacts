@@ -228,17 +228,17 @@ function compactRecord(record: CompactionTrajectoryRecord, observationChars: num
   const failure = record.failureDomain || record.failureKind
     ? "FAILURE_DIAGNOSTIC: domain=" + trim(record.failureDomain || "unknown", 48) + " kind=" + trim(record.failureKind || "unknown", 64)
     : "";
-  return trim([
+  return headTail([
     "TURN " + record.turn + " | action=" + trim(record.action, 80) + " | execution=" + trim(record.execution || "unknown", 40),
     failure,
-    sourceBindings.length ? "SOURCE_SPAN_BINDINGS (provenance metadata, not independent corroboration):\n" + sourceBindings.join("\n") : "",
-    // Put fetchable leads before long free-text observations so ordinary head
-    // truncation cannot silently erase every URL that the Investigator could fetch.
+    // Keep the latest action's observation near the record header. A head-only
+    // truncation previously erased the newest observation after URLs/findings.
+    observation ? "OBSERVATION_EXCERPT: " + observation : "",
     leadUrls.length ? "LEAD_URLS (search results only; not evidence until fetched): " + leadUrls.join(" | ") : "",
     urls.length ? "OBSERVED_URLS: " + urls.join(" | ") : "",
+    sourceBindings.length ? "SOURCE_SPAN_BINDINGS (provenance metadata, not independent corroboration):\n" + sourceBindings.join("\n") : "",
     findings.length ? "FINDINGS:\n" + findings.join("\n") : "",
-    observation ? "OBSERVATION_EXCERPT: " + observation : "",
-  ].filter(Boolean).join("\n"), max);
+  ].filter(Boolean), max).join("\n");
 }
 
 function archiveRecord(record: CompactionTrajectoryRecord, max: number): string {
@@ -500,7 +500,7 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     sections.push(fitSection("LEGACY TRAJECTORY NOTES\n" + input.history.map((item) => trim(item, 420)).filter(Boolean).join("\n"), 2_000));
   }
 
-  sections.push("CONTEXT MANAGEMENT LAW\nThe complete trajectory and evidence remain durable outside this prompt. This working context is deliberately selective. Do not treat omitted raw detail as negative evidence. Prefer a new discriminating action when the archived index shows an unresolved gap. Do not repeat a failed avenue solely because its raw observation is not visible here.");
+  sections.push("CONTEXT MANAGEMENT LAW\nThe complete trajectory and evidence remain durable outside this prompt. This working context is deliberately selective. Do not treat omitted raw detail as negative evidence. Prefer a new discriminating action when the archived index shows an unresolved gap. Do not repeat a failed avenue solely because its raw observation is not visible here. explain any material deviation from the human objective or accepted Boss scope, including the evidence-based reason it was justified.");
 
   const latestSection = records.length
     ? "LATEST TRAJECTORY RECORD (must remain visible to the next Investigator)\n" +

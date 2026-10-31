@@ -79,19 +79,15 @@ describe("discovery query input boundary", () => {
     }
   });
 
-  it("blocks broad press-publisher-only searches but allows a quoted named business anchor", () => {
+  it("leaves publisher/source-class choice to the Investigator", () => {
     for (const query of [
       'site:reuters.com "casino"',
       'site:reuters.com "赌场主要股东"',
       'site:reuters.com "مالك الكازينو"',
+      'site:reuters.com "Casino Portorož"',
     ]) {
-      expect(validateDiscoverySearchQuery(query), query).toMatchObject({
-        allowed: false,
-        reason: expect.stringContaining("broad press-publisher-only search without an exact named person/business anchor"),
-      });
+      expect(validateDiscoverySearchQuery(query), query).toMatchObject({ allowed: true });
     }
-
-    expect(validateDiscoverySearchQuery('site:reuters.com "Casino Portorož"')).toEqual({ allowed: true });
   });
 
   it("keeps repeated queries eligible for deliberate cross-checks and canonicalizes equivalent Unicode", () => {

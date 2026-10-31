@@ -133,14 +133,13 @@ describe("Groq Investigator runtime contract", () => {
       warning: expect.stringMatching(/attempted before.*repeat remains a valid research choice/i),
     });
 
+    // Publisher/source-class choices are Investigator strategy, not a
+    // deterministic query-input gate. Structurally unsafe filters stay blocked.
     for (const query of [
       "family office sustainability startup founder site:cnbc.com",
       "family office sustainability startup founder site:markets.businessinsider.com",
     ]) {
-      expect(validateDiscoverySearchQuery(query, []), query).toMatchObject({
-        allowed: false,
-        reason: expect.stringContaining("broad press-publisher-only search"),
-      });
+      expect(validateDiscoverySearchQuery(query, []), query).toEqual({ allowed: true });
     }
 
     expect(validateDiscoverySearchQuery('site:investing.cnbc.com "SolarEdge" founder acquisition', [])).toEqual({ allowed: true });
@@ -212,14 +211,14 @@ describe("Groq Investigator runtime contract", () => {
     const submitted = messages.map((message) => message.content).join("\\n");
 
     expect(submitted).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
-    expect(submitted).toContain("top-level hypothesis/purpose must be non-empty strings");
+    expect(submitted).toContain("Non-done hypothesis/purpose must be non-empty strings");
     expect(submitted).toContain("expectedInformationGain a number in [0,1] (never null)");
     expect(submitted).toContain("only done may null them");
     expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(submitted).toContain("Avoid generic wealth/net-worth/private-equity-profile searches alone");
-    expect(submitted).toContain("Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop.");
+    expect(submitted).toContain("AUTONOMY: Investigator models own research decisions: invent queries, choose pages/tools, pivot, stop.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
-    expect(submitted).toMatch(/target-scoped research owns independent corroboration, falsification/i);
+    expect(submitted).toMatch(/Target-stage research tests material business\/asset\/exit signals, independently corroborates or falsifies/i);
     expect(submitted).toContain('"url":null');
     expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
@@ -275,7 +274,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
     expect(prompt).toMatch(/DISCOVERY (?:ADMISSION|LEAD HANDOFF CONTRACT)/);
-    expect(prompt).toContain("one successfully fetched claim-grade source");
+    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source");
   });
 
   it("uses the GPT-OSS-compatible reasoning contract", () => {

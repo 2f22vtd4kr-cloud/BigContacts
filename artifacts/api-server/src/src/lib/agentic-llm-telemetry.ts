@@ -9,6 +9,14 @@ import { createHash } from "node:crypto";
 
 type Attempt = {
   provider: "groq" | "mistral" | string;
+  role?: "investigator" | "boss" | "right_hand" | "unknown";
+  capability?: string | null;
+  jobId?: string | null;
+  caseId?: number | null;
+  targetDigest?: string | null;
+  iteration?: number | null;
+  decisionId?: string | null;
+  cognitiveTask?: string | null;
   model: string;
   promptChars: number;
   systemPromptChars?: number;
@@ -88,6 +96,14 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
   console.log(JSON.stringify({
     event: "apex_agentic_llm_attempt",
     provider: event.provider,
+    role: event.role ?? "unknown",
+    capability: event.capability ?? null,
+    jobId: event.jobId ?? null,
+    caseId: event.caseId ?? null,
+    targetDigest: event.targetDigest ?? null,
+    iteration: event.iteration ?? null,
+    decisionId: event.decisionId ?? null,
+    cognitiveTask: event.cognitiveTask ?? null,
     model: event.model,
     promptChars: event.promptChars,
     systemPromptChars: event.systemPromptChars ?? null,

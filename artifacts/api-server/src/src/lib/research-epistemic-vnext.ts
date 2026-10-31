@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { isAggregatorHost, publisherDomain } from "./source-corroboration";
+import { sanitizeUrlForEvidence } from "./url-privacy";
 
 export type ThinkingLevel = "minimal" | "low" | "medium" | "high";
 export type SourceSpan = { text: string; start: number; end: number; subjectMatched: boolean; valueMatched: boolean; exact: boolean; pageNumber?: number };
@@ -123,6 +124,60 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
     exact: valueMatched && subjectMatched,
     ...(pageNumber === undefined ? {} : { pageNumber }),
   };
+}
+
+/**
+ * Bind a search-result lead to the exact result block for its source URL.
+ * A name/role elsewhere in a multi-result observation must not be attributed
+ * to every URL returned by that search action.
+ */
+export function bindExactSourceSpanToUrl(
+  observation: string,
+  sourceUrl: string,
+  value: string,
+  subject?: string | null,
+  maxChars = 900,
+): SourceSpan | null {
+  const normalize = (raw: string): string | null => {
+    try {
+      const safe = sanitizeUrlForEvidence(raw.trim().replace(/[),.;!?]+$/g, ""));
+      if (safe.startsWith("[")) return null;
+      const url = new URL(safe);
+      if (url.protocol !== "https:") return null;
+      url.hash = "";
+      url.hostname = url.hostname.toLowerCase();
+      return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href;
+    } catch {
+      return null;
+    }
+  };
+  const expectedUrl = normalize(sourceUrl);
+  if (!expectedUrl || !observation.trim()) return null;
+
+  const urlMarker = /(?:^|\n)URL:\s*(https?:\/\/[^\s]+)/gi;
+  const matches = [...observation.matchAll(urlMarker)];
+  for (let index = 0; index < matches.length; index++) {
+    const match = matches[index];
+    if (normalize(match[1]) !== expectedUrl) continue;
+    const previousLineBreak = observation.lastIndexOf("\n", match.index - 1);
+    const previousLineStart = previousLineBreak >= 0 ? previousLineBreak + 1 : 0;
+    const urlLineStart = observation[match.index] === "\n" ? match.index + 1 : match.index;
+    const previousLine = observation.slice(previousLineStart, match.index).trim();
+    // Result titles commonly end with punctuation. Use exact subject/value
+    // binding, not the title's punctuation, to associate it with this URL.
+    const titleLine = previousLine.length <= 240
+      && bindExactSourceSpan(previousLine, subject?.trim() || value)?.exact;
+    const segmentStart = titleLine ? previousLineStart : urlLineStart;
+    const nextMatch = matches[index + 1];
+    let segmentEnd = observation.length;
+    if (nextMatch) {
+      const nextTitleLine = observation.lastIndexOf("\n", nextMatch.index - 1);
+      if (nextTitleLine >= 0) segmentEnd = nextTitleLine + 1;
+    }
+    const span = bindExactSourceSpan(observation.slice(segmentStart, segmentEnd), value, subject, maxChars);
+    if (span?.exact) return { ...span, start: span.start + segmentStart, end: span.end + segmentStart };
+  }
+  return null;
 }
 function canonicalPublisher(host: string): string { return publisherDomain(host); }
 export function sourceLineageId(url: string, contentFingerprint?: string | null): string { return contentFingerprint ? "content:" + digest(contentFingerprint).slice(0, 24) : "source:" + digest(canonicalHost(url) ?? url).slice(0, 24); }

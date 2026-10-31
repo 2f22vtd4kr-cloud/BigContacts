@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, isTokenPerDayQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
@@ -253,6 +254,10 @@ async function generateGroqBossTextImpl(
     thinkingLevel?: "minimal" | "low" | "medium" | "high";
     jobId?: string | null;
     caseId?: number | null;
+    targetDigest?: string | null;
+    iteration?: number | null;
+    decisionId?: string | null;
+    cognitiveTask?: string | null;
   },
 ): Promise<GroqBossTextGenerationResult> {
   const configured = keys();
@@ -282,6 +287,16 @@ async function generateGroqBossTextImpl(
     };
   }
   const responseFormat = groqResponseFormat(options?.responseFormat);
+  const telemetryContext = {
+    role: "boss" as const,
+    capability: "groq-boss",
+    jobId: options?.jobId ?? null,
+    caseId: options?.caseId ?? null,
+    targetDigest: options?.targetDigest ?? null,
+    iteration: options?.iteration ?? null,
+    decisionId: options?.decisionId ?? null,
+    cognitiveTask: options?.cognitiveTask ?? "control_decision",
+  };
   const attempts: GroqBossAttemptDiagnostic[] = [];
   let lastError = "Groq Boss returned no usable response.";
 
@@ -320,6 +335,8 @@ async function generateGroqBossTextImpl(
         }
         let modelAuditResponseRecorded = false;
         const body = JSON.stringify(requestBody);
+        const attemptStartedAt = Date.now();
+        let attemptTelemetryRecorded = false;
 
         try {
           const response = await withProviderRetryOwnership("groq", "caller", () => fetch(GROQ_BOSS_CHAT_API, {
@@ -333,6 +350,9 @@ async function generateGroqBossTextImpl(
             signal: controller.signal,
           }));
           const responseBody = await response.text();
+          const usage = (() => { try { const parsed = JSON.parse(responseBody) as { usage?: Record<string, unknown> }; const u = parsed.usage ?? {}; return { promptTokens: typeof u.prompt_tokens === "number" ? u.prompt_tokens : undefined, completionTokens: typeof u.completion_tokens === "number" ? u.completion_tokens : undefined, totalTokens: typeof u.total_tokens === "number" ? u.total_tokens : undefined, cachedPromptTokens: typeof (u.prompt_tokens_details as Record<string, unknown> | undefined)?.cached_tokens === "number" ? (u.prompt_tokens_details as Record<string, number>).cached_tokens : undefined }; } catch { return {}; } })();
+          recordAgenticLlmAttempt({ ...telemetryContext, provider: "groq", model, promptChars: boundedPrompt.length, userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: response.status, success: response.ok, ...usage, latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: response.ok ? undefined : response.status === 429 ? "rate_limited" : "provider_rejected", providerErrorCode: providerErrorCode(responseBody) });
+          attemptTelemetryRecorded = true;
           modelAuditResponseRecorded = emitModelPromptAuditResponse({
             requestId: modelAuditRequestId,
             provider: "groq",
@@ -464,6 +484,7 @@ async function generateGroqBossTextImpl(
           }, "Groq Boss returned an empty control response");
           break;
         } catch (error) {
+          if (!attemptTelemetryRecorded) recordAgenticLlmAttempt({ ...telemetryContext, provider: "groq", model, promptChars: boundedPrompt.length, userPromptChars: boundedPrompt.length, totalPromptChars: boundedPrompt.length, status: "error", success: false, latencyMs: Date.now() - attemptStartedAt, retryIndex: attempts.length + 1, reason: error instanceof Error && error.name === "AbortError" ? "timeout" : "exception" });
           if (!modelAuditResponseRecorded) {
             const auditCaptureFailed = error instanceof Error && error.message.startsWith("model_prompt_audit_response_capture_failed");
             emitModelPromptAuditResponse({
@@ -515,6 +536,10 @@ export function generateGroqBossText(
     thinkingLevel?: "minimal" | "low" | "medium" | "high";
     jobId?: string | null;
     caseId?: number | null;
+    targetDigest?: string | null;
+    iteration?: number | null;
+    decisionId?: string | null;
+    cognitiveTask?: string | null;
   },
 ): Promise<GroqBossTextGenerationResult> {
   return withProviderRole("control", () => generateGroqBossTextImpl(selection, prompt, options));

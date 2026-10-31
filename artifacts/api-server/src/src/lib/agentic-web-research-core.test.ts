@@ -2,8 +2,8 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractSearchResultCompanyLeadFindings, extractObservedOrganizationIdentity, isGenericDiscoveryMetadataTitle, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
-import { apexOrientationFor } from "./apex-bureau-orientation";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { apexInvestigatorSystemCore, apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
 import { isAcceptedInvestigatorTerminal } from "./research-terminal-gate";
@@ -12,48 +12,51 @@ import { classifyThrownProviderError } from "./provider-error-diagnostics";
 
 const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
-const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
-const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(), "src/src/lib/research-lead-card-reconciliation.ts"), "utf8");
-
-describe("search-result company review lead extraction", () => {
-  it("preserves a concrete business-like result title but rejects generic discovery metadata such as Case Co", () => {
-    const realBusinessText = [
-      "Northstar Casino Resort",
-      "URL: https://northstarcasino.si/",
-      "Northstar Casino Resort operates a resort in Slovenia.",
-    ].join("\n");
-    const realBusiness = extractSearchResultCompanyLeadFindings(realBusinessText, ["https://northstarcasino.si/"]);
-    expect(realBusiness).toHaveLength(1);
-    expect(realBusiness[0]).toMatchObject({
-      value: "Northstar Casino Resort",
-      scope: "organization",
-      vectorType: "other",
-      personName: null,
-      role: null,
-      sourceUrls: ["https://northstarcasino.si/"],
-    });
-
-    const genericMetadataText = [
-      "Case Co",
-      "URL: https://caseco.si/",
-      "Case Co is a generic discovery placeholder.",
-    ].join("\n");
-    expect(extractSearchResultCompanyLeadFindings(genericMetadataText, ["https://caseco.si/"])).toEqual([]);
-    expect(isGenericDiscoveryMetadataTitle("Case Co Officers")).toBe(true);
-    expect(extractSearchResultCompanyLeadFindings(
-      "Case Co Officers\nURL: https://caseco.si/officers\nGeneric placeholder page",
-      ["https://caseco.si/officers"],
-    )).toEqual([]);
-
-    const categoryHeadlineText = [
-      "Best Casino Hotels in Slovenia",
-      "URL: https://slovenia-casino-hotels.si/",
-      "A list of casino hotels in Slovenia.",
-    ].join("\n");
-    expect(extractSearchResultCompanyLeadFindings(categoryHeadlineText, ["https://slovenia-casino-hotels.si/"])).toEqual([]);
+describe("Investigator system prompt budget", () => {
+  it("keeps the system core compact so user-supplied scope and evidence survive provider budgeting", () => {
+    const systemCore = apexInvestigatorSystemCore();
+    expect(systemCore.length).toBeLessThan(2_000);
+    expect(systemCore).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
+    expect(systemCore).toContain("RESEARCH TERMINAL GATE (authoritative)");
+    expect(systemCore).toContain("source class");
+    expect(systemCore).toContain("Virtual Globetrotting");
   });
 });
 
+
+const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
+const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(), "src/src/lib/research-lead-card-reconciliation.ts"), "utf8");
+const canonicalAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
+const canonicalCaseDiscoveryRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-case-discovery.ts"), "utf8");
+const legacyAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/atlas.ts"), "utf8");
+
+describe("canonical Atlas discovery path isolation", () => {
+  it("routes live Atlas launches through the model-owned canonical pipeline, not legacy deterministic discovery", () => {
+    expect(canonicalAtlasLaunchRouteSource).toContain("runCanonicalAtlasPipeline");
+    expect(canonicalCaseDiscoveryRouteSource).toContain("runCanonicalAtlasPipeline");
+    expect(canonicalAtlasLaunchRouteSource).not.toContain("runDiscoveryAgent");
+    expect(canonicalAtlasDiscoverySource).not.toContain('from "./discovery-agent"');
+    expect(canonicalAtlasDiscoverySource).not.toContain("runDiscoveryAgent");
+    expect(canonicalAtlasDiscoverySource).not.toContain("discovery-intake");
+    expect(canonicalAtlasLaunchRouteSource).not.toContain("discovery-intake");
+    expect(canonicalCaseDiscoveryRouteSource).not.toContain("runDiscoveryAgent");
+    expect(legacyAtlasLaunchRouteSource).toContain('res.status(410)');
+  });
+});
+
+describe("review and claim finding separation", () => {
+  it("does not merge a provisional review lead into a claim-grade finding with the same identity", () => {
+    expect(agenticCoreSource).toContain('f.reviewOnly === true ? "review" : "claim"');
+  });
+});
+
+describe("model-owned review-lead selection", () => {
+  it("does not create company findings from search-result titles in deterministic runtime code", () => {
+    expect(agenticCoreSource).not.toContain("extractSearchResultCompanyLeadFindings");
+    expect(agenticCoreSource).not.toContain("SEARCH_RESULT_BUSINESS_MARKER");
+    expect(agenticCoreSource).not.toContain("record.findings = mergeFindings(record.findings ?? [], extractedCompanyLeads)");
+  });
+});
 describe("compact company registry lead retention", () => {
   it("retains only source-attributed Corporation rows and strips duplicates and person rows", () => {
     const sourceUrl = "https://find-and-update.company-information.service.gov.uk/company/14943848";
@@ -86,6 +89,23 @@ describe("compact company registry lead retention", () => {
       sourceUrls: [sourceUrl],
       notes: "Status: dissolved Type: ltd",
     }]);
+
+    const nonClaimGradeUrl = "https://www.zoominfo.com/p/example-company/123";
+    const moreThanEightRows = Array.from({ length: 10 }, (_, index) => ({
+      type: "Corporation",
+      name: `Observed Company ${index + 1}`,
+      metadata: JSON.stringify({ urls: [nonClaimGradeUrl + "?row=" + index] }),
+    }));
+    const allObserved = compactRegistryCompanyLeads(moreThanEightRows, ({ metadata }) => {
+      try {
+        const parsed = JSON.parse(metadata ?? "{}") as { urls?: string[] };
+        return Array.isArray(parsed.urls) ? parsed.urls : [];
+      } catch {
+        return [];
+      }
+    });
+    expect(allObserved).toHaveLength(10);
+    expect(allObserved[0]?.sourceUrls[0]).toContain("zoominfo.com");
   });
 });
 
@@ -669,7 +689,7 @@ describe("Investigator prompt URL integrity", () => {
     expect(prompt).toContain(sourceUrl);
     expect(prompt).not.toContain(sourceUrl.slice(0, 80) + "...");
     expect(prompt).not.toContain("must visit");
-    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a mandated next action/i);
+    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a mandated next action|no fixed itinerary/i);
   });
 
 describe("discovery lead inventory", () => {
@@ -738,6 +758,7 @@ describe("partial model findings", () => {
     expect(parsed?.action).toBe("web_search");
     expect(parsed?.partialFindings).toEqual([{
       ...finding,
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
@@ -772,9 +793,131 @@ describe("partial model findings", () => {
       scope: "candidate",
       sourceUrls: ["https://example.com/leadership"],
       note: "Candidate claim from a non-terminal action.",
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
+  });
+
+  it("retains a model-selected person lead when role and exact snippet-span attribution are unknown", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Jane Doe company leadership",
+      provider: "serper",
+      hypothesis: "A public profile may identify a relevant operator.",
+      purpose: "Preserve a promising lead for target-scoped verification.",
+      expectedInformationGain: 0.6,
+      findings: [{
+        vectorType: "linkedin",
+        value: "Jane Doe",
+        personName: "Jane Doe",
+        role: null,
+        scope: "candidate",
+        sourceUrls: ["https://www.zoominfo.com/p/Jane-Doe/123"],
+        note: "Investigator-selected lead; professional relevance appears promising but role is not established.",
+        promotionDecision: null,
+        promotionReason: null,
+      }],
+    }), ["web_search"]);
+
+    expect(parsed?.partialFindings).toEqual([{
+      vectorType: "linkedin",
+      value: "Jane Doe",
+      personName: "Jane Doe",
+      role: null,
+      scope: "candidate",
+      sourceUrls: ["https://www.zoominfo.com/p/Jane-Doe/123"],
+      note: "Investigator-selected lead; professional relevance appears promising but role is not established.",
+      reviewOnly: true,
+      promotionDecision: undefined,
+      promotionReason: undefined,
+    }]);
+  });
+
+  it("uses organization scope as the model's selection signal without vector or auxiliary-field gates", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Northstar Casino Resort owners",
+      provider: "serper",
+      hypothesis: "The organization may expose relevant principals.",
+      purpose: "Preserve it for target-scoped research.",
+      expectedInformationGain: 0.7,
+      findings: [{
+        vectorType: "website",
+        value: "Northstar Casino Resort",
+        personName: null,
+      role: null,
+        scope: "organization",
+        sourceUrls: ["https://northstarcasino.si/"],
+        note: "Investigator-selected organization lead.",
+        promotionDecision: null,
+        promotionReason: null,
+      }],
+    }), ["web_search"]);
+
+    expect(parsed?.partialFindings).toEqual([{
+      vectorType: "website",
+      value: "Northstar Casino Resort",
+      personName: null,
+      role: null,
+      scope: "organization",
+      sourceUrls: ["https://northstarcasino.si/"],
+      note: "Investigator-selected organization lead.",
+      reviewOnly: true,
+      promotionDecision: undefined,
+      promotionReason: undefined,
+    }]);
+  });
+
+  it("does not discard short but valid model-selected person or organization names", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Li 3M leadership",
+      provider: "serper",
+      hypothesis: "A short person or company name may identify a relevant lead.",
+      purpose: "Preserve the Investigator's selected leads for verification.",
+      expectedInformationGain: 0.5,
+      findings: [
+        {
+          vectorType: "other",
+          value: "Li",
+          personName: "Li",
+          role: null,
+          scope: "candidate",
+          sourceUrls: ["https://example.org/profile"],
+          note: "Investigator-selected person lead.",
+        },
+        {
+          vectorType: "other",
+          value: "3M",
+          personName: null,
+          role: null,
+          scope: "organization",
+          sourceUrls: ["https://example.org/company"],
+          note: "Investigator-selected organization lead.",
+        },
+      ],
+    }), ["web_search"]);
+    expect(parsed?.partialFindings.map((finding) => finding.value)).toEqual(["Li", "3M"]);
+  });
+
+  it("keeps organization contact values as contact facts, not organization review-card names", () => {
+    const sourceUrl = "https://northstarcasino.si/contact";
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "done",
+      findings: [
+        { vectorType: "email", value: "contact@northstarcasino.si", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public business email." },
+        { vectorType: "phone", value: "+386 1 555 0100", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public business phone." },
+        { vectorType: "website", value: "https://northstarcasino.si/", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public company website." },
+        { vectorType: "other", value: "Northstar Casino Resort", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Investigator-selected company review lead." },
+      ],
+      thought: "Preserve the company lead and keep contact facts separate.",
+    }), ["done"]);
+
+    expect(parsed?.action).toBe("done");
+    if (parsed?.action !== "done") throw new Error("Expected a terminal Investigator action.");
+    expect(parsed.findings.map((finding) => finding.value)).toContain("Northstar Casino Resort");
+    expect(parsed.partialFindings.map((finding) => finding.value)).toEqual(["Northstar Casino Resort"]);
   });
 
   it("preserves an unpromoted lead when the Investigator stops", () => {
@@ -798,6 +941,7 @@ describe("partial model findings", () => {
     expect(parsed?.action).toBe("done");
     expect(parsed?.partialFindings).toEqual([{
       ...finding,
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
@@ -898,9 +1042,9 @@ describe("Investigator prompt architecture", () => {
     });
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(discovery).toContain("one successfully fetched claim-grade source");
-    expect(discovery).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
-    expect(discovery).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
+    expect(discovery).toContain("Higher admission requires a successfully fetched claim-grade source");
+    expect(discovery).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
+    expect(discovery).toContain("Target-stage research tests material business/asset/exit signals");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
@@ -974,18 +1118,18 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/VALID PROVIDERS: web_search\/parallel_web_search\s*=\s*serper\s*\|\s*tavily\s*\|\s*exa/i);
     expect(prompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts (?:supported )?text-bearing PDFs|PDF: visit extracts text-bearing PDFs)/);
     expect(prompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text|browser_fetch is HTML-only)/);
-    expect(prompt).toMatch(/search snippets (?:remain leads, not evidence|are leads, not evidence)/i);
+    expect(prompt).toMatch(/(?:search snippets|snippets) (?:remain|are) leads, not evidence/i);
     expect(prompt).toMatch(/MISSION PRIORITY:/);
-    expect(prompt).toMatch(/no fixed action sequence|not a prescribed action sequence/i);
+    expect(prompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(prompt).toMatch(/people, not companies\/prestige|People—not companies|DISCOVERY TARGETABILITY/i);
     expect(prompt).toMatch(/ownership\/equity\/control|ownership\/control\/equity\/investment clue/i);
-    expect(prompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority/i);
+    expect(prompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority|seniority is not wealth/i);
     expect(prompt).toMatch(/LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD|PERSON REVIEW/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
     expect(prompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public professional route/i);
-    expect(prompt).toMatch(/Target-scoped research owns independent corroboration|independent corroboration, falsification, and contact-route verification/i);
+    expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|independently corroborates or falsifies the lead/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
@@ -1055,12 +1199,12 @@ Choose each next action yourself from the available capabilities and observed ev
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
-    expect(prompt).toContain("source class");
+    expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*provider/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("one successfully fetched claim-grade source");
-    expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source");
+    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
     expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|verifies direct or indirect routes before any promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
@@ -1149,8 +1293,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toContain("one successfully fetched claim-grade source");
-    expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source");
+    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
     expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|verifies direct or indirect routes before any promotion/);
   });
 
@@ -1949,7 +2093,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
     expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|verifies direct or indirect routes before any promotion/);
   });
 
@@ -1960,7 +2104,7 @@ Choose each next action yourself from the available capabilities and observed ev
     // Source eligibility is not HNWI promotion: only an explicit model-promoted,
     // same-source identity/role plus wealth-potential lead can be materialized.
     // Independent corroboration and the realistic contact route remain target-stage work.
-    expect(agenticCoreSource).toContain("one successfully fetched claim-grade source");
+    expect(agenticCoreSource).toContain("Higher admission requires a successfully fetched claim-grade source");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
@@ -2006,11 +2150,10 @@ Choose each next action yourself from the available capabilities and observed ev
     for (const query of multilingualQueries) {
       expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: true });
     }
+    // Source class and query strategy belong to the Investigator; even a
+    // broad publisher-filtered search is allowed when the model judges it useful.
     for (const broadPublisherQuery of ['site:reuters.com "赌场主要股东"', 'site:reuters.com "مالك الكازينو"']) {
-      expect(validateDiscoverySearchQuery(broadPublisherQuery, [])).toMatchObject({
-        allowed: false,
-        reason: expect.stringContaining("broad press-publisher-only search without an exact named person/business anchor"),
-      });
+      expect(validateDiscoverySearchQuery(broadPublisherQuery, [])).toMatchObject({ allowed: true });
     }
     expect(validateDiscoverySearchQuery('site:reuters.com "Casino Portorož"', [])).toMatchObject({ allowed: true });
 
@@ -2202,7 +2345,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     // The final emergency prompt may deliberately discard optional trajectory text to preserve the mandatory action/evidence contract.
     expect(prompt.length).toBeLessThanOrEqual(5_600);
-    expect(prompt).toContain("OUTPUT CONTRACT: Return exactly ONE root JSON object");
+    expect(prompt).toContain("OUTPUT CONTRACT: one root JSON object");
     expect(advisory).not.toContain("must visit");
     expect(advisory).toContain("further searches remain available");
   });
@@ -2396,7 +2539,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const prompt = buildStepPrompt({ targetName: "", objective: "discover an attributable person", history: [], trajectoryRecords: [], lastObservation: "", findings: [], mode: "discovery" });
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/The action shapes below name action-specific values only; they never replace the full required envelope\.|ALL REQUIRED TOP-LEVEL FIELDS: action,|Include every required field: action,/);
-    expect(prompt).toMatch(/Return exactly ONE root JSON object|Return one root JSON object/);
+    expect(prompt).toMatch(/one root JSON object/);
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS|Required fields: action,query,provider|Include every required field: action,/);
   });
 
@@ -2582,7 +2725,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
     expect(prompt).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
     expect(prompt).toContain("not evidence or a mandated next action");
-    expect(prompt).toContain("BINARY URL POLICY");
+    expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS");
     expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
     expect(prompt).not.toContain("must visit");
   });
@@ -3153,13 +3296,16 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain("return await materializeAtlasAdmissions({");
   });
 
-  it("keeps partial-card eligibility tied to fetched, claim-grade, same-case source observations", () => {
-    expect(canonicalAtlasDiscoverySource).toContain('observation.executionStatus !== "success"');
-    expect(canonicalAtlasDiscoverySource).toContain("isClaimGradeDiscoverySourceUrl(sourceUrl)");
-    expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
+  it("keeps model-selected partial cards tied to same-case observed URLs without evidence-grade admission filters", () => {
+    expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.executionStatus)');
+    expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.execution)');
+    expect(researchLeadCardReconciliationSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
+    expect(canonicalAtlasDiscoverySource).toContain('if (!sourceUrl || !claimedUrls.has(sourceUrl)) continue;');
+    expect(researchLeadCardReconciliationSource).toContain("if (!supports.size) continue;");
+    expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.executionStatus !== "success")');
+    expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.execution !== "success")');
     expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
     expect(canonicalAtlasDiscoverySource).toContain('stage: "partial_review"');
-    expect(canonicalAtlasDiscoverySource).not.toContain('notes: "INVESTIGATOR-ADMITTED REVIEW CANDIDATE');
   });
 });
 
@@ -3199,8 +3345,8 @@ describe("single fetched page organization identity", () => {
   });
 
   it("requires page identity metadata to be attached to successful visit and browser-fetch observations", () => {
-    expect(agenticCoreSource).toContain("observedPageIdentity: page.pageIdentity ?? null");
-    expect(agenticCoreSource).toContain("observedPageIdentity: result.html && observedBrowserUrl ? extractObservedOrganizationIdentity(result.html, observedBrowserUrl) : null");
+    expect(agenticCoreSource).toContain("observedPageIdentity: restrictedCommunitySource ? null : page.pageIdentity ?? null");
+    expect(agenticCoreSource).toContain("observedPageIdentity: result.html && observedBrowserUrl && !restrictedCommunitySource ? extractObservedOrganizationIdentity(result.html, observedBrowserUrl) : null");
     expect(researchLeadCardReconciliationSource).toContain("pageIdentitySource === url");
     expect(researchLeadCardReconciliationSource).toContain("organization name only; ownership, wealth, targetability, and person attribution remain unestablished");
   });
@@ -3234,10 +3380,10 @@ describe("latest fetched source evidence survives emergency Investigator compact
     });
     expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE EXCERPT");
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
-    expect(prompt).toMatch(/after (?:a )?successful visit\/browser_fetch/i);
+    expect(prompt).toMatch(/After visit\/browser_fetch/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
-    expect(prompt).toContain("Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue");
+    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
   });
 });
@@ -3280,7 +3426,7 @@ describe("small emergency observation budgets", () => {
     const observation = 'LATEST TRAJECTORY RECORD — TURN 17: {"turn":17,"action":"web_search","execution":"success","leadUrls":["https://registry.example.test/company-search"],"leadUrlsOmittedFromPromptCount":0}';
 
     expect(() => appendEmergencyObservationContext(basePrompt, observation, 24)).toThrow(
-      /Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=24/,
+      /(?:Cannot compose a contract-preserving emergency observation prompt|The required Investigator action schema exceeds) maxPromptChars=24/,
     );
   });
 
@@ -3450,5 +3596,17 @@ describe("AI research-memory compaction transport", () => {
     expect(chunks.join("")).toBe(source);
     expect(chunks.some((chunk) => chunk.includes(url))).toBe(true);
     expect(extractAiContextUrls(source)).toEqual([url]);
+  });
+});
+
+
+describe("restricted community source content boundary", () => {
+  it("withholds Virtual Globetrotting content at search and fetch boundaries", () => {
+    const source = readFileSync(new URL("./agentic-web-research-core.ts", import.meta.url), "utf8");
+    expect(source).toContain("isRestrictedCommunitySourceUrl");
+    expect(source).toContain("RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE");
+    expect(source).toContain("hasRestrictedCommunityUrl");
+    expect(source).toContain("restrictedCommunitySource && page.status === \"success\" ? \"partial\" : page.status");
+    expect(source).toContain("observedPageIdentity: restrictedCommunitySource ? null");
   });
 });
