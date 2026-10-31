@@ -178,7 +178,7 @@ const UNKNOWN_REGISTRANT_POLICY: RegistrantPolicy = {
   beneficialOwnershipStatus: "unresolved",
   confidence: "LOW",
   reviewOnly: true,
-  wealthStatus: "unassessed",
+  wealthStatus: "not_assessed",
   estimatedNetWorth: null,
   bayesianScore: 0.05,
   isHot: false,
