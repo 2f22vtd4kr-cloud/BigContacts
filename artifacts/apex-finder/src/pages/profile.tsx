@@ -1029,6 +1029,30 @@ export default function ApexProfile() {
         ].filter((url: unknown, index: number, all: unknown[]): url is string =>
           typeof url === "string" && /^https?:\/\//i.test(url) && all.indexOf(url) === index,
         ).slice(0, 8);
+        const sourceEvidence = Array.isArray(meta.sourceEvidence)
+          ? meta.sourceEvidence.filter((item: unknown): item is Record<string, any> =>
+              !!item && typeof item === "object" && !Array.isArray(item) && typeof (item as any).sourceUrl === "string",
+            )
+          : [];
+        const sourceClassLabel = (value: unknown) => {
+          switch (value) {
+            case "official_registry_record": return "Official registry record";
+            case "registry_adapter_source": return "Registry adapter source";
+            case "licensed_source": return "Licensed source";
+            case "community_contributed": return "Community-contributed";
+            case "third_party_directory": return "Third-party directory";
+            case "unclassified_public_source": return "Unclassified public source";
+            default: return "Not classified";
+          }
+        };
+        const corroborationLabel = (value: unknown) => {
+          switch (value) {
+            case "independently_confirmed": return "Independently corroborated";
+            case "conflicting": return "Conflicting sources";
+            case "not_assessed": return "Not assessed";
+            default: return "Unknown";
+          }
+        };
         const notes = Array.isArray(meta.sourceNotes)
           ? meta.sourceNotes.filter((note: unknown): note is string => typeof note === "string" && note.trim()).slice(0, 4)
           : [];
@@ -1046,7 +1070,7 @@ export default function ApexProfile() {
                     "rounded border px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider",
                     fetched ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-amber-400/30 bg-amber-400/10 text-amber-300",
                   )}>
-                    {fetched ? "Fetched public source" : "Search-result lead"}
+                    {fetched ? "Content fetched" : "Search-result lead"}
                   </span>
                 </div>
                 <p className="text-[12px] text-muted-foreground mt-1.5 leading-relaxed">
@@ -1054,7 +1078,7 @@ export default function ApexProfile() {
                 </p>
               </div>
               <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0">
-                {fetched ? "Higher evidence tier" : "Unverified lead"}
+                {fetched ? "Publisher authority not implied" : "Unverified lead"}
               </span>
             </div>
             {typeof meta.role === "string" && meta.role.trim() && (
@@ -1077,6 +1101,27 @@ export default function ApexProfile() {
                   <Globe className="w-3 h-3 shrink-0" /><span className="truncate max-w-[260px]">{(() => { try { return new URL(url).hostname; } catch { return url; } })()}</span>↗
                 </a>
               )) : <span className="text-[11px] text-muted-foreground">No source URL persisted</span>}
+            </div>
+            <div className="space-y-2 mb-3" data-testid="discovery-source-provenance">
+              {sources.map((url: string) => {
+                const evidence = sourceEvidence.find((item) => item.sourceUrl === url) ?? {};
+                const contributor = typeof evidence.sourceContributor === "string" && evidence.sourceContributor.trim()
+                  ? evidence.sourceContributor.trim()
+                  : "Not supplied";
+                const mechanism = typeof evidence.sourceMechanism === "string" && evidence.sourceMechanism.trim()
+                  ? evidence.sourceMechanism.trim()
+                  : "Unknown";
+                const observedAt = typeof evidence.observedAt === "string" ? evidence.observedAt : "";
+                return (
+                  <div key={url} className="rounded border border-border/50 bg-background/30 px-3 py-2 text-[11px] space-y-1">
+                    <div><span className="text-muted-foreground">Source class:</span> <span className="text-foreground">{sourceClassLabel(evidence.sourceClass)}</span></div>
+                    <div><span className="text-muted-foreground">Contributor:</span> <span className="text-foreground">{contributor}</span></div>
+                    <div><span className="text-muted-foreground">Observed via:</span> <span className="text-foreground">{mechanism}</span></div>
+                    <div><span className="text-muted-foreground">Independent corroboration:</span> <span className="text-foreground">{corroborationLabel(evidence.independentCorroborationStatus)}</span></div>
+                    {observedAt && <div><span className="text-muted-foreground">Observed at:</span> <span className="text-foreground">{observedAt}</span></div>}
+                  </div>
+                );
+              })}
             </div>
             {limitations.length > 0 && (
               <div className="rounded border border-amber-400/20 bg-amber-400/[0.04] px-3 py-2">
