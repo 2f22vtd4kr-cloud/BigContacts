@@ -3645,9 +3645,49 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     }
   }
   if (mandatoryMinimumTail.length > limit) {
-    // Never slice through mandatory schema/evidence/source context. If the
-    // independently compressed mandatory core cannot fit, fail closed.
-    throw new Error("Cannot compose a contract-preserving emergency observation prompt within maxPromptChars=" + limit + ".");
+    // Last-resort semantic projection. Keep the strict action schema intact,
+    // then spend the remaining provider budget on scope, source identity and
+    // the newest observed evidence. Never cut a URL token or fail a research
+    // turn merely because optional context is verbose.
+    const finalParts: string[] = [];
+    const currentLength = () => finalParts.reduce((total, part) => total + part.length, 0) + Math.max(0, finalParts.length - 1) * 2;
+    const appendBudgeted = (raw: string, cap: number, omission: string) => {
+      const value = raw.trim();
+      if (!value) return;
+      const remaining = limit - currentLength() - (finalParts.length ? 2 : 0);
+      const budget = Math.min(cap, remaining);
+      if (budget < 80) return;
+      const selected = value.length <= budget
+        ? value
+        : compactPromptSectionPreservingUrlTokens(value, budget, omission);
+      if (selected && selected.length <= budget) finalParts.push(selected);
+    };
+    // This complete required model-action envelope is never sliced.
+    if (fallbackOutputContract.length > limit) {
+      throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
+    }
+    finalParts.push(fallbackOutputContract);
+    appendBudgeted(
+      "DISCOVERY LEAD HANDOFF CONTRACT: The Investigator chooses which specific people or organizations merit provisional review cards; this is not automatic every-result admission. Preserve the exact associated public URL. Organization findings remain scope=organization with personName=null and role=null; person findings use scope=candidate, the exact name and role or null. Review cards are unverified leads, not evidence or promotion. Search snippets/URLs do not prove identity, role, ownership, wealth, HNWI status, relationships or contactability. Failed fetches and preflight blocks are unobserved, not negative findings. Fetched claims must bind to the exact fetched source; target research independently corroborates/falsifies and verifies a public professional route. Query and source strategy remain model-owned; no fixed sequence.",
+      700, "[optional review detail omitted]"
+    );
+    appendBudgeted(terminalEvidenceRule, 240, "[terminal detail omitted]");
+    appendBudgeted(scopeRecoveryRule, 240, "[scope-recovery detail omitted]");
+    appendBudgeted(minimumScopeContext || compactCaseObjective, 260, "[scope detail omitted]");
+    appendBudgeted(minimumAvailableActionsSection, 300, "[optional action detail omitted]");
+    appendBudgeted(conditionalCapabilityRule, 150, "[conditional capability detail omitted]");
+    appendBudgeted(minimumProviderRule, 140, "[provider detail omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 200, "[registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 170, "[binary detail omitted]");
+    // URL-aware compaction retains complete URLs or omits them whole.
+    appendBudgeted(urlInventory, 500, "[additional source URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(fetchedSourceLabel, 180, "[source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 340, "[source excerpt detail omitted]");
+    appendBudgeted(header + " " + (compactObservation || compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 90)), 240, "[latest observation detail omitted]");
+    appendBudgeted(compactRecordSummary.join("\n\n"), 200, "[older trajectory detail omitted]");
+    appendBudgeted(aiMemorySection, 140, "[older memory omitted]");
+    appendBudgeted(markerSuffix, 90, "[marker omitted]");
+    mandatoryMinimumTail = finalParts.join("\n\n");
   }
   const optionalTailBudget = Math.max(0, limit - Math.min(240, Math.floor(limit * 0.06)));
   let minimumTail = mandatoryMinimumTail;
