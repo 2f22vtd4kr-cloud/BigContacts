@@ -417,7 +417,7 @@ export function verifyModelAudit(input) {
     if (request.caseId != null && Number(request.caseId) !== Number(proof.caseId)) continue;
     const httpStatus = Number(response.httpStatus);
     const responsePayload = parseObject(response.response);
-    if (httpStatus < 200 || httpStatus >= 300 || response.transportFailure || responsePayload.jsonParsed !== true) continue;
+    if (httpStatus < 200 || httpStatus >= 300 || response.transportFailure || response.auditCaptureFailure || responsePayload.jsonParsed !== true) continue;
     if (!Array.isArray(responsePayload.choices) || responsePayload.choices.length === 0) continue;
     successful.push({ request, response, httpStatus });
   }
@@ -428,12 +428,18 @@ export function verifyModelAudit(input) {
     if (!roleCalls.length) {
       throw new Error("Model audit does not prove a successful real provider request/response for role " + role + ".");
     }
+    const roleRequests = [...requests.values()].filter((request) =>
+      request.role === role
+      && (request.jobId == null || request.jobId === proof.jobId)
+      && (request.caseId == null || Number(request.caseId) === Number(proof.caseId)),
+    );
     const promptTokens = roleCalls.reduce((sum, call) => sum + Number(parseObject(call.response.response).usage?.prompt_tokens ?? 0), 0);
     const completionTokens = roleCalls.reduce((sum, call) => sum + Number(parseObject(call.response.response).usage?.completion_tokens ?? 0), 0);
     const totalTokens = roleCalls.reduce((sum, call) => sum + Number(parseObject(call.response.response).usage?.total_tokens ?? 0), 0);
-    const models = [...new Set(roleCalls.map((call) => call.response.model).filter((value) => typeof value === "string"))];
-    const providers = [...new Set(roleCalls.map((call) => call.response.provider).filter((value) => typeof value === "string"))];
+    const models = [...new Set(roleRequests.map((request) => request.model).filter((value) => typeof value === "string"))];
+    const providers = [...new Set(roleRequests.map((request) => request.provider).filter((value) => typeof value === "string"))];
     byRole[role] = {
+      attempts: roleRequests.length,
       successfulCalls: roleCalls.length,
       models,
       providers,
