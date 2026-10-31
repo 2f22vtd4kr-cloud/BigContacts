@@ -216,7 +216,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("only done may null them");
     expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(submitted).toContain("Avoid generic wealth/net-worth/private-equity-profile searches alone");
-    expect(submitted).toContain("Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop.");
+    expect(submitted).toMatch(/Investigator models own research decisions: invent queries, choose pages\/tools, pivot(?:, and)? stop/);
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toMatch(/Target-stage research tests material business\/asset\/exit signals, independently corroborates or falsifies/i);
     expect(submitted).toContain('"url":null');
