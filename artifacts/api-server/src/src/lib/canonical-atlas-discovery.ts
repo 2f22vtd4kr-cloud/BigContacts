@@ -883,10 +883,8 @@ async function materializePartialOrganizationLeadCards(input: {
         .flatMap((finding) => finding.sourceUrls)
         .map(normalizeSourceUrl)
         .filter((url): url is string => Boolean(url)),
-      // Typed registry adapters are themselves structured, source-attributed
-      // company observations. Their exact name + notes are the observed span,
-      // so they must not be dropped merely because the model emitted no parallel
-      // finding object on this turn.
+      // Registry adapter rows may support this lead only because the
+      // Investigator already selected the organization in a structured finding.
     ]);
     const supports = new Map<string, {
       sourceUrl: string; eventId: number; createdAt: Date; spanText: string;
