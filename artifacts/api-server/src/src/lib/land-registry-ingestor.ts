@@ -5,7 +5,7 @@
  * https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads
  *
  * Downloads the annual PPD CSV files, filters for £1M+ transactions, and
- * inserts them as Corporation entities + Real Estate assets.
+ * inserts asset-only Real Estate transaction records. PPD does not identify the buyer/seller,\n * so an address must never become a synthetic person/company or an owner relationship.
  *
  * The SPARQL endpoint is unreliable for bulk queries; the S3-hosted CSV is
  * the official download route and supports streaming at ~160MB/year.
@@ -20,8 +20,9 @@ import { mkdir, stat, unlink } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { db, entitiesTable, assetsTable } from "@workspace/db";
-import type { InsertEntity, InsertAsset } from "@workspace/db";
+import { and, eq, inArray } from "drizzle-orm";
+import { db, assetsTable } from "@workspace/db";
+import type { InsertAsset } from "@workspace/db";
 import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
 
@@ -85,40 +86,91 @@ async function isCacheStale(path: string): Promise<boolean> {
   } catch { return true; }
 }
 
-function bayesianFromPrice(price: number): number {
-  if (price >= 10_000_000) return 0.88;
-  if (price >= 5_000_000)  return 0.78;
-  if (price >= 2_000_000)  return 0.68;
-  return 0.58;
-}
-
 /** Strip surrounding quotes from a CSV field (PPD uses "" quoting) */
 function unquote(s: string): string {
   return s.replace(/^"(.*)"$/, "$1").trim();
 }
 
+export function buildLandRegistryTransactionAsset(input: {
+  transactionId: string;
+  priceGbp: number;
+  date: string;
+  propertyTypeCode: string;
+  durationCode: string;
+  address: string;
+  county: string;
+  postcode: string;
+  paon: string;
+  saon: string;
+  street: string;
+  locality: string;
+  town: string;
+  year: number;
+}): InsertAsset {
+  const tenure = input.durationCode === "F" ? "Freehold" : input.durationCode === "L" ? "Leasehold" : "Unknown";
+  const propertyType = ({ D: "Detached", S: "Semi-Detached", T: "Terraced", F: "Flat/Maisonette", O: "Other" } as Record<string, string>)[input.propertyTypeCode] ?? "Property";
+  const priceLabel = `£${input.priceGbp.toLocaleString("en-GB")}`;
+  return {
+    category: "RealEstate",
+    identifier: input.transactionId,
+    jurisdiction: input.county ? `${input.county}, England & Wales` : "England & Wales",
+    description: `${propertyType} ${tenure} — ${priceLabel} (${input.date})`,
+    address: input.address || undefined,
+    sourceRegistry: "UK HM Land Registry (PPD)",
+    lastActivityDate: input.date || undefined,
+    estimatedValue: null,
+    metadata: JSON.stringify({
+      source: "hmlr-ppd-csv",
+      transactionId: input.transactionId,
+      transactionPrice: input.priceGbp,
+      transactionCurrency: "GBP",
+      transactionDate: input.date,
+      propertyTypeCode: input.propertyTypeCode,
+      propertyType,
+      tenure,
+      county: input.county,
+      postcode: input.postcode,
+      paon: input.paon,
+      saon: input.saon,
+      street: input.street,
+      locality: input.locality,
+      town: input.town,
+      year: input.year,
+      ownerIdentityStatus: "not_disclosed_by_ppd",
+      beneficialOwnershipStatus: "unresolved",
+      reviewOnly: true,
+      wealthStatus: "not_assessed",
+    }),
+  };
+}
+
 // ── Batch flush ───────────────────────────────────────────────────────────────
 
-async function flushBatch(
-  entities: InsertEntity[],
-  assets: InsertAsset[],
-): Promise<{ inserted: number; errors: number }> {
-  if (entities.length === 0) return { inserted: 0, errors: 0 };
+async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; errors: number }> {
+  if (assets.length === 0) return { inserted: 0, errors: 0 };
   try {
-    const rows = await db
-      .insert(entitiesTable)
-      .values(entities)
-      .onConflictDoNothing()
-      .returning({ id: entitiesTable.id });
-
-    const assetRows = rows.map((r, i) => ({ ...assets[i]!, ownerEntityId: r.id })).filter((a) => a.ownerEntityId);
-    if (assetRows.length > 0) {
-      await db.insert(assetsTable).values(assetRows).onConflictDoNothing();
-    }
+    const rows = await db.transaction(async (tx) => {
+      const uniqueByTransaction = new Map<string, InsertAsset>();
+      for (const asset of assets) {
+        if (asset.identifier && !uniqueByTransaction.has(asset.identifier)) uniqueByTransaction.set(asset.identifier, asset);
+      }
+      const candidates = [...uniqueByTransaction.values()];
+      if (candidates.length === 0) return [];
+      const existing = await tx.select({ identifier: assetsTable.identifier })
+        .from(assetsTable)
+        .where(and(
+          eq(assetsTable.category, "RealEstate"),
+          inArray(assetsTable.identifier, candidates.map((asset) => asset.identifier)),
+        ));
+      const existingIds = new Set(existing.map((row) => row.identifier));
+      const fresh = candidates.filter((asset) => !existingIds.has(asset.identifier));
+      if (fresh.length === 0) return [];
+      return tx.insert(assetsTable).values(fresh).returning({ id: assetsTable.id });
+    });
     return { inserted: rows.length, errors: 0 };
   } catch (err: any) {
-    logger.warn({ err: err.message }, "Land Registry batch insert error");
-    return { inserted: 0, errors: entities.length };
+    logger.warn({ err: err.message, batchSize: assets.length }, "Land Registry asset-only batch insert failed");
+    return { inserted: 0, errors: assets.length };
   }
 }
 
@@ -186,7 +238,6 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       crlfDelay: Infinity,
     });
 
-    const entityBatch: InsertEntity[] = [];
     const assetBatch: InsertAsset[] = [];
     const pendingDedup: string[] = [];
     let lineNum = 0;
@@ -194,7 +245,7 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
 
     for await (const line of rl) {
       lineNum++;
-      if (inserted + entityBatch.length >= maxRecords) break;
+      if (inserted + assetBatch.length >= maxRecords) break;
 
       // Unconditional progress heartbeat every 10,000 lines
       if (lineNum - lastProgressLine >= 10_000) {
@@ -241,68 +292,37 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       seenKeys.add(dkey);
       pendingDedup.push(dkey);
 
-      const tenureLabel = duration === "F" ? "Freehold" : duration === "L" ? "Leasehold" : "Unknown";
-      const propLabel   = { D: "Detached", S: "Semi-Detached", T: "Terraced", F: "Flat/Maisonette", O: "Other" }[propType] ?? "Property";
-      const address     = [paon, saon, street, locality, town, county, postcode].filter(Boolean).join(", ");
-      const priceStr2   = `£${price.toLocaleString("en-GB")}`;
-      const score       = bayesianFromPrice(price);
+      const asset = buildLandRegistryTransactionAsset({
+        transactionId: txId,
+        priceGbp: price,
+        date,
+        propertyTypeCode: propType,
+        durationCode: duration,
+        address,
+        county,
+        postcode,
+        paon,
+        saon,
+        street,
+        locality,
+        town,
+        year,
+      });
 
-      const entityName = address
-        ? `UK Property — ${[paon, street, town].filter(Boolean).join(", ")}`
-        : `UK Property — ${postcode}`;
-
-      const entity: InsertEntity = {
-        name: entityName,
-        type: "Corp",
-        nationality: "UK",
-        knownResidences: address || undefined,
-        sourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)"]),
-        bayesianScore: score,
-        // Property value is wealth evidence only; it is not a direct contact.
-        isHot: false,
-        // B2: net worth heuristic — property price × 5 (conservative wealth floor)
-        estimatedNetWorth: price * 5,
-        notes: `High-value UK property: ${propLabel} (${tenureLabel}). Paid ${priceStr2} on ${date}.`,
-        metadata: JSON.stringify({
-          source: "hmlr-ppd-csv",
-          txId,
-          price,
-          propType,
-          tenure: tenureLabel,
-          county,
-          postcode,
-          date,
-          year,
-        }),
-      };
-
-      const asset: InsertAsset = {
-        category: "RealEstate",
-        identifier: txId,
-        jurisdiction: county ? `${county}, England & Wales` : "England & Wales",
-        description: `${propLabel} ${tenureLabel} — ${priceStr2} (${date})`,
-        address: address || undefined,
-        sourceRegistry: "UK HM Land Registry (PPD)",
-        lastActivityDate: date || undefined,
-        estimatedValue: price,
-      };
-
-      entityBatch.push(entity);
       assetBatch.push(asset);
 
-      if (entityBatch.length >= 50) {
-        const res = await flushBatch(entityBatch, assetBatch);
+      if (assetBatch.length >= 50) {
+        const res = await flushBatch(assetBatch);
+        if (res.errors > 0) throw new Error(`HMLR asset-only batch persistence failed for ${res.errors} transaction(s); dedup keys were not committed.`);
         inserted += res.inserted;
-        errors += res.errors;
-        entityBatch.length = 0;
         assetBatch.length = 0;
 
-        // Batch-write dedup keys to Upstash (one round-trip per flush)
+        // Only persist dedup keys after the asset rows have committed.
         await batchMarkSeen(pendingDedup);
         pendingDedup.length = 0;
 
         const pct = Math.min(8 + Math.floor((inserted / maxRecords) * 85), 95);
-        await updateJob(jobId, { message: `${inserted.toLocaleString()} high-value UK properties matched…`, progress: pct, inserted });
+        await updateJob(jobId, { message: `${inserted.toLocaleString()} UK property transaction asset records matched…`, progress: pct, inserted });
 
         if (inserted % 500 === 0) {
           await appendJobLog(jobId, `🏠 ${inserted.toLocaleString()} £1M+ UK property records ingested…`);
@@ -311,17 +331,17 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
     }
 
     // Flush remaining
-    if (entityBatch.length > 0) {
-      const res = await flushBatch(entityBatch, assetBatch);
+    if (assetBatch.length > 0) {
+      const res = await flushBatch(assetBatch);
+      if (res.errors > 0) throw new Error(`HMLR final asset-only batch persistence failed for ${res.errors} transaction(s); dedup keys were not committed.`);
       inserted += res.inserted;
-      errors += res.errors;
       await batchMarkSeen(pendingDedup);
     }
   }
 
   await appendJobLog(
     jobId,
-    `🏁 HMLR PPD complete: ${inserted.toLocaleString()} inserted, ${skipped.toLocaleString()} skipped (dedup), ${errors} errors.`,
+    `🏁 HMLR PPD asset-only complete: ${inserted.toLocaleString()} transaction assets inserted, ${skipped.toLocaleString()} skipped (dedup), ${errors} errors.`,
   );
 
   return { inserted, skipped, errors, durationMs: Date.now() - startTime };
