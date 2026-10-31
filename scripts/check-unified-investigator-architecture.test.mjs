@@ -12,7 +12,7 @@ const guardText = readFileSync(guardPath, "utf8");
 const guardedPaths = [...new Set([...guardText.matchAll(/path\.join\(root,\s*"([^"]+)"\)/g)].map((match) => match[1]))];
 assert.ok(guardedPaths.length >= 15, "expected to discover the guard's repository fixture inputs");
 
-function findControlCall(sourceText) {
+function findControlCalls(sourceText) {
   const parsed = ts.createSourceFile("canonical-atlas-discovery.ts", sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   let owner = null;
   const findOwner = (node) => {
@@ -21,21 +21,17 @@ function findControlCall(sourceText) {
   };
   findOwner(parsed);
   assert.ok(owner?.body, "canonical Atlas pipeline function must exist in fixture");
-  let call = null;
+  const calls = [];
   const visit = (node) => {
-    if (call) return;
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "decideAtlasNextAction") {
-      call = node;
-      return;
-    }
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "decideAtlasNextAction") calls.push(node);
     ts.forEachChild(node, (child) => {
       if (ts.isFunctionLike(child) || ts.isClassLike(child)) return;
       visit(child);
     });
   };
   visit(owner.body);
-  assert.ok(call, "canonical Atlas pipeline must contain an executable Boss-directed control call");
-  return { parsed, call };
+  assert.ok(calls.length > 0, "canonical Atlas pipeline must contain an executable Boss-directed control call");
+  return { parsed, calls };
 }
 
 function runGuard(cwd) {
@@ -57,9 +53,14 @@ try {
 
   const canonicalPath = path.join(fixtureRoot, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts");
   const canonicalSource = readFileSync(canonicalPath, "utf8");
-  const { call } = findControlCall(canonicalSource);
+  const { calls } = findControlCalls(canonicalSource);
   const replacement = "/* stale marker only: decideAtlasNextAction( is no longer executed */ Promise.resolve(null as unknown as Awaited<ReturnType<typeof decideAtlasNextAction>>)";
-  const mutated = canonicalSource.slice(0, call.getStart()) + replacement + canonicalSource.slice(call.end);
+  // Remove every executable top-level Boss control call. Removing only the first
+  // would leave a second legitimate control turn and make the mutation ineffective.
+  let mutated = canonicalSource;
+  for (const call of [...calls].sort((a, b) => b.getStart() - a.getStart())) {
+    mutated = mutated.slice(0, call.getStart()) + replacement + mutated.slice(call.end);
+  }
   // Prove the pre-fix whole-file text predicate would have accepted this exact mutation.
   assert.equal(/decideAtlasNextAction\s*\(/.test(mutated), true, "legacy text-only marker should still match even after the executable call is removed");
   writeFileSync(canonicalPath, mutated, "utf8");
