@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDiscoverySourceAttribution } from "../lib/discovery-source-attribution";
+import { buildDiscoverySourceAttribution, isRestrictedCommunitySourceUrl } from "../lib/discovery-source-attribution";
 
 describe("discovery source attribution", () => {
   it("keeps retrieval mechanism distinct from an unresolved publisher identity", () => {
@@ -36,6 +36,27 @@ describe("discovery source attribution", () => {
       sourceClass: "official_registry",
       sourceContributor: "Registry operator",
       sourceMechanism: "registry_search",
+      independentCorroborationStatus: "not_assessed",
+    });
+  });
+
+  it("keeps Virtual Globetrotting as a reference-only community source and drops contributor attribution", () => {
+    const url = "https://www.virtualglobetrotting.com/map/example-place/";
+    expect(isRestrictedCommunitySourceUrl(url)).toBe(true);
+    const attribution = buildDiscoverySourceAttribution({
+      sourceUrl: url,
+      action: "browser_fetch",
+      sourceName: "Virtual Globetrotting",
+      sourceClass: "official_registry",
+      sourceContributor: "User-submitted contributor",
+    });
+    expect(attribution).toMatchObject({
+      sourceName: "Virtual Globetrotting",
+      sourceNameKind: "publisher_name",
+      sourceDomain: "www.virtualglobetrotting.com",
+      sourceClass: "community_user_submitted_unverified",
+      sourceContributor: null,
+      sourceMechanism: "browser_fetch",
       independentCorroborationStatus: "not_assessed",
     });
   });
