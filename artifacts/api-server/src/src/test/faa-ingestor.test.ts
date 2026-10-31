@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  applyFaaRegistryNameValidation,
   buildFaaAircraftAsset,
   buildFaaRegistrantEntity,
   normalizeFaaName,
@@ -24,6 +25,34 @@ const base = {
   otherRegistrantNames: ["OTHER CO-OWNER"],
   lastActivityDate: "2026/10/01",
 };
+
+describe("FAA person registrant model-name gate", () => {
+  it("keeps model-rejected names as asset-only records and marks accepted names as name-shape checked", () => {
+    const entity = buildFaaRegistrantEntity(base);
+    expect(entity).not.toBeNull();
+    const row = { asset: {} as never, entity: entity! };
+
+    const rejected = applyFaaRegistryNameValidation([row], { status: "validated", validNames: [] });
+    expect(rejected[0]?.entity).toBeNull();
+
+    const accepted = applyFaaRegistryNameValidation([row], { status: "validated", validNames: [entity!.name] });
+    expect(accepted[0]?.entity).not.toBeNull();
+    expect(JSON.parse(accepted[0]!.entity!.metadata ?? "{}").nameValidationStatus)
+      .toBe("model_name_shape_checked_pending_identity_resolution");
+  });
+
+  it("retains structurally valid source candidates as unverified when the model provider is unavailable", () => {
+    const entity = buildFaaRegistrantEntity(base);
+    expect(entity).not.toBeNull();
+    const result = applyFaaRegistryNameValidation(
+      [{ asset: {} as never, entity: entity! }],
+      { status: "unavailable", validNames: [] },
+    );
+    expect(result[0]?.entity).not.toBeNull();
+    expect(JSON.parse(result[0]!.entity!.metadata ?? "{}").nameValidationStatus)
+      .toBe("provider_unavailable_structural_only_pending_identity_resolution");
+  });
+});
 
 describe("FAA MASTER parser and candidate projection", () => {
   it("parses quoted commas and escaped quotes without shifting FAA fields", () => {
