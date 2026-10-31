@@ -498,7 +498,7 @@ async function materializePartialPersonLeadCards(input: {
   discoveryCaseId: number;
 }): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; role: string; sourceUrls: string[] }> }> {
   // A non-terminal model action can produce a provisional name/role lead,
-  // but it never promotes the person or authorizes target-scoped research.
+  // but it does not itself promote or select the person. Boss may choose the review-only lead for target-scoped verification.
   const leadMap = new Map<string, { name: string; role: string; sourceUrls: string[] }>();
   for (const finding of input.findings) {
     if (finding.scope !== "candidate" || finding.vectorType !== "other"
