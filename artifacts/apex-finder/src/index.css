@@ -730,10 +730,10 @@ html.light {
   --atlas-flow-2: #0b5c3b;
   --atlas-flow-3: #083322;
   --atlas-flow-4: #ba9c7b;
-  --atlas-press-shadow: rgba(62, 24, 27, 0.22);
-  --atlas-flash-strong: rgba(124, 17, 26, 0.34);
+  --atlas-press-shadow: rgba(8, 51, 34, 0.22);
+  --atlas-flash-strong: rgba(8, 51, 34, 0.34);
   --atlas-flash-soft: rgba(186, 156, 123, 0.28);
-  --atlas-flash-clear: rgba(124, 17, 26, 0);
+  --atlas-flash-clear: rgba(8, 51, 34, 0);
 }
 
 /* Hard overrides for literal Tailwind colors left in older pages/components. */
@@ -757,7 +757,7 @@ html.light [class*="text-yellow-"] {
 }
 html.light [class*="text-rose-"],
 html.light [class*="text-red-"] {
-  color: #083322 !important;
+  color: #7c111a !important;
 }
 html.light [class*="text-white"],
 html.light [class*="text-[#f8fafc]"],
@@ -886,7 +886,7 @@ html.light .atlas-chip-yellow {
 html.light .atlas-btn-danger {
   border-color: rgba(124,17,26,.32) !important;
   background: rgba(124,17,26,.06) !important;
-  color: #083322 !important;
+  color: #7c111a !important;
 }
 
 /* Stronger light-shell chrome: readable header/sidebar/status/scoreboard. */
@@ -913,8 +913,7 @@ html.light [data-testid="scoreboard-strip"] [class*="text-slate-"] {
   color: #525252 !important;
 }
 html.light [data-testid="scoreboard-strip"] [class*="text-emerald-"],
-html.light [data-testid="scoreboard-strip"] [class*="text-sky-"],
-html.light [data-testid="scoreboard-strip"] [class*="text-rose-"] {
+html.light [data-testid="scoreboard-strip"] [class*="text-sky-"] {
   color: #083322 !important;
 }
 html.light .atlas-soft-edge {
