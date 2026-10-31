@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 
 const caseBureauSource = readFileSync(resolve(process.cwd(), "src/src/lib/case-bureau.ts"), "utf8");
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
-import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
+import { buildGroqBossDiscoveryPrompt, parseBossDiscoveryResponse } from "../lib/case-bureau";
 import { compactCanonicalDiscoveryContinuationContext } from "../lib/investigation-context-compaction";
 import { generateGroqBossText } from "../lib/groq-boss";
 
@@ -246,5 +246,57 @@ describe("Groq Boss token-window recovery", () => {
     expect(calls).toBe(2);
     expect(fetchMock.mock.calls[0]?.[1]).toBeTruthy();
     expect(fetchMock.mock.calls[1]?.[1]).toBeTruthy();
+  });
+});
+
+
+describe("Groq Boss model-selected discovery candidates", () => {
+  it("preserves short but valid person and company names with source-backed candidate structure", () => {
+    const parsed = parseBossDiscoveryResponse(JSON.stringify({
+      report: "Two source-attributed review leads were selected for further assessment.",
+      investigatorLlm: "groq-investigator-1",
+      nextDirections: [],
+      uncertainties: [],
+      candidates: [
+        {
+          name: "Li",
+          type: "person",
+          relevance: "A public filing links this person to the stated mission.",
+          reachability: "A public professional route remains to be verified.",
+          sourceUrls: ["https://example.org/person/li"],
+          contactEvidence: [],
+        },
+        {
+          name: "3M",
+          type: "company",
+          relevance: "The company is directly relevant to the stated mission.",
+          reachability: "Its official public website is available for target research.",
+          sourceUrls: ["https://example.org/company/3m"],
+          contactEvidence: [],
+        },
+      ],
+    }), ["groq-investigator-1"]);
+
+    expect(parsed.investigatorLlm).toBe("groq-investigator-1");
+    expect(parsed.candidates.map((candidate) => candidate.name)).toEqual(["Li", "3M"]);
+  });
+
+  it("continues to reject empty candidate names rather than admitting malformed identities", () => {
+    const parsed = parseBossDiscoveryResponse(JSON.stringify({
+      report: "A malformed candidate was returned.",
+      investigatorLlm: "groq-investigator-1",
+      candidates: [{
+        name: "   ",
+        type: "person",
+        relevance: "A possible lead.",
+        reachability: "Unknown.",
+        sourceUrls: ["https://example.org/person"],
+        contactEvidence: [],
+      }],
+      nextDirections: [],
+      uncertainties: [],
+    }), ["groq-investigator-1"]);
+
+    expect(parsed.candidates).toEqual([]);
   });
 });
