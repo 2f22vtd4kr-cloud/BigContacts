@@ -1789,8 +1789,8 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
     const personName = cleanText(f.personName, 120);
     const role = cleanText(f.role, 120) || null;
     const rawValue = cleanText(f.value, 500);
-    const personLead = f.scope === "candidate" && personName.length >= 3;
-    const organizationLead = f.scope === "organization" && rawValue.length >= 3;
+    const personLead = f.scope === "candidate" && personName.length > 0;
+    const organizationLead = f.scope === "organization" && rawValue.length > 0;
     if ((!personLead && !organizationLead) || f.promotionDecision === "reject") continue;
 
     // A model-selected review lead needs a safe, source-associated public URL,
