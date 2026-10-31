@@ -54,7 +54,7 @@ function uniqueNames(values: string[]): string[] {
   for (const value of values) {
     const name = value.trim().replace(/\s+/g, " ");
     const identity = normalizeCandidateIdentityName(name);
-    if (name.length < 3 || identity.length < 3 || seen.has(identity)) continue;
+    if (!name || !identity || seen.has(identity)) continue;
     seen.add(identity);
     result.push(name);
   }
