@@ -617,11 +617,11 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain('phase=${runtimePhase}');
   });
 
-  it("blocks untargetable public figures at query and candidate-admission boundaries", () => {
-    expect(researchCoreSource).toContain("export function isUntargetableDiscoveryPersonName");
+  it("does not blacklist public figures or targets by deterministic name heuristics", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    expect(canonicalSource).toContain("isUntargetableDiscoveryPersonName");
-    expect(canonicalSource).toContain('.filter((finding) => typeof finding.personName === "string" && !isUntargetableDiscoveryPersonName(finding.personName))');
+    expect(researchCoreSource).not.toContain("isUntargetableDiscoveryPersonName");
+    expect(canonicalSource).not.toContain("isUntargetableDiscoveryPersonName");
+    expect(canonicalSource).not.toContain("isGenericDiscoveryMetadataTitle");
   });
 });
 
