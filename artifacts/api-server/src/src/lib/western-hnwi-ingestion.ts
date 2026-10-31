@@ -17,10 +17,10 @@
  */
 
 import { db, entitiesTable, assetsTable } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
-import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
+import { isDuplicate, batchMarkSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
 import { deriveRegistryIngestionAssessment } from "./registry-ingestion-policy";
 import { logger } from "./logger";
 import { isStructurallyValidCandidateName } from "./llm-name-validator-policy";
@@ -886,25 +886,33 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
 
   // ── Batch state ──────────────────────────────────────────────────────────────
   let entityBatch: InsertEntity[] = [];
+  let entityBatchKeys: string[] = [];
+  const seenBatchKeys = new Set<string>();
 
   const flushBatch = async () => {
     if (entityBatch.length === 0) return;
     try {
       // Registry source schemas identify person-role records before this point.
-      // Mass seeding preserves those records as provisional PersonCandidate cards;
-      // the canonical Investigator later decides whether the exact identity and
-      // HNWI qualification are supported. Structural validation rejects only
-      // malformed/placeholder strings, never language, script, word-count or name-style.
-      const preCount = entityBatch.length;
-      entityBatch = entityBatch.filter((row) => {
-        if (preferPersons && (row.type === "Corporation" || row.type === "Trust" || row.type === "Corp")) return false;
-        if (row.type === "Corporation" || row.type === "Trust" || row.type === "Corp") return true;
-        return isStructurallyValidCandidateName(row.name);
+      // Mass seeding preserves provisional candidates; canonical Investigator
+      // later resolves identity, role, relationships and HNWI qualification.
+      const paired = entityBatch.map((entity, index) => ({ entity, key: entityBatchKeys[index] ?? "" }));
+      const usable = paired.filter(({ entity }) => {
+        if (preferPersons && ["Corporation", "Trust", "Corp"].includes(entity.type)) return false;
+        return isStructurallyValidCandidateName(entity.name);
       });
-      entityBatch = entityBatch.map((row) => {
+      const usableKeys = usable.map(({ key }) => key).filter(Boolean);
+      const seenNames = new Set<string>();
+      const deduped = usable.filter(({ entity }) => {
+        const key = `${entity.type}:${normalizeName(entity.name)}`;
+        if (seenNames.has(key)) return false;
+        seenNames.add(key);
+        return true;
+      }).map(({ entity }) => entity);
+
+      const rowsToInsert = deduped.map((row) => {
         if (row.type !== "PersonCandidate") return row;
         let metadata: Record<string, unknown> = {};
-        try { metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; } catch { /* preserve the row with fresh safe metadata */ }
+        try { metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; } catch { /* retain source row; replace malformed metadata safely */ }
         return {
           ...row,
           metadata: JSON.stringify({
@@ -915,47 +923,33 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
           }),
         };
       });
-      const rejected = preCount - entityBatch.length;
-      if (rejected > 0) logger.info({ rejected }, "Registry seed: discarded only malformed or placeholder candidate names");
 
-      if (entityBatch.length === 0) return;
-      // DB-level + within-batch dedupe on normalized person name.
-      const before = entityBatch.length;
-      const seenBatch = new Set<string>();
-      const deduped: typeof entityBatch = [];
-      for (const e of entityBatch) {
-        const k = normalizeName(e.name ?? "");
-        if (!k || seenBatch.has(k)) continue;
-        seenBatch.add(k);
-        deduped.push(e);
-      }
-      entityBatch = deduped;
-      if (entityBatch.length) {
-        const existing = await db.execute(
-          sql`SELECT id, name FROM entities WHERE type IN ('HNWI','Gatekeeper','PersonCandidate') ORDER BY id DESC LIMIT 8000`,
-        );
-        const rows = (existing as any).rows ?? (existing as any) ?? [];
-        const existingKeys = new Set(
-          (Array.isArray(rows) ? rows : []).map((r: any) => normalizeName(String(r.name ?? ""))),
-        );
-        entityBatch = entityBatch.filter((e) => !existingKeys.has(normalizeName(e.name ?? "")));
-      }
-      const dropped = before - entityBatch.length;
-      if (dropped > 0) {
-        skipped += dropped;
-        logger.info({ dropped }, "DB/batch dedupe: skipped duplicate person names");
-      }
-      if (entityBatch.length === 0) return;
-      const insertedRows = await db
-        .insert(entitiesTable)
-        .values(entityBatch)
-        .returning({ id: entitiesTable.id });
-      inserted += insertedRows.length;
+      const result = await db.transaction(async (tx) => {
+        if (rowsToInsert.length === 0) return { insertedCount: 0, existingCount: 0 };
+        const names = [...new Set(rowsToInsert.map((row) => row.name))];
+        const existing = await tx.select({ name: entitiesTable.name, type: entitiesTable.type })
+          .from(entitiesTable)
+          .where(inArray(entitiesTable.name, names));
+        const existingKeys = new Set(existing.map((row) => `${row.type}:${normalizeName(row.name)}`));
+        const fresh = rowsToInsert.filter((row) => !existingKeys.has(`${row.type}:${normalizeName(row.name)}`));
+        const insertedRows = fresh.length > 0
+          ? await tx.insert(entitiesTable).values(fresh).returning({ id: entitiesTable.id })
+          : [];
+        return { insertedCount: insertedRows.length, existingCount: rowsToInsert.length - fresh.length };
+      });
+
+      // Dedup state is committed only after the DB transaction succeeded.
+      // If this write fails, the next run still has DB-level name dedup as a guard.
+      if (usableKeys.length > 0) await batchMarkSeen(usableKeys);
+      inserted += result.insertedCount;
+      skipped += result.existingCount + (paired.length - usable.length) + (usable.length - deduped.length);
+      entityBatch = [];
+      entityBatchKeys = [];
     } catch (err: any) {
       errors += entityBatch.length;
-      logger.warn({ err: err.message }, "Batch insert failed");
+      logger.error({ err: err.message, batchSize: entityBatch.length }, "Registry batch persistence failed; dedup keys were not committed");
+      throw new Error(`Western registry batch persistence failed: ${err.message}`);
     }
-    entityBatch = [];
   };
 
   // ── Random live-registry discovery pass ─────────────────────────────────────
