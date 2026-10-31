@@ -32,6 +32,7 @@ import { sanitizeUrlForEvidence } from "./url-privacy";
 import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
+import { buildDiscoverySourceAttribution } from "./discovery-source-attribution";
 
 export type CanonicalAtlasOptions = {
   targetCount?: number;
@@ -574,7 +575,7 @@ async function materializePartialPersonLeadCards(input: {
   for (const lead of leadMap.values()) {
     const claimedUrls = new Set(lead.sourceUrls);
     const supports = new Map<string, {
-      sourceUrl: string; eventId: number; createdAt: Date;
+      sourceUrl: string; eventId: number; createdAt: Date; action: string;
       spanText: string; spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
@@ -603,6 +604,7 @@ async function materializePartialPersonLeadCards(input: {
         sourceUrl,
         eventId: observation.eventId,
         createdAt: observation.createdAt,
+        action: observation.action,
         spanText: exactSpan && span ? span.text : "",
         spanStart: exactSpan && span ? span.start : null,
         spanEnd: exactSpan && span ? span.end : null,
@@ -695,6 +697,7 @@ async function materializePartialPersonLeadCards(input: {
         role: lead.role,
         sourceUrl: sourceUrls[0],
         sourceUrls,
+        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt })),
         limitations: ["HNWI/wealth status not established", "ownership/control and materiality not established", "professional approach route not verified"],
       });
       if (!entityId) {
@@ -920,7 +923,7 @@ async function materializePartialOrganizationLeadCards(input: {
       // Investigator already selected the organization in a structured finding.
     ]);
     const supports = new Map<string, {
-      sourceUrl: string; eventId: number; createdAt: Date; spanText: string;
+      sourceUrl: string; eventId: number; createdAt: Date; action: string; spanText: string;
       spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
