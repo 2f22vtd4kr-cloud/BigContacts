@@ -90,7 +90,7 @@ function mergeDurablyAdmittedAtlasTargetSources(
       const name = candidate.name.trim().replace(/\s+/g, " ");
       const identity = normalizeCandidateIdentityName(name);
       const targetType = candidate.targetType === "organization" ? "organization" : "person";
-      if (name.length < 3 || identity.length < 3) continue;
+      if (!name || !identity) continue;
       const validUrls = candidate.sourceUrls
         .map(normalizeSourceUrl)
         .filter((url): url is string => url !== null && isClaimGradeDiscoverySourceUrl(url));
