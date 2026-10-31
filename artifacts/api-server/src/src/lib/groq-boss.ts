@@ -536,6 +536,10 @@ export function generateGroqBossText(
     thinkingLevel?: "minimal" | "low" | "medium" | "high";
     jobId?: string | null;
     caseId?: number | null;
+    targetDigest?: string | null;
+    iteration?: number | null;
+    decisionId?: string | null;
+    cognitiveTask?: string | null;
   },
 ): Promise<GroqBossTextGenerationResult> {
   return withProviderRole("control", () => generateGroqBossTextImpl(selection, prompt, options));
