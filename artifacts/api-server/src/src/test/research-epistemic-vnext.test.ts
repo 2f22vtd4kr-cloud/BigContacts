@@ -33,6 +33,7 @@ describe("research epistemic vNext", () => {
       "Michael C. Fillios — Founder & CEO of IT Ally.",
       "URL: https://www.linkedin.com/in/michaelfillios",
       "Michael Fillios is an entrepreneur and Founder & CEO of IT Ally.",
+      "Francisco Partners",
       "URL: https://www.linkedin.com/company/francisco-partners",
       "Francisco Partners is a private equity firm focused on technology.",
     ].join("\n");
