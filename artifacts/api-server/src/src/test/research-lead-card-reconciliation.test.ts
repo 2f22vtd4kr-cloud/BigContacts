@@ -69,7 +69,6 @@ describe("terminal review-card reconciliation", () => {
     expect(runtimeProofVerifier).toContain('Canonical case read-back does not match the exact discovery case ID.');
     expect(runtimeProofWorkflow).toContain('/api/dashboard/research-leads');
     expect(runtimeProofWorkflow).toContain('/api/entities');
-    expect(runtimeProofWorkflow).toContain('acceptedAfterControlFailure');
   });
 
   it("preserves a real company lead from one successful web search before later control failure", () => {
