@@ -183,7 +183,7 @@ export function mergeDurablyAdmittedCandidateSources(
     for (const candidate of group) {
       const name = candidate.name.trim().replace(/\s+/g, " ");
       const identity = normalizeCandidateIdentityName(name);
-      if (name.length < 3 || identity.length < 3) continue;
+      if (!name || !identity) continue;
       let entry = merged.get(identity);
       if (!entry) {
         entry = { name, sourceUrls: new Set<string>() };
