@@ -298,7 +298,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(orientation).toContain("leave promotionDecision unset");
     expect(orientation).toContain("selection is not promotion");
     expect(control).toContain("AVAILABLE REVIEW TARGETS");
-    expect(control).toContain("selecting one authorizes target-scoped verification, not promotion");
+    expect(control).toContain("A selection authorizes target-scoped verification only, not identity, ownership, wealth, HNWI or contact promotion.");
     expect(control).toContain("EARLY REVIEW-TARGET JUDGMENT");
     expect(control).toContain("Do not accumulate names or wait for a target-count threshold");
 
