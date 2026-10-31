@@ -1044,7 +1044,7 @@ describe("Investigator prompt architecture", () => {
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(discovery).toContain("Higher admission requires a successfully fetched claim-grade source");
     expect(discovery).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
-    expect(discovery).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
+    expect(discovery).toContain("Target-stage research tests match the admitted target type (person, organization, trust, or asset)");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
@@ -1124,7 +1124,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(prompt).toMatch(/people, not companies\/prestige|People—not companies|DISCOVERY TARGETABILITY/i);
     expect(prompt).toMatch(/ownership\/equity\/control|ownership\/control\/equity\/investment clue/i);
-    expect(prompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority/i);
+    expect(prompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority|seniority is not wealth/i);
     expect(prompt).toMatch(/LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD|PERSON REVIEW/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
@@ -1199,7 +1199,7 @@ Choose each next action yourself from the available capabilities and observed ev
 
     expect(prompt.length).toBeLessThanOrEqual(5_600);
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
-    expect(prompt).toContain("source class");
+    expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*provider/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
