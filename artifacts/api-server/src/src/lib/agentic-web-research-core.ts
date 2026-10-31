@@ -3389,6 +3389,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     minimumBinaryUrlRule,
     fallbackRuleCandidates.find((rule) => rule.startsWith("VALID PROVIDERS:")) ?? "",
     terminalEvidenceRule,
+    scopeRecoveryRule,
   ].filter(Boolean).join("\n\n");
   const contractBudget = Math.max(0, limit - protectedTail.length - 2);
   const boundedContract = contractText.length <= contractBudget
