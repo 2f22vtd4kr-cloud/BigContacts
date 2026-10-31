@@ -43,6 +43,12 @@ describe("HMLR PPD transaction asset projection", () => {
       beneficialOwnershipStatus: "unresolved",
       wealthStatus: "not_assessed",
       reviewOnly: true,
+      sourceName: "HM Land Registry Price Paid Data",
+      sourceDomain: "gov.uk",
+      sourceClass: "registry_adapter_source",
+      sourceMechanism: "hmlr_ppd_csv_ingest",
+      verificationLevel: "registry_record",
+      independentCorroborationStatus: "not_assessed",
     });
     expect(metadata).not.toHaveProperty("estimatedNetWorth");
   });
