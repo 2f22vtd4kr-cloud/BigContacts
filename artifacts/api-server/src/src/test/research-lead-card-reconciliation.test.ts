@@ -327,7 +327,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(control).toContain("COMPLETE AVAILABLE REVIEW TARGETS");
     expect(control).toContain("const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState });");
     expect(control).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, rightHand });");
-    expect(control).toContain("if the total prompt cannot fit, prompt construction fails visibly");
+    expect(control).toContain("will fail visibly if the complete exact target inventory cannot fit");
     const registryLeadObservationBlock = organizationMaterializer.slice(
       organizationMaterializer.indexOf("if (registry &&"),
       organizationMaterializer.indexOf("// Partial provider execution can still contain successful, attributable"),
