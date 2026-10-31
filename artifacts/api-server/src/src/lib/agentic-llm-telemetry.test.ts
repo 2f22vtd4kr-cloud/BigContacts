@@ -7,6 +7,39 @@ afterEach(() => {
 });
 
 describe("Investigator LLM telemetry privacy", () => {
+  it("attributes each physical attempt without logging target names", () => {
+    const output = vi.spyOn(console, "log").mockImplementation(() => {});
+    recordAgenticLlmAttempt({
+      provider: "groq",
+      role: "investigator",
+      capability: "groq-investigator-2",
+      jobId: "job-123",
+      caseId: 456,
+      targetDigest: "0123456789abcdef",
+      iteration: 7,
+      decisionId: "fedcba9876543210",
+      cognitiveTask: "ownership_research",
+      model: "openai/gpt-oss-120b",
+      promptChars: 120,
+      status: 200,
+      success: true,
+      retryIndex: 1,
+    });
+    const line = String(output.mock.calls[0]?.[0]);
+    const record = JSON.parse(line);
+    expect(record).toMatchObject({
+      role: "investigator",
+      capability: "groq-investigator-2",
+      jobId: "job-123",
+      caseId: 456,
+      targetDigest: "0123456789abcdef",
+      iteration: 7,
+      decisionId: "fedcba9876543210",
+      cognitiveTask: "ownership_research",
+    });
+    expect(line).not.toContain("Alice Example");
+  });
+
   it("preserves allowlisted generic provider diagnostics", () => {
     const output = vi.spyOn(console, "log").mockImplementation(() => {});
     recordAgenticLlmAttempt({
