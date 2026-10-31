@@ -320,10 +320,14 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     const legacyAssets = await tx.select({
       id: assetsTable.id,
       ownerEntityId: assetsTable.ownerEntityId,
-    }).from(assetsTable).where(and(
+    }).from(assetsTable).innerJoin(
+      entitiesTable,
+      eq(assetsTable.ownerEntityId, entitiesTable.id),
+    ).where(and(
       eq(assetsTable.category, "Aviation"),
       eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
       isNotNull(assetsTable.ownerEntityId),
+      eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
     ));
     const assetIds = legacyAssets.map((row) => row.id);
     if (assetIds.length > 0) {
@@ -335,6 +339,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       }).where(and(
         eq(relationshipsTable.targetType, "Asset"),
         eq(relationshipsTable.relationshipType, "OWNS"),
+        eq(relationshipsTable.notes, "FAA aircraft registration"),
         inArray(relationshipsTable.targetId, assetIds),
       ));
       const existing = await tx.select({
