@@ -5,7 +5,7 @@
  * https://www.gov.uk/government/statistical-data-sets/price-paid-data-downloads
  *
  * Downloads the annual PPD CSV files, filters for £1M+ transactions, and
- * inserts them as Corporation entities + Real Estate assets.
+ * inserts transaction-only Real Estate asset records. PPD does not identify purchasers or sellers.
  *
  * The SPARQL endpoint is unreliable for bulk queries; the S3-hosted CSV is
  * the official download route and supports streaming at ~160MB/year.
@@ -20,8 +20,8 @@ import { mkdir, stat, unlink } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { db, entitiesTable, assetsTable } from "@workspace/db";
-import type { InsertEntity, InsertAsset } from "@workspace/db";
+import { db, assetsTable } from "@workspace/db";
+import type { InsertAsset } from "@workspace/db";
 import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
 import { persistRegistryEntityAssetBatch, persistAndMarkRegistryBatch } from "./registry-batch-persistence";
@@ -86,13 +86,6 @@ async function isCacheStale(path: string): Promise<boolean> {
   } catch { return true; }
 }
 
-function bayesianFromPrice(price: number): number {
-  if (price >= 10_000_000) return 0.88;
-  if (price >= 5_000_000)  return 0.78;
-  if (price >= 2_000_000)  return 0.68;
-  return 0.58;
-}
-
 /** Strip surrounding quotes from a CSV field (PPD uses "" quoting) */
 function unquote(s: string): string {
   return s.replace(/^"(.*)"$/, "$1").trim();
@@ -100,22 +93,16 @@ function unquote(s: string): string {
 
 // ── Batch flush ───────────────────────────────────────────────────────────────
 
-async function flushBatch(
-  entities: InsertEntity[],
-  assets: InsertAsset[],
-): Promise<{ inserted: number; errors: number }> {
+async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; errors: number }> {
   const result = await persistRegistryEntityAssetBatch({
-    entities,
+    entities: [],
     assets,
     adapter: {
       transaction: async (work) => db.transaction((tx) => work(tx)),
-      insertEntities: async (tx, rows) => { await tx.insert(entitiesTable).values([...rows]); },
       insertAssets: async (tx, rows) => { await tx.insert(assetsTable).values([...rows]); },
     },
   });
-  if (result.errors > 0) {
-    logger.warn({ entities: entities.length, assets: assets.length }, "Land Registry transactional batch insert failed; dedup keys remain retryable");
-  }
+  if (result.errors > 0) logger.warn({ assets: assets.length }, "Land Registry asset-only transaction failed; dedup keys remain retryable");
   return result;
 }
 
@@ -183,7 +170,6 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       crlfDelay: Infinity,
     });
 
-    const entityBatch: InsertEntity[] = [];
     const assetBatch: InsertAsset[] = [];
     const pendingDedup: string[] = [];
     let lineNum = 0;
@@ -191,7 +177,7 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
 
     for await (const line of rl) {
       lineNum++;
-      if (inserted + Math.max(entityBatch.length, assetBatch.length) >= maxRecords) break;
+      if (inserted + assetBatch.length >= maxRecords) break;
 
       // Unconditional progress heartbeat every 10,000 lines
       if (lineNum - lastProgressLine >= 10_000) {
@@ -242,37 +228,6 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       const propLabel   = { D: "Detached", S: "Semi-Detached", T: "Terraced", F: "Flat/Maisonette", O: "Other" }[propType] ?? "Property";
       const address     = [paon, saon, street, locality, town, county, postcode].filter(Boolean).join(", ");
       const priceStr2   = `£${price.toLocaleString("en-GB")}`;
-      const score       = bayesianFromPrice(price);
-
-      const entityName = address
-        ? `UK Property — ${[paon, street, town].filter(Boolean).join(", ")}`
-        : `UK Property — ${postcode}`;
-
-      const entity: InsertEntity = {
-        name: entityName,
-        type: "Corp",
-        nationality: "UK",
-        knownResidences: address || undefined,
-        sourceRegistries: JSON.stringify(["UK HM Land Registry (PPD)"]),
-        bayesianScore: score,
-        // Property value is wealth evidence only; it is not a direct contact.
-        isHot: false,
-        // B2: net worth heuristic — property price × 5 (conservative wealth floor)
-        estimatedNetWorth: price * 5,
-        notes: `High-value UK property: ${propLabel} (${tenureLabel}). Paid ${priceStr2} on ${date}.`,
-        metadata: JSON.stringify({
-          source: "hmlr-ppd-csv",
-          txId,
-          price,
-          propType,
-          tenure: tenureLabel,
-          county,
-          postcode,
-          date,
-          year,
-        }),
-      };
-
       const asset: InsertAsset = {
         category: "RealEstate",
         identifier: txId,
@@ -281,22 +236,36 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
         address: address || undefined,
         sourceRegistry: "UK HM Land Registry (PPD)",
         lastActivityDate: date || undefined,
-        estimatedValue: price,
+        // PPD records an observed transaction price, not a verified current market value.
+        metadata: JSON.stringify({
+          source: "hmlr-ppd-csv",
+          transactionId: txId,
+          transactionPriceGbp: price,
+          transactionDate: date,
+          pricePaidIsMarketValue: false,
+          propertyType: propType,
+          tenure: tenureLabel,
+          county,
+          postcode,
+          year,
+          purchaserIdentity: "not_provided_by_ppd",
+          sellerIdentity: "not_provided_by_ppd",
+          ownershipStatus: "unresolved",
+          valuationStatus: "not_assessed",
+        }),
       };
 
-      entityBatch.push(entity);
       assetBatch.push(asset);
 
       if (assetBatch.length >= 50) {
         const res = await persistAndMarkRegistryBatch({
-          persist: () => flushBatch(entityBatch, assetBatch),
+          persist: () => flushBatch(assetBatch),
           keys: pendingDedup,
           markSeen: batchMarkSeen,
         });
         inserted += res.inserted;
         errors += res.errors;
         if (res.errors > 0) for (const key of pendingDedup) seenKeys.delete(key);
-        entityBatch.length = 0;
         assetBatch.length = 0;
         pendingDedup.length = 0;
 
@@ -310,9 +279,9 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
     }
 
     // Flush remaining, then commit the external dedup keys only after the DB transaction.
-    if (entityBatch.length > 0 || assetBatch.length > 0) {
+    if (assetBatch.length > 0) {
       const res = await persistAndMarkRegistryBatch({
-        persist: () => flushBatch(entityBatch, assetBatch),
+        persist: () => flushBatch(assetBatch),
         keys: pendingDedup,
         markSeen: batchMarkSeen,
       });
