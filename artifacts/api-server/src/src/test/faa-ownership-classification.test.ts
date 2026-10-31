@@ -16,7 +16,7 @@ describe("FAA registrant ownership classification", () => {
       beneficialOwnershipStatus: "unresolved",
       confidence: "LOW",
       reviewOnly: true,
-      wealthStatus: "unassessed",
+      wealthStatus: "unverified",
       estimatedNetWorth: null,
       bayesianScore: 0.05,
       isHot: false,
@@ -61,7 +61,7 @@ describe("FAA registrant ownership classification", () => {
     expect(result.registrantKind).toBe("government");
     expect(result.entityType).toBeNull();
     expect(result.identityStatus).toBe("government_registrant");
-    expect(result.wealthStatus).toBe("unassessed");
+    expect(result.wealthStatus).toBe(code === "1" ? "unverified" : "not_assessed");
   });
 
   it("fails closed for unknown registrant codes without inventing an entity type", () => {
