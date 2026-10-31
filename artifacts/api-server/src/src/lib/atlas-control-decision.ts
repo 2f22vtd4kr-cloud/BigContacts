@@ -455,7 +455,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
         // Compact the explanatory state first, then append the complete URL as an
         // atomic suffix so head/tail compaction cannot cut it out or select a failed
         // route in place of an actually unfetched lead.
-        const core = [lines.slice(0, 3).join("\n"), lines.slice(-2).join("\n")]
+        const core = [lines.slice(0, 4).join("\n"), lines.slice(-2).join("\n")]
           .filter(Boolean).join("\n");
         const coreBudget = Math.max(0, pinnedBudget - (pinnedUrlLine ? pinnedUrlLine.length + 1 : 0));
         const compactCore = trimPromptSection(core, coreBudget);
