@@ -269,7 +269,7 @@ jobs:
             .split(/\r?\n/)
             .filter(Boolean)
             .map((line) => {
-              const [id, entityId, sessionId, claimType, sourceUrl, status, confidence, ...metadataParts] = line.split("\t");
+              const [id, entityId, sessionId, claimType, sourceName, sourceDomain, sourceUrl, status, confidence, ...metadataParts] = line.split("\t");
               return {
                 id: Number(id),
                 entityId: Number(entityId),
