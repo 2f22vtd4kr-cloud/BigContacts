@@ -133,7 +133,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       const sourceUrls = fetched ? observedUrls : leadUrls;
       for (const rawUrl of sourceUrls) {
         const url = normalizeSource(rawUrl);
-        if (!url || (fetched && !isClaimGradeDiscoverySourceUrl(url))) continue;
+        if (!url) continue;
         const observationText = String(payload.observation ?? "").replace(/\s+/g, " ").trim().slice(0, 800);
         const args = payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
           ? payload.args as Record<string, unknown>
@@ -171,7 +171,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           action, execution: String(payload.execution), url,
           text: sourceText,
           eventId: event.id, createdAt: event.createdAt,
-          verificationLevel: fetched ? "fetched_source" : "search_result_lead",
+          verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead",
         });
       }
     }
@@ -361,8 +361,8 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
         : (Array.isArray(payload.observedUrls) ? payload.observedUrls : []);
       for (const rawUrl of rawUrls) {
         const url = normalizeSource(rawUrl);
-        if (!url || (fetched && !isClaimGradeDiscoverySourceUrl(url))) continue;
-        observations.push({ url, text: String(payload.observation ?? ""), eventId: event.id, createdAt: event.createdAt, verificationLevel: fetched ? "fetched_source" : "search_result_lead" });
+        if (!url) continue;
+        observations.push({ url, text: String(payload.observation ?? ""), eventId: event.id, createdAt: event.createdAt, verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead" });
       }
     }
     for (const lead of findings.values()) {
