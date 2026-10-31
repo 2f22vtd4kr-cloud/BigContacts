@@ -23,7 +23,7 @@ import { computeBayesianScore } from "./bayesian-scorer";
 import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
 import { deriveRegistryIngestionAssessment, filterRegistryIngestionBatchRows, registryPersonCandidateNames } from "./registry-ingestion-policy";
 import { logger } from "./logger";
-import { filterHumanNamesWithLLM, isDeterministicallySafeHumanName } from "./llm-name-validator";
+import { filterHumanNamesWithLLM } from "./llm-name-validator";
 import {
   getRandomDiscoveryRegistries,
   normalizeUnverifiedRegistryType,
@@ -941,20 +941,9 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
       // all candidates are accepted (matching prior behaviour).
       const candidateNames = registryPersonCandidateNames(entityBatch);
       let validNames = new Set(await filterHumanNamesWithLLM(candidateNames));
-      // Registry officer/director paths already passed looksLikePerson. If Groq
-      // is unavailable, fail-closed LLM would zero out the entire preferPersons
-      // admission budget — fall back to deterministic human-name safety only.
-      if (preferPersons && validNames.size === 0 && candidateNames.length > 0) {
-        validNames = new Set(
-          candidateNames.filter((n) => isDeterministicallySafeHumanName(n)),
-        );
-        if (validNames.size > 0) {
-          logger.warn(
-            { kept: validNames.size, total: candidateNames.length },
-            "preferPersons admission: Groq unavailable — using deterministic human-name gate only",
-          );
-        }
-      }
+      // A provider outage is not a person/identity decision. Keep the batch
+      // review-safe: no candidate is admitted to a person entity without the
+      // model result; deterministic script/word heuristics are not substitutes.
       const preCount = entityBatch.length;
       entityBatch = filterRegistryIngestionBatchRows(entityBatch, validNames, preferPersons);
       const rejected = preCount - entityBatch.length;
