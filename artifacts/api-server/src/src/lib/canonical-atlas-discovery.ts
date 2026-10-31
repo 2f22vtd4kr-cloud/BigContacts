@@ -675,7 +675,7 @@ async function materializePartialPersonLeadCards(input: {
         ? `PARTIAL PERSON LEAD — a fetched public source supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`
         : `UNVERIFIED PERSON LEAD — a public source observation supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. The source is not treated as claim-grade evidence; role, wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`);
       const sourceEvidence = [...supports.values()].map((support) => {
-        const sourceDomain = new URL(support.sourceUrl).hostname.replace(/^www\\./i, "");
+        const sourceDomain = new URL(support.sourceUrl).hostname.replace(/^www\./i, "");
         return {
           sourceUrl: support.sourceUrl,
           sourceName: sourceDomain,
@@ -1027,7 +1027,7 @@ async function materializePartialOrganizationLeadCards(input: {
         ? "FETCHED-SOURCE REVIEW LEAD — a fetched public source contains this organization name. Ownership/control, business materiality, wealth, and targetability remain unverified."
         : "UNVERIFIED SOURCE REVIEW LEAD — a public source observation supports this organization name. It is not treated as claim-grade evidence; ownership/control, business materiality, wealth, and targetability remain unverified.");
       const sourceEvidence = [...supports.values()].map((support) => {
-        const sourceDomain = new URL(support.sourceUrl).hostname.replace(/^www\\./i, "");
+        const sourceDomain = new URL(support.sourceUrl).hostname.replace(/^www\./i, "");
         return {
           sourceUrl: support.sourceUrl,
           sourceName: sourceDomain,
