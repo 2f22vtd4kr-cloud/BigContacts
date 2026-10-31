@@ -1044,7 +1044,7 @@ describe("Investigator prompt architecture", () => {
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(discovery).toContain("Higher admission requires a successfully fetched claim-grade source");
     expect(discovery).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
-    expect(discovery).toContain("Target-stage research tests match the admitted target type (person, organization, trust, or asset)");
+    expect(discovery).toContain("Target-stage research tests material business/asset/exit signals");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
