@@ -121,6 +121,16 @@ function sanitizeChName(raw: string): string {
     .trim();
 }
 
+/** Person entity types that represent the same unresolved natural-person identity. */
+const WESTERN_PERSON_ENTITY_TYPES = new Set(["PersonCandidate", "HNWI", "Gatekeeper"]);
+
+/** Legacy HNWI/Gatekeeper rows and new PersonCandidate rows must dedupe across their review-state types. */
+export function areCompatibleWesternRegistryEntityTypes(existingType: string, candidateType: string): boolean {
+  const existingIsPerson = WESTERN_PERSON_ENTITY_TYPES.has(existingType);
+  const candidateIsPerson = WESTERN_PERSON_ENTITY_TYPES.has(candidateType);
+  return existingIsPerson && candidateIsPerson ? true : existingType === candidateType;
+}
+
 /** Versioned dedup key: re-evaluate legacy rows after the new candidate policy. */
 function dedupKey(name: string, jurisdiction: string): string {
   return `western:v2:${normalizeName(name)}:${jurisdiction.toLowerCase()}`;
@@ -973,8 +983,19 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
         const existing = await tx.select({ name: entitiesTable.name, type: entitiesTable.type })
           .from(entitiesTable)
           .where(inArray(entitiesTable.name, names));
-        const existingKeys = new Set(existing.map((row) => `${row.type}:${normalizeName(row.name)}`));
-        const fresh = rowsToInsert.filter((row) => !existingKeys.has(`${row.type}:${normalizeName(row.name)}`));
+        const batchKeys = new Set<string>();
+        const fresh = rowsToInsert.filter((row) => {
+          const normalizedName = normalizeName(row.name);
+          const alreadyPersisted = existing.some((prior) =>
+            normalizeName(prior.name) === normalizedName
+            && areCompatibleWesternRegistryEntityTypes(prior.type, row.type),
+          );
+          const canonicalType = WESTERN_PERSON_ENTITY_TYPES.has(row.type) ? "PersonCandidate" : row.type;
+          const batchKey = `${canonicalType}:${normalizedName}`;
+          if (alreadyPersisted || batchKeys.has(batchKey)) return false;
+          batchKeys.add(batchKey);
+          return true;
+        });
         const insertedRows = fresh.length > 0
           ? await tx.insert(entitiesTable).values(fresh).returning({ id: entitiesTable.id })
           : [];
