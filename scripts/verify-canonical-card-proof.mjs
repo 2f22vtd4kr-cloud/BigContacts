@@ -390,7 +390,7 @@ export function verifyResearchEvidenceRows(input) {
 export function verifyModelAudit(input) {
   const proof = input?.proof ?? {};
   const auditText = typeof input?.auditText === "string" ? input.auditText : "";
-  const pattern = /### Model (request|response) ([^\\n]+)\\n\\n(`{3,})json\\n([\\s\\S]*?)\\n\\3/g;
+  const pattern = /### Model (request|response) ([^\n]+)\n\n(`{3,})json\n([\s\S]*?)\n\3/g;
   const requests = new Map();
   const responses = [];
   for (const match of auditText.matchAll(pattern)) {
