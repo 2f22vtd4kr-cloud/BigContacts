@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { logger } from "./logger";
 import { emitInvestigatorProviderRequestAudit } from "./investigator-request-audit";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
-import { apexInvestigatorSystemCore, apexOrientationCompact } from "./apex-bureau-orientation";
+import { apexInvestigatorSystemCore } from "./apex-bureau-orientation";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
 import { GROQ_CHAT_MODELS } from "./groq-models";
