@@ -65,7 +65,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       .where(and(eq(researchCaseEventsTable.caseId, researchCase.id), inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"])))
       .orderBy(researchCaseEventsTable.id);
     const findings = new Map<string, { name: string; urls: Set<string>; notes: Set<string> }>();
-    const observations: Array<{ action: string; execution: string; url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead"; sourceUrlBoundByAdapter?: boolean }> = [];
+    const observations: Array<{ action: string; execution: string; url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead"; sourceUrlBoundByAdapter?: boolean; sourceName?: string; sourceClass?: string; sourceContributor?: string | null }> = [];
     for (const event of events) {
       const payload = parseObject(event.payload);
       if (!payload || payload.jobId !== jobId) continue;
@@ -120,6 +120,9 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
                 action: "registry_search", execution: "success", url,
                 text: `${name}${normalizedNotes ? ` — ${normalizedNotes}` : ""}`,
                 eventId: event.id, createdAt: event.createdAt, verificationLevel: "search_result_lead", sourceUrlBoundByAdapter: true,
+                 sourceName: typeof company.sourceName === "string" ? company.sourceName : undefined,
+                 sourceClass: typeof company.sourceClass === "string" ? company.sourceClass : undefined,
+                 sourceContributor: typeof company.sourceContributor === "string" ? company.sourceContributor : null,
               });
             }
           }
@@ -236,7 +239,8 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           admission: prior.admission ?? "source-observed-organization-name",
           verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead",
           discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, sourceNotes,
-          sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt })),
+          sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
+          sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
           limitations, identityCollisionPossible,
         });
         let entityId = sameCase?.id;
@@ -429,6 +433,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
             url: support.url,
             tier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result",
             supportingEventId: support.eventId, observedAt: support.createdAt.toISOString(),
+             sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor }),
           };
           const current = sourceEvidenceByUrl.get(support.url);
           if (!current || (current.tier !== "fetched_public_source" && incoming.tier === "fetched_public_source")) {
@@ -443,7 +448,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           ...prior, reviewOnly: true, partialPersonLead: true, roleOnlyLead: Boolean(lead.role), stage: "partial_review",
           admission: prior.admission ?? "source-observed-person-lead",
           verificationLevel, discoveryCaseId: researchCase.id, atlasJobId: jobId, role: lead.role, sourceUrls,
-           sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt })),
+           sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
           sourceEvidence: [...sourceEvidenceByUrl.values()],
           limitations: ["wealth status not established", "ownership/control not established", "professional approach route not verified", ...(identityCollisionPossible ? ["same-name entity may exist in another case; identity not merged"] : [])],
           identityCollisionPossible,
