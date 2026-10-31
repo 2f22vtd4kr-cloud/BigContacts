@@ -342,7 +342,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
         await tx.insert(researchEvidenceTable).values({
           sessionId: session.id, entityId, claimType: "identity_candidate",
           claim: "Investigator-discovered candidate: " + name + "; role: " + selectedRole,
-          value: name, sourceName: "canonical-agentic-discovery",
+          value: name, sourceName: new URL(support.sourceUrl).hostname,
           sourceUrl: support.sourceUrl, sourceDomain: new URL(support.sourceUrl).hostname,
           status: "review", confidence: 0.5, observedAt: supportEvent?.createdAt ?? new Date(),
           freshnessScore: 1,
@@ -760,7 +760,7 @@ async function materializePartialPersonLeadCards(input: {
             ? (lead.role ? "A fetched public source co-binds this exact person name and page-stated role; wealth, ownership/control, and targetability remain unverified." : "A fetched public source supports this person name; role, wealth, ownership/control, and targetability remain unverified.")
             : (lead.role ? "A successful public search/registry observation supports this person and role lead; the underlying page, wealth, ownership/control, and targetability remain unverified." : "A successful public search/registry observation supports this person-name lead; the underlying page, role, wealth, ownership/control, and targetability remain unverified."),
           value: lead.name,
-          sourceName: "canonical-agentic-discovery",
+          sourceName: new URL(support.sourceUrl).hostname,
           sourceUrl: support.sourceUrl,
           sourceDomain: new URL(support.sourceUrl).hostname,
           status: "review",
@@ -780,6 +780,7 @@ async function materializePartialPersonLeadCards(input: {
             sourceSpanNote: support.spanVerified ? null : "Investigator-selected person lead; exact source span not independently isolated.",
             spanStart: support.spanStart,
             spanEnd: support.spanEnd,
+            sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt }),
             noWealthOrContactConclusion: true,
           }),
         });
@@ -1080,7 +1081,7 @@ async function materializePartialOrganizationLeadCards(input: {
             ? "The fetched public source contains the exact organization name; ownership, materiality, and a targetable person remain unverified."
             : "A successful public search observation contains the exact organization name and an attributable result URL; the underlying page, ownership, materiality, and a targetable person remain unverified.",
           value: name,
-          sourceName: "canonical-agentic-discovery",
+          sourceName: new URL(support.sourceUrl).hostname,
           sourceUrl: support.sourceUrl,
           sourceDomain: new URL(support.sourceUrl).hostname,
           status: "review",
@@ -1099,6 +1100,7 @@ async function materializePartialOrganizationLeadCards(input: {
             sourceSpanNote: support.spanVerified ? null : "Investigator-selected organization lead; exact source span not independently isolated.",
             spanStart: support.spanStart,
             spanEnd: support.spanEnd,
+            sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt }),
             noOwnershipOrWealthConclusion: true,
           }),
         });
