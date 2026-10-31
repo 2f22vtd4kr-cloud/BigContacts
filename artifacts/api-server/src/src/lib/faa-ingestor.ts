@@ -555,7 +555,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
 
   // Pre-load existing FAA dedup keys into memory (one Upstash scan instead of per-record calls)
   await updateJob(jobId, { message: "Loading FAA dedup index…", progress: 7 });
-  const seenKeys = await preloadDedupPrefix("faa:");
+  const seenKeys = await preloadDedupPrefix("faa:v2:");
   await appendJobLog(jobId, `📋 ${seenKeys.size.toLocaleString()} previously-ingested FAA records in dedup set. Starting parse…`);
 
   await updateJob(jobId, { message: `Parsing MASTER.txt (${totalLines.toLocaleString()} records)…`, progress: 8 });
@@ -623,7 +623,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
 
     const assetSignal = classifyFaaAssetSignal(typeEngine, typeAircraft);
     if (assetSignal.strength === "observed_asset_lead") continue;
-    const dkey = `faa:${nNumber}`;
+    const dkey = `faa:v2:${nNumber}`;
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
     pendingDedup.push(dkey);
