@@ -255,7 +255,7 @@ jobs:
           psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 \
             -v entity_id="$ENTITY_ID" -v job_id="$JOB_ID" -v case_id="$CASE_ID" \
             -A -t -F $'\t' \
-            -c "SELECT id, entity_id, session_id, claim_type, source_url, status, confidence, metadata FROM research_evidence WHERE entity_id = :'entity_id'::integer AND metadata::jsonb->>'atlasJobId' = :'job_id' AND metadata::jsonb->>'discoveryCaseId' = :'case_id' ORDER BY id;" \
+            -c "SELECT id, entity_id, session_id, claim_type, source_name, source_domain, source_url, status, confidence, metadata FROM research_evidence WHERE entity_id = :'entity_id'::integer AND metadata::jsonb->>'atlasJobId' = :'job_id' AND metadata::jsonb->>'discoveryCaseId' = :'case_id' ORDER BY id;" \
             | tee /tmp/research-evidence-rows.tsv
           node --input-type=module <<'NODE'
           import fs from "node:fs";
@@ -271,6 +271,8 @@ jobs:
                 entityId: Number(entityId),
                 sessionId: Number(sessionId),
                 claimType,
+                sourceName,
+                sourceDomain,
                 sourceUrl,
                 status,
                 confidence: Number(confidence),
