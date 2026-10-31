@@ -506,7 +506,7 @@ async function materializePartialPersonLeadCards(input: {
       || !finding.personName?.trim()) continue;
     const name = finding.personName.trim().replace(/\s+/g, " ");
     const role = finding.role?.trim() ? finding.role.trim().replace(/\s+/g, " ") : null;
-    if (!name) continue;
+    if (!isStructurallyValidCandidateName(name)) continue;
     const identity = normalizeCandidateIdentityName(name) + "::" + (role ? normalizeCandidateIdentityName(role) : "");
     const current = leadMap.get(identity);
     const sourceUrls = [...new Set([
@@ -826,7 +826,7 @@ async function materializePartialOrganizationLeadCards(input: {
     if (finding.scope !== "organization" || finding.promotionDecision === "reject") continue;
     const name = finding.value.trim().replace(/\s+/g, " ");
     const identity = normalizeCandidateIdentityName(name);
-    if (!name || !identity || seenNames.has(identity)) continue;
+    if (!isStructurallyValidCandidateName(name) || !identity || seenNames.has(identity)) continue;
     seenNames.add(identity);
     leadNames.push(name);
   }
@@ -871,7 +871,7 @@ async function materializePartialOrganizationLeadCards(input: {
           for (const rawLead of outcome.companyLeads) {
             if (!rawLead || typeof rawLead !== "object" || Array.isArray(rawLead)) continue;
             const company = rawLead as Record<string, unknown>;
-            if (typeof company.name !== "string" || !Array.isArray(company.sourceUrls)) continue;
+            if (typeof company.name !== "string" || !isStructurallyValidCandidateName(company.name) || !Array.isArray(company.sourceUrls)) continue;
             const name = company.name.trim().replace(/\s+/g, " ");
             const identity = normalizeCandidateIdentityName(name);
             if (!name || !identity) continue;
