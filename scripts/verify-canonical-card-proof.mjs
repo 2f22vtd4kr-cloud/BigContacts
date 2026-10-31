@@ -386,3 +386,85 @@ export function verifyResearchEvidenceRows(input) {
     evidenceSupportEventIds: [...new Set(accepted.map((row) => row.supportingEventId))],
   };
 }
+
+export function verifyModelAudit(input) {
+  const proof = input?.proof ?? {};
+  const auditText = typeof input?.auditText === "string" ? input.auditText : "";
+  const pattern = /### Model (request|response) ([^\\n]+)\\n\\n(`{3,})json\\n([\\s\\S]*?)\\n\\3/g;
+  const requests = new Map();
+  const responses = [];
+  for (const match of auditText.matchAll(pattern)) {
+    let record;
+    try {
+      record = JSON.parse(match[4]);
+    } catch {
+      continue;
+    }
+    if (!isRecord(record) || typeof record.requestId !== "string") continue;
+    if (match[1] === "request" && record.event === "atlas_model_request") {
+      requests.set(record.requestId, record);
+    } else if (match[1] === "response" && record.event === "atlas_model_response") {
+      responses.push(record);
+    }
+  }
+
+  const requiredRoles = ["groq_boss", "groq_right_hand", "groq_investigator"];
+  const successful = [];
+  for (const response of responses) {
+    const request = requests.get(response.requestId);
+    if (!request || request.role !== response.role || request.provider !== response.provider || request.model !== response.model) continue;
+    if (request.jobId != null && request.jobId !== proof.jobId) continue;
+    if (request.caseId != null && Number(request.caseId) !== Number(proof.caseId)) continue;
+    const httpStatus = Number(response.httpStatus);
+    const responsePayload = parseObject(response.response);
+    if (httpStatus < 200 || httpStatus >= 300 || response.transportFailure || responsePayload.jsonParsed !== true) continue;
+    if (!Array.isArray(responsePayload.choices) || responsePayload.choices.length === 0) continue;
+    successful.push({ request, response, httpStatus });
+  }
+
+  const byRole = {};
+  for (const role of requiredRoles) {
+    const roleCalls = successful.filter((call) => call.request.role === role);
+    if (!roleCalls.length) {
+      throw new Error("Model audit does not prove a successful real provider request/response for role " + role + ".");
+    }
+    const promptTokens = roleCalls.reduce((sum, call) => sum + Number(parseObject(call.response.response).usage?.prompt_tokens ?? 0), 0);
+    const completionTokens = roleCalls.reduce((sum, call) => sum + Number(parseObject(call.response.response).usage?.completion_tokens ?? 0), 0);
+    const totalTokens = roleCalls.reduce((sum, call) => sum + Number(parseObject(call.response.response).usage?.total_tokens ?? 0), 0);
+    const models = [...new Set(roleCalls.map((call) => call.response.model).filter((value) => typeof value === "string"))];
+    const providers = [...new Set(roleCalls.map((call) => call.response.provider).filter((value) => typeof value === "string"))];
+    byRole[role] = {
+      successfulCalls: roleCalls.length,
+      models,
+      providers,
+      promptTokens,
+      completionTokens,
+      totalTokens,
+      latencyMs: roleCalls.reduce((sum, call) => sum + Number(call.response.latencyMs ?? 0), 0),
+      requestIds: roleCalls.map((call) => call.response.requestId),
+    };
+  }
+
+  const totalPromptTokens = requiredRoles.reduce((sum, role) => sum + byRole[role].promptTokens, 0);
+  const totalCompletionTokens = requiredRoles.reduce((sum, role) => sum + byRole[role].completionTokens, 0);
+  const totalLatencyMs = requiredRoles.reduce((sum, role) => sum + byRole[role].latencyMs, 0);
+  const fallbackRoles = requiredRoles.filter((role) => byRole[role].models.length > 1 || byRole[role].providers.length > 1);
+  const retryCount = [...requests.values()].filter((request) => Number(request.attempt ?? 1) > 1).length;
+
+  return {
+    ...proof,
+    modelAudit: {
+      totalRequests: requests.size,
+      totalResponses: responses.length,
+      successfulResponses: successful.length,
+      retryCount,
+      fallbackRoles,
+      totalPromptTokens,
+      totalCompletionTokens,
+      totalTokens: totalPromptTokens + totalCompletionTokens,
+      totalLatencyMs,
+      costUsd: null,
+      byRole,
+    },
+  };
+}
