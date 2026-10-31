@@ -573,7 +573,6 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
 
   for await (const line of rl) {
     lineNum++;
-    if (lineNum === 1) continue; // FAA MASTER has a header row.
     if (inserted + batchRows.length >= maxRecords) break;
 
     if (lineNum - lastProgressLine >= 5_000) {
@@ -589,6 +588,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     }
 
     const fields = parseFaaMasterCsvRecord(line);
+    if (fields[0]?.trim().toLowerCase() === "n-number") continue; // tolerate optional header, never skip the first data row
     if (fields.length <= F_OTHER_NAME_5) continue;
 
     const nNumber = fields[F_NNUMBER]?.trim() ?? "";
