@@ -84,7 +84,7 @@ export function normalizeReviewLeadFindings(findings: AgenticFinding[] = []): Ag
       ...finding,
       sourceUrls: [...new Set(finding.sourceUrls
         .map(normalizeObservedUrl)
-        .filter((url): url is string => Boolean(url) && url.startsWith("https://")))],
+        .filter((url): url is string => url !== null && url.startsWith("https://")))],
     }))
     .filter((finding) => finding.sourceUrls.length > 0);
 }
