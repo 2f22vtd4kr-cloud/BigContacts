@@ -20,8 +20,8 @@ import { mkdir, stat, unlink } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { and, eq, inArray } from "drizzle-orm";
-import { db, assetsTable } from "@workspace/db";
+import { and, eq, inArray, isNotNull, like, sql } from "drizzle-orm";
+import { db, assetsTable, entitiesTable } from "@workspace/db";
 import type { InsertAsset } from "@workspace/db";
 import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
@@ -176,6 +176,40 @@ async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; sk
   }
 }
 
+async function repairLegacyHmlrSyntheticEntities(): Promise<void> {
+  await db.transaction(async (tx) => {
+    // Old PPD ingestion linked address-generated placeholder entities to assets.
+    // The source does not disclose the purchaser, so clear that unsupported FK.
+    await tx.update(assetsTable).set({ ownerEntityId: null }).where(and(
+      eq(assetsTable.category, "RealEstate"),
+      eq(assetsTable.sourceRegistry, "UK HM Land Registry (PPD)"),
+      isNotNull(assetsTable.ownerEntityId),
+    ));
+
+    // Preserve historical rows for audit, but hide them from target/company views
+    // and explicitly mark them as synthetic address-only placeholders.
+    await tx.update(entitiesTable).set({
+      isHidden: true,
+      isHot: false,
+      estimatedNetWorth: null,
+      bayesianScore: 0.05,
+      knownResidences: null,
+      notes: "Historical HMLR address-only placeholder retained for audit. PPD does not disclose the purchaser; this is not a person or company target. Use the corresponding asset-only transaction record.",
+      metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
+        'legacyHmlrSyntheticAddressEntity', true,
+        'identityStatus', 'not_a_person_or_company',
+        'ownerIdentityStatus', 'not_disclosed_by_ppd',
+        'wealthStatus', 'not_assessed',
+        'hnwiQualificationStatus', 'not_assessed',
+        'reviewOnly', true
+      )`,
+    }).where(and(
+      eq(entitiesTable.sourceRegistries, JSON.stringify(["UK HM Land Registry (PPD)"])),
+      like(entitiesTable.name, "UK Property — %"),
+    ));
+  });
+}
+
 // ── Main ingestion function ───────────────────────────────────────────────────
 
 export async function runLandRegistryIngestion(params: LandRegIngestionParams): Promise<LandRegIngestionResult> {
@@ -186,6 +220,8 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
   let errors = 0;
 
   await mkdir(TMP_DIR, { recursive: true });
+  await updateJob(jobId, { message: "Reconciling legacy HMLR address-only placeholders…" });
+  await repairLegacyHmlrSyntheticEntities();
 
   // Process years newest-first until we hit maxRecords
   const years = [2025, 2024, 2023, 2022];
