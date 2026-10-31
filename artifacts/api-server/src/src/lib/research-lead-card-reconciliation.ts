@@ -6,6 +6,7 @@ import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
+import { buildDiscoverySourceAttribution } from "./discovery-source-attribution";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { getJobStrict } from "./job-queue";
 
@@ -234,7 +235,9 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           ...prior, reviewOnly: true, partialOrganizationLead: true, stage: "partial_review",
           admission: prior.admission ?? "source-observed-organization-name",
           verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead",
-          discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, sourceNotes, limitations, identityCollisionPossible,
+          discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, sourceNotes,
+          sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt })),
+          limitations, identityCollisionPossible,
         });
         let entityId = sameCase?.id;
         let updated = false;
@@ -292,10 +295,10 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
             claim: isFetched
               ? "A successfully fetched public-source observation contains this exact organization name; ownership/control and wealth remain unestablished."
               : "A successful search observation surfaced this exact organization name with an attributable source URL; this remains an unverified lead, not fetched-page evidence.",
-            value: lead.name, sourceName: "canonical-agentic-discovery", sourceUrl: support.url,
-            sourceDomain: new URL(support.url).hostname, status: "review", confidence: 0.2,
+            value: lead.name, sourceName: buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt }).sourceName, sourceUrl: support.url,
+            sourceDomain: buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt }).sourceDomain, status: "review", confidence: 0.2,
             observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
-            metadata: JSON.stringify({ partialReview: true, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
+            metadata: JSON.stringify({ partialReview: true, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId, sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt }) }),
           });
           added += 1;
           updated = true;
@@ -440,6 +443,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           ...prior, reviewOnly: true, partialPersonLead: true, roleOnlyLead: Boolean(lead.role), stage: "partial_review",
           admission: prior.admission ?? "source-observed-person-lead",
           verificationLevel, discoveryCaseId: researchCase.id, atlasJobId: jobId, role: lead.role, sourceUrls,
+           sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt })),
           sourceEvidence: [...sourceEvidenceByUrl.values()],
           limitations: ["wealth status not established", "ownership/control not established", "professional approach route not verified", ...(identityCollisionPossible ? ["same-name entity may exist in another case; identity not merged"] : [])],
           identityCollisionPossible,
@@ -501,7 +505,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
             value: lead.name, sourceName: "canonical-agentic-discovery", sourceUrl: support.url,
             sourceDomain: new URL(support.url).hostname, status: "review", confidence: 0.25,
             observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
-            metadata: JSON.stringify({ partialReview: true, role: lead.role, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
+            metadata: JSON.stringify({ partialReview: true, role: lead.role, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId, sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt }) }),
           });
           added += 1;
           updated = true;
