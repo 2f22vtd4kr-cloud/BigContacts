@@ -249,9 +249,11 @@ describe("canonical Atlas organization target selection", () => {
       canonicalAtlas.indexOf("async function materializePartialPersonLeadCards"),
       canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
     );
+    const organizationStart = canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards");
+    const organizationEnd = canonicalAtlas.indexOf("\nasync function ", organizationStart + 1);
     const organizationMaterializer = canonicalAtlas.slice(
-      canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
-      canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+      organizationStart,
+      organizationEnd >= 0 ? organizationEnd : undefined,
     );
     const admission = canonicalAtlas.slice(
       canonicalAtlas.indexOf("async function materializeAtlasAdmissions"),
