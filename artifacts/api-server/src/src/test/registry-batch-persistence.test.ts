@@ -3,6 +3,7 @@ import {
   persistAndMarkRegistryBatch,
   persistRegistryEntityAssetBatch,
 } from "../lib/registry-batch-persistence";
+import { buildLandRegistryAsset } from "../lib/land-registry-ingestor";
 
 type Tx = { id: "transaction" };
 
@@ -79,5 +80,35 @@ describe("registry batch persistence", () => {
     });
     expect(result).toEqual({ inserted: 0, errors: 1 });
     expect(markSeen).not.toHaveBeenCalled();
+  });
+});
+
+
+describe("HMLR PPD transaction-only asset projection", () => {
+  it("preserves the paid price as a historical transaction observation, not owner wealth or market value", () => {
+    const asset = buildLandRegistryAsset({
+      transactionId: "ppd-transaction-123",
+      transactionPriceGbp: 1_500_000,
+      transactionDate: "2025-04-12",
+      propertyTypeCode: "D",
+      durationCode: "F",
+      paon: "12",
+      street: "Example Road",
+      town: "London",
+      county: "Greater London",
+      postcode: "SW1A 1AA",
+      year: 2025,
+    });
+    const metadata = JSON.parse(asset.metadata ?? "{}");
+    expect(asset.category).toBe("RealEstate");
+    expect(asset.identifier).toBe("ppd-transaction-123");
+    expect(asset.ownerEntityId).toBeUndefined();
+    expect(asset.estimatedValue).toBeUndefined();
+    expect(metadata.transactionPriceGbp).toBe(1_500_000);
+    expect(metadata.pricePaidIsMarketValue).toBe(false);
+    expect(metadata.purchaserIdentity).toBe("not_provided_by_ppd");
+    expect(metadata.sellerIdentity).toBe("not_provided_by_ppd");
+    expect(metadata.ownershipStatus).toBe("unresolved");
+    expect(metadata.valuationStatus).toBe("not_assessed");
   });
 });
