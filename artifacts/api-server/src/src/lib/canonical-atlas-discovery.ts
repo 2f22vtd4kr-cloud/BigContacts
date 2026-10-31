@@ -697,7 +697,7 @@ async function materializePartialPersonLeadCards(input: {
         role: lead.role,
         sourceUrl: sourceUrls[0],
         sourceUrls,
-        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
+        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt })),
         limitations: ["HNWI/wealth status not established", "ownership/control and materiality not established", "professional approach route not verified"],
       });
       if (!entityId) {
