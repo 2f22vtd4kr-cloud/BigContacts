@@ -19,9 +19,9 @@ if (violations.length) {
   );
 }
 
-// A discovery handoff is a review-only ownership lead, not a wealth/contact
-// conclusion. Keep source/run binding and exact role attribution, but do not
-// require target-stage corroboration or route/materiality proof before handoff.
+// Provisional review-card handoff is model-selected and may be search-only.
+// The stricter checks below apply only to a separate explicit promoted-person
+// admission; they must never gate provisional card creation or target visibility.
 const exactRoleBoundOwnershipLead =
   source.includes("candidateRoleCorroborationSources") &&
   source.includes("payload.runId !== input.discoveryRunId") &&
@@ -54,9 +54,9 @@ const durableAdmissionChecks = [
   ["case projection and control receive only durable safe supporting URLs with target type intact", source.includes("function mergeDurablyAdmittedAtlasTargetSources") && source.includes("const validUrls = candidate.sourceUrls") && source.includes(".filter((url): url is string => url !== null)") && source.includes('const candidates = admittedCandidateSources.map(({ name, sourceUrls, role, targetType })') && source.includes('admittedCandidates: admittedCandidateSources.map(({ name, role, sourceUrls, targetType }) => ({ name, role, sourceUrls, targetType }))') && candidateSourcePolicy.includes("isClaimGradeDiscoverySourceUrl(url)")],
 
   ["only durably persisted person and organization review leads are returned to control", source.includes("return { names: targetCandidates.map(({ name }) => name), candidates: targetCandidates, materialized, evidenceRows }") && source.includes("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) })") && source.includes("const organizationTargets = partialOrganizations.candidates.map") && source.includes("targetType: \"organization\" as const") && source.includes("metadata.partialOrganizationLead === true") && source.includes("hasDiscoveryOwnershipLeadSignal") && source.includes("reviewOnly: true")],
-  ["admission requires one successful fetched exact name/role source and ownership clue from the same Investigator run", source.includes("payload.runId !== input.discoveryRunId") && source.includes("sources.length >= 1") && source.includes("hasDiscoveryOwnershipLeadSignal") && candidateSourcePolicy.includes('observation.action !== "visit"') && candidateSourcePolicy.includes('observation.execution !== "success"') && candidateSourcePolicy.includes("bindExactSourceSpan(observation.observation, role, input.personName, 320)")],
+  ["strict promoted-person admission requires one successful fetched exact name/role source and ownership clue from the same Investigator run", source.includes("payload.runId !== input.discoveryRunId") && source.includes("sources.length >= 1") && source.includes("hasDiscoveryOwnershipLeadSignal") && candidateSourcePolicy.includes('observation.action !== "visit"') && candidateSourcePolicy.includes('observation.execution !== "success"') && candidateSourcePolicy.includes("bindExactSourceSpan(observation.observation, role, input.personName, 320)")],
   ["a missing admission evidence session fails the transaction closed", source.includes("if (!session?.id) throw new Error(")],
-  ["discovery-only completion requires at least one durable admission", /const durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !discoveryResourceLimited && admitted\.length > 0 \? "complete" : "review"/.test(source)],
+  ["discovery-only completion requires at least one durable model-selected review target", /const durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !discoveryResourceLimited && admitted\.length > 0 \? "complete" : "review"/.test(source)],
   ["discovery terminal authority cannot be set by model completion alone", /latestEvidenceBackedTerminal: "discovery" \| "target" \| null = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && admitted\.length > 0 \? "discovery" : null/.test(source)],
   ["candidate deduplication uses the shared normalized identity", source.includes("normalizeCandidateIdentityName(name)") && source.includes("const identity = normalizeCandidateIdentityName(name)")],
 ];
