@@ -835,6 +835,8 @@ function buildRegistryEntity(
       return {};
     }
   })();
+  const resultSourceEvidence = buildWesternRegistrySourceEvidence(sourceLabel, rawMetadata);
+  const resultSourceUrl = typeof resultSourceEvidence[0]?.sourceUrl === "string" ? resultSourceEvidence[0].sourceUrl : null;
 
   return {
     key: dedupKey(result.name, jurisdiction),
@@ -859,14 +861,14 @@ function buildRegistryEntity(
       sourceRegistries: result.sourceRegistries,
       metadata: JSON.stringify({
         ...rawMetadata,
-        sourceName: result.sourceRegistries?.[0] ?? registry,
+        sourceName: sourceLabel,
         sourceClass: "registry_adapter_source",
         sourceContributor: null,
         sourceMechanism: "western_registry_ingest",
         verificationLevel: "registry_record",
         independentCorroborationStatus: "not_assessed",
-        sourceEvidence: buildWesternRegistrySourceEvidence(result.sourceRegistries?.[0] ?? registry, rawMetadata),
-        ...(buildWesternRegistrySourceEvidence(result.sourceRegistries?.[0] ?? registry, rawMetadata)[0]?.sourceUrl ? { sourceUrl: buildWesternRegistrySourceEvidence(result.sourceRegistries?.[0] ?? registry, rawMetadata)[0].sourceUrl, sourceUrls: [buildWesternRegistrySourceEvidence(result.sourceRegistries?.[0] ?? registry, rawMetadata)[0].sourceUrl] } : {}),
+        sourceEvidence: resultSourceEvidence,
+        ...(resultSourceUrl ? { sourceUrl: resultSourceUrl, sourceUrls: [resultSourceUrl] } : {}),
         lastVerified: undefined,
         source: rawMetadata.source ?? registry,
         registryId: registry,
