@@ -1105,6 +1105,9 @@ export default function ApexProfile() {
             <div className="space-y-2 mb-3" data-testid="discovery-source-provenance">
               {sources.map((url: string) => {
                 const evidence = sourceEvidence.find((item) => (item.sourceUrl ?? item.url) === url) ?? {};
+                const sourceName = typeof evidence.sourceName === "string" && evidence.sourceName.trim()
+                  ? evidence.sourceName.trim()
+                  : (() => { try { return new URL(url).hostname.replace(/^www\\./i, ""); } catch { return "Unknown source"; } })();
                 const contributor = typeof evidence.sourceContributor === "string" && evidence.sourceContributor.trim()
                   ? evidence.sourceContributor.trim()
                   : "Not supplied";
@@ -1114,6 +1117,7 @@ export default function ApexProfile() {
                 const observedAt = typeof evidence.observedAt === "string" ? evidence.observedAt : "";
                 return (
                   <div key={url} className="rounded border border-border/50 bg-background/30 px-3 py-2 text-[11px] space-y-1">
+                    <div><span className="text-muted-foreground">Publisher/source domain:</span> <span className="text-foreground">{sourceName}</span></div>
                     <div><span className="text-muted-foreground">Source class:</span> <span className="text-foreground">{sourceClassLabel(evidence.sourceClass)}</span></div>
                     <div><span className="text-muted-foreground">Contributor:</span> <span className="text-foreground">{contributor}</span></div>
                     <div><span className="text-muted-foreground">Observed via:</span> <span className="text-foreground">{mechanism}</span></div>
