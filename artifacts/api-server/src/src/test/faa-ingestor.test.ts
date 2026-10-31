@@ -116,6 +116,13 @@ describe("FAA registration status semantics", () => {
 });
 
 describe("legacy FAA registrant repair", () => {
+  it("keeps SQL migration expressions out of new entity JSON metadata", () => {
+    const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
+    const builder = source.slice(source.indexOf("export function buildFaaRegistrantEntity"), source.indexOf("export function buildFaaAircraftAsset"));
+    expect(builder).toContain("estimatedNetWorth: null");
+    expect(builder).not.toContain("CASE WHEN ${entitiesTable.estimatedNetWorth}");
+  });
+
   it("never reclassifies co-owned, government, or unknown legacy registrants as people or corporations", () => {
     const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
     const start = source.indexOf("async function repairLegacyFaaOwnershipSemantics");
