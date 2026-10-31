@@ -302,6 +302,8 @@ describe("canonical Atlas organization target selection", () => {
     // Investigator's card-worthiness decision with regex/span or vector rules.
     expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
     expect(organizationMaterializer).not.toContain('finding.vectorType !== "other"');
+    expect(organizationMaterializer).not.toContain("finding.personName?.trim()");
+    expect(organizationMaterializer).not.toContain("finding.role?.trim()");
     expect(personMaterializer).not.toContain("normalizeCandidateIdentityName(finding.value) !==");
     expect(personMaterializer).not.toContain("!finding.role?.trim()");
     expect(reconcilerSource).not.toContain('typeof finding.role !== "string"');
