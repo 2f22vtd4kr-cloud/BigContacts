@@ -18,7 +18,7 @@ const checks = [
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 for (const [name, ok] of checks) console.log((ok ? "PASS " : "FAIL ") + name);
 if (failures.length) {
-  console.error("Intentional operator-auth disablement check failed: " + failures.join(", "));
+  console.error("Operator-auth enforcement check failed: " + failures.join(", "));
   process.exit(1);
 }
-console.log("Operator-auth disablement: " + checks.length + "/" + checks.length + " checks passed");
+console.log("Operator-auth enforcement: " + checks.length + "/" + checks.length + " checks passed");
