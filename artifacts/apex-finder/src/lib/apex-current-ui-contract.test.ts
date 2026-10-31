@@ -16,6 +16,7 @@ const bureauOps = readFileSync(new URL("../components/bureau-ops-stage.tsx", imp
 const integrityBanner = readFileSync(new URL("../components/bureau-integrity-banner.tsx", import.meta.url), "utf8");
 const sharedStatus = readFileSync(new URL("./system-status.ts", import.meta.url), "utf8");
 const replitPreflight = readFileSync(new URL("../../../../scripts/replit-preflight.mjs", import.meta.url), "utf8");
+const themeCss = readFileSync(new URL("../index.css", import.meta.url), "utf8");
 
 describe("current Apex UI contract", () => {
   it("documents only the canonical Groq model roles and current Replit secret names", () => {
@@ -91,5 +92,28 @@ describe("current Apex UI contract", () => {
   it("keeps the header launch control free of the aim/crosshair glyph", () => {
     expect(launchButton).not.toContain("Crosshair");
     expect(launchButton).not.toContain("crosshair");
+  });
+});
+
+
+describe("Apex light-theme green identity", () => {
+  it("translates the dark lime/emerald brand accents to accessible forest green in light mode", () => {
+    expect(themeCss).toContain("--color-primary: #083322;");
+    expect(themeCss).toContain("--atlas-lime: #083322;");
+    expect(themeCss).toContain('html.light [class*="text-lime-"]');
+    expect(themeCss).toContain('html.light [class*="text-green-"]');
+    expect(themeCss).toContain("color: #083322 !important;");
+    expect(themeCss).toContain("rgba(8,51,34,.08)");
+    expect(themeCss).not.toContain("#3e181b");
+  });
+
+  it("keeps destructive and disputed/error states red instead of recolouring them green", () => {
+    expect(themeCss).toContain("--color-destructive: #7c111a;");
+    expect(themeCss).toContain('html.light [class*="text-rose-"]');
+    expect(themeCss).toContain('html.light [class*="bg-rose-"]');
+    expect(themeCss).toContain("color: #7c111a !important;");
+    expect(themeCss).toContain("html.light .atlas-btn-danger");
+    const scoreboard = themeCss.slice(themeCss.indexOf('html.light [data-testid="scoreboard-strip"]'));
+    expect(scoreboard).not.toContain('[class*="text-rose-"]');
   });
 });
