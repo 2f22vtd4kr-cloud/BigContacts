@@ -238,7 +238,7 @@ function compactRecord(record: CompactionTrajectoryRecord, observationChars: num
     urls.length ? "OBSERVED_URLS: " + urls.join(" | ") : "",
     sourceBindings.length ? "SOURCE_SPAN_BINDINGS (provenance metadata, not independent corroboration):\n" + sourceBindings.join("\n") : "",
     findings.length ? "FINDINGS:\n" + findings.join("\n") : "",
-  ].filter(Boolean).join("\n"), max);
+  ].filter(Boolean), max);
 }
 
 function archiveRecord(record: CompactionTrajectoryRecord, max: number): string {
