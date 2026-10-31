@@ -128,6 +128,10 @@ describe("legacy FAA registrant repair", () => {
     expect(repair).toContain('eq(relationshipsTable.notes, "FAA aircraft registration")');
     expect(repair).toContain("legacyOwnerPairs.has");
     expect(repair).toContain("const repairAssets = legacyAssets.filter");
+    expect(repair).toContain("BTRIM(${entitiesTable.contactMethod})");
+    expect(repair).toContain("ELSE ${entitiesTable.contactMethod} END");
+    expect(repair).toContain("CASE WHEN ${entitiesTable.estimatedNetWorth} IN");
+    expect(repair).not.toContain("contactMethod: \"FAA registrant record — direct professional contact route not verified\"");
   });
 });
 
