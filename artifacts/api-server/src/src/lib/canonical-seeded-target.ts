@@ -30,7 +30,7 @@ const SOURCE_FIELDS = [
   "role", "companyName", "assetType", "assetId", "admission", "reviewOnly",
   "verificationStatus", "wealthStatus", "registrantTypeCode", "registrantTypeLabel",
   "registrantKind", "identityStatus", "ownershipStatus", "beneficialOwnershipStatus",
-  "confidence", "estimatedNetWorth", "bayesianScore", "isHot",
+  "confidence", "estimatedNetWorth", "bayesianScore", "isHot", "hnwiQualificationStatus",
 ] as const;
 
 /** Keep the source binding and exact evidence references; do not copy unrelated personal metadata. */
