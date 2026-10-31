@@ -1023,6 +1023,9 @@ export default function ApexProfile() {
         if (!partialCompany && !partialPerson) return null;
         const tier = String(meta.verificationLevel ?? "unknown");
         const fetched = tier === "fetched_source";
+        const sourceAttributions = Array.isArray(meta.sourceAttributions)
+          ? meta.sourceAttributions.filter((item: unknown): item is Record<string, any> => Boolean(item && typeof item === "object" && !Array.isArray(item))).slice(0, 8)
+          : [];
         const sources = [
           ...(Array.isArray(meta.sourceUrls) ? meta.sourceUrls : []),
           ...(typeof meta.sourceUrl === "string" ? [meta.sourceUrl] : []),
@@ -1046,7 +1049,7 @@ export default function ApexProfile() {
                     "rounded border px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider",
                     fetched ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-amber-400/30 bg-amber-400/10 text-amber-300",
                   )}>
-                    {fetched ? "Fetched public source" : "Search-result lead"}
+                    {fetched ? "Fetched source observation" : "Search-result lead"}
                   </span>
                 </div>
                 <p className="text-[12px] text-muted-foreground mt-1.5 leading-relaxed">
@@ -1054,7 +1057,7 @@ export default function ApexProfile() {
                 </p>
               </div>
               <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0">
-                {fetched ? "Higher evidence tier" : "Unverified lead"}
+                {fetched ? "Fetch completed; authority not implied" : "Not yet fetched"}
               </span>
             </div>
             {typeof meta.role === "string" && meta.role.trim() && (
@@ -1078,6 +1081,21 @@ export default function ApexProfile() {
                 </a>
               )) : <span className="text-[11px] text-muted-foreground">No source URL persisted</span>}
             </div>
+            {sourceAttributions.length > 0 && (
+              <div className="rounded border border-border/60 bg-background/40 px-3 py-2 mb-3" data-testid="discovery-source-attribution">
+                <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-2">Source attribution · separate from fetch status</div>
+                <div className="space-y-2">
+                  {sourceAttributions.map((source: Record<string, any>, index: number) => (
+                    <div key={String(source.sourceUrl ?? index)} className="text-[11px] leading-relaxed text-foreground/80">
+                      <div><span className="text-muted-foreground">Source:</span> {String(source.sourceName ?? "Unknown")} {source.sourceNameKind === "domain_fallback" ? "(domain fallback; publisher name unresolved)" : ""}</div>
+                      <div><span className="text-muted-foreground">Class:</span> {String(source.sourceClass ?? "unclassified")} · <span className="text-muted-foreground">Domain:</span> {String(source.sourceDomain ?? "unknown")}</div>
+                      <div><span className="text-muted-foreground">Mechanism:</span> {String(source.sourceMechanism ?? "unknown")} · <span className="text-muted-foreground">Contributor:</span> {String(source.sourceContributor ?? "not supplied")}</div>
+                      <div><span className="text-muted-foreground">Observed:</span> {source.originalObservedAt ? new Date(String(source.originalObservedAt)).toLocaleString() : "time unavailable"} · <span className="text-muted-foreground">Independent corroboration:</span> {String(source.independentCorroborationStatus ?? "not assessed")}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {limitations.length > 0 && (
               <div className="rounded border border-amber-400/20 bg-amber-400/[0.04] px-3 py-2">
                 <div className="text-[10px] font-mono uppercase tracking-wider text-amber-300/80 mb-1">Not yet established</div>
