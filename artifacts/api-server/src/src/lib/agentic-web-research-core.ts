@@ -1437,7 +1437,6 @@ async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa
   return result ? { ...result, text: sanitizeUrlOccurrences(result.text, result.urls), urls: result.urls.map((url) => sanitizeUrlForEvidence(url)), provider } : { text: `${provider} returned no usable result.`, urls: [], provider, status: "error" };
 }
 
-export function isGenericDiscoveryMetadataTitle(title: string): boolean {
   const normalized = title.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
   // Search-result titles often append a page descriptor to a placeholder. Strip
   // only common page labels before applying the narrow generic-name guard.
