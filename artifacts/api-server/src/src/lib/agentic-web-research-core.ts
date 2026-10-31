@@ -2241,10 +2241,25 @@ async function callGroqJson(
   jobId?: string | null,
   caseId?: number | null,
   actionAllowlist?: readonly string[],
+  targetName?: string | null,
+  iteration?: number,
 ): Promise<{ model: string; raw: string; error?: string } | null> {
   const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
   const key = keyName ? (process.env[keyName] || "").trim() : "";
   const quotaAccount = key ? groqQuotaAccountIdentity(key) : keyName ?? "unknown";
+  const normalizedTarget = targetName?.trim().toLowerCase() ?? "";
+  const telemetryContext = {
+    role: "investigator" as const,
+    capability: investigatorCapability ?? null,
+    jobId: jobId ?? null,
+    caseId: caseId ?? null,
+    targetDigest: normalizedTarget ? createHash("sha256").update(normalizedTarget).digest("hex").slice(0, 16) : null,
+    iteration: Number.isFinite(iteration) ? Math.max(0, Math.floor(iteration!)) : null,
+    decisionId: normalizedTarget && Number.isFinite(iteration)
+      ? createHash("sha256").update(`${jobId ?? "no-job"}:${caseId ?? "no-case"}:${iteration}:${cognitiveTask}`).digest("hex").slice(0, 16)
+      : null,
+    cognitiveTask,
+  };
   if (!key) return null;
   let attempt = 0;
   let workingPrompt = prompt;
@@ -2347,6 +2362,7 @@ async function callGroqJson(
             providerErrorType = typeof parsed.error?.type === "string" ? parsed.error.type : null;
           } catch {}
           recordAgenticLlmAttempt({
+            ...telemetryContext,
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
@@ -2416,6 +2432,7 @@ async function callGroqJson(
             providerErrorType = typeof parsed.error?.type === "string" ? parsed.error.type : null;
           } catch {}
           recordAgenticLlmAttempt({
+            ...telemetryContext,
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
@@ -2492,6 +2509,7 @@ async function callGroqJson(
           data = JSON.parse(body) as typeof data;
         } catch {
           recordAgenticLlmAttempt({
+            ...telemetryContext,
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
@@ -2511,6 +2529,7 @@ async function callGroqJson(
         const raw = data.choices?.[0]?.message?.content?.trim() || "";
         const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
         recordAgenticLlmAttempt({
+            ...telemetryContext,
           provider: "groq",
           model,
           promptChars: workingPrompt.length,
@@ -2565,7 +2584,8 @@ async function callGroqJson(
           : null;
         const failureClass = localProviderGateFailure ?? classifyThrownProviderError(error);
         lastProviderError = failureClass;
-        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length,
+        recordAgenticLlmAttempt({
+            ...telemetryContext, provider: "groq", model, promptChars: workingPrompt.length,
             systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
             userPromptChars: workingPrompt.length,
             totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}` });
@@ -2587,7 +2607,7 @@ function investigatorKeyConfiguredForCapability(capability: InvestigatorCapabili
   return Boolean(keyName && process.env[keyName]?.trim());
 }
 
-async function llmStepImpl(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[]): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+async function llmStepImpl(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   try {
     await acquireProviderSlot(parentSignal);
   } catch (error) {
@@ -2616,7 +2636,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     }
     let localProviderGateFailure: "local_provider_cooldown" | "local_provider_budget_exhausted" | null = null;
     let localProviderGateModel: string | null = null;
-    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist)) : null;
+    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm, (kind, model) => { localProviderGateFailure = kind; localProviderGateModel = model; }, jobId, caseId, actionAllowlist, targetName, iteration)) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
     if (parentSignal.aborted) throw new Error("cancelled");
     const controller = new AbortController();
@@ -2635,8 +2655,8 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
     } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); }
   } finally { releaseProviderSlot(); }
 }
-async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[]): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
-  return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist));
+async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution", jobId?: string | null, caseId?: number | null, actionAllowlist?: readonly string[], targetName?: string | null, iteration?: number): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+  return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist, targetName, iteration));
 }
 function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.length) return "(none yet)"; return findings.map((f) => `- ${f.vectorType}: ${f.value} (${f.scope})${f.personName ? ` person=${f.personName}` : ""}${f.role ? ` role=${f.role}` : ""}${f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : ""}`).join("\n"); }
 const AGENTIC_STRUCTURED_SCHEMA = {
@@ -6404,7 +6424,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
           return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
         }
       }
-      runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: "error", summary: lastObservation }); return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
+      runtimePhase = "pre_request_event"; emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); runtimeStage = "model_request"; runtimePhase = "llm_request"; const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask, input.jobId, input.caseId, actionAllowlistForTurn, name, priorTurnOffset + i + 1); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerFailure = classifyInvestigatorProviderError(llm.providerError); const providerErrorRecord: AgenticTrajectoryRecord = { turn: priorTurnOffset + i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [], failureDomain: providerFailure.domain, failureKind: providerFailure.kind }; records.push(providerErrorRecord); await emitSanitizedTrajectoryRecord(providerErrorRecord); pushHistory(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { status: "error", summary: lastObservation }); return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation); } runtimeStage = "model_action_parse"; const action = parseAction(llm.raw, actionAllowlistForTurn); if (!action) {
       const parseFailure = describeAgentActionParseFailure(llm.raw, actionAllowlistForTurn);
       pushHistory(`step${i + 1}: parse_failure execution=error`);
       const nextParseFailureCount = nextConsecutiveActionParseFailureCount(consecutiveActionParseFailures, false);
