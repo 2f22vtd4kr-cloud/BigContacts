@@ -180,7 +180,15 @@ async function repairLegacyHmlrSyntheticEntities(): Promise<void> {
   await db.transaction(async (tx) => {
     // Old PPD ingestion linked address-generated placeholder entities to assets.
     // The source does not disclose the purchaser, so clear that unsupported FK.
-    await tx.update(assetsTable).set({ ownerEntityId: null }).where(and(
+    await tx.update(assetsTable).set({
+      ownerEntityId: null,
+      metadata: sql`COALESCE(${assetsTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
+        'ownerIdentityStatus', 'not_disclosed_by_ppd',
+        'beneficialOwnershipStatus', 'unresolved',
+        'wealthStatus', 'not_assessed',
+        'legacyOwnerLinkCorrected', true
+      )`,
+    }).where(and(
       eq(assetsTable.category, "RealEstate"),
       eq(assetsTable.sourceRegistry, "UK HM Land Registry (PPD)"),
       isNotNull(assetsTable.ownerEntityId),
