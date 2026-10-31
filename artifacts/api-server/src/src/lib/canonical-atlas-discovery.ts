@@ -47,6 +47,15 @@ export type CanonicalAtlasOptions = {
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
 export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;
+
+/** Compact control-plane prose without changing the validated underlying decision. */
+function compactControlText(value: unknown, maxChars: number): string {
+  if (typeof value !== "string") return "";
+  const normalized = value.replace(/\\s+/g, " ").trim();
+  return normalized.length > maxChars
+    ? normalized.slice(0, Math.max(0, maxChars - 1)).trimEnd() + "…"
+    : normalized;
+}
 export type CanonicalAtlasResult = { phase: number; ingested: number; enriched: number; contactsFound: number; hotLeads: number; durationMs: number; phaseSummary: Record<string, string> };
 function uniqueNames(values: string[]): string[] {
   const seen = new Set<string>();
@@ -1758,7 +1767,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     });
     await assertAtlasJobActive(atlasJobId);
     if (openingBossDecision.status !== "completed") {
-      failureStage = "groq_boss_control";
+      failureStage = "oversight_control_decision";
       throw new Error("Groq Boss could not make a valid final opening decision after Right-hand advice: " + (openingBossDecision.error ?? openingBossDecision.reason ?? "unknown Boss control failure"));
     }
 
@@ -1789,7 +1798,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         status: "done",
         progress: 100,
         atlasPhase: 0,
-        outcome: "complete",
         message: "Groq Boss chose to stop after evaluating the objective and Right-hand advice. No Investigator action was executed; the case is preserved for review.",
         outcome: "incomplete",
         result: JSON.stringify({ boss: openingBossDecision, rightHand, discoveryCaseId, investigatorActionsExecuted: 0, evidenceBackedTerminal: false }),
