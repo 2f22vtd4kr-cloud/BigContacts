@@ -21,11 +21,24 @@ const checks = [
   [discovery, ["isWellFormedPersonCandidate","LIST_ONLY_SOURCE_PATTERNS","hasIndependentSource","hasStrongIdentityEvidence","DISCOVERY ASSIGNMENT","information gain","Do not spend discovery iterations on Forbes/Bloomberg/richest/billionaire rankings","BAD DISCOVERY BEHAVIOR","GOOD DISCOVERY BEHAVIOR","Before every action, silently sanity-check the direction","If a company is discovered before its principal, that company is an intermediate lead","Before finishing, ask yourself: do I have a full personal name","state\\s+st","proxy_table","deterministic candidate selection rather than model-owned discovery"], "discovery-agent.ts"],
   [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","A billionaire list is usually a low-yield lead, not a discovery strategy","Do not continue a weak search avenue just because it returns many results"], "apex-bureau-orientation.ts"],
   [canonical, ["runGroqBossDiscovery","runBureauAgenticWebPass","runGroqRightHandFreeJson","Investigator chooses every research action","discoveryCaseId","promotionDecision"], "canonical-atlas-discovery.ts"],
-  [activeInvestigator, ["DISCOVERY TARGETABILITY GATE","an organization is a lead, not the target.","Fortune 500/ranking lists","plausible person-level public/intermediary route","Honor the Boss-stated sector/geography","explain any material deviation","News publishers and articles are evidence leads only, never targets or access routes","DISCOVERY_PRESS_PUBLISHER_DOMAINS","function hasPressPublisherSiteFilter(query: string)","broad press-publisher-only search without an exact named person/business anchor"], "agentic-web-research-core.ts"],
+  [activeInvestigator, ["DISCOVERY LEAD HANDOFF CONTRACT","YOU decide whether an observed person is worth a provisional review card","source class need not appear in every discovery query","the Investigator decides relevance","News publishers and articles are evidence leads only, never targets or access routes"], "agentic-web-research-core.ts"],
   [canonical, ["hasDiscoveryOwnershipLeadSignal", "claimGradeObservations", "target research must test that, falsify", "realistic route before any contact/wealth promotion"], "canonical-atlas-discovery.ts"],
   [targetContact, ["REALISM / REACHABILITY CONTROL", "material business, ownership stake, investment, asset, exit or control role", "realistic public/professional/intermediary routes", "Prefer a directly published professional contact or documented assistant"], "target-contact-agent.ts"],
   [candidateSources, ["export function isRealisticPersonRouteSourceUrl","DISCOVERY_PRESS_PUBLISHER_DOMAINS","News/blog/article pages are evidence leads, not an access route"], "candidate-source-url-union.ts"],
 ];
+// The active Investigator owns query strategy. Runtime query validation may
+// enforce syntax/placeholders and outbound safety, but must not encode publisher,
+// source-class, named-anchor, or other relevance/admission preferences.
+if (activeInvestigator.includes("hasPressPublisherSiteFilter")
+  || activeInvestigator.includes("DISCOVERY_PRESS_PUBLISHER_DOMAINS")
+  || activeInvestigator.includes("broad press-publisher-only search without an exact named person/business anchor")) {
+  console.error("FAIL: active Investigator still contains a deterministic discovery query-strategy filter");
+  process.exit(1);
+}
+if (!activeInvestigator.includes("Query content and source class are model-owned research choices")) {
+  console.error("FAIL: active Investigator query validator does not declare model-owned query strategy");
+  process.exit(1);
+}
 const failures = [];
 for (const [source, markers, label] of checks) for (const marker of markers) if (!source.includes(marker)) failures.push(`${label} missing: ${marker}`);
 const strongEvidenceDefinitionCount = (discovery.match(/function hasStrongIdentityEvidence\s*\(/g) || []).length;
