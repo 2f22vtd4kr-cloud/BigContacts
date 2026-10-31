@@ -36,9 +36,15 @@ export type FaaRegistrantOwnershipStatus =
   | "non_citizen_co_owned_individuals_unresolved"
   | "registrant_type_unknown";
 
+export type FaaFractionalOwnershipStatus = "fractional" | "not_fractional" | "unknown";
+
+export type FaaRegistrationStatus = "valid" | "sale_reported" | "expired" | "revoked_or_invalid" | "pending" | "unknown";
+
 export type FaaRegistrantClassification = {
   registrantTypeCode: string;
   registrantTypeLabel: string;
+  fractionalOwnershipStatus: FaaFractionalOwnershipStatus;
+  registrationStatus: FaaRegistrationStatus;
   registrantKind: FaaRegistrantKind;
   entityType: FaaRegistrantEntityType;
   identityStatus: FaaRegistrantIdentityStatus;
@@ -201,12 +207,31 @@ const UNKNOWN_REGISTRANT_POLICY: RegistrantPolicy = {
  * the exact FAA legal form remains available in registrantKind and label fields.
  * Co-owned and government records do not create a single natural-person entity.
  */
-export function classifyFaaRegistrant(typeRegistrant: string): FaaRegistrantClassification {
+export function classifyFaaRegistrant(
+  typeRegistrant: string,
+  options: { fractionalOwnershipFlag?: string; statusCode?: string } = {},
+): FaaRegistrantClassification {
   const code = typeRegistrant.trim();
   const policy = REGISTRANT_POLICIES[code] ?? UNKNOWN_REGISTRANT_POLICY;
+  const fractionalFlag = options.fractionalOwnershipFlag?.trim().toUpperCase();
+  const statusCode = options.statusCode?.trim().toUpperCase() ?? "";
+
+  let fractionalOwnershipStatus: FaaFractionalOwnershipStatus = "unknown";
+  if (fractionalFlag === "Y") fractionalOwnershipStatus = "fractional";
+  else if (fractionalFlag === "" || fractionalFlag === "N") fractionalOwnershipStatus = "not_fractional";
+
+  let registrationStatus: FaaRegistrationStatus = "unknown";
+  if (["V", "N", "T"].includes(statusCode)) registrationStatus = "valid";
+  else if (["7", "17", "18"].includes(statusCode)) registrationStatus = "sale_reported";
+  else if (["D", "13", "16", "27", "29"].includes(statusCode)) registrationStatus = "expired";
+  else if (["M", "9", "21", "22", "W"].includes(statusCode)) registrationStatus = "revoked_or_invalid";
+  else if (["R", "19", "20"].includes(statusCode)) registrationStatus = "pending";
+
   return {
     ...policy,
     registrantTypeCode: code,
+    fractionalOwnershipStatus,
+    registrationStatus,
   };
 }
 
