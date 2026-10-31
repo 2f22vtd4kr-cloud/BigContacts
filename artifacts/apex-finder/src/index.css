@@ -691,8 +691,8 @@ html.light .reactor-focus-ring:focus-visible {
    Light mode is intentionally 90% monochrome. The supplied editorial
    palette is reserved for primary actions, semantic states, and small
    navigation accents:
-   #3E181B burgundy · #7C111A deep red · #083322 forest · #BA9C7B sand.
-   Never use the source neon-lime palette in Light mode.
+   #083322 forest green · #0B5C3B deep green · #7C111A destructive red · #BA9C7B sand.
+   Translate positive/brand lime accents to accessible forest green in Light mode; keep destructive states red.
 */
 html.light {
   --color-background: #f7f7f7;
@@ -701,18 +701,18 @@ html.light {
   --color-border: #d0d0d0;
   --color-muted: #e8e8e8;
   --color-muted-foreground: #525252;
-  --color-primary: #3e181b;
+  --color-primary: #083322;
   --color-primary-foreground: #ffffff;
   --color-secondary: #083322;
-  --color-accent: #3e181b;
+  --color-accent: #083322;
   --color-destructive: #7c111a;
   --color-sidebar: #ffffff;
   --color-sidebar-foreground: #111111;
   --color-sidebar-border: #d9d9d9;
   --color-sidebar-accent: #f3f3f3;
-  --color-sidebar-accent-foreground: #3e181b;
+  --color-sidebar-accent-foreground: #083322;
   --atlas-teal: #083322;
-  --atlas-lime: #3e181b;
+  --atlas-lime: #083322;
   --atlas-navy: #ffffff;
   --atlas-white: #111111;
   --atlas-coral: #7c111a;
@@ -720,14 +720,14 @@ html.light {
   --atlas-surface-1: #ffffff;
   --atlas-surface-2: #f0f0f0;
   --atlas-border: rgba(0,0,0,.14);
-  --atlas-border-strong: rgba(62,24,27,.34);
+  --atlas-border-strong: rgba(8,51,34,.34);
   --atlas-text-soft: #525252;
   --atlas-text-dim: #737373;
-  --atlas-focus: #7c111a;
+  --atlas-focus: #083322;
   --atlas-warning: #ba9c7b;
   --atlas-danger: #7c111a;
-  --atlas-flow-1: #3e181b;
-  --atlas-flow-2: #7c111a;
+  --atlas-flow-1: #083322;
+  --atlas-flow-2: #0b5c3b;
   --atlas-flow-3: #083322;
   --atlas-flow-4: #ba9c7b;
   --atlas-press-shadow: rgba(62, 24, 27, 0.22);
@@ -744,7 +744,7 @@ html.light [class*="text-[#fef3c7]"],
 html.light [class*="text-lime-"],
 html.light [class*="text-emerald-"],
 html.light [class*="text-green-"] {
-  color: #3e181b !important;
+  color: #083322 !important;
 }
 html.light [class*="text-sky-"],
 html.light [class*="text-cyan-"],
@@ -757,7 +757,7 @@ html.light [class*="text-yellow-"] {
 }
 html.light [class*="text-rose-"],
 html.light [class*="text-red-"] {
-  color: #7c111a !important;
+  color: #083322 !important;
 }
 html.light [class*="text-white"],
 html.light [class*="text-[#f8fafc]"],
@@ -773,7 +773,7 @@ html.light [class*="bg-[#d4ff8a]"],
 html.light [class*="bg-lime-"],
 html.light [class*="bg-emerald-"],
 html.light [class*="bg-green-"] {
-  background-color: rgba(62,24,27,.08) !important;
+  background-color: rgba(8,51,34,.08) !important;
 }
 html.light [class*="bg-sky-"],
 html.light [class*="bg-cyan-"],
@@ -799,7 +799,7 @@ html.light [class*="border-[#9CFF1A]"],
 html.light [class*="border-lime-"],
 html.light [class*="border-emerald-"],
 html.light [class*="border-green-"] {
-  border-color: rgba(62,24,27,.30) !important;
+  border-color: rgba(8,51,34,.30) !important;
 }
 html.light [class*="border-sky-"],
 html.light [class*="border-cyan-"],
@@ -826,39 +826,39 @@ html.light [class*="hover:text-[#9CFF1A]"]:hover,
 html.light [class*="hover:text-lime-"]:hover,
 html.light [class*="hover:text-emerald-"]:hover,
 html.light [class*="hover:text-green-"]:hover {
-  color: #7c111a !important;
+  color: #083322 !important;
 }
 html.light [class*="hover:bg-[#9CFF1A]"]:hover,
 html.light [class*="hover:bg-lime-"]:hover,
 html.light [class*="hover:bg-emerald-"]:hover,
 html.light [class*="hover:bg-green-"]:hover {
-  background-color: rgba(62,24,27,.12) !important;
+  background-color: rgba(8,51,34,.12) !important;
 }
 html.light [class*="hover:border-[#9CFF1A]"]:hover,
 html.light [class*="hover:border-lime-"]:hover,
 html.light [class*="hover:border-emerald-"]:hover,
 html.light [class*="hover:border-green-"]:hover {
-  border-color: #7c111a !important;
+  border-color: #083322 !important;
 }
 html.light [class*="focus-visible:ring-[#9CFF1A]"]:focus-visible,
 html.light [class*="focus-visible:ring-lime-"]:focus-visible {
-  --tw-ring-color: rgba(124,17,26,.45) !important;
+  --tw-ring-color: rgba(8,51,34,.45) !important;
 }
 
 /* The main research CTA is the hero use of the new palette. */
 html.light .atlas-launch-cta,
 html.light .atlas-launch-glow {
   color: #ffffff !important;
-  background: #3e181b !important;
-  border-color: #3e181b !important;
-  box-shadow: 0 5px 18px rgba(62,24,27,.18), inset 0 1px 0 rgba(255,255,255,.14);
+  background: #083322 !important;
+  border-color: #083322 !important;
+  box-shadow: 0 5px 18px rgba(8,51,34,.18), inset 0 1px 0 rgba(255,255,255,.14);
 }
 html.light .atlas-launch-cta:hover,
 html.light .atlas-launch-glow:hover {
   color: #ffffff !important;
-  background: #7c111a !important;
-  border-color: #7c111a !important;
-  box-shadow: 0 7px 22px rgba(124,17,26,.20);
+  background: #0b5c3b !important;
+  border-color: #083322 !important;
+  box-shadow: 0 7px 22px rgba(8,51,34,.20);
 }
 html.light .atlas-launch-cta:active:not(:disabled),
 html.light .atlas-launch-glow:active:not(:disabled) {
@@ -886,7 +886,7 @@ html.light .atlas-chip-yellow {
 html.light .atlas-btn-danger {
   border-color: rgba(124,17,26,.32) !important;
   background: rgba(124,17,26,.06) !important;
-  color: #7c111a !important;
+  color: #083322 !important;
 }
 
 /* Stronger light-shell chrome: readable header/sidebar/status/scoreboard. */
@@ -915,7 +915,7 @@ html.light [data-testid="scoreboard-strip"] [class*="text-slate-"] {
 html.light [data-testid="scoreboard-strip"] [class*="text-emerald-"],
 html.light [data-testid="scoreboard-strip"] [class*="text-sky-"],
 html.light [data-testid="scoreboard-strip"] [class*="text-rose-"] {
-  color: #3e181b !important;
+  color: #083322 !important;
 }
 html.light .atlas-soft-edge {
   background: linear-gradient(180deg, transparent 0%, rgba(247,247,247,.15) 35%, rgba(247,247,247,.75) 72%, rgba(247,247,247,.99) 100%) !important;
