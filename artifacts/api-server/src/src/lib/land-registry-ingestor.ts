@@ -20,6 +20,7 @@ import { mkdir, stat, unlink } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, assetsTable } from "@workspace/db";
 import type { InsertAsset } from "@workspace/db";
 import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
@@ -90,16 +91,82 @@ function unquote(s: string): string {
   return s.replace(/^"(.*)"$/, "$1").trim();
 }
 
+export function buildLandRegistryTransactionAsset(input: {
+  transactionId: string;
+  priceGbp: number;
+  date: string;
+  propertyTypeCode: string;
+  durationCode: string;
+  address: string;
+  county: string;
+  postcode: string;
+  paon: string;
+  saon: string;
+  street: string;
+  locality: string;
+  town: string;
+  year: number;
+}): InsertAsset {
+  const tenure = input.durationCode === "F" ? "Freehold" : input.durationCode === "L" ? "Leasehold" : "Unknown";
+  const propertyType = ({ D: "Detached", S: "Semi-Detached", T: "Terraced", F: "Flat/Maisonette", O: "Other" } as Record<string, string>)[input.propertyTypeCode] ?? "Property";
+  const priceLabel = `£${input.priceGbp.toLocaleString("en-GB")}`;
+  return {
+    category: "RealEstate",
+    identifier: input.transactionId,
+    jurisdiction: input.county ? `${input.county}, England & Wales` : "England & Wales",
+    description: `${propertyType} ${tenure} — ${priceLabel} (${input.date})`,
+    address: input.address || undefined,
+    sourceRegistry: "UK HM Land Registry (PPD)",
+    lastActivityDate: input.date || undefined,
+    estimatedValue: null,
+    metadata: JSON.stringify({
+      source: "hmlr-ppd-csv",
+      transactionId: input.transactionId,
+      transactionPrice: input.priceGbp,
+      transactionCurrency: "GBP",
+      transactionDate: input.date,
+      propertyTypeCode: input.propertyTypeCode,
+      propertyType,
+      tenure,
+      county: input.county,
+      postcode: input.postcode,
+      paon: input.paon,
+      saon: input.saon,
+      street: input.street,
+      locality: input.locality,
+      town: input.town,
+      year: input.year,
+      ownerIdentityStatus: "not_disclosed_by_ppd",
+      beneficialOwnershipStatus: "unresolved",
+      reviewOnly: true,
+      wealthStatus: "not_assessed",
+    }),
+  };
+}
+
 // ── Batch flush ───────────────────────────────────────────────────────────────
 
 async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; errors: number }> {
   if (assets.length === 0) return { inserted: 0, errors: 0 };
   try {
-    const rows = await db.transaction(async (tx) => tx
-      .insert(assetsTable)
-      .values(assets)
-      .onConflictDoNothing()
-      .returning({ id: assetsTable.id }));
+    const rows = await db.transaction(async (tx) => {
+      const uniqueByTransaction = new Map<string, InsertAsset>();
+      for (const asset of assets) {
+        if (asset.identifier && !uniqueByTransaction.has(asset.identifier)) uniqueByTransaction.set(asset.identifier, asset);
+      }
+      const candidates = [...uniqueByTransaction.values()];
+      if (candidates.length === 0) return [];
+      const existing = await tx.select({ identifier: assetsTable.identifier })
+        .from(assetsTable)
+        .where(and(
+          eq(assetsTable.category, "RealEstate"),
+          inArray(assetsTable.identifier, candidates.map((asset) => asset.identifier)),
+        ));
+      const existingIds = new Set(existing.map((row) => row.identifier));
+      const fresh = candidates.filter((asset) => !existingIds.has(asset.identifier));
+      if (fresh.length === 0) return [];
+      return tx.insert(assetsTable).values(fresh).returning({ id: assetsTable.id });
+    });
     return { inserted: rows.length, errors: 0 };
   } catch (err: any) {
     logger.warn({ err: err.message, batchSize: assets.length }, "Land Registry asset-only batch insert failed");
@@ -225,45 +292,22 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       seenKeys.add(dkey);
       pendingDedup.push(dkey);
 
-      const tenureLabel = duration === "F" ? "Freehold" : duration === "L" ? "Leasehold" : "Unknown";
-      const propLabel   = { D: "Detached", S: "Semi-Detached", T: "Terraced", F: "Flat/Maisonette", O: "Other" }[propType] ?? "Property";
-      const address     = [paon, saon, street, locality, town, county, postcode].filter(Boolean).join(", ");
-      const priceStr2   = `£${price.toLocaleString("en-GB")}`;
-      // PPD records a transaction and address, not a named purchaser/beneficial owner.
-      // Keep the original GBP amount in metadata; assets.estimatedValue is USD and
-      // must not receive an unconverted currency value or be multiplied into personal wealth.
-      const asset: InsertAsset = {
-        category: "RealEstate",
-        identifier: txId,
-        jurisdiction: county ? `${county}, England & Wales` : "England & Wales",
-        description: `${propLabel} ${tenureLabel} — ${priceStr2} (${date})`,
-        address: address || undefined,
-        sourceRegistry: "UK HM Land Registry (PPD)",
-        lastActivityDate: date || undefined,
-        estimatedValue: null,
-        metadata: JSON.stringify({
-          source: "hmlr-ppd-csv",
-          transactionId: txId,
-          transactionPrice: price,
-          transactionCurrency: "GBP",
-          transactionDate: date,
-          propertyTypeCode: propType,
-          propertyType: propLabel,
-          tenure: tenureLabel,
-          county,
-          postcode,
-          paon,
-          saon,
-          street,
-          locality,
-          town,
-          year,
-          ownerIdentityStatus: "not_disclosed_by_ppd",
-          beneficialOwnershipStatus: "unresolved",
-          reviewOnly: true,
-          wealthStatus: "not_assessed",
-        }),
-      };
+      const asset = buildLandRegistryTransactionAsset({
+        transactionId: txId,
+        priceGbp: price,
+        date,
+        propertyTypeCode: propType,
+        durationCode: duration,
+        address,
+        county,
+        postcode,
+        paon,
+        saon,
+        street,
+        locality,
+        town,
+        year,
+      });
 
       assetBatch.push(asset);
 
