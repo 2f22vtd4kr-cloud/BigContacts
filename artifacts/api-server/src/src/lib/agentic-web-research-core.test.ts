@@ -902,13 +902,15 @@ describe("partial model findings", () => {
       thought: "Preserve the company lead and keep contact facts separate.",
     }), ["done"]);
 
-    expect(parsed?.findings.map((finding) => finding.value)).toEqual([
+    expect(parsed?.action).toBe("done");
+    if (parsed?.action !== "done") throw new Error("Expected a terminal Investigator action.");
+    expect(parsed.findings.map((finding) => finding.value)).toEqual([
       "contact@northstarcasino.si",
       "+386 1 555 0100",
       "https://northstarcasino.si/",
       "Northstar Casino Resort",
     ]);
-    expect(parsed?.partialFindings.map((finding) => finding.value)).toEqual(["Northstar Casino Resort"]);
+    expect(parsed.partialFindings.map((finding) => finding.value)).toEqual(["Northstar Casino Resort"]);
   });
 
   it("preserves an unpromoted lead when the Investigator stops", () => {
