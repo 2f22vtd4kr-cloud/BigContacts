@@ -111,11 +111,6 @@ export const US_STATE_CENTROIDS: Record<string, [number, number]> = {
   PR: [18.220833, -66.590149], GU: [13.444304, 144.793731],  VI: [18.335765, -64.896335],
 };
 
-function stateCentroid(state: string): { latitude: number; longitude: number } | undefined {
-  const c = US_STATE_CENTROIDS[state.toUpperCase()];
-  return c ? { latitude: c[0], longitude: c[1] } : undefined;
-}
-
 function titleCase(s: string): string {
   return s.trim().replace(/\s+/g, " ").toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
 }
