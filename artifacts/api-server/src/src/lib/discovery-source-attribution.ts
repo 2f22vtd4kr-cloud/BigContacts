@@ -9,6 +9,17 @@ export type DiscoverySourceAttribution = {
   independentCorroborationStatus: "not_assessed";
 };
 
+/** User-submitted location pages are URL references only unless a license is explicitly verified. */
+export function isRestrictedCommunitySourceUrl(sourceUrl: string): boolean {
+  try {
+    const hostname = new URL(sourceUrl).hostname.toLowerCase().replace(/^www\./, "");
+    return hostname === "virtualglobetrotting.com"
+      || hostname.endsWith(".virtualglobetrotting.com");
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Keep publisher/source identity separate from the transport that fetched it.
  * When a publisher name or class is not supplied by the adapter, preserve an
@@ -30,15 +41,20 @@ export function buildDiscoverySourceAttribution(input: {
   } catch {
     // A malformed source URL remains visibly unclassified; it is not repaired here.
   }
+  const restrictedCommunitySource = isRestrictedCommunitySourceUrl(input.sourceUrl);
   const suppliedName = typeof input.sourceName === "string" ? input.sourceName.trim() : "";
   const suppliedDomain = typeof input.sourceDomain === "string" ? input.sourceDomain.trim().toLowerCase() : "";
   const sourceDomain = suppliedDomain || urlDomain || "unknown";
-  const sourceClass = typeof input.sourceClass === "string" && input.sourceClass.trim()
-    ? input.sourceClass.trim()
-    : /registry/i.test(input.action) ? "registry_adapter_unclassified" : "public_web_unclassified";
-  const sourceContributor = typeof input.sourceContributor === "string" && input.sourceContributor.trim()
-    ? input.sourceContributor.trim()
-    : null;
+  const sourceClass = restrictedCommunitySource
+    ? "community_user_submitted_unverified"
+    : typeof input.sourceClass === "string" && input.sourceClass.trim()
+      ? input.sourceClass.trim()
+      : /registry/i.test(input.action) ? "registry_adapter_unclassified" : "public_web_unclassified";
+  const sourceContributor = restrictedCommunitySource
+    ? null
+    : typeof input.sourceContributor === "string" && input.sourceContributor.trim()
+      ? input.sourceContributor.trim()
+      : null;
   let originalObservedAt: string | null = null;
   if (input.observedAt instanceof Date && Number.isFinite(input.observedAt.getTime())) {
     originalObservedAt = input.observedAt.toISOString();
@@ -47,8 +63,8 @@ export function buildDiscoverySourceAttribution(input: {
     if (Number.isFinite(parsed.getTime())) originalObservedAt = parsed.toISOString();
   }
   return {
-    sourceName: suppliedName || sourceDomain,
-    sourceNameKind: suppliedName ? "publisher_name" : "domain_fallback",
+    sourceName: restrictedCommunitySource ? "Virtual Globetrotting" : suppliedName || sourceDomain,
+    sourceNameKind: restrictedCommunitySource || suppliedName ? "publisher_name" : "domain_fallback",
     sourceDomain,
     sourceClass,
     sourceContributor,
