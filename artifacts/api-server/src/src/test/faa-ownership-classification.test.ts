@@ -9,6 +9,8 @@ describe("FAA registrant ownership classification", () => {
     expect(classifyFaaRegistrant("1")).toEqual({
       registrantTypeCode: "1",
       registrantTypeLabel: "Individual",
+      fractionalOwnershipStatus: "unknown",
+      registrationStatus: "unknown",
       registrantKind: "individual",
       entityType: "PersonCandidate",
       identityStatus: "registry_person_candidate",
@@ -72,6 +74,43 @@ describe("FAA registrant ownership classification", () => {
     expect(result.entityType).toBeNull();
     expect(result.identityStatus).toBe("registrant_type_unknown");
     expect(result.ownershipStatus).toBe("registrant_type_unknown");
+  });
+
+  it("preserves the FAA fractional-ownership flag separately from registrant identity", () => {
+    const fractional = classifyFaaRegistrant("1", { fractionalOwnershipFlag: "Y", statusCode: "V" });
+    expect(fractional.fractionalOwnershipStatus).toBe("fractional");
+    expect(fractional.registrationStatus).toBe("valid");
+    expect(fractional.entityType).toBe("PersonCandidate");
+    expect(fractional.beneficialOwnershipStatus).toBe("unresolved");
+
+    const nonFractional = classifyFaaRegistrant("1", { fractionalOwnershipFlag: "", statusCode: "V" });
+    expect(nonFractional.fractionalOwnershipStatus).toBe("not_fractional");
+    expect(nonFractional.registrationStatus).toBe("valid");
+
+    expect(classifyFaaRegistrant("1").fractionalOwnershipStatus).toBe("unknown");
+  });
+
+  it.each([
+    ["7", "sale_reported"],
+    ["17", "sale_reported"],
+    ["18", "sale_reported"],
+    ["13", "expired"],
+    ["16", "expired"],
+    ["27", "expired"],
+    ["29", "expired"],
+    ["M", "revoked_or_invalid"],
+    ["9", "revoked_or_invalid"],
+    ["21", "revoked_or_invalid"],
+    ["22", "revoked_or_invalid"],
+    ["R", "pending"],
+    ["19", "pending"],
+    ["20", "pending"],
+    ["V", "valid"],
+  ] as const)("classifies FAA registration status %s without asserting current ownership", (statusCode, expected) => {
+    const result = classifyFaaRegistrant("1", { statusCode });
+    expect(result.registrationStatus).toBe(expected);
+    expect(result.beneficialOwnershipStatus).toBe("unresolved");
+    expect(result.hnwiQualificationStatus).toBe("unverified");
   });
 
   it("never assigns personal wealth or a high entity score from FAA registrant type alone", () => {
