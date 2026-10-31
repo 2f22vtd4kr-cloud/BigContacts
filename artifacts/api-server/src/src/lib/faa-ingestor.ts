@@ -362,7 +362,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     // Historical FAA imports promoted registrants to HNWI using aircraft-class
     // multipliers. Downgrade only rows whose sole source is the FAA registry.
     await tx.update(entitiesTable).set({
-      type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','5','7','8') THEN 'Corporation' ELSE 'PersonCandidate' END`,
+      type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'PersonCandidate' WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'Corporation' ELSE 'Other' END`,
       estimatedNetWorth: null,
       bayesianScore: 0.05,
       isHot: false,
