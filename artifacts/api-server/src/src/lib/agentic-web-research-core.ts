@@ -896,7 +896,7 @@ function decodeHtmlMetadataText(value: string): string {
 
 function isPlausibleOrganizationName(value: string): boolean {
   const name = value.trim();
-  return name.length >= 3
+  return name.length > 0
     && name.length <= 180
     && /[a-z0-9]/i.test(name)
     && !/^(?:home|about us|contact|welcome|company|organization|find and update company information|gov\.uk)$/i.test(name)
