@@ -23,7 +23,7 @@ describe("terminal review-card reconciliation", () => {
 
   it("keeps registry rows as supporting observations and never lets adapters select cards", () => {
     expect(agenticCore).toContain("export function compactRegistryCompanyLeads");
-    expect(agenticCore).toContain('row.type !== "Corporation"');
+    expect(agenticCore).toContain('normalizeRegistryResultType(row.type) !== "Corporation"');
     expect(agenticCore).toContain("companyLeads: error ? [] : companyLeads");
     expect(agenticCore).not.toContain("extractSearchResultCompanyLeadFindings");
     expect(agenticCore).not.toContain("SEARCH_RESULT_BUSINESS_MARKER");
