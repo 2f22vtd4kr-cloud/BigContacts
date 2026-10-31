@@ -208,7 +208,7 @@ async function persistAcceptedAtlasDiscoveryObjective(input: {
 async function materializeAtlasAdmissions(input: { discoveryRunId: string; findings: AgenticFinding[]; atlasJobId: string; discoveryCaseId: number }): Promise<{ names: string[]; candidates: Array<{ name: string; sourceUrls: string[]; role: string | null; targetType: "person" | "organization" }>; materialized: number; evidenceRows: number }> {
   const candidates = uniqueNames(input.findings
     .filter((finding) => finding.promotionDecision === "promote" && finding.scope === "candidate")
-    .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length >= 3)
+    .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length > 0)
     .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some(isObservedHttpsSource))
     .map((finding) => finding.personName as string));
   const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
