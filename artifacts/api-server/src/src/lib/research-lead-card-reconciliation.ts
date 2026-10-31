@@ -90,8 +90,8 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       const successful = payload.execution === "success";
       const partialRegistry = registryAction && payload.execution === "partial";
       if (!successful && !partialRegistry) continue;
-      // Preserve only adapter-typed Corporation rows from successful subqueries.
-      // They are lead inputs, not model findings and never person/wealth evidence.
+      // Preserve adapter-typed Corporation rows as source observations only.
+      // They can support an Investigator-selected finding, never select a card.
       if (registryAction && payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)) {
         const args = payload.args as Record<string, unknown>;
         const outcomes = Array.isArray(args.registrySearchOutcomes) ? args.registrySearchOutcomes : [];
@@ -109,10 +109,8 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
             // Adapter rows may support a model-selected organization lead, but
             // they never independently select or create a card.
             const normalizedNotes = typeof company.notes === "string" ? company.notes.replace(/\s+/g, " ").trim().slice(0, 240) : "";
-            // Registry adapters already return an attributable company name and source URL.
-            // Preserve that successful observation as a review-grade lead so a registry-only
-            // pass still produces a transparent Corporation card; it is not treated as fetched
-            // evidence, ownership, wealth, or person admission.
+            // Keep the adapter's exact company/source association available as
+            // review-grade provenance for a model-selected organization finding.
             for (const rawUrl of company.sourceUrls) {
               const url = normalizeSource(rawUrl);
               if (!url) continue;
@@ -128,8 +126,8 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       const search = /search/i.test(action);
       const fetched = action === "visit" || action === "browser_fetch";
       if (!search && !fetched) continue;
-      // Search-result URLs establish leads; visit/browser-fetch URLs establish
-      // fetched-source support only when the exact name also appears in fetched text.
+      // Search-result and fetched URLs are supporting observations. Only a
+      // model-selected finding can turn them into a review card.
       const observedUrls = Array.isArray(payload.observedUrls) ? payload.observedUrls : [];
       const leadUrls = Array.isArray(payload.leadUrls) && payload.leadUrls.length ? payload.leadUrls : observedUrls;
       const sourceUrls = fetched ? observedUrls : leadUrls;
@@ -148,8 +146,8 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           ? rawPageIdentity.kind
           : null;
         const pageIdentitySource = typeof rawPageIdentity?.sourceUrl === "string" ? normalizeSource(rawPageIdentity.sourceUrl) : null;
-        // Metadata can admit the page's own organization identity as a review lead
-        // only when the runtime extracted it from this exact successful source URL.
+        // Page metadata may strengthen the provenance of a model-selected
+        // organization lead only when it is bound to this exact fetched URL.
         const pageIdentity = pageIdentityName.length >= 3 && pageIdentityName.length <= 180
           && pageIdentityKind && pageIdentitySource === url
           ? { name: pageIdentityName, kind: pageIdentityKind, title: typeof rawPageIdentity?.pageTitle === "string" ? rawPageIdentity.pageTitle.slice(0, 220) : "" }
