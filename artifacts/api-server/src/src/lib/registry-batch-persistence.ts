@@ -5,8 +5,8 @@ export type RegistryBatchWriteResult = {
 
 export type RegistryBatchWriteAdapter<Tx, Entity, Asset> = {
   transaction: <T>(work: (tx: Tx) => Promise<T>) => Promise<T>;
-  insertEntities: (tx: Tx, rows: readonly Entity[]) => Promise<unknown>;
-  insertAssets: (tx: Tx, rows: readonly Asset[]) => Promise<unknown>;
+  insertEntities?: (tx: Tx, rows: readonly Entity[]) => Promise<unknown>;
+  insertAssets?: (tx: Tx, rows: readonly Asset[]) => Promise<unknown>;
 };
 
 /**
@@ -25,9 +25,11 @@ export async function persistRegistryEntityAssetBatch<Tx, Entity, Asset>(input: 
   try {
     await input.adapter.transaction(async (tx) => {
       if (input.entities.length > 0) {
+        if (!input.adapter.insertEntities) throw new Error("Entity batch writer is required for entity rows");
         await input.adapter.insertEntities(tx, input.entities);
       }
       if (input.assets.length > 0) {
+        if (!input.adapter.insertAssets) throw new Error("Asset batch writer is required for asset rows");
         await input.adapter.insertAssets(tx, input.assets);
       }
     });
