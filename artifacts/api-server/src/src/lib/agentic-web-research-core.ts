@@ -3674,6 +3674,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
+    // Boss-generated historical memory is required context, not expendable
+    // narration. Reserve its complete text before optional diagnostics/URLs.
+    if (aiMemorySection) {
+      const memoryRemaining = limit - currentLength() - (finalParts.length ? 2 : 0);
+      if (aiMemorySection.length <= memoryRemaining) finalParts.push(aiMemorySection);
+    }
     // The emergency fallback retains the exact scope, latest durable action,
     // fetchable URLs, available actions and compact evidence/safety gates.
     // The last-resort prompt is still a complete Investigator contract. Reserve
@@ -3695,7 +3701,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(fetchedSourceLabel, 120, "[source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 240, "[source excerpt detail omitted]");
     appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 140), 180, "[latest observation detail omitted]");
-    appendBudgeted(aiMemorySection, 150, "[older memory omitted]");
+
     appendBudgeted(markerSuffix, 80, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
   }
