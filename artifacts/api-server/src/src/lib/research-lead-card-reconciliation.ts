@@ -73,9 +73,8 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         for (const raw of payload.findings) {
           if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
           const finding = raw as Record<string, unknown>;
-          if (finding.scope !== "organization" || finding.vectorType !== "other" || finding.promotionDecision === "reject" || finding.personName || finding.role || typeof finding.value !== "string") continue;
+          if (finding.scope !== "organization" || finding.promotionDecision === "reject" || finding.personName || finding.role || typeof finding.value !== "string") continue;
           const name = finding.value.trim().replace(/\s+/g, " ");
-          if (isGenericDiscoveryMetadataTitle(name)) continue;
           const identity = normalizeCandidateIdentityName(name);
           if (name.length < 3 || identity.length < 3) continue;
           const entry = findings.get(identity) ?? { name, urls: new Set<string>(), notes: new Set<string>() };
@@ -108,13 +107,9 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
             const name = company.name.trim().replace(/\s+/g, " ");
             const identity = normalizeCandidateIdentityName(name);
             if (name.length < 3 || identity.length < 3) continue;
-            const entry = findings.get(identity) ?? { name, urls: new Set<string>(), notes: new Set<string>() };
-            for (const rawUrl of company.sourceUrls) {
-              const url = normalizeSource(rawUrl);
-              if (url) entry.urls.add(url);
-            }
+            // Adapter rows may support a model-selected organization lead, but
+            // they never independently select or create a card.
             const normalizedNotes = typeof company.notes === "string" ? company.notes.replace(/\s+/g, " ").trim().slice(0, 240) : "";
-            if (normalizedNotes) entry.notes.add(normalizedNotes);
             // Registry adapters already return an attributable company name and source URL.
             // Preserve that successful observation as a review-grade lead so a registry-only
             // pass still produces a transparent Corporation card; it is not treated as fetched
@@ -128,7 +123,6 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
                 eventId: event.id, createdAt: event.createdAt, verificationLevel: "search_result_lead", sourceUrlBoundByAdapter: true,
               });
             }
-            findings.set(identity, entry);
           }
         }
       }
@@ -164,13 +158,14 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         const sourceLeadName = pageIdentity?.name ?? null;
         if (sourceLeadName) {
           const identity = normalizeCandidateIdentityName(sourceLeadName);
-          const entry = findings.get(identity) ?? { name: sourceLeadName, urls: new Set<string>(), notes: new Set<string>() };
-          entry.urls.add(url);
-          const identityNote = pageIdentity
-            ? "Fetched-page identity metadata (" + pageIdentity.kind + "); title=" + (pageIdentity.title || "not available") + ". This supports the organization name only; ownership, wealth, targetability, and person attribution remain unestablished."
-            : observationText.slice(0, 240);
-          if (identityNote) entry.notes.add(identityNote);
-          findings.set(identity, entry);
+          // Page metadata can enrich a lead the Investigator already selected;
+          // it cannot independently create a review card.
+          const entry = findings.get(identity);
+          if (entry) {
+            entry.urls.add(url);
+            const identityNote = "Fetched-page identity metadata (" + pageIdentity!.kind + "); title=" + (pageIdentity!.title || "not available") + ". This supports the organization name only; ownership, wealth, targetability, and person attribution remain unestablished.";
+            if (identityNote) entry.notes.add(identityNote);
+          }
         }
         const sourceText = pageIdentity
           ? pageIdentity.name + " — fetched-page identity metadata (" + pageIdentity.kind + "); title=" + (pageIdentity.title || "not available") + ". Supports the page-associated organization name only; no ownership, wealth, or person conclusion."
@@ -190,10 +185,12 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         const span = observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
           ? bindExactSourceSpan(observation.text, lead.name)
           : bindExactSourceSpanToUrl(observation.text, observation.url, lead.name);
-        if (!span?.exact) continue;
+        // The finding itself is the Investigator's card selection. A failed
+        // exact-span parse lowers the evidence tier; it does not veto the card.
+        const verificationLevel = span?.exact ? observation.verificationLevel : "search_result_lead" as const;
         const previous = supports.get(observation.url);
-        if (!previous || (previous.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) {
-          supports.set(observation.url, observation);
+        if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
+          supports.set(observation.url, { ...observation, verificationLevel });
         }
       }
       if (!supports.size) continue;
@@ -342,11 +339,11 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       if (Array.isArray(payload.findings)) for (const raw of payload.findings) {
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
         const finding = raw as Record<string, unknown>;
-        if (finding.scope !== "candidate" || finding.vectorType !== "other" || finding.promotionDecision === "reject"
+        if (finding.scope !== "candidate" || finding.promotionDecision === "reject"
           || typeof finding.personName !== "string" || typeof finding.role !== "string" || typeof finding.value !== "string") continue;
         const name = finding.personName.trim().replace(/\s+/g, " ");
         const role = finding.role.trim().replace(/\s+/g, " ");
-        if (name.length < 3 || role.length < 2 || normalizeCandidateIdentityName(finding.value) !== normalizeCandidateIdentityName(name)) continue;
+        if (name.length < 3 || role.length < 2) continue;
         const key = normalizeCandidateIdentityName(name) + "::" + normalizeCandidateIdentityName(role);
         const entry = findings.get(key) ?? { name, role, urls: new Set<string>() };
         if (Array.isArray(finding.sourceUrls)) for (const rawUrl of finding.sourceUrls) {
@@ -378,9 +375,13 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
         const span = observation.verificationLevel === "fetched_source"
           ? bindExactSourceSpan(observation.text, lead.role, lead.name, 320)
           : bindExactSourceSpanToUrl(observation.text, observation.url, lead.role, lead.name, 320);
-        if (!span?.exact || !span.subjectMatched || !span.valueMatched) continue;
+        const verificationLevel = span?.exact && span.subjectMatched && span.valueMatched
+          ? observation.verificationLevel
+          : "search_result_lead" as const;
         const prior = supports.get(observation.url);
-        if (!prior || (prior.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) supports.set(observation.url, observation);
+        if (!prior || (prior.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
+          supports.set(observation.url, { ...observation, verificationLevel });
+        }
       }
       if (!supports.size) continue;
       const persisted = await db.transaction(async (tx) => {
