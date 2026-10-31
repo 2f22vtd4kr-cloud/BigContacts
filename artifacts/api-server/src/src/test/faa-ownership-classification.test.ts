@@ -76,7 +76,7 @@ describe("FAA registrant ownership classification", () => {
     for (const code of ["1", "2", "3", "4", "5", "7", "8", "9", "unknown"]) {
       const result = classifyFaaRegistrant(code);
       expect(result.beneficialOwnershipStatus).toBe("unresolved");
-      expect(result.wealthStatus).toBe("unassessed");
+      expect(result.wealthStatus).toBe("not_assessed");
       expect(result.estimatedNetWorth).toBeNull();
       expect(result.bayesianScore).toBe(0.05);
       expect(result.confidence).toBe("LOW");
