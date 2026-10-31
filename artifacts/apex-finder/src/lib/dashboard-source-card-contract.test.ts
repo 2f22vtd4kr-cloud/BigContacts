@@ -42,7 +42,6 @@ describe("Western registry seed source-catalogue honesty", () => {
     expect(dataSources).toContain("Start and monitor this pipeline in the Mass Seed Operations panel");
     expect(dataSources).toContain('endpoint: "/api/ingest/western-hnwi"');
     expect(dataSources).toContain('jobType: "western-hnwi"');
-    expect(dataSources).not.toContain('endpoint: "/api/ingest/western-hnwi"');
     expect(dataSources).toContain("SEC EDGAR SC 13D/G and DEF 14A");
     expect(dataSources).toContain("BRREG Norway");
     expect(dataSources).toContain("Companies House UK when its API key is configured");
