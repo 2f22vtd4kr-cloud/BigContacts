@@ -1790,8 +1790,9 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         progress: 100,
         atlasPhase: 0,
         outcome: "complete",
-        message: "Groq Boss chose to stop after evaluating the opening evidence and Right-hand advice. No Investigator action was executed.",
-        result: JSON.stringify({ boss: openingBossDecision, rightHand, discoveryCaseId, investigatorActionsExecuted: 0 }),
+        message: "Groq Boss chose to stop after evaluating the objective and Right-hand advice. No Investigator action was executed; the case is preserved for review.",
+        outcome: "incomplete",
+        result: JSON.stringify({ boss: openingBossDecision, rightHand, discoveryCaseId, investigatorActionsExecuted: 0, evidenceBackedTerminal: false }),
         finishedAt: new Date().toISOString(),
       });
       phaseSummary.assignment = "Boss chose stop after weighing Right-hand advice; no Investigator action was executed.";
