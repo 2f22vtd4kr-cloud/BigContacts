@@ -419,6 +419,7 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
   // always have space. Never middle-trim the complete prompt or silently drop pinned state.
   const fixedPrefix = [
     "APEX ATLAS — Advise Groq Boss on the next control decision. The AI, not the harness, owns whether to continue discovery, research/revisit one supplied review target, pivot, or stop. Never invent a candidate or evidence.",
+    "EARLY REVIEW-TARGET JUDGMENT: do not recommend accumulating more names or waiting for a target-count threshold when a relevant, source-attributed review target is already available. Compare whether target-scoped verification would resolve more uncertainty than another broad discovery action. This is a judgment, not a required stage; advise Boss from expected information gain.",
     "Compare proposed directions with the human objective and observed sources; flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. The human objective and realism/targetability constraints outrank Boss suggestions; fame, prestige, and seniority do not establish wealth or contactability. Prefer plausible public/professional/intermediary routes. Internal memory, storage, and workflow terminology is not a research lead.",
     "Assess feasibility against observed public-source access/status. Do not assume a nonpublic filing, private record, searchable registry entry, or named person exists; recommend a publicly verifiable alternative when observed evidence does not support a premise.",
     atlasRegistryFeasibilityLaw(),
@@ -491,6 +492,7 @@ Allowed actions:
 
 Rules:
 - You own the next action. The harness does not infer one from candidate count, score, phase number, or availability.
+- EARLY REVIEW-TARGET JUDGMENT: when a specific, relevant, source-attributed review target is available, consider selecting it now if target-scoped verification has greater expected information gain than another broad search. Do not accumulate names or wait for a target-count threshold. Continue discovery when a concrete unresolved question or new source hypothesis has higher expected information gain. This is discretionary, not a required stage.
 - If researching or revisiting, candidateName AND candidateType MUST match one supplied review target (candidateType is exactly "person" or "organization"). Do not choose by name alone when target types differ.
 - Never invent a person, organization, URL, relationship, contact, or evidence.
 - Do not prescribe a fixed provider/tool sequence. The Investigator chooses its own tools.
