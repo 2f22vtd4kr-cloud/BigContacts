@@ -239,7 +239,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
             const sourceDomain = new URL(support.url).hostname.replace(/^www\./i, "");
             return {
               url: support.url, sourceName: sourceDomain, sourceDomain,
-              sourceClass: "unclassified_public_source", sourceContributor: null,
+              sourceClass: support.observationAction.includes("registry") ? "registry_adapter_source" : "unclassified_public_source", sourceContributor: null,
               sourceMechanism: support.action ?? null, verificationLevel: support.verificationLevel,
               independentCorroborationStatus: "not_assessed",
               supportingEventId: support.eventId, observedAt: support.createdAt.toISOString(),
@@ -306,7 +306,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
             value: lead.name, sourceName: new URL(support.url).hostname.replace(/^www\./i, ""), sourceUrl: support.url,
             sourceDomain: new URL(support.url).hostname.replace(/^www\./i, ""), status: "review", confidence: 0.2,
             observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
-            metadata: JSON.stringify({ partialReview: true, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", sourceClass: "unclassified_public_source", sourceContributor: null, sourceMechanism: support.action ?? null, independentCorroborationStatus: "not_assessed", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
+            metadata: JSON.stringify({ partialReview: true, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", sourceClass: support.observationAction.includes("registry") ? "registry_adapter_source" : "unclassified_public_source", sourceContributor: null, sourceMechanism: support.action ?? null, independentCorroborationStatus: "not_assessed", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
           });
           added += 1;
           updated = true;
@@ -438,7 +438,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
             url: support.url,
             sourceName: sourceDomain,
             sourceDomain,
-            sourceClass: "unclassified_public_source",
+            sourceClass: support.observationAction.includes("registry") ? "registry_adapter_source" : "unclassified_public_source",
             sourceContributor: null,
             sourceMechanism: support.action,
             verificationLevel: support.verificationLevel,
@@ -520,7 +520,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
             value: lead.name, sourceName: new URL(support.url).hostname.replace(/^www\./i, ""), sourceUrl: support.url,
             sourceDomain: new URL(support.url).hostname.replace(/^www\./i, ""), status: "review", confidence: 0.25,
             observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
-            metadata: JSON.stringify({ partialReview: true, role: lead.role, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", sourceClass: "unclassified_public_source", sourceContributor: null, sourceMechanism: support.action ?? null, independentCorroborationStatus: "not_assessed", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
+            metadata: JSON.stringify({ partialReview: true, role: lead.role, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", sourceClass: support.observationAction.includes("registry") ? "registry_adapter_source" : "unclassified_public_source", sourceContributor: null, sourceMechanism: support.action ?? null, independentCorroborationStatus: "not_assessed", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
           });
           added += 1;
           updated = true;
