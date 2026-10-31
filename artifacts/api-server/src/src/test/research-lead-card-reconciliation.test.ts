@@ -248,7 +248,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).toContain("function mergeDurablyAdmittedAtlasTargetSources");
     expect(canonicalAtlas).toContain('const key = `${targetType}:${identity}`;');
     expect(canonicalAtlas).toMatch(/candidate\.sourceUrls\s*\.map\(normalizeSourceUrl\)/);
-    expect(canonicalAtlas).toContain("isClaimGradeDiscoverySourceUrl(url)");
+    expect(personMaterializer).toContain('observation.verificationLevel === "fetched_source" && !isClaimGradeDiscoverySourceUrl(sourceUrl)');
     expect(canonicalAtlas.match(/mergeDurablyAdmittedAtlasTargetSources\(\[admittedCandidateSources, admission\.candidates\]\)/g)).toHaveLength(2);
     expect(canonicalAtlas).not.toContain("admittedCandidateSources = mergeDurablyAdmittedCandidateSources");
   });
