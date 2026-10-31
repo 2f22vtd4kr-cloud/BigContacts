@@ -330,8 +330,10 @@ export async function validateRegistryCandidateNamesWithLLM(
         const match = raw.match(/\[[\d,\s]*\]/);
         if (!match) continue;
         const parsed: unknown = JSON.parse(match[0]);
-        if (!Array.isArray(parsed) || !parsed.every((value) => Number.isInteger(value))) continue;
-        batchResult = (parsed as number[]).filter((index) => index >= 1 && index <= batch.length);
+        if (!Array.isArray(parsed)
+          || !parsed.every((value) => Number.isInteger(value) && value >= 1 && value <= batch.length)
+          || new Set(parsed).size !== parsed.length) continue;
+        batchResult = parsed as number[];
         break;
       } catch {
         // Try the next configured key; provider failure is not a negative name judgment.
