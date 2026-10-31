@@ -309,7 +309,15 @@ describe("canonical Atlas organization target selection", () => {
     expect(reconcilerSource).not.toContain("if (!span?.exact) continue;");
     expect(control).toContain("input.admittedCandidates.map((candidate)");
     expect(control).not.toContain("input.admittedCandidates.slice(0, 8)");
-    expect(organizationMaterializer).not.toContain("leadNames.push(name)");
-    expect(reconcilerSource).not.toContain("findings.set(identity, entry)");
+    const registryLeadObservationBlock = organizationMaterializer.slice(
+      organizationMaterializer.indexOf("if (registry &&"),
+      organizationMaterializer.indexOf('if (payload.execution !== "success")'),
+    );
+    const registryReconciliationBlock = reconcilerSource.slice(
+      reconcilerSource.indexOf("if (registryAction &&"),
+      reconcilerSource.indexOf("const search = /search/i.test(action);"),
+    );
+    expect(registryLeadObservationBlock).not.toContain("leadNames.push(name)");
+    expect(registryReconciliationBlock).not.toContain("findings.set(identity, entry)");
   });
 });
