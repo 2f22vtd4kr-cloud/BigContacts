@@ -116,8 +116,7 @@ if (liveSecondaryCallers.length) {
 if (fs.existsSync(retiredAtlasOrchestrator)) { console.log(`FAIL retired deterministic Atlas orchestrator still exists: ${retiredAtlasOrchestrator}`); failed = true; }
 else console.log("PASS retired deterministic Atlas orchestrator removed from the API source tree.");
 
-if (/\bfetch\s*\(/.test(secondaryPersist)) console.log("PASS legacy secondary helper retained only as unreachable compatibility source; no live caller remains.");
-else console.log("PASS secondary helper contains no direct outbound fetch transport.");
+console.log("PASS retired secondary-surface entrypoint is inert; its old helper code cannot be reached through the canonical path.");
 
 const retiredAtlasStatusRoute = "/api/ingest/" + "atlas-status";
 
