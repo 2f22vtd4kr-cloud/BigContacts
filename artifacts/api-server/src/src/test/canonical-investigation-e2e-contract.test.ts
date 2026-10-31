@@ -519,6 +519,8 @@ describe("canonical application path is wired to the acceptance proof", () => {
     expect(workflowTriggers).not.toContain("\n  push:");
     expect(runtimeWorkflow).toContain("verifyCanonicalCardProof");
     expect(runtimeWorkflow).toContain("verifyResearchEvidenceRows");
+    expect(runtimeWorkflow).toContain("verifyModelAudit");
+    expect(runtimeWorkflow).toContain("APEX_ATLAS_MODEL_AUDIT_");
     expect(runtimeWorkflow).toContain("research_evidence");
     expect(runtimeWorkflow).toContain('if [ "$STATUS" = "cancelled" ]');
     expect(runtimeWorkflow).toContain("exit 0; fi");
