@@ -114,7 +114,7 @@ export function compactRegistryCompanyLeads(
     const row = raw as Record<string, unknown>;
     if (row.type !== "Corporation" || typeof row.name !== "string") continue;
     const name = row.name.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim();
-    if (name.length < 3 || name.length > 180 || /[\u0000-\u001f\u007f]/u.test(name)) continue;
+    if (!name || name.length > 180 || /[\u0000-\u001f\u007f]/u.test(name)) continue;
     const identity = name.toLocaleLowerCase("en-US");
     if (seen.has(identity)) continue;
     const metadata = typeof row.metadata === "string" ? row.metadata.slice(0, 20_000) : undefined;
