@@ -4,6 +4,7 @@ import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { logger } from "./logger";
 import { emitModelPromptAudit, emitModelPromptAuditResponse, isModelPromptAuditCaptureEnabled } from "./model-prompt-audit";
 import { withProviderRetryOwnership, withProviderRole } from "./provider-gate";
+import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
 import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
@@ -107,7 +108,7 @@ export function getGroqRightHandLatencyConfig():GroqRightHandLatencyConfig {
 export type GroqRightHandStatus={configured:boolean;model:string;fallbackModels:string[];endpoint:string;role:"right_hand_advisor";capability:"case_file_reasoning_only";provider:"groq"};
 export type GroqRightHandCaseReasoningResult={status:"completed"|"unavailable";model:string;actionId:string|null;decision:string|null;reason:string|null;confidence:number|null;error:string|null};
 export type GroqRightHandDiscoveryAdviceResult={status:"completed"|"unavailable";model:string;decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;error:string|null};
-export type GroqRightHandAuditContext = { jobId?: string | null; caseId?: number | null };
+export type GroqRightHandAuditContext = { jobId?: string | null; caseId?: number | null; targetDigest?: string | null; iteration?: number | null; decisionId?: string | null; cognitiveTask?: string | null };
 
 /** Task-scoped generation tuning; omitted options preserve the defaults for every existing caller. */
 export type GroqRightHandRequestOptions = {
@@ -265,6 +266,16 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  }
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
   const structuredResponseFormat=responseFormat(format);
+  const telemetryContext = {
+    role: "right_hand" as const,
+    capability: "groq-right-hand",
+    jobId: auditContext?.jobId ?? null,
+    caseId: auditContext?.caseId ?? null,
+    targetDigest: auditContext?.targetDigest ?? null,
+    iteration: auditContext?.iteration ?? null,
+    decisionId: auditContext?.decisionId ?? null,
+    cognitiveTask: auditContext?.cognitiveTask ?? "control_advisory",
+  };
  const failures: GroqAttemptDiagnostic[] = [];
  const boundedIntegerOption=(value:number|undefined,fallback:number,min:number,max:number):number=>Number.isFinite(value)?Math.min(max,Math.max(min,Math.floor(value as number))):fallback;
  const maxOutboundAttempts=requestOptions?.maxAttempts===undefined?Math.min(6,attempts.length+2):boundedIntegerOption(requestOptions.maxAttempts,MAX_MODEL_ATTEMPTS,1,6);
