@@ -672,7 +672,10 @@ describe("Atlas control-plane contract regression", () => {
   it("carries discovery search history across Boss-directed episodes and quota recovery", () => {
     expect(canonicalDiscoverySource).toContain("priorTrajectoryRecords: discovery.trajectoryRecords ?? []");
     expect(canonicalDiscoverySource).toContain("priorTrajectoryRecords: [...priorTrajectoryRecords, ...(result.trajectoryRecords ?? [])]");
-    expect(bureauPassSource).toContain("priorTrajectoryRecords:input.priorTrajectoryRecords");
+    expect(bureauPassSource).toContain("priorTrajectoryRecords,investigatorLlm:input.investigatorLlm");
+    expect(bureauPassSource).toContain("const replayedTrajectoryRecords=mode===\"discovery\"?await loadDurableTrajectoryRecords(durableCaseId):[];");
+    expect(bureauPassSource).toContain("for(const record of replayedTrajectoryRecords)mergedPriorRecords.set(record.turn,record)");
+    expect(bureauPassSource).toContain("for(const record of input.priorTrajectoryRecords??[])mergedPriorRecords.set(record.turn,record)");
     expect(agenticResearchSource.match(/priorTrajectoryRecords: \[\.\.\.historyRecords, \.\.\.records\]/g) ?? []).toHaveLength(2);
         expect(agenticResearchSource.match(/const normalizedRecord = \{/g) ?? []).toHaveLength(2);
     expect(agenticResearchSource).toContain("failureDomain: raw.failureDomain ?? scopeGuardDiagnostic.domain");
@@ -805,7 +808,7 @@ describe("discovery trajectory turn persistence", () => {
     expect(bureauPassSource).toContain("step${trajectoryTurnOffset+Number(numberString)}:");
     expect(bureauPassSource).toContain("trajectoryTurnOffset:0,finalize:false");
     expect(bureauPassSource).toContain("trajectoryTurnOffset:discoveryTurnOffset,finalize:true");
-    expect(bureauPassSource).toContain("const discoveryTurnOffset=Math.max(0,...(input.priorTrajectoryRecords??[]).map((record)=>record.turn));");
+    expect(bureauPassSource).toContain("const discoveryTurnOffset=Math.max(0,...priorTrajectoryRecords.map((record)=>record.turn));");
     expect(bureauPassSource).not.toContain("baseIteration");
   });
 });
