@@ -128,6 +128,8 @@ describe("canonical investigation end-to-end acceptance proof", () => {
         entityId: 7,
         sessionId: 501,
         claimType: "partial_organization_lead",
+        sourceName: "canonical-agentic-discovery",
+        sourceDomain: "registry.example.test",
         sourceUrl,
         status: "review",
         confidence: 0.25,
