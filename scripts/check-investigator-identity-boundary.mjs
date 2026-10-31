@@ -36,9 +36,9 @@ assert(!/promotionDecision\s*:\s*["']promote["']/.test(toolObservationRegion), "
 assert(!/promotionReason\s*:/.test(contact), "deterministic contact-facts observation extractor authors promotion reasons.");
 
 // Candidate scope and person identity remain model-authored, never tool-extracted.
-// Non-terminal findings may carry a provisional candidate lead with no promotion decision;
-// only action=done may carry the model's explicit promotion/rejection decision. Partial cards
-// must still pass fetched-source, exact name/role, and ownership/control validation downstream.
+// Non-terminal findings may carry a model-selected provisional lead with no promotion decision.
+// A provisional card needs a safe URL observed in this job; fetched-source grading, exact role
+// corroboration, ownership/control, materiality and contactability remain separate later judgments.
 const doneRegion = parseStart >= 0 ? source.slice(parseStart, source.indexOf("async function callGroqJson(", parseStart)) : "";
 assert(/action === ["']done["']/.test(doneRegion), "action parser has no explicit done boundary for model-authored findings.");
 assert(/personName:\s*typeof f\.personName/.test(doneRegion), "explicit done parser no longer preserves model-authored person identity.");
