@@ -274,6 +274,9 @@ describe("canonical Atlas organization target selection", () => {
     expect(personMaterializer).toContain('observation.verificationLevel === "fetched_source" && !isClaimGradeDiscoverySourceUrl(sourceUrl)');
     expect(organizationMaterializer).toContain('observation.verificationLevel === "fetched_source" && !isClaimGradeDiscoverySourceUrl(sourceUrl)');
     expect(reconcilerSource).toContain('if (!url || (fetched && !isClaimGradeDiscoverySourceUrl(url))) continue;');
+    expect(canonicalAtlas).toContain("bindExactSourceSpanToUrl");
+    expect(reconcilerSource).toContain("bindExactSourceSpanToUrl");
+    expect(reconcilerSource).toContain("sourceUrlBoundByAdapter: true");
     expect(personMaterializer).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
 
     // Review-only person cards are supplied to Boss as typed targets without
