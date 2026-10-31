@@ -404,15 +404,17 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     assetBatch.push(asset);
 
     // ── Flush every 100 records; batch-write dedup to Upstash in one call ────
-    if (entityBatch.length >= 100) {
-      const res = await flushBatch(entityBatch, assetBatch);
+    if (assetBatch.length >= 100) {
+      const res = await persistAndMarkRegistryBatch({
+        persist: () => flushBatch(entityBatch, assetBatch),
+        keys: pendingDedup,
+        markSeen: batchMarkSeen,
+      });
       inserted += res.inserted;
       errors += res.errors;
+      if (res.errors > 0) for (const key of pendingDedup) seenKeys.delete(key);
       entityBatch.length = 0;
       assetBatch.length = 0;
-
-      // One Upstash call per flush instead of one per record
-      await batchMarkSeen(pendingDedup);
       pendingDedup.length = 0;
 
       if (inserted % 1_000 === 0 && inserted > 0) {
@@ -421,14 +423,17 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     }
   }
 
-  // Flush remaining and write final dedup batch
-  if (pendingDedup.length > 0) await batchMarkSeen(pendingDedup);
-
   // ── Flush remaining ────────────────────────────────────────────────────────
-  if (entityBatch.length > 0) {
-    const res = await flushBatch(entityBatch, assetBatch);
+  if (entityBatch.length > 0 || assetBatch.length > 0) {
+    const res = await persistAndMarkRegistryBatch({
+      persist: () => flushBatch(entityBatch, assetBatch),
+      keys: pendingDedup,
+      markSeen: batchMarkSeen,
+    });
     inserted += res.inserted;
     errors += res.errors;
+    if (res.errors > 0) for (const key of pendingDedup) seenKeys.delete(key);
+    pendingDedup.length = 0;
   }
 
   await appendJobLog(
