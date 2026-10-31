@@ -32,7 +32,7 @@ import { sanitizeUrlForEvidence } from "./url-privacy";
 import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
-import { buildDiscoverySourceAttribution, isRestrictedCommunitySourceUrl } from "./discovery-source-attribution";
+import { buildDiscoverySourceAttribution, isRestrictedCommunitySourceUrl, RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE } from "./discovery-source-attribution";
 
 export type CanonicalAtlasOptions = {
   targetCount?: number;
@@ -1039,7 +1039,7 @@ async function materializePartialOrganizationLeadCards(input: {
       const verificationLevel = hasFetchedSource ? "fetched_source" : "search_result_lead";
       const collisionNote = identityCollisionPossible ? "Possible same-name entity in another case; kept separate without identity merging. " : "";
       const notes = collisionNote + (onlyRestrictedCommunitySources
-        ? "COMMUNITY-SOURCE MANUAL REVIEW — Virtual Globetrotting is user-submitted content; its annotations, images and precise residential coordinates are not retained or treated as evidence. Independently verify the entity through permitted public sources."
+        ? RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE
         : hasFetchedSource
           ? "FETCHED-SOURCE REVIEW LEAD — a fetched public source contains this organization name. Ownership/control, business materiality, wealth, and targetability remain unverified."
           : "UNVERIFIED SOURCE REVIEW LEAD — a public source observation supports this organization name. It is not treated as claim-grade evidence; ownership/control, business materiality, wealth, and targetability remain unverified.")
@@ -1059,7 +1059,7 @@ async function materializePartialOrganizationLeadCards(input: {
         sourceUrls,
         sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.restrictedCommunitySource ? null : support.sourceContributor })),
         sourceNotes: [...new Set([...supports.values()].map((support) => support.restrictedCommunitySource
-          ? "Virtual Globetrotting URL retained for manual review only; contributor annotations, images and precise residential coordinates are not copied or treated as evidence."
+          ? RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE
           : support.spanVerified ? support.spanText : `Investigator-selected organization lead ${name}; exact source span not independently isolated.`))].slice(0, 4),
         limitations: ["ownership/control not established", "business materiality not established", "no person or wealth conclusion", "person-level contact route not established", ...(hasRestrictedCommunitySource ? ["community-submitted content not used as evidence"] : [])],
       });
