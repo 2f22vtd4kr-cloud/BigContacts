@@ -496,17 +496,17 @@ async function materializePartialPersonLeadCards(input: {
   findings: AgenticFinding[];
   atlasJobId: string;
   discoveryCaseId: number;
-}): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; role: string; sourceUrls: string[] }> }> {
+}): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; role: string | null; sourceUrls: string[] }> }> {
   // A non-terminal model action can produce a provisional name/role lead,
   // but it does not itself promote or select the person. Boss may choose the review-only lead for target-scoped verification.
-  const leadMap = new Map<string, { name: string; role: string; sourceUrls: string[] }>();
+  const leadMap = new Map<string, { name: string; role: string | null; sourceUrls: string[] }>();
   for (const finding of input.findings) {
     if (finding.scope !== "candidate" || finding.promotionDecision === "reject"
-      || !finding.personName?.trim() || !finding.role?.trim()) continue;
+      || !finding.personName?.trim()) continue;
     const name = finding.personName.trim().replace(/\s+/g, " ");
-    const role = finding.role.trim().replace(/\s+/g, " ");
-    if (name.length < 3 || role.length < 2) continue;
-    const identity = normalizeCandidateIdentityName(name) + "::" + normalizeCandidateIdentityName(role);
+    const role = finding.role?.trim() ? finding.role.trim().replace(/\s+/g, " ") : null;
+    if (name.length < 3) continue;
+    const identity = normalizeCandidateIdentityName(name) + "::" + (role ? normalizeCandidateIdentityName(role) : "");
     const current = leadMap.get(identity);
     const sourceUrls = [...new Set([
       ...(current?.sourceUrls ?? []),
@@ -561,7 +561,7 @@ async function materializePartialPersonLeadCards(input: {
   let materialized = 0;
   let evidenceRows = 0;
   let wroteDurableState = false;
-  const candidates: Array<{ name: string; role: string; sourceUrls: string[] }> = [];
+  const candidates: Array<{ name: string; role: string | null; sourceUrls: string[] }> = [];
   for (const lead of leadMap.values()) {
     const claimedUrls = new Set(lead.sourceUrls);
     const supports = new Map<string, {
@@ -579,9 +579,9 @@ async function materializePartialPersonLeadCards(input: {
       // observed source text and bind to the exact source URL. A search result
       // creates only a review lead; fetched text improves its evidence tier.
       const span = observation.verificationLevel === "fetched_source"
-        ? bindExactSourceSpan(observation.observation, lead.role, lead.name, 320)
-        : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.role, lead.name, 320);
-      const exactSpan = Boolean(span?.exact && span.subjectMatched && span.valueMatched);
+        ? (lead.role ? bindExactSourceSpan(observation.observation, lead.role, lead.name, 320) : bindExactSourceSpan(observation.observation, lead.name, undefined, 320))
+        : (lead.role ? bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.role, lead.name, 320) : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320));
+      const exactSpan = Boolean(span?.exact && (!lead.role || (span.subjectMatched && span.valueMatched)));
       // The Investigator selected this lead. Exact-span parsing grades the
       // observation; it must not veto the model's provisional card decision.
       // If attribution cannot be isolated, retain the URL as unverified and let
@@ -593,7 +593,7 @@ async function materializePartialPersonLeadCards(input: {
         sourceUrl,
         eventId: observation.eventId,
         createdAt: observation.createdAt,
-        spanText: span?.text ?? `Investigator-selected lead ${lead.name} / ${lead.role}; exact source span not independently isolated.`,
+        spanText: span?.text ?? `Investigator-selected person lead ${lead.name}${lead.role ? " / " + lead.role : ""}; exact source span not independently isolated.`,
         spanStart: span?.start ?? -1,
         spanEnd: span?.end ?? -1,
         verificationLevel,
@@ -649,8 +649,8 @@ async function materializePartialPersonLeadCards(input: {
       const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
       const verificationLevel = hasFetchedSource ? "fetched_source" : "search_result_lead";
       const notes = hasFetchedSource
-        ? `PARTIAL PERSON ROLE LEAD — a fetched public source directly associates this person with the role “${lead.role}”. Wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`
-        : `SEARCH-RESULT PERSON ROLE LEAD — a successful public search/registry result associates this person with the role “${lead.role}”. The underlying page is not verified; wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`;
+        ? `PARTIAL PERSON LEAD — a fetched public source supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`
+        : `SEARCH-RESULT PERSON LEAD — a successful public search/registry result supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. The underlying page is not verified; wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`;
       const metadata = JSON.stringify({
         ...priorMetadata,
         reviewOnly: true,
