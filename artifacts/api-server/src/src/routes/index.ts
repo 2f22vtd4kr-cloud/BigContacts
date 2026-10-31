@@ -1,5 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import operatorAuthRouter from "./operator-auth";
+import { requireOperatorAuth } from "../lib/operator-auth";
 import entitiesRouter from "./entities";
 import safeEntityMergeRouter from "./entity-merge-safe";
 import assetsRouter from "./assets";
@@ -26,8 +28,10 @@ import { canonicalCaseContinuationGuard } from "../middlewares/canonical-case-co
 
 const router: IRouter = Router();
 
-// Operator authentication is intentionally unmounted for the current Replit deployment.
-// Canonical launch, provider-role, provenance, admission, and persistence guards remain active.
+// Auth bootstrap endpoints are public only for session discovery, login and logout.
+// The global guard runs before every data, research, ingestion and system route.
+router.use(operatorAuthRouter);
+router.use(requireOperatorAuth);
 router.use(healthRouter);
 router.use(normalizeAtlasLaunchBody);
 router.use(entityVisibilityGuard);
