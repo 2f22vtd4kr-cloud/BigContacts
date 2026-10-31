@@ -24,6 +24,7 @@ import { db, entitiesTable, assetsTable } from "@workspace/db";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
+import { persistRegistryEntityAssetBatch, persistAndMarkRegistryBatch } from "./registry-batch-persistence";
 
 const execAsync = promisify(exec);
 
@@ -103,23 +104,19 @@ async function flushBatch(
   entities: InsertEntity[],
   assets: InsertAsset[],
 ): Promise<{ inserted: number; errors: number }> {
-  if (entities.length === 0) return { inserted: 0, errors: 0 };
-  try {
-    const rows = await db
-      .insert(entitiesTable)
-      .values(entities)
-      .onConflictDoNothing()
-      .returning({ id: entitiesTable.id });
-
-    const assetRows = rows.map((r, i) => ({ ...assets[i]!, ownerEntityId: r.id })).filter((a) => a.ownerEntityId);
-    if (assetRows.length > 0) {
-      await db.insert(assetsTable).values(assetRows).onConflictDoNothing();
-    }
-    return { inserted: rows.length, errors: 0 };
-  } catch (err: any) {
-    logger.warn({ err: err.message }, "Land Registry batch insert error");
-    return { inserted: 0, errors: entities.length };
+  const result = await persistRegistryEntityAssetBatch({
+    entities,
+    assets,
+    adapter: {
+      transaction: async (work) => db.transaction((tx) => work(tx)),
+      insertEntities: async (tx, rows) => { await tx.insert(entitiesTable).values([...rows]); },
+      insertAssets: async (tx, rows) => { await tx.insert(assetsTable).values([...rows]); },
+    },
+  });
+  if (result.errors > 0) {
+    logger.warn({ entities: entities.length, assets: assets.length }, "Land Registry transactional batch insert failed; dedup keys remain retryable");
   }
+  return result;
 }
 
 // ── Main ingestion function ───────────────────────────────────────────────────
