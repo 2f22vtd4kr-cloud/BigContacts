@@ -342,6 +342,7 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       const locality   = (raw[F_LOCALITY] ?? "").trim();
       const town       = (raw[F_TOWN] ?? "").trim();
       const county     = (raw[F_COUNTY] ?? "").trim();
+      const address = [saon, paon, street, locality, town, county, postcode].filter(Boolean).join(", ");
       const ppdCat     = (raw[F_PPD_CAT] ?? "").trim();
       const recStatus  = (raw[F_REC_STATUS] ?? "").trim();
 
