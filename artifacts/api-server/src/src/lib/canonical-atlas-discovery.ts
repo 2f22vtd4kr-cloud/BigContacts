@@ -70,7 +70,7 @@ type CanonicalAdmittedTargetSource = {
   targetType: "person" | "organization";
 };
 
-/** Preserve entity kind while merging only source URLs that satisfy the existing durable-admission rules. */
+/** Preserve target kind and safe HTTPS provenance. Strict admissions are already claim-grade; review-only leads retain their lower evidence tier on the card. */
 function mergeDurablyAdmittedAtlasTargetSources(
   groups: readonly (readonly CanonicalAdmittedTargetSource[])[],
 ): CanonicalAdmittedTargetSource[] {
@@ -83,7 +83,7 @@ function mergeDurablyAdmittedAtlasTargetSources(
       if (name.length < 3 || identity.length < 3) continue;
       const validUrls = candidate.sourceUrls
         .map(normalizeSourceUrl)
-        .filter((url): url is string => url !== null && isClaimGradeDiscoverySourceUrl(url));
+        .filter((url): url is string => url !== null);
       if (!validUrls.length) continue;
       const key = `${targetType}:${identity}`;
       let entry = merged.get(key);
@@ -368,10 +368,14 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
       && normalizeCandidateIdentityName(finding.personName ?? "") === normalizeCandidateIdentityName(name)
       && typeof finding.role === "string" && finding.role.trim())?.role?.trim().replace(/\s+/g, " ") ?? null,
   }));
+  const strictPersonIdentities = new Set(personTargets.map(({ name }) => normalizeCandidateIdentityName(name)));
+  const partialPersonTargets = partialPeople.candidates
+    .filter(({ name }) => !strictPersonIdentities.has(normalizeCandidateIdentityName(name)))
+    .map(({ name, role, sourceUrls }) => ({ name, sourceUrls, targetType: "person" as const, role }));
   const organizationTargets = partialOrganizations.candidates.map(({ name, sourceUrls }) => ({
     name, sourceUrls, targetType: "organization" as const, role: null,
   }));
-  const targetCandidates = [...personTargets, ...organizationTargets];
+  const targetCandidates = [...personTargets, ...partialPersonTargets, ...organizationTargets];
   return { names: targetCandidates.map(({ name }) => name), candidates: targetCandidates, materialized, evidenceRows };
 }
 
@@ -492,7 +496,7 @@ async function materializePartialPersonLeadCards(input: {
   findings: AgenticFinding[];
   atlasJobId: string;
   discoveryCaseId: number;
-}): Promise<{ materialized: number; evidenceRows: number }> {
+}): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; role: string; sourceUrls: string[] }> }> {
   // A non-terminal model action can produce a provisional name/role lead,
   // but it never promotes the person or authorizes target-scoped research.
   const leadMap = new Map<string, { name: string; role: string; sourceUrls: string[] }>();
@@ -512,7 +516,7 @@ async function materializePartialPersonLeadCards(input: {
     ])];
     leadMap.set(identity, { name, role, sourceUrls });
   }
-  if (!leadMap.size) return { materialized: 0, evidenceRows: 0 };
+  if (!leadMap.size) return { materialized: 0, evidenceRows: 0, candidates: [] };
 
   const caseEvents = await db.select({
     id: researchCaseEventsTable.id,
@@ -559,6 +563,7 @@ async function materializePartialPersonLeadCards(input: {
   let materialized = 0;
   let evidenceRows = 0;
   let wroteDurableState = false;
+  const candidates: Array<{ name: string; role: string; sourceUrls: string[] }> = [];
   for (const lead of leadMap.values()) {
     const claimedUrls = new Set(lead.sourceUrls);
     const supports = new Map<string, {
@@ -570,7 +575,8 @@ async function materializePartialPersonLeadCards(input: {
       if (observation.executionStatus !== "success"
         || !["visit", "browser_fetch", "web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(observation.action)) continue;
       const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
-      if (!sourceUrl || !claimedUrls.has(sourceUrl) || !isClaimGradeDiscoverySourceUrl(sourceUrl)) continue;
+      if (!sourceUrl || !claimedUrls.has(sourceUrl)
+        || (observation.verificationLevel === "fetched_source" && !isClaimGradeDiscoverySourceUrl(sourceUrl))) continue;
       // The exact person name and page-stated role must co-occur in the same
       // observed source text and bind to the exact source URL. A search result
       // creates only a review lead; fetched text improves its evidence tier.
@@ -599,7 +605,7 @@ async function materializePartialPersonLeadCards(input: {
         sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${input.atlasJobId}`,
         sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
       )).for("update").limit(1);
-      if (!ownedCase) return { created: 0, evidenceRows: 0, changed: false };
+      if (!ownedCase) return { created: 0, evidenceRows: 0, changed: false, eligible: false };
 
       const existingRows = await tx.select({
         id: entitiesTable.id,
@@ -618,7 +624,7 @@ async function materializePartialPersonLeadCards(input: {
       });
       // Do not merge a same-name lead into an unrelated existing person, and
       // do not create a duplicate card just to bypass an identity collision.
-      if (existingRows.length > 0 && !sameCase) return { created: 0, evidenceRows: 0, changed: false };
+      if (existingRows.length > 0 && !sameCase) return { created: 0, evidenceRows: 0, changed: false, eligible: false };
       let priorMetadata: Record<string, unknown> = {};
       try {
         const parsed: unknown = sameCase?.metadata ? JSON.parse(sameCase.metadata) : {};
@@ -627,7 +633,7 @@ async function materializePartialPersonLeadCards(input: {
       // A durably admitted candidate is already a stronger version of this
       // card; never downgrade its admission or overwrite its provenance.
       if (sameCase && priorMetadata.admission === "investigator-explicit-promotion") {
-        return { created: 0, evidenceRows: 0, changed: false };
+        return { created: 0, evidenceRows: 0, changed: false, eligible: false };
       }
 
       let entityId = sameCase?.id ?? null;
@@ -678,9 +684,9 @@ async function materializePartialPersonLeadCards(input: {
       } else {
         // A same-case entity not marked as partial/admitted belongs to another
         // materialization path. Do not silently retag it as a partial lead.
-        return { created: 0, evidenceRows: 0, changed: false };
+        return { created: 0, evidenceRows: 0, changed: false, eligible: false };
       }
-      if (!entityId) return { created: 0, evidenceRows: 0, changed: false };
+      if (!entityId) return { created: 0, evidenceRows: 0, changed: false, eligible: false };
 
       let addedEvidence = 0;
       for (const support of supports.values()) {
@@ -736,12 +742,13 @@ async function materializePartialPersonLeadCards(input: {
         });
         addedEvidence++;
       }
-      return { created: created ? 1 : 0, evidenceRows: addedEvidence, changed: created || addedEvidence > 0 || Boolean(sameCase) };
+      return { created: created ? 1 : 0, evidenceRows: addedEvidence, changed: created || addedEvidence > 0 || Boolean(sameCase), eligible: true };
     }, { isolationLevel: "serializable" });
 
     materialized += persisted.created;
     evidenceRows += persisted.evidenceRows;
     wroteDurableState ||= persisted.changed;
+    if (persisted.eligible) candidates.push({ name: lead.name, role: lead.role, sourceUrls: [...supports.keys()] });
   }
   if (wroteDurableState) {
     await Promise.all([
@@ -749,7 +756,7 @@ async function materializePartialPersonLeadCards(input: {
       delCachePattern("dashboard:*").catch(() => undefined),
     ]);
   }
-  return { materialized, evidenceRows };
+  return { materialized, evidenceRows, candidates };
 }
 
 async function materializePartialOrganizationLeadCards(input: {
@@ -891,7 +898,8 @@ async function materializePartialOrganizationLeadCards(input: {
       if (observation.execution !== "success"
         || !["visit", "browser_fetch", "web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(observation.action)) continue;
       const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
-      if (!sourceUrl || !claimedUrls.has(sourceUrl) || !isClaimGradeDiscoverySourceUrl(sourceUrl)) continue;
+      if (!sourceUrl || !claimedUrls.has(sourceUrl)
+        || (observation.verificationLevel === "fetched_source" && !isClaimGradeDiscoverySourceUrl(sourceUrl))) continue;
       // Exact-name support must appear in the actual model-visible observation
       // text, never just in the finding or the URL. Search-only support remains
       // review-grade and is not silently upgraded to fetched evidence.
@@ -1840,7 +1848,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       await assertAtlasJobActive(atlasJobId);
       const [current] = await db.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`)).limit(1);
       let caseFile: Record<string, any> = {}; try { const parsed = current?.caseFile ? JSON.parse(current.caseFile) : {}; if (parsed && typeof parsed === "object") caseFile = parsed; } catch { caseFile = {}; }
-      const candidates = admittedCandidateSources.map(({ name, sourceUrls, role, targetType }) => ({ name, type: "review_candidate", targetType, role, relevance: targetType === "organization" ? "Source-backed organization lead available for target-scoped research; not an ownership or wealth conclusion" : "Explicit Investigator discovery admission candidate", reachability: "Requires target-scoped Investigator research", sourceUrls, contactEvidence: [], state: "review_only", admittedEntityId: null }));
+      const candidates = admittedCandidateSources.map(({ name, sourceUrls, role, targetType }) => ({ name, type: "review_candidate", targetType, role, relevance: targetType === "organization" ? "Review-only organization lead; target-scoped research must verify the entity and investigate ownership/control, materiality, and a realistic route" : "Review-only person/role lead; target-scoped research must verify identity, relevance, ownership/control, and a realistic route", reachability: "Requires target-scoped Investigator research", sourceUrls, contactEvidence: [], state: "review_only", admittedEntityId: null }));
       const discoveryHealth = summarizeAtlasDiscoveryResearchHealth(discovery.trajectoryRecords ?? [], admitted.length);
       await assertAtlasJobActive(atlasJobId);
       failureStage = "case_persistence";
