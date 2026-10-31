@@ -586,7 +586,9 @@ async function materializePartialPersonLeadCards(input: {
       // If attribution cannot be isolated, retain the URL as unverified and let
       // target-scoped research test the lead.
       const verificationLevel = exactSpan && span
-        ? observation.verificationLevel
+        && observation.verificationLevel === "fetched_source"
+        && isClaimGradeDiscoverySourceUrl(sourceUrl)
+        ? "fetched_source" as const
         : "search_result_lead" as const;
       if (!supports.has(sourceUrl) || (supports.get(sourceUrl)?.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) supports.set(sourceUrl, {
         sourceUrl,
@@ -903,7 +905,9 @@ async function materializePartialOrganizationLeadCards(input: {
         : bindExactSourceSpanToUrl(observation.observation, sourceUrl, name);
       const exactSpan = Boolean(span?.exact);
       const verificationLevel = exactSpan && span
-        ? observation.verificationLevel
+        && observation.verificationLevel === "fetched_source"
+        && isClaimGradeDiscoverySourceUrl(sourceUrl)
+        ? "fetched_source" as const
         : "search_result_lead" as const;
       const previous = supports.get(sourceUrl);
       if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
