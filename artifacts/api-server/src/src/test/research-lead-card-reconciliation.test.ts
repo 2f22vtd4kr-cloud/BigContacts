@@ -49,6 +49,7 @@ describe("terminal review-card reconciliation", () => {
     expect(organizationMaterializer).toContain('finding.scope !== "organization"');
     expect(organizationMaterializer).toContain("Registry adapter rows may support this lead only because the");
     expect(organizationMaterializer).not.toContain("isGenericDiscoveryMetadataTitle");
+    expect(organizationMaterializer).toContain("isStructurallyValidCandidateName(name)");
     const registryLeadObservationBlock = organizationMaterializer.slice(
       organizationMaterializer.indexOf("if (registry &&"),
       organizationMaterializer.indexOf("// Partial provider execution can still contain successful, attributable"),
@@ -109,6 +110,7 @@ describe("terminal review-card reconciliation", () => {
     expect(personMaterializer).not.toContain("!finding.role?.trim()");
     expect(personMaterializer).toContain('!["success", "partial"].includes(observation.executionStatus)');
     expect(personMaterializer).not.toContain("name.length < 3");
+    expect(personMaterializer).toContain("isStructurallyValidCandidateName(name)");
     expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
     expect(personMaterializer).toContain("sourceSpanVerified: support.spanVerified");
     expect(personMaterializer).not.toContain("if (existingRows.length > 0 && !sameCase)");
