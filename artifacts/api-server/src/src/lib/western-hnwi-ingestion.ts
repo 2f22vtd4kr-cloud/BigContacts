@@ -992,12 +992,13 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
           continue;
         }
         const { entity, key } = buildRegistryEntity(result, registry);
-        if (await isDuplicate(key)) {
+        if (seenBatchKeys.has(key) || await isDuplicate(key)) {
           skipped++;
           continue;
         }
-        await markSeen(key);
+        seenBatchKeys.add(key);
         entityBatch.push(entity);
+        entityBatchKeys.push(key);
         randomDiscoveryInserted++;
         if (entityBatch.length >= batchSize) await flushBatch();
       }
@@ -1028,13 +1029,14 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
 
       const { entity, key } = buildEntity(person);
 
-      if (await isDuplicate(key)) {
+      if (seenBatchKeys.has(key) || await isDuplicate(key)) {
         skipped++;
         continue;
       }
-      await markSeen(key);
+      seenBatchKeys.add(key);
 
       entityBatch.push(entity);
+      entityBatchKeys.push(key);
       sourceInserted++;
 
       if (entityBatch.length >= batchSize) {
