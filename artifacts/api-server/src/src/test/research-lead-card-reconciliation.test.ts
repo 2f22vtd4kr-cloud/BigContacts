@@ -325,7 +325,8 @@ describe("canonical Atlas organization target selection", () => {
     expect(control).toContain("input.admittedCandidates.map((candidate)");
     expect(control).not.toContain("input.admittedCandidates.slice(0, 8)");
     expect(control).toContain("COMPLETE AVAILABLE REVIEW TARGETS");
-    expect(control).toContain("rightHandPinnedControlState");
+    expect(control).toContain("const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState });");
+    expect(control).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, rightHand });");
     expect(control).toContain("if the total prompt cannot fit, prompt construction fails visibly");
     const registryLeadObservationBlock = organizationMaterializer.slice(
       organizationMaterializer.indexOf("if (registry &&"),
