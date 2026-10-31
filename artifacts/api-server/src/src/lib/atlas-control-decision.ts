@@ -487,7 +487,7 @@ Allowed actions: continue_discovery | research_candidate | revisit_candidate | p
 Rules:
 - Boss owns the next action. The harness does not infer it from candidate count, score, or phase.
 - For research/revisit, candidateName AND candidateType must exactly match one admitted target; type is person or organization. Never invent a target, URL, relationship, contact, or evidence.
-- Right-hand is advisory, never an approval gate. Compare proposed directions with the human objective and observed sources; test whether the proposed direction has a defensible advantage over plausible alternatives. Boss may adopt, modify, or reject its advice.
+- Right-hand is advisory, never an approval gate. Compare proposed directions with the human objective and observed sources; test whether the proposed direction has a defensible advantage over plausible alternatives. Boss may adopt, modify, or reject its advice. If adopting its advice, carry it into the structured direction field; narrative text does not change accepted scope.
 - On opening, no narrower scope is active until Boss chooses one. A null direction retains the human base objective; an explicit direction activates the accepted scope. On later turns, null keeps the accepted scope.
 - If the preceding Investigator episode executed no external research action, do not silently repeat the same scope after a rejected action. Give a concrete refinement or stop/park.
 - A pivot must be self-contained and executable: the direction field itself must name one substantive subject/sector hypothesis, one actual geography/jurisdiction, and a relevant public-source class. Reject placeholders such as 'a chosen region'; no fixed provider/tool/query/action sequence.
