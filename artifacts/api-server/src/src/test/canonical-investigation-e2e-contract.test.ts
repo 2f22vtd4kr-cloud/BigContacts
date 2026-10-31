@@ -408,12 +408,12 @@ describe("canonical investigation end-to-end acceptance proof", () => {
     expect(() => verifyCanonicalCardProof(proof)).toThrow(/completed Right-hand review/);
   });
 
-  it("accepts a model-selected browser fetch from a community-contributed source", () => {
+  it("accepts an Investigator-selected HTTPS community-source URL without a publisher allowlist", () => {
     const proof = companyProof({
       sourceAction: "browser_fetch",
       sourceUrlsInEvent: false,
     });
-    const communityUrl = "https://virtualglobetrotting.com/map/community-observation/";
+    const communityUrl = "https://virtualglobetrotting.com/";
     const payload = JSON.parse(proof.caseEvents[0]!.payload as string);
     payload.findings[0].sourceUrls = [communityUrl];
     proof.caseEvents[0]!.payload = JSON.stringify(payload);
