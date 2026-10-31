@@ -364,7 +364,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
     // Historical FAA imports promoted registrants to HNWI using aircraft-class
     // multipliers. Downgrade only rows whose sole source is the FAA registry.
     await tx.update(entitiesTable).set({
-      type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'Corporation' ELSE 'PersonCandidate' END`,
+      type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','5','7','8') THEN 'Corporation' ELSE 'PersonCandidate' END`,
       estimatedNetWorth: null,
       bayesianScore: 0.05,
       isHot: false,
@@ -372,7 +372,18 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       contactMethod: "FAA registrant record — direct professional contact route not verified",
       metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
         'legacyFaaOwnershipCorrected', true,
-        'hnwiQualificationStatus', 'unverified',
+        'hnwiQualificationStatus', CASE
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'unverified'
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '5' THEN 'not_applicable'
+          ELSE 'not_assessed'
+        END,
+        'identityStatus', CASE
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'registry_person_candidate'
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'legal_entity_candidate'
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('4','9') THEN 'co_owned_registrant_unresolved'
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '5' THEN 'government_registrant'
+          ELSE 'registrant_type_unknown'
+        END,
         'wealthStatus', 'not_assessed',
         'beneficialOwnershipStatus', 'unresolved',
         'reviewOnly', true,
