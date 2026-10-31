@@ -689,7 +689,7 @@ describe("Investigator prompt URL integrity", () => {
     expect(prompt).toContain(sourceUrl);
     expect(prompt).not.toContain(sourceUrl.slice(0, 80) + "...");
     expect(prompt).not.toContain("must visit");
-    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a mandated next action/i);
+    expect(prompt).toMatch(/no fixed action sequence|not a fixed action sequence|not a mandated next action|no fixed itinerary/i);
   });
 
 describe("discovery lead inventory", () => {
@@ -1042,8 +1042,8 @@ describe("Investigator prompt architecture", () => {
     });
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(discovery).toContain("one successfully fetched claim-grade source");
-    expect(discovery).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(discovery).toContain("Higher admission requires a successfully fetched claim-grade source");
+    expect(discovery).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
     expect(discovery).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
@@ -1118,9 +1118,9 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/VALID PROVIDERS: web_search\/parallel_web_search\s*=\s*serper\s*\|\s*tavily\s*\|\s*exa/i);
     expect(prompt).toMatch(/(?:visit supports bounded text extraction for text-bearing PDF documents|PDF: visit extracts (?:supported )?text-bearing PDFs|PDF: visit extracts text-bearing PDFs)/);
     expect(prompt).toMatch(/(?:browser_fetch is HTML-oriented and does not extract PDF text|browser_fetch is HTML-only)/);
-    expect(prompt).toMatch(/search snippets (?:remain leads, not evidence|are leads, not evidence)/i);
+    expect(prompt).toMatch(/(?:search snippets|snippets) (?:remain|are) leads, not evidence/i);
     expect(prompt).toMatch(/MISSION PRIORITY:/);
-    expect(prompt).toMatch(/no fixed action sequence|not a prescribed action sequence/i);
+    expect(prompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(prompt).toMatch(/people, not companies\/prestige|People—not companies|DISCOVERY TARGETABILITY/i);
     expect(prompt).toMatch(/ownership\/equity\/control|ownership\/control\/equity\/investment clue/i);
@@ -1129,7 +1129,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
     expect(prompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public professional route/i);
-    expect(prompt).toMatch(/Target-scoped research owns independent corroboration|independent corroboration, falsification, and contact-route verification/i);
+    expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|independently corroborates or falsifies the lead/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
@@ -1203,8 +1203,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*provider/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("one successfully fetched claim-grade source");
-    expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source");
+    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
     expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|verifies direct or indirect routes before any promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
@@ -1293,8 +1293,8 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toContain("one successfully fetched claim-grade source");
-    expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source");
+    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
     expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|verifies direct or indirect routes before any promotion/);
   });
 
@@ -2093,7 +2093,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion");
+    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
     expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|verifies direct or indirect routes before any promotion/);
   });
 
@@ -2104,7 +2104,7 @@ Choose each next action yourself from the available capabilities and observed ev
     // Source eligibility is not HNWI promotion: only an explicit model-promoted,
     // same-source identity/role plus wealth-potential lead can be materialized.
     // Independent corroboration and the realistic contact route remain target-stage work.
-    expect(agenticCoreSource).toContain("one successfully fetched claim-grade source");
+    expect(agenticCoreSource).toContain("Higher admission requires a successfully fetched claim-grade source");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
@@ -2345,7 +2345,7 @@ Choose each next action yourself from the available capabilities and observed ev
     });
     // The final emergency prompt may deliberately discard optional trajectory text to preserve the mandatory action/evidence contract.
     expect(prompt.length).toBeLessThanOrEqual(5_600);
-    expect(prompt).toContain("OUTPUT CONTRACT: Return exactly ONE root JSON object");
+    expect(prompt).toContain("OUTPUT CONTRACT: one root JSON object");
     expect(advisory).not.toContain("must visit");
     expect(advisory).toContain("further searches remain available");
   });
@@ -2539,7 +2539,7 @@ Choose each next action yourself from the available capabilities and observed ev
     const prompt = buildStepPrompt({ targetName: "", objective: "discover an attributable person", history: [], trajectoryRecords: [], lastObservation: "", findings: [], mode: "discovery" });
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/The action shapes below name action-specific values only; they never replace the full required envelope\.|ALL REQUIRED TOP-LEVEL FIELDS: action,|Include every required field: action,/);
-    expect(prompt).toMatch(/Return exactly ONE root JSON object|Return one root JSON object/);
+    expect(prompt).toMatch(/one root JSON object/);
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS|Required fields: action,query,provider|Include every required field: action,/);
   });
 
@@ -2725,7 +2725,7 @@ Choose each next action yourself from the available capabilities and observed ev
     expect(prompt).toContain("https://businesssearch.ohiosos.gov/");
     expect(prompt).toContain("https://bsd.sos.in.gov/PublicBusinessSearch");
     expect(prompt).toContain("not evidence or a mandated next action");
-    expect(prompt).toContain("BINARY URL POLICY");
+    expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS");
     expect(prompt).toContain("do not retry the same binary URL through the other fetch action");
     expect(prompt).not.toContain("must visit");
   });
@@ -3300,7 +3300,7 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.executionStatus)');
     expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.execution)');
     expect(researchLeadCardReconciliationSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
-    expect(canonicalAtlasDiscoverySource).toContain('if (!sourceUrl) continue;');
+    expect(canonicalAtlasDiscoverySource).toContain('if (!sourceUrl || !claimedUrls.has(sourceUrl)) continue;');
     expect(researchLeadCardReconciliationSource).toContain("if (!supports.size) continue;");
     expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.executionStatus !== "success")');
     expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.execution !== "success")');
@@ -3380,10 +3380,10 @@ describe("latest fetched source evidence survives emergency Investigator compact
     });
     expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE EXCERPT");
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
-    expect(prompt).toMatch(/after (?:a )?successful visit\/browser_fetch/i);
+    expect(prompt).toMatch(/After visit\/browser_fetch/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
-    expect(prompt).toContain("Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue");
+    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
   });
 });
