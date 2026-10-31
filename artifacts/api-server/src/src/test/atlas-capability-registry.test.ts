@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ATLAS_CAPABILITIES, renderAtlasCapabilityGuidanceCompact } from "../lib/atlas-capability-registry";
+import { ATLAS_CAPABILITIES, exposeAttestedCapabilities, renderAtlasCapabilityGuidanceCompact } from "../lib/atlas-capability-registry";
 
 describe("Atlas capability prompt guidance", () => {
   it("keeps every model-selectable capability visible within the existing 1000-character prompt budget", () => {
@@ -48,5 +48,28 @@ describe("Atlas capability prompt guidance", () => {
     expect(guidance).toContain("JS/challenge pages may fail");
     expect(guidance).toContain("legal role ≠ personal contact");
     expect(guidance).toContain("privacy/proxy may obscure owner");
+  });
+});
+
+
+describe("runtime-attested capability exposure", () => {
+  it("keeps worker capabilities hidden until their exact action is attested for this turn", () => {
+    const noAttestation = exposeAttestedCapabilities([]);
+    expect(noAttestation.find((capability) => capability.id === "identity.maigret")?.investigatorSelectable).toBe(false);
+    expect(noAttestation.find((capability) => capability.id === "identity.sherlock")?.investigatorSelectable).toBe(false);
+    expect(noAttestation.find((capability) => capability.id === "contact.email")?.investigatorSelectable).toBe(false);
+    expect(noAttestation.find((capability) => capability.id === "osint.spiderfoot")?.investigatorSelectable).toBe(false);
+    expect(noAttestation.find((capability) => capability.id === "web.visit")?.investigatorSelectable).not.toBe(false);
+  });
+
+  it("promotes only the worker capability whose exact action is present in the attested allowlist", () => {
+    const attested = exposeAttestedCapabilities(["footprint_spiderfoot"]);
+    expect(attested.find((capability) => capability.id === "osint.spiderfoot")?.investigatorSelectable).toBe(true);
+    expect(attested.find((capability) => capability.id === "identity.maigret")?.investigatorSelectable).toBe(false);
+    expect(attested.find((capability) => capability.id === "identity.sherlock")?.investigatorSelectable).toBe(false);
+    expect(attested.find((capability) => capability.id === "domain.harvest")?.investigatorSelectable).toBe(false);
+    expect(attested.find((capability) => capability.id === "contact.email")?.investigatorSelectable).toBe(false);
+    expect(renderAtlasCapabilityGuidanceCompact(attested)).toContain("- osint.spiderfoot (footprint_spiderfoot):");
+    expect(renderAtlasCapabilityGuidanceCompact(attested)).not.toContain("- identity.maigret (");
   });
 });
