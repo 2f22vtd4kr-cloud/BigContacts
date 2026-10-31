@@ -191,7 +191,7 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
 
     for await (const line of rl) {
       lineNum++;
-      if (inserted + entityBatch.length >= maxRecords) break;
+      if (inserted + Math.max(entityBatch.length, assetBatch.length) >= maxRecords) break;
 
       // Unconditional progress heartbeat every 10,000 lines
       if (lineNum - lastProgressLine >= 10_000) {
@@ -287,15 +287,17 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       entityBatch.push(entity);
       assetBatch.push(asset);
 
-      if (entityBatch.length >= 50) {
-        const res = await flushBatch(entityBatch, assetBatch);
+      if (assetBatch.length >= 50) {
+        const res = await persistAndMarkRegistryBatch({
+          persist: () => flushBatch(entityBatch, assetBatch),
+          keys: pendingDedup,
+          markSeen: batchMarkSeen,
+        });
         inserted += res.inserted;
         errors += res.errors;
+        if (res.errors > 0) for (const key of pendingDedup) seenKeys.delete(key);
         entityBatch.length = 0;
         assetBatch.length = 0;
-
-        // Batch-write dedup keys to Upstash (one round-trip per flush)
-        await batchMarkSeen(pendingDedup);
         pendingDedup.length = 0;
 
         const pct = Math.min(8 + Math.floor((inserted / maxRecords) * 85), 95);
@@ -307,12 +309,17 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       }
     }
 
-    // Flush remaining
-    if (entityBatch.length > 0) {
-      const res = await flushBatch(entityBatch, assetBatch);
+    // Flush remaining, then commit the external dedup keys only after the DB transaction.
+    if (entityBatch.length > 0 || assetBatch.length > 0) {
+      const res = await persistAndMarkRegistryBatch({
+        persist: () => flushBatch(entityBatch, assetBatch),
+        keys: pendingDedup,
+        markSeen: batchMarkSeen,
+      });
       inserted += res.inserted;
       errors += res.errors;
-      await batchMarkSeen(pendingDedup);
+      if (res.errors > 0) for (const key of pendingDedup) seenKeys.delete(key);
+      pendingDedup.length = 0;
     }
   }
 
