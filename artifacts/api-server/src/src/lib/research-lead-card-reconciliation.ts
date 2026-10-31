@@ -201,12 +201,15 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         }
         const existing = await tx.select({ id: entitiesTable.id, metadata: entitiesTable.metadata, notes: entitiesTable.notes })
           .from(entitiesTable).where(and(eq(entitiesTable.type, "Corporation"), sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`)).limit(32);
+        const sameCaseExisting = existing.find((row) => Number(parseObject(row.metadata)?.discoveryCaseId) === researchCase.id);
         const sameCase = existing.find((row) => {
           const meta = parseObject(row.metadata);
           return meta?.partialOrganizationLead === true && Number(meta.discoveryCaseId) === researchCase.id;
         });
-        // An exact-name match with different provenance is not safe to merge.
-        if (existing.length && !sameCase) return { card: false, evidence: 0, updated: false };
+        // Never merge on name alone. If a same-case card already exists, keep it;
+        // if only another case has the same name, create a separate review card.
+        if (sameCaseExisting && !sameCase) return { card: true, evidence: 0, updated: false };
+        const identityCollisionPossible = existing.some((row) => Number(parseObject(row.metadata)?.discoveryCaseId) !== researchCase.id);
 
         const prior = parseObject(sameCase?.metadata) ?? {};
         const hasFetched = prior.verificationLevel === "fetched_source"
@@ -224,14 +227,15 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         const limitations = hasFetched
           ? ["fetched source supports the exact organization name only", "ownership/control not established", "business materiality not established", "no person or wealth conclusion"]
           : ["organization name remains supported only by search-result text", "fetched source text has not verified the organization name", "ownership/control not established", "business materiality not established", "no person or wealth conclusion"];
-        const notes = hasFetched
-          ? `FETCHED-SOURCE REVIEW LEAD — a retrieved public source contains this exact organization name. This does not establish ownership, control, wealth, or targetability.${registryContext}`
-          : `SEARCH-RESULT LEAD — exact organization name observed in a successful search/registry result. The underlying source page is not verified; ownership, control, wealth, and targetability remain unestablished.${registryContext}`;
+        const collisionNote = identityCollisionPossible ? "Possible same-name entity in another case; kept separate without identity merging. " : "";
+        const notes = collisionNote + (hasFetched
+          ? `FETCHED-SOURCE REVIEW LEAD — a retrieved public source contains this organization name. This does not establish ownership, control, wealth, or targetability.${registryContext}`
+          : `UNVERIFIED SOURCE REVIEW LEAD — a successful public source observation supports this organization name. It is not treated as claim-grade evidence; ownership, control, wealth, and targetability remain unestablished.${registryContext}`);
         const metadata = JSON.stringify({
           ...prior, reviewOnly: true, partialOrganizationLead: true, stage: "partial_review",
           admission: prior.admission ?? "source-observed-organization-name",
           verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead",
-          discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, sourceNotes, limitations,
+          discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, sourceNotes, limitations, identityCollisionPossible,
         });
         let entityId = sameCase?.id;
         let updated = false;
@@ -391,15 +395,18 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
         }
         const existing = await tx.select({ id: entitiesTable.id, type: entitiesTable.type, metadata: entitiesTable.metadata, notes: entitiesTable.notes })
           .from(entitiesTable).where(and(sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`, inArray(entitiesTable.type, ["HNWI", "Gatekeeper", "PersonCandidate"]))).limit(32);
+        const sameCaseExisting = existing.find((row) => Number(parseObject(row.metadata)?.discoveryCaseId) === researchCase.id);
         const sameCase = existing.find((row) => {
           const meta = parseObject(row.metadata);
           return row.type === "PersonCandidate" && meta?.partialPersonLead === true && Number(meta.discoveryCaseId) === researchCase.id;
         });
-        // Name-only matches cannot silently merge separate people or promoted entities.
-        if (existing.length && !sameCase) return { card: false, evidence: 0, updated: false };
+        // Never merge people on name alone. Keep an existing same-case card; when
+        // only another case has the same name, create a distinct provisional lead.
+        if (sameCaseExisting && !sameCase) return { card: true, evidence: 0, updated: false };
+        const identityCollisionPossible = existing.some((row) => Number(parseObject(row.metadata)?.discoveryCaseId) !== researchCase.id);
 
         const prior = parseObject(sameCase?.metadata) ?? {};
-        if (sameCase && prior.admission === "investigator-explicit-promotion") return { card: false, evidence: 0, updated: false };
+        if (sameCase && prior.admission === "investigator-explicit-promotion") return { card: true, evidence: 0, updated: false };
         const hasFetched = prior.verificationLevel === "fetched_source"
           || [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
         const verificationLevel = hasFetched ? "fetched_source" : "search_result_lead";
@@ -426,15 +433,17 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
             sourceEvidenceByUrl.set(support.url, incoming);
           }
         }
-        const notes = hasFetched
+        const collisionNote = identityCollisionPossible ? "Possible same-name entity in another case; kept separate without identity merging. " : "";
+        const notes = collisionNote + (hasFetched
           ? `PARTIAL PERSON LEAD — a fetched public source supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Wealth potential and a suitable approach route remain unverified.`
-          : `SEARCH-RESULT PERSON LEAD — a search result supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Fetch and corroborate before relying on it.`;
+          : `UNVERIFIED PERSON LEAD — a public source observation supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. The source is not treated as claim-grade evidence; role, wealth potential, and a suitable approach route remain unverified.`);
         const metadata = JSON.stringify({
           ...prior, reviewOnly: true, partialPersonLead: true, roleOnlyLead: Boolean(lead.role), stage: "partial_review",
           admission: prior.admission ?? "source-observed-person-lead",
           verificationLevel, discoveryCaseId: researchCase.id, atlasJobId: jobId, role: lead.role, sourceUrls,
           sourceEvidence: [...sourceEvidenceByUrl.values()],
-          limitations: ["wealth status not established", "ownership/control not established", "professional approach route not verified"],
+          limitations: ["wealth status not established", "ownership/control not established", "professional approach route not verified", ...(identityCollisionPossible ? ["same-name entity may exist in another case; identity not merged"] : [])],
+          identityCollisionPossible,
         });
         let entityId = sameCase?.id;
         let updated = false;
