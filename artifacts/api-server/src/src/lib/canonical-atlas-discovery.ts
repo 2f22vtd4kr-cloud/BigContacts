@@ -803,6 +803,16 @@ async function materializePartialPersonLeadCards(input: {
   return { materialized, evidenceRows, candidates };
 }
 
+function isContactLikeOrganizationReviewValue(value: string): boolean {
+  const candidate = value.trim();
+  if (!candidate) return true;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)) return true;
+  if (/^(?:https?:\/\/|www\.)/i.test(candidate)) return true;
+  if (/^[\p{L}\p{N}.-]+\.[a-z]{2,}(?:\/\S*)?$/iu.test(candidate)) return true;
+  const digits = candidate.replace(/\D/g, "").length;
+  return digits >= 7 && /^[+()\d.\s-]+$/.test(candidate);
+}
+
 async function materializePartialOrganizationLeadCards(input: {
   findings: AgenticFinding[];
   atlasJobId: string;
@@ -817,7 +827,7 @@ async function materializePartialOrganizationLeadCards(input: {
     if (finding.scope !== "organization" || finding.promotionDecision === "reject") continue;
     const name = finding.value.trim().replace(/\s+/g, " ");
     const identity = normalizeCandidateIdentityName(name);
-    if (!name || !identity || seenNames.has(identity)) continue;
+    if (!name || !identity || isContactLikeOrganizationReviewValue(name) || seenNames.has(identity)) continue;
     seenNames.add(identity);
     leadNames.push(name);
   }
