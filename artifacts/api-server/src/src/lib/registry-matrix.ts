@@ -31,6 +31,34 @@ export interface RegistryCoverage {
   notes?: string;
 }
 
+export type RegistryRuntimeMode = "random_mix" | "explicit_only" | "bulk_only" | "unavailable";
+
+export function resolveRegistryRuntimeMode(
+  source: RegistryCoverage,
+  directSearchAvailable: boolean,
+  randomDiscoveryEnabled: boolean,
+): RegistryRuntimeMode {
+  if (source.id === "hmlr-ppd") return "bulk_only";
+  if (!directSearchAvailable) return "unavailable";
+  return randomDiscoveryEnabled ? "random_mix" : "explicit_only";
+}
+
+export function resolveRegistryRuntimeNote(
+  source: RegistryCoverage,
+  directSearchAvailable: boolean,
+  randomDiscoveryEnabled: boolean,
+): string {
+  if (source.id === "hmlr-ppd") return "Bulk ingestion source; not a queryable direct-search adapter.";
+  if (!directSearchAvailable) {
+    return source.runtimeAdapterImplemented
+      ? "Direct search is unavailable until this runtime has the required access configured."
+      : "No supported direct-search adapter is implemented. Use public web search and fetch observed source pages.";
+  }
+  if (randomDiscoveryEnabled) return "Eligible for the shuffled discovery pass.";
+  if (source.id === "faa") return "Direct FAA name/N-number search is available for grounded target queries; bulk aircraft seeding is a separate operator action.";
+  return "Available only when explicitly selected or after required access is configured.";
+}
+
 export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   {
     id: "sec-edgar",
