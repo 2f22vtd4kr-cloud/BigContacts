@@ -72,7 +72,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
         for (const raw of payload.findings) {
           if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
           const finding = raw as Record<string, unknown>;
-          if (finding.scope !== "organization" || finding.promotionDecision === "reject" || finding.personName || finding.role || typeof finding.value !== "string") continue;
+          if (finding.scope !== "organization" || finding.promotionDecision === "reject" || typeof finding.value !== "string") continue;
           const name = finding.value.trim().replace(/\s+/g, " ");
           const identity = normalizeCandidateIdentityName(name);
           if (name.length < 3 || identity.length < 3) continue;
