@@ -408,6 +408,23 @@ describe("canonical investigation end-to-end acceptance proof", () => {
     expect(() => verifyCanonicalCardProof(proof)).toThrow(/completed Right-hand review/);
   });
 
+  it("accepts a model-selected browser fetch from a community-contributed source", () => {
+    const proof = companyProof({
+      sourceAction: "browser_fetch",
+      sourceUrlsInEvent: false,
+    });
+    const communityUrl = "https://virtualglobetrotting.com/map/community-observation/";
+    const payload = JSON.parse(proof.caseEvents[0]!.payload as string);
+    payload.findings[0].sourceUrls = [communityUrl];
+    proof.caseEvents[0]!.payload = JSON.stringify(payload);
+    proof.dashboard.leads[0]!.sourceUrls = [communityUrl];
+    expect(verifyCanonicalCardProof(proof)).toMatchObject({
+      acceptance: "PASS",
+      sourceUrl: communityUrl,
+      sourceExecutionCapability: "groq-investigator-120b",
+    });
+  });
+
   it("accepts a source observation from a model-selected OSINT worker without a search-tool preference", () => {
     const result = verifyCanonicalCardProof(companyProof({
       sourceAction: "footprint_spiderfoot",
