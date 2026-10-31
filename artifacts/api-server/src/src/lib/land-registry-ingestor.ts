@@ -91,6 +91,53 @@ function unquote(s: string): string {
   return s.replace(/^"(.*)"$/, "$1").trim();
 }
 
+export function buildLandRegistryAsset(input: {
+  transactionId: string;
+  transactionPriceGbp: number;
+  transactionDate: string;
+  propertyTypeCode: string;
+  durationCode: string;
+  paon?: string;
+  saon?: string;
+  street?: string;
+  locality?: string;
+  town?: string;
+  county?: string;
+  postcode?: string;
+  year: number;
+}): InsertAsset {
+  const tenure = input.durationCode === "F" ? "Freehold" : input.durationCode === "L" ? "Leasehold" : "Unknown";
+  const propertyType = ({ D: "Detached", S: "Semi-Detached", T: "Terraced", F: "Flat/Maisonette", O: "Other" } as Record<string, string>)[input.propertyTypeCode] ?? "Property";
+  const address = [input.paon, input.saon, input.street, input.locality, input.town, input.county, input.postcode].filter(Boolean).join(", ");
+  const priceLabel = `£${input.transactionPriceGbp.toLocaleString("en-GB")}`;
+  return {
+    category: "RealEstate",
+    identifier: input.transactionId,
+    jurisdiction: input.county ? `${input.county}, England & Wales` : "England & Wales",
+    description: `${propertyType} ${tenure} — ${priceLabel} (${input.transactionDate})`,
+    address: address || undefined,
+    sourceRegistry: "UK HM Land Registry (PPD)",
+    lastActivityDate: input.transactionDate || undefined,
+    // PPD records an observed transaction price, not a verified current market value.
+    metadata: JSON.stringify({
+      source: "hmlr-ppd-csv",
+      transactionId: input.transactionId,
+      transactionPriceGbp: input.transactionPriceGbp,
+      transactionDate: input.transactionDate,
+      pricePaidIsMarketValue: false,
+      propertyType: input.propertyTypeCode,
+      tenure,
+      county: input.county ?? "",
+      postcode: input.postcode ?? "",
+      year: input.year,
+      purchaserIdentity: "not_provided_by_ppd",
+      sellerIdentity: "not_provided_by_ppd",
+      ownershipStatus: "unresolved",
+      valuationStatus: "not_assessed",
+    }),
+  };
+}
+
 // ── Batch flush ───────────────────────────────────────────────────────────────
 
 async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; errors: number }> {
@@ -224,36 +271,21 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       seenKeys.add(dkey);
       pendingDedup.push(dkey);
 
-      const tenureLabel = duration === "F" ? "Freehold" : duration === "L" ? "Leasehold" : "Unknown";
-      const propLabel   = { D: "Detached", S: "Semi-Detached", T: "Terraced", F: "Flat/Maisonette", O: "Other" }[propType] ?? "Property";
-      const address     = [paon, saon, street, locality, town, county, postcode].filter(Boolean).join(", ");
-      const priceStr2   = `£${price.toLocaleString("en-GB")}`;
-      const asset: InsertAsset = {
-        category: "RealEstate",
-        identifier: txId,
-        jurisdiction: county ? `${county}, England & Wales` : "England & Wales",
-        description: `${propLabel} ${tenureLabel} — ${priceStr2} (${date})`,
-        address: address || undefined,
-        sourceRegistry: "UK HM Land Registry (PPD)",
-        lastActivityDate: date || undefined,
-        // PPD records an observed transaction price, not a verified current market value.
-        metadata: JSON.stringify({
-          source: "hmlr-ppd-csv",
-          transactionId: txId,
-          transactionPriceGbp: price,
-          transactionDate: date,
-          pricePaidIsMarketValue: false,
-          propertyType: propType,
-          tenure: tenureLabel,
-          county,
-          postcode,
-          year,
-          purchaserIdentity: "not_provided_by_ppd",
-          sellerIdentity: "not_provided_by_ppd",
-          ownershipStatus: "unresolved",
-          valuationStatus: "not_assessed",
-        }),
-      };
+      const asset = buildLandRegistryAsset({
+        transactionId: txId,
+        transactionPriceGbp: price,
+        transactionDate: date,
+        propertyTypeCode: propType,
+        durationCode: duration,
+        paon,
+        saon,
+        street,
+        locality,
+        town,
+        county,
+        postcode,
+        year,
+      });
 
       assetBatch.push(asset);
 
