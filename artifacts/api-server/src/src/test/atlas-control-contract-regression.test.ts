@@ -631,8 +631,13 @@ describe("Atlas control-plane contract regression", () => {
     expect(openingResolution).toBeGreaterThan(bossDecisionCall);
     expect(investigatorObjective).toBeGreaterThan(openingResolution);
     const reviewToBoss = canonicalDiscoverySource.slice(reviewCall, bossDecisionCall);
+    const reviewProviderAndParse = reviewToBoss.slice(0, reviewToBoss.indexOf('failureStage = "case_persistence";'));
     expect(reviewToBoss).not.toContain('if (rightHandRaw.status !== "completed")');
-    expect(reviewToBoss).not.toContain("throw new Error");
+    expect(reviewProviderAndParse).not.toContain("throw new Error");
+    // Cancellation during durable review-event persistence remains fail-closed;
+    // provider outage or malformed advisory JSON must instead reach Boss as advice.
+    expect(reviewToBoss).toContain("Canonical Atlas discovery case was cancelled before Right-hand opening advisory event.");
+    expect(reviewToBoss).toContain("rightHand.error = \"Right-hand returned an invalid advisory review contract.\"");
     expect(controlSource).toContain("if (input.rightHandOverride)");
     expect(controlSource).toContain("rightHand = { ...input.rightHandOverride };");
     expect(controlSource).toContain("if (rightHand.status !== \"completed\" && !input.rightHandOverride)");
