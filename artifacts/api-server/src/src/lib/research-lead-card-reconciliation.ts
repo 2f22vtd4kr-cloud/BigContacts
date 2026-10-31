@@ -235,6 +235,17 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           admission: prior.admission ?? "source-observed-organization-name",
           verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead",
           discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, sourceNotes, limitations, identityCollisionPossible,
+          sourceEvidence: [...supports.values()].map((support) => {
+            const sourceDomain = new URL(support.url).hostname.replace(/^www\./i, "");
+            return {
+              url: support.url, sourceName: sourceDomain, sourceDomain,
+              sourceClass: "unclassified_public_source", sourceContributor: null,
+              sourceMechanism: support.action ?? null, verificationLevel: support.verificationLevel,
+              independentCorroborationStatus: "not_assessed",
+              supportingEventId: support.eventId, observedAt: support.createdAt.toISOString(),
+              tier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result",
+            };
+          }),
         });
         let entityId = sameCase?.id;
         let updated = false;
@@ -292,8 +303,8 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
             claim: isFetched
               ? "A successfully fetched public-source observation contains this exact organization name; ownership/control and wealth remain unestablished."
               : "A successful search observation surfaced this exact organization name with an attributable source URL; this remains an unverified lead, not fetched-page evidence.",
-            value: lead.name, sourceName: "canonical-agentic-discovery", sourceUrl: support.url,
-            sourceDomain: new URL(support.url).hostname, status: "review", confidence: 0.2,
+            value: lead.name, sourceName: new URL(support.url).hostname.replace(/^www\./i, ""), sourceUrl: support.url,
+            sourceDomain: new URL(support.url).hostname.replace(/^www\./i, ""), status: "review", confidence: 0.2,
             observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
             metadata: JSON.stringify({ partialReview: true, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
           });
@@ -422,8 +433,16 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           if (typeof entry.url === "string" && /^https:\/\//i.test(entry.url)) sourceEvidenceByUrl.set(entry.url, entry);
         }
         for (const support of supports.values()) {
+          const sourceDomain = new URL(support.url).hostname.replace(/^www\./i, "");
           const incoming = {
             url: support.url,
+            sourceName: sourceDomain,
+            sourceDomain,
+            sourceClass: "unclassified_public_source",
+            sourceContributor: null,
+            sourceMechanism: support.action,
+            verificationLevel: support.verificationLevel,
+            independentCorroborationStatus: "not_assessed",
             tier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result",
             supportingEventId: support.eventId, observedAt: support.createdAt.toISOString(),
           };
