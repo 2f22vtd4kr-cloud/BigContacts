@@ -340,7 +340,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       .where(and(eq(researchCaseEventsTable.caseId, researchCase.id), inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"])))
       .orderBy(researchCaseEventsTable.id);
     const findings = new Map<string, { name: string; role: string | null; urls: Set<string> }>();
-    const observations: Array<{ url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead" }> = [];
+    const observations: Array<{ url: string; text: string; eventId: number; createdAt: Date; action: string; verificationLevel: "fetched_source" | "search_result_lead"; sourceName?: string; sourceClass?: string; sourceContributor?: string | null }> = [];
     for (const event of events) {
       const payload = parseObject(event.payload);
       if (!payload || payload.jobId !== jobId) continue;
@@ -373,7 +373,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       for (const rawUrl of rawUrls) {
         const url = normalizeSource(rawUrl);
         if (!url) continue;
-        observations.push({ url, text: String(payload.observation ?? ""), eventId: event.id, createdAt: event.createdAt, verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead" });
+        observations.push({ url, text: String(payload.observation ?? ""), eventId: event.id, createdAt: event.createdAt, action, verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead" });
       }
     }
     for (const lead of findings.values()) {
