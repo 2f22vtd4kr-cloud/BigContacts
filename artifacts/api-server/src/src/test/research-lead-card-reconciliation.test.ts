@@ -108,6 +108,7 @@ describe("terminal review-card reconciliation", () => {
     expect(personMaterializer).not.toContain("!finding.role?.trim()");
     expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
     expect(personMaterializer).toContain("sourceSpanVerified: support.spanVerified");
+    expect(personMaterializer).not.toContain('payload.execution !== "success"');
     expect(personMaterializer).toContain('roleOnlyLead: Boolean(lead.role)');
     expect(personMaterializer).toContain('claimType: "partial_person_role_lead"');
     expect(personMaterializer).toContain('verificationLevel === "search_result_lead"');
@@ -156,6 +157,8 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain('verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
     expect(reconciler).not.toContain('if (!url || (fetched && !isClaimGradeDiscoverySourceUrl(url))) continue;');
     expect(reconciler).not.toContain('if (!span?.exact) continue;');
+    expect(reconciler).toContain('payload.execution !== "success" && payload.execution !== "partial"');
+    expect(reconciler).toContain('const sourceBearingExecution = successful || payload.execution === "partial"');
     expect(reconciler).toContain('if (isFetched && priorEvidenceMetadata.verificationLevel !== "fetched_source")');
     expect(reconciler).toContain('evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result"');
     expect(reconciler).toContain("changed = changed || persisted.updated");
@@ -249,6 +252,7 @@ describe("canonical Atlas organization target selection", () => {
 
     expect(organizationMaterializer).toContain('&& isClaimGradeDiscoverySourceUrl(sourceUrl)');
     expect(organizationMaterializer).not.toContain('&& !isClaimGradeDiscoverySourceUrl(sourceUrl)');
+    expect(organizationMaterializer).not.toContain('payload.execution !== "success"');
     expect(reconcilerSource).toContain('if (!url) continue;');
     expect(reconcilerSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
     expect(canonicalAtlas).toContain("bindExactSourceSpanToUrl");
