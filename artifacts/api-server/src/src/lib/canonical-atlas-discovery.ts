@@ -10,7 +10,7 @@ import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRema
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
-import { buildDiscoveryLeadUtilizationState, discoveryPivotScopeKey, isGenericDiscoveryMetadataTitle, isUntargetableDiscoveryPersonName, type AgenticFinding } from "./agentic-web-research-core";
+import { buildDiscoveryLeadUtilizationState, discoveryPivotScopeKey, isUntargetableDiscoveryPersonName, type AgenticFinding } from "./agentic-web-research-core";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
@@ -829,7 +829,7 @@ async function materializePartialOrganizationLeadCards(input: {
             if (typeof company.name !== "string" || !Array.isArray(company.sourceUrls)) continue;
             const name = company.name.trim().replace(/\s+/g, " ");
             const identity = normalizeCandidateIdentityName(name);
-            if (name.length < 3 || identity.length < 3 || isGenericDiscoveryMetadataTitle(name)) continue;
+            if (name.length < 3 || identity.length < 3) continue;
             const notes = typeof company.notes === "string" ? company.notes.replace(/\s+/g, " ").trim().slice(0, 240) : "";
             for (const rawUrl of company.sourceUrls) {
               if (typeof rawUrl !== "string") continue;
