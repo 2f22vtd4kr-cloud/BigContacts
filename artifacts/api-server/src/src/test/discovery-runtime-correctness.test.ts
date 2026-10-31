@@ -123,7 +123,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).not.toContain("rightHand.approval");
     expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
     const approvedOpeningStart = canonicalSource.indexOf('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
-    const persistedOpeningScope = canonicalSource.indexOf("controlTurn: 0", approvedOpeningStart);
+    const persistedOpeningScope = canonicalSource.indexOf("controlTurn: 1", approvedOpeningStart);
     const firstInvestigatorAct = canonicalSource.indexOf("let discovery = await runBureauAgenticWebPass", approvedOpeningStart);
     expect(canonicalSource).toContain("persistAcceptedAtlasDiscoveryObjective({");
     expect(canonicalSource).toContain("activeDiscoveryObjective = openingObjective.objective");
