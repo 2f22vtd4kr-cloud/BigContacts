@@ -538,9 +538,9 @@ async function materializePartialPersonLeadCards(input: {
       const searched = action === "web_search" || action === "parallel_web_search"
         || action === "registry_search" || action === "parallel_registry_search";
       if (!fetched && !searched) return [];
-      // A name + page-stated role in a successful search result is already a
-      // useful person research lead. Preserve it as a low-confidence review card
-      // now; do not wait for later depth stages or imply HNWI/ownership status.
+      // Search and fetch observations supply provenance for the model-selected
+      // person lead. Role may be unknown and exact span matching only grades the
+      // evidence; it does not decide whether the Investigator's lead gets a card.
       const sourceUrls = fetched ? payload.observedUrls : payload.leadUrls;
       if (!Array.isArray(sourceUrls)) return [];
       return sourceUrls.filter((url): url is string => typeof url === "string").map((url) => ({
