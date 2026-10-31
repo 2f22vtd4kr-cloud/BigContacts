@@ -329,6 +329,40 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       isNotNull(assetsTable.ownerEntityId),
       eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
     ));
+    // Historical FAA imports promoted registrants to HNWI using aircraft-class
+    // multipliers. Downgrade only rows whose sole source is the FAA registry.
+    await tx.update(entitiesTable).set({
+      type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'PersonCandidate' WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'Corporation' ELSE 'Other' END`,
+      estimatedNetWorth: null,
+      bayesianScore: 0.05,
+      isHot: false,
+      knownResidences: sql`CASE WHEN EXISTS (SELECT 1 FROM ${assetsTable} WHERE ${assetsTable.ownerEntityId} = ${entitiesTable.id} AND ${assetsTable.sourceRegistry} = 'FAA Releasable Aircraft Database' AND ${assetsTable.address} = ${entitiesTable.knownResidences}) THEN NULL ELSE ${entitiesTable.knownResidences} END`,
+      contactMethod: "FAA registrant record — direct professional contact route not verified",
+      metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
+        'legacyFaaOwnershipCorrected', true,
+        'hnwiQualificationStatus', CASE
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'unverified'
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '5' THEN 'not_applicable'
+          ELSE 'not_assessed'
+        END,
+        'identityStatus', CASE
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'registry_person_candidate'
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'legal_entity_candidate'
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('4','9') THEN 'co_owned_registrant_unresolved'
+          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '5' THEN 'government_registrant'
+          ELSE 'registrant_type_unknown'
+        END,
+        'wealthStatus', 'not_assessed',
+        'beneficialOwnershipStatus', 'unresolved',
+        'reviewOnly', true,
+        'estimatedNetWorth', null,
+        'bayesianScore', 0.05,
+        'isHot', false
+      )`,
+    }).where(and(
+      eq(entitiesTable.type, "HNWI"),
+      eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
+    ));
     const candidateAssetIds = legacyAssets.map((row) => row.id);
     const legacyOwnerLinks = candidateAssetIds.length > 0
       ? await tx.select({
@@ -378,40 +412,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       if (repairRows.length > 0) await tx.insert(relationshipsTable).values(repairRows);
     }
 
-    // Historical FAA imports promoted registrants to HNWI using aircraft-class
-    // multipliers. Downgrade only rows whose sole source is the FAA registry.
-    await tx.update(entitiesTable).set({
-      type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'PersonCandidate' WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'Corporation' ELSE 'Other' END`,
-      estimatedNetWorth: null,
-      bayesianScore: 0.05,
-      isHot: false,
-      knownResidences: null,
-      contactMethod: "FAA registrant record — direct professional contact route not verified",
-      metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
-        'legacyFaaOwnershipCorrected', true,
-        'hnwiQualificationStatus', CASE
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'unverified'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '5' THEN 'not_applicable'
-          ELSE 'not_assessed'
-        END,
-        'identityStatus', CASE
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '1' THEN 'registry_person_candidate'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'legal_entity_candidate'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('4','9') THEN 'co_owned_registrant_unresolved'
-          WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' = '5' THEN 'government_registrant'
-          ELSE 'registrant_type_unknown'
-        END,
-        'wealthStatus', 'not_assessed',
-        'beneficialOwnershipStatus', 'unresolved',
-        'reviewOnly', true,
-        'estimatedNetWorth', null,
-        'bayesianScore', 0.05,
-        'isHot', false
-      )`,
-    }).where(and(
-      eq(entitiesTable.type, "HNWI"),
-      eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
-    ));
+
   });
 }
 
