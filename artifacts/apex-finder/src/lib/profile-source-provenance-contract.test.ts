@@ -12,6 +12,7 @@ describe("review-card source provenance UI contract", () => {
     expect(profile).toContain("Observed via:");
     expect(profile).toContain("Independent corroboration:");
     expect(profile).toContain("Publisher authority not implied");
+    expect(profile).toContain("Registry record; corroboration not assessed");
     expect(profile).not.toContain("Higher evidence tier");
   });
 });
