@@ -154,17 +154,17 @@ export function bindExactSourceSpanToUrl(
   const expectedUrl = normalize(sourceUrl);
   if (!expectedUrl || !observation.trim()) return null;
 
-  const urlMarker = /(?:^|\\n)URL:\\s*(https?:\\/\\/[^\\s]+)/gi;
+  const urlMarker = /(?:^|\n)URL:\s*(https?:\/\/[^\s]+)/gi;
   const matches = [...observation.matchAll(urlMarker)];
   for (let index = 0; index < matches.length; index++) {
     const match = matches[index];
     if (normalize(match[1]) !== expectedUrl) continue;
-    const segmentStartLine = observation.lastIndexOf("\\n", match.index - 1);
+    const segmentStartLine = observation.lastIndexOf("\n", match.index - 1);
     let segmentStart = segmentStartLine >= 0 ? segmentStartLine + 1 : 0;
     const nextMatch = matches[index + 1];
     let segmentEnd = observation.length;
     if (nextMatch) {
-      const nextTitleLine = observation.lastIndexOf("\\n", nextMatch.index - 1);
+      const nextTitleLine = observation.lastIndexOf("\n", nextMatch.index - 1);
       if (nextTitleLine >= 0) segmentEnd = nextTitleLine + 1;
     }
     const span = bindExactSourceSpan(observation.slice(segmentStart, segmentEnd), value, subject, maxChars);
