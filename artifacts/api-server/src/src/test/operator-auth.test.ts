@@ -43,7 +43,7 @@ describe("operator authentication boundary", () => {
   });
 
 
-  it("keeps operator authentication intentionally unmounted for the canonical desk deployment", () => {
+  it("mounts operator authentication before every protected API route and gates the desk", () => {
     const appSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/app.ts"), "utf8");
     const routeSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/index.ts"), "utf8");
     const uiSource = fs.readFileSync(path.resolve(process.cwd(), "../apex-finder/src/App.tsx"), "utf8");
@@ -51,14 +51,17 @@ describe("operator authentication boundary", () => {
 
     expect(appSource).toContain('app.use("/api",router)');
     expect(appSource).not.toContain("apiAuthMiddleware");
-    expect(routeSource).not.toContain("router.use(operatorAuthRouter)");
-    expect(routeSource).not.toContain("requireOperatorAuth");
-    expect(routeSource).toContain("router.use(canonicalAtlasLaunchRouter)");
+    expect(routeSource).toContain('import operatorAuthRouter from "./operator-auth"');
+    expect(routeSource).toContain('import { requireOperatorAuth } from "../lib/operator-auth"');
+    expect(routeSource.indexOf("router.use(operatorAuthRouter)")).toBeGreaterThanOrEqual(0);
+    expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeGreaterThan(routeSource.indexOf("router.use(operatorAuthRouter)"));
+    expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeLessThan(routeSource.indexOf("router.use(healthRouter)"));
+    expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeLessThan(routeSource.indexOf("router.use(entitiesRouter)"));
+    expect(uiSource).toContain("<OperatorGate>");
     expect(uiSource).toContain("<AppRouter />");
-    expect(uiSource).not.toContain("OperatorGate");
-    expect(preflightSource).not.toContain("APEX_API_AUTH_TOKEN");
-    expect(preflightSource).not.toContain("APEX_OPERATOR_PASSWORD");
-    expect(preflightSource).not.toContain("APEX_SESSION_SECRET");
+    expect(preflightSource).toContain("APEX_API_AUTH_TOKEN");
+    expect(preflightSource).toContain("APEX_OPERATOR_PASSWORD");
+    expect(preflightSource).toContain("APEX_SESSION_SECRET");
     expect(preflightSource).toContain('"SERPER_API_KEY"');
     expect(preflightSource).not.toContain('"SERPAPI_KEY"');
   });
