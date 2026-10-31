@@ -81,7 +81,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           const entry = findings.get(identity) ?? { name, urls: new Set<string>(), notes: new Set<string>() };
           if (Array.isArray(finding.sourceUrls)) for (const rawUrl of finding.sourceUrls) {
             const url = normalizeSource(rawUrl);
-            if (url && isClaimGradeDiscoverySourceUrl(url)) entry.urls.add(url);
+            if (url) entry.urls.add(url);
           }
           findings.set(identity, entry);
         }
@@ -121,7 +121,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
             // evidence, ownership, wealth, or person admission.
             for (const rawUrl of company.sourceUrls) {
               const url = normalizeSource(rawUrl);
-              if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
+              if (!url) continue;
               observations.push({
                 action: "registry_search", execution: "success", url,
                 text: `${name}${normalizedNotes ? ` — ${normalizedNotes}` : ""}`,
@@ -142,7 +142,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       const sourceUrls = fetched ? observedUrls : leadUrls;
       for (const rawUrl of sourceUrls) {
         const url = normalizeSource(rawUrl);
-        if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
+        if (!url || (fetched && !isClaimGradeDiscoverySourceUrl(url))) continue;
         const observationText = String(payload.observation ?? "").replace(/\s+/g, " ").trim().slice(0, 800);
         const args = payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)
           ? payload.args as Record<string, unknown>
@@ -364,7 +364,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
         : (Array.isArray(payload.observedUrls) ? payload.observedUrls : []);
       for (const rawUrl of rawUrls) {
         const url = normalizeSource(rawUrl);
-        if (!url || !isClaimGradeDiscoverySourceUrl(url)) continue;
+        if (!url || (fetched && !isClaimGradeDiscoverySourceUrl(url))) continue;
         observations.push({ url, text: String(payload.observation ?? ""), eventId: event.id, createdAt: event.createdAt, verificationLevel: fetched ? "fetched_source" : "search_result_lead" });
       }
     }
