@@ -394,7 +394,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           .from(entitiesTable).where(and(sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`, inArray(entitiesTable.type, ["HNWI", "Gatekeeper", "PersonCandidate"]))).limit(32);
         const sameCase = existing.find((row) => {
           const meta = parseObject(row.metadata);
-          return row.type === "PersonCandidate" && meta?.partialPersonLead === true && meta.roleOnlyLead === true && Number(meta.discoveryCaseId) === researchCase.id;
+          return row.type === "PersonCandidate" && meta?.partialPersonLead === true && Number(meta.discoveryCaseId) === researchCase.id;
         });
         // Name-only matches cannot silently merge separate people or promoted entities.
         if (existing.length && !sameCase) return { card: false, evidence: 0, updated: false };
@@ -431,8 +431,8 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           ? `PARTIAL PERSON LEAD — a fetched public source supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Wealth potential and a suitable approach route remain unverified.`
           : `SEARCH-RESULT PERSON LEAD — a search result supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Fetch and corroborate before relying on it.`;
         const metadata = JSON.stringify({
-          ...prior, reviewOnly: true, partialPersonLead: true, roleOnlyLead: true, stage: "partial_review",
-          admission: prior.admission ?? "source-observed-person-role",
+          ...prior, reviewOnly: true, partialPersonLead: true, roleOnlyLead: Boolean(lead.role), stage: "partial_review",
+          admission: prior.admission ?? "source-observed-person-lead",
           verificationLevel, discoveryCaseId: researchCase.id, atlasJobId: jobId, role: lead.role, sourceUrls,
           sourceEvidence: [...sourceEvidenceByUrl.values()],
           limitations: ["wealth status not established", "ownership/control not established", "professional approach route not verified"],
