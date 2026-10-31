@@ -278,7 +278,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
     expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
     expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules outrank Boss next-directions");
-    expect(controlSource).toContain("Compare proposed directions with the human objective and observed sources; flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
+    expect(controlSource).toContain("Compare proposed directions with the human objective and observed sources; test whether the proposed direction has a defensible advantage over plausible alternatives; flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
   });
 
