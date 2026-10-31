@@ -971,18 +971,19 @@ describe("unresolved template placeholder rejection at the opening boundary", ()
       "Search the [Location] company directory for manufacturing owners.",
       "Find companies in TBD and identify their owners.",
     ]) {
-      const result = resolveApprovedOpeningDirection({ rightHandDecision: "Approve", firstDirection });
+      const result = resolveBossAdjudicatedOpeningDirection({ bossAction: "pivot_discovery", bossDirection: firstDirection, initialBossDirection: null });
       expect(result.status).toBe("invalid");
       expect(result.direction).toBeNull();
       expect(result.reason).toContain("template placeholder");
     }
   });
 
-  it("does not leak rejected opening directions or their control commentary into the Investigator objective", () => {
-    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" && Array.isArray(boss.nextDirections)');
-    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" && compactControlText(boss.report');
-    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" && Array.isArray(boss.uncertainties)');
-    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" ? "RIGHT-HAND OPENING REVIEW (advisory):"');
+  it("keeps unselected Boss hypotheses out of the active Investigator objective", () => {
+    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
+    expect(canonicalDiscoverySource).toContain("Do not treat unselected Boss hypotheses as active scope.");
+    expect(canonicalDiscoverySource).toContain("RIGHT-HAND INDEPENDENT ADVICE (non-authoritative):");
+    expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
+    expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
   });
 });
 
