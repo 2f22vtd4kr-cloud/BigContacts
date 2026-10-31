@@ -65,7 +65,8 @@ describe("terminal review-card reconciliation", () => {
     expect(runtimeProofVerifier).toContain('lead.stage === "partial_review"');
     expect(runtimeProofVerifier).toContain('"Corporation"');
     expect(runtimeProofVerifier).toContain('acceptedAfterControlFailure');
-    expect(runtimeProofVerifier).toContain('discoveryContext');
+    expect(runtimeProofVerifier).toContain('typeof input?.caseData?.caseFile !== "string"');
+    expect(runtimeProofVerifier).toContain('Canonical case read-back does not match the exact discovery case ID.');
     expect(runtimeProofWorkflow).toContain('/api/dashboard/research-leads');
     expect(runtimeProofWorkflow).toContain('/api/entities');
     expect(runtimeProofWorkflow).toContain('acceptedAfterControlFailure');
