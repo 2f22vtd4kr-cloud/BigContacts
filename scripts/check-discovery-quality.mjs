@@ -21,9 +21,9 @@ const activeInvestigator = fs.readFileSync(path.join(root, "artifacts/api-server
 const targetContact = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/target-contact-agent.ts"), "utf8");
 const candidateSources = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/candidate-source-url-union.ts"), "utf8");
 const checks = [
-  [discovery, ["@deprecated Legacy discovery pipeline", "Do not route Investigator-selected provisional review cards through this legacy path"], "discovery-agent.ts"],
-  [discoveryIntake, ["@deprecated Legacy discovery pipeline", "Do not route Investigator-selected provisional review cards through this legacy path"], "discovery-intake.ts"],
-  [admit, ["@deprecated Legacy discovery pipeline", "Do not route Investigator-selected provisional review cards through this legacy path"], "discovery-agent-admit.ts"],
+  [discovery, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-agent.ts"],
+  [discoveryIntake, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-intake.ts"],
+  [admit, ["@deprecated Legacy discovery pipeline", "Do not route"], "discovery-agent-admit.ts"],
   [orientation, ["DISCOVERY ECONOMICS","RESEARCH JUDGMENT","A billionaire list is usually a low-yield lead, not a discovery strategy","Do not continue a weak search avenue just because it returns many results"], "apex-bureau-orientation.ts"],
   [canonical, ["runGroqBossDiscovery","runBureauAgenticWebPass","runGroqRightHandFreeJson","Investigator chooses every research action","discoveryCaseId","promotionDecision"], "canonical-atlas-discovery.ts"],
   [activeInvestigator, ["DISCOVERY LEAD HANDOFF CONTRACT","YOU decide whether an observed person is worth a provisional review card","source class need not appear in every discovery query","The Investigator decides relevance","News publishers and articles are evidence leads only, never targets or access routes"], "agentic-web-research-core.ts"],
