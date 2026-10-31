@@ -20,8 +20,11 @@ import { mkdir, stat } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import type { InsertEntity, InsertAsset, InsertRelationship } from "@workspace/db";
+import { classifyFaaRegistrant, classifyFaaAssetSignal } from "./faa-ownership-classification";
+import { isStructurallyValidCandidateName } from "./llm-name-validator-policy";
 import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
 
@@ -37,20 +40,9 @@ const MASTER_PATH = join(TMP_DIR, "MASTER.txt");
 // Cache TTL — re-download if file is older than 23 hours
 const CACHE_TTL_MS = 23 * 60 * 60 * 1000;
 
-// FAA TYPE REGISTRANT codes — we want individual-like registrants, not government
-// 1=Individual, 2=Partnership, 3=Corporation, 4=Co-Owned, 5=Government, 7=LLC
-// 8=Non-Citizen Corporation, 9=Non-Citizen Co-Owned
-const INDIVIDUAL_TYPES = new Set(["1", "2", "4", "7", "9"]);
-
-// FAA TYPE ENGINE codes — turbine = expensive aircraft = HNWI signal
-// 2=Turbo-prop, 3=Turbo-shaft, 4=Turbo-jet, 5=Turbo-fan
-const TURBINE_ENGINES = new Set(["2", "3", "4", "5"]);
-
-// FAA TYPE AIRCRAFT codes
-const FIXED_WING_MULTI = "5";   // fixed wing multi-engine (even piston = significant)
-const ROTORCRAFT = "6";          // helicopter
-
-// MASTER.txt field indices (comma-delimited, 0-based after split)
+// FAA MASTER.txt is comma-delimited with 34 documented fields (0-based).
+// Registrant type, fractional flag, status and additional names are kept separately.
+const ROTORCRAFT = "6";
 const F_NNUMBER        = 0;
 const F_SERIAL         = 1;
 const F_YEAR_MFR       = 4;
@@ -63,6 +55,14 @@ const F_COUNTRY        = 14;
 const F_TYPE_AIRCRAFT  = 18;
 const F_TYPE_ENGINE    = 19;
 const F_STATUS         = 20;
+const F_FRACTIONAL_OWNER = 22;
+const F_OTHER_NAME_1 = 24;
+const F_OTHER_NAME_5 = 28;
+const F_LAST_ACTIVITY = 15;
+const F_MFR_MODEL_CODE = 2;
+const F_ENGINE_MODEL_CODE = 3;
+const F_EXPIRATION_DATE = 29;
+const F_UNIQUE_ID = 30;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -77,6 +77,7 @@ export interface FaaIngestionResult {
   skipped: number;
   errors: number;
   durationMs: number;
+  candidateEntitiesInserted?: number;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
