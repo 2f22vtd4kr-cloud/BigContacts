@@ -566,7 +566,7 @@ async function materializePartialPersonLeadCards(input: {
     const claimedUrls = new Set(lead.sourceUrls);
     const supports = new Map<string, {
       sourceUrl: string; eventId: number; createdAt: Date;
-      spanText: string; spanStart: number; spanEnd: number;
+      spanText: string; spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
     for (const observation of observations) {
@@ -594,9 +594,10 @@ async function materializePartialPersonLeadCards(input: {
         sourceUrl,
         eventId: observation.eventId,
         createdAt: observation.createdAt,
-        spanText: span?.text ?? `Investigator-selected person lead ${lead.name}${lead.role ? " / " + lead.role : ""}; exact source span not independently isolated.`,
-        spanStart: span?.start ?? -1,
-        spanEnd: span?.end ?? -1,
+        spanText: exactSpan && span ? span.text : "",
+        spanStart: exactSpan && span ? span.start : null,
+        spanEnd: exactSpan && span ? span.end : null,
+        spanVerified: exactSpan,
         verificationLevel,
       });
     }
@@ -742,7 +743,9 @@ async function materializePartialPersonLeadCards(input: {
             atlasJobId: input.atlasJobId,
             supportingEventId: support.eventId,
             role: lead.role,
-            sourceSpan: support.spanText,
+            sourceSpan: support.spanVerified ? support.spanText : null,
+            sourceSpanVerified: support.spanVerified,
+            sourceSpanNote: support.spanVerified ? null : "Investigator-selected person lead; exact source span not independently isolated.",
             spanStart: support.spanStart,
             spanEnd: support.spanEnd,
             noWealthOrContactConclusion: true,
@@ -911,8 +914,10 @@ async function materializePartialOrganizationLeadCards(input: {
       if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
         supports.set(sourceUrl, {
           sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt,
-          spanText: span?.text ?? `Investigator-selected organization lead ${name}; exact source span not independently isolated.`,
-          spanStart: span?.start ?? -1, spanEnd: span?.end ?? -1,
+          spanText: exactSpan && span ? span.text : "",
+          spanStart: exactSpan && span ? span.start : null,
+          spanEnd: exactSpan && span ? span.end : null,
+          spanVerified: exactSpan,
           verificationLevel,
         });
       }
@@ -970,7 +975,7 @@ async function materializePartialOrganizationLeadCards(input: {
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         sourceUrls,
-        sourceNotes: [...new Set([...supports.values()].map((support) => support.spanText))].slice(0, 4),
+        sourceNotes: [...new Set([...supports.values()].map((support) => support.spanVerified ? support.spanText : `Investigator-selected organization lead ${name}; exact source span not independently isolated.`))].slice(0, 4),
         limitations: ["ownership/control not established", "business materiality not established", "no person or wealth conclusion", "person-level contact route not established"],
       });
       if (!entityId) {
@@ -1037,7 +1042,9 @@ async function materializePartialOrganizationLeadCards(input: {
             discoveryCaseId: input.discoveryCaseId,
             atlasJobId: input.atlasJobId,
             supportingEventId: support.eventId,
-            sourceSpan: support.spanText,
+            sourceSpan: support.spanVerified ? support.spanText : null,
+            sourceSpanVerified: support.spanVerified,
+            sourceSpanNote: support.spanVerified ? null : "Investigator-selected organization lead; exact source span not independently isolated.",
             spanStart: support.spanStart,
             spanEnd: support.spanEnd,
             noOwnershipOrWealthConclusion: true,
