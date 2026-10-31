@@ -255,6 +255,8 @@ describe("Groq Boss model-selected discovery candidates", () => {
     const parsed = parseBossDiscoveryResponse(JSON.stringify({
       report: "Two source-attributed review leads were selected for further assessment.",
       investigatorLlm: "groq-investigator-1",
+      nextDirections: [],
+      uncertainties: [],
       candidates: [
         {
           name: "Li",
