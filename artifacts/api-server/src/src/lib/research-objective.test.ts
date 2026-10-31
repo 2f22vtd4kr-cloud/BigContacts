@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBossDirectedObjective, resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "./research-objective";
+import { formatBossDirectedObjective, resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "./research-objective";
 
 describe("research objective validation", () => {
   it("accepts an epistemic research question without prescribing a tool or provider", () => {
@@ -103,31 +103,73 @@ describe("research objective validation", () => {
     })).toMatchObject({ valid: true, reusedCurrentObjective: false });
   });
 
-  it("accepts an explicit natural-language proceed decision from Right-hand", () => {
-    const direction = "Investigate privately held renewable-energy Mittelstand firms in Bavaria and identify public ownership records.";
-    expect(resolveApprovedOpeningDirection({
-      rightHandDecision: "Proceed with the Bavarian renewable-energy Mittelstand search, but note limited shareholder visibility.",
-      firstDirection: direction,
-    })).toEqual({ status: "approved", direction, reason: null });
+  it("uses Boss's own validated direction after considering advisory Right-hand input", () => {
+    const initialDirection = "Investigate privately held renewable-energy Mittelstand firms in Bavaria and identify public ownership records.";
+    const bossAlternative = "Investigate regional logistics operators in Lower Saxony using public corporate filings and transaction reporting.";
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "pivot_discovery",
+      bossDirection: bossAlternative,
+      initialBossDirection: initialDirection,
+    })).toEqual({
+      status: "approved",
+      direction: bossAlternative,
+      source: "boss_direction",
+      reason: null,
+    });
   });
 
-  it("does not mistake the observed Run 07 narrative review for explicit approval", () => {
-    const direction = "Search the Ohio Secretary of State business entity database for family-owned manufacturing companies with disclosed shareholder lists.";
-    const observedRun07Review = "Boss's proposed search strategy aligns with the objective, but refine criteria to ensure wealth potential and viable contact routes.";
-    expect(resolveApprovedOpeningDirection({ rightHandDecision: observedRun07Review, firstDirection: direction }).status).toBe("not_approved");
-    expect(resolveApprovedOpeningDirection({ rightHandDecision: "approve", firstDirection: direction })).toEqual({ status: "approved", direction, reason: null });
-    expect(resolveApprovedOpeningDirection({ rightHandDecision: "reject", firstDirection: direction }).status).toBe("not_approved");
+  it("allows Boss to keep its initial hypothesis even when Right-hand disagrees", () => {
+    const initialDirection = "Investigate privately held renewable-energy Mittelstand firms in Bavaria and identify public ownership records.";
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "continue_discovery",
+      bossDirection: null,
+      initialBossDirection: initialDirection,
+    })).toEqual({
+      status: "approved",
+      direction: initialDirection,
+      source: "initial_boss_direction",
+      reason: null,
+    });
   });
 
-  it("fails closed for explicit refusal or noncommittal Right-hand wording", () => {
-    const direction = "Investigate privately held renewable-energy Mittelstand firms in Bavaria.";
-    for (const decision of [
-      "Do not approve this direction.",
-      "Reject this direction; the ownership route is unsupported.",
-      "I don't recommend proceeding with this scope.",
-      "This could be useful, but I have not approved it.",
+  it("allows Boss to continue the base objective without activating an unselected hypothesis", () => {
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "continue_discovery",
+      bossDirection: null,
+      initialBossDirection: null,
+    })).toEqual({
+      status: "base_scope",
+      direction: null,
+      source: "base_objective",
+      reason: null,
+    });
+  });
+
+  it("honors Boss stop and rejects malformed or unsafe Boss directions", () => {
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "stop",
+      bossDirection: null,
+      initialBossDirection: "Investigate private firms in Bavaria.",
+    })).toMatchObject({ status: "stopped", source: "boss_stop" });
+
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "pivot_discovery",
+      bossDirection: null,
+      initialBossDirection: "Investigate private firms in Bavaria.",
+    }).status).toBe("invalid");
+
+    for (const bossDirection of [
+      "Use Groq to search Serper for the person.",
+      "Visit https://example.com/profile and verify the role.",
+      'Find UK boutique technology private equity partners. Example query: "site:*.co.uk technology private equity partner UK"',
     ]) {
-      expect(resolveApprovedOpeningDirection({ rightHandDecision: decision, firstDirection: direction }).status).toBe("not_approved");
+      const result = resolveBossAdjudicatedOpeningDirection({
+        bossAction: "pivot_discovery",
+        bossDirection,
+        initialBossDirection: null,
+      });
+      expect(result.status).toBe("invalid");
+      expect(result.direction).toBeNull();
     }
   });
 

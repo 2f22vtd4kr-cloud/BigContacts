@@ -5,7 +5,7 @@ import { isCanonicalJobOwner } from "./canonical-job-lock";
 import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
-import { ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, normalizeAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandApprovalReview, type AtlasControlAction } from "./atlas-control-decision";
+import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, atlasRegistryFeasibilityLaw, buildAtlasPinnedControlState, buildAtlasScopeRecoveryFeedback, decideAtlasNextAction, isRecoverableAtlasControlRejection, validateAtlasOpeningRightHandReview, type AtlasControlAction } from "./atlas-control-decision";
 import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations, resolveResearchDepth } from "./research-depth";
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
@@ -25,7 +25,7 @@ import { nextResearchCaseEventIteration } from "./research-case-event-iteration"
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
-import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
+import { resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective } from "./research-objective";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateRoleCorroborationSources, hasDiscoveryOwnershipLeadSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
@@ -47,6 +47,15 @@ export type CanonicalAtlasOptions = {
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
 export const MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS = 1_200;
+
+/** Compact control-plane prose without changing the validated underlying decision. */
+function compactControlText(value: unknown, maxChars: number): string {
+  if (typeof value !== "string") return "";
+  const normalized = value.replace(/\\s+/g, " ").trim();
+  return normalized.length > maxChars
+    ? normalized.slice(0, Math.max(0, maxChars - 1)).trimEnd() + "…"
+    : normalized;
+}
 export type CanonicalAtlasResult = { phase: number; ingested: number; enriched: number; contactsFound: number; hotLeads: number; durationMs: number; phaseSummary: Record<string, string> };
 function uniqueNames(values: string[]): string[] {
   const seen = new Set<string>();
@@ -1601,29 +1610,27 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       });
     });
 
-    // Boss first, independent Right-hand second. The Right-hand reviews the
-    // actual Boss decision; it does not pre-steer the Boss or choose the tools.
+    // Boss first, independent Right-hand second. Right-hand advises; Boss
+    // receives that advice and makes the final opening control decision.
     failureStage = "right_hand_opening_review";
     const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
       runGroqRightHandFreeJson(
-        `Review Groq Boss's opening Atlas decision against the exact research objective before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified control hypothesis, not source evidence): ${boss.report ?? ""}. Next directions (unverified control hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. The human mission and realistic-targetability rules outrank Boss next-directions; reject prestige-only global-company leadership suggestions unless tied to a plausible local owner/operator/investor or documented intermediary route. Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. ${atlasRegistryFeasibilityLaw()} Opening oversight cannot browse, so it must judge the direction's evidential basis and feasibility conservatively. Internal memory, storage, and workflow terminology is not a research lead. Do not approve a direction merely because it is plausible or its registry adapter is callable. For a broad mission, assess whether Boss has justified the chosen sector, geography, and source family against materially different alternatives; an arbitrary region/sector combination or registry-first choice without an objective-derived advantage should be rejected with a request for a better-grounded alternative. Companies House is not a preferred default. This is a comparative opening-scope review, not a prescribed tool sequence or research itinerary. Return a separate explicit approval enum: approval must be exactly "approve" or "reject". Review the first Boss nextDirection as the only proposed opening scope; use any other listed directions only as comparison context, not as authorization. Approve only if the first direction is compatible with the human objective, has a defensible advantage over plausible alternatives, offers a plausible executable public-source path, and does not assume unobserved fields. Reject if it is unsupported, arbitrarily narrow, materially mis-scoped, or premised on an unavailable/non-public source or unverified data schema. The decision is a free-form narrative summary; it is advisory prose and MUST NOT encode or substitute for the approval field. Do not choose research tools, replace the Investigator, or invent people or evidence. Return exactly approval ("approve" or "reject"), decision (1–300 characters), reason (1–1,200 characters), focusLanes (0–8 non-empty strings, each at most 160 characters), and confidence (a number from 0 to 1).`,
-        "You are the Groq Right-hand. Independently check Boss's opening claims against the human mission; treat Boss-generated reports/directions as unverified hypotheses. You cannot browse in this review and must not treat confidence as evidence. Use only the listed runtime registry adapters, and do not assume registry fields such as owners/shareholders exist unless observed documentation supports that. Distinguish a public search surface from proof that relevant records exist or expose relevant fields. Favor concrete testable hypotheses over unsupported assertions. The human mission and realistic-targetability rules outrank Boss suggestions; flag unsupported scope and prestige-only leadership paths without a reachable owner/operator/intermediary route. Explicitly flag unsupported scope and never treat internal memory/storage/workflow terminology as a sector or lead. Advise the Boss only; do not act as Investigator, choose tools, or replace the selected Investigator. Reply with ONE JSON object.",
-        ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT,
+        `Independently review Groq Boss's opening Atlas hypotheses against the exact human objective. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified hypothesis, not evidence): ${boss.report ?? ""}. Initial directions (unverified hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Assess targetability, scope, geographic/source feasibility, unsupported assumptions, and alternatives. You cannot browse and must not treat confidence as evidence. Do not choose tools, select the Investigator, or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to keep, revise, or stop. A disagreement is advice, not a veto. Return concise decision, reason, focusLanes and confidence.`,
+        "You are Groq Right-hand. You independently advise Groq Boss; you do not authorize or veto the opening, choose tools, or replace the Investigator. Boss will evaluate your advice and make the final decision. Return ONE JSON object only.",
+        ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
         (raw) => {
           try {
             const value: unknown = JSON.parse(raw);
             const parsed = value && typeof value === "object" && !Array.isArray(value)
               ? value as Record<string, unknown>
               : null;
-            return validateAtlasOpeningRightHandApprovalReview(parsed) || normalizeAtlasOpeningRightHandApprovalReview(parsed) !== null;
+            return validateAtlasOpeningRightHandReview(parsed);
           } catch {
             return false;
           }
         },
         { jobId: atlasJobId, caseId: discoveryCaseId },
         {
-          // The generic 768-token / medium-reasoning default exhausted this
-          // compact approval contract. Recover once with a bounded larger budget.
           maxCompletionTokens: 1_024,
           reasoningEffort: "low",
           maxAttempts: 4,
@@ -1637,71 +1644,55 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       status: "unavailable" as const,
       model: "none",
       raw: null,
-      error: safeThrownErrorSummary("Groq Right-hand opening review unavailable", error),
+      error: safeThrownErrorSummary("Groq Right-hand opening advice unavailable", error),
     }));
     await assertAtlasJobActive(atlasJobId);
-    let rightHand: { status: "completed" | "unavailable"; model: string; approval: "approve" | "reject" | null; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null } = {
-      status: rightHandRaw.status === "completed" ? "completed" : "unavailable",
+
+    let rightHand: {
+      status: "completed" | "unavailable";
+      model: string;
+      decision: string | null;
+      reason: string | null;
+      focusLanes: string[];
+      confidence: number | null;
+      error: string | null;
+    } = {
+      status: "unavailable",
       model: rightHandRaw.model,
-      approval: null,
       decision: null,
       reason: null,
       focusLanes: [],
       confidence: null,
-      error: rightHandRaw.error ?? null,
+      error: rightHandRaw.error ?? "Right-hand returned no usable opening advice.",
     };
-    if (rightHandRaw.status === "completed") {
-      if (!rightHandRaw.raw?.trim()) {
-        rightHand.status = "unavailable";
-        rightHand.error = "Right-hand returned an empty opening review response.";
-      } else {
-        try {
-          const value: unknown = JSON.parse(rightHandRaw.raw);
-          const parsed = value && typeof value === "object" && !Array.isArray(value)
-            ? value as Record<string, unknown>
-            : null;
-          const normalized = parsed && validateAtlasOpeningRightHandApprovalReview(parsed)
-            ? parsed
-            : normalizeAtlasOpeningRightHandApprovalReview(parsed);
-          if (!normalized || !validateAtlasOpeningRightHandApprovalReview(normalized)) {
-            rightHand.status = "unavailable";
-            rightHand.error = "Right-hand returned an invalid opening review contract.";
-          } else {
-            rightHand = {
-              status: "completed",
-              model: rightHandRaw.model,
-              approval: normalized.approval as "approve" | "reject",
-              decision: (normalized.decision as string).trim(),
-              reason: (normalized.reason as string).trim(),
-              focusLanes: (normalized.focusLanes as string[]).map((lane) => lane.trim()),
-              confidence: normalized.confidence as number,
-              error: null,
-            };
-          }
-        } catch {
-          rightHand.status = "unavailable";
-          rightHand.error = "Right-hand returned invalid JSON.";
+    if (rightHandRaw.status === "completed" && rightHandRaw.raw?.trim()) {
+      try {
+        const value: unknown = JSON.parse(rightHandRaw.raw);
+        const parsed = value && typeof value === "object" && !Array.isArray(value)
+          ? value as Record<string, unknown>
+          : null;
+        if (validateAtlasOpeningRightHandReview(parsed)) {
+          rightHand = {
+            status: "completed",
+            model: rightHandRaw.model,
+            decision: (parsed!.decision as string).trim(),
+            reason: (parsed!.reason as string).trim(),
+            focusLanes: (parsed!.focusLanes as string[]).map((lane) => lane.trim()),
+            confidence: parsed!.confidence as number,
+            error: null,
+          };
+        } else {
+          rightHand.error = "Right-hand returned an invalid advisory review contract.";
         }
+      } catch {
+        rightHand.error = "Right-hand returned invalid JSON.";
       }
-    }
-    await assertAtlasJobActive(atlasJobId);
-    if (rightHandRaw.status !== "completed") {
-      failureStage = "case_persistence";
-      await db.update(researchCasesTable)
-        .set({ status: "review", currentAction: "groq-right-hand-unavailable", updatedAt: new Date() })
-        .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
-      failureStage = "right_hand_opening_review";
-      throw new Error(`Groq Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
-    }
-    if (rightHand.error || rightHand.status !== "completed") {
-      failureStage = "case_persistence";
-      await db.update(researchCasesTable)
-        .set({ status: "review", currentAction: "groq-right-hand-invalid", updatedAt: new Date() })
-        .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`));
-      failureStage = "right_hand_opening_review";
-      throw new Error(`Groq Right-hand returned invalid oversight: ${rightHand.error}`);
+    } else if (rightHandRaw.status === "completed") {
+      rightHand.error = "Right-hand returned an empty opening advice response.";
     }
 
+    // Persist the review exactly as an advisory observation. An unavailable
+    // review is also recorded; it is not an automatic stop/veto.
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
@@ -1710,48 +1701,136 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         .for("update")
         .limit(1);
       if (!lockedCase || lockedCase.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(lockedCase.currentAction ?? ""))) {
-        throw new Error("Canonical Atlas discovery case was cancelled before Right-hand opening event.");
+        throw new Error("Canonical Atlas discovery case was cancelled before Right-hand opening advisory event.");
       }
       await tx.insert(researchCaseEventsTable).values({
         caseId: discoveryCaseId,
         iteration: 0,
         actorRole: "right_hand",
         eventType: "observation",
-        status: "recorded",
-        summary: "Groq Right-hand reviewed the Boss opening decision before Investigator execution.",
+        status: rightHand.status === "completed" ? "recorded" : "unavailable",
+        summary: rightHand.status === "completed"
+          ? "Groq Right-hand recorded independent advisory observations for Boss's opening decision; advice is not an authorization gate."
+          : "Groq Right-hand opening advice was unavailable; Boss remains responsible for the final opening decision.",
         correlationKey: `${atlasJobId}:right-hand-opening`,
-        payload: JSON.stringify({ jobId: atlasJobId, bossModel: boss.model, investigatorLlm: boss.investigatorLlm, approval: rightHand.approval, decision: rightHand.decision, reason: rightHand.reason, focusLanes: rightHand.focusLanes, confidence: rightHand.confidence }),
+        payload: JSON.stringify({
+          jobId: atlasJobId,
+          bossModel: boss.model,
+          investigatorLlm: boss.investigatorLlm,
+          status: rightHand.status,
+          decision: rightHand.decision,
+          reason: rightHand.reason,
+          focusLanes: rightHand.focusLanes,
+          confidence: rightHand.confidence,
+          error: rightHand.error,
+          authority: "advisory_only",
+        }),
       });
     }, { isolationLevel: "serializable" });
 
-    const compactControlText = (value: unknown, max: number): string => typeof value === "string" ? value.trim().slice(0, max) : "";
-    // Only the validated enum can authorize the opening scope; narrative review prose is never parsed as authorization.
-    const openingDirectionResolution = resolveApprovedOpeningDirection({
-      rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject",
-      firstDirection: Array.isArray(boss.nextDirections) ? boss.nextDirections[0] : null,
+    // Boss must consume the review and make the final decision. On the opening
+    // turn there are no admitted targets or Investigator observations yet.
+    // A Right-hand outage is passed through as context; a Boss outage or invalid
+    // Boss action remains fail-closed.
+    failureStage = "control_event_persistence";
+    const openingBossDecision = await decideAtlasNextAction({
+      objective: activeDiscoveryObjective,
+      admittedCandidates: [],
+      discoveryStatus: "opening_review_complete; no Investigator episode has executed yet",
+      discoveryTrajectory: [],
+      discoveryFindings: [],
+      caseId: discoveryCaseId,
+      controlTurn: 1,
+      jobId: atlasJobId,
+      investigatorReport: JSON.stringify({
+        stage: "opening_adjudication",
+        bossInitialReport: boss.report ?? null,
+        bossInitialDirections: boss.nextDirections ?? [],
+        bossUncertainties: boss.uncertainties ?? [],
+        instruction: "This is the opening adjudication before the first Investigator action. Evaluate the Right-hand advice and make the final Boss decision. You may continue with the initial direction, pivot to a validated alternative you choose, continue the human base objective without adopting any direction, or stop.",
+      }),
+      pinnedControlState: [
+        "OPENING CONTROL STATE (authoritative): Boss has selected the Investigator capability but has not yet activated an opening research direction.",
+        "HUMAN OBJECTIVE: " + activeDiscoveryObjective,
+        "Boss report (unverified control hypothesis, not source evidence): " + compactControlText(boss.report, 1_200),
+        "BOSS INITIAL HYPOTHESES (unverified, not evidence): " + JSON.stringify(boss.nextDirections ?? []),
+        "RIGHT-HAND AUTHORITY: advisory only. Boss must evaluate its recommendation and owns the final decision.",
+        "Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead.",
+        "The human mission and realistic-targetability rules outrank Boss next-directions. Compare proposed directions with the human objective and observed sources; test whether any proposed direction has a defensible advantage over plausible alternatives.",
+      ].join("\n"),
+      rightHandOverride: {
+        status: rightHand.status,
+        decision: rightHand.decision,
+        reason: rightHand.reason,
+        direction: null,
+        confidence: rightHand.confidence,
+        model: rightHand.model,
+        error: rightHand.error,
+      },
     });
+    await assertAtlasJobActive(atlasJobId);
+    if (openingBossDecision.status !== "completed") {
+      failureStage = "oversight_control_decision";
+      throw new Error("Groq Boss could not make a valid final opening decision after Right-hand advice: " + (openingBossDecision.error ?? openingBossDecision.reason ?? "unknown Boss control failure"));
+    }
+
+    const initialBossDirection = Array.isArray(boss.nextDirections) ? boss.nextDirections[0] : null;
+    const openingDirectionResolution = resolveBossAdjudicatedOpeningDirection({
+      bossAction: openingBossDecision.action,
+      bossDirection: openingBossDecision.direction,
+      initialBossDirection,
+    });
+    if (openingDirectionResolution.status === "invalid") {
+      failureStage = "model_action_validation";
+      throw new Error("Groq Boss opening decision failed canonical objective validation: " + openingDirectionResolution.reason);
+    }
+    if (openingDirectionResolution.status === "stopped") {
+      failureStage = "terminal_persistence";
+      await db.update(researchCasesTable).set({
+        status: "review",
+        currentAction: "groq-boss-opening-stop",
+        lastDecisionAt: new Date(),
+        updatedAt: new Date(),
+      }).where(and(
+        eq(researchCasesTable.id, discoveryCaseId),
+        eq(researchCasesTable.status, "active"),
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+        sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+      ));
+      await updateJob(atlasJobId, {
+        status: "done",
+        progress: 100,
+        atlasPhase: 0,
+        message: "Groq Boss chose to stop after evaluating the objective and Right-hand advice. No Investigator action was executed; the case is preserved for review.",
+        outcome: "incomplete",
+        result: JSON.stringify({ boss: openingBossDecision, rightHand, discoveryCaseId, investigatorActionsExecuted: 0, evidenceBackedTerminal: false }),
+        finishedAt: new Date().toISOString(),
+      });
+      phaseSummary.assignment = "Boss chose stop after weighing Right-hand advice; no Investigator action was executed.";
+      await clearActiveJobIfOwned(lockKey, atlasJobId);
+      return { phase: 0, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
+    }
+
     const approvedOpeningDirection = openingDirectionResolution.status === "approved"
       ? openingDirectionResolution.direction
       : "";
-    // The approved opening scope must become durable active objective state, not
-    // merely extra text on the first Investigator prompt. Otherwise later control
-    // turns and resumed jobs silently fall back to the generic base objective.
     if (approvedOpeningDirection) {
       const openingObjective = resolveBossDirectedDiscoveryObjective({
-        action: "pivot_discovery",
+        action: openingBossDecision.action === "pivot_discovery" ? "pivot_discovery" : "continue_discovery",
         baseObjective: discoveryObjective,
         currentObjective: activeDiscoveryObjective,
         direction: approvedOpeningDirection,
       });
       if (!openingObjective.valid) {
-        throw new Error("Right-hand-approved opening direction failed canonical objective validation: " + openingObjective.reason);
+        failureStage = "model_action_validation";
+        throw new Error("Groq Boss-adjudicated opening direction failed canonical objective validation: " + openingObjective.reason);
       }
       failureStage = "control_event_persistence";
       await persistAcceptedAtlasDiscoveryObjective({
         caseId: discoveryCaseId,
         jobId: atlasJobId,
-        controlTurn: 0,
-        action: "pivot_discovery",
+        controlTurn: 1,
+        action: openingBossDecision.action === "pivot_discovery" ? "pivot_discovery" : "continue_discovery",
         direction: openingObjective.direction,
         baseObjective: discoveryObjective,
         previousObjective: activeDiscoveryObjective,
@@ -1761,19 +1840,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
-      "BOSS OPENING CONTROL DIRECTION:",
+      "BOSS FINAL OPENING DECISION:",
       openingDirectionResolution.status === "approved"
-        ? "The Right-hand-approved first direction above defines the opening scope only; it remains a research hypothesis, not source evidence. Reports, other directions, and uncertainties are unverified context, not evidence."
-        : "No active opening direction was authorized (" + openingDirectionResolution.reason + "). Research the base objective without treating unapproved Boss directions as active scope; if the scope needs revision, return control to Boss/Right-hand. Boss reports, directions, and uncertainties are not source evidence.",
-      openingDirectionResolution.status === "approved" && compactControlText(boss.report, 1_200) ? "Report: " + compactControlText(boss.report, 1_200) : "",
-      openingDirectionResolution.status === "approved" && Array.isArray(boss.nextDirections) && boss.nextDirections.length ? "Next directions: " + JSON.stringify(boss.nextDirections).slice(0, 1_200) : "",
-      openingDirectionResolution.status === "approved" && Array.isArray(boss.uncertainties) && boss.uncertainties.length ? "Uncertainties: " + JSON.stringify(boss.uncertainties).slice(0, 800) : "",
-      openingDirectionResolution.status === "approved" ? "RIGHT-HAND OPENING REVIEW (advisory):" : "",
-      "Right-hand opening approval: " + (rightHand.approval ?? "reject"),
-      openingDirectionResolution.status === "approved" && compactControlText(rightHand.decision, 300) ? "Decision: " + compactControlText(rightHand.decision, 300) : "",
-      openingDirectionResolution.status === "approved" && compactControlText(rightHand.reason, 800) ? "Reason: " + compactControlText(rightHand.reason, 800) : "",
-      openingDirectionResolution.status === "approved" && rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",
-      "These control-plane observations are not source evidence. Choose tools, providers, queries, visits, and stopping points yourself within the approved scope; if that scope is unsupported or infeasible, report why and return control to Boss/Right-hand for a revised scope.",
+        ? "Groq Boss adopted this validated opening direction. It is an active research hypothesis, not source evidence."
+        : "Groq Boss chose to continue the human base objective without activating its initial direction. Do not treat unselected Boss hypotheses as active scope.",
+      "Boss action: " + openingBossDecision.action,
+      openingDirectionResolution.status === "approved" ? "Boss-adjudicated direction: " + openingDirectionResolution.direction : "",
+      compactControlText(openingBossDecision.reason, 800) ? "Boss rationale: " + compactControlText(openingBossDecision.reason, 800) : "",
+      "RIGHT-HAND INDEPENDENT ADVICE (non-authoritative):",
+      "Right-hand status: " + rightHand.status,
+      compactControlText(rightHand.decision, 300) ? "Recommendation: " + compactControlText(rightHand.decision, 300) : "",
+      compactControlText(rightHand.reason, 800) ? "Reason: " + compactControlText(rightHand.reason, 800) : "",
+      rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",
+      rightHand.error ? "Advice unavailable / invalid: " + compactControlText(rightHand.error, 300) : "",
+      "Boss has already weighed this advice and owns the final scope decision. These control-plane observations are not source evidence. Choose tools, providers, queries, visits, and stopping points yourself; if the active objective is unsupported or infeasible, report why and return control to Boss for a revised decision.",
     ].filter(Boolean).join("\n");
     failureStage = "job_state_or_lease";
     await assertAtlasJobActive(atlasJobId);
@@ -1781,7 +1861,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       progress: 1,
       atlasPhase: 1,
       message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`,
-      result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }),
+      result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, openingBossDecision, discoveryCaseId }),
     });
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {

@@ -1,10 +1,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
+import { resolveBossAdjudicatedOpeningDirection, resolveBossDirectedDiscoveryObjective, restorePersistedDiscoveryObjective, validateResearchObjective } from "../lib/research-objective";
 import { buildGroqBossDiscoveryPrompt } from "../lib/case-bureau";
 import { classifyCanonicalAtlasFailure } from "../lib/canonical-atlas-failure-diagnostics";
-import { atlasBudgetInterpretationLaw, atlasSourceRouteRecoveryLaw, ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasPinnedControlState, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandApprovalReview, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { atlasBudgetInterpretationLaw, atlasSourceRouteRecoveryLaw, ATLAS_BOSS_CONTROL_PROMPT_BUDGET, ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasPinnedControlState, buildAtlasRightHandControlPrompt, compactAtlasInvestigatorReport, isRecoverableAtlasControlRejection, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, normalizeAtlasControlAction, validateAtlasBossControl, validateAtlasOpeningRightHandReview, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -278,7 +278,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
     expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
     expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules outrank Boss next-directions");
-    expect(controlSource).toContain("Compare proposed directions with the human objective and observed sources; flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
+    expect(controlSource).toContain("Compare proposed directions with the human objective and observed sources; test whether the proposed direction has a defensible advantage over plausible alternatives; flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
   });
 
@@ -605,21 +605,43 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalTargetSource).toContain("!rightHandRaw.raw?.trim()");
   });
 
-  it("requires explicit enum approval in the opening Right-hand review before Investigator execution", () => {
+  it("treats the opening Right-hand review as advice that Boss must adjudicate", () => {
     const valid = {
-      approval: "approve",
-      decision: "Boss's proposed search strategy aligns with the objective, but refine criteria to ensure wealth potential and viable contact routes.",
-      reason: "The first direction is compatible with the mission as a bounded hypothesis.",
-      focusLanes: ["verify named owners through a public source"],
+      decision: "The proposed direction is too narrow; compare the stated sector with a materially different local hypothesis.",
+      reason: "The cited source-class advantage has not been substantiated.",
+      focusLanes: ["test source feasibility", "compare alternative sectors"],
       confidence: 0.86,
     };
-    expect(validateAtlasOpeningRightHandApprovalReview(valid)).toBe(true);
-    expect(validateAtlasOpeningRightHandApprovalReview({ ...valid, approval: "perhaps" })).toBe(false);
-    expect(ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT.schema.required).toEqual(["approval", "decision", "reason", "focusLanes", "confidence"]);
-    expect(canonicalDiscoverySource).toContain("ATLAS_OPENING_RIGHT_HAND_APPROVAL_RESPONSE_FORMAT");
-    expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandApprovalReview(parsed)");
-    expect(canonicalDiscoverySource).toContain("Right-hand returned an empty opening review response.");
-    expect(canonicalDiscoverySource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
+    expect(validateAtlasOpeningRightHandReview(valid)).toBe(true);
+    expect(ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT.schema.required).toEqual(["decision", "reason", "focusLanes", "confidence"]);
+    expect(canonicalDiscoverySource).toContain("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT");
+    expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandReview(parsed)");
+    expect(canonicalDiscoverySource).toContain('authority: "advisory_only"');
+    expect(canonicalDiscoverySource).toContain("rightHandOverride: {");
+    expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");
+    expect(canonicalDiscoverySource).toContain("bossAction: openingBossDecision.action");
+    expect(canonicalDiscoverySource).toContain("bossDirection: openingBossDecision.direction");
+    expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
+    const reviewCall = canonicalDiscoverySource.indexOf("const rightHandRaw = await import");
+    const bossDecisionCall = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
+    const openingResolution = canonicalDiscoverySource.indexOf("resolveBossAdjudicatedOpeningDirection({");
+    const investigatorObjective = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [");
+    expect(reviewCall).toBeGreaterThan(-1);
+    expect(bossDecisionCall).toBeGreaterThan(reviewCall);
+    expect(openingResolution).toBeGreaterThan(bossDecisionCall);
+    expect(investigatorObjective).toBeGreaterThan(openingResolution);
+    const reviewToBoss = canonicalDiscoverySource.slice(reviewCall, bossDecisionCall);
+    const reviewProviderAndParse = reviewToBoss.slice(0, reviewToBoss.indexOf('failureStage = "case_persistence";'));
+    expect(reviewToBoss).not.toContain('if (rightHandRaw.status !== "completed")');
+    expect(reviewProviderAndParse).not.toContain("throw new Error");
+    // Cancellation during durable review-event persistence remains fail-closed;
+    // provider outage or malformed advisory JSON must instead reach Boss as advice.
+    expect(reviewToBoss).toContain("Canonical Atlas discovery case was cancelled before Right-hand opening advisory event.");
+    expect(reviewToBoss).toContain("rightHand.error = \"Right-hand returned an invalid advisory review contract.\"");
+    expect(controlSource).toContain("if (input.rightHandOverride)");
+    expect(controlSource).toContain("rightHand = { ...input.rightHandOverride };");
+    expect(controlSource).toContain("Right-hand is advisory on every turn");
+    expect(controlSource).not.toContain('if (rightHand.status !== "completed" && !input.rightHandOverride)');
   });
 
   it("recovers only from an out-of-set candidate selection without relaxing admission", () => {
@@ -832,59 +854,107 @@ describe("canonical Investigator continuation failure handling", () => {
 });
 
 
-describe("Right-hand-approved opening direction", () => {
-  it("activates only an explicitly approved, valid first Boss direction as the initial research scope", () => {
-    const direction = "Query the German Handelsregister for privately held Mittelstand manufacturing firms in Bavaria and identify listed owners/operators.";
-    expect(resolveApprovedOpeningDirection({ rightHandDecision: "Approve", firstDirection: direction })).toEqual({
+describe("Boss-adjudicated opening direction", () => {
+  it("uses Boss's validated pivot instead of the direction initially proposed to Right-hand", () => {
+    const initial = "Investigate privately held manufacturers in Bavaria using public register and company filings.";
+    const bossAlternative = "Investigate regional logistics operators in Lower Saxony using public company records and transaction reporting.";
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "pivot_discovery",
+      bossDirection: bossAlternative,
+      initialBossDirection: initial,
+    })).toEqual({
       status: "approved",
-      direction,
+      direction: bossAlternative,
+      source: "boss_direction",
       reason: null,
     });
-    expect(resolveApprovedOpeningDirection({ rightHandDecision: "Approved — aligned with the objective", firstDirection: direction })).toMatchObject({
+  });
+
+  it("lets Boss retain its original hypothesis after weighing contrary Right-hand advice", () => {
+    const initial = "Investigate privately held manufacturers in Bavaria using public register and company filings.";
+    // Right-hand's opinion is intentionally not an input to the resolver. Boss's
+    // final model-authored action is the only authority for scope activation.
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "continue_discovery",
+      bossDirection: null,
+      initialBossDirection: initial,
+    })).toEqual({
       status: "approved",
-      direction,
+      direction: initial,
+      source: "initial_boss_direction",
+      reason: null,
     });
   });
 
-  it("does not activate Boss directions when Right-hand rejects or does not approve", () => {
-    for (const decision of ["Reject", "Needs revision", "Unavailable", "", null]) {
-      expect(resolveApprovedOpeningDirection({
-        rightHandDecision: decision,
-        firstDirection: "Investigate privately held manufacturers in Bavaria.",
-      }).status).toBe("not_approved");
-    }
+  it("allows Boss to continue the human base objective without adopting an initial direction", () => {
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "continue_discovery",
+      bossDirection: null,
+      initialBossDirection: null,
+    })).toEqual({
+      status: "base_scope",
+      direction: null,
+      source: "base_objective",
+      reason: null,
+    });
   });
 
-  it("keeps missing or malformed opening directions out of active scope", () => {
-    for (const firstDirection of [null, undefined, "", "   "]) {
-      expect(resolveApprovedOpeningDirection({
-        rightHandDecision: "Approve",
-        firstDirection,
-      }).status).toBe("missing");
-    }
-    for (const firstDirection of [
+  it("honors a model-authored Boss stop without launching the Investigator", () => {
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "stop",
+      bossDirection: null,
+      initialBossDirection: "Investigate private manufacturers in Bavaria.",
+    })).toMatchObject({ status: "stopped", source: "boss_stop" });
+  });
+
+  it("rejects invalid Boss actions, missing pivots and tool/URL directives", () => {
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "research_candidate",
+      bossDirection: null,
+      initialBossDirection: null,
+    }).status).toBe("invalid");
+    expect(resolveBossAdjudicatedOpeningDirection({
+      bossAction: "pivot_discovery",
+      bossDirection: null,
+      initialBossDirection: "Investigate private manufacturers in Bavaria.",
+    }).status).toBe("invalid");
+    for (const bossDirection of [
       "Use parallel_web_search for the next step.",
       "Investigate this URL: https://example.test/person",
       "Search using site:example.com owners Bavaria",
       "x".repeat(1_201),
     ]) {
-      const result = resolveApprovedOpeningDirection({ rightHandDecision: "Approve", firstDirection });
+      const result = resolveBossAdjudicatedOpeningDirection({
+        bossAction: "pivot_discovery",
+        bossDirection,
+        initialBossDirection: "Investigate private manufacturers in Bavaria.",
+      });
       expect(result.status).toBe("invalid");
       expect(result.direction).toBeNull();
     }
   });
 
-  it("fails closed on unavailable Right-hand before resolving or passing the opening objective to Investigator", () => {
-    const oversightUnavailable = canonicalDiscoverySource.indexOf('if (rightHandRaw.status !== "completed")');
-    const openingResolution = canonicalDiscoverySource.indexOf("resolveApprovedOpeningDirection({");
-    const openingObjective = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [");
-    expect(oversightUnavailable).toBeGreaterThan(-1);
-    expect(openingResolution).toBeGreaterThan(oversightUnavailable);
-    expect(openingObjective).toBeGreaterThan(openingResolution);
-    expect(canonicalDiscoverySource).toContain('currentAction: "groq-right-hand-unavailable"');
-    expect(canonicalDiscoverySource).toContain("Groq Right-hand unavailable; failing closed");
-    expect(canonicalDiscoverySource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
-    expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
+  it("fails closed on invalid Boss output, not on a Right-hand disagreement or outage", () => {
+    const bossCall = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
+    const invalidBossGuard = canonicalDiscoverySource.indexOf('if (openingBossDecision.status !== "completed")', bossCall);
+    const openingResolution = canonicalDiscoverySource.indexOf("resolveBossAdjudicatedOpeningDirection({", bossCall);
+    const investigatorObjective = canonicalDiscoverySource.indexOf("const openingInvestigatorObjective = [", openingResolution);
+    expect(bossCall).toBeGreaterThan(-1);
+    expect(invalidBossGuard).toBeGreaterThan(bossCall);
+    expect(openingResolution).toBeGreaterThan(invalidBossGuard);
+    expect(investigatorObjective).toBeGreaterThan(openingResolution);
+    expect(canonicalDiscoverySource).toContain('currentAction: "groq-boss-opening-stop"');
+    expect(canonicalDiscoverySource).toContain("Boss has already weighed this advice and owns the final scope decision.");
+    expect(canonicalDiscoverySource).not.toContain("Groq Right-hand unavailable; failing closed");
+    expect(canonicalDiscoverySource).not.toContain('currentAction: "groq-right-hand-unavailable"');
+  });
+
+  it("does not leak unselected Boss hypotheses as active Investigator scope", () => {
+    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
+    expect(canonicalDiscoverySource).toContain("Do not treat unselected Boss hypotheses as active scope.");
+    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" ? "Boss-adjudicated direction: " + openingDirectionResolution.direction');
+    expect(canonicalDiscoverySource).toContain("RIGHT-HAND INDEPENDENT ADVICE (non-authoritative):");
+    expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
   });
 });
 
@@ -910,18 +980,19 @@ describe("unresolved template placeholder rejection at the opening boundary", ()
       "Search the [Location] company directory for manufacturing owners.",
       "Find companies in TBD and identify their owners.",
     ]) {
-      const result = resolveApprovedOpeningDirection({ rightHandDecision: "Approve", firstDirection });
+      const result = resolveBossAdjudicatedOpeningDirection({ bossAction: "pivot_discovery", bossDirection: firstDirection, initialBossDirection: null });
       expect(result.status).toBe("invalid");
       expect(result.direction).toBeNull();
       expect(result.reason).toContain("template placeholder");
     }
   });
 
-  it("does not leak rejected opening directions or their control commentary into the Investigator objective", () => {
-    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" && Array.isArray(boss.nextDirections)');
-    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" && compactControlText(boss.report');
-    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" && Array.isArray(boss.uncertainties)');
-    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" ? "RIGHT-HAND OPENING REVIEW (advisory):"');
+  it("keeps unselected Boss hypotheses out of the active Investigator objective", () => {
+    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
+    expect(canonicalDiscoverySource).toContain("Do not treat unselected Boss hypotheses as active scope.");
+    expect(canonicalDiscoverySource).toContain("RIGHT-HAND INDEPENDENT ADVICE (non-authoritative):");
+    expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
+    expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
   });
 });
 

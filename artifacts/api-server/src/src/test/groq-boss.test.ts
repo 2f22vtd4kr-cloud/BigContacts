@@ -27,7 +27,7 @@ describe("Groq Boss discovery prompt grounding", () => {
     expect(prompt).toContain("Companies House is only an illustrative UK-specific example, not a default or preferred source");
     expect(prompt).toContain("This is comparative judgment, not a fixed research itinerary");
     expect(canonicalAtlasDiscoverySource).toContain("defensible advantage over plausible alternatives");
-    expect(canonicalAtlasDiscoverySource).toContain("Companies House is not a preferred default");
+    expect(caseBureauSource).toContain("Companies House is only an illustrative UK-specific example, not a default or preferred source");
   });
 
   it("uses medium reasoning for the opening discovery assignment", () => {

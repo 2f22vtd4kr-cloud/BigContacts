@@ -22,42 +22,83 @@ export function validateResearchObjective(direction: string | null | undefined):
 }
 
 /**
- * Resolve the opening Boss direction only when Right-hand explicitly approves it
- * and the direction satisfies the same runtime contract used for later pivots.
- * Approval activates a research scope; it does not turn a Boss hypothesis into
- * observed source evidence or give Right-hand authority over tool selection.
+ * Resolve the opening objective from the final Boss control decision.
+ *
+ * Right-hand advice is deliberately absent from this input: it is evidence for
+ * Boss to weigh, not an authorization bit. A Boss continuation may retain its
+ * own first hypothesis (or specify a refinement); a Boss pivot must supply a
+ * new direction; and a Boss stop is a valid terminal decision.
  */
-export type ApprovedOpeningDirectionResolution =
-  | { status: "approved"; direction: string; reason: null }
-  | { status: "not_approved" | "missing" | "invalid"; direction: null; reason: string };
+export type BossAdjudicatedOpeningResolution =
+  | { status: "approved"; direction: string; source: "boss_direction" | "initial_boss_direction"; reason: null }
+  | { status: "base_scope"; direction: null; source: "base_objective"; reason: null }
+  | { status: "stopped"; direction: null; source: "boss_stop"; reason: string }
+  | { status: "invalid"; direction: null; source: "invalid_boss_decision"; reason: string };
 
-export function resolveApprovedOpeningDirection(input: {
-  rightHandDecision: unknown;
-  firstDirection: unknown;
-}): ApprovedOpeningDirectionResolution {
-  const decision = typeof input.rightHandDecision === "string" ? input.rightHandDecision.trim() : "";
-  // Right-hand returns a natural-language decision, not a single enum. Accept
-  // only an unambiguous affirmative at the start; never activate a negated or
-  // rejected Boss hypothesis as the opening scope.
-  const explicitRefusal = /\b(?:(?:do not|don't|does not|doesn't|cannot|can't|should not|shouldn't)\s+(?:explicitly\s+)?(?:approve|proceed|pursue|accept|support|endorse|recommend)|not\s+(?:approved|endorsed|supported|recommended)|reject(?:ed)?\b|decline(?:d)?\b|oppose(?:d)?\b|disagree\b|hold off\b)/i.test(decision);
-  const explicitApproval = /^(?:(?:i|we)\s+)?(?:approv(?:e|ed|es|al)\b|proceed\b|go\s+ahead\b|pursue\b|accept(?:ed)?\b|agree(?:\s+with)?\b|support(?:s|ed)?\b|endorse(?:s|d)?\b)/i.test(decision);
-  if (explicitRefusal || !explicitApproval) {
-    return { status: "not_approved", direction: null, reason: "Right-hand did not explicitly approve the opening direction." };
+export function resolveBossAdjudicatedOpeningDirection(input: {
+  bossAction: unknown;
+  bossDirection: unknown;
+  initialBossDirection: unknown;
+}): BossAdjudicatedOpeningResolution {
+  const action = typeof input.bossAction === "string" ? input.bossAction.trim() : "";
+  if (action === "stop") {
+    return {
+      status: "stopped",
+      direction: null,
+      source: "boss_stop",
+      reason: "Groq Boss decided that no opening Investigator action is justified.",
+    };
+  }
+  if (action !== "continue_discovery" && action !== "pivot_discovery") {
+    return {
+      status: "invalid",
+      direction: null,
+      source: "invalid_boss_decision",
+      reason: "Groq Boss returned an action that is not valid for an opening discovery decision.",
+    };
   }
 
-  if (typeof input.firstDirection !== "string" || !input.firstDirection.trim()) {
-    return { status: "missing", direction: null, reason: "Right-hand approved the opening review, but Boss supplied no first research direction." };
+  const bossDirection = typeof input.bossDirection === "string" ? input.bossDirection.trim() : "";
+  const initialDirection = typeof input.initialBossDirection === "string" ? input.initialBossDirection.trim() : "";
+  const direction = action === "pivot_discovery"
+    ? bossDirection
+    : (bossDirection || initialDirection);
+
+  if (!direction && action === "continue_discovery") {
+    return { status: "base_scope", direction: null, source: "base_objective", reason: null };
   }
-  const direction = input.firstDirection.trim();
+  if (!direction) {
+    return {
+      status: "invalid",
+      direction: null,
+      source: "invalid_boss_decision",
+      reason: "Groq Boss selected a pivot without supplying its own opening direction.",
+    };
+  }
   if (direction.length > 1_200) {
-    return { status: "invalid", direction: null, reason: "The opening research direction exceeds the 1200-character control bound." };
+    return {
+      status: "invalid",
+      direction: null,
+      source: "invalid_boss_decision",
+      reason: "The Boss-adjudicated opening direction exceeds the 1200-character control bound.",
+    };
   }
 
   const validated = validateResearchObjective(direction);
   if (!validated.valid) {
-    return { status: "invalid", direction: null, reason: validated.reason };
+    return {
+      status: "invalid",
+      direction: null,
+      source: "invalid_boss_decision",
+      reason: validated.reason,
+    };
   }
-  return { status: "approved", direction: validated.direction, reason: null };
+  return {
+    status: "approved",
+    direction: validated.direction,
+    source: bossDirection ? "boss_direction" : "initial_boss_direction",
+    reason: null,
+  };
 }
 
 export function formatBossDirectedObjective(baseObjective: string, direction: string): string {
