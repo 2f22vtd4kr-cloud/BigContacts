@@ -240,7 +240,6 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           verificationLevel, evidenceHierarchy: hasFetched ? "fetched-source-name-only" : "unverified-search-lead",
           discoveryCaseId: researchCase.id, atlasJobId: jobId, sourceUrls, sourceNotes,
           sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
-          sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.url, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
           limitations, identityCollisionPossible,
         });
         let entityId = sameCase?.id;
