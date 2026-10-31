@@ -28,7 +28,7 @@ import {
   searchRegistry,
   type RegistryId,
 } from "../lib/registry-client";
-import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
+import { REGISTRY_COVERAGE_MATRIX, resolveRegistryRuntimeMode, resolveRegistryRuntimeNote } from "../lib/registry-matrix";
 import { classifyActiveJobLaneStatus } from "../lib/job-queue-terminal-policy";
 import { enablePermanentRedis, getCache, setCache } from "../lib/redis";
 import { sql, eq } from "drizzle-orm";
@@ -149,24 +149,16 @@ router.get("/registry-matrix", (_req: Request, res: Response): void => {
       ...source,
       randomDiscoveryEnabled: randomDiscoveryIds.has(source.id as RegistryId),
       directSearchAvailable: availableRegistryIds.has(source.id as RegistryId),
-      runtimeMode:
-        source.id === "faa" || source.id === "hmlr-ppd"
-          ? "bulk_only"
-          : !availableRegistryIds.has(source.id as RegistryId)
-            ? "unavailable"
-            : randomDiscoveryIds.has(source.id as RegistryId)
-              ? "random_mix"
-              : "explicit_only",
-      runtimeNote:
-        source.id === "faa" || source.id === "hmlr-ppd"
-          ? "Bulk ingestion source; not a queryable direct-search adapter."
-          : !availableRegistryIds.has(source.id as RegistryId)
-            ? source.runtimeAdapterImplemented
-              ? "Direct search is unavailable until this runtime has the required access configured."
-              : "No supported direct-search adapter is implemented. Use public web search and fetch observed source pages."
-            : randomDiscoveryIds.has(source.id as RegistryId)
-              ? "Eligible for the shuffled discovery pass."
-              : "Available only when explicitly selected or after required access is configured.",
+      runtimeMode: resolveRegistryRuntimeMode(
+        source,
+        availableRegistryIds.has(source.id as RegistryId),
+        randomDiscoveryIds.has(source.id as RegistryId),
+      ),
+      runtimeNote: resolveRegistryRuntimeNote(
+        source,
+        availableRegistryIds.has(source.id as RegistryId),
+        randomDiscoveryIds.has(source.id as RegistryId),
+      ),
     })),
     randomDiscoveryIds: [...randomDiscoveryIds],
     note: "Runtime availability and production review are separate: a source can be active in private research while still awaiting public-production review.",
