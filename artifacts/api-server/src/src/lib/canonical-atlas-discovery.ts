@@ -1028,6 +1028,7 @@ async function materializePartialOrganizationLeadCards(input: {
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         sourceUrls,
+        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt })),
         sourceNotes: [...new Set([...supports.values()].map((support) => support.spanVerified ? support.spanText : `Investigator-selected organization lead ${name}; exact source span not independently isolated.`))].slice(0, 4),
         limitations: ["ownership/control not established", "business materiality not established", "no person or wealth conclusion", "person-level contact route not established"],
       });
