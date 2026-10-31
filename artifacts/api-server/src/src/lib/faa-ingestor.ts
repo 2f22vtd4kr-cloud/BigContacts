@@ -329,7 +329,21 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
       isNotNull(assetsTable.ownerEntityId),
       eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
     ));
-    const assetIds = legacyAssets.map((row) => row.id);
+    const candidateAssetIds = legacyAssets.map((row) => row.id);
+    const legacyOwnerLinks = candidateAssetIds.length > 0
+      ? await tx.select({
+          sourceEntityId: relationshipsTable.sourceEntityId,
+          targetId: relationshipsTable.targetId,
+        }).from(relationshipsTable).where(and(
+          eq(relationshipsTable.targetType, "Asset"),
+          eq(relationshipsTable.relationshipType, "OWNS"),
+          eq(relationshipsTable.notes, "FAA aircraft registration"),
+          inArray(relationshipsTable.targetId, candidateAssetIds),
+        ))
+      : [];
+    const legacyOwnerPairs = new Set(legacyOwnerLinks.map((row) => `${row.sourceEntityId}:${row.targetId}`));
+    const repairAssets = legacyAssets.filter((row) => row.ownerEntityId != null && legacyOwnerPairs.has(`${row.ownerEntityId}:${row.id}`));
+    const assetIds = repairAssets.map((row) => row.id);
     if (assetIds.length > 0) {
       await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, assetIds));
       await tx.update(relationshipsTable).set({
@@ -351,7 +365,7 @@ async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
         inArray(relationshipsTable.targetId, assetIds),
       ));
       const existingPairs = new Set(existing.map((row) => `${row.sourceEntityId}:${row.targetId}`));
-      const repairRows: InsertRelationship[] = legacyAssets
+      const repairRows: InsertRelationship[] = repairAssets
         .filter((row) => row.ownerEntityId != null && !existingPairs.has(`${row.ownerEntityId}:${row.id}`))
         .map((row) => ({
           sourceEntityId: row.ownerEntityId!,
