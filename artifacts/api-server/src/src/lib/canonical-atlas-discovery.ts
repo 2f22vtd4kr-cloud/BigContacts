@@ -656,9 +656,9 @@ async function materializePartialPersonLeadCards(input: {
         ...priorMetadata,
         reviewOnly: true,
         partialPersonLead: true,
-        roleOnlyLead: true,
+        roleOnlyLead: Boolean(lead.role),
         stage: "partial_review",
-        admission: priorMetadata.admission ?? (hasFetchedSource ? "source-backed-partial-finding" : "source-observed-person-role"),
+        admission: priorMetadata.admission ?? (hasFetchedSource ? "source-backed-partial-finding" : "source-observed-person-lead"),
         verificationLevel,
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
@@ -724,8 +724,8 @@ async function materializePartialPersonLeadCards(input: {
           entityId,
           claimType: "partial_person_role_lead",
           claim: support.verificationLevel === "fetched_source"
-            ? "A fetched public source co-binds this exact person name and page-stated role; wealth, ownership/control, and targetability remain unverified."
-            : "A successful public search/registry observation co-binds this exact person name and role; the underlying page, wealth, ownership/control, and targetability remain unverified.",
+            ? (lead.role ? "A fetched public source co-binds this exact person name and page-stated role; wealth, ownership/control, and targetability remain unverified." : "A fetched public source supports this person name; role, wealth, ownership/control, and targetability remain unverified.")
+            : (lead.role ? "A successful public search/registry observation supports this person and role lead; the underlying page, wealth, ownership/control, and targetability remain unverified." : "A successful public search/registry observation supports this person-name lead; the underlying page, role, wealth, ownership/control, and targetability remain unverified."),
           value: lead.name,
           sourceName: "canonical-agentic-discovery",
           sourceUrl: support.sourceUrl,
