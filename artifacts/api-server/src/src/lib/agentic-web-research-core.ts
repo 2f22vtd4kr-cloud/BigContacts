@@ -3366,6 +3366,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const compactFallbackDiscoveryRule = /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base)
     ? "DISCOVERY TARGETABILITY: people are the ultimate mission; organizations may be selected as provisional review targets when investigating them is a useful route to identify owners/operators/investors. The Investigator decides relevance; do not require ownership/equity/control clues before a provisional card, but seek and test them during target research. Never infer wealth from seniority. Honor Boss topic/geography. MIXED DISCOVERY: local/sector web plus relevant public business/ownership/transaction/asset sources; no fixed order or repeat of no-hit registry. Avoid generic wealth searches, rankings, and global-brand leaders without a plausible local-owner route. Publishers/articles are evidence leads, not targets; never use CompanyName, companywebsite.com, example.com."
     : "";
+  const scopeRecoveryRule = isInvestigatorPrompt
+    ? "SCOPE GUARD BLOCKED ACTION: blocked requests provide no evidence. Correct the actual mismatch (active subject, geography, or source class); try a materially different in-scope query/provider/source or an observed aligned URL. Do not repeat a rejected query with wording/provider changes alone. If the accepted scope is genuinely infeasible or ambiguous, report the specific failed dimension and request new scope from Boss/Right-hand. Investigator chooses actions; no fixed recovery sequence."
+    : "";
   const protectedTail = [
     fallbackOutputContract,
     fallbackEvidenceContract,
@@ -3466,9 +3469,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const minimumObservationTail = observationTail
     ? compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 80)
-    : "";
-  const scopeRecoveryRule = isInvestigatorPrompt
-    ? "SCOPE GUARD BLOCKED ACTION: blocked requests provide no evidence. Correct the actual mismatch (active subject, geography, or source class); try a materially different in-scope query/provider/source or an observed aligned URL. Do not repeat a rejected query with wording/provider changes alone. If the accepted scope is genuinely infeasible or ambiguous, report the specific failed dimension and request new scope from Boss/Right-hand. Investigator chooses actions; no fixed recovery sequence."
     : "";
   const mandatoryMinimumParts = [
     fallbackOutputContract,
