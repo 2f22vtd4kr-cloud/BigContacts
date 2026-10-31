@@ -297,5 +297,19 @@ describe("canonical Atlas organization target selection", () => {
     expect(control).toContain("selecting one authorizes target-scoped verification, not promotion");
     expect(control).toContain("EARLY REVIEW-TARGET JUDGMENT");
     expect(control).toContain("Do not accumulate names or wait for a target-count threshold");
+
+    // Runtime integrity checks may grade provenance, but cannot replace the
+    // Investigator's card-worthiness decision with regex/span or vector rules.
+    expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
+    expect(organizationMaterializer).not.toContain('finding.vectorType !== "other"');
+    expect(personMaterializer).not.toContain("normalizeCandidateIdentityName(finding.value) !==");
+    expect(personMaterializer).not.toContain("if (!span?.exact");
+    expect(organizationMaterializer).not.toContain("if (!span?.exact");
+    expect(reconcilerSource).not.toContain('finding.vectorType !== "other"');
+    expect(reconcilerSource).not.toContain("if (!span?.exact) continue;");
+    expect(control).toContain("input.admittedCandidates.map((candidate)");
+    expect(control).not.toContain("input.admittedCandidates.slice(0, 8)");
+    expect(organizationMaterializer).not.toContain("leadNames.push(name)");
+    expect(reconcilerSource).not.toContain("findings.set(identity, entry)");
   });
 });
