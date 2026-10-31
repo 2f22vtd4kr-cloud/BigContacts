@@ -50,7 +50,7 @@ describe("terminal review-card reconciliation", () => {
     expect(organizationMaterializer).not.toContain("isGenericDiscoveryMetadataTitle");
     const registryLeadObservationBlock = organizationMaterializer.slice(
       organizationMaterializer.indexOf("if (registry &&"),
-      organizationMaterializer.indexOf('if (payload.execution !== "success")'),
+      organizationMaterializer.indexOf("// Partial provider execution can still contain successful, attributable"),
     );
     expect(registryLeadObservationBlock).not.toContain("leadNames.push(name)");
 
@@ -307,7 +307,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(control).toContain("if the total prompt cannot fit, prompt construction fails visibly");
     const registryLeadObservationBlock = organizationMaterializer.slice(
       organizationMaterializer.indexOf("if (registry &&"),
-      organizationMaterializer.indexOf('if (payload.execution !== "success")'),
+      organizationMaterializer.indexOf("// Partial provider execution can still contain successful, attributable"),
     );
     const registryReconciliationBlock = reconcilerSource.slice(
       reconcilerSource.indexOf("if (registryAction &&"),
