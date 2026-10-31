@@ -55,6 +55,23 @@ describe("compact company registry lead retention", () => {
       sourceUrls: [sourceUrl],
       notes: "Status: dissolved Type: ltd",
     }]);
+
+    const nonClaimGradeUrl = "https://www.zoominfo.com/p/example-company/123";
+    const moreThanEightRows = Array.from({ length: 10 }, (_, index) => ({
+      type: "Corporation",
+      name: `Observed Company ${index + 1}`,
+      metadata: JSON.stringify({ urls: [nonClaimGradeUrl + "?row=" + index] }),
+    }));
+    const allObserved = compactRegistryCompanyLeads(moreThanEightRows, ({ metadata }) => {
+      try {
+        const parsed = JSON.parse(metadata ?? "{}") as { urls?: string[] };
+        return Array.isArray(parsed.urls) ? parsed.urls : [];
+      } catch {
+        return [];
+      }
+    });
+    expect(allObserved).toHaveLength(10);
+    expect(allObserved[0]?.sourceUrls[0]).toContain("zoominfo.com");
   });
 });
 
