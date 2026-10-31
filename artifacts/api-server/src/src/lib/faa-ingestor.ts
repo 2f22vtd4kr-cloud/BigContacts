@@ -272,6 +272,7 @@ export function buildFaaRegistrantEntity(input: {
       sourceClass: "registry_adapter_source",
       sourceContributor: null,
       sourceMechanism: "faa_registry_import",
+      verificationLevel: "registry_record",
       independentCorroborationStatus: "not_assessed",
       sourceFieldSemantics: "FAA registrant type identifies the registration applicant; it does not establish ultimate beneficial ownership or personal wealth.",
       candidateKind: isPersonCandidate ? "individual_registrant_candidate" : "legal_entity_registrant_candidate",
