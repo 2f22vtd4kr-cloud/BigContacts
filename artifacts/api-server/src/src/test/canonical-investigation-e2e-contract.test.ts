@@ -199,6 +199,31 @@ describe("canonical investigation end-to-end acceptance proof", () => {
     });
   });
 
+  it("reports successful observations, unique sources and repeat-action guard blocks", () => {
+    const proof = companyProof();
+    proof.caseEvents.push({
+      id: 12,
+      eventType: "tool_observation",
+      actorRole: "head_investigator",
+      payload: JSON.stringify({
+        jobId: "job-qa-1",
+        runId: "run-qa-1",
+        runModel: "groq-investigator-120b",
+        action: "visit",
+        execution: "blocked",
+        observation: "repeat_action_guard blocked duplicate",
+      }),
+    });
+    expect(verifyCanonicalCardProof(proof).investigatorExecutionMetrics).toMatchObject({
+      toolObservations: 2,
+      executionCounts: { success: 1, blocked: 1 },
+      duplicateActionBlocks: 1,
+      sourceUrlObservations: 1,
+      uniqueSourceUrlCount: 1,
+      repeatedSourceUrlObservations: 0,
+    });
+  });
+
   it("proves successful real provider calls for Boss, Right-hand and Investigator and reports usage", () => {
     const proof = verifyModelAudit({
       proof: { jobId: "job-qa-1", caseId: 42 },
