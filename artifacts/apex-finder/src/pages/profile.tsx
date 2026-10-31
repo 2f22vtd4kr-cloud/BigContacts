@@ -1070,7 +1070,7 @@ export default function ApexProfile() {
                     "rounded border px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-wider",
                     fetched ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" : "border-amber-400/30 bg-amber-400/10 text-amber-300",
                   )}>
-                    {fetched ? "Content fetched" : "Search-result lead"}
+                    {registryRecord ? "Registry record" : fetched ? "Content fetched" : "Search-result lead"}
                   </span>
                 </div>
                 <p className="text-[12px] text-muted-foreground mt-1.5 leading-relaxed">
@@ -1078,7 +1078,7 @@ export default function ApexProfile() {
                 </p>
               </div>
               <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground shrink-0">
-                {fetched ? "Publisher authority not implied" : "Unverified lead"}
+                {registryRecord ? "Registry record; corroboration not assessed" : fetched ? "Publisher authority not implied" : "Unverified lead"}
               </span>
             </div>
             {typeof meta.role === "string" && meta.role.trim() && (
