@@ -780,7 +780,7 @@ async function materializePartialPersonLeadCards(input: {
             sourceSpanNote: support.spanVerified ? null : "Investigator-selected person lead; exact source span not independently isolated.",
             spanStart: support.spanStart,
             spanEnd: support.spanEnd,
-            sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor }),
+            sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt }),
             noWealthOrContactConclusion: true,
           }),
         });
@@ -1106,7 +1106,7 @@ async function materializePartialOrganizationLeadCards(input: {
             sourceSpanNote: support.spanVerified ? null : "Investigator-selected organization lead; exact source span not independently isolated.",
             spanStart: support.spanStart,
             spanEnd: support.spanEnd,
-            sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt }),
+            sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor }),
             noOwnershipOrWealthConclusion: true,
           }),
         });
