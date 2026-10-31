@@ -67,46 +67,19 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
   // same-observation co-binding gate in bureau-contact-persist-strict.ts.
   return supportsReviewableClaimAcrossObservations(observations, finding, finding.value, finding.vectorType);
 }
-function isSearchResultOrganizationReviewLead(finding: AgenticFinding): boolean {
-  return finding.scope === "organization"
-    && finding.vectorType === "other"
-    && !finding.personName?.trim()
-    && !finding.role?.trim()
-    && finding.note.includes("LOW-CONFIDENCE REVIEW-ONLY COMPANY LEAD")
-    && finding.note.includes("search_result_lead");
-}
-
-function searchResultReviewLeadIsSupported(finding: AgenticFinding, records: AgenticTrajectoryRecord[]): boolean {
-  const cited = [...new Set(finding.sourceUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)))];
-  if (!cited.length || !finding.value.trim() || !cited.every(isClaimGradeDiscoverySourceUrl)) return false;
-  const supported = new Set<string>();
-  for (const record of records) {
-    if (record.execution !== "success"
-      || typeof record.observation !== "string"
-      || !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)
-      || !bindExactSourceSpan(record.observation, finding.value.trim())?.exact) continue;
-    const leadUrls = (record.leadUrls ?? []).map(normalizeObservedUrl).filter((url): url is string => Boolean(url));
-    for (const url of leadUrls) if (cited.includes(url)) supported.add(url);
-  }
-  // Search-result leads are review-only: every cited URL must be a lead URL
-  // from a successful search observation containing the exact organization name.
-  return cited.every((url) => supported.has(url));
-}
-
 export function sourceBackedAgenticFindings(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]):AgenticFinding[]{
   const observed=claimGradeSourceUrlsFromTrajectory(records);
   return findings
     .filter((f)=>Array.isArray(f.sourceUrls))
     .map((f)=>({...f,sourceUrls:[...new Set(f.sourceUrls.map(normalizeObservedUrl).filter((url):url is string=>Boolean(url)))]}))
-    .filter((f)=>f.sourceUrls.length>0&&(
-      isSearchResultOrganizationReviewLead(f)
-        ? searchResultReviewLeadIsSupported(f,records)
-        : f.sourceUrls.every((url)=>observed.has(url))&&claimAppearsInObservedMaterial(f,records)
-    ));
+    .filter((f)=>f.reviewOnly !== true
+      && f.sourceUrls.length > 0
+      && f.sourceUrls.every((url)=>observed.has(url))
+      && claimAppearsInObservedMaterial(f,records));
 }
 export function normalizeReviewLeadFindings(findings: AgenticFinding[] = []): AgenticFinding[] {
   return findings
-    .filter((finding) => Array.isArray(finding.sourceUrls))
+    .filter((finding) => finding.reviewOnly === true && Array.isArray(finding.sourceUrls))
     .map((finding) => ({
       ...finding,
       sourceUrls: [...new Set(finding.sourceUrls
