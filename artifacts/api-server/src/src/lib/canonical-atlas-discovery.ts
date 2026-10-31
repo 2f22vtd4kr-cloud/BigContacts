@@ -1069,7 +1069,7 @@ async function materializePartialOrganizationLeadCards(input: {
             ? "The fetched public source contains the exact organization name; ownership, materiality, and a targetable person remain unverified."
             : "A successful public search observation contains the exact organization name and an attributable result URL; the underlying page, ownership, materiality, and a targetable person remain unverified.",
           value: name,
-          sourceName: "canonical-agentic-discovery",
+          sourceName: new URL(support.sourceUrl).hostname.replace(/^www\./i, ""),
           sourceUrl: support.sourceUrl,
           sourceDomain: new URL(support.sourceUrl).hostname,
           status: "review",
