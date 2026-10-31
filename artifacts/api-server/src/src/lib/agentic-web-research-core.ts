@@ -3244,7 +3244,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const protectedRuleCandidates = [
     "Press/profile pages may support a named person or organization review lead when you judge it relevant; the page itself is not a contact route unless it provides a legitimate public professional contact path.",
     "Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion.",
-    "Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
+    "Target-stage research tests match the admitted target type (person, organization, trust, or asset), tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion.",
     "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct structured extraction failures.",
     "BINARY URL POLICY: use visit for PDF/text-bearing binary documents; browser_fetch is HTML-oriented. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action.",
     "LEAD FOLLOW-UP GUIDANCE (non-binding): compare in-scope unvisited lead URLs by expected information gain; URLs/snippets remain leads until fetched. The Investigator retains action choice; this is not evidence or a mandated next action.",
