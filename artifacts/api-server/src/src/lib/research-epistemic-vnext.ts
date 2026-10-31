@@ -161,10 +161,6 @@ export function bindExactSourceSpanToUrl(
     if (normalize(match[1]) !== expectedUrl) continue;
     const segmentStartLine = observation.lastIndexOf("\\n", match.index - 1);
     let segmentStart = segmentStartLine >= 0 ? segmentStartLine + 1 : 0;
-    if (!observation.slice(segmentStart, match.index).trim() && segmentStartLine > 0) {
-      const priorLine = observation.lastIndexOf("\\n", segmentStartLine - 1);
-      segmentStart = priorLine >= 0 ? priorLine + 1 : 0;
-    }
     const nextMatch = matches[index + 1];
     let segmentEnd = observation.length;
     if (nextMatch) {
