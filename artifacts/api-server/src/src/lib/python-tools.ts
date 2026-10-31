@@ -170,7 +170,6 @@ export async function runHolehe(email: string, options: SubprocessOptions = {}):
     ...(item.rateLimit === true ? { rateLimit: true } : {}),
     ...(typeof item.emailrecovery === "boolean" || typeof item.emailrecovery === "string" ? { emailrecovery: item.emailrecovery } : {}),
     ...(typeof item.phonenumber === "boolean" || typeof item.phonenumber === "string" ? { phonenumber: item.phonenumber } : {}),
-    ...(isRecord(item.others) ? { others: Object.fromEntries(Object.entries(item.others).slice(0, 20)) } : {}),
   }));
   return {
     email: normalizedEmail, found,
