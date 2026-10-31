@@ -3510,7 +3510,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           // Keep the semantic scope compressor responsible for preserving all named
           // geographies and source families; raw head/tail slicing can silently drop
           // a country or the source class that defines the approved pivot.
-          const boundedScope = compactActiveBossScope(scopeText, 230);
+          const boundedScope = compactActiveBossScope(scopeText, 360);
           return "ACTIVE BOSS SCOPE: " + boundedScope;
         })()
       : "";
@@ -3677,24 +3677,27 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
+    // Prioritize the active scope, newest durable action, exact source URLs and
+    // fetched claim before optional policy narration. A tight emergency budget
+    // must not leave the Investigator with a schema but no research context.
+    appendBudgeted(minimumScopeContext || compactCaseObjective, 360, "[scope detail omitted]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 280, "[older trajectory detail omitted]");
+    appendBudgeted(urlInventory, 600, "[additional source URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(fetchedSourceLabel, 180, "[source label omitted]");
+    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 300, "[source excerpt detail omitted]");
+    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 90), 240, "[latest observation detail omitted]");
     appendBudgeted(
-      "DISCOVERY LEAD HANDOFF CONTRACT: The Investigator chooses which specific people or organizations merit provisional review cards; this is not automatic every-result admission. Preserve the exact associated public URL. Organization findings remain scope=organization with personName=null and role=null; person findings use scope=candidate, the exact name and role or null. Review cards are unverified leads, not evidence or promotion. Search snippets/URLs do not prove identity, role, ownership, wealth, HNWI status, relationships or contactability. Failed fetches and preflight blocks are unobserved, not negative findings. Fetched claims must bind to the exact fetched source; target research independently corroborates/falsifies and verifies a public professional route. Query and source strategy remain model-owned; no fixed sequence.",
-      700, "[optional review detail omitted]"
+      "PARTIAL FINDINGS (not terminal-only): preserve useful source-backed people and organization review leads selected by the Investigator, not every result. Company leads use the exact observed organization name and associated public HTTPS URL; person leads use the exact observed name, stated role or null, and associated public HTTPS URL. Cards are unverified leads, not identity, role, ownership, wealth, HNWI, relationship or contact evidence. Search snippets are leads, not evidence; failed/blocked fetches are unobserved. After a successful visit/browser_fetch, findings bind to that exact fetched URL and only claims the page supports. Higher admission requires one successfully fetched claim-grade source binding name, role and ownership/control/equity/investment clue. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. No fixed action sequence.",
+      850, "[review-lead detail omitted]"
     );
     appendBudgeted(terminalEvidenceRule, 240, "[terminal detail omitted]");
     appendBudgeted(scopeRecoveryRule, 240, "[scope-recovery detail omitted]");
-    appendBudgeted(minimumScopeContext || compactCaseObjective, 260, "[scope detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 300, "[optional action detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 150, "[conditional capability detail omitted]");
+    appendBudgeted(conditionalCapabilityRule, 170, "[conditional capability detail omitted]");
     appendBudgeted(minimumProviderRule, 140, "[provider detail omitted]");
-    appendBudgeted(minimumRegistryEvidenceRule, 200, "[registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 170, "[binary detail omitted]");
-    // URL-aware compaction retains complete URLs or omits them whole.
-    appendBudgeted(urlInventory, 500, "[additional source URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(fetchedSourceLabel, 180, "[source label omitted]");
-    appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 340, "[source excerpt detail omitted]");
-    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 90), 240, "[latest observation detail omitted]");
-    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 200, "[older trajectory detail omitted]");
+    appendBudgeted(minimumRegistryEvidenceRule, 220, "[registry detail omitted]");
+    appendBudgeted(minimumBinaryUrlRule, 220, "[binary detail omitted]");
+    appendBudgeted(leadGuidance, 220, "[lead guidance omitted]");
     appendBudgeted(aiMemorySection, 140, "[older memory omitted]");
     appendBudgeted(markerSuffix, 90, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
