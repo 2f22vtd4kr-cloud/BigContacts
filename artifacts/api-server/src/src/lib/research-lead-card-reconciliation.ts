@@ -306,7 +306,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
             value: lead.name, sourceName: new URL(support.url).hostname.replace(/^www\./i, ""), sourceUrl: support.url,
             sourceDomain: new URL(support.url).hostname.replace(/^www\./i, ""), status: "review", confidence: 0.2,
             observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
-            metadata: JSON.stringify({ partialReview: true, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
+            metadata: JSON.stringify({ partialReview: true, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", sourceClass: "unclassified_public_source", sourceContributor: null, sourceMechanism: support.action ?? null, independentCorroborationStatus: "not_assessed", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
           });
           added += 1;
           updated = true;
@@ -517,10 +517,10 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
             claim: isFetched
               ? (lead.role ? "A successfully fetched public-source observation co-binds this exact person name and role; wealth potential and contactability remain unverified." : "A successfully fetched public-source observation supports this person name; role, wealth potential, and contactability remain unverified.")
               : (lead.role ? "A source observation supports this person and role lead; wealth potential and contactability remain unverified." : "A source observation supports this person-name lead; role, wealth potential, and contactability remain unverified."),
-            value: lead.name, sourceName: "canonical-agentic-discovery", sourceUrl: support.url,
-            sourceDomain: new URL(support.url).hostname, status: "review", confidence: 0.25,
+            value: lead.name, sourceName: new URL(support.url).hostname.replace(/^www\./i, ""), sourceUrl: support.url,
+            sourceDomain: new URL(support.url).hostname.replace(/^www\./i, ""), status: "review", confidence: 0.25,
             observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
-            metadata: JSON.stringify({ partialReview: true, role: lead.role, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
+            metadata: JSON.stringify({ partialReview: true, role: lead.role, verificationLevel: support.verificationLevel, evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result", sourceClass: "unclassified_public_source", sourceContributor: null, sourceMechanism: support.action ?? null, independentCorroborationStatus: "not_assessed", discoveryCaseId: researchCase.id, atlasJobId: jobId, supportingEventId: support.eventId }),
           });
           added += 1;
           updated = true;
