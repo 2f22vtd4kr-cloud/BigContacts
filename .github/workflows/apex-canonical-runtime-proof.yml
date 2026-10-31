@@ -163,7 +163,7 @@ jobs:
               curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace.json || true
               curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/entities?limit=50&offset=0" | tee /tmp/entities.json || true
               curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/dashboard/research-leads?limit=8" | tee /tmp/dashboard-research-leads.json || true
-              CASE_ID="$(node -e 'const j=require("/tmp/job-final.json");const l=require("/tmp/launch.json");let r=j.result;if(typeof r==="string"){try{r=JSON.parse(r)}catch{r={}}};const id=Number(r?.discovery?.caseId??l?.caseId);if(Number.isSafeInteger(id)&&id>0)process.stdout.write(String(id))')"
+              CASE_ID="$(node -e 'const j=require("/tmp/job-final.json");const l=require("/tmp/launch.json");let r=j.result;if(typeof r==="string"){try{r=JSON.parse(r)}catch{r={}}};const id=Number(r?.discovery?.caseId??j?.caseId??l?.caseId);if(Number.isSafeInteger(id)&&id>0)process.stdout.write(String(id))')"
               if [ -n "$CASE_ID" ]; then
                 curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/research/bureau/cases/$CASE_ID" | tee /tmp/case.json || true
                 curl -sS -m 20 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/research/bureau/cases/$CASE_ID/events" | tee /tmp/case-events.json || true
