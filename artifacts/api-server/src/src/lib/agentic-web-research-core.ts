@@ -1801,7 +1801,7 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
       (Array.isArray(f.sourceUrls) ? f.sourceUrls : [])
         .filter((url): url is string => typeof url === "string")
         .map(normalizedUrl)
-        .filter((url): url is string => Boolean(url) && url.startsWith("https://")),
+        .filter((url): url is string => url !== null && url.startsWith("https://")),
     )];
     if (!sourceUrls.length) continue;
 
