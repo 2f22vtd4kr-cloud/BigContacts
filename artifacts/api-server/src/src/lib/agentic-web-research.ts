@@ -76,57 +76,6 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   const value = finding.value.trim();
   const identity = finding.scope === "candidate" && finding.personName ? finding.personName.trim() : "";
 
-  // A deterministic search-result organization lead is deliberately not claim-grade
-  // evidence, but it must survive long enough to create a clearly labelled review
-  // card. This exception cannot admit people, contacts, wealth, or model-authored
-  // claims: it requires the extractor's marker, exact name text in a successful
-  // search observation, and the exact eligible URL in that action's leadUrls.
-  const isSearchResultReviewLead = finding.scope === "organization"
-    && finding.vectorType === "other"
-    && !finding.personName?.trim()
-    && !finding.role?.trim()
-    && finding.note.includes("LOW-CONFIDENCE REVIEW-ONLY COMPANY LEAD")
-    && finding.note.includes("search_result_lead");
-  if (isSearchResultReviewLead) {
-    const eligibleCited = new Set([...cited].filter((url) => isClaimGradeDiscoverySourceUrl(url)));
-    if (!eligibleCited.size) return false;
-    return records.some((record) => {
-      if (record.execution !== "success"
-        || typeof record.observation !== "string"
-        || !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)
-        || !bindExactSourceSpan(record.observation, value)?.exact) return false;
-      const leadUrls = (record.leadUrls ?? []).map(normalizedObservedUrl).filter((url): url is string => Boolean(url));
-      return leadUrls.some((url) => eligibleCited.has(url));
-    });
-  }
-
-  // Preserve a person+role observation as a review-only card at the first
-  // successful search checkpoint. This is not an HNWI admission: the exact
-  // person name and page-stated role must co-occur in the same observed result,
-  // bind to an eligible lead URL, and carry the explicit low-confidence marker.
-  const isSearchResultPersonReviewLead = finding.scope === "candidate"
-    && finding.vectorType === "other"
-    && Boolean(identity)
-    && Boolean(finding.role?.trim())
-    && normalizeCandidateIdentityName(value) === normalizeCandidateIdentityName(identity)
-    && finding.note.includes("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD")
-    && finding.note.includes("search_result_lead");
-  if (isSearchResultPersonReviewLead) {
-    const eligibleCited = new Set([...cited].filter((url) => isClaimGradeDiscoverySourceUrl(url)));
-    if (!eligibleCited.size) return false;
-    const supportedUrls = new Set<string>();
-    for (const record of records) {
-      if (record.execution !== "success"
-        || typeof record.observation !== "string"
-        || !["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(record.action)) continue;
-      const span = bindExactSourceSpan(record.observation, finding.role!.trim(), identity, 320);
-      if (!span?.exact || !span.subjectMatched || !span.valueMatched) continue;
-      const leadUrls = (record.leadUrls ?? []).map(normalizedObservedUrl).filter((url): url is string => Boolean(url));
-      for (const url of leadUrls) if (eligibleCited.has(url)) supportedUrls.add(url);
-    }
-    return [...eligibleCited].every((url) => supportedUrls.has(url));
-  }
-
   let valueObserved = false;
   let identityObserved = !identity;
   let support = 0;
@@ -144,7 +93,39 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   return valueObserved && identityObserved && support > 0;
 }
 export function groundedFindingsForTrajectory(findings: AgenticFinding[], records: readonly CoreResult["trajectoryRecords"][number][] = []): AgenticFinding[] {
-  return findings.filter((finding) => groundedFinding(finding, records));
+  return findings.filter((finding) => finding.reviewOnly !== true && groundedFinding(finding, records));
+}
+
+export function reviewLeadFindingsForTrajectory(
+  findings: AgenticFinding[],
+  records: readonly CoreResult["trajectoryRecords"][number][] = [],
+): AgenticFinding[] {
+  const observedPublicUrls = new Set<string>();
+  for (const record of records) {
+    if (record.execution !== "success" && record.execution !== "partial") continue;
+    const action = record.action;
+    const urls = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(action)
+      ? [...(record.leadUrls ?? []), ...(record.observedUrls ?? [])]
+      : ["visit", "browser_fetch"].includes(action)
+        ? (record.observedUrls ?? [])
+        : [];
+    for (const rawUrl of urls) {
+      const url = normalizedObservedUrl(rawUrl);
+      if (url?.startsWith("https://")) observedPublicUrls.add(url);
+    }
+  }
+
+  return findings
+    .filter((finding) => finding.reviewOnly === true
+      && ((finding.scope === "candidate" && Boolean(finding.personName?.trim()))
+        || (finding.scope === "organization" && Boolean(finding.value.trim()))))
+    .map((finding) => ({
+      ...finding,
+      sourceUrls: [...new Set((finding.sourceUrls ?? [])
+        .map(normalizedObservedUrl)
+        .filter((url): url is string => Boolean(url) && url.startsWith("https://") && observedPublicUrls.has(url)))],
+    }))
+    .filter((finding) => finding.sourceUrls.length > 0);
 }
 function recordResult(intelligence: ResearchIntelligenceEngine, record: CoreResult["trajectoryRecords"][number] | undefined, priorRecords: readonly CoreResult["trajectoryRecords"][number][] = []): void {
   if (!record) return;
@@ -251,7 +232,10 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
           failureDomain: raw.failureDomain ?? scopeGuardDiagnostic.domain,
           failureKind: raw.failureKind ?? scopeGuardDiagnostic.kind,
         } : {}),
-        findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...historyRecords, ...records, { ...raw, turn: raw.turn }]),
+        findings: [
+          ...groundedFindingsForTrajectory((raw.findings as AgenticFinding[]).filter((finding) => finding.reviewOnly !== true), [...historyRecords, ...records, { ...raw, turn: raw.turn }]),
+          ...reviewLeadFindingsForTrajectory((raw.findings as AgenticFinding[]).filter((finding) => finding.reviewOnly === true), [...historyRecords, ...records, { ...raw, turn: raw.turn }]),
+        ],
       };
       const priorRecords = [...historyRecords, ...records];
       records = [...records, normalizedRecord];
