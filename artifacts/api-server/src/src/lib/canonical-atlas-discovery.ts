@@ -342,7 +342,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
         await tx.insert(researchEvidenceTable).values({
           sessionId: session.id, entityId, claimType: "identity_candidate",
           claim: "Investigator-discovered candidate: " + name + "; role: " + selectedRole,
-          value: name, sourceName: new URL(support.sourceUrl).hostname,
+          value: name, sourceName: support.publisher,
           sourceUrl: support.sourceUrl, sourceDomain: new URL(support.sourceUrl).hostname,
           status: "review", confidence: 0.5, observedAt: supportEvent?.createdAt ?? new Date(),
           freshnessScore: 1,
