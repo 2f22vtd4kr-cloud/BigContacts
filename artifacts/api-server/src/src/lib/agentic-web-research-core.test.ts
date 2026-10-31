@@ -3299,7 +3299,7 @@ describe("action-level durable review-card checkpoints", () => {
   it("keeps model-selected partial cards tied to same-case observed URLs without evidence-grade admission filters", () => {
     expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.executionStatus)');
     expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.execution)');
-    expect(researchLeadCardReconciliationSource).toContain('&& isClaimGradeDiscoverySourceUrl(sourceUrl)');
+    expect(researchLeadCardReconciliationSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
     expect(canonicalAtlasDiscoverySource).toContain('if (!sourceUrl) continue;');
     expect(researchLeadCardReconciliationSource).toContain("if (!supports.size) continue;");
     expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.executionStatus !== "success")');
@@ -3345,8 +3345,8 @@ describe("single fetched page organization identity", () => {
   });
 
   it("requires page identity metadata to be attached to successful visit and browser-fetch observations", () => {
-    expect(agenticCoreSource).toContain("observedPageIdentity: page.pageIdentity ?? null");
-    expect(agenticCoreSource).toContain("observedPageIdentity: result.html && observedBrowserUrl ? extractObservedOrganizationIdentity(result.html, observedBrowserUrl) : null");
+    expect(agenticCoreSource).toContain("observedPageIdentity: restrictedCommunitySource ? null : page.pageIdentity ?? null");
+    expect(agenticCoreSource).toContain("observedPageIdentity: result.html && observedBrowserUrl && !restrictedCommunitySource ? extractObservedOrganizationIdentity(result.html, observedBrowserUrl) : null");
     expect(researchLeadCardReconciliationSource).toContain("pageIdentitySource === url");
     expect(researchLeadCardReconciliationSource).toContain("organization name only; ownership, wealth, targetability, and person attribution remain unestablished");
   });
