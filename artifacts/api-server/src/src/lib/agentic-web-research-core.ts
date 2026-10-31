@@ -3238,7 +3238,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       + JSON.stringify(exactInventoryUrls)
       + (omittedInventoryUrlCount ? " " + omittedInventoryUrlCount + " additional URL(s) omitted whole; immutable case-event ledger remains authoritative." : "")
     : "";
-  const isDiscoveryPrompt = mode === "discovery" || /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base);
+  const isDiscoveryPrompt = mode === "discovery" || (mode !== "target" && /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base));
   const minimumTargetabilityMarker = isDiscoveryPrompt
     ? "DISCOVERY TARGETABILITY: people remain the ultimate mission; an organization may be selected as a provisional review target when investigating it is a useful route to its owners/operators/investors. Do not infer personal wealth from company prestige."
     : "";
@@ -3358,7 +3358,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
     ? (isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: " : "")
-      + "PARTIAL FINDINGS: Investigator selects review-only person/company leads; preserve exact observed name and associated public HTTPS URL; person role may be null. Search-only person label: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead. Snippets are leads, not evidence; failed/blocked fetches are unobserved. No wealth/ownership/control/relationship/HNWI/contact conclusion. Higher admission requires a successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to exact source span. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads, and verifies direct/indirect public professional routes before promotion. Avoid generic wealth/net-worth/private-equity-profile searches alone."
+      + "PARTIAL FINDINGS (not terminal-only): Investigator selects review-only person/company leads; preserve exact observed name and associated public HTTPS URL; person role may be null. Search-only person label: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead. Snippets are leads, not evidence; failed/blocked fetches are unobserved. No ownership/wealth/relationship/HNWI/contact claim from search-only leads. Higher admission requires a successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to exact source span. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads, and verifies direct/indirect public professional routes before promotion. Avoid generic wealth/net-worth/private-equity-profile searches alone."
     : "";
   const conditionalCapabilityRule = isInvestigatorPrompt
     ? "Conditional specialist OSINT actions: ONLY if the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; AVAILABLE ACTIONS is authoritative."
