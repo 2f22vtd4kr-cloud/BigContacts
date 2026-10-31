@@ -640,7 +640,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(reviewToBoss).toContain("rightHand.error = \"Right-hand returned an invalid advisory review contract.\"");
     expect(controlSource).toContain("if (input.rightHandOverride)");
     expect(controlSource).toContain("rightHand = { ...input.rightHandOverride };");
-    expect(controlSource).toContain("if (rightHand.status !== \"completed\" && !input.rightHandOverride)");
+    expect(controlSource).toContain("Right-hand is advisory on every turn");
+    expect(controlSource).not.toContain('if (rightHand.status !== "completed" && !input.rightHandOverride)');
   });
 
   it("recovers only from an out-of-set candidate selection without relaxing admission", () => {
