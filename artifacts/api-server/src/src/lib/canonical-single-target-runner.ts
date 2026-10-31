@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
-import { db, entitiesTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
+import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchEvidenceTable } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getJobStrict, updateJob } from "./job-queue";
 import { isCanonicalJobOwner } from "./canonical-job-lock";
@@ -18,6 +18,7 @@ import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, deriveProviderBoundedActTimeoutMs
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { sanitizeObservableValue } from "./url-privacy";
 import { delCachePattern } from "./redis";
+import { buildCanonicalSeededTargetBinding, classifyCanonicalSeededTargetType } from "./canonical-seeded-target";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; initialDirection?: string; manageJobLifecycle?: boolean; maxInvestigatorIterations?: number; excludedInvestigatorLlm?: readonly InvestigatorCapability[] };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null; evidenceGraphCount?: number };
 type TargetCase = { id: number; targetEntityId: number; status: string; iteration: number; objective: string; caseFile: string | null };
@@ -226,17 +227,15 @@ async function reconcileTargetCaseCancellation(atlasJobId: string, caseId: numbe
   if (job.status !== "running") throw new Error(`Canonical Atlas job is ${job.status}; refusing further target control-plane work.`);
   if (!(await isCanonicalJobOwner("atlas-run", atlasJobId))) throw new Error("Canonical Atlas lease was lost; refusing further target control-plane work.");
 }
-function openingContext(target: { name: string; type: string }, companyName: string | null, caseId: number, objective: string, prior: string): string { return compactInvestigationContext({ raw: ["# Apex Atlas — Investigation Context", `Case: ${caseId}`, `Target: ${target.name}`, `Target type: ${target.type}`, `Company: ${companyName ?? "not established"}`, "## Bureau operating law", "Groq Boss is Boss. Groq Right-hand is Right Hand Advisor. the selected Investigator capability owns the research trajectory. The Investigator owns the research trajectory. Deterministic code validates safety, provenance, budgets, lifecycle and promotion integrity; it does not prescribe research hops.", "## Objective", objective, "## Prior durable context", prior || "No prior target-scoped investigation context exists."].join("\n\n") }); }
+function openingContext(target: { name: string; type: string }, companyName: string | null, caseId: number, objective: string, prior: string, seededBinding: Record<string, unknown>): string { return compactInvestigationContext({ raw: ["# Apex Atlas — Investigation Context", `Case: ${caseId}`, `Target: ${target.name}`, `Target type: ${target.type}`, `Company: ${companyName ?? "not established"}`, "## Original seeded source and evidence (prior observations, not verified conclusions)", JSON.stringify(seededBinding), "## Bureau operating law", "Groq Boss is Boss. Groq Right-hand is Right Hand Advisor. the selected Investigator capability owns the research trajectory. The Investigator owns the research trajectory. Deterministic code validates safety, provenance, budgets, lifecycle and promotion integrity; it does not prescribe research hops.", "## Objective", objective, "## Prior durable context", prior || "No prior target-scoped investigation context exists."].join("\n\n") }); }
 export type CanonicalSingleTargetResult = { investigatorIterationsUsed: number; resourceLimited: boolean; status: "complete" | "review" | "cancelled"; exhaustedInvestigatorLlm: InvestigatorCapability[]; investigatorLlm: InvestigatorCapability | null };
 
 export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, targetId: number, options: CanonicalSingleTargetOptions = {}): Promise<CanonicalSingleTargetResult> {
   const manageJobLifecycle = options.manageJobLifecycle !== false;
   const publishJob = async (patch: Parameters<typeof updateJob>[1]) => { if (manageJobLifecycle) await updateJob(atlasJobId, patch); };
-  const [target] = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, targetId)).limit(1); if (!target) throw new Error(`Atlas target entity ${targetId} was not found.`);
+  const [target] = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata, sourceRegistries: entitiesTable.sourceRegistries, notes: entitiesTable.notes }).from(entitiesTable).where(eq(entitiesTable.id, targetId)).limit(1); if (!target) throw new Error(`Atlas target entity ${targetId} was not found.`);
   const companyName = (() => { try { const metadata = target.metadata ? JSON.parse(target.metadata) as Record<string, unknown> : {}; return typeof metadata.companyName === "string" ? metadata.companyName : null; } catch { return null; } })();
   const caseRow = await ensureTargetCase(target, companyName, atlasJobId, options.existingCaseId);
-  await delCachePattern("entities:list:*").catch(() => undefined);
-  await reconcileTargetCaseCancellation(atlasJobId, caseRow.id);
   if (caseRow.status !== "active") {
     if (manageJobLifecycle) {
       const terminalStatus = caseRow.status === "complete" ? "done" : caseRow.status === "cancelled" ? "cancelled" : "failed";
@@ -249,7 +248,78 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     }
     return { investigatorIterationsUsed: 0, resourceLimited: false, status: caseRow.status === "cancelled" ? "cancelled" : caseRow.status === "complete" ? "complete" : "review", exhaustedInvestigatorLlm: [], investigatorLlm: null };
   }
-  try { const depth = resolveResearchDepth({ explicit: options.researchDepth }); const targetIterationCeiling = Math.min(depth.agenticMaxIterations, Math.max(0, Math.trunc(options.maxInvestigatorIterations ?? depth.agenticMaxIterations))); const hardTimeoutMs = Math.min(600_000, Math.max(30_000, Number.isFinite(options.targetTimeoutMs) ? Math.trunc(options.targetTimeoutMs!) : depth.agenticHardTimeoutMs)); const deadline = Date.now() + hardTimeoutMs; let caseState = parseCaseFile(caseRow.caseFile); let contextDocument = typeof caseState.contextDocument === "string" ? caseState.contextDocument : openingContext(target, companyName, caseRow.id, caseRow.objective, ""); let durableTrajectory = await loadDurableTargetTrajectory(caseRow.id); if (durableTrajectory.records.length) contextDocument = buildInvestigatorContext({ targetName: target.name, companyName, objective: caseRow.objective, mode: "target", trajectoryRecords: durableTrajectory.records, lastObservation: durableTrajectory.records[durableTrajectory.records.length - 1]?.observation ?? "", findings: durableTrajectory.findings }); const initialExcludedInput = options.excludedInvestigatorLlm ?? []; const initialExcludedInvestigators = new Set<InvestigatorCapability>([...initialExcludedInput, ...getInvestigatorCredentialAliases(process.env, initialExcludedInput)]);
+  await reconcileTargetCaseCancellation(atlasJobId, caseRow.id);
+  const seededEvidenceRows = await db.select({
+    id: researchEvidenceTable.id,
+    claimType: researchEvidenceTable.claimType,
+    claim: researchEvidenceTable.claim,
+    value: researchEvidenceTable.value,
+    sourceName: researchEvidenceTable.sourceName,
+    sourceUrl: researchEvidenceTable.sourceUrl,
+    status: researchEvidenceTable.status,
+    confidence: researchEvidenceTable.confidence,
+    observedAt: researchEvidenceTable.observedAt,
+  }).from(researchEvidenceTable).where(eq(researchEvidenceTable.entityId, target.id)).orderBy(desc(researchEvidenceTable.id)).limit(40);
+  const seededBinding = buildCanonicalSeededTargetBinding({
+    entityId: target.id,
+    entityName: target.name,
+    entityType: target.type,
+    sourceRegistries: target.sourceRegistries,
+    notes: target.notes,
+    metadata: target.metadata,
+    evidence: seededEvidenceRows,
+  });
+  await db.transaction(async (tx) => {
+    const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType, targetEntityId: researchCasesTable.targetEntityId, iteration: researchCasesTable.iteration, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
+      .from(researchCasesTable).where(eq(researchCasesTable.id, caseRow.id)).for("update").limit(1);
+    if (!locked || locked.caseType !== "target" || locked.targetEntityId !== target.id || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(locked.currentAction ?? ""))) {
+      throw new Error("Seeded target binding rejected: canonical case no longer belongs to the selected entity.");
+    }
+    const durable = parseCaseFile(locked.caseFile);
+    if (String(durable.atlasJobId ?? "") !== atlasJobId) {
+      throw new Error("Seeded target binding rejected: canonical case/job ownership does not match.");
+    }
+    const nextFile = { ...durable, seededTargetBinding: seededBinding };
+    await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(sanitizeObservableValue(nextFile)), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseRow.id));
+    const correlationKey = `${atlasJobId}:seeded-target-binding:${caseRow.id}:${target.id}`;
+    const [existingEvent] = await tx.select({ id: researchCaseEventsTable.id, payload: researchCaseEventsTable.payload })
+      .from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, caseRow.id), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
+    const payload = JSON.stringify({ jobId: atlasJobId, targetId: target.id, targetType: target.type, targetKind: seededBinding.targetKind, sourceRegistries: seededBinding.sourceRegistries, sourceMetadata: seededBinding.sourceMetadata, evidenceIds: seededEvidenceRows.map((item) => item.id), evidenceCount: seededEvidenceRows.length });
+    if (existingEvent && existingEvent.payload !== payload) throw new Error("Seeded target binding event replay mismatch.");
+    if (!existingEvent) await tx.insert(researchCaseEventsTable).values({
+      caseId: caseRow.id,
+      iteration: locked.iteration,
+      actorRole: "system",
+      eventType: "assignment",
+      status: "recorded",
+      summary: "Bound selected seeded target to canonical research with original source evidence.",
+      correlationKey,
+      payload,
+    });
+  }, { isolationLevel: "serializable" });
+  await delCachePattern("entities:list:*").catch(() => undefined);
+  await reconcileTargetCaseCancellation(atlasJobId, caseRow.id);
+
+  try { const depth = resolveResearchDepth({ explicit: options.researchDepth }); const targetIterationCeiling = Math.min(depth.agenticMaxIterations, Math.max(0, Math.trunc(options.maxInvestigatorIterations ?? depth.agenticMaxIterations))); const hardTimeoutMs = Math.min(600_000, Math.max(30_000, Number.isFinite(options.targetTimeoutMs) ? Math.trunc(options.targetTimeoutMs!) : depth.agenticHardTimeoutMs)); const deadline = Date.now() + hardTimeoutMs; let caseState = parseCaseFile(caseRow.caseFile); const priorTargetContext = typeof caseState.contextDocument === "string" ? caseState.contextDocument : "";
+    let contextDocument = priorTargetContext
+      ? (priorTargetContext.includes("Original seeded source and evidence")
+        ? priorTargetContext
+        : compactInvestigationContext({ raw: `${priorTargetContext}\n\n## Original seeded source and evidence (prior observations, not verified conclusions)\n${JSON.stringify(seededBinding)}` }))
+      : openingContext(target, companyName, caseRow.id, caseRow.objective, "", seededBinding);
+    caseState.seededTargetBinding = seededBinding;
+    caseState.contextDocument = contextDocument;
+    const [seedContextPersisted] = await db.update(researchCasesTable)
+      .set({ caseFile: JSON.stringify(sanitizeObservableValue(caseState)), updatedAt: new Date() })
+      .where(and(
+        eq(researchCasesTable.id, caseRow.id),
+        eq(researchCasesTable.status, "active"),
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`,
+        sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost','canonical-continuation-cancelled')`,
+      )).returning({ id: researchCasesTable.id });
+    if (!seedContextPersisted?.id) throw new Error("Seeded target provenance could not be persisted before model execution."); let durableTrajectory = await loadDurableTargetTrajectory(caseRow.id); if (durableTrajectory.records.length) {
+      const replayedContext = buildInvestigatorContext({ targetName: target.name, companyName, objective: caseRow.objective, mode: "target", trajectoryRecords: durableTrajectory.records, lastObservation: durableTrajectory.records[durableTrajectory.records.length - 1]?.observation ?? "", findings: durableTrajectory.findings });
+      contextDocument = compactInvestigationContext({ raw: `${replayedContext}\n\n## Original seeded source and evidence (prior observations, not verified conclusions)\n${JSON.stringify(seededBinding)}` });
+    } const initialExcludedInput = options.excludedInvestigatorLlm ?? []; const initialExcludedInvestigators = new Set<InvestigatorCapability>([...initialExcludedInput, ...getInvestigatorCredentialAliases(process.env, initialExcludedInput)]);
     const storedInvestigatorCapability = typeof caseState.investigatorLlm === "string" ? caseState.investigatorLlm as InvestigatorCapability : null;
     if (storedInvestigatorCapability && !getAvailableInvestigatorCapabilities().includes(storedInvestigatorCapability)) {
       await db.update(researchCasesTable).set({ status: "review", currentAction: "selected-investigator-capability-unavailable", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`));
@@ -461,7 +531,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     };
     let quotaRecoveryIterations = 0;
     while (true) {
-      latestResult = await runTargetContactAgent({ entityId: target.id, caseId: caseRow.id, targetName: target.name, companyName, targetType: target.type === "Corporation" ? "organization" : "person", jobId: atlasJobId, investigatorLlm: investigatorLlm!, maxIterations: Math.max(1, actIterations - quotaRecoveryIterations), hardTimeoutMs: actTimeoutMs, contextDocument: actContext, priorTrajectoryRecords: durableTrajectory.records, onTrajectoryRecord: persistTargetActionCheckpoint, oversightMode: "caller", shouldCancel: async () => { if (Date.now() >= deadline) return true; const current = await getJobStrict(atlasJobId); if (!current) throw new Error("Canonical Atlas job record missing during Investigator act."); if (current.status === "cancelled" || current.status === "failed" || current.status !== "running") return true; const ownsLease = await isCanonicalJobOwner("atlas-run", atlasJobId); if (!ownsLease) throw new Error("Canonical Atlas lease was lost during Investigator act."); return false; } });
+      latestResult = await runTargetContactAgent({ entityId: target.id, caseId: caseRow.id, targetName: target.name, companyName, targetType: classifyCanonicalSeededTargetType(target.type), jobId: atlasJobId, investigatorLlm: investigatorLlm!, maxIterations: Math.max(1, actIterations - quotaRecoveryIterations), hardTimeoutMs: actTimeoutMs, contextDocument: actContext, priorTrajectoryRecords: durableTrajectory.records, onTrajectoryRecord: persistTargetActionCheckpoint, oversightMode: "caller", shouldCancel: async () => { if (Date.now() >= deadline) return true; const current = await getJobStrict(atlasJobId); if (!current) throw new Error("Canonical Atlas job record missing during Investigator act."); if (current.status === "cancelled" || current.status === "failed" || current.status !== "running") return true; const ownsLease = await isCanonicalJobOwner("atlas-run", atlasJobId); if (!ownsLease) throw new Error("Canonical Atlas lease was lost during Investigator act."); return false; } });
       if (!isHardQuotaResult(latestResult)) break;
       quotaRecoveryIterations += Math.max(0, latestResult.iterations ?? latestResult.trajectoryRecords.length);
       if (quotaRecoveryIterations >= actIterations) { resourceLimited = true; break; }

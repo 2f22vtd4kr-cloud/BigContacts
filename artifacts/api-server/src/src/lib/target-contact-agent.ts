@@ -143,26 +143,49 @@ function compactReachabilityControl(raw: string): string {
     route?.[0] ?? "",
     blockers ? `Known blockers: ${blockers[1]!.slice(0, 70)}` : "",
   ].filter(Boolean).join(" ");
-  return compact.length > 220 ? compact.slice(0, 217).trimEnd() + "..." : compact || fallback;
+  return compact.length > 180 ? compact.slice(0, 177).trimEnd() + "..." : compact || fallback;
 }
 
 export function buildTargetContactInvestigatorObjective(input: {
   targetName: string;
   companyName?: string | null;
-  targetType?: "person" | "organization";
+  targetType?: "person" | "organization" | "asset" | "other";
   reachabilityControl: string;
 }): string {
   // Bound the identity labels and realism annotation before composing the prompt.
   // The substantive research and provenance clauses below are fixed, not sliced.
-  const targetName = input.targetName.trim().slice(0, 80);
-  const companyName = input.companyName?.trim().slice(0, 80);
+  const targetName = input.targetName.trim();
+  const companyName = input.companyName?.trim();
+  if (input.targetType === "asset") {
+    const assetObjective = [
+      `Research the exact public asset or asset record ${targetName}${companyName ? ` (associated in the seed record with ${companyName})` : ""}.`,
+      compactReachabilityControl(input.reachabilityControl),
+      "Establish the asset's public identity, type, manufacturer/model or registration identifier, jurisdiction, status and source freshness from attributable sources. Preserve historical versus current records.",
+      "Distinguish registered owner, beneficial owner, operator, manager, broker, trustee, lienholder and shared/fractional interests. A registrant or operator is not automatically the beneficial owner. Follow entity/person links only when sources explicitly support them; do not infer a natural person from an asset registration.",
+      "There is no fixed checklist, provider order, query sequence, or mandatory hop order. The Investigator chooses official registries, operator/issuer publications or other useful public sources based on observed evidence. Preserve exact source URLs and contradictions. Never infer private residence, movements, beneficial ownership, personal wealth or identity from a location or asset alone.",
+      "Every contact finding must carry the exact public URL where that value was observed; snippets are leads, not evidence.",
+    ].join("\n");
+    if (assetObjective.length > 1_900) throw new Error("Asset Investigator objective exceeds its hard prompt budget.");
+    return assetObjective;
+  }
+  if (input.targetType === "other") {
+    const generalObjective = [
+      `Research the exact public subject ${targetName}${companyName ? ` (seeded association: ${companyName})` : ""} without assuming it is a person, company or asset.`,
+      compactReachabilityControl(input.reachabilityControl),
+      "First establish what this subject actually represents from the supplied case context and attributable public sources. Preserve its source-record type, identifiers, jurisdiction, date and uncertainty; distinguish people, companies, legal entities, assets, events and transactions rather than coercing one into another.",
+      "There is no fixed checklist, provider order, query sequence, or mandatory hop order. The Investigator chooses which useful public records, relationships and contradictions to pursue. Do not infer identity, ownership, beneficial ownership, wealth, family ties or contact routes from a label or association alone. Keep source-backed partial findings reviewable and state what remains unknown.",
+      "Every contact finding must carry the exact public URL where that value was observed; snippets are leads, not evidence.",
+    ].join("\n");
+    if (generalObjective.length > 1_900) throw new Error("General target Investigator objective exceeds its hard prompt budget.");
+    return generalObjective;
+  }
   if (input.targetType === "organization") {
     const organizationObjective = [
       `Research the organization ${targetName}${companyName ? ` (linked to ${companyName})` : ""} and establish its public business identity and relevant owner/operator/investor routes.`,
       compactReachabilityControl(input.reachabilityControl),
       "Investigate the organization itself, not a guessed person. Verify legal/trading identity, jurisdiction, aliases, operating status, and official website using attributable sources.",
       "Trace directly sourced owners/beneficial owners, controllers, directors/officers, parent/subsidiary links, investments, exits, assets, filings, and material business activity. Distinguish ownership/control from an officer title; do not infer wealth or targetability merely from company size, fame, or a person's role. A relevant person is a separate lead whose name, role, and evidence must remain attributable to that person.",
-      "Use exact public source URLs and distinguish a search-result lead from fetched-page evidence. Never invent or infer owners, relationships, contacts, assets, or URLs. Keep source-backed company information reviewable even if no person qualifies. No fixed provider/tool/query sequence: the Investigator chooses the next action from observed evidence.",
+      "There is no fixed checklist, provider order, query sequence, or mandatory hop order. The Investigator chooses the next action from observed evidence. Every contact finding must carry the exact public URL where that value was observed; snippets are leads, not evidence. Never invent or infer owners, relationships, contacts, assets, or URLs. Keep source-backed company information reviewable even if no person qualifies.",
     ].join("\n");
     if (organizationObjective.length > 1_900) throw new Error("Organization Investigator objective exceeds its hard prompt budget.");
     return organizationObjective;
@@ -173,7 +196,7 @@ export function buildTargetContactInvestigatorObjective(input: {
     "Investigate the person, not generic company contacts. Verify role, employer, jurisdiction and aliases/transliterations. For wealth potential, require that a public source directly documents a material business, ownership stake, investment, asset, exit or control role; seniority alone is not wealth. Use public beneficial-owner registries and director registries, filings, investment/deal/property records, trade coverage and local-language reporting, with English corroboration when useful. Follow evidence to exact people and ownership/control links; no fixed checklist.",
     "After identity/role verification, seek public, attributable profiles on relevant platforms such as LinkedIn, Facebook, Instagram, X/Twitter or Telegram, plus personal/business websites and official bios through available search/fetch actions; corroborate each profile by exact name plus role/company/location before attributing it. Follow publicly documented family or associate relationships only when a credible public source explicitly states the tie and it clarifies ownership/control, investment or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social-graph proximity. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
     "Prefer a directly published professional contact or documented assistant, office, family-office or intermediary route; a generic inbox, switchboard or social presence alone is not personal access.",
-    "Use the exact URL where observed; snippets are leads, not evidence. Never invent identities, wealth, relationships, contacts or URLs. Do not promote when identity or person/value binding is uncertain. Pivot after failed/repeated fetches and stop when evidence or useful routes are exhausted.",
+    "Every contact finding must carry the exact public URL where that value was observed. Use the exact URL where observed; snippets are leads, not evidence. Never invent identities, wealth, relationships, contacts or URLs. Do not promote when identity or person/value binding is uncertain. Pivot after failed/repeated fetches and stop when evidence or useful routes are exhausted.",
   ];
   const objective = sections.join("\n");
   if (objective.length <= 1_900) return objective;
@@ -181,12 +204,12 @@ export function buildTargetContactInvestigatorObjective(input: {
   // This fallback keeps the evidence/identity laws intact and only shortens
   // optional route detail; never cut a policy sentence at an arbitrary offset.
   const compactSections = [
-    sections[0]!,
+    `Target: ${targetName}. Company context is in the case; investigate public identity, business interests and professional routes.`,
     sections[1]!,
-    "Investigate the person, not generic company contacts. Verify role, employer, jurisdiction and aliases/transliterations. For wealth potential, require that a public source directly documents a material business, ownership, investment, asset, exit or control role; seniority alone is not wealth. Use beneficial-owner registries and director registries, filings, deals/assets, trade sources and local-language reporting; corroborate in English when useful. no fixed checklist.",
-    "After identity/role verification, seek public, attributable profiles on relevant platforms (LinkedIn, Facebook, Instagram, X/Twitter or Telegram), business websites and official bios; corroborate name plus role/company/location. Map family or associate ties only when credible public sources explicitly state them and they clarify ownership/control or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social-graph proximity. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
-    "Prefer a directly published professional contact or documented assistant, office, family-office or intermediary route. A generic inbox, switchboard or social presence alone is not personal access.",
-    "Use the exact URL where observed; snippets are leads, not evidence. Never invent identities, wealth, ties, contacts or URLs. Do not promote when identity or person/value binding is uncertain. Pivot after failed fetches; stop when evidence/routes are exhausted.",
+    "Investigate the person, not generic company contacts. Verify identity, role and employer. For wealth, require that a public source directly documents a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting; no fixed checklist.",
+    "Consider public, attributable profiles (LinkedIn, Facebook, Instagram, X/Twitter, Telegram), official bios and business sites; corroborate name plus role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
+    "Map family or associate ties only when credible public sources explicitly state them and they clarify ownership/control or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social-graph proximity.",
+    "Every contact finding must carry the exact public URL where that value was observed. Use the exact URL where observed; snippets are leads, not evidence. Never invent identities, wealth, ties, contacts or URLs. Do not promote when identity or person/value binding is uncertain; pivot or stop when evidence/routes warrant.",
   ];
   const compactObjective = compactSections.join("\n");
   if (compactObjective.length > 1_900) {
@@ -195,8 +218,8 @@ export function buildTargetContactInvestigatorObjective(input: {
   return compactObjective;
 }
 
-export async function runTargetContactAgent(input: { entityId: number; caseId?: number; targetName: string; companyName?: string | null; targetType?: "person" | "organization"; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: InvestigatorCapability; contextDocument?: string; priorTrajectoryRecords?: readonly AgenticTrajectoryRecord[]; oversightMode?: "internal" | "caller"; shouldCancel?: () => boolean | Promise<boolean>; onTrajectoryRecord?: (record: AgenticTrajectoryRecord) => void | Promise<void>; onInvestigationAct?: (step: InvestigationAct) => void | Promise<void> }): Promise<TargetContactAgentResult> {
-  const name = (input.targetName ?? "").trim(); const empty = (): TargetContactAgentResult => ({ iterations: 0, status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], trajectoryRecords: [], evidenceGraphs: [], phone: null, email: null, phoneSource: null, contactOutcome: null }); if (!input.entityId || name.length < 2) return empty(); const contextDocument = typeof input.contextDocument === "string" ? input.contextDocument.trim() : ""; if (!contextDocument) { logger.error({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] refusing context-free Investigator run"); return { ...empty(), status: "unavailable" }; } const depth = resolveResearchDepth(); const selected = await resolveSelectedInvestigator(input); if (!selected) return { ...empty(), status: "unavailable" }; const investigatorLlm = selected.investigator;
+export async function runTargetContactAgent(input: { entityId: number; caseId?: number; targetName: string; companyName?: string | null; targetType?: "person" | "organization" | "asset" | "other"; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: InvestigatorCapability; contextDocument?: string; priorTrajectoryRecords?: readonly AgenticTrajectoryRecord[]; oversightMode?: "internal" | "caller"; shouldCancel?: () => boolean | Promise<boolean>; onTrajectoryRecord?: (record: AgenticTrajectoryRecord) => void | Promise<void>; onInvestigationAct?: (step: InvestigationAct) => void | Promise<void> }): Promise<TargetContactAgentResult> {
+  const name = (input.targetName ?? "").trim(); const empty = (): TargetContactAgentResult => ({ iterations: 0, status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], trajectoryRecords: [], evidenceGraphs: [], phone: null, email: null, phoneSource: null, contactOutcome: null }); if (!Number.isSafeInteger(input.entityId) || input.entityId <= 0 || !name) return empty(); const contextDocument = typeof input.contextDocument === "string" ? input.contextDocument.trim() : ""; if (!contextDocument) { logger.error({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] refusing context-free Investigator run"); return { ...empty(), status: "unavailable" }; } const depth = resolveResearchDepth(); const selected = await resolveSelectedInvestigator(input); if (!selected) return { ...empty(), status: "unavailable" }; const investigatorLlm = selected.investigator;
   const baselineRows = await db.select({
     type: entitiesTable.type,
     email: entitiesTable.email,
