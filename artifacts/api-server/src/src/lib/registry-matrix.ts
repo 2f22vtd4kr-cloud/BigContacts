@@ -11,8 +11,11 @@ export type ProductionReviewStatus =
   | "reviewed_for_production"
   | "not_yet_assessed";
 
+export type RegistrySourceClass = "official_registry" | "authoritative_registry" | "licensed_commercial_provider" | "licensed_commercial_aggregator" | "official_transaction_dataset";
+
 export interface RegistryCoverage {
   id: string;
+  sourceClass: RegistrySourceClass;
   /** True only when registry-client.ts dispatches to a concrete adapter. */
   runtimeAdapterImplemented: boolean;
   label: string;
@@ -31,6 +34,7 @@ export interface RegistryCoverage {
 export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   {
     id: "sec-edgar",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "SEC EDGAR",
     jurisdiction: "US",
@@ -45,6 +49,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "companies-house",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "Companies House",
     jurisdiction: "GB",
@@ -59,6 +64,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "brreg",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "BRREG Enhetsregisteret",
     jurisdiction: "NO",
@@ -74,6 +80,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "ares-czechia",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "ARES",
     jurisdiction: "CZ",
@@ -89,6 +96,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "bodacc-france",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "BODACC",
     jurisdiction: "FR",
@@ -104,6 +112,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "gleif",
+    sourceClass: "authoritative_registry",
     runtimeAdapterImplemented: true,
     label: "GLEIF LEI Register",
     jurisdiction: "Global",
@@ -118,6 +127,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "cvr-denmark",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "CVR Denmark",
     jurisdiction: "DK",
@@ -133,6 +143,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "zefix-switzerland",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "Zefix Switzerland",
     jurisdiction: "CH",
@@ -148,6 +159,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "offeneregister-germany",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "Handelsregister Germany (Open Register; capability-gated)",
     jurisdiction: "DE",
@@ -163,6 +175,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "bolagsverket-sweden",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: false,
     label: "Bolagsverket Sweden",
     jurisdiction: "SE",
@@ -178,6 +191,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "ytj-finland",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "YTJ Finland (PRH)",
     jurisdiction: "FI",
@@ -193,6 +207,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "atoka-italy",
+    sourceClass: "licensed_commercial_provider",
     runtimeAdapterImplemented: true,
     label: "Registro Imprese Italy",
     jurisdiction: "IT",
@@ -208,6 +223,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "borme-spain",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "BORME Spain (BOE)",
     jurisdiction: "ES",
@@ -223,6 +239,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "kvk-netherlands",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: false,
     label: "KvK Netherlands (direct-search adapter unavailable)",
     jurisdiction: "NL",
@@ -238,6 +255,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "kbo-belgium",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "KBO Belgium",
     jurisdiction: "BE",
@@ -253,6 +271,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "opencorporates",
+    sourceClass: "licensed_commercial_aggregator",
     runtimeAdapterImplemented: true,
     label: "OpenCorporates",
     jurisdiction: "Global",
@@ -267,6 +286,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "faa",
+    sourceClass: "official_registry",
     runtimeAdapterImplemented: true,
     label: "FAA Aircraft Registry",
     jurisdiction: "US",
@@ -282,6 +302,7 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
   },
   {
     id: "hmlr-ppd",
+    sourceClass: "official_transaction_dataset",
     runtimeAdapterImplemented: false,
     label: "HMLR Price Paid Data",
     jurisdiction: "England & Wales",
