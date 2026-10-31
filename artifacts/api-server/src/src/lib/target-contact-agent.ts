@@ -207,7 +207,7 @@ export function buildTargetContactInvestigatorObjective(input: {
     `Target: ${targetName}. Company context is in the case; investigate public identity, business interests and professional routes.`,
     sections[1]!,
     "Investigate the person, not generic company contacts. Verify identity, role and employer. For wealth, require that a public source directly documents a material business, ownership, investment, asset, exit or control; seniority alone is not wealth. Use beneficial-owner registries, filings and local-language reporting; no fixed checklist.",
-    "Consider public, attributable profiles (LinkedIn, Facebook, Instagram, X/Twitter, Telegram), official bios and business sites; corroborate name plus role/company/location. Never guess private accounts or phone/WhatsApp/Telegram identities.",
+    "Consider public, attributable profiles (LinkedIn, Facebook, Instagram, X/Twitter, Telegram), official bios and business sites; corroborate name plus role/company/location. Never guess accounts, handles, private profiles or phone/WhatsApp/Telegram identities.",
     "Map family or associate ties only when credible public sources explicitly state them and they clarify ownership/control or a documented intermediary route. Never infer relationships from surnames, co-location, follows or social-graph proximity.",
     "Every contact finding must carry the exact public URL where that value was observed. Use the exact URL where observed; snippets are leads, not evidence. Never invent identities, wealth, ties, contacts or URLs. Do not promote when identity or person/value binding is uncertain; pivot or stop when evidence/routes warrant.",
   ];
