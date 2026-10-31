@@ -147,8 +147,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           ? rawPageIdentity.kind
           : null;
         const pageIdentitySource = typeof rawPageIdentity?.sourceUrl === "string" ? normalizeSource(rawPageIdentity.sourceUrl) : null;
-        // Page metadata may strengthen the provenance of a model-selected
-        // organization lead only when it is bound to this exact fetched URL.
+        // Page metadata may strengthen the provenance of a model-selected organization lead only when it is bound to this exact fetched URL.
         const pageIdentity = pageIdentityName.length > 0 && pageIdentityName.length <= 180
           && pageIdentityKind && pageIdentitySource === url
           ? { name: pageIdentityName, kind: pageIdentityKind, title: typeof rawPageIdentity?.pageTitle === "string" ? rawPageIdentity.pageTitle.slice(0, 220) : "" }
