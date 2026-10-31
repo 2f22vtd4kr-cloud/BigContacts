@@ -778,8 +778,7 @@ async function materializePartialOrganizationLeadCards(input: {
   const seenNames = new Set<string>();
   const leadNames: string[] = [];
   for (const finding of input.findings) {
-    if (finding.scope !== "organization"
-      || finding.promotionDecision === "reject" || finding.personName?.trim() || finding.role?.trim()) continue;
+    if (finding.scope !== "organization" || finding.promotionDecision === "reject") continue;
     const name = finding.value.trim().replace(/\s+/g, " ");
     const identity = normalizeCandidateIdentityName(name);
     if (name.length < 3 || identity.length < 3 || seenNames.has(identity)) continue;
