@@ -8,6 +8,7 @@ const legacyStartup = read("artifacts/api-server/src/lib/startup.ts");
 const jobs = read("artifacts/apex-finder/src/pages/jobs.tsx");
 const secondaryPersist = read("artifacts/api-server/src/src/lib/bureau-contact-persist.ts");
 const canonicalEnrichment = read("artifacts/api-server/src/src/routes/ingest-enrichment.ts");
+const legacyEnrichment = read("artifacts/api-server/src/routes/ingest-enrichment.ts");
 const canonicalPipeline = read("artifacts/api-server/src/src/routes/ingest-pipeline.ts");
 const canonicalResearchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 const legacyMutationGuard = read("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts");
@@ -60,6 +61,11 @@ for (const file of retiredControlPlaneFiles) {
   if (fs.existsSync(file)) { console.log(`FAIL retired deterministic research control-plane file still exists: ${file}`); failed = true; }
   else console.log(`PASS retired deterministic research control-plane file absent: ${file}`);
 }
+
+if (!/status\(410\)/.test(legacyEnrichment)) { console.log("FAIL duplicate legacy ingest-enrichment router is not quarantined with 410."); failed = true; }
+else console.log("PASS duplicate legacy ingest-enrichment router is quarantined with 410.");
+if (/runBroadDiscovery|deepWebOsintEnrich|enrichInHouse|discoverSocialPresence|discoverMessengerPresence|lookupPublic|fetch\\s*\\(/.test(legacyEnrichment)) { console.log("FAIL duplicate legacy ingest-enrichment quarantine contains executable research/enrichment implementation."); failed = true; }
+else console.log("PASS duplicate legacy ingest-enrichment quarantine contains no research implementation.");
 
 if (!/status\(410\)/.test(canonicalEnrichment)) { console.log("FAIL canonical ingest-enrichment router is not an explicit 410 quarantine."); failed = true; }
 else console.log("PASS canonical ingest-enrichment router is explicitly quarantined with 410.");
