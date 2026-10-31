@@ -455,11 +455,16 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
         // Compact the explanatory state first, then append the complete URL as an
         // atomic suffix so head/tail compaction cannot cut it out or select a failed
         // route in place of an actually unfetched lead.
-        const core = [lines.slice(0, 4).join("\n"), lines.slice(-2).join("\n")]
-          .filter(Boolean).join("\n");
-        const coreBudget = Math.max(0, pinnedBudget - (pinnedUrlLine ? pinnedUrlLine.length + 1 : 0));
-        const compactCore = trimPromptSection(core, coreBudget);
-        const compacted = [compactCore, pinnedUrlLine].filter(Boolean).join("\n");
+        const authoritativeCountsLine = lines.find((line) => line.startsWith("AUTHORITATIVE DURABLE LEAD COUNTS")) ?? "";
+        const scopeAndGuard = [lines[0] ?? "", lines[2] ?? "", lines.slice(-1)[0] ?? ""].filter(Boolean).join("\n");
+        const reservedPinnedLines = [authoritativeCountsLine, pinnedUrlLine].filter(Boolean);
+        const reservedPinnedLength = reservedPinnedLines.reduce((total, line) => total + line.length, 0) + Math.max(0, reservedPinnedLines.length - 1);
+        if (reservedPinnedLength > pinnedBudget) {
+          throw new Error("Atlas Right-hand prompt cannot preserve authoritative lead counts and an exact unfetched URL within its pinned-state budget.");
+        }
+        const coreBudget = Math.max(0, pinnedBudget - reservedPinnedLength - (scopeAndGuard ? 1 : 0));
+        const compactCore = trimPromptSection(scopeAndGuard, coreBudget);
+        const compacted = [compactCore, ...reservedPinnedLines].filter(Boolean).join("\n");
         return compacted.length <= pinnedBudget ? compacted : trimPromptSection(compacted, pinnedBudget);
       })()
     : "";
