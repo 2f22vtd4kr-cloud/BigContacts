@@ -52,6 +52,9 @@ describe("terminal review-card reconciliation", () => {
     expect(organizationMaterializer).toContain('finding.scope !== "organization"');
     expect(organizationMaterializer).toContain("Registry adapter rows may support this lead only because the");
     expect(organizationMaterializer).not.toContain("isGenericDiscoveryMetadataTitle");
+    expect(organizationMaterializer).toContain("isRestrictedCommunitySourceUrl(sourceUrl)");
+    expect(organizationMaterializer).toContain("if (support.restrictedCommunitySource) continue;");
+    expect(organizationMaterializer).toContain('"community-reference-only"');
     const registryLeadObservationBlock = organizationMaterializer.slice(
       organizationMaterializer.indexOf("if (registry &&"),
       organizationMaterializer.indexOf("// Partial provider execution can still contain successful, attributable"),
