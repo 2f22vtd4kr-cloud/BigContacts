@@ -64,7 +64,7 @@ for (const file of retiredControlPlaneFiles) {
 
 if (!/status\(410\)/.test(legacyEnrichment)) { console.log("FAIL duplicate legacy ingest-enrichment router is not quarantined with 410."); failed = true; }
 else console.log("PASS duplicate legacy ingest-enrichment router is quarantined with 410.");
-if (/runBroadDiscovery|deepWebOsintEnrich|enrichInHouse|discoverSocialPresence|discoverMessengerPresence|lookupPublic|fetch\\s*\\(/.test(legacyEnrichment)) { console.log("FAIL duplicate legacy ingest-enrichment quarantine contains executable research/enrichment implementation."); failed = true; }
+if (/runBroadDiscovery|deepWebOsintEnrich|enrichInHouse|discoverSocialPresence|discoverMessengerPresence|lookupPublic|fetch\s*\(/.test(legacyEnrichment)) { console.log("FAIL duplicate legacy ingest-enrichment quarantine contains executable research/enrichment implementation."); failed = true; }
 else console.log("PASS duplicate legacy ingest-enrichment quarantine contains no research implementation.");
 
 if (!/status\(410\)/.test(canonicalEnrichment)) { console.log("FAIL canonical ingest-enrichment router is not an explicit 410 quarantine."); failed = true; }
