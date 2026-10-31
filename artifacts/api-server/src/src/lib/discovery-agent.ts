@@ -1,3 +1,9 @@
+/**
+ * @deprecated Legacy discovery pipeline. Canonical Apex Atlas launches use
+ * runCanonicalAtlasPipeline -> runBureauAgenticWebPass. Do not route
+ * Investigator-selected provisional review cards through this legacy path:
+ * its candidate fitness/shape helpers are not the canonical admission policy.
+ */
 // INVARIANT: deterministic candidate selection rather than model-owned discovery is prohibited; the Investigator owns candidate selection.
 /**
  * Discovery agent — free LLM loop to propose people with public basis.
