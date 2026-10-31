@@ -85,17 +85,17 @@ describe("terminal review-card reconciliation", () => {
     expect(canonical).toContain('A successful public search observation contains the exact organization name');
     expect(canonical).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
     expect(canonical).toContain('bindExactSourceSpan(observation.observation, name)');
-    expect(agenticCore).toContain('actual returned result text contains an exact organization name');
-    expect(agenticCore).toContain("promotionDecision=promote means admit only to the review-only company-card queue");
+    expect(agenticCore).toContain('YOU decide whether any observed organization is worth preserving as a provisional review card');
+    expect(agenticCore).toContain("Leave promotionDecision unset for a review-only company card");
     expect(agenticCore).toContain('Search snippets are leads, not claim-grade evidence');
     expect(agenticCore).toContain("MIXED DISCOVERY: compare model-selected local/sector web hypotheses with relevant official business, ownership, transaction and public-asset sources; choose by information gain, never a fixed order, and do not repeat one registry after no new hit.");
     expect(agenticCore).toContain("SOURCE-NEUTRAL RESEARCH: compare plausible hypotheses and choose complementary source classes");
     expect(agenticCore).toContain("never default to Companies House or query registries merely because they are available");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
-    expect(agenticCore).toContain('exact organization name plus eligible HTTPS URL in observed text yields a low-confidence review-only company finding');
+    expect(agenticCore).toContain('YOU decide whether an observed organization is worth a provisional review-only company card');
   });
 
-  it("materializes exact public person/role leads at the first discovery checkpoint", () => {
+  it("materializes model-selected person leads at the first checkpoint even when role is unknown", () => {
     const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
     const personMaterializer = canonical.slice(
       canonical.indexOf("async function materializePartialPersonLeadCards"),
@@ -104,7 +104,11 @@ describe("terminal review-card reconciliation", () => {
     expect(personMaterializer).toContain("payload.leadUrls");
     expect(personMaterializer).toContain('const searched = action === "web_search" || action === "parallel_web_search"');
     expect(personMaterializer).toContain("bindExactSourceSpan(observation.observation, lead.role, lead.name, 320)");
-    expect(personMaterializer).toContain('roleOnlyLead: true');
+    expect(personMaterializer).toContain("role: string | null");
+    expect(personMaterializer).not.toContain("!finding.role?.trim()");
+    expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
+    expect(personMaterializer).toContain("sourceSpanVerified: support.spanVerified");
+    expect(personMaterializer).toContain('roleOnlyLead: Boolean(lead.role)');
     expect(personMaterializer).toContain('claimType: "partial_person_role_lead"');
     expect(personMaterializer).toContain('verificationLevel === "search_result_lead"');
     expect(personMaterializer).not.toContain("hasDiscoveryOwnershipLeadSignal");
@@ -137,11 +141,9 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("Never infer intimate relationships or use health/clinic records or private spa/casino customer-service data as personal contact routes; public business records remain eligible.");
   });
 
-  it("persists only exact organization findings from successful search observations as review leads", () => {
+  it("persists only Investigator-selected organization findings and keeps provenance tier honest", () => {
     const canonical = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
     expect(reconciler).toContain('finding.scope !== "organization"');
-    expect(reconciler).toContain("isGenericDiscoveryMetadataTitle(name)");
-    expect(canonical).toContain("isGenericDiscoveryMetadataTitle(name)");
     expect(reconciler).toContain('payload.execution === "success"');
     expect(reconciler).toContain("bindExactSourceSpan(observation.text, lead.name)");
     expect(reconciler).toContain('const verificationLevel = hasFetched ? "fetched_source" : "search_result_lead"');
@@ -151,7 +153,9 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).toContain('finding.scope !== "candidate"');
     expect(reconciler).toContain('claimType: "partial_person_role_lead"');
     expect(reconciler).toContain('const fetched = action === "visit" || action === "browser_fetch";');
-    expect(reconciler).toContain('verificationLevel: fetched ? "fetched_source" : "search_result_lead"');
+    expect(reconciler).toContain('verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
+    expect(reconciler).not.toContain('if (!url || (fetched && !isClaimGradeDiscoverySourceUrl(url))) continue;');
+    expect(reconciler).not.toContain('if (!span?.exact) continue;');
     expect(reconciler).toContain('if (isFetched && priorEvidenceMetadata.verificationLevel !== "fetched_source")');
     expect(reconciler).toContain('evidenceTier: isFetched ? "fetched_public_source" : "unverified_search_result"');
     expect(reconciler).toContain("changed = changed || persisted.updated");
