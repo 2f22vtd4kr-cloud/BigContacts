@@ -674,8 +674,24 @@ async function materializePartialPersonLeadCards(input: {
       const notes = collisionNote + (hasFetchedSource
         ? `PARTIAL PERSON LEAD — a fetched public source supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`
         : `UNVERIFIED PERSON LEAD — a public source observation supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. The source is not treated as claim-grade evidence; role, wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`);
+      const sourceEvidence = [...supports.values()].map((support) => {
+        const sourceDomain = new URL(support.sourceUrl).hostname.replace(/^www\\./i, "");
+        return {
+          sourceUrl: support.sourceUrl,
+          sourceName: sourceDomain,
+          sourceDomain,
+          sourceClass: "unclassified_public_source",
+          sourceContributor: null,
+          sourceMechanism: support.observationAction,
+          verificationLevel: support.verificationLevel,
+          independentCorroborationStatus: "not_assessed",
+          supportingEventId: support.eventId,
+          observedAt: support.createdAt.toISOString(),
+        };
+      });
       const metadata = JSON.stringify({
         ...priorMetadata,
+        sourceEvidence,
         reviewOnly: true,
         partialPersonLead: true,
         roleOnlyLead: Boolean(lead.role),
@@ -771,6 +787,10 @@ async function materializePartialPersonLeadCards(input: {
             spanStart: support.spanStart,
             spanEnd: support.spanEnd,
             noWealthOrContactConclusion: true,
+            sourceClass: "unclassified_public_source",
+            sourceContributor: null,
+            sourceMechanism: support.observationAction,
+            independentCorroborationStatus: "not_assessed",
           }),
         });
         addedEvidence++;
@@ -1006,8 +1026,24 @@ async function materializePartialOrganizationLeadCards(input: {
       const notes = collisionNote + (hasFetchedSource
         ? "FETCHED-SOURCE REVIEW LEAD — a fetched public source contains this organization name. Ownership/control, business materiality, wealth, and targetability remain unverified."
         : "UNVERIFIED SOURCE REVIEW LEAD — a public source observation supports this organization name. It is not treated as claim-grade evidence; ownership/control, business materiality, wealth, and targetability remain unverified.");
+      const sourceEvidence = [...supports.values()].map((support) => {
+        const sourceDomain = new URL(support.sourceUrl).hostname.replace(/^www\\./i, "");
+        return {
+          sourceUrl: support.sourceUrl,
+          sourceName: sourceDomain,
+          sourceDomain,
+          sourceClass: "unclassified_public_source",
+          sourceContributor: null,
+          sourceMechanism: support.observationAction,
+          verificationLevel: support.verificationLevel,
+          independentCorroborationStatus: "not_assessed",
+          supportingEventId: support.eventId,
+          observedAt: support.createdAt.toISOString(),
+        };
+      });
       const metadata = JSON.stringify({
         reviewOnly: true,
+        sourceEvidence,
         partialOrganizationLead: true,
         stage: "partial_review",
         admission: "source-observed-organization-name",
