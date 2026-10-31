@@ -21,9 +21,10 @@ import { inArray, sql } from "drizzle-orm";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
 import { isDuplicate, batchMarkSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
-import { deriveRegistryIngestionAssessment } from "./registry-ingestion-policy";
+import { deriveRegistryIngestionAssessment, filterRegistryIngestionBatchRows, registryPersonCandidateNames } from "./registry-ingestion-policy";
 import { logger } from "./logger";
 import { isStructurallyValidCandidateName } from "./llm-name-validator-policy";
+import { validateRegistryCandidateNamesWithLLM } from "./llm-name-validator";
 import {
   getRandomDiscoveryRegistries,
   normalizeUnverifiedRegistryType,
@@ -926,10 +927,20 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
       // Mass seeding preserves provisional candidates; canonical Investigator
       // later resolves identity, role, relationships and HNWI qualification.
       const paired = entityBatch.map((entity, index) => ({ entity, key: entityBatchKeys[index] ?? "" }));
-      const usable = paired.filter(({ entity }) => {
-        if (preferPersons && ["Corporation", "Trust", "Corp"].includes(entity.type)) return false;
-        return isStructurallyValidCandidateName(entity.name);
-      });
+      const personNames = registryPersonCandidateNames(entityBatch);
+      const structuralNames = new Set(personNames.filter(isStructurallyValidCandidateName));
+      const nameValidation = await validateRegistryCandidateNamesWithLLM(personNames);
+      // Provider failure is not a negative judgment: retain only structurally
+      // usable source-designated people as review-only candidates, and record
+      // that the model check was unavailable. A successful empty response is
+      // a real model rejection and does not persist those person rows.
+      const validNames = nameValidation.status === "validated"
+        ? new Set(nameValidation.validNames)
+        : structuralNames;
+      const retainedEntities = new Set(filterRegistryIngestionBatchRows(entityBatch, validNames, preferPersons));
+      const usable = paired.filter(({ entity }) =>
+        retainedEntities.has(entity) && isStructurallyValidCandidateName(entity.name),
+      );
       const usableKeys = usable.map(({ key }) => key).filter(Boolean);
       const seenNames = new Set<string>();
       const deduped = usable.filter(({ entity }) => {
@@ -947,7 +958,9 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
           ...row,
           metadata: JSON.stringify({
             ...metadata,
-            nameValidationStatus: "pending_investigator_resolution",
+            nameValidationStatus: nameValidation.status === "validated"
+              ? "model_name_shape_checked_pending_identity_resolution"
+              : "provider_unavailable_structural_only_pending_identity_resolution",
             hnwiQualificationStatus: "unverified",
             reviewOnly: true,
           }),
