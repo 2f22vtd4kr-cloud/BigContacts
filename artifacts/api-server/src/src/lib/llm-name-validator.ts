@@ -15,6 +15,7 @@
  */
 
 import { logger } from "./logger";
+import { isStructurallyValidCandidateName } from "./llm-name-validator-policy";
 
 const _groqKeyNames = ["GROQ_API_KEY"];
 for (let i = 1; i <= 10; i++) _groqKeyNames.push(`GROQ_API_KEY_${i}`);
@@ -270,4 +271,74 @@ async function requestIndexGate(
   }
   logger.warn({ gateName }, "llm validator: all Groq keys unavailable — provider failure (not content reject)");
   return null as unknown as number[]; // signal provider failure to callers
+}
+
+
+export type RegistryCandidateNameValidation =
+  | { status: "validated"; validNames: string[] }
+  | { status: "unavailable"; validNames: [] };
+
+export type RegistryCandidateNameValidationDependencies = {
+  keys?: string[];
+  fetchImpl?: typeof fetch;
+};
+
+/** Model-check registry names only; this never establishes identity, wealth or HNWI status. */
+export async function validateRegistryCandidateNamesWithLLM(
+  candidates: string[],
+  dependencies: RegistryCandidateNameValidationDependencies = {},
+): Promise<RegistryCandidateNameValidation> {
+  const structurallyUsable = [...new Set(candidates.filter(isStructurallyValidCandidateName))];
+  if (structurallyUsable.length === 0) return { status: "validated", validNames: [] };
+  const keys = dependencies.keys ?? getGroqKeysLive();
+  const fetchImpl = dependencies.fetchImpl ?? fetch;
+  if (keys.length === 0) return { status: "unavailable", validNames: [] };
+
+  const accepted: string[] = [];
+  const batchSize = 40;
+  for (let offset = 0; offset < structurallyUsable.length; offset += batchSize) {
+    const batch = structurallyUsable.slice(offset, offset + batchSize);
+    const prompt = [
+      "You validate names supplied by public corporate or government registries.",
+      "Return only a JSON array of 1-based indices whose exact strings plausibly name natural persons.",
+      "This is ONLY a person-name-shape check. Do not assess identity, whether the person is alive, wealth, ownership, role truth, contactability, or HNWI status.",
+      "Accept multilingual names in any script, diacritics, apostrophes, hyphens, short or single-token names, initials where plausible, and long or multi-part names.",
+      "Reject organization/legal-entity names, trusts, public bodies, venues, role/title fragments, generic labels, placeholders, navigation text, and abstract phrases.",
+      "When a candidate is genuinely ambiguous between a person and an organization, reject it for now; it may remain a generic source lead elsewhere.",
+      "Candidates:",
+      ...batch.map((name, index) => String(index + 1) + ". " + JSON.stringify(name)),
+      "Respond with JSON only, for example [1,3].",
+    ].join("\n");
+
+    let batchResult: number[] | null = null;
+    for (const key of keys) {
+      try {
+        const response = await fetchImpl("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "openai/gpt-oss-120b",
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0,
+            max_tokens: 256,
+          }),
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (!response.ok) continue;
+        const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
+        const raw = (data.choices?.[0]?.message?.content ?? "").trim();
+        const match = raw.match(/\[[\d,\s]*\]/);
+        if (!match) continue;
+        const parsed: unknown = JSON.parse(match[0]);
+        if (!Array.isArray(parsed) || !parsed.every((value) => Number.isInteger(value))) continue;
+        batchResult = (parsed as number[]).filter((index) => index >= 1 && index <= batch.length);
+        break;
+      } catch {
+        // Try the next configured key; provider failure is not a negative name judgment.
+      }
+    }
+    if (batchResult === null) return { status: "unavailable", validNames: [] };
+    accepted.push(...batchResult.map((index) => batch[index - 1]!).filter(Boolean));
+  }
+  return { status: "validated", validNames: accepted };
 }
