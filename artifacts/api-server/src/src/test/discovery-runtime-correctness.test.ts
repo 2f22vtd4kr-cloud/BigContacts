@@ -23,26 +23,28 @@ describe("discovery runtime architecture", () => {
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
   });
 
-  it("binds a validated Right-hand-approved Boss opening direction into the real first Investigator scope", () => {
-    expect(canonicalDiscoverySource).toContain("resolveApprovedOpeningDirection({");
-    expect(canonicalDiscoverySource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
-    expect(canonicalDiscoverySource).toContain("narrative review prose is never parsed as authorization");
-    expect(canonicalDiscoverySource).toContain("Right-hand opening approval: ");
-    expect(canonicalDiscoverySource).toContain("Return a separate explicit approval enum");
-    expect(canonicalDiscoverySource).toContain("validateAtlasOpeningRightHandApprovalReview(parsed)");
-    expect(canonicalDiscoverySource).toContain("The decision is a free-form narrative summary");
-    expect(atlasControlDecisionSource).toContain('approval: { type: "string", enum: ["approve", "reject"] }');
-    expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {\n  if (!value || !validateExactObjectFields(value, ["decision", "reason", "focusLanes", "confidence"])) return false;');
-    expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandApprovalReview(value: Record<string, unknown> | null): boolean {');
+  it("binds the Boss-adjudicated opening direction into the real first Investigator scope", () => {
+    expect(canonicalDiscoverySource).toContain("resolveBossAdjudicatedOpeningDirection({");
+    expect(canonicalDiscoverySource).toContain("rightHandOverride: {");
+    expect(canonicalDiscoverySource).toContain("decision: rightHand.decision");
+    expect(canonicalDiscoverySource).toContain("status: rightHand.status");
+    expect(canonicalDiscoverySource).toContain('authority: "advisory_only"');
+    expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
+    expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");
+    expect(canonicalDiscoverySource).toContain("bossAction: openingBossDecision.action");
+    expect(canonicalDiscoverySource).toContain("bossDirection: openingBossDecision.direction");
     expect(canonicalDiscoverySource).toContain('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
     expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = openingObjective.objective");
-    expect(canonicalDiscoverySource).toContain("controlTurn: 0");
+    expect(canonicalDiscoverySource).toContain("controlTurn: 1");
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
-    expect(canonicalDiscoverySource).toContain("No active opening direction was authorized");
+    expect(canonicalDiscoverySource).toContain("Boss chose to continue the human base objective without activating its initial direction.");
+    // Target-stage Right-hand authorization remains a separate contract; it is not
+    // an approval gate for the discovery-opening Boss adjudication.
+    expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {');
+    expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandApprovalReview(value: Record<string, unknown> | null): boolean {');
     expect(researchCoreSource).toContain("If the Boss wording explicitly orders dependent source stages");
     expect(researchCoreSource).toContain("explain any material deviation");
   });
-
   it("compares model-selected anchors by evidence yield, targetability, novelty, and cost without fixing a sector", () => {
     expect(bossDiscoverySource).toContain("compare a small set of plausible hypotheses by commercial relevance");
     expect(bossDiscoverySource).toContain("expected research cost");
@@ -116,10 +118,12 @@ describe("discovery runtime architecture", () => {
     expect(openingCall).toContain("openingDiscoveryBudget");
     expect(openingCall).toContain("openingInvestigatorIterations");
     expect(openingCall).toContain("resolveInvestigatorTokenDailyQuotaRecoveryIterations");
-    expect(canonicalSource).toContain('rightHandDecision: rightHand.approval === "approve" ? "approve" : "reject"');
+    expect(canonicalSource).toContain("decision: rightHand.decision");
+    expect(canonicalSource).toContain("authority: \"advisory_only\"");
+    expect(canonicalSource).not.toContain("rightHand.approval");
     expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
     const approvedOpeningStart = canonicalSource.indexOf('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
-    const persistedOpeningScope = canonicalSource.indexOf("controlTurn: 0", approvedOpeningStart);
+    const persistedOpeningScope = canonicalSource.indexOf("controlTurn: 1", approvedOpeningStart);
     const firstInvestigatorAct = canonicalSource.indexOf("let discovery = await runBureauAgenticWebPass", approvedOpeningStart);
     expect(canonicalSource).toContain("persistAcceptedAtlasDiscoveryObjective({");
     expect(canonicalSource).toContain("activeDiscoveryObjective = openingObjective.objective");
