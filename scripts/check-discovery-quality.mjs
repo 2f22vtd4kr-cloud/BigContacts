@@ -35,7 +35,8 @@ if (activeInvestigator.includes("hasPressPublisherSiteFilter")
   console.error("FAIL: active Investigator still contains a deterministic discovery query-strategy filter");
   process.exit(1);
 }
-if (!activeInvestigator.includes("Query content and source class are model-owned research choices")) {
+if (!activeInvestigator.includes("Structural/provider-syntax checks only.")
+  || !activeInvestigator.includes("model-owned research choices, not runtime admission or relevance policy.")) {
   console.error("FAIL: active Investigator query validator does not declare model-owned query strategy");
   process.exit(1);
 }
