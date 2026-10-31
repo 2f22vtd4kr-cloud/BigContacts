@@ -9,6 +9,9 @@ export type DiscoverySourceAttribution = {
   independentCorroborationStatus: "not_assessed";
 };
 
+export const RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE =
+  "COMMUNITY_SOURCE_REFERENCE_ONLY: user-submitted page content is withheld and is not evidence. Retain only the permitted external URL for manual review; independently verify any named entity through permitted public sources. Contributor annotations, images and precise residential coordinates are not copied, stored or used.";
+
 /** User-submitted location pages are URL references only unless a license is explicitly verified. */
 export function isRestrictedCommunitySourceUrl(sourceUrl: string): boolean {
   try {
