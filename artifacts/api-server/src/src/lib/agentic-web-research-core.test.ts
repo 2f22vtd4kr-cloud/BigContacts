@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractSearchResultCompanyLeadFindings, extractObservedOrganizationIdentity, isGenericDiscoveryMetadataTitle, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, isGenericDiscoveryMetadataTitle, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -15,45 +15,14 @@ const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/s
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(), "src/src/lib/research-lead-card-reconciliation.ts"), "utf8");
 
-describe("search-result company review lead extraction", () => {
-  it("preserves a concrete business-like result title but rejects generic discovery metadata such as Case Co", () => {
-    const realBusinessText = [
-      "Northstar Casino Resort",
-      "URL: https://northstarcasino.si/",
-      "Northstar Casino Resort operates a resort in Slovenia.",
-    ].join("\n");
-    const realBusiness = extractSearchResultCompanyLeadFindings(realBusinessText, ["https://northstarcasino.si/"]);
-    expect(realBusiness).toHaveLength(1);
-    expect(realBusiness[0]).toMatchObject({
-      value: "Northstar Casino Resort",
-      scope: "organization",
-      vectorType: "other",
-      personName: null,
-      role: null,
-      sourceUrls: ["https://northstarcasino.si/"],
-    });
-
-    const genericMetadataText = [
-      "Case Co",
-      "URL: https://caseco.si/",
-      "Case Co is a generic discovery placeholder.",
-    ].join("\n");
-    expect(extractSearchResultCompanyLeadFindings(genericMetadataText, ["https://caseco.si/"])).toEqual([]);
+describe("model-owned review-lead selection", () => {
+  it("does not create company findings from search-result titles in deterministic runtime code", () => {
+    expect(agenticCoreSource).not.toContain("extractSearchResultCompanyLeadFindings");
+    expect(agenticCoreSource).not.toContain("SEARCH_RESULT_BUSINESS_MARKER");
+    expect(agenticCoreSource).not.toContain("record.findings = mergeFindings(record.findings ?? [], extractedCompanyLeads)");
     expect(isGenericDiscoveryMetadataTitle("Case Co Officers")).toBe(true);
-    expect(extractSearchResultCompanyLeadFindings(
-      "Case Co Officers\nURL: https://caseco.si/officers\nGeneric placeholder page",
-      ["https://caseco.si/officers"],
-    )).toEqual([]);
-
-    const categoryHeadlineText = [
-      "Best Casino Hotels in Slovenia",
-      "URL: https://slovenia-casino-hotels.si/",
-      "A list of casino hotels in Slovenia.",
-    ].join("\n");
-    expect(extractSearchResultCompanyLeadFindings(categoryHeadlineText, ["https://slovenia-casino-hotels.si/"])).toEqual([]);
   });
 });
-
 describe("compact company registry lead retention", () => {
   it("retains only source-attributed Corporation rows and strips duplicates and person rows", () => {
     const sourceUrl = "https://find-and-update.company-information.service.gov.uk/company/14943848";
@@ -772,6 +741,74 @@ describe("partial model findings", () => {
       scope: "candidate",
       sourceUrls: ["https://example.com/leadership"],
       note: "Candidate claim from a non-terminal action.",
+      promotionDecision: undefined,
+      promotionReason: undefined,
+    }]);
+  });
+
+  it("retains a model-selected person lead when role and exact snippet-span attribution are unknown", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Jane Doe company leadership",
+      provider: "serper",
+      hypothesis: "A public profile may identify a relevant operator.",
+      purpose: "Preserve a promising lead for target-scoped verification.",
+      expectedInformationGain: 0.6,
+      findings: [{
+        vectorType: "linkedin",
+        value: "Jane Doe",
+        personName: "Jane Doe",
+        role: null,
+        scope: "candidate",
+        sourceUrls: ["https://www.zoominfo.com/p/Jane-Doe/123"],
+        note: "Investigator-selected lead; professional relevance appears promising but role is not established.",
+        promotionDecision: null,
+        promotionReason: null,
+      }],
+    }), ["web_search"]);
+
+    expect(parsed?.partialFindings).toEqual([{
+      vectorType: "linkedin",
+      value: "Jane Doe",
+      personName: "Jane Doe",
+      role: null,
+      scope: "candidate",
+      sourceUrls: ["https://www.zoominfo.com/p/Jane-Doe/123"],
+      note: "Investigator-selected lead; professional relevance appears promising but role is not established.",
+      promotionDecision: undefined,
+      promotionReason: undefined,
+    }]);
+  });
+
+  it("uses organization scope as the model's selection signal without vector or auxiliary-field gates", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Northstar Casino Resort owners",
+      provider: "serper",
+      hypothesis: "The organization may expose relevant principals.",
+      purpose: "Preserve it for target-scoped research.",
+      expectedInformationGain: 0.7,
+      findings: [{
+        vectorType: "website",
+        value: "Northstar Casino Resort",
+        personName: "A person mentioned in the same result",
+        role: "Founder",
+        scope: "organization",
+        sourceUrls: ["https://northstarcasino.si/"],
+        note: "Investigator-selected organization lead.",
+        promotionDecision: null,
+        promotionReason: null,
+      }],
+    }), ["web_search"]);
+
+    expect(parsed?.partialFindings).toEqual([{
+      vectorType: "website",
+      value: "Northstar Casino Resort",
+      personName: "A person mentioned in the same result",
+      role: "Founder",
+      scope: "organization",
+      sourceUrls: ["https://northstarcasino.si/"],
+      note: "Investigator-selected organization lead.",
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
