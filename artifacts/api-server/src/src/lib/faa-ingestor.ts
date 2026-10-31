@@ -20,8 +20,11 @@ import { mkdir, stat } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
 import type { InsertEntity, InsertAsset, InsertRelationship } from "@workspace/db";
+import { classifyFaaRegistrant, classifyFaaAssetSignal } from "./faa-ownership-classification";
+import { isStructurallyValidCandidateName } from "./llm-name-validator-policy";
 import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
 
@@ -37,32 +40,31 @@ const MASTER_PATH = join(TMP_DIR, "MASTER.txt");
 // Cache TTL — re-download if file is older than 23 hours
 const CACHE_TTL_MS = 23 * 60 * 60 * 1000;
 
-// FAA TYPE REGISTRANT codes — we want individual-like registrants, not government
-// 1=Individual, 2=Partnership, 3=Corporation, 4=Co-Owned, 5=Government, 7=LLC
-// 8=Non-Citizen Corporation, 9=Non-Citizen Co-Owned
-const INDIVIDUAL_TYPES = new Set(["1", "2", "4", "7", "9"]);
-
-// FAA TYPE ENGINE codes — turbine = expensive aircraft = HNWI signal
-// 2=Turbo-prop, 3=Turbo-shaft, 4=Turbo-jet, 5=Turbo-fan
-const TURBINE_ENGINES = new Set(["2", "3", "4", "5"]);
-
-// FAA TYPE AIRCRAFT codes
-const FIXED_WING_MULTI = "5";   // fixed wing multi-engine (even piston = significant)
-const ROTORCRAFT = "6";          // helicopter
-
-// MASTER.txt field indices (comma-delimited, 0-based after split)
+// FAA MASTER.txt is comma-delimited with 34 documented fields (0-based).
+// Registrant type, fractional flag, status and additional names are kept separately.
+const ROTORCRAFT = "6";
 const F_NNUMBER        = 0;
 const F_SERIAL         = 1;
 const F_YEAR_MFR       = 4;
 const F_TYPE_REG       = 5;
 const F_NAME           = 6;
 const F_STREET         = 7;
+const F_STREET2        = 8;
 const F_CITY           = 9;
 const F_STATE          = 10;
+const F_ZIP            = 11;
 const F_COUNTRY        = 14;
 const F_TYPE_AIRCRAFT  = 18;
 const F_TYPE_ENGINE    = 19;
 const F_STATUS         = 20;
+const F_FRACTIONAL_OWNER = 22;
+const F_OTHER_NAME_1 = 24;
+const F_OTHER_NAME_5 = 28;
+const F_LAST_ACTIVITY = 15;
+const F_MFR_MODEL_CODE = 2;
+const F_ENGINE_MODEL_CODE = 3;
+const F_EXPIRATION_DATE = 29;
+const F_UNIQUE_ID = 30;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -77,7 +79,10 @@ export interface FaaIngestionResult {
   skipped: number;
   errors: number;
   durationMs: number;
+  candidateEntitiesInserted: number;
 }
+
+type FaaBatchRow = { asset: InsertAsset; entity: InsertEntity | null };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -106,36 +111,41 @@ export const US_STATE_CENTROIDS: Record<string, [number, number]> = {
   PR: [18.220833, -66.590149], GU: [13.444304, 144.793731],  VI: [18.335765, -64.896335],
 };
 
-function stateCentroid(state: string): { latitude: number; longitude: number } | undefined {
-  const c = US_STATE_CENTROIDS[state.toUpperCase()];
-  return c ? { latitude: c[0], longitude: c[1] } : undefined;
-}
-
 function titleCase(s: string): string {
-  return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  return s.trim().replace(/\s+/g, " ").toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
 }
 
 /**
- * FAA MASTER.txt stores ALL person names as "LASTNAME FIRSTNAME [MIDDLE...]" in ALL-CAPS.
- * For individual registrants (typeReg === "1") we reverse to "First [Middle] Last" and
- * apply title-case. Corporate registrants (LLCs, governments, etc.) are title-cased only.
- *
- * Examples (typeReg="1"):
- *   "SCHEUER WALTER"       → "Walter Scheuer"
- *   "LEEDS RICHARD BRIAN"  → "Richard Brian Leeds"
- *   "VAN DEN BERG JOHN"    → "John Van Den Berg"
- *
- * Examples (typeReg="7"):
- *   "WELLS FARGO BANK NA"  → "Wells Fargo Bank Na"  (untouched — not a person)
+ * Parse one FAA comma-delimited record while respecting quoted commas and escaped quotes.
+ * MASTER.txt is not a pipe-delimited file and names may contain commas.
  */
-export function normalizeFaaName(rawName: string, typeReg: string): string {
-  const titled = titleCase(rawName.trim());
-  if (typeReg !== "1") return titled;           // non-individual — title-case only
-  const spaceIdx = titled.indexOf(" ");
-  if (spaceIdx === -1) return titled;            // single-word name — leave as-is
-  const lastName = titled.slice(0, spaceIdx);
-  const rest     = titled.slice(spaceIdx + 1);
-  return `${rest} ${lastName}`;
+export function parseFaaMasterCsvRecord(line: string): string[] {
+  const fields: string[] = [];
+  let value = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index++) {
+    const char = line[index]!;
+    if (char === '"') {
+      if (quoted && line[index + 1] === '"') {
+        value += '"';
+        index++;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === "," && !quoted) {
+      fields.push(value.trim());
+      value = "";
+    } else {
+      value += char;
+    }
+  }
+  fields.push(value.trim());
+  return fields;
+}
+
+/** Keep FAA's registrant order; the raw name is retained for model-led resolution. */
+export function normalizeFaaName(rawName: string, _typeReg: string): string {
+  return titleCase(rawName);
 }
 
 function aircraftLabel(typeEngine: string, typeAircraft: string): string {
@@ -147,46 +157,150 @@ function aircraftLabel(typeEngine: string, typeAircraft: string): string {
   return "Multi-Engine";
 }
 
-function bayesianScore(typeEngine: string, typeAircraft: string): number {
-  // Turbine jets/turbofans = highest wealth signal
-  if (typeEngine === "4" || typeEngine === "5") return 0.82;
-  if (typeEngine === "2" || typeEngine === "3") return 0.70;
-  if (typeAircraft === ROTORCRAFT) return 0.65;
-  return 0.52; // multi-engine piston
+function faaDateToIso(value: string): string | null {
+  const normalized = value.trim().replace(/\//g, "-");
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : null;
 }
 
-// Corporate name suffixes / keywords that reliably indicate a legal entity, not a person.
-// Applied after titleCase() so we match normal capitalisation.
-const COMPANY_INDICATORS = [
-  /\bLlc\b/, /\bL\.L\.C\./, /\bLlp\b/, /\bL\.L\.P\./,
-  /\bInc\.?\b/, /\bCorp\.?\b/, /\bLtd\.?\b/, /\bLimited\b/,
-  /\bPlc\b/, /\bGmbh\b/, /\bS\.A\.\b/, /\bB\.V\.\b/, /\bN\.V\.\b/,
-  /\bL\.P\.\b/, /\bPartners\b/, /\bPartnership\b/,
-  /\bHoldings\b/, /\bHolding\b/,
-  /\bTrust\b/, /\bTrustee\b/, /\bFoundation\b/,
-  /\bCapital\b/, /\bFund\b/, /\bGroup\b/,
-  /\bManagement\b/, /\bAdvisors\b/, /\bAdvisory\b/,
-  /\bProperties\b/, /\bRealty\b/, /\bEstate\b(?!s of)/,
-  /\bVentures\b/, /\bEnterprises\b/, /\bIndustries\b/,
-  /\bTechnologies\b/, /\bSolutions\b/, /\bServices\b/,
-  /\bAeronautics?\b/, /\bAviation\b/, /\bAircraft\b/,
-  /\bAssociates\b/, /\bConsulting\b/, /\bInvestments\b/,
-  /\bFinancial\b/, /\bAcquisition\b/, /\bCo\.\b/,
-  /\bFamily Office\b/, /\bFam Ofc\b/,
-];
+export function buildFaaRegistrantEntity(input: {
+  nNumber: string;
+  registrantTypeCode: string;
+  registrantName: string;
+  fractionalOwnershipFlag: string;
+  statusCode: string;
+  typeAircraft: string;
+  typeEngine: string;
+  yearManufactured: string;
+  serialNumber: string;
+  state: string;
+  country: string;
+  mailingAddress: string;
+  otherRegistrantNames: string[];
+  lastActivityDate: string;
+}): InsertEntity | null {
+  const classification = classifyFaaRegistrant(input.registrantTypeCode, {
+    fractionalOwnershipFlag: input.fractionalOwnershipFlag,
+    statusCode: input.statusCode,
+  });
+  if (!classification.entityType || !isStructurallyValidCandidateName(input.registrantName)) return null;
 
-/**
- * Classify FAA registrant as HNWI or Corporation based on:
- * - typeReg=7 (LLC) → always Corporation
- * - typeReg=1 (Individual) → always HNWI
- * - typeReg=2/4/9 → Corporation if name has corporate indicators, HNWI otherwise
- */
-function classifyFaaEntityType(typeReg: string, name: string): "HNWI" | "Corporation" {
-  if (typeReg === "1") return "HNWI";           // FAA-confirmed individual
-  if (typeReg === "7") return "Corporation";    // LLC = legal entity, always
-  // For partnerships (2), co-owned (4), non-citizen co-owned (9):
-  const hasCorporateIndicator = COMPANY_INDICATORS.some((re) => re.test(name));
-  return hasCorporateIndicator ? "Corporation" : "HNWI";
+  const name = normalizeFaaName(input.registrantName, input.registrantTypeCode);
+  const tailNumber = input.nNumber.startsWith("N") ? input.nNumber : `N${input.nNumber}`;
+  const isPersonCandidate = classification.entityType === "PersonCandidate";
+  return {
+    name,
+    type: classification.entityType,
+    nationality: input.country || "US",
+    knownResidences: null,
+    sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
+    bayesianScore: classification.bayesianScore,
+    estimatedNetWorth: null,
+    isHot: false,
+    contactMethod: "FAA registrant record — no direct professional contact route observed",
+    notes: `FAA ${classification.registrantTypeLabel.toLowerCase()} registrant for aircraft N${input.nNumber}; registered-to association is not a beneficial-ownership conclusion.`,
+    metadata: JSON.stringify({
+      source: "faa-aircraft-registry",
+      nNumber: tailNumber,
+      registrantTypeCode: classification.registrantTypeCode,
+      registrantTypeLabel: classification.registrantTypeLabel,
+      registrantKind: classification.registrantKind,
+      identityStatus: classification.identityStatus,
+      ownershipStatus: classification.ownershipStatus,
+      beneficialOwnershipStatus: classification.beneficialOwnershipStatus,
+      fractionalOwnershipStatus: classification.fractionalOwnershipStatus,
+      registrationStatus: classification.registrationStatus,
+      confidence: classification.confidence,
+      reviewOnly: true,
+      wealthStatus: classification.wealthStatus,
+      hnwiQualificationStatus: classification.hnwiQualificationStatus,
+      estimatedNetWorth: null,
+      bayesianScore: 0.05,
+      assetSignal: classifyFaaAssetSignal(input.typeEngine, input.typeAircraft),
+      personalWealthEvidence: false,
+      nameValidationStatus: "pending_investigator_resolution",
+      nameNormalizationStatus: "title_case_only_raw_order_preserved",
+      rawRegistrantName: input.registrantName,
+      otherRegistrantNames: input.otherRegistrantNames,
+      registrantMailingAddress: input.mailingAddress || null,
+      registrantState: input.state || null,
+      country: input.country || "US",
+      typeAircraft: input.typeAircraft,
+      typeEngine: input.typeEngine,
+      serialNumber: input.serialNumber,
+      yearManufactured: input.yearManufactured,
+      lastActivityDate: faaDateToIso(input.lastActivityDate),
+      sourceUrl: "https://registry.faa.gov/database/ReleasableAircraft.zip",
+      sourceFieldSemantics: "FAA registrant type identifies the registration applicant; it does not establish ultimate beneficial ownership or personal wealth.",
+      candidateKind: isPersonCandidate ? "individual_registrant_candidate" : "legal_entity_registrant_candidate",
+    }),
+  };
+}
+
+export function buildFaaAircraftAsset(input: {
+  nNumber: string;
+  registrantTypeCode: string;
+  registrantName: string;
+  fractionalOwnershipFlag: string;
+  statusCode: string;
+  typeAircraft: string;
+  typeEngine: string;
+  yearManufactured: string;
+  serialNumber: string;
+  manufacturerModelCode: string;
+  engineModelCode: string;
+  state: string;
+  country: string;
+  otherRegistrantNames: string[];
+  lastActivityDate: string;
+  expirationDate: string;
+  uniqueId: string;
+}): InsertAsset {
+  const classification = classifyFaaRegistrant(input.registrantTypeCode, {
+    fractionalOwnershipFlag: input.fractionalOwnershipFlag,
+    statusCode: input.statusCode,
+  });
+  const label = aircraftLabel(input.typeEngine, input.typeAircraft);
+  const tailNumber = input.nNumber.startsWith("N") ? input.nNumber : `N${input.nNumber}`;
+  return {
+    category: "Aviation",
+    identifier: tailNumber,
+    jurisdiction: "FAA, US",
+    description: `${label} — ${tailNumber}${input.yearManufactured ? ` (${input.yearManufactured})` : ""}`,
+    sourceRegistry: "FAA Releasable Aircraft Database",
+    lastActivityDate: faaDateToIso(input.lastActivityDate) ?? undefined,
+    estimatedValue: null,
+    metadata: JSON.stringify({
+      source: "faa-aircraft-registry",
+      nNumber: tailNumber,
+      registrantName: input.registrantName,
+      otherRegistrantNames: input.otherRegistrantNames,
+      registrantTypeCode: classification.registrantTypeCode,
+      registrantTypeLabel: classification.registrantTypeLabel,
+      registrantKind: classification.registrantKind,
+      identityStatus: classification.identityStatus,
+      ownershipStatus: classification.ownershipStatus,
+      beneficialOwnershipStatus: classification.beneficialOwnershipStatus,
+      fractionalOwnershipStatus: classification.fractionalOwnershipStatus,
+      registrationStatus: classification.registrationStatus,
+      assetSignal: classifyFaaAssetSignal(input.typeEngine, input.typeAircraft),
+      personalWealthEvidence: false,
+      wealthStatus: "not_assessed",
+      hnwiQualificationStatus: classification.hnwiQualificationStatus,
+      reviewOnly: true,
+      typeAircraft: input.typeAircraft,
+      typeEngine: input.typeEngine,
+      manufacturerModelCode: input.manufacturerModelCode,
+      engineModelCode: input.engineModelCode,
+      serialNumber: input.serialNumber,
+      yearManufactured: input.yearManufactured,
+      registrantState: input.state || null,
+      country: input.country || "US",
+      expirationDate: faaDateToIso(input.expirationDate),
+      uniqueId: input.uniqueId || null,
+      sourceUrl: "https://registry.faa.gov/database/ReleasableAircraft.zip",
+      sourceFieldSemantics: "Registrant is the FAA registration applicant; no beneficial-owner or market-value conclusion is made.",
+    }),
+  };
 }
 
 async function isCacheStale(): Promise<boolean> {
@@ -201,46 +315,184 @@ async function isCacheStale(): Promise<boolean> {
 
 // ── Batch flush ───────────────────────────────────────────────────────────────
 
-async function flushBatch(
-  entities: InsertEntity[],
-  assets: InsertAsset[],
-): Promise<{ inserted: number; errors: number }> {
-  if (entities.length === 0) return { inserted: 0, errors: 0 };
-  try {
-    const rows = await db
-      .insert(entitiesTable)
-      .values(entities)
-      .returning({ id: entitiesTable.id });
+type FaaBatchRow = { asset: InsertAsset; entity: InsertEntity | null };
 
-    // Insert assets linked to their owner entities
-    const assetRows: InsertAsset[] = assets.map((a, i) => ({
-      ...a,
-      ownerEntityId: rows[i]?.id ?? undefined,
-    }));
-    if (assetRows.length > 0) {
-      await db.insert(assetsTable).values(assetRows);
+async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
+  await db.transaction(async (tx) => {
+    const legacyAssets = await tx.select({
+      id: assetsTable.id,
+      ownerEntityId: assetsTable.ownerEntityId,
+    }).from(assetsTable).where(and(
+      eq(assetsTable.category, "Aviation"),
+      eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
+      isNotNull(assetsTable.ownerEntityId),
+    ));
+    const assetIds = legacyAssets.map((row) => row.id);
+    if (assetIds.length > 0) {
+      await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, assetIds));
+      await tx.update(relationshipsTable).set({
+        relationshipType: "REGISTERED_TO",
+        strength: 0.75,
+        notes: "Legacy FAA registrant link reclassified as REGISTERED_TO; registration is not beneficial-ownership proof.",
+      }).where(and(
+        eq(relationshipsTable.targetType, "Asset"),
+        eq(relationshipsTable.relationshipType, "OWNS"),
+        inArray(relationshipsTable.targetId, assetIds),
+      ));
+      const existing = await tx.select({
+        sourceEntityId: relationshipsTable.sourceEntityId,
+        targetId: relationshipsTable.targetId,
+      }).from(relationshipsTable).where(and(
+        eq(relationshipsTable.targetType, "Asset"),
+        eq(relationshipsTable.relationshipType, "REGISTERED_TO"),
+        inArray(relationshipsTable.targetId, assetIds),
+      ));
+      const existingPairs = new Set(existing.map((row) => `${row.sourceEntityId}:${row.targetId}`));
+      const repairRows: InsertRelationship[] = legacyAssets
+        .filter((row) => row.ownerEntityId != null && !existingPairs.has(`${row.ownerEntityId}:${row.id}`))
+        .map((row) => ({
+          sourceEntityId: row.ownerEntityId!,
+          targetId: row.id,
+          targetType: "Asset",
+          relationshipType: "REGISTERED_TO",
+          strength: 0.75,
+          notes: "Legacy FAA registrant link reclassified as REGISTERED_TO; registration is not beneficial-ownership proof.",
+        }));
+      if (repairRows.length > 0) await tx.insert(relationshipsTable).values(repairRows);
     }
 
-    // Create OWNS relationships for graph engine
-    const relRows: InsertRelationship[] = rows
-      .map((r) => ({
-        sourceEntityId: r.id,
-        targetId: r.id, // will be updated after asset insert below
-        targetType: "Asset" as const,
-        relationshipType: "OWNS",
-        strength: 1.0,
-        notes: "FAA aircraft registration",
-      }))
-      .filter((_, i) => assetRows[i]?.ownerEntityId != null);
+    // Historical FAA imports promoted registrants to HNWI using aircraft-class
+    // multipliers. Downgrade only rows whose sole source is the FAA registry.
+    await tx.update(entitiesTable).set({
+      type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'Corporation' ELSE 'PersonCandidate' END`,
+      estimatedNetWorth: null,
+      bayesianScore: 0.05,
+      isHot: false,
+      knownResidences: null,
+      contactMethod: "FAA registrant record — direct professional contact route not verified",
+      metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
+        'legacyFaaOwnershipCorrected', true,
+        'hnwiQualificationStatus', 'unverified',
+        'wealthStatus', 'not_assessed',
+        'beneficialOwnershipStatus', 'unresolved',
+        'reviewOnly', true,
+        'estimatedNetWorth', null,
+        'bayesianScore', 0.05,
+        'isHot', false
+      )`,
+    }).where(and(
+      eq(entitiesTable.type, "HNWI"),
+      eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
+    ));
+  });
+}
 
-    // Actually we need asset IDs for proper relationship rows — skip for now,
-    // ownerEntityId FK on assets is sufficient for the graph engine
-    void relRows;
+async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; errors: number; candidateEntitiesInserted: number }> {
+  if (batch.length === 0) return { inserted: 0, errors: 0, candidateEntitiesInserted: 0 };
+  try {
+    return await db.transaction(async (tx) => {
+      const uniqueRows = new Map<string, FaaBatchRow>();
+      for (const row of batch) {
+        const identifier = row.asset.identifier;
+        if (identifier && !uniqueRows.has(identifier)) uniqueRows.set(identifier, row);
+      }
+      const rows = [...uniqueRows.values()];
+      const identifiers = rows.map((row) => row.asset.identifier);
+      const existingAssets = await tx.select({
+        id: assetsTable.id,
+        identifier: assetsTable.identifier,
+        ownerEntityId: assetsTable.ownerEntityId,
+      }).from(assetsTable).where(and(
+        eq(assetsTable.category, "Aviation"),
+        eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
+        inArray(assetsTable.identifier, identifiers),
+      ));
+      const assetIdByIdentifier = new Map(existingAssets.map((row) => [row.identifier, row.id]));
+      const freshAssets = rows.filter((row) => !assetIdByIdentifier.has(row.asset.identifier));
+      const insertedAssets = freshAssets.length > 0
+        ? await tx.insert(assetsTable).values(freshAssets.map((row) => row.asset)).returning({ id: assetsTable.id, identifier: assetsTable.identifier })
+        : [];
+      for (const row of insertedAssets) assetIdByIdentifier.set(row.identifier, row.id);
 
-    return { inserted: rows.length, errors: 0 };
+      const legacyOwnerLinks = existingAssets.filter((row) => row.ownerEntityId != null);
+      if (legacyOwnerLinks.length > 0) {
+        await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, legacyOwnerLinks.map((row) => row.id)));
+      }
+
+      const candidateRows = rows.filter((row): row is FaaBatchRow & { entity: InsertEntity } => row.entity !== null);
+      const uniqueEntities = new Map<string, InsertEntity>();
+      for (const row of candidateRows) {
+        const key = row.entity.name.trim().toLowerCase().replace(/\s+/g, " ");
+        if (key && !uniqueEntities.has(key)) uniqueEntities.set(key, row.entity);
+      }
+      const entityNames = [...uniqueEntities.values()].map((entity) => entity.name);
+      const existingEntities = entityNames.length > 0
+        ? await tx.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable).where(inArray(entitiesTable.name, entityNames))
+        : [];
+      const entityIdByName = new Map(existingEntities.map((row) => [row.name.trim().toLowerCase().replace(/\s+/g, " "), row.id]));
+      const freshEntities = [...uniqueEntities.entries()].filter(([key]) => !entityIdByName.has(key)).map(([, entity]) => entity);
+      const insertedEntities = freshEntities.length > 0
+        ? await tx.insert(entitiesTable).values(freshEntities).returning({ id: entitiesTable.id, name: entitiesTable.name })
+        : [];
+      for (const row of insertedEntities) entityIdByName.set(row.name.trim().toLowerCase().replace(/\s+/g, " "), row.id);
+
+      const assetIds = [...assetIdByIdentifier.values()];
+      const existingRelations = assetIds.length > 0
+        ? await tx.select({
+            sourceEntityId: relationshipsTable.sourceEntityId,
+            targetId: relationshipsTable.targetId,
+          }).from(relationshipsTable).where(and(
+            eq(relationshipsTable.targetType, "Asset"),
+            eq(relationshipsTable.relationshipType, "REGISTERED_TO"),
+            inArray(relationshipsTable.targetId, assetIds),
+          ))
+        : [];
+      const relationPairs = new Set(existingRelations.map((row) => `${row.sourceEntityId}:${row.targetId}`));
+      const relationships: InsertRelationship[] = [];
+
+      for (const legacy of legacyOwnerLinks) {
+        if (legacy.ownerEntityId == null) continue;
+        const key = `${legacy.ownerEntityId}:${legacy.id}`;
+        if (relationPairs.has(key)) continue;
+        relationPairs.add(key);
+        relationships.push({
+          sourceEntityId: legacy.ownerEntityId,
+          targetId: legacy.id,
+          targetType: "Asset",
+          relationshipType: "REGISTERED_TO",
+          strength: 0.75,
+          notes: "FAA registry lists this entity as registrant; this does not establish beneficial ownership.",
+        });
+      }
+
+      for (const row of candidateRows) {
+        const entityKey = row.entity.name.trim().toLowerCase().replace(/\s+/g, " ");
+        const entityId = entityIdByName.get(entityKey);
+        const assetId = assetIdByIdentifier.get(row.asset.identifier);
+        if (!entityId || !assetId) continue;
+        const key = `${entityId}:${assetId}`;
+        if (relationPairs.has(key)) continue;
+        relationPairs.add(key);
+        relationships.push({
+          sourceEntityId: entityId,
+          targetId: assetId,
+          targetType: "Asset",
+          relationshipType: "REGISTERED_TO",
+          strength: 0.75,
+          notes: "FAA MASTER lists this entity as registrant; registration does not establish beneficial ownership.",
+        });
+      }
+      if (relationships.length > 0) await tx.insert(relationshipsTable).values(relationships);
+
+      return {
+        inserted: insertedAssets.length,
+        errors: 0,
+        candidateEntitiesInserted: insertedEntities.length,
+      };
+    });
   } catch (err: any) {
-    logger.warn({ err: err.message }, "FAA batch insert error");
-    return { inserted: 0, errors: entities.length };
+    logger.warn({ err: err.message, batchSize: batch.length }, "FAA transactional asset/registrant batch failed");
+    return { inserted: 0, errors: batch.length, candidateEntitiesInserted: 0 };
   }
 }
 
@@ -254,6 +506,8 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   let errors = 0;
 
   await mkdir(TMP_DIR, { recursive: true });
+  await updateJob(jobId, { message: "Reconciling legacy FAA registrant/asset ownership semantics…" });
+  await repairLegacyFaaOwnershipSemantics();
 
   // ── Step 1: Download ZIP ───────────────────────────────────────────────────
   const needsDownload = forceRefresh || await isCacheStale();
@@ -313,150 +567,141 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
 
   let lineNum = 0;
   let lastProgressLine = 0;
-  const entityBatch: InsertEntity[] = [];
-  const assetBatch: InsertAsset[] = [];
+  const batchRows: FaaBatchRow[] = [];
   const pendingDedup: string[] = [];
+  let candidateEntitiesInserted = 0;
+  let lineNum = 0;
+  let lastProgressLine = 0;
 
   for await (const line of rl) {
     lineNum++;
-    if (lineNum === 1) continue; // skip header row
-    if (inserted + entityBatch.length >= maxRecords) break;
+    if (inserted + batchRows.length >= maxRecords) break;
 
-    // ── Unconditional progress heartbeat every 5,000 lines ───────────────────
     if (lineNum - lastProgressLine >= 5_000) {
       lastProgressLine = lineNum;
       const pct = totalLines > 0
         ? Math.min(8 + Math.floor((lineNum / totalLines) * 87), 94)
         : Math.min(8 + Math.floor((inserted / maxRecords) * 87), 94);
       await updateJob(jobId, {
-        message: `Scanned ${lineNum.toLocaleString()} / ${totalLines.toLocaleString()} lines — ${inserted.toLocaleString()} aircraft owners matched…`,
+        message: `Scanned ${lineNum.toLocaleString()} / ${totalLines.toLocaleString()} FAA rows — ${inserted.toLocaleString()} aircraft assets seeded…`,
         progress: pct,
         inserted,
       });
     }
 
-    const f = line.split(",");
-    if (f.length < 21) continue;
+    const fields = parseFaaMasterCsvRecord(line);
+    if (fields[0]?.trim().toLowerCase() === "n-number") continue; // tolerate optional header, never skip the first data row
+    if (fields.length <= F_OTHER_NAME_5) continue;
 
-    const nNumber      = f[F_NNUMBER]?.trim() ?? "";
-    const typeReg      = f[F_TYPE_REG]?.trim() ?? "";
-    const rawName      = f[F_NAME]?.trim() ?? "";
-    const street       = f[F_STREET]?.trim() ?? "";
-    const city         = f[F_CITY]?.trim() ?? "";
-    const state        = f[F_STATE]?.trim() ?? "";
-    const country      = f[F_COUNTRY]?.trim() || "US";
-    const typeAircraft = f[F_TYPE_AIRCRAFT]?.trim() ?? "";
-    const typeEngine   = f[F_TYPE_ENGINE]?.trim() ?? "";
-    const status       = f[F_STATUS]?.trim() ?? "";
-    const yearMfr      = f[F_YEAR_MFR]?.trim() ?? "";
-    const serial       = f[F_SERIAL]?.trim() ?? "";
+    const nNumber = fields[F_NNUMBER]?.trim() ?? "";
+    const typeReg = fields[F_TYPE_REG]?.trim() ?? "";
+    const rawName = fields[F_NAME]?.trim() ?? "";
+    const street = fields[F_STREET]?.trim() ?? "";
+    const street2 = fields[F_STREET2]?.trim() ?? "";
+    const city = fields[F_CITY]?.trim() ?? "";
+    const state = fields[F_STATE]?.trim() ?? "";
+    const zip = fields[F_ZIP]?.trim() ?? "";
+    const country = fields[F_COUNTRY]?.trim() || "US";
+    const typeAircraft = fields[F_TYPE_AIRCRAFT]?.trim() ?? "";
+    const typeEngine = fields[F_TYPE_ENGINE]?.trim() ?? "";
+    const statusCode = fields[F_STATUS]?.trim() ?? "";
+    const fractionalOwnershipFlag = fields[F_FRACTIONAL_OWNER]?.trim() ?? "";
+    const yearMfr = fields[F_YEAR_MFR]?.trim() ?? "";
+    const serial = fields[F_SERIAL]?.trim() ?? "";
+    const otherRegistrantNames = fields.slice(F_OTHER_NAME_1, F_OTHER_NAME_5 + 1).map((value) => value.trim()).filter(Boolean);
+    const lastActivityDate = fields[F_LAST_ACTIVITY]?.trim() ?? "";
+    const expirationDate = fields[F_EXPIRATION_DATE]?.trim() ?? "";
+    const uniqueId = fields[F_UNIQUE_ID]?.trim() ?? "";
+    const manufacturerModelCode = fields[F_MFR_MODEL_CODE]?.trim() ?? "";
+    const engineModelCode = fields[F_ENGINE_MODEL_CODE]?.trim() ?? "";
 
-    // ── Filters ──────────────────────────────────────────────────────────────
-    if (status !== "V" && status !== "A") continue;        // active only
-    if (!INDIVIDUAL_TYPES.has(typeReg)) continue;          // individuals, LLCs, partnerships
-    if (!rawName || rawName.length < 3) continue;          // valid name
-    if (!nNumber) continue;                                // needs N-number
+    if (!nNumber) continue;
+    const classification = classifyFaaRegistrant(typeReg, { fractionalOwnershipFlag, statusCode });
+    // Keep current/renewal-pending registrations; do not seed sold, expired,
+    // revoked, reserved, or unknown status rows as live asset candidates.
+    if (classification.registrationStatus !== "valid" && classification.registrationStatus !== "pending") continue;
 
-    const isTurbine    = TURBINE_ENGINES.has(typeEngine);
-    const isMulti      = typeAircraft === FIXED_WING_MULTI;
-    const isRotor      = typeAircraft === ROTORCRAFT;
-    if (!isTurbine && !isMulti && !isRotor) continue;      // valuable aircraft only
-
-    // ── Dedup via in-memory Set (no Upstash per-record call) ─────────────────
+    const assetSignal = classifyFaaAssetSignal(typeEngine, typeAircraft);
+    if (assetSignal.strength === "observed_asset_lead") continue;
     const dkey = `faa:${nNumber}`;
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
     pendingDedup.push(dkey);
 
-    // ── Build records ─────────────────────────────────────────────────────────
-    const name = normalizeFaaName(rawName, typeReg);
-    const label = aircraftLabel(typeEngine, typeAircraft);
-    const address = [street, city, state, country !== "US" ? country : ""].filter(Boolean).join(", ");
-    const score = bayesianScore(typeEngine, typeAircraft);
-    const isJet = typeEngine === "4" || typeEngine === "5";
+    const tailNumber = nNumber.startsWith("N") ? nNumber : `N${nNumber}`;
+    const mailingAddress = [street, street2, city, state, zip, country !== "US" ? country : ""].filter(Boolean).join(", ");
+    const entity = buildFaaRegistrantEntity({
+      nNumber,
+      registrantTypeCode: typeReg,
+      registrantName: rawName,
+      fractionalOwnershipFlag,
+      statusCode,
+      typeAircraft,
+      typeEngine,
+      yearManufactured: yearMfr,
+      serialNumber: serial,
+      state,
+      country,
+      mailingAddress,
+      otherRegistrantNames,
+      lastActivityDate,
+    });
+    const asset = buildFaaAircraftAsset({
+      nNumber,
+      registrantTypeCode: typeReg,
+      registrantName: rawName,
+      fractionalOwnershipFlag,
+      statusCode,
+      typeAircraft,
+      typeEngine,
+      yearManufactured: yearMfr,
+      serialNumber: serial,
+      manufacturerModelCode,
+      engineModelCode,
+      state,
+      country,
+      otherRegistrantNames,
+      lastActivityDate,
+      expirationDate,
+      uniqueId,
+    });
+    // The FAA registrant can be a person or legal entity. Co-owned, government,
+    // and unknown registrant records remain asset-only until a model resolves
+    // their identities; none is written to assets.ownerEntityId.
+    batchRows.push({ asset: { ...asset, identifier: tailNumber }, entity });
 
-    // ── Net worth heuristic (B2): 10× median market value by aircraft class ────
-    function faaNetWorth(eng: string, acft: string): number {
-      if (eng === "5") return 180_000_000; // Turbofan  — $18M × 10
-      if (eng === "4") return 120_000_000; // Jet       — $12M × 10
-      if (eng === "2") return  30_000_000; // Turboprop — $3M  × 10
-      if (eng === "3") return  15_000_000; // Turboshaft/Helo — $1.5M × 10
-      if (acft === ROTORCRAFT)     return   8_000_000; // Rotorcraft — $800k × 10
-      return 4_000_000;                                // Multi-engine fixed wing — $400k × 10
-    }
-
-    const entityType = classifyFaaEntityType(typeReg, name);
-    const entity: InsertEntity = {
-      name,
-      type: entityType,
-      nationality: country === "US" || !country.trim() ? "US" : country,
-      knownResidences: address || undefined,
-      sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
-      bayesianScore: score,
-       // Aircraft/wealth evidence contributes to Signal, not Access-hot status.
-       isHot: false,
-      estimatedNetWorth: faaNetWorth(typeEngine, typeAircraft),
-      notes: `${label} owner. Tail: N${nNumber}.${yearMfr ? ` MFR year: ${yearMfr}.` : ""}`,
-      metadata: JSON.stringify({
-        source: "faa-aircraft-registry",
-        nNumber: `N${nNumber}`,
-        typeRegistrant: typeReg,
-        typeAircraft,
-        typeEngine,
-        engineLabel: label,
-        serialNumber: serial,
-        yearManufactured: yearMfr,
-        state,
-        downloadDate: new Date().toISOString().split("T")[0],
-      }),
-    };
-
-    const centroid = stateCentroid(state);
-    const asset: InsertAsset = {
-      category: "Aviation",
-      identifier: `N${nNumber}`,
-      jurisdiction: state ? `${state}, US` : "US",
-      description: `${label} — N${nNumber}${yearMfr ? ` (${yearMfr})` : ""}`,
-      address: address || undefined,
-      sourceRegistry: "FAA Releasable Aircraft Database",
-      lastActivityDate: new Date().toISOString().split("T")[0],
-      ...(centroid ?? {}),
-    };
-
-    entityBatch.push(entity);
-    assetBatch.push(asset);
-
-    // ── Flush every 100 records; batch-write dedup to Upstash in one call ────
-    if (entityBatch.length >= 100) {
-      const res = await flushBatch(entityBatch, assetBatch);
+    if (batchRows.length >= 100) {
+      const res = await flushBatch(batchRows);
+      if (res.errors > 0) {
+        errors += res.errors;
+        throw new Error(`FAA transactional batch persistence failed for ${res.errors} record(s); dedup keys were not committed.`);
+      }
       inserted += res.inserted;
-      errors += res.errors;
-      entityBatch.length = 0;
-      assetBatch.length = 0;
-
-      // One Upstash call per flush instead of one per record
+      candidateEntitiesInserted += res.candidateEntitiesInserted;
+      batchRows.length = 0;
       await batchMarkSeen(pendingDedup);
       pendingDedup.length = 0;
 
-      if (inserted % 1_000 === 0 && inserted > 0) {
-        await appendJobLog(jobId, `✈️  ${inserted.toLocaleString()} turbine/multi-engine aircraft owners ingested…`);
+      if (inserted > 0 && inserted % 1_000 === 0) {
+        await appendJobLog(jobId, `✈️ ${inserted.toLocaleString()} aircraft assets seeded; ${candidateEntitiesInserted.toLocaleString()} provisional registrant entities created.`);
       }
     }
   }
 
-  // Flush remaining and write final dedup batch
-  if (pendingDedup.length > 0) await batchMarkSeen(pendingDedup);
-
-  // ── Flush remaining ────────────────────────────────────────────────────────
-  if (entityBatch.length > 0) {
-    const res = await flushBatch(entityBatch, assetBatch);
+  if (batchRows.length > 0) {
+    const res = await flushBatch(batchRows);
+    if (res.errors > 0) {
+      errors += res.errors;
+      throw new Error(`FAA final transactional batch persistence failed for ${res.errors} record(s); dedup keys were not committed.`);
+    }
     inserted += res.inserted;
-    errors += res.errors;
+    candidateEntitiesInserted += res.candidateEntitiesInserted;
+    await batchMarkSeen(pendingDedup);
   }
 
   await appendJobLog(
     jobId,
-    `🏁 FAA ingestion complete: ${inserted.toLocaleString()} owners inserted, ${skipped.toLocaleString()} skipped (dedup), ${errors} errors.`,
+    `🏁 FAA ingestion complete: ${inserted.toLocaleString()} aircraft assets inserted, ${candidateEntitiesInserted.toLocaleString()} provisional registrant entities created, ${skipped.toLocaleString()} skipped (dedup), ${errors} errors.`,
   );
 
   return {
@@ -464,5 +709,6 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     skipped,
     errors,
     durationMs: Date.now() - startTime,
+    candidateEntitiesInserted,
   };
 }
