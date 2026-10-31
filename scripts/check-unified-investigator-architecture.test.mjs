@@ -54,13 +54,17 @@ try {
   const canonicalPath = path.join(fixtureRoot, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts");
   const canonicalSource = readFileSync(canonicalPath, "utf8");
   const { calls } = findControlCalls(canonicalSource);
-  const replacement = "/* stale marker only: decideAtlasNextAction( is no longer executed */ Promise.resolve(null as unknown as Awaited<ReturnType<typeof decideAtlasNextAction>>)";
-  // Remove every executable top-level Boss control call. Removing only the first
-  // would leave a second legitimate control turn and make the mutation ineffective.
+  // Remove the callee identifiers from every executable Boss control call while
+  // preserving a comment-only legacy marker. This makes the mutation independent
+  // of the call's argument shape or assignment name (opening vs continuation).
   let mutated = canonicalSource;
-  for (const call of [...calls].sort((a, b) => b.getStart() - a.getStart())) {
-    mutated = mutated.slice(0, call.getStart()) + replacement + mutated.slice(call.end);
+  for (const call of [...calls].sort((a, b) => b.expression.getStart() - a.expression.getStart())) {
+    mutated = mutated.slice(0, call.expression.getStart())
+      + "missingBossDirectedControlCall"
+      + mutated.slice(call.expression.end);
   }
+  const replacement = "/* stale marker only: decideAtlasNextAction( is no longer executed */ Promise.resolve(null as unknown as Awaited<ReturnType<typeof decideAtlasNextAction>>)";
+  mutated = mutated.replace(/missingBossDirectedControlCall\s*\(/g, replacement + "; void (");
   // Prove the pre-fix whole-file text predicate would have accepted this exact mutation.
   assert.equal(/decideAtlasNextAction\s*\(/.test(mutated), true, "legacy text-only marker should still match even after the executable call is removed");
   writeFileSync(canonicalPath, mutated, "utf8");
