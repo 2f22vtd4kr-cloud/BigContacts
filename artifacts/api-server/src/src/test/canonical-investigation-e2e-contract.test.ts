@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 // @ts-expect-error The workflow helper is plain ESM JavaScript and is loaded directly by Node in CI.
-import { getCanonicalDiscoveryCaseId, verifyCanonicalCardProof, verifyResearchEvidenceRows } from "../../../../../scripts/verify-canonical-card-proof.mjs";
+import { getCanonicalDiscoveryCaseId, verifyCanonicalCardProof, verifyResearchEvidenceRows, verifyModelAudit } from "../../../../../scripts/verify-canonical-card-proof.mjs";
 
 const apiRoot = process.cwd();
 const readApi = (path: string) => readFileSync(resolve(apiRoot, path), "utf8");
@@ -10,6 +10,52 @@ const readRepo = (path: string) => readFileSync(resolve(apiRoot, "../..", path),
 const readFrontend = (path: string) => readFileSync(resolve(apiRoot, "../apex-finder", path), "utf8");
 
 const sourceUrl = "https://registry.example.test/company/7";
+
+function modelAuditBlock(kind: "request" | "response", record: Record<string, unknown>) {
+  const json = JSON.stringify(record, null, 2);
+  const backtick = String.fromCharCode(96);
+  const longestBacktickRun = Math.max(0, ...(json.match(/`+/g) ?? []).map((run) => run.length));
+  const fence = backtick.repeat(Math.max(3, longestBacktickRun + 1));
+  return "### Model " + kind + " " + String(record.requestId) + "\n\n" + fence + "json\n" + json + "\n" + fence + "\n";
+}
+
+function successfulModelAudit(omitRole?: string, jobId = "job-qa-1") {
+  const roles = [
+    ["groq_boss", "llama-3.3-70b-versatile"],
+    ["groq_right_hand", "llama-3.3-70b-versatile"],
+    ["groq_investigator", "openai/gpt-oss-120b"],
+  ] as const;
+  return roles.filter(([role]) => role !== omitRole).map(([role, model], index) => {
+    const requestId = "request-" + role;
+    const request = {
+      event: "atlas_model_request",
+      requestId,
+      provider: "groq",
+      role,
+      model,
+      attempt: 1,
+      jobId,
+      caseId: 42,
+      requestSummary: index === 0 ? { messages: [{ role: "user", content: String.fromCharCode(96).repeat(3) }] } : {},
+    };
+    const response = {
+      event: "atlas_model_response",
+      requestId,
+      provider: "groq",
+      role,
+      model,
+      httpStatus: 200,
+      latencyMs: 100,
+      transportFailure: null,
+      response: {
+        jsonParsed: true,
+        usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
+        choices: [{ index: 0 }],
+      },
+    };
+    return modelAuditBlock("request", request) + modelAuditBlock("response", response);
+  }).join("\n");
+}
 const releasedLane = { type: "atlas-run", active: false, jobId: null, job: null };
 
 function companyProof(overrides: {
@@ -116,6 +162,42 @@ describe("canonical investigation end-to-end acceptance proof", () => {
       activeAtlasLock: "released",
       acceptedAfterControlFailure: false,
     });
+  });
+
+  it("proves successful real provider calls for Boss, Right-hand and Investigator and reports usage", () => {
+    const proof = verifyModelAudit({
+      proof: { jobId: "job-qa-1", caseId: 42 },
+      auditText: successfulModelAudit(),
+    });
+    expect(proof.modelAudit).toMatchObject({
+      totalRequests: 3,
+      totalResponses: 3,
+      successfulResponses: 3,
+      totalPromptTokens: 300,
+      totalCompletionTokens: 60,
+      totalTokens: 360,
+      totalLatencyMs: 300,
+      fallbackRoles: [],
+      byRole: {
+        groq_boss: { successfulCalls: 1, promptTokens: 100, completionTokens: 20 },
+        groq_right_hand: { successfulCalls: 1, promptTokens: 100, completionTokens: 20 },
+        groq_investigator: { successfulCalls: 1, promptTokens: 100, completionTokens: 20 },
+      },
+    });
+  });
+
+  it("rejects a model audit that lacks a successful call for any required role", () => {
+    expect(() => verifyModelAudit({
+      proof: { jobId: "job-qa-1", caseId: 42 },
+      auditText: successfulModelAudit("groq_right_hand"),
+    })).toThrow(/groq_right_hand/);
+  });
+
+  it("rejects model audit calls explicitly bound to another job", () => {
+    expect(() => verifyModelAudit({
+      proof: { jobId: "job-qa-1", caseId: 42 },
+      auditText: successfulModelAudit(undefined, "another-job"),
+    })).toThrow(/groq_boss/);
   });
 
   it("requires a durable research_evidence row bound to the exact job, case, source and supporting event", () => {
