@@ -99,8 +99,9 @@ export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "web
 export type CompactRegistryCompanyLead = { name: string; sourceUrls: string[]; notes: string | null };
 
 /**
- * Preserve only company-typed registry results as compact, review-only lead
- * context. Never persist person rows or raw registry metadata through this path.
+ * Preserve company-typed registry observations as compact model context.
+ * This is not card selection: keep safe public URLs regardless of claim grade
+ * and let the Investigator decide whether the organization is worth a card.
  */
 export function compactRegistryCompanyLeads(
   rows: readonly unknown[],
@@ -132,18 +133,17 @@ export function compactRegistryCompanyLeads(
         if (url.protocol !== "https:" || url.username || url.password) return [];
         url.hash = "";
         const normalized = url.href.endsWith("/") ? url.href.slice(0, -1) : url.href;
-        return isClaimGradeDiscoverySourceUrl(normalized) ? [normalized] : [];
+        return [normalized];
       } catch {
         return [];
       }
-    }))].slice(0, 3);
+    }))];
     if (!sourceUrls.length) continue;
     const noteText = typeof row.notes === "string"
       ? row.notes.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 240)
       : "";
     leads.push({ name, sourceUrls, notes: noteText || null });
     seen.add(identity);
-    if (leads.length >= 8) break;
   }
   return leads;
 }
