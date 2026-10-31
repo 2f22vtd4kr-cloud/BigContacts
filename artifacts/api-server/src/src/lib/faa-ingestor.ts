@@ -185,6 +185,7 @@ export function buildFaaRegistrantEntity(input: {
   if (!classification.entityType || !isStructurallyValidCandidateName(input.registrantName)) return null;
 
   const name = normalizeFaaName(input.registrantName, input.registrantTypeCode);
+  const tailNumber = input.nNumber.startsWith("N") ? input.nNumber : `N${input.nNumber}`;
   const isPersonCandidate = classification.entityType === "PersonCandidate";
   return {
     name,
@@ -199,7 +200,7 @@ export function buildFaaRegistrantEntity(input: {
     notes: `FAA ${classification.registrantTypeLabel.toLowerCase()} registrant for aircraft N${input.nNumber}; registered-to association is not a beneficial-ownership conclusion.`,
     metadata: JSON.stringify({
       source: "faa-aircraft-registry",
-      nNumber: `N${input.nNumber}`,
+      nNumber: tailNumber,
       registrantTypeCode: classification.registrantTypeCode,
       registrantTypeLabel: classification.registrantTypeLabel,
       registrantKind: classification.registrantKind,
@@ -259,17 +260,18 @@ export function buildFaaAircraftAsset(input: {
     statusCode: input.statusCode,
   });
   const label = aircraftLabel(input.typeEngine, input.typeAircraft);
+  const tailNumber = input.nNumber.startsWith("N") ? input.nNumber : `N${input.nNumber}`;
   return {
     category: "Aviation",
-    identifier: `N${input.nNumber}`,
+    identifier: tailNumber,
     jurisdiction: "FAA, US",
-    description: `${label} — N${input.nNumber}${input.yearManufactured ? ` (${input.yearManufactured})` : ""}`,
+    description: `${label} — ${tailNumber}${input.yearManufactured ? ` (${input.yearManufactured})` : ""}`,
     sourceRegistry: "FAA Releasable Aircraft Database",
     lastActivityDate: faaDateToIso(input.lastActivityDate) ?? undefined,
     estimatedValue: null,
     metadata: JSON.stringify({
       source: "faa-aircraft-registry",
-      nNumber: `N${input.nNumber}`,
+      nNumber: tailNumber,
       registrantName: input.registrantName,
       otherRegistrantNames: input.otherRegistrantNames,
       registrantTypeCode: classification.registrantTypeCode,
