@@ -146,8 +146,8 @@ export function buildLandRegistryTransactionAsset(input: {
 
 // ── Batch flush ───────────────────────────────────────────────────────────────
 
-async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; errors: number }> {
-  if (assets.length === 0) return { inserted: 0, errors: 0 };
+async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; skipped: number; errors: number }> {
+  if (assets.length === 0) return { inserted: 0, skipped: 0, errors: 0 };
   try {
     const rows = await db.transaction(async (tx) => {
       const uniqueByTransaction = new Map<string, InsertAsset>();
@@ -164,13 +164,14 @@ async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; er
         ));
       const existingIds = new Set(existing.map((row) => row.identifier));
       const fresh = candidates.filter((asset) => !existingIds.has(asset.identifier));
-      if (fresh.length === 0) return [];
-      return tx.insert(assetsTable).values(fresh).returning({ id: assetsTable.id });
+      if (fresh.length === 0) return { rows: [], skipped: candidates.length };
+      const rows = await tx.insert(assetsTable).values(fresh).returning({ id: assetsTable.id });
+      return { rows, skipped: candidates.length - fresh.length };
     });
-    return { inserted: rows.length, errors: 0 };
+    return { inserted: rows.rows.length, skipped: rows.skipped, errors: 0 };
   } catch (err: any) {
     logger.warn({ err: err.message, batchSize: assets.length }, "Land Registry asset-only batch insert failed");
-    return { inserted: 0, errors: assets.length };
+    return { inserted: 0, skipped: 0, errors: assets.length };
   }
 }
 
@@ -190,7 +191,7 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
 
   // Pre-load existing dedup keys into memory (avoids per-record Upstash calls)
   await updateJob(jobId, { message: "Loading dedup index…", progress: 2 });
-  const seenKeys = await preloadDedupPrefix("lr:");
+  const seenKeys = await preloadDedupPrefix("lr:v2:");
   await appendJobLog(jobId, `📋 ${seenKeys.size.toLocaleString()} previously-ingested Land Registry records in dedup set.`);
 
   for (const year of years) {
@@ -287,7 +288,7 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       if (!txId || !date) continue;
 
       // Dedup by transaction ID (in-memory — no Upstash per-record call)
-      const dkey = `lr:${txId}`;
+      const dkey = `lr:v2:${txId}`;
       if (seenKeys.has(dkey)) { skipped++; continue; }
       seenKeys.add(dkey);
       pendingDedup.push(dkey);
@@ -315,6 +316,7 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
         const res = await flushBatch(assetBatch);
         if (res.errors > 0) throw new Error(`HMLR asset-only batch persistence failed for ${res.errors} transaction(s); dedup keys were not committed.`);
         inserted += res.inserted;
+        skipped += res.skipped;
         assetBatch.length = 0;
 
         // Only persist dedup keys after the asset rows have committed.
@@ -335,6 +337,7 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       const res = await flushBatch(assetBatch);
       if (res.errors > 0) throw new Error(`HMLR final asset-only batch persistence failed for ${res.errors} transaction(s); dedup keys were not committed.`);
       inserted += res.inserted;
+      skipped += res.skipped;
       await batchMarkSeen(pendingDedup);
     }
   }
