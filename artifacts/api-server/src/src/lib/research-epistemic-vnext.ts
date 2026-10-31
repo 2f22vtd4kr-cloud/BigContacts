@@ -155,18 +155,27 @@ export function bindExactSourceSpanToUrl(
   if (!expectedUrl || !observation.trim()) return null;
 
   const urlMarker = /(?:^|\\n)URL:\\s*(https?:\\/\\/[^\\s]+)/gi;
-  let match: RegExpExecArray | null;
-  while ((match = urlMarker.exec(observation)) !== null) {
+  const matches = [...observation.matchAll(urlMarker)];
+  for (let index = 0; index < matches.length; index++) {
+    const match = matches[index];
     if (normalize(match[1]) !== expectedUrl) continue;
-    const segmentStart = match.index;
-    const nextMarker = observation.slice(segmentStart + match[0].length).search(/\\nURL:\\s*https?:\\/\\//i);
-    const segmentEnd = nextMarker >= 0 ? segmentStart + match[0].length + nextMarker : observation.length;
+    const segmentStartLine = observation.lastIndexOf("\\n", match.index - 1);
+    let segmentStart = segmentStartLine >= 0 ? segmentStartLine + 1 : 0;
+    if (!observation.slice(segmentStart, match.index).trim() && segmentStartLine > 0) {
+      const priorLine = observation.lastIndexOf("\\n", segmentStartLine - 1);
+      segmentStart = priorLine >= 0 ? priorLine + 1 : 0;
+    }
+    const nextMatch = matches[index + 1];
+    let segmentEnd = observation.length;
+    if (nextMatch) {
+      const nextTitleLine = observation.lastIndexOf("\\n", nextMatch.index - 1);
+      if (nextTitleLine >= 0) segmentEnd = nextTitleLine + 1;
+    }
     const span = bindExactSourceSpan(observation.slice(segmentStart, segmentEnd), value, subject, maxChars);
     if (span?.exact) return { ...span, start: span.start + segmentStart, end: span.end + segmentStart };
   }
   return null;
 }
-
 function canonicalPublisher(host: string): string { return publisherDomain(host); }
 export function sourceLineageId(url: string, contentFingerprint?: string | null): string { return contentFingerprint ? "content:" + digest(contentFingerprint).slice(0, 24) : "source:" + digest(canonicalHost(url) ?? url).slice(0, 24); }
 
