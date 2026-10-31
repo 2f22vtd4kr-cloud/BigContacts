@@ -497,8 +497,9 @@ async function materializePartialPersonLeadCards(input: {
   atlasJobId: string;
   discoveryCaseId: number;
 }): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; role: string | null; sourceUrls: string[] }> }> {
-  // A non-terminal model action can produce a provisional name/role lead,
-  // but it does not itself promote or select the person. Boss may choose the review-only lead for target-scoped verification.
+  // The Investigator's structured finding is the card-worthiness decision.
+  // Runtime persists that selection as a review-only lead; Boss may choose it
+  // for target-scoped verification, while promotion remains a separate decision.
   const leadMap = new Map<string, { name: string; role: string | null; sourceUrls: string[] }>();
   for (const finding of input.findings) {
     if (finding.scope !== "candidate" || finding.promotionDecision === "reject"
@@ -771,8 +772,9 @@ async function materializePartialOrganizationLeadCards(input: {
   atlasJobId: string;
   discoveryCaseId: number;
 }): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; sourceUrls: string[] }> }> {
-  // These are source-backed organization leads only. They are distinct from
-  // admitted person candidates and never imply ownership, wealth, or HNWI status.
+  // Persist only organization leads explicitly selected in Investigator findings.
+  // They remain distinct from person candidates and imply no ownership, wealth,
+  // or HNWI status.
   const seenNames = new Set<string>();
   const leadNames: string[] = [];
   for (const finding of input.findings) {
@@ -813,9 +815,9 @@ async function materializePartialOrganizationLeadCards(input: {
         sourceUrl: string; observation: string; eventId: number; createdAt: Date; sourceUrlBoundByAdapter?: boolean;
       }> = [];
 
-      // Registry adapters may return typed Corporation leads even when the model
-      // emits no finding. Preserve those source-attributed rows at this checkpoint
-      // rather than waiting for terminal reconciliation or another depth level.
+      // Registry adapter rows are supporting observations only. They may
+      // corroborate an organization the Investigator selected, but cannot select
+      // or create a card without that model finding.
       if (registry && (payload.execution === "success" || payload.execution === "partial")) {
         const outcomes = Array.isArray(payload.args?.registrySearchOutcomes) ? payload.args.registrySearchOutcomes : [];
         for (const rawOutcome of outcomes) {
