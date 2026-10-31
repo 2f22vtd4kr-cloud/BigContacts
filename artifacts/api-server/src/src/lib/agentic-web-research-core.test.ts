@@ -3265,13 +3265,16 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain("return await materializeAtlasAdmissions({");
   });
 
-  it("keeps partial-card eligibility tied to fetched, claim-grade, same-case source observations", () => {
-    expect(canonicalAtlasDiscoverySource).toContain('observation.executionStatus !== "success"');
-    expect(canonicalAtlasDiscoverySource).toContain("isClaimGradeDiscoverySourceUrl(sourceUrl)");
-    expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
+  it("keeps model-selected partial cards tied to same-case observed URLs without evidence-grade admission filters", () => {
+    expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.executionStatus)');
+    expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.execution)');
+    expect(canonicalAtlasDiscoverySource).toContain('verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(sourceUrl) ? "fetched_source" : "search_result_lead"');
+    expect(canonicalAtlasDiscoverySource).toContain('if (!sourceUrl) continue;');
+    expect(canonicalAtlasDiscoverySource).toContain("if (!supports.size) continue;");
+    expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.executionStatus !== "success")');
+    expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.execution !== "success")');
     expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
     expect(canonicalAtlasDiscoverySource).toContain('stage: "partial_review"');
-    expect(canonicalAtlasDiscoverySource).not.toContain('notes: "INVESTIGATOR-ADMITTED REVIEW CANDIDATE');
   });
 });
 
