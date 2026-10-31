@@ -29,7 +29,7 @@ import { resolveApprovedOpeningDirection, resolveBossDirectedDiscoveryObjective,
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateRoleCorroborationSources, hasDiscoveryOwnershipLeadSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
-import { bindExactSourceSpan } from "./research-epistemic-vnext";
+import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
 
@@ -580,7 +580,9 @@ async function materializePartialPersonLeadCards(input: {
       // The exact person name and page-stated role must co-occur in the same
       // observed source text and bind to the exact source URL. A search result
       // creates only a review lead; fetched text improves its evidence tier.
-      const span = bindExactSourceSpan(observation.observation, lead.role, lead.name, 320);
+      const span = observation.verificationLevel === "fetched_source"
+        ? bindExactSourceSpan(observation.observation, lead.role, lead.name, 320)
+        : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.role, lead.name, 320);
       if (!span?.exact || !span.subjectMatched || !span.valueMatched) continue;
       if (!supports.has(sourceUrl) || (supports.get(sourceUrl)?.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) supports.set(sourceUrl, {
         sourceUrl,
@@ -804,7 +806,7 @@ async function materializePartialOrganizationLeadCards(input: {
       const registry = action === "registry_search" || action === "parallel_registry_search";
       const observations: Array<{
         action: string; execution: string; verificationLevel: "fetched_source" | "search_result_lead";
-        sourceUrl: string; observation: string; eventId: number; createdAt: Date;
+        sourceUrl: string; observation: string; eventId: number; createdAt: Date; sourceUrlBoundByAdapter?: boolean;
       }> = [];
 
       // Registry adapters may return typed Corporation leads even when the model
@@ -833,7 +835,7 @@ async function materializePartialOrganizationLeadCards(input: {
               observations.push({
                 action: "registry_search", execution: "success", verificationLevel: "search_result_lead",
                 sourceUrl: rawUrl, observation: name + (notes ? " — " + notes : ""),
-                eventId: event.id, createdAt: event.createdAt,
+                eventId: event.id, createdAt: event.createdAt, sourceUrlBoundByAdapter: true,
               });
             }
           }
@@ -903,7 +905,9 @@ async function materializePartialOrganizationLeadCards(input: {
       // Exact-name support must appear in the actual model-visible observation
       // text, never just in the finding or the URL. Search-only support remains
       // review-grade and is not silently upgraded to fetched evidence.
-      const span = bindExactSourceSpan(observation.observation, name);
+      const span = observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
+        ? bindExactSourceSpan(observation.observation, name)
+        : bindExactSourceSpanToUrl(observation.observation, sourceUrl, name);
       if (!span?.exact) continue;
       const previous = supports.get(sourceUrl);
       if (!previous || (previous.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) {
