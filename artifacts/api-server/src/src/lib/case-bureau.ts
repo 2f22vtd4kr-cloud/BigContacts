@@ -459,7 +459,8 @@ export function parseBossDiscoveryResponse(raw: string, allowedInvestigators: re
         ? candidate.sourceUrls as string[]
         : null;
       const contactEvidence = parseDiscoveryContactEvidenceStrict(candidate.contactEvidence);
-      // A short name can be a legitimate person or organization identifier (for example, Li or 3M).\n      // Identity quality is established by the model's selected target and source evidence, not a length heuristic.\n      if (!name || !type || !relevance || !reachability || !sourceUrls || !contactEvidence) return [];
+      // A short name can be a legitimate person or organization identifier (for example, Li or 3M).
+      // Identity quality is established by the model's selected target and source evidence, not a length heuristic.\n      if (!name || !type || !relevance || !reachability || !sourceUrls || !contactEvidence) return [];
       return [{ name, type, relevance, reachability, sourceUrls, contactEvidence }];
     });
     if (candidates.length !== object.candidates.length) {
