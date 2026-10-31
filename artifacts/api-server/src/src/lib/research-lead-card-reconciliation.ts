@@ -111,7 +111,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
             const entry = findings.get(identity) ?? { name, urls: new Set<string>(), notes: new Set<string>() };
             for (const rawUrl of company.sourceUrls) {
               const url = normalizeSource(rawUrl);
-              if (url && isClaimGradeDiscoverySourceUrl(url)) entry.urls.add(url);
+              if (url) entry.urls.add(url);
             }
             const normalizedNotes = typeof company.notes === "string" ? company.notes.replace(/\s+/g, " ").trim().slice(0, 240) : "";
             if (normalizedNotes) entry.notes.add(normalizedNotes);
@@ -348,7 +348,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
         const entry = findings.get(key) ?? { name, role, urls: new Set<string>() };
         if (Array.isArray(finding.sourceUrls)) for (const rawUrl of finding.sourceUrls) {
           const url = normalizeSource(rawUrl);
-          if (url && isClaimGradeDiscoverySourceUrl(url)) entry.urls.add(url);
+          if (url) entry.urls.add(url);
         }
         findings.set(key, entry);
       }
