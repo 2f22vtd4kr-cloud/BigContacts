@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { recordAgenticLlmAttempt, resetAgenticLlmTelemetry } from "./agentic-llm-telemetry";
 
@@ -38,6 +39,20 @@ describe("Investigator LLM telemetry privacy", () => {
       cognitiveTask: "ownership_research",
     });
     expect(line).not.toContain("Alice Example");
+  });
+
+  it("instruments all three model roles with job, case, target-set and decision context", () => {
+    const investigator = readFileSync(new URL("./agentic-web-research-core.ts", import.meta.url), "utf8");
+    const boss = readFileSync(new URL("./groq-boss.ts", import.meta.url), "utf8");
+    const rightHand = readFileSync(new URL("./groq-right-hand-reasoning.ts", import.meta.url), "utf8");
+    const control = readFileSync(new URL("./atlas-control-decision.ts", import.meta.url), "utf8");
+    expect(investigator).toContain("targetDigest: normalizedTarget");
+    expect(investigator).toContain("priorTurnOffset + i + 1");
+    expect(boss).toContain('role: "boss" as const');
+    expect(boss).toContain("...telemetryContext");
+    expect(rightHand).toContain('role: "right_hand" as const');
+    expect(rightHand).toContain("...telemetryContext");
+    expect(control).toContain("targetDigest, iteration: input.controlTurn, decisionId");
   });
 
   it("preserves allowlisted generic provider diagnostics", () => {
