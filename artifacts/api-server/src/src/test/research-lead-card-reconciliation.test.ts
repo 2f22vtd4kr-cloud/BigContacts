@@ -289,7 +289,8 @@ describe("canonical Atlas organization target selection", () => {
     expect(admission).toContain('targetType: "person" as const');
     expect(admission).toContain("const targetCandidates = [...personTargets, ...partialPersonTargets, ...organizationTargets]");
     expect(canonicalAtlas).toContain("const validUrls = candidate.sourceUrls");
-    expect(canonicalAtlas).toContain(".filter((url): url is string => url !== null);");
+    expect(canonicalAtlas).toContain(".filter((url): url is string => url !== null)");
+    expect(canonicalAtlas).toContain("isRestrictedCommunitySourceUrl(url)");
 
     // The Investigator chooses card-worthiness; this never promotes leads or
     // turns snippets into wealth/contact evidence.
