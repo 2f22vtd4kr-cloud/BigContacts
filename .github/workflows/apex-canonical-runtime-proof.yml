@@ -230,7 +230,7 @@ jobs:
           set -euo pipefail
           node --input-type=module <<'NODE'
           import fs from "node:fs";
-          import { verifyCanonicalCardProof } from "./scripts/verify-canonical-card-proof.mjs";
+          import { verifyCanonicalCardProof, verifyModelAudit } from "./scripts/verify-canonical-card-proof.mjs";
           const readJson = (path) => JSON.parse(fs.readFileSync(path, "utf8"));
           const proof = verifyCanonicalCardProof({
             applicationRevision: process.env.GITHUB_SHA,
@@ -242,8 +242,12 @@ jobs:
             caseData: readJson("/tmp/case.json"),
             caseEvents: readJson("/tmp/case-events.json"),
           });
-          fs.writeFileSync("/tmp/canonical-card-proof.json", JSON.stringify(proof, null, 2));
-          console.log(JSON.stringify(proof, null, 2));
+          const proofWithModelAudit = verifyModelAudit({
+            proof,
+            auditText: fs.readFileSync(`.local/audits/APEX_ATLAS_MODEL_AUDIT_${process.env.GITHUB_RUN_ID}.md`, "utf8"),
+          });
+          fs.writeFileSync("/tmp/canonical-card-proof.json", JSON.stringify(proofWithModelAudit, null, 2));
+          console.log(JSON.stringify(proofWithModelAudit, null, 2));
           NODE
           if ! command -v psql >/dev/null 2>&1; then
             sudo apt-get update
