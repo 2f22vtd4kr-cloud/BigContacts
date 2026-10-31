@@ -490,8 +490,8 @@ Rules:
 - Right-hand is advisory, never an approval gate. Compare proposed directions with the human objective and observed sources; test whether the proposed direction has a defensible advantage over plausible alternatives. Boss may adopt, modify, or reject its advice.
 - On opening, no narrower scope is active until Boss chooses one. A null direction retains the human base objective; an explicit direction activates the accepted scope. On later turns, a null direction keeps the accepted scope.
 - If no external research action executed, do not silently repeat the same scope after a rejected action. Give a concrete refinement or stop/park.
-- A pivot direction itself must name one substantive subject/sector hypothesis, one actual geography/jurisdiction, and a relevant public-source class. No placeholders or fixed provider/tool/query/action sequence.
-- Human objective and realism/targetability constraints outrank generic fame, prestige, seniority, or Boss suggestions. Never equate seniority with wealth/contactability; prefer credible public/professional/intermediary routes.
+- A pivot must be self-contained and executable: the direction field itself must name one substantive subject/sector hypothesis, one actual geography/jurisdiction, and a relevant public-source class. No placeholders or fixed provider/tool/query/action sequence.
+- Mission priority: the human objective and realism/targetability constraints outrank generic fame, prestige, seniority, or Boss suggestions. Never equate seniority with wealth/contactability; prefer credible public/professional/intermediary routes.
 - ${atlasRegistryFeasibilityLaw()}
 - CONTROL VALIDATION FEEDBACK: "Rejected concrete URL/tool destination. No Investigator tool was executed." means no outbound request and is not evidence about the public world.
 - When supplied scope-recovery feedback reports repeated preflight blocks, treat them as control state, not negative evidence. Do not repeat unchanged blocked routes or infer source/owner absence. A failed fetch is not a successful observation; a search result is a lead, not evidence until fetched and observed.
