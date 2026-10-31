@@ -90,7 +90,7 @@ const secondaryHelperEnd = secondaryPersist.indexOf("/** Bounded EDGAR EFTS look
 const secondaryHelper = secondaryHelperStart >= 0 && secondaryHelperEnd > secondaryHelperStart
   ? secondaryPersist.slice(secondaryHelperStart, secondaryHelperEnd)
   : "";
-if (!secondaryHelper || /enrichEntityOsint|fetch\\s*\\(|lookupCrtShEmails|lookupPublicEmailClaims/.test(secondaryHelper)
+if (!secondaryHelper || /enrichEntityOsint|fetch\s*\(|lookupCrtShEmails|lookupPublicEmailClaims/.test(secondaryHelper)
   || !/return \{ linkedin: false, email: false, phone: false, signal: false, website: false, relatedPeople: 0 \}/.test(secondaryHelper)) {
   console.log("FAIL deterministic secondary-surface helper is not inert.");
   failed = true;
@@ -101,13 +101,13 @@ const walkSourceFiles = (directory) => {
   return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const full = directory + "/" + entry.name;
     if (entry.isDirectory()) return walkSourceFiles(full);
-    return /\\.(?:ts|tsx|js|mjs)$/.test(entry.name) ? [full] : [];
+    return /\.(?:ts|tsx|js|mjs)$/.test(entry.name) ? [full] : [];
   });
 };
 const liveSecondaryCallers = walkSourceFiles("artifacts/api-server/src/src")
-  .filter((file) => !/\\.test\\.[jt]sx?$/.test(file))
+  .filter((file) => !/\.test\.[jt]sx?$/.test(file))
   .filter((file) => file !== "artifacts/api-server/src/src/lib/bureau-contact-persist.ts")
-  .filter((file) => /\\bexpandSecondaryPublicSurface\\s*\\(/.test(read(file)));
+  .filter((file) => /\bexpandSecondaryPublicSurface\s*\(/.test(read(file)));
 if (liveSecondaryCallers.length) {
   console.log("FAIL live canonical secondary-surface callers remain: " + liveSecondaryCallers.join(", "));
   failed = true;
