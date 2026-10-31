@@ -314,46 +314,184 @@ async function isCacheStale(): Promise<boolean> {
 
 // ── Batch flush ───────────────────────────────────────────────────────────────
 
-async function flushBatch(
-  entities: InsertEntity[],
-  assets: InsertAsset[],
-): Promise<{ inserted: number; errors: number }> {
-  if (entities.length === 0) return { inserted: 0, errors: 0 };
-  try {
-    const rows = await db
-      .insert(entitiesTable)
-      .values(entities)
-      .returning({ id: entitiesTable.id });
+type FaaBatchRow = { asset: InsertAsset; entity: InsertEntity | null };
 
-    // Insert assets linked to their owner entities
-    const assetRows: InsertAsset[] = assets.map((a, i) => ({
-      ...a,
-      ownerEntityId: rows[i]?.id ?? undefined,
-    }));
-    if (assetRows.length > 0) {
-      await db.insert(assetsTable).values(assetRows);
+async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
+  await db.transaction(async (tx) => {
+    const legacyAssets = await tx.select({
+      id: assetsTable.id,
+      ownerEntityId: assetsTable.ownerEntityId,
+    }).from(assetsTable).where(and(
+      eq(assetsTable.category, "Aviation"),
+      eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
+      isNotNull(assetsTable.ownerEntityId),
+    ));
+    const assetIds = legacyAssets.map((row) => row.id);
+    if (assetIds.length > 0) {
+      await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, assetIds));
+      await tx.update(relationshipsTable).set({
+        relationshipType: "REGISTERED_TO",
+        strength: 0.75,
+        notes: "Legacy FAA registrant link reclassified as REGISTERED_TO; registration is not beneficial-ownership proof.",
+      }).where(and(
+        eq(relationshipsTable.targetType, "Asset"),
+        eq(relationshipsTable.relationshipType, "OWNS"),
+        inArray(relationshipsTable.targetId, assetIds),
+      ));
+      const existing = await tx.select({
+        sourceEntityId: relationshipsTable.sourceEntityId,
+        targetId: relationshipsTable.targetId,
+      }).from(relationshipsTable).where(and(
+        eq(relationshipsTable.targetType, "Asset"),
+        eq(relationshipsTable.relationshipType, "REGISTERED_TO"),
+        inArray(relationshipsTable.targetId, assetIds),
+      ));
+      const existingPairs = new Set(existing.map((row) => `${row.sourceEntityId}:${row.targetId}`));
+      const repairRows: InsertRelationship[] = legacyAssets
+        .filter((row) => row.ownerEntityId != null && !existingPairs.has(`${row.ownerEntityId}:${row.id}`))
+        .map((row) => ({
+          sourceEntityId: row.ownerEntityId!,
+          targetId: row.id,
+          targetType: "Asset",
+          relationshipType: "REGISTERED_TO",
+          strength: 0.75,
+          notes: "Legacy FAA registrant link reclassified as REGISTERED_TO; registration is not beneficial-ownership proof.",
+        }));
+      if (repairRows.length > 0) await tx.insert(relationshipsTable).values(repairRows);
     }
 
-    // Create OWNS relationships for graph engine
-    const relRows: InsertRelationship[] = rows
-      .map((r) => ({
-        sourceEntityId: r.id,
-        targetId: r.id, // will be updated after asset insert below
-        targetType: "Asset" as const,
-        relationshipType: "OWNS",
-        strength: 1.0,
-        notes: "FAA aircraft registration",
-      }))
-      .filter((_, i) => assetRows[i]?.ownerEntityId != null);
+    // Historical FAA imports promoted registrants to HNWI using aircraft-class
+    // multipliers. Downgrade only rows whose sole source is the FAA registry.
+    await tx.update(entitiesTable).set({
+      type: sql`CASE WHEN ${entitiesTable.metadata}::jsonb ->> 'typeRegistrant' IN ('2','3','7','8') THEN 'Corporation' ELSE 'PersonCandidate' END`,
+      estimatedNetWorth: null,
+      bayesianScore: 0.05,
+      isHot: false,
+      knownResidences: null,
+      contactMethod: "FAA registrant record — direct professional contact route not verified",
+      metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || jsonb_build_object(
+        'legacyFaaOwnershipCorrected', true,
+        'hnwiQualificationStatus', 'unverified',
+        'wealthStatus', 'not_assessed',
+        'beneficialOwnershipStatus', 'unresolved',
+        'reviewOnly', true,
+        'estimatedNetWorth', null,
+        'bayesianScore', 0.05,
+        'isHot', false
+      )`,
+    }).where(and(
+      eq(entitiesTable.type, "HNWI"),
+      eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"])),
+    ));
+  });
+}
 
-    // Actually we need asset IDs for proper relationship rows — skip for now,
-    // ownerEntityId FK on assets is sufficient for the graph engine
-    void relRows;
+async function flushBatch(batch: FaaBatchRow[]): Promise<{ inserted: number; errors: number; candidateEntitiesInserted: number }> {
+  if (batch.length === 0) return { inserted: 0, errors: 0, candidateEntitiesInserted: 0 };
+  try {
+    return await db.transaction(async (tx) => {
+      const uniqueRows = new Map<string, FaaBatchRow>();
+      for (const row of batch) {
+        const identifier = row.asset.identifier;
+        if (identifier && !uniqueRows.has(identifier)) uniqueRows.set(identifier, row);
+      }
+      const rows = [...uniqueRows.values()];
+      const identifiers = rows.map((row) => row.asset.identifier);
+      const existingAssets = await tx.select({
+        id: assetsTable.id,
+        identifier: assetsTable.identifier,
+        ownerEntityId: assetsTable.ownerEntityId,
+      }).from(assetsTable).where(and(
+        eq(assetsTable.category, "Aviation"),
+        eq(assetsTable.sourceRegistry, "FAA Releasable Aircraft Database"),
+        inArray(assetsTable.identifier, identifiers),
+      ));
+      const assetIdByIdentifier = new Map(existingAssets.map((row) => [row.identifier, row.id]));
+      const freshAssets = rows.filter((row) => !assetIdByIdentifier.has(row.asset.identifier));
+      const insertedAssets = freshAssets.length > 0
+        ? await tx.insert(assetsTable).values(freshAssets.map((row) => row.asset)).returning({ id: assetsTable.id, identifier: assetsTable.identifier })
+        : [];
+      for (const row of insertedAssets) assetIdByIdentifier.set(row.identifier, row.id);
 
-    return { inserted: rows.length, errors: 0 };
+      const legacyOwnerLinks = existingAssets.filter((row) => row.ownerEntityId != null);
+      if (legacyOwnerLinks.length > 0) {
+        await tx.update(assetsTable).set({ ownerEntityId: null }).where(inArray(assetsTable.id, legacyOwnerLinks.map((row) => row.id)));
+      }
+
+      const candidateRows = rows.filter((row): row is FaaBatchRow & { entity: InsertEntity } => row.entity !== null);
+      const uniqueEntities = new Map<string, InsertEntity>();
+      for (const row of candidateRows) {
+        const key = row.entity.name.trim().toLowerCase().replace(/\s+/g, " ");
+        if (key && !uniqueEntities.has(key)) uniqueEntities.set(key, row.entity);
+      }
+      const entityNames = [...uniqueEntities.values()].map((entity) => entity.name);
+      const existingEntities = entityNames.length > 0
+        ? await tx.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable).where(inArray(entitiesTable.name, entityNames))
+        : [];
+      const entityIdByName = new Map(existingEntities.map((row) => [row.name.trim().toLowerCase().replace(/\s+/g, " "), row.id]));
+      const freshEntities = [...uniqueEntities.entries()].filter(([key]) => !entityIdByName.has(key)).map(([, entity]) => entity);
+      const insertedEntities = freshEntities.length > 0
+        ? await tx.insert(entitiesTable).values(freshEntities).returning({ id: entitiesTable.id, name: entitiesTable.name })
+        : [];
+      for (const row of insertedEntities) entityIdByName.set(row.name.trim().toLowerCase().replace(/\s+/g, " "), row.id);
+
+      const assetIds = [...assetIdByIdentifier.values()];
+      const existingRelations = assetIds.length > 0
+        ? await tx.select({
+            sourceEntityId: relationshipsTable.sourceEntityId,
+            targetId: relationshipsTable.targetId,
+          }).from(relationshipsTable).where(and(
+            eq(relationshipsTable.targetType, "Asset"),
+            eq(relationshipsTable.relationshipType, "REGISTERED_TO"),
+            inArray(relationshipsTable.targetId, assetIds),
+          ))
+        : [];
+      const relationPairs = new Set(existingRelations.map((row) => `${row.sourceEntityId}:${row.targetId}`));
+      const relationships: InsertRelationship[] = [];
+
+      for (const legacy of legacyOwnerLinks) {
+        if (legacy.ownerEntityId == null) continue;
+        const key = `${legacy.ownerEntityId}:${legacy.id}`;
+        if (relationPairs.has(key)) continue;
+        relationPairs.add(key);
+        relationships.push({
+          sourceEntityId: legacy.ownerEntityId,
+          targetId: legacy.id,
+          targetType: "Asset",
+          relationshipType: "REGISTERED_TO",
+          strength: 0.75,
+          notes: "FAA registry lists this entity as registrant; this does not establish beneficial ownership.",
+        });
+      }
+
+      for (const row of candidateRows) {
+        const entityKey = row.entity.name.trim().toLowerCase().replace(/\s+/g, " ");
+        const entityId = entityIdByName.get(entityKey);
+        const assetId = assetIdByIdentifier.get(row.asset.identifier);
+        if (!entityId || !assetId) continue;
+        const key = `${entityId}:${assetId}`;
+        if (relationPairs.has(key)) continue;
+        relationPairs.add(key);
+        relationships.push({
+          sourceEntityId: entityId,
+          targetId: assetId,
+          targetType: "Asset",
+          relationshipType: "REGISTERED_TO",
+          strength: 0.75,
+          notes: "FAA MASTER lists this entity as registrant; registration does not establish beneficial ownership.",
+        });
+      }
+      if (relationships.length > 0) await tx.insert(relationshipsTable).values(relationships);
+
+      return {
+        inserted: insertedAssets.length,
+        errors: 0,
+        candidateEntitiesInserted: insertedEntities.length,
+      };
+    });
   } catch (err: any) {
-    logger.warn({ err: err.message }, "FAA batch insert error");
-    return { inserted: 0, errors: entities.length };
+    logger.warn({ err: err.message, batchSize: batch.length }, "FAA transactional asset/registrant batch failed");
+    return { inserted: 0, errors: batch.length, candidateEntitiesInserted: 0 };
   }
 }
 
