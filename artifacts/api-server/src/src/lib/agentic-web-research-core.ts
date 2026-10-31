@@ -5545,7 +5545,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         compactWorkerCapabilityGuidance,
         compactCriticalRetrievalGuidance,
         shortestLeadFollowUp,
-        shortestLeadFollowUp,
         compactRegistryGuidance,
         "VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa; browser_fetch=" + (availableBrowserProviders.join("|") || "unavailable") + "; domain_lookup=rdap|whoisjson.",
         "RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + ". " + (terminalContract.requireFalsification ? "Seek counter-evidence before done. " : "") + "This is not a prescribed action sequence.",
