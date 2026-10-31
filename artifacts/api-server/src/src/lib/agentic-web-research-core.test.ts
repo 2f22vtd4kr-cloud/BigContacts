@@ -833,8 +833,8 @@ describe("partial model findings", () => {
       findings: [{
         vectorType: "website",
         value: "Northstar Casino Resort",
-        personName: "A person mentioned in the same result",
-        role: "Founder",
+        personName: null,
+      role: null,
         scope: "organization",
         sourceUrls: ["https://northstarcasino.si/"],
         note: "Investigator-selected organization lead.",
@@ -846,8 +846,8 @@ describe("partial model findings", () => {
     expect(parsed?.partialFindings).toEqual([{
       vectorType: "website",
       value: "Northstar Casino Resort",
-      personName: "A person mentioned in the same result",
-      role: "Founder",
+      personName: null,
+      role: null,
       scope: "organization",
       sourceUrls: ["https://northstarcasino.si/"],
       note: "Investigator-selected organization lead.",
@@ -3268,9 +3268,9 @@ describe("action-level durable review-card checkpoints", () => {
   it("keeps model-selected partial cards tied to same-case observed URLs without evidence-grade admission filters", () => {
     expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.executionStatus)');
     expect(canonicalAtlasDiscoverySource).toContain('!["success", "partial"].includes(observation.execution)');
-    expect(canonicalAtlasDiscoverySource).toContain('verificationLevel: fetched && isClaimGradeDiscoverySourceUrl(sourceUrl) ? "fetched_source" : "search_result_lead"');
+    expect(researchLeadCardReconciliationSource).toContain('&& isClaimGradeDiscoverySourceUrl(sourceUrl)');
     expect(canonicalAtlasDiscoverySource).toContain('if (!sourceUrl) continue;');
-    expect(canonicalAtlasDiscoverySource).toContain("if (!supports.size) continue;");
+    expect(researchLeadCardReconciliationSource).toContain("if (!supports.size) continue;");
     expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.executionStatus !== "success")');
     expect(canonicalAtlasDiscoverySource).not.toContain('if (observation.execution !== "success")');
     expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
