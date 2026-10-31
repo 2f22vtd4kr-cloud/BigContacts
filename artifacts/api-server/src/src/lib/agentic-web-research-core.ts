@@ -3688,6 +3688,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     const minimumInvestigatorEvidenceContract =
       "DISCOVERY LEAD HANDOFF CONTRACT: The Investigator chooses worthwhile person and organization review leads; do not create a card for every result. Preserve the exact observed name and associated public HTTPS URL; a person's role may be null. Search-only person note must say LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no ownership/wealth/relationship/HNWI/contact conclusion. Search snippets are leads, not evidence; failed or blocked fetches are unobserved. Higher admission requires one successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue. After successful visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to the exact source span. Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion. Target-scoped research owns independent corroboration, falsification and contact-route verification before any HNWI/contact conclusion.";
     appendBudgeted(minimumInvestigatorEvidenceContract, 1_050, "[review-lead detail omitted]");
+    appendBudgeted(scopeRecoveryRule, 360, "[scope recovery detail omitted]");
     appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability detail omitted]");
     appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
     appendBudgeted(minimumRegistryEvidenceRule, 240, "[registry detail omitted]");
@@ -5258,6 +5259,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       /^\[AUXILIARY CONTEXT BOUND:/,
       /^LEAD FOLLOW-UP GUIDANCE \(non-binding\):/,
       /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE/,
+      /^PAGE FORMAT \/ RETRIEVAL LIMITS:/,
+      /^VALID PROVIDERS:/,
+      /^Conditional specialist OSINT actions:/,
+      /^DISCOVERY TARGETABILITY:/,
+      /^RESEARCH TERMINAL GATE \(authoritative\):/,
     ];
     const remainingSections = [...sections];
     for (const pattern of optionalSectionPatterns) {
@@ -5269,7 +5275,20 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         break;
       }
     }
-    throw new Error("Emergency Investigator prompt cannot preserve Boss-generated historical memory within the provider budget; no action should be sent.");
+    // Historical memory is a semantic summary, not raw evidence. If the full
+    // summary cannot fit beside the protected action schema/current scope/source,
+    // retain a URL-safe head/tail excerpt rather than aborting the Investigator.
+    const withoutMemory = remainingSections
+      .filter((part) => !/^AI-COMPACTED HISTORICAL RESEARCH MEMORY/.test(part))
+      .join("\\n\\n");
+    const memoryBudget = maxUserPromptChars - withoutMemory.length - 2;
+    if (memoryBudget >= 80) {
+      const compactMemory = boundInvestigatorPromptSection(memorySection, memoryBudget);
+      const compactedWithMemory = insertMemory(remainingSections.filter((part) => !/^AI-COMPACTED HISTORICAL RESEARCH MEMORY/.test(part)));
+      const compactedSections = compactedWithMemory.replace(memorySection, compactMemory);
+      if (compactedSections.length <= maxUserPromptChars) return compactedSections;
+    }
+    throw new Error("Emergency Investigator prompt cannot preserve the required action contract and a bounded Boss-memory summary within the provider budget; no action should be sent.");
   };
   const stateMarker = "\n\nCANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):\n";
   const outputMarker = "\nOUTPUT CONTRACT:";
