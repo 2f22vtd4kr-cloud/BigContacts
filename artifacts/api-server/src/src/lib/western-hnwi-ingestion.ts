@@ -21,7 +21,7 @@ import { sql } from "drizzle-orm";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
 import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
-import { deriveRegistryIngestionAssessment } from "./registry-ingestion-policy";
+import { deriveRegistryIngestionAssessment, filterRegistryIngestionBatchRows, registryPersonCandidateNames } from "./registry-ingestion-policy";
 import { logger } from "./logger";
 import { filterHumanNamesWithLLM, isDeterministicallySafeHumanName } from "./llm-name-validator";
 import {
@@ -939,9 +939,7 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
       // LLM validation: secondary filter for any names that slipped past the regex.
       // Runs a single Groq batch call per flush. Fail-open — if Groq is unavailable,
       // all candidates are accepted (matching prior behaviour).
-      const candidateNames = entityBatch
-        .filter((e) => e.type === "HNWI" || e.type === "Gatekeeper")
-        .map(e => e.name ?? "");
+      const candidateNames = registryPersonCandidateNames(entityBatch);
       let validNames = new Set(await filterHumanNamesWithLLM(candidateNames));
       // Registry officer/director paths already passed looksLikePerson. If Groq
       // is unavailable, fail-closed LLM would zero out the entire preferPersons
@@ -958,11 +956,7 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
         }
       }
       const preCount = entityBatch.length;
-      entityBatch = entityBatch.filter((e) => {
-        if (preferPersons && (e.type === "Corporation" || e.type === "Trust")) return false;
-        if (e.type === "Corporation" || e.type === "Trust") return true;
-        return validNames.has(e.name ?? "");
-      });
+      entityBatch = filterRegistryIngestionBatchRows(entityBatch, validNames, preferPersons);
       const rejected = preCount - entityBatch.length;
       if (rejected > 0) {
         logger.info({ rejected }, "LLM name validator: rejected non-human names from batch");
