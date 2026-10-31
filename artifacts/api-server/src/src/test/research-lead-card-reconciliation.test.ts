@@ -270,6 +270,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(reconcilerSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
     expect(canonicalAtlas).toContain("bindExactSourceSpanToUrl");
     expect(reconcilerSource).toContain("bindExactSourceSpanToUrl");
+    expect(reconcilerSource).toContain("isContactLikeOrganizationReviewValue(name)");
     expect(reconcilerSource).toContain("sourceUrlBoundByAdapter: true");
     expect(personMaterializer).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
 
