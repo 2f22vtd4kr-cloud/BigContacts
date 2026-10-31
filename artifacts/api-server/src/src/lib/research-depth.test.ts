@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRemainingDiscoveryIterations } from "./research-depth";
+import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRemainingDiscoveryIterations } from "./research-depth";
 
 describe("bounded discovery allocation", () => {
   it("releases the target-stage reserve while discovery has no admitted candidate", () => {
@@ -61,5 +61,57 @@ describe("bounded discovery allocation", () => {
       targetResearchReserveIterations: 8,
       hasAdmittedCandidates: true,
     })).toBe(6);
+  });
+});
+
+
+describe("mission versus episode budget semantics", () => {
+  it("does not treat a bounded Investigator episode as an exhausted mission", () => {
+    expect(buildMissionActionBudget({
+      actionsUsed: 4,
+      maximumActions: 20,
+      maximumActionsPerEpisode: 4,
+      episodeStopReason: "ITERATION_BUDGET",
+    })).toEqual({
+      actionsUsed: 4,
+      maximumActions: 20,
+      actionsRemaining: 16,
+      maximumActionsPerEpisode: 4,
+      episodeStopReason: "ITERATION_BUDGET",
+      episodeLimitReached: true,
+      missionLimitReached: false,
+    });
+  });
+
+  it("marks the mission exhausted only when the authoritative mission counter reaches its maximum", () => {
+    expect(buildMissionActionBudget({
+      actionsUsed: 20,
+      maximumActions: 20,
+      maximumActionsPerEpisode: 4,
+      episodeStopReason: null,
+    }).missionLimitReached).toBe(true);
+  });
+
+  it("sanitizes invalid counters without fabricating remaining mission capacity", () => {
+    expect(buildMissionActionBudget({
+      actionsUsed: Number.NaN,
+      maximumActions: -5,
+      maximumActionsPerEpisode: Number.POSITIVE_INFINITY,
+      episodeStopReason: "x".repeat(200),
+    })).toEqual({
+      actionsUsed: 0,
+      maximumActions: 0,
+      actionsRemaining: 0,
+      maximumActionsPerEpisode: 0,
+      episodeStopReason: "x".repeat(80),
+      episodeLimitReached: false,
+      missionLimitReached: true,
+    });
+  });
+
+  it("bounds an episode without prescribing which research actions the model chooses", () => {
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 7)).toBe(3);
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 2 }, 7)).toBe(2);
+    expect(resolveDiscoveryIterationsPerAct({ investigatorIterationsPerAct: 8 }, 0)).toBe(0);
   });
 });
