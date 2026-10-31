@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "./ai-investigation-context-compaction";
-import { extractSearchResultCompanyLeadFindings, extractObservedOrganizationIdentity, isGenericDiscoveryMetadataTitle, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
+import { extractObservedOrganizationIdentity, bindModelFindingsToObservedSources, normalizeDiscoverySearchQuery, buildActionParseFailureObservation, buildAgenticActionParseFailureRecord, compactRegistryCompanyLeads, buildGroqInvestigatorRequestBody, buildStepPrompt, chooseGroqInvestigatorOutputRecovery, isGroqCompletionTruncationMessage, nextGroqInvestigatorCompletionBudget, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, appendEmergencyObservationContext, buildEmergencyPriorTrajectoryObservation, discoveryPivotAlignmentReason, partitionParallelWebSearchesByPivotScope, partitionParallelRegistrySearchesByPivotScope, pivotScopeAnchors, discoveryPivotScopeKey, extractBossPivotDirectionForCompactPrompt, createCancellationSupervisor, describeAgentActionParseFailure, buildDiscoveryLeadUtilizationState, parseAgentAction, describeToolVisitFailure, deriveProviderBoundedActTimeoutMs, discoverySearchLivenessAdvisory, discoveryTerminalGate, INVESTIGATOR_CANCELLATION_POLL_INTERVAL_MS, isModelSelectableAgentAction, isPdfPageResponse, redundantResearchActionReason, repeatedDiscoverySearchReason, repeatedPivotBlockedActionReason, registryAdapterRetryBlockedReason, summarizeRegistryAdapterFailure, classifyRegistryBatchExecution, validateDiscoveryDomainLookup, validateDiscoverySearchQuery, validateDiscoverySourceUrl, waitForAbortableDelay, structuredActionResponseFormat, recordSearchProviderFailure, isSearchProviderDisabled, renderSearchProviderAvailabilityNotice, restoreSearchProviderFailureState, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getAvailableBrowserFetchProviders } from "./browser-fetch-core";
 import { buildBoundedInvestigatorObjective, buildInvestigatorContext } from "./investigation-context-compaction";
@@ -14,43 +14,21 @@ const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agent
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(), "src/src/lib/research-lead-card-reconciliation.ts"), "utf8");
+const canonicalAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
+const canonicalCaseDiscoveryRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-case-discovery.ts"), "utf8");
+const legacyAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/atlas.ts"), "utf8");
 
-describe("search-result company review lead extraction", () => {
-  it("preserves a concrete business-like result title but rejects generic discovery metadata such as Case Co", () => {
-    const realBusinessText = [
-      "Northstar Casino Resort",
-      "URL: https://northstarcasino.si/",
-      "Northstar Casino Resort operates a resort in Slovenia.",
-    ].join("\n");
-    const realBusiness = extractSearchResultCompanyLeadFindings(realBusinessText, ["https://northstarcasino.si/"]);
-    expect(realBusiness).toHaveLength(1);
-    expect(realBusiness[0]).toMatchObject({
-      value: "Northstar Casino Resort",
-      scope: "organization",
-      vectorType: "other",
-      personName: null,
-      role: null,
-      sourceUrls: ["https://northstarcasino.si/"],
-    });
-
-    const genericMetadataText = [
-      "Case Co",
-      "URL: https://caseco.si/",
-      "Case Co is a generic discovery placeholder.",
-    ].join("\n");
-    expect(extractSearchResultCompanyLeadFindings(genericMetadataText, ["https://caseco.si/"])).toEqual([]);
-    expect(isGenericDiscoveryMetadataTitle("Case Co Officers")).toBe(true);
-    expect(extractSearchResultCompanyLeadFindings(
-      "Case Co Officers\nURL: https://caseco.si/officers\nGeneric placeholder page",
-      ["https://caseco.si/officers"],
-    )).toEqual([]);
-
-    const categoryHeadlineText = [
-      "Best Casino Hotels in Slovenia",
-      "URL: https://slovenia-casino-hotels.si/",
-      "A list of casino hotels in Slovenia.",
-    ].join("\n");
-    expect(extractSearchResultCompanyLeadFindings(categoryHeadlineText, ["https://slovenia-casino-hotels.si/"])).toEqual([]);
+describe("canonical Atlas discovery path isolation", () => {
+  it("routes live Atlas launches through the model-owned canonical pipeline, not legacy deterministic discovery", () => {
+    expect(canonicalAtlasLaunchRouteSource).toContain("runCanonicalAtlasPipeline");
+    expect(canonicalCaseDiscoveryRouteSource).toContain("runCanonicalAtlasPipeline");
+    expect(canonicalAtlasLaunchRouteSource).not.toContain("runDiscoveryAgent");
+    expect(canonicalAtlasDiscoverySource).not.toContain('from "./discovery-agent"');
+    expect(canonicalAtlasDiscoverySource).not.toContain("runDiscoveryAgent");
+    expect(canonicalAtlasDiscoverySource).not.toContain("discovery-intake");
+    expect(canonicalAtlasLaunchRouteSource).not.toContain("discovery-intake");
+    expect(canonicalCaseDiscoveryRouteSource).not.toContain("runDiscoveryAgent");
+    expect(legacyAtlasLaunchRouteSource).toContain('res.status(410)');
   });
 });
 
@@ -80,11 +58,15 @@ describe("compact company registry lead retention", () => {
       } catch {
         return [];
       }
-    });
+    }, "companies-house");
     expect(leads).toEqual([{
       name: "TOKERE RENEWABLE ENERGY SOLUTIONS PRIVATE LIMITED",
       sourceUrls: [sourceUrl],
       notes: "Status: dissolved Type: ltd",
+      sourceName: "Companies House",
+      sourceClass: "official_registry",
+      sourceContributor: null,
+      sourceDomain: "find-and-update.company-information.service.gov.uk",
     }]);
   });
 });
