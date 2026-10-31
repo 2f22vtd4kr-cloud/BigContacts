@@ -252,4 +252,45 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas.match(/mergeDurablyAdmittedAtlasTargetSources\(\[admittedCandidateSources, admission\.candidates\]\)/g)).toHaveLength(2);
     expect(canonicalAtlas).not.toContain("admittedCandidateSources = mergeDurablyAdmittedCandidateSources");
   });
+
+  it("keeps worthwhile search-result person and organization leads as review cards and Boss-selectable research targets", () => {
+    const personMaterializer = canonicalAtlas.slice(
+      canonicalAtlas.indexOf("async function materializePartialPersonLeadCards"),
+      canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
+    );
+    const organizationMaterializer = canonicalAtlas.slice(
+      canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
+      canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+    );
+    const admission = canonicalAtlas.slice(
+      canonicalAtlas.indexOf("async function materializeAtlasAdmissions"),
+      canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+    );
+    const control = readFileSync(new URL("../lib/atlas-control-decision.ts", import.meta.url), "utf8");
+    const reconcilerSource = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
+
+    // Safe HTTPS search-result leads may create explicitly unverified review cards;
+    // fetched-source support still has to pass the stricter claim-grade URL gate.
+    expect(personMaterializer).toContain('observation.verificationLevel === "fetched_source" && !isClaimGradeDiscoverySourceUrl(sourceUrl)');
+    expect(organizationMaterializer).toContain('observation.verificationLevel === "fetched_source" && !isClaimGradeDiscoverySourceUrl(sourceUrl)');
+    expect(reconcilerSource).toContain('if (!url || (fetched && !isClaimGradeDiscoverySourceUrl(url))) continue;');
+    expect(personMaterializer).toContain('evidenceTier: support.verificationLevel === "fetched_source" ? "fetched_public_source" : "unverified_search_result"');
+
+    // Review-only person cards are supplied to Boss as typed targets without
+    // displacing stronger, explicitly admitted person candidates.
+    expect(personMaterializer).toContain("candidates: Array<{ name: string; role: string; sourceUrls: string[] }>");
+    expect(admission).toContain("const partialPersonTargets = partialPeople.candidates");
+    expect(admission).toContain('targetType: "person" as const');
+    expect(admission).toContain("const targetCandidates = [...personTargets, ...partialPersonTargets, ...organizationTargets]");
+    expect(canonicalAtlas).toContain("const validUrls = candidate.sourceUrls");
+    expect(canonicalAtlas).toContain(".filter((url): url is string => url !== null);");
+
+    // The Investigator may select worthwhile exact name/role leads, but this
+    // never promotes them or turns snippets into wealth/contact evidence.
+    expect(orientation).toContain("DISCOVERY REVIEW-LEAD CAPTURE");
+    expect(orientation).toContain("leave promotionDecision unset");
+    expect(orientation).toContain("selection is not promotion");
+    expect(control).toContain("AVAILABLE REVIEW TARGETS");
+    expect(control).toContain("selecting one authorizes target-scoped verification, not promotion");
+  });
 });
