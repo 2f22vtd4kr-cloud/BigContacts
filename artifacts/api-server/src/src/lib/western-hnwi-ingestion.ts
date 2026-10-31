@@ -52,6 +52,28 @@ interface HarvestedPerson {
   };
 }
 
+export function buildWesternRegistrySourceEvidence(
+  sourceRegistry: string,
+  rawMetadata: Record<string, unknown>,
+): Array<Record<string, unknown>> {
+  const sourceUrl = [rawMetadata.sourceUrl, rawMetadata.edgarUrl, rawMetadata.brregUrl, rawMetadata.chUrl]
+    .find((value): value is string => typeof value === "string" && value.startsWith("https://"));
+  let sourceDomain: string | null = null;
+  if (sourceUrl) {
+    try { sourceDomain = new URL(sourceUrl).hostname.replace(/^www\./i, ""); } catch { sourceDomain = null; }
+  }
+  return [{
+    ...(sourceUrl ? { sourceUrl } : {}),
+    sourceName: sourceRegistry,
+    sourceDomain,
+    sourceClass: "registry_adapter_source",
+    sourceContributor: null,
+    sourceMechanism: "western_registry_ingest",
+    verificationLevel: "registry_record",
+    independentCorroborationStatus: "not_assessed",
+  }];
+}
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
 function sleep(ms: number): Promise<void> {
@@ -708,6 +730,7 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
     person.companyName ? `Company: ${person.companyName}.` : null,
   ].filter(Boolean) as string[];
 
+  const sourceEvidence = buildWesternRegistrySourceEvidence(person.sourceRegistry, person.rawMetadata);
   const entity: InsertEntity = {
     name: person.name,
     type: entityType,
@@ -723,6 +746,14 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
     sourceRegistries: JSON.stringify([person.sourceRegistry]),
     metadata: JSON.stringify({
       ...person.rawMetadata,
+      sourceName: person.sourceRegistry,
+      sourceClass: "registry_adapter_source",
+      sourceContributor: null,
+      sourceMechanism: "western_registry_ingest",
+      verificationLevel: "registry_record",
+      independentCorroborationStatus: "not_assessed",
+      sourceEvidence,
+      ...(sourceEvidence[0]?.sourceUrl ? { sourceUrl: sourceEvidence[0].sourceUrl, sourceUrls: [sourceEvidence[0].sourceUrl] } : {}),
       lastVerified: undefined,
       proximityScore: registryAssessment.proximityScore,
       country: person.signals.jurisdiction,
@@ -828,6 +859,14 @@ function buildRegistryEntity(
       sourceRegistries: result.sourceRegistries,
       metadata: JSON.stringify({
         ...rawMetadata,
+        sourceName: result.sourceRegistries?.[0] ?? registry,
+        sourceClass: "registry_adapter_source",
+        sourceContributor: null,
+        sourceMechanism: "western_registry_ingest",
+        verificationLevel: "registry_record",
+        independentCorroborationStatus: "not_assessed",
+        sourceEvidence: buildWesternRegistrySourceEvidence(result.sourceRegistries?.[0] ?? registry, rawMetadata),
+        ...(buildWesternRegistrySourceEvidence(result.sourceRegistries?.[0] ?? registry, rawMetadata)[0]?.sourceUrl ? { sourceUrl: buildWesternRegistrySourceEvidence(result.sourceRegistries?.[0] ?? registry, rawMetadata)[0].sourceUrl, sourceUrls: [buildWesternRegistrySourceEvidence(result.sourceRegistries?.[0] ?? registry, rawMetadata)[0].sourceUrl] } : {}),
         lastVerified: undefined,
         source: rawMetadata.source ?? registry,
         registryId: registry,
