@@ -19,13 +19,13 @@ function modelAuditBlock(kind: "request" | "response", record: Record<string, un
   return "### Model " + kind + " " + String(record.requestId) + "\n\n" + fence + "json\n" + json + "\n" + fence + "\n";
 }
 
-function successfulModelAudit(omitRole?: string, jobId = "job-qa-1") {
+function successfulModelAudit(omitRole?: string, jobId = "job-qa-1", includeFallback = false) {
   const roles = [
     ["groq_boss", "llama-3.3-70b-versatile"],
     ["groq_right_hand", "llama-3.3-70b-versatile"],
     ["groq_investigator", "openai/gpt-oss-120b"],
   ] as const;
-  return roles.filter(([role]) => role !== omitRole).map(([role, model], index) => {
+  const blocks = roles.filter(([role]) => role !== omitRole).map(([role, model], index) => {
     const requestId = "request-" + role;
     const request = {
       event: "atlas_model_request",
@@ -55,7 +55,41 @@ function successfulModelAudit(omitRole?: string, jobId = "job-qa-1") {
       },
     };
     return modelAuditBlock("request", request) + modelAuditBlock("response", response);
-  }).join("\n");
+  });
+  if (includeFallback && omitRole !== "groq_investigator") {
+    const role = "groq_investigator";
+    const model = "openai/gpt-oss-20b";
+    const requestId = "request-investigator-fallback";
+    const request = {
+      event: "atlas_model_request",
+      requestId,
+      provider: "groq",
+      role,
+      model,
+      attempt: 2,
+      jobId,
+      caseId: 42,
+      requestSummary: {},
+    };
+    const response = {
+      event: "atlas_model_response",
+      requestId,
+      provider: "groq",
+      role,
+      model,
+      httpStatus: 200,
+      latencyMs: 80,
+      transportFailure: null,
+      response: {
+        jsonParsed: true,
+        model,
+        usage: { prompt_tokens: 50, completion_tokens: 10, total_tokens: 60 },
+        choices: [{ index: 0 }],
+      },
+    };
+    blocks.push(modelAuditBlock("request", request) + modelAuditBlock("response", response));
+  }
+  return blocks.join("\n");
 }
 const releasedLane = { type: "atlas-run", active: false, jobId: null, job: null };
 
@@ -185,6 +219,25 @@ describe("canonical investigation end-to-end acceptance proof", () => {
         groq_boss: { successfulCalls: 1, promptTokens: 100, completionTokens: 20, actualModels: ["llama-3.3-70b-versatile"] },
         groq_right_hand: { successfulCalls: 1, promptTokens: 100, completionTokens: 20 },
         groq_investigator: { successfulCalls: 1, promptTokens: 100, completionTokens: 20 },
+      },
+    });
+  });
+
+  it("reports same-role model fallback and retry counts without treating it as a new role", () => {
+    const proof = verifyModelAudit({
+      proof: { jobId: "job-qa-1", caseId: 42 },
+      auditText: successfulModelAudit(undefined, "job-qa-1", true),
+    });
+    expect(proof.modelAudit).toMatchObject({
+      retryCount: 1,
+      fallbackRoles: ["groq_investigator"],
+      byRole: {
+        groq_investigator: {
+          attempts: 2,
+          successfulCalls: 2,
+          models: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
+          actualModels: ["openai/gpt-oss-120b", "openai/gpt-oss-20b"],
+        },
       },
     });
   });
