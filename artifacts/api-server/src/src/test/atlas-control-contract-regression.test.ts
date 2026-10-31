@@ -1003,7 +1003,8 @@ describe("model-request audit correlation", () => {
     expect(bossSource).toContain("caseId: options?.caseId ?? null");
     expect(rightHandSource).toContain("jobId:auditContext?.jobId??null");
     expect(rightHandSource).toContain("caseId:auditContext?.caseId??null");
-    expect(controlSource).toContain("{ jobId: input.jobId ?? null, caseId: input.caseId }");
+    expect(controlSource).toContain('{ jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_advisory" }');
+    expect(controlSource).toContain('jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_decision"');
     expect(canonicalDiscoverySource).toContain("{ jobId: atlasJobId, caseId: discoveryCaseId }");
     expect(canonicalDiscoverySource).toContain("jobId: atlasJobId");
     expect(canonicalDiscoverySource).toContain("caseId: opts.discoveryCaseId ?? null");
