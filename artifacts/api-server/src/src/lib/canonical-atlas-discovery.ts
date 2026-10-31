@@ -10,7 +10,7 @@ import { buildMissionActionBudget, resolveDiscoveryIterationsPerAct, resolveRema
 import { GROQ_INVESTIGATOR_20B_CAPABILITY, getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, getModelScopedInvestigatorQuotaFallback, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, isCanonicalAtlasRunEvidenceComplete, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
-import { buildDiscoveryLeadUtilizationState, discoveryPivotScopeKey, isUntargetableDiscoveryPersonName, type AgenticFinding } from "./agentic-web-research-core";
+import { buildDiscoveryLeadUtilizationState, discoveryPivotScopeKey, type AgenticFinding } from "./agentic-web-research-core";
 import {
   advanceInvestigatorProviderUnavailableStreak,
   advanceInvestigatorTokenCapacityFailureStreak,
@@ -209,7 +209,6 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   const candidates = uniqueNames(input.findings
     .filter((finding) => finding.promotionDecision === "promote" && finding.scope === "candidate")
     .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length >= 3)
-    .filter((finding) => typeof finding.personName === "string" && !isUntargetableDiscoveryPersonName(finding.personName))
     .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some(isObservedHttpsSource))
     .map((finding) => finding.personName as string));
   const durableCandidateSources: Array<{ name: string; sourceUrls: string[] }> = [];
