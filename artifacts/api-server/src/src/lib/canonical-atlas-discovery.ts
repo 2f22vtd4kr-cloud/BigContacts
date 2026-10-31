@@ -846,7 +846,8 @@ async function materializePartialOrganizationLeadCards(input: {
         }
       }
 
-      if (payload.execution !== "success") return observations;
+      // Partial provider execution can still contain successful, attributable
+      // source observations. Preserve model-selected leads from those results.
       // Search-result URLs are leads, not fetched-page evidence. Keep them
       // separate from fetched-page URLs and bind every claim to the exact URL.
       const sourceUrls = fetched
