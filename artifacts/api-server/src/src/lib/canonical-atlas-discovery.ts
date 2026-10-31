@@ -501,12 +501,10 @@ async function materializePartialPersonLeadCards(input: {
   // but it does not itself promote or select the person. Boss may choose the review-only lead for target-scoped verification.
   const leadMap = new Map<string, { name: string; role: string; sourceUrls: string[] }>();
   for (const finding of input.findings) {
-    if (finding.scope !== "candidate" || finding.vectorType !== "other"
-      || finding.promotionDecision === "reject"
+    if (finding.scope !== "candidate" || finding.promotionDecision === "reject"
       || !finding.personName?.trim() || !finding.role?.trim()) continue;
     const name = finding.personName.trim().replace(/\s+/g, " ");
     const role = finding.role.trim().replace(/\s+/g, " ");
-    if (normalizeCandidateIdentityName(finding.value) !== normalizeCandidateIdentityName(name)) continue;
     if (name.length < 3 || role.length < 2) continue;
     const identity = normalizeCandidateIdentityName(name) + "::" + normalizeCandidateIdentityName(role);
     const current = leadMap.get(identity);
@@ -583,15 +581,22 @@ async function materializePartialPersonLeadCards(input: {
       const span = observation.verificationLevel === "fetched_source"
         ? bindExactSourceSpan(observation.observation, lead.role, lead.name, 320)
         : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.role, lead.name, 320);
-      if (!span?.exact || !span.subjectMatched || !span.valueMatched) continue;
-      if (!supports.has(sourceUrl) || (supports.get(sourceUrl)?.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) supports.set(sourceUrl, {
+      const exactSpan = Boolean(span?.exact && span.subjectMatched && span.valueMatched);
+      // The Investigator selected this lead. Exact-span parsing grades the
+      // observation; it must not veto the model's provisional card decision.
+      // If attribution cannot be isolated, retain the URL as unverified and let
+      // target-scoped research test the lead.
+      const verificationLevel = exactSpan && span
+        ? observation.verificationLevel
+        : "search_result_lead" as const;
+      if (!supports.has(sourceUrl) || (supports.get(sourceUrl)?.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) supports.set(sourceUrl, {
         sourceUrl,
         eventId: observation.eventId,
         createdAt: observation.createdAt,
-        spanText: span.text,
-        spanStart: span.start,
-        spanEnd: span.end,
-        verificationLevel: observation.verificationLevel,
+        spanText: span?.text ?? `Investigator-selected lead ${lead.name} / ${lead.role}; exact source span not independently isolated.`,
+        spanStart: span?.start ?? -1,
+        spanEnd: span?.end ?? -1,
+        verificationLevel,
       });
     }
     if (!supports.size) continue;
@@ -771,10 +776,9 @@ async function materializePartialOrganizationLeadCards(input: {
   const seenNames = new Set<string>();
   const leadNames: string[] = [];
   for (const finding of input.findings) {
-    if (finding.scope !== "organization" || finding.vectorType !== "other"
+    if (finding.scope !== "organization"
       || finding.promotionDecision === "reject" || finding.personName?.trim() || finding.role?.trim()) continue;
     const name = finding.value.trim().replace(/\s+/g, " ");
-    if (isGenericDiscoveryMetadataTitle(name)) continue;
     const identity = normalizeCandidateIdentityName(name);
     if (name.length < 3 || identity.length < 3 || seenNames.has(identity)) continue;
     seenNames.add(identity);
@@ -825,10 +829,6 @@ async function materializePartialOrganizationLeadCards(input: {
             const name = company.name.trim().replace(/\s+/g, " ");
             const identity = normalizeCandidateIdentityName(name);
             if (name.length < 3 || identity.length < 3 || isGenericDiscoveryMetadataTitle(name)) continue;
-            if (!seenNames.has(identity)) {
-              seenNames.add(identity);
-              leadNames.push(name);
-            }
             const notes = typeof company.notes === "string" ? company.notes.replace(/\s+/g, " ").trim().slice(0, 240) : "";
             for (const rawUrl of company.sourceUrls) {
               if (typeof rawUrl !== "string") continue;
@@ -876,7 +876,7 @@ async function materializePartialOrganizationLeadCards(input: {
   for (const name of leadNames) {
     const claimedUrls = new Set([
       ...input.findings
-        .filter((finding) => finding.scope === "organization" && finding.vectorType === "other"
+        .filter((finding) => finding.scope === "organization"
           && finding.promotionDecision !== "reject"
           && !finding.personName?.trim() && !finding.role?.trim()
           && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name))
@@ -887,10 +887,6 @@ async function materializePartialOrganizationLeadCards(input: {
       // company observations. Their exact name + notes are the observed span,
       // so they must not be dropped merely because the model emitted no parallel
       // finding object on this turn.
-      ...observations
-        .filter((observation) => bindExactSourceSpan(observation.observation, name)?.exact)
-        .map((observation) => normalizeSourceUrl(observation.sourceUrl))
-        .filter((url): url is string => Boolean(url)),
     ]);
     const supports = new Map<string, {
       sourceUrl: string; eventId: number; createdAt: Date; spanText: string;
@@ -908,13 +904,17 @@ async function materializePartialOrganizationLeadCards(input: {
       const span = observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
         ? bindExactSourceSpan(observation.observation, name)
         : bindExactSourceSpanToUrl(observation.observation, sourceUrl, name);
-      if (!span?.exact) continue;
+      const exactSpan = Boolean(span?.exact);
+      const verificationLevel = exactSpan && span
+        ? observation.verificationLevel
+        : "search_result_lead" as const;
       const previous = supports.get(sourceUrl);
-      if (!previous || (previous.verificationLevel === "search_result_lead" && observation.verificationLevel === "fetched_source")) {
+      if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
         supports.set(sourceUrl, {
           sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt,
-          spanText: span.text, spanStart: span.start, spanEnd: span.end,
-          verificationLevel: observation.verificationLevel,
+          spanText: span?.text ?? `Investigator-selected organization lead ${name}; exact source span not independently isolated.`,
+          spanStart: span?.start ?? -1, spanEnd: span?.end ?? -1,
+          verificationLevel,
         });
       }
     }
