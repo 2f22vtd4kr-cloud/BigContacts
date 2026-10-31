@@ -311,6 +311,9 @@ describe("canonical Atlas organization target selection", () => {
     expect(reconcilerSource).not.toContain("if (!span?.exact) continue;");
     expect(control).toContain("input.admittedCandidates.map((candidate)");
     expect(control).not.toContain("input.admittedCandidates.slice(0, 8)");
+    expect(control).toContain("COMPLETE AVAILABLE REVIEW TARGETS");
+    expect(control).toContain("rightHandPinnedControlState");
+    expect(control).toContain("if the total prompt cannot fit, prompt construction fails visibly");
     const registryLeadObservationBlock = organizationMaterializer.slice(
       organizationMaterializer.indexOf("if (registry &&"),
       organizationMaterializer.indexOf('if (payload.execution !== "success")'),
