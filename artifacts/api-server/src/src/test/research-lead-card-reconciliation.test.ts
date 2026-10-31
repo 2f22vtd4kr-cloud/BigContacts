@@ -106,6 +106,12 @@ describe("terminal review-card reconciliation", () => {
     expect(personMaterializer).toContain("bindExactSourceSpan(observation.observation, lead.role, lead.name, 320)");
     expect(personMaterializer).toContain("role: string | null");
     expect(personMaterializer).not.toContain("!finding.role?.trim()");
+    expect(personMaterializer).toContain('!["success", "partial"].includes(observation.executionStatus)');
+    expect(organizationMaterializer).toContain('!["success", "partial"].includes(observation.execution)');
+    expect(personMaterializer).not.toContain("name.length < 3");
+    expect(organizationMaterializer).not.toContain("name.length < 3");
+    expect(canonicalAtlas.slice(canonicalAtlas.indexOf("function mergeDurablyAdmittedAtlasTargetSources"), canonicalAtlas.indexOf("async function createAtlasDiscoveryCase"))).not.toContain("name.length < 3");
+    expect(reconcilerSource).not.toContain("name.length < 3");
     expect(personMaterializer).not.toContain('finding.vectorType !== "other"');
     expect(personMaterializer).toContain("sourceSpanVerified: support.spanVerified");
     expect(personMaterializer).not.toContain("if (existingRows.length > 0 && !sameCase)");
