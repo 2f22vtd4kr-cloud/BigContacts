@@ -155,7 +155,8 @@ async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; sk
         if (asset.identifier && !uniqueByTransaction.has(asset.identifier)) uniqueByTransaction.set(asset.identifier, asset);
       }
       const candidates = [...uniqueByTransaction.values()];
-      if (candidates.length === 0) return [];
+      const duplicateCount = assets.length - candidates.length;
+      if (candidates.length === 0) return { rows: [], skipped: duplicateCount };
       const existing = await tx.select({ identifier: assetsTable.identifier })
         .from(assetsTable)
         .where(and(
@@ -164,9 +165,9 @@ async function flushBatch(assets: InsertAsset[]): Promise<{ inserted: number; sk
         ));
       const existingIds = new Set(existing.map((row) => row.identifier));
       const fresh = candidates.filter((asset) => !existingIds.has(asset.identifier));
-      if (fresh.length === 0) return { rows: [], skipped: candidates.length };
+      if (fresh.length === 0) return { rows: [], skipped: candidates.length + duplicateCount };
       const rows = await tx.insert(assetsTable).values(fresh).returning({ id: assetsTable.id });
-      return { rows, skipped: candidates.length - fresh.length };
+      return { rows, skipped: candidates.length - fresh.length + duplicateCount };
     });
     return { inserted: rows.rows.length, skipped: rows.skipped, errors: 0 };
   } catch (err: any) {
