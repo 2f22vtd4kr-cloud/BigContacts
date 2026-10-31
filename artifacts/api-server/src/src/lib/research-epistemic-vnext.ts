@@ -163,8 +163,9 @@ export function bindExactSourceSpanToUrl(
     const previousLineStart = previousLineBreak >= 0 ? previousLineBreak + 1 : 0;
     const urlLineStart = observation[match.index] === "\n" ? match.index + 1 : match.index;
     const previousLine = observation.slice(previousLineStart, match.index).trim();
+    // Result titles commonly end with punctuation. Use exact subject/value
+    // binding, not the title's punctuation, to associate it with this URL.
     const titleLine = previousLine.length <= 240
-      && !/[.!?]$/.test(previousLine)
       && bindExactSourceSpan(previousLine, subject?.trim() || value)?.exact;
     const segmentStart = titleLine ? previousLineStart : urlLineStart;
     const nextMatch = matches[index + 1];
