@@ -889,6 +889,28 @@ describe("partial model findings", () => {
     expect(parsed?.partialFindings.map((finding) => finding.value)).toEqual(["Li", "3M"]);
   });
 
+  it("keeps organization contact values as contact facts, not organization review-card names", () => {
+    const sourceUrl = "https://northstarcasino.si/contact";
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "done",
+      findings: [
+        { vectorType: "email", value: "contact@northstarcasino.si", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public business email." },
+        { vectorType: "phone", value: "+386 1 555 0100", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public business phone." },
+        { vectorType: "website", value: "https://northstarcasino.si/", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Public company website." },
+        { vectorType: "other", value: "Northstar Casino Resort", personName: null, role: null, scope: "organization", sourceUrls: [sourceUrl], note: "Investigator-selected company review lead." },
+      ],
+      thought: "Preserve the company lead and keep contact facts separate.",
+    }), ["done"]);
+
+    expect(parsed?.findings.map((finding) => finding.value)).toEqual([
+      "contact@northstarcasino.si",
+      "+386 1 555 0100",
+      "https://northstarcasino.si/",
+      "Northstar Casino Resort",
+    ]);
+    expect(parsed?.partialFindings.map((finding) => finding.value)).toEqual(["Northstar Casino Resort"]);
+  });
+
   it("preserves an unpromoted lead when the Investigator stops", () => {
     const finding = {
       vectorType: "other",
