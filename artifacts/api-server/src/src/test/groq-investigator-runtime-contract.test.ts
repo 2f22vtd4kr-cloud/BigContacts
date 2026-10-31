@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildActionParseFailureObservation, buildGroqInvestigatorRequestBody, buildStepPrompt, parseAgentAction, compactEmergencyInvestigatorObjective, compactEmergencyTrajectoryObservation, describeAgentActionParseFailure, groqQuotaAccountIdentity, MAX_CONSECUTIVE_ACTION_PARSE_FAILURES, nextConsecutiveActionParseFailureCount, shouldTerminateActionParseFailure, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { getAvailableBrowserFetchProviders } from "../lib/browser-fetch-core";
@@ -423,5 +424,17 @@ describe("Groq Investigator runtime contract", () => {
     expect(inferResearchCognitiveTask({ nextMovePriority: "contact" })).toBe("contact_extraction");
     expect(inferResearchCognitiveTask({ nextMovePriority: "verify" })).toBe("identity_resolution");
     expect(inferResearchCognitiveTask({ terminal: true })).toBe("final_adjudication");
+  });
+});
+
+describe("objective-led discovery prompt", () => {
+  it("treats companies and assets as first-class targets instead of people-only proxies", () => {
+    const core = readFileSync(new URL("../lib/agentic-web-research-core.ts", import.meta.url), "utf8");
+    const orientation = readFileSync(new URL("../lib/apex-bureau-orientation.ts", import.meta.url), "utf8");
+    expect(core).toContain("The human objective determines the target");
+    expect(core).toContain("companies, assets, public records, events, sectors, and hypotheses");
+    expect(core).not.toContain("People—not companies or executive prestige—are the target");
+    expect(orientation).toContain("A company or asset can itself be the target");
+    expect(orientation).toContain("company/asset-first objectives");
   });
 });
