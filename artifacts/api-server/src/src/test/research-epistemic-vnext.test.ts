@@ -35,7 +35,7 @@ describe("research epistemic vNext", () => {
       "Michael Fillios is an entrepreneur and Founder & CEO of IT Ally.",
       "URL: https://www.linkedin.com/company/francisco-partners",
       "Francisco Partners is a private equity firm focused on technology.",
-    ].join("\\n");
+    ].join("\n");
     const person = bindExactSourceSpanToUrl(
       observation,
       "https://www.linkedin.com/in/michaelfillios",
