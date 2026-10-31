@@ -142,12 +142,12 @@ describe("terminal review-card reconciliation", () => {
 
 
   it("stores source class, contributor, fetch mechanism and corroboration as separate provenance fields", () => {
-    expect(canonicalAtlas).toContain('sourceClass: "unclassified_public_source"');
+    expect(canonicalAtlas).toContain('sourceClass: support.observationAction.includes("registry") ? "registry_adapter_source" : "unclassified_public_source"');
     expect(canonicalAtlas).toContain("sourceContributor: null");
     expect(canonicalAtlas).toContain("sourceMechanism: support.observationAction");
     expect(canonicalAtlas).toContain('independentCorroborationStatus: "not_assessed"');
     expect(canonicalAtlas).not.toContain('sourceName: "canonical-agentic-discovery"');
-    expect(reconciler).toContain('sourceClass: "unclassified_public_source"');
+    expect(reconciler).toContain('sourceClass: support.action?.includes("registry") ? "registry_adapter_source" : "unclassified_public_source"');
     expect(reconciler).toContain("sourceContributor: null");
     expect(reconciler).toContain('independentCorroborationStatus: "not_assessed"');
   });
