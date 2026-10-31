@@ -39,6 +39,16 @@ function normalizeSource(raw: unknown): string | null {
     return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href;
   } catch { return null; }
 }
+function isContactLikeOrganizationReviewValue(value: string): boolean {
+  const candidate = value.trim();
+  if (!candidate) return true;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)) return true;
+  if (/^(?:https?:\/\/|www\.)/i.test(candidate)) return true;
+  if (/^[\p{L}\p{N}.-]+\.[a-z]{2,}(?:\/\S*)?$/iu.test(candidate)) return true;
+  const digits = candidate.replace(/\D/g, "").length;
+  return digits >= 7 && /^[+()\d.\s-]+$/.test(candidate);
+}
+
 function parseObject(value: unknown): Record<string, unknown> | null {
   if (typeof value !== "string") return null;
   try { const parsed: unknown = JSON.parse(value); return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null; } catch { return null; }
@@ -76,7 +86,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           if (finding.scope !== "organization" || finding.promotionDecision === "reject" || typeof finding.value !== "string") continue;
           const name = finding.value.trim().replace(/\s+/g, " ");
           const identity = normalizeCandidateIdentityName(name);
-          if (!name || !identity) continue;
+          if (!name || !identity || isContactLikeOrganizationReviewValue(name)) continue;
           const entry = findings.get(identity) ?? { name, urls: new Set<string>(), notes: new Set<string>() };
           if (Array.isArray(finding.sourceUrls)) for (const rawUrl of finding.sourceUrls) {
             const url = normalizeSource(rawUrl);
