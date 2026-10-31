@@ -85,6 +85,34 @@ if (/\bexpandSecondaryPublicSurface\s*\(/.test(entitiesRoute)) {
   else console.log("PASS secondary-surface endpoint is quarantined at the global mutation boundary.");
 } else console.log("PASS no secondary research caller in entities route.");
 
+const secondaryHelperStart = secondaryPersist.indexOf("export async function expandSecondaryPublicSurface");
+const secondaryHelperEnd = secondaryPersist.indexOf("/** Bounded EDGAR EFTS lookup", secondaryHelperStart);
+const secondaryHelper = secondaryHelperStart >= 0 && secondaryHelperEnd > secondaryHelperStart
+  ? secondaryPersist.slice(secondaryHelperStart, secondaryHelperEnd)
+  : "";
+if (!secondaryHelper || /enrichEntityOsint|fetch\\s*\\(|lookupCrtShEmails|lookupPublicEmailClaims/.test(secondaryHelper)
+  || !/return \{ linkedin: false, email: false, phone: false, signal: false, website: false, relatedPeople: 0 \}/.test(secondaryHelper)) {
+  console.log("FAIL deterministic secondary-surface helper is not inert.");
+  failed = true;
+} else console.log("PASS deterministic secondary-surface helper is inert and performs no outbound research.");
+
+const walkSourceFiles = (directory) => {
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const full = directory + "/" + entry.name;
+    if (entry.isDirectory()) return walkSourceFiles(full);
+    return /\\.(?:ts|tsx|js|mjs)$/.test(entry.name) ? [full] : [];
+  });
+};
+const liveSecondaryCallers = walkSourceFiles("artifacts/api-server/src/src")
+  .filter((file) => !/\\.test\\.[jt]sx?$/.test(file))
+  .filter((file) => file !== "artifacts/api-server/src/src/lib/bureau-contact-persist.ts")
+  .filter((file) => /\\bexpandSecondaryPublicSurface\\s*\\(/.test(read(file)));
+if (liveSecondaryCallers.length) {
+  console.log("FAIL live canonical secondary-surface callers remain: " + liveSecondaryCallers.join(", "));
+  failed = true;
+} else console.log("PASS no live canonical caller can invoke secondary-surface expansion.");
+
 if (fs.existsSync(retiredAtlasOrchestrator)) { console.log(`FAIL retired deterministic Atlas orchestrator still exists: ${retiredAtlasOrchestrator}`); failed = true; }
 else console.log("PASS retired deterministic Atlas orchestrator removed from the API source tree.");
 
