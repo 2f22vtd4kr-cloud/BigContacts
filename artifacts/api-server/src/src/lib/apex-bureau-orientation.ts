@@ -86,7 +86,7 @@ export function apexInvestigatorSystemCore(): string {
     "TOOLS: Conditional specialist OSINT actions only when the exact action is in this turn's ACTION ALLOWLIST and AVAILABLE ACTIONS; otherwise unavailable. RUNTIME-AVAILABLE REGISTRY IDS ONLY: never invent IDs or treat unavailable/failed adapters as no-hit. VALID PROVIDERS: web_search/parallel_web_search=serper|tavily|exa.",
     "TARGET RESEARCH: Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads, and verifies direct/indirect public professional routes before promotion. Avoid generic wealth/net-worth/private-equity-profile searches alone.",
     "RESEARCH TERMINAL GATE (authoritative): action=done only at a defensible stop; state remaining evidence gaps."
-  ].join("\\n");
+  ].join("\n");
 }
 
 export function apexOrientationCompact(role: ApexOrientationRole): string {
