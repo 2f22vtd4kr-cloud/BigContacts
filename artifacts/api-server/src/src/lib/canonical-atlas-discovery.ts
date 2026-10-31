@@ -804,7 +804,7 @@ async function materializePartialOrganizationLeadCards(input: {
     if (finding.scope !== "organization" || finding.promotionDecision === "reject") continue;
     const name = finding.value.trim().replace(/\s+/g, " ");
     const identity = normalizeCandidateIdentityName(name);
-    if (name.length < 3 || identity.length < 3 || seenNames.has(identity)) continue;
+    if (!name || !identity || seenNames.has(identity)) continue;
     seenNames.add(identity);
     leadNames.push(name);
   }
