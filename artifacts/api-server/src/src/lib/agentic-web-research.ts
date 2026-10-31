@@ -105,7 +105,7 @@ export function reviewLeadFindingsForTrajectory(
     if (record.execution !== "success" && record.execution !== "partial") continue;
     const action = record.action;
     const urls = ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(action)
-      ? [...(record.leadUrls ?? []), ...(record.observedUrls ?? [])]
+      ? (record.leadUrls ?? [])
       : ["visit", "browser_fetch"].includes(action)
         ? (record.observedUrls ?? [])
         : [];
