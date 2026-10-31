@@ -49,8 +49,10 @@ const F_YEAR_MFR       = 4;
 const F_TYPE_REG       = 5;
 const F_NAME           = 6;
 const F_STREET         = 7;
+const F_STREET2        = 8;
 const F_CITY           = 9;
 const F_STATE          = 10;
+const F_ZIP            = 11;
 const F_COUNTRY        = 14;
 const F_TYPE_AIRCRAFT  = 18;
 const F_TYPE_ENGINE    = 19;
@@ -77,8 +79,10 @@ export interface FaaIngestionResult {
   skipped: number;
   errors: number;
   durationMs: number;
-  candidateEntitiesInserted?: number;
+  candidateEntitiesInserted: number;
 }
+
+type FaaBatchRow = { asset: InsertAsset; entity: InsertEntity | null };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -505,6 +509,8 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   let errors = 0;
 
   await mkdir(TMP_DIR, { recursive: true });
+  await updateJob(jobId, { message: "Reconciling legacy FAA registrant/asset ownership semantics…" });
+  await repairLegacyFaaOwnershipSemantics();
 
   // ── Step 1: Download ZIP ───────────────────────────────────────────────────
   const needsDownload = forceRefresh || await isCacheStale();
@@ -564,150 +570,141 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
 
   let lineNum = 0;
   let lastProgressLine = 0;
-  const entityBatch: InsertEntity[] = [];
-  const assetBatch: InsertAsset[] = [];
+  const batchRows: FaaBatchRow[] = [];
   const pendingDedup: string[] = [];
+  let candidateEntitiesInserted = 0;
+  let lineNum = 0;
+  let lastProgressLine = 0;
 
   for await (const line of rl) {
     lineNum++;
-    if (lineNum === 1) continue; // skip header row
-    if (inserted + entityBatch.length >= maxRecords) break;
+    if (lineNum === 1) continue; // FAA MASTER has a header row.
+    if (inserted + batchRows.length >= maxRecords) break;
 
-    // ── Unconditional progress heartbeat every 5,000 lines ───────────────────
     if (lineNum - lastProgressLine >= 5_000) {
       lastProgressLine = lineNum;
       const pct = totalLines > 0
         ? Math.min(8 + Math.floor((lineNum / totalLines) * 87), 94)
         : Math.min(8 + Math.floor((inserted / maxRecords) * 87), 94);
       await updateJob(jobId, {
-        message: `Scanned ${lineNum.toLocaleString()} / ${totalLines.toLocaleString()} lines — ${inserted.toLocaleString()} aircraft owners matched…`,
+        message: `Scanned ${lineNum.toLocaleString()} / ${totalLines.toLocaleString()} FAA rows — ${inserted.toLocaleString()} aircraft assets seeded…`,
         progress: pct,
         inserted,
       });
     }
 
-    const f = line.split(",");
-    if (f.length < 21) continue;
+    const fields = parseFaaMasterCsvRecord(line);
+    if (fields.length <= F_OTHER_NAME_5) continue;
 
-    const nNumber      = f[F_NNUMBER]?.trim() ?? "";
-    const typeReg      = f[F_TYPE_REG]?.trim() ?? "";
-    const rawName      = f[F_NAME]?.trim() ?? "";
-    const street       = f[F_STREET]?.trim() ?? "";
-    const city         = f[F_CITY]?.trim() ?? "";
-    const state        = f[F_STATE]?.trim() ?? "";
-    const country      = f[F_COUNTRY]?.trim() || "US";
-    const typeAircraft = f[F_TYPE_AIRCRAFT]?.trim() ?? "";
-    const typeEngine   = f[F_TYPE_ENGINE]?.trim() ?? "";
-    const status       = f[F_STATUS]?.trim() ?? "";
-    const yearMfr      = f[F_YEAR_MFR]?.trim() ?? "";
-    const serial       = f[F_SERIAL]?.trim() ?? "";
+    const nNumber = fields[F_NNUMBER]?.trim() ?? "";
+    const typeReg = fields[F_TYPE_REG]?.trim() ?? "";
+    const rawName = fields[F_NAME]?.trim() ?? "";
+    const street = fields[F_STREET]?.trim() ?? "";
+    const street2 = fields[F_STREET2]?.trim() ?? "";
+    const city = fields[F_CITY]?.trim() ?? "";
+    const state = fields[F_STATE]?.trim() ?? "";
+    const zip = fields[F_ZIP]?.trim() ?? "";
+    const country = fields[F_COUNTRY]?.trim() || "US";
+    const typeAircraft = fields[F_TYPE_AIRCRAFT]?.trim() ?? "";
+    const typeEngine = fields[F_TYPE_ENGINE]?.trim() ?? "";
+    const statusCode = fields[F_STATUS]?.trim() ?? "";
+    const fractionalOwnershipFlag = fields[F_FRACTIONAL_OWNER]?.trim() ?? "";
+    const yearMfr = fields[F_YEAR_MFR]?.trim() ?? "";
+    const serial = fields[F_SERIAL]?.trim() ?? "";
+    const otherRegistrantNames = fields.slice(F_OTHER_NAME_1, F_OTHER_NAME_5 + 1).map((value) => value.trim()).filter(Boolean);
+    const lastActivityDate = fields[F_LAST_ACTIVITY]?.trim() ?? "";
+    const expirationDate = fields[F_EXPIRATION_DATE]?.trim() ?? "";
+    const uniqueId = fields[F_UNIQUE_ID]?.trim() ?? "";
+    const manufacturerModelCode = fields[F_MFR_MODEL_CODE]?.trim() ?? "";
+    const engineModelCode = fields[F_ENGINE_MODEL_CODE]?.trim() ?? "";
 
-    // ── Filters ──────────────────────────────────────────────────────────────
-    if (status !== "V" && status !== "A") continue;        // active only
-    if (!INDIVIDUAL_TYPES.has(typeReg)) continue;          // individuals, LLCs, partnerships
-    if (!rawName || rawName.length < 3) continue;          // valid name
-    if (!nNumber) continue;                                // needs N-number
+    if (!nNumber) continue;
+    const classification = classifyFaaRegistrant(typeReg, { fractionalOwnershipFlag, statusCode });
+    // Keep current/renewal-pending registrations; do not seed sold, expired,
+    // revoked, reserved, or unknown status rows as live asset candidates.
+    if (classification.registrationStatus !== "valid" && classification.registrationStatus !== "pending") continue;
 
-    const isTurbine    = TURBINE_ENGINES.has(typeEngine);
-    const isMulti      = typeAircraft === FIXED_WING_MULTI;
-    const isRotor      = typeAircraft === ROTORCRAFT;
-    if (!isTurbine && !isMulti && !isRotor) continue;      // valuable aircraft only
-
-    // ── Dedup via in-memory Set (no Upstash per-record call) ─────────────────
+    const assetSignal = classifyFaaAssetSignal(typeEngine, typeAircraft);
+    if (assetSignal.strength === "observed_asset_lead") continue;
     const dkey = `faa:${nNumber}`;
     if (seenKeys.has(dkey)) { skipped++; continue; }
     seenKeys.add(dkey);
     pendingDedup.push(dkey);
 
-    // ── Build records ─────────────────────────────────────────────────────────
-    const name = normalizeFaaName(rawName, typeReg);
-    const label = aircraftLabel(typeEngine, typeAircraft);
-    const address = [street, city, state, country !== "US" ? country : ""].filter(Boolean).join(", ");
-    const score = bayesianScore(typeEngine, typeAircraft);
-    const isJet = typeEngine === "4" || typeEngine === "5";
+    const tailNumber = nNumber.startsWith("N") ? nNumber : `N${nNumber}`;
+    const mailingAddress = [street, street2, city, state, zip, country !== "US" ? country : ""].filter(Boolean).join(", ");
+    const entity = buildFaaRegistrantEntity({
+      nNumber,
+      registrantTypeCode: typeReg,
+      registrantName: rawName,
+      fractionalOwnershipFlag,
+      statusCode,
+      typeAircraft,
+      typeEngine,
+      yearManufactured: yearMfr,
+      serialNumber: serial,
+      state,
+      country,
+      mailingAddress,
+      otherRegistrantNames,
+      lastActivityDate,
+    });
+    const asset = buildFaaAircraftAsset({
+      nNumber,
+      registrantTypeCode: typeReg,
+      registrantName: rawName,
+      fractionalOwnershipFlag,
+      statusCode,
+      typeAircraft,
+      typeEngine,
+      yearManufactured: yearMfr,
+      serialNumber: serial,
+      manufacturerModelCode,
+      engineModelCode,
+      state,
+      country,
+      otherRegistrantNames,
+      lastActivityDate,
+      expirationDate,
+      uniqueId,
+    });
+    // The FAA registrant can be a person or legal entity. Co-owned, government,
+    // and unknown registrant records remain asset-only until a model resolves
+    // their identities; none is written to assets.ownerEntityId.
+    batchRows.push({ asset: { ...asset, identifier: tailNumber }, entity });
 
-    // ── Net worth heuristic (B2): 10× median market value by aircraft class ────
-    function faaNetWorth(eng: string, acft: string): number {
-      if (eng === "5") return 180_000_000; // Turbofan  — $18M × 10
-      if (eng === "4") return 120_000_000; // Jet       — $12M × 10
-      if (eng === "2") return  30_000_000; // Turboprop — $3M  × 10
-      if (eng === "3") return  15_000_000; // Turboshaft/Helo — $1.5M × 10
-      if (acft === ROTORCRAFT)     return   8_000_000; // Rotorcraft — $800k × 10
-      return 4_000_000;                                // Multi-engine fixed wing — $400k × 10
-    }
-
-    const entityType = classifyFaaEntityType(typeReg, name);
-    const entity: InsertEntity = {
-      name,
-      type: entityType,
-      nationality: country === "US" || !country.trim() ? "US" : country,
-      knownResidences: address || undefined,
-      sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
-      bayesianScore: score,
-       // Aircraft/wealth evidence contributes to Signal, not Access-hot status.
-       isHot: false,
-      estimatedNetWorth: faaNetWorth(typeEngine, typeAircraft),
-      notes: `${label} owner. Tail: N${nNumber}.${yearMfr ? ` MFR year: ${yearMfr}.` : ""}`,
-      metadata: JSON.stringify({
-        source: "faa-aircraft-registry",
-        nNumber: `N${nNumber}`,
-        typeRegistrant: typeReg,
-        typeAircraft,
-        typeEngine,
-        engineLabel: label,
-        serialNumber: serial,
-        yearManufactured: yearMfr,
-        state,
-        downloadDate: new Date().toISOString().split("T")[0],
-      }),
-    };
-
-    const centroid = stateCentroid(state);
-    const asset: InsertAsset = {
-      category: "Aviation",
-      identifier: `N${nNumber}`,
-      jurisdiction: state ? `${state}, US` : "US",
-      description: `${label} — N${nNumber}${yearMfr ? ` (${yearMfr})` : ""}`,
-      address: address || undefined,
-      sourceRegistry: "FAA Releasable Aircraft Database",
-      lastActivityDate: new Date().toISOString().split("T")[0],
-      ...(centroid ?? {}),
-    };
-
-    entityBatch.push(entity);
-    assetBatch.push(asset);
-
-    // ── Flush every 100 records; batch-write dedup to Upstash in one call ────
-    if (entityBatch.length >= 100) {
-      const res = await flushBatch(entityBatch, assetBatch);
+    if (batchRows.length >= 100) {
+      const res = await flushBatch(batchRows);
+      if (res.errors > 0) {
+        errors += res.errors;
+        throw new Error(`FAA transactional batch persistence failed for ${res.errors} record(s); dedup keys were not committed.`);
+      }
       inserted += res.inserted;
-      errors += res.errors;
-      entityBatch.length = 0;
-      assetBatch.length = 0;
-
-      // One Upstash call per flush instead of one per record
+      candidateEntitiesInserted += res.candidateEntitiesInserted;
+      batchRows.length = 0;
       await batchMarkSeen(pendingDedup);
       pendingDedup.length = 0;
 
-      if (inserted % 1_000 === 0 && inserted > 0) {
-        await appendJobLog(jobId, `✈️  ${inserted.toLocaleString()} turbine/multi-engine aircraft owners ingested…`);
+      if (inserted > 0 && inserted % 1_000 === 0) {
+        await appendJobLog(jobId, `✈️ ${inserted.toLocaleString()} aircraft assets seeded; ${candidateEntitiesInserted.toLocaleString()} provisional registrant entities created.`);
       }
     }
   }
 
-  // Flush remaining and write final dedup batch
-  if (pendingDedup.length > 0) await batchMarkSeen(pendingDedup);
-
-  // ── Flush remaining ────────────────────────────────────────────────────────
-  if (entityBatch.length > 0) {
-    const res = await flushBatch(entityBatch, assetBatch);
+  if (batchRows.length > 0) {
+    const res = await flushBatch(batchRows);
+    if (res.errors > 0) {
+      errors += res.errors;
+      throw new Error(`FAA final transactional batch persistence failed for ${res.errors} record(s); dedup keys were not committed.`);
+    }
     inserted += res.inserted;
-    errors += res.errors;
+    candidateEntitiesInserted += res.candidateEntitiesInserted;
+    await batchMarkSeen(pendingDedup);
   }
 
   await appendJobLog(
     jobId,
-    `🏁 FAA ingestion complete: ${inserted.toLocaleString()} owners inserted, ${skipped.toLocaleString()} skipped (dedup), ${errors} errors.`,
+    `🏁 FAA ingestion complete: ${inserted.toLocaleString()} aircraft assets inserted, ${candidateEntitiesInserted.toLocaleString()} provisional registrant entities created, ${skipped.toLocaleString()} skipped (dedup), ${errors} errors.`,
   );
 
   return {
@@ -715,5 +712,6 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
     skipped,
     errors,
     durationMs: Date.now() - startTime,
+    candidateEntitiesInserted,
   };
 }
