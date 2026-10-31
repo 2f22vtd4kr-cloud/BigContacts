@@ -93,7 +93,8 @@ function mergeDurablyAdmittedAtlasTargetSources(
       if (!name || !identity) continue;
       const validUrls = candidate.sourceUrls
         .map(normalizeSourceUrl)
-        .filter((url): url is string => url !== null && isClaimGradeDiscoverySourceUrl(url));
+        .filter((url): url is string => url !== null)
+        .filter((url) => !isRestrictedCommunitySourceUrl(url));
       if (!validUrls.length) continue;
       const key = `${targetType}:${identity}`;
       let entry = merged.get(key);
@@ -1095,6 +1096,7 @@ async function materializePartialOrganizationLeadCards(input: {
 
       let addedEvidence = 0;
       for (const support of supports.values()) {
+        if (support.restrictedCommunitySource) continue;
         const [existingEvidence] = await tx.select({ id: researchEvidenceTable.id })
           .from(researchEvidenceTable).where(and(
             eq(researchEvidenceTable.entityId, entityId),
