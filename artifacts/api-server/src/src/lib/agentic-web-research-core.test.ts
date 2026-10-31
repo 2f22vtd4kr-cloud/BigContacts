@@ -2059,11 +2059,10 @@ Choose each next action yourself from the available capabilities and observed ev
     for (const query of multilingualQueries) {
       expect(validateDiscoverySearchQuery(query, [])).toMatchObject({ allowed: true });
     }
+    // Source class and query strategy belong to the Investigator; even a
+    // broad publisher-filtered search is allowed when the model judges it useful.
     for (const broadPublisherQuery of ['site:reuters.com "赌场主要股东"', 'site:reuters.com "مالك الكازينو"']) {
-      expect(validateDiscoverySearchQuery(broadPublisherQuery, [])).toMatchObject({
-        allowed: false,
-        reason: expect.stringContaining("broad press-publisher-only search without an exact named person/business anchor"),
-      });
+      expect(validateDiscoverySearchQuery(broadPublisherQuery, [])).toMatchObject({ allowed: true });
     }
     expect(validateDiscoverySearchQuery('site:reuters.com "Casino Portorož"', [])).toMatchObject({ allowed: true });
 
