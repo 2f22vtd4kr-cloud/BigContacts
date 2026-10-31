@@ -120,9 +120,9 @@ function sanitizeChName(raw: string): string {
     .trim();
 }
 
-/** Build a deterministic dedup key */
+/** Versioned dedup key: re-evaluate legacy rows after the new candidate policy. */
 function dedupKey(name: string, jurisdiction: string): string {
-  return `${normalizeName(name)}:${jurisdiction.toLowerCase()}`;
+  return `western:v2:${normalizeName(name)}:${jurisdiction.toLowerCase()}`;
 }
 
 // ── Harvester 1: SEC EDGAR SC 13D/G — US beneficial owners ──────────────────
