@@ -1777,6 +1777,16 @@ export function describeAgentActionParseFailure(raw: string, actionAllowlist: re
   return describeInvalidActionArguments(action, value) ?? "";
 }
 
+function isContactLikeOrganizationReviewValue(value: string): boolean {
+  const candidate = value.trim();
+  if (!candidate) return true;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidate)) return true;
+  if (/^(?:https?:\/\/|www\.)/i.test(candidate)) return true;
+  if (/^[\p{L}\p{N}.-]+\.[a-z]{2,}(?:\/\S*)?$/iu.test(candidate)) return true;
+  const digits = candidate.replace(/\D/g, "").length;
+  return digits >= 7 && /^[+()\d.\s-]+$/.test(candidate);
+}
+
 function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
   const findings: AgenticFinding[] = [];
   for (const rawFinding of Array.isArray(rawFindings) ? rawFindings : []) {
@@ -1790,7 +1800,7 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
     const role = cleanText(f.role, 120) || null;
     const rawValue = cleanText(f.value, 500);
     const personLead = f.scope === "candidate" && personName.length > 0;
-    const organizationLead = f.scope === "organization" && rawValue.length > 0;
+    const organizationLead = f.scope === "organization" && rawValue.length > 0 && !isContactLikeOrganizationReviewValue(rawValue);
     if ((!personLead && !organizationLead) || f.promotionDecision === "reject") continue;
 
     // A model-selected review lead needs a safe, source-associated public URL,
