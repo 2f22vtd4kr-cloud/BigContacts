@@ -8,6 +8,7 @@ const discoverySource = fs.readFileSync(path.join(libDir, "discovery-agent.ts"),
 const researchSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
 const researchCoreSource = fs.readFileSync(path.join(libDir, "agentic-web-research-core.ts"), "utf8");
 const canonicalDiscoverySource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+const candidateSourcePolicy = fs.readFileSync(path.join(libDir, "candidate-source-url-union.ts"), "utf8");
 const canonicalContinuationSource = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts"), "utf8");
 const atlasControlDecisionSource = fs.readFileSync(path.join(libDir, "atlas-control-decision.ts"), "utf8");
 const bossDiscoverySource = fs.readFileSync(path.join(libDir, "case-bureau.ts"), "utf8");
@@ -599,7 +600,9 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain('targetType: "organization" as const');
     expect(canonicalSource).toContain("return { names: targetCandidates.map(({ name }) => name), candidates: targetCandidates, materialized, evidenceRows }");
     expect(canonicalSource).toContain("metadata.partialOrganizationLead === true");
-    expect(canonicalSource).toContain("isClaimGradeDiscoverySourceUrl(url)");
+    expect(candidateSourcePolicy).toContain("input.isClaimGradeSourceUrl(raw)");
+    expect(canonicalSource).toContain("isRestrictedCommunitySourceUrl(url)");
+    expect(canonicalSource).toContain("const validUrls = candidate.sourceUrls");
     expect(canonicalSource).toContain("if (materializedAdmission.durableEvidence) durableCandidateSources.push({ name, sourceUrls: supportingSources.map((support) => support.sourceUrl) })");
     expect(canonicalSource).toContain("durableSourceCount >= 1");
     expect(canonicalSource).toContain("hasDiscoveryOwnershipLeadSignal");
