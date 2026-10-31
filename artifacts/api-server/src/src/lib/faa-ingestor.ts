@@ -20,10 +20,11 @@ import { mkdir, stat } from "node:fs/promises";
 import { createInterface } from "node:readline";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { db, entitiesTable, assetsTable, relationshipsTable } from "@workspace/db";
-import type { InsertEntity, InsertAsset, InsertRelationship } from "@workspace/db";
+import { db, entitiesTable, assetsTable } from "@workspace/db";
+import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
+import { persistRegistryEntityAssetBatch, persistAndMarkRegistryBatch } from "./registry-batch-persistence";
 
 const execAsync = promisify(exec);
 
@@ -205,43 +206,19 @@ async function flushBatch(
   entities: InsertEntity[],
   assets: InsertAsset[],
 ): Promise<{ inserted: number; errors: number }> {
-  if (entities.length === 0) return { inserted: 0, errors: 0 };
-  try {
-    const rows = await db
-      .insert(entitiesTable)
-      .values(entities)
-      .returning({ id: entitiesTable.id });
-
-    // Insert assets linked to their owner entities
-    const assetRows: InsertAsset[] = assets.map((a, i) => ({
-      ...a,
-      ownerEntityId: rows[i]?.id ?? undefined,
-    }));
-    if (assetRows.length > 0) {
-      await db.insert(assetsTable).values(assetRows);
-    }
-
-    // Create OWNS relationships for graph engine
-    const relRows: InsertRelationship[] = rows
-      .map((r) => ({
-        sourceEntityId: r.id,
-        targetId: r.id, // will be updated after asset insert below
-        targetType: "Asset" as const,
-        relationshipType: "OWNS",
-        strength: 1.0,
-        notes: "FAA aircraft registration",
-      }))
-      .filter((_, i) => assetRows[i]?.ownerEntityId != null);
-
-    // Actually we need asset IDs for proper relationship rows — skip for now,
-    // ownerEntityId FK on assets is sufficient for the graph engine
-    void relRows;
-
-    return { inserted: rows.length, errors: 0 };
-  } catch (err: any) {
-    logger.warn({ err: err.message }, "FAA batch insert error");
-    return { inserted: 0, errors: entities.length };
+  const result = await persistRegistryEntityAssetBatch({
+    entities,
+    assets,
+    adapter: {
+      transaction: async (work) => db.transaction((tx) => work(tx)),
+      insertEntities: async (tx, rows) => { await tx.insert(entitiesTable).values([...rows]); },
+      insertAssets: async (tx, rows) => { await tx.insert(assetsTable).values([...rows]); },
+    },
+  });
+  if (result.errors > 0) {
+    logger.warn({ entities: entities.length, assets: assets.length }, "FAA transactional batch insert failed; dedup keys remain retryable");
   }
+  return result;
 }
 
 // ── Main ingestion function ───────────────────────────────────────────────────
@@ -320,7 +297,7 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   for await (const line of rl) {
     lineNum++;
     if (lineNum === 1) continue; // skip header row
-    if (inserted + entityBatch.length >= maxRecords) break;
+    if (inserted + Math.max(entityBatch.length, assetBatch.length) >= maxRecords) break;
 
     // ── Unconditional progress heartbeat every 5,000 lines ───────────────────
     if (lineNum - lastProgressLine >= 5_000) {
