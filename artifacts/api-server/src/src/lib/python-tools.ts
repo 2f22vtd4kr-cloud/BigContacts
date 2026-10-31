@@ -33,6 +33,10 @@ export interface HolehePlatform {
   name: string;
   url?: string;
   exists: boolean;
+  /** True when the service did not provide a trustworthy availability result. */
+  error?: boolean;
+  /** Preserve rate limiting separately; it must never be interpreted as a negative account result. */
+  rateLimit?: boolean;
   emailrecovery?: boolean | string;
   phonenumber?: boolean | string;
   others?: Record<string, unknown>;
@@ -159,9 +163,14 @@ export async function runHolehe(email: string, options: SubprocessOptions = {}):
     name: text(item.name, 120) || text(item.service, 120) || "public service",
     ...(safeSourceUrl(item.url) ? { url: safeSourceUrl(item.url)! } : {}),
     exists: item.exists === true,
+    // A failed or rate-limited service response is not a negative account result.
+    // Keep the rate-limit reason, and set the existing error indicator consumed
+    // by the canonical ReAct summary so these rows render as inconclusive.
+    ...(item.error === true || item.rateLimit === true ? { error: true } : {}),
+    ...(item.rateLimit === true ? { rateLimit: true } : {}),
     ...(typeof item.emailrecovery === "boolean" || typeof item.emailrecovery === "string" ? { emailrecovery: item.emailrecovery } : {}),
     ...(typeof item.phonenumber === "boolean" || typeof item.phonenumber === "string" ? { phonenumber: item.phonenumber } : {}),
-
+    ...(isRecord(item.others) ? { others: Object.fromEntries(Object.entries(item.others).slice(0, 20)) } : {}),
   }));
   return {
     email: normalizedEmail, found,
