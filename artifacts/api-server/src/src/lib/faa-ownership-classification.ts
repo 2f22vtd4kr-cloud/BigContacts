@@ -46,7 +46,8 @@ export type FaaRegistrantClassification = {
   beneficialOwnershipStatus: "unresolved";
   confidence: "LOW";
   reviewOnly: true;
-  wealthStatus: "unverified" | "not_assessed";
+  wealthStatus: "not_assessed";
+  hnwiQualificationStatus: "unverified" | "not_assessed" | "not_applicable";
   estimatedNetWorth: null;
   bayesianScore: 0.05;
   isHot: false;
@@ -64,7 +65,8 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     beneficialOwnershipStatus: "unresolved",
     confidence: "LOW",
     reviewOnly: true,
-    wealthStatus: "unverified",
+    wealthStatus: "not_assessed",
+    hnwiQualificationStatus: "unverified",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -79,6 +81,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     confidence: "LOW",
     reviewOnly: true,
     wealthStatus: "not_assessed",
+    hnwiQualificationStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -93,6 +96,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     confidence: "LOW",
     reviewOnly: true,
     wealthStatus: "not_assessed",
+    hnwiQualificationStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -107,6 +111,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     confidence: "LOW",
     reviewOnly: true,
     wealthStatus: "not_assessed",
+    hnwiQualificationStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -121,6 +126,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     confidence: "LOW",
     reviewOnly: true,
     wealthStatus: "not_assessed",
+    hnwiQualificationStatus: "not_applicable",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -135,6 +141,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     confidence: "LOW",
     reviewOnly: true,
     wealthStatus: "not_assessed",
+    hnwiQualificationStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -149,6 +156,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     confidence: "LOW",
     reviewOnly: true,
     wealthStatus: "not_assessed",
+    hnwiQualificationStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -163,6 +171,7 @@ const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
     confidence: "LOW",
     reviewOnly: true,
     wealthStatus: "not_assessed",
+    hnwiQualificationStatus: "not_assessed",
     estimatedNetWorth: null,
     bayesianScore: 0.05,
     isHot: false,
@@ -179,6 +188,7 @@ const UNKNOWN_REGISTRANT_POLICY: RegistrantPolicy = {
   confidence: "LOW",
   reviewOnly: true,
   wealthStatus: "not_assessed",
+  hnwiQualificationStatus: "not_assessed",
   estimatedNetWorth: null,
   bayesianScore: 0.05,
   isHot: false,
