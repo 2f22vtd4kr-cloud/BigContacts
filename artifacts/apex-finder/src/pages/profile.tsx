@@ -1031,7 +1031,7 @@ export default function ApexProfile() {
         ).slice(0, 8);
         const sourceEvidence = Array.isArray(meta.sourceEvidence)
           ? meta.sourceEvidence.filter((item: unknown): item is Record<string, any> =>
-              !!item && typeof item === "object" && !Array.isArray(item) && typeof (item as any).sourceUrl === "string",
+              !!item && typeof item === "object" && !Array.isArray(item) && typeof ((item as any).sourceUrl ?? (item as any).url) === "string",
             )
           : [];
         const sourceClassLabel = (value: unknown) => {
@@ -1104,7 +1104,7 @@ export default function ApexProfile() {
             </div>
             <div className="space-y-2 mb-3" data-testid="discovery-source-provenance">
               {sources.map((url: string) => {
-                const evidence = sourceEvidence.find((item) => item.sourceUrl === url) ?? {};
+                const evidence = sourceEvidence.find((item) => (item.sourceUrl ?? item.url) === url) ?? {};
                 const contributor = typeof evidence.sourceContributor === "string" && evidence.sourceContributor.trim()
                   ? evidence.sourceContributor.trim()
                   : "Not supplied";
