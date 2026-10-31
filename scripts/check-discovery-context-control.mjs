@@ -22,7 +22,7 @@ const checks = [
 ["only a structurally persisted PARSE_FAILURE is handed to Boss control", episodeHealth.includes("hasDurableTerminalParseFailure") && episodeHealth.includes("if (hasDurableTerminalParseFailure) return null")],
 ["bounded Investigator report preserves stop reason and safe failure summary for control", control.includes("stopReason: boundedText(parsed.stopReason, 80)") && control.includes("errorSummary: boundedText(parsed.errorSummary, 500)") && atlas.includes("stopReason: discovery.stopReason ?? null")],
 ["discovery control supplies evidence attribution state", /evidenceGraphSummaries:/.test(control) || /discoveryFindings/.test(control)],
-["Right-hand is required for ordinary Boss transitions but opening adjudication may receive explicit advisory-unavailable state", /if \(rightHand\.status !== "completed" && !input\.rightHandOverride\)/.test(control) && /rightHandOverride\?: AtlasRightHandAdvisoryOverride/.test(control)],
+["Right-hand is advisory on every Boss transition and unavailability is passed to Boss", control.includes("Right-hand is advisory on every turn") && !/if \(rightHand\.status !== "completed" && !input\.rightHandOverride\)/.test(control) && /rightHandOverride\?: AtlasRightHandAdvisoryOverride/.test(control)],
 ["discovery transition fails closed when Right Hand is unavailable", /Atlas transition is fail-closed/.test(control)],
 ["discovery control decisions have idempotent case-turn correlation", /atlas-control:case:\$\{input\.caseId\}:job:\$\{input\.jobId \?\? "legacy"\}:turn:\$\{input\.controlTurn\}/.test(control)],
 ["compactor is character-bounded and configurable", /DEFAULT_MAX_CHARS/.test(compactor) && /MAX_MAX_CHARS/.test(compactor) && /slice\(0, budget\.maxChars\)/.test(compactor)],
