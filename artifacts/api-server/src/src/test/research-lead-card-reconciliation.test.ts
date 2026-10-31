@@ -10,6 +10,7 @@ const agenticCore = readFileSync(new URL("../lib/agentic-web-research-core.ts", 
 const bureauPass = readFileSync(new URL("../lib/bureau-agentic-pass.ts", import.meta.url), "utf8");
 const orientation = readFileSync(new URL("../lib/apex-bureau-orientation.ts", import.meta.url), "utf8");
 const runtimeProofWorkflow = readFileSync(new URL("../../../../../.github/workflows/apex-canonical-runtime-proof.yml", import.meta.url), "utf8");
+const runtimeProofVerifier = readFileSync(new URL("../../../../../scripts/verify-canonical-card-proof.mjs", import.meta.url), "utf8");
 const canonicalAtlas = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
 describe("terminal review-card reconciliation", () => {
   it("chooses source classes by expected information gain and jurisdiction, not a registry-first habit", () => {
@@ -61,12 +62,13 @@ describe("terminal review-card reconciliation", () => {
   });
   it("requires a real company or person card even if a later control turn fails", () => {
     expect(runtimeProofWorkflow).toContain('"failed"');
-    expect(runtimeProofWorkflow).toContain('"partial_review"');
-    expect(runtimeProofWorkflow).toContain('"Corporation"');
-    expect(runtimeProofWorkflow).toContain('discoveryContext');
+    expect(runtimeProofVerifier).toContain('lead.stage === "partial_review"');
+    expect(runtimeProofVerifier).toContain('"Corporation"');
+    expect(runtimeProofVerifier).toContain('acceptedAfterControlFailure');
+    expect(runtimeProofVerifier).toContain('typeof input?.caseData?.caseFile !== "string"');
+    expect(runtimeProofVerifier).toContain('Canonical case read-back does not match the exact discovery case ID.');
     expect(runtimeProofWorkflow).toContain('/api/dashboard/research-leads');
     expect(runtimeProofWorkflow).toContain('/api/entities');
-    expect(runtimeProofWorkflow).toContain('acceptedAfterControlFailure');
   });
 
   it("preserves a real company lead from one successful web search before later control failure", () => {
