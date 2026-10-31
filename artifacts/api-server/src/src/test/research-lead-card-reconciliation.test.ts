@@ -10,6 +10,7 @@ const bureauPass = readFileSync(new URL("../lib/bureau-agentic-pass.ts", import.
 const orientation = readFileSync(new URL("../lib/apex-bureau-orientation.ts", import.meta.url), "utf8");
 const runtimeProofWorkflow = readFileSync(new URL("../../../../../.github/workflows/apex-canonical-runtime-proof.yml", import.meta.url), "utf8");
 const canonicalAtlas = readFileSync(new URL("../lib/canonical-atlas-discovery.ts", import.meta.url), "utf8");
+const candidateSourcePolicy = readFileSync(new URL("../lib/candidate-source-url-union.ts", import.meta.url), "utf8");
 const checkpointSource = canonicalAtlas.slice(canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"), canonicalAtlas.indexOf("export async function reconcileCanonicalDiscoveryCaseReviewCards"));
 describe("terminal review-card reconciliation", () => {
   it("chooses source classes by expected information gain and jurisdiction, not a registry-first habit", () => {
@@ -301,7 +302,8 @@ describe("canonical Atlas organization target selection", () => {
     expect(organizationMaterializer).toContain('!["success", "partial"].includes(observation.execution)');
     expect(personMaterializer).not.toContain("name.length < 3");
     expect(organizationMaterializer).not.toContain("name.length < 3");
-    expect(canonicalAtlas.slice(canonicalAtlas.indexOf("function mergeDurablyAdmittedAtlasTargetSources"), canonicalAtlas.indexOf("async function createAtlasDiscoveryCase"))).not.toContain("name.length < 3");
+    expect(candidateSourcePolicy).not.toContain("name.length < 3");
+    expect(candidateSourcePolicy).not.toContain("identity.length < 3");
     expect(reconcilerSource).not.toContain("name.length < 3");
     expect(reconcilerSource).not.toContain('typeof finding.role !== "string"');
     expect(personMaterializer).not.toContain("if (!span?.exact");
