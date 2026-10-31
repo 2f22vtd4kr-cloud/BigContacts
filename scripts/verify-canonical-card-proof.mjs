@@ -422,6 +422,16 @@ export function verifyModelAudit(input) {
     successful.push({ request, response, httpStatus });
   }
 
+  const belongsToProofRun = (request) =>
+    request.jobId == null || request.jobId === proof.jobId
+      ? request.caseId == null || Number(request.caseId) === Number(proof.caseId)
+      : false;
+  const scopedRequests = [...requests.values()].filter(belongsToProofRun);
+  const scopedResponses = responses.filter((response) => {
+    const request = requests.get(response.requestId);
+    return request && belongsToProofRun(request);
+  });
+
   const byRole = {};
   for (const role of requiredRoles) {
     const roleCalls = successful.filter((call) => call.request.role === role);
@@ -455,13 +465,13 @@ export function verifyModelAudit(input) {
   const totalCompletionTokens = requiredRoles.reduce((sum, role) => sum + byRole[role].completionTokens, 0);
   const totalLatencyMs = requiredRoles.reduce((sum, role) => sum + byRole[role].latencyMs, 0);
   const fallbackRoles = requiredRoles.filter((role) => byRole[role].models.length > 1 || byRole[role].providers.length > 1);
-  const retryCount = [...requests.values()].filter((request) => Number(request.attempt ?? 1) > 1).length;
+  const retryCount = scopedRequests.filter((request) => Number(request.attempt ?? 1) > 1).length;
 
   return {
     ...proof,
     modelAudit: {
-      totalRequests: requests.size,
-      totalResponses: responses.length,
+      totalRequests: scopedRequests.length,
+      totalResponses: scopedResponses.length,
       successfulResponses: successful.length,
       retryCount,
       fallbackRoles,
