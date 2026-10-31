@@ -16,7 +16,8 @@ describe("FAA registrant ownership classification", () => {
       beneficialOwnershipStatus: "unresolved",
       confidence: "LOW",
       reviewOnly: true,
-      wealthStatus: "unverified",
+      wealthStatus: "not_assessed",
+      hnwiQualificationStatus: "unverified",
       estimatedNetWorth: null,
       bayesianScore: 0.05,
       isHot: false,
@@ -62,6 +63,7 @@ describe("FAA registrant ownership classification", () => {
     expect(result.entityType).toBeNull();
     expect(result.identityStatus).toBe("government_registrant");
     expect(result.wealthStatus).toBe("not_assessed");
+    expect(result.hnwiQualificationStatus).toBe("not_applicable");
   });
 
   it("fails closed for unknown registrant codes without inventing an entity type", () => {
@@ -76,7 +78,8 @@ describe("FAA registrant ownership classification", () => {
     for (const code of ["1", "2", "3", "4", "5", "7", "8", "9", "unknown"]) {
       const result = classifyFaaRegistrant(code);
       expect(result.beneficialOwnershipStatus).toBe("unresolved");
-      expect(result.wealthStatus).toBe(code === "1" ? "unverified" : "not_assessed");
+      expect(result.wealthStatus).toBe("not_assessed");
+      expect(result.hnwiQualificationStatus).toBe(code === "1" ? "unverified" : code === "5" ? "not_applicable" : "not_assessed");
       expect(result.estimatedNetWorth).toBeNull();
       expect(result.bayesianScore).toBe(0.05);
       expect(result.confidence).toBe("LOW");
