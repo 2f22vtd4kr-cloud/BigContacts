@@ -49,6 +49,7 @@ function successfulModelAudit(omitRole?: string, jobId = "job-qa-1") {
       transportFailure: null,
       response: {
         jsonParsed: true,
+        model,
         usage: { prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 },
         choices: [{ index: 0 }],
       },
@@ -181,7 +182,7 @@ describe("canonical investigation end-to-end acceptance proof", () => {
       totalLatencyMs: 300,
       fallbackRoles: [],
       byRole: {
-        groq_boss: { successfulCalls: 1, promptTokens: 100, completionTokens: 20 },
+        groq_boss: { successfulCalls: 1, promptTokens: 100, completionTokens: 20, actualModels: ["llama-3.3-70b-versatile"] },
         groq_right_hand: { successfulCalls: 1, promptTokens: 100, completionTokens: 20 },
         groq_investigator: { successfulCalls: 1, promptTokens: 100, completionTokens: 20 },
       },
