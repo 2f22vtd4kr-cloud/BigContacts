@@ -24,6 +24,7 @@ import { db, assetsTable } from "@workspace/db";
 import type { InsertAsset } from "@workspace/db";
 import { and, eq, inArray } from "drizzle-orm";
 import { parseCsvRecord } from "./csv-record";
+import { buildPpdTransactionAsset } from "./land-registry-ppd";
 import { preloadDedupPrefix, batchMarkSeen, updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
 
@@ -240,38 +241,19 @@ export async function runLandRegistryIngestion(params: LandRegIngestionParams): 
       const tenureLabel = duration === "F" ? "Freehold" : duration === "L" ? "Leasehold" : "Unknown";
       const propLabel   = { D: "Detached", S: "Semi-Detached", T: "Terraced", F: "Flat/Maisonette", O: "Other" }[propType] ?? "Property";
       const address     = [paon, saon, street, locality, town, county, postcode].filter(Boolean).join(", ");
-      const priceStr2 = `£${price.toLocaleString("en-GB")}`;
-      // PPD is transaction-level data: it does not identify a beneficial owner.
-      // Price paid is an observed transaction amount, not verified market value
-      // or personal net worth. Keep it in source metadata with an explicit GBP unit.
-      const asset: InsertAsset = {
-        category: "RealEstate",
-        identifier: txId,
-        jurisdiction: county ? `${county}, England & Wales` : "England & Wales",
-        description: `${propLabel} ${tenureLabel} — ${priceStr2} paid (${date}); purchaser/beneficial owner unresolved`,
-        address: address || undefined,
-        sourceRegistry: "UK HM Land Registry (PPD)",
-        lastActivityDate: date || undefined,
-        ownerEntityId: null,
-        metadata: JSON.stringify({
-          source: "hmlr-ppd-csv",
-          recordKind: "price_paid_transaction",
-          transactionId: txId,
-          pricePaid: price,
-          priceCurrency: "GBP",
-          priceIsVerifiedMarketValue: false,
-          purchaserIdentityStatus: "not_provided_by_ppd",
-          beneficialOwnershipStatus: "unresolved",
-          propertyType: propType,
-          tenure: tenureLabel,
-          county,
-          postcode,
-          transactionDate: date,
-          sourceYear: year,
-          ppdCategory: ppdCat,
-          recordStatus: recStatus,
-        }),
-      };
+      const asset = buildPpdTransactionAsset({
+        transactionId: txId,
+        pricePaidGbp: price,
+        transactionDate: date,
+        year,
+        propertyTypeCode: propType,
+        tenure: tenureLabel,
+        address,
+        postcode,
+        county,
+        ppdCategory: ppdCat,
+        recordStatus: recStatus,
+      });
 
       assetBatch.push(asset);
 
