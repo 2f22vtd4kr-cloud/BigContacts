@@ -737,6 +737,7 @@ describe("partial model findings", () => {
     expect(parsed?.action).toBe("web_search");
     expect(parsed?.partialFindings).toEqual([{
       ...finding,
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
@@ -771,6 +772,7 @@ describe("partial model findings", () => {
       scope: "candidate",
       sourceUrls: ["https://example.com/leadership"],
       note: "Candidate claim from a non-terminal action.",
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
@@ -805,6 +807,7 @@ describe("partial model findings", () => {
       scope: "candidate",
       sourceUrls: ["https://www.zoominfo.com/p/Jane-Doe/123"],
       note: "Investigator-selected lead; professional relevance appears promising but role is not established.",
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
@@ -839,6 +842,7 @@ describe("partial model findings", () => {
       scope: "organization",
       sourceUrls: ["https://northstarcasino.si/"],
       note: "Investigator-selected organization lead.",
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     }]);
