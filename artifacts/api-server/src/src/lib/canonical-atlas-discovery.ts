@@ -780,7 +780,7 @@ async function materializePartialPersonLeadCards(input: {
             sourceSpanNote: support.spanVerified ? null : "Investigator-selected person lead; exact source span not independently isolated.",
             spanStart: support.spanStart,
             spanEnd: support.spanEnd,
-            sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt }),
+            sourceAttribution: buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor }),
             noWealthOrContactConclusion: true,
           }),
         });
@@ -953,6 +953,7 @@ async function materializePartialOrganizationLeadCards(input: {
       if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
         supports.set(sourceUrl, {
           sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt, action: observation.action,
+          sourceName: observation.sourceName, sourceClass: observation.sourceClass, sourceContributor: observation.sourceContributor,
           spanText: exactSpan && span ? span.text : "",
           spanStart: exactSpan && span ? span.start : null,
           spanEnd: exactSpan && span ? span.end : null,
@@ -1032,7 +1033,7 @@ async function materializePartialOrganizationLeadCards(input: {
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         sourceUrls,
-        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt })),
+        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
         sourceNotes: [...new Set([...supports.values()].map((support) => support.spanVerified ? support.spanText : `Investigator-selected organization lead ${name}; exact source span not independently isolated.`))].slice(0, 4),
         limitations: ["ownership/control not established", "business materiality not established", "no person or wealth conclusion", "person-level contact route not established"],
       });
