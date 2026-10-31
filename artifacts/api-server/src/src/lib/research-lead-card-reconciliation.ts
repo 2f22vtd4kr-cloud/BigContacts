@@ -89,7 +89,8 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
       const registryAction = action === "registry_search" || action === "parallel_registry_search";
       const successful = payload.execution === "success";
       const partialRegistry = registryAction && payload.execution === "partial";
-      if (!successful && !partialRegistry) continue;
+      const sourceBearingExecution = successful || payload.execution === "partial";
+      if (!sourceBearingExecution) continue;
       // Preserve adapter-typed Corporation rows as source observations only.
       // They can support an Investigator-selected finding, never select a card.
       if (registryAction && payload.args && typeof payload.args === "object" && !Array.isArray(payload.args)) {
@@ -349,7 +350,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
         }
         findings.set(key, entry);
       }
-      if (event.eventType !== "tool_observation" || payload.execution !== "success") continue;
+      if (event.eventType !== "tool_observation" || (payload.execution !== "success" && payload.execution !== "partial")) continue;
       const action = String(payload.action ?? "");
       const search = /search/i.test(action);
       const fetched = action === "visit" || action === "browser_fetch";
