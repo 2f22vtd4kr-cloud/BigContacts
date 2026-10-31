@@ -409,7 +409,7 @@ function buildBossDiscoveryResponseFormat(availableInvestigators: readonly Inves
   };
 }
 
-function parseBossDiscoveryResponse(raw: string, allowedInvestigators: readonly InvestigatorCapability[] = getAvailableInvestigatorCapabilities()): {
+export function parseBossDiscoveryResponse(raw: string, allowedInvestigators: readonly InvestigatorCapability[] = getAvailableInvestigatorCapabilities()): {
   report: string;
   candidates: GeminiBossDiscoveryResult["candidates"];
   investigatorLlm: InvestigatorCapability | null;
@@ -459,7 +459,7 @@ function parseBossDiscoveryResponse(raw: string, allowedInvestigators: readonly 
         ? candidate.sourceUrls as string[]
         : null;
       const contactEvidence = parseDiscoveryContactEvidenceStrict(candidate.contactEvidence);
-      if (name.length < 3 || !type || !relevance || !reachability || !sourceUrls || !contactEvidence) return [];
+      // A short name can be a legitimate person or organization identifier (for example, Li or 3M).\n      // Identity quality is established by the model's selected target and source evidence, not a length heuristic.\n      if (!name || !type || !relevance || !reachability || !sourceUrls || !contactEvidence) return [];
       return [{ name, type, relevance, reachability, sourceUrls, contactEvidence }];
     });
     if (candidates.length !== object.candidates.length) {
