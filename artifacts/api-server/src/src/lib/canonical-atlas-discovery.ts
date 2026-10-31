@@ -575,7 +575,7 @@ async function materializePartialPersonLeadCards(input: {
   for (const lead of leadMap.values()) {
     const claimedUrls = new Set(lead.sourceUrls);
     const supports = new Map<string, {
-      sourceUrl: string; eventId: number; createdAt: Date; action: string;
+      sourceUrl: string; eventId: number; createdAt: Date; action: string; restrictedCommunitySource: boolean;
       spanText: string; spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
@@ -587,15 +587,17 @@ async function materializePartialPersonLeadCards(input: {
       // The model-selected person and same-job observed URL establish a
       // provisional lead. Exact name/role span matching and claim-grade source
       // classification improve the evidence tier but never veto card creation.
-      const span = observation.verificationLevel === "fetched_source"
-        ? (lead.role ? bindExactSourceSpan(observation.observation, lead.role, lead.name, 320) : bindExactSourceSpan(observation.observation, lead.name, undefined, 320))
-        : (lead.role ? bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.role, lead.name, 320) : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320));
-      const exactSpan = Boolean(span?.exact && (!lead.role || (span.subjectMatched && span.valueMatched)));
+      const restrictedCommunitySource = isRestrictedCommunitySourceUrl(sourceUrl);
+      const span = restrictedCommunitySource
+        ? null
+        : observation.verificationLevel === "fetched_source"
+          ? (lead.role ? bindExactSourceSpan(observation.observation, lead.role, lead.name, 320) : bindExactSourceSpan(observation.observation, lead.name, undefined, 320))
+          : (lead.role ? bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.role, lead.name, 320) : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320));
+      const exactSpan = !restrictedCommunitySource && Boolean(span?.exact && (!lead.role || (span.subjectMatched && span.valueMatched)));
       // The Investigator selected this lead. Exact-span parsing grades the
       // observation; it must not veto the model's provisional card decision.
-      // If attribution cannot be isolated, retain the URL as unverified and let
-      // target-scoped research test the lead.
-      const verificationLevel = exactSpan && span
+      // Community pages are URL-only references and never claim-grade evidence.
+      const verificationLevel = !restrictedCommunitySource && exactSpan && span
         && observation.verificationLevel === "fetched_source"
         && isClaimGradeDiscoverySourceUrl(sourceUrl)
         ? "fetched_source" as const
@@ -605,6 +607,7 @@ async function materializePartialPersonLeadCards(input: {
         eventId: observation.eventId,
         createdAt: observation.createdAt,
         action: observation.action,
+        restrictedCommunitySource,
         spanText: exactSpan && span ? span.text : "",
         spanStart: exactSpan && span ? span.start : null,
         spanEnd: exactSpan && span ? span.end : null,
@@ -677,12 +680,17 @@ async function materializePartialPersonLeadCards(input: {
       let entityId = sameCase?.id ?? null;
       let created = false;
       const sourceUrls = [...supports.keys()];
-      const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
+      const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source" && !support.restrictedCommunitySource);
+      const hasRestrictedCommunitySource = [...supports.values()].some((support) => support.restrictedCommunitySource);
+      const onlyRestrictedCommunitySources = [...supports.values()].every((support) => support.restrictedCommunitySource);
       const verificationLevel = hasFetchedSource ? "fetched_source" : "search_result_lead";
       const collisionNote = identityCollisionPossible ? "Possible same-name entity in another case; kept separate without identity merging. " : "";
-      const notes = collisionNote + (hasFetchedSource
-        ? `PARTIAL PERSON LEAD — a fetched public source supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`
-        : `UNVERIFIED PERSON LEAD — a public source observation supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. The source is not treated as claim-grade evidence; role, wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`);
+      const notes = collisionNote + (onlyRestrictedCommunitySources
+        ? RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE + " The person name/role remains an unverified review lead; independently corroborate identity and role before promotion."
+        : hasFetchedSource
+          ? `PARTIAL PERSON LEAD — a fetched public source supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`
+          : `UNVERIFIED PERSON LEAD — a public source observation supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. The source is not treated as claim-grade evidence; role, wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`)
+        + (hasRestrictedCommunitySource && !onlyRestrictedCommunitySources ? " " + RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE : "");
       const metadata = JSON.stringify({
         ...priorMetadata,
         reviewOnly: true,
@@ -698,7 +706,7 @@ async function materializePartialPersonLeadCards(input: {
         sourceUrl: sourceUrls[0],
         sourceUrls,
         sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt })),
-        limitations: ["HNWI/wealth status not established", "ownership/control and materiality not established", "professional approach route not verified"],
+        limitations: ["HNWI/wealth status not established", "ownership/control and materiality not established", "professional approach route not verified", ...(hasRestrictedCommunitySource ? ["community-submitted content not used as evidence"] : [])],
       });
       if (!entityId) {
         const [entity] = await tx.insert(entitiesTable).values({
