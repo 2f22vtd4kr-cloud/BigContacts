@@ -3677,29 +3677,20 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // Prioritize the active scope, newest durable action, exact source URLs and
-    // fetched claim before optional policy narration. A tight emergency budget
-    // must not leave the Investigator with a schema but no research context.
-    appendBudgeted(minimumScopeContext || compactCaseObjective, 360, "[scope detail omitted]");
+    // Preserve the decision context and exact provenance first; optional
+    // narration is intentionally omitted when the provider window is tight.
+    appendBudgeted(minimumScopeContext || compactCaseObjective, 320, "[scope detail omitted]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 280, "[older trajectory detail omitted]");
-    appendBudgeted(urlInventory, 600, "[additional source URLs omitted whole; durable events remain authoritative]");
-    appendBudgeted(fetchedSourceLabel, 180, "[source label omitted]");
+    appendBudgeted(urlInventory, 1_800, "[additional source URLs omitted whole; durable events remain authoritative]");
+    appendBudgeted(fetchedSourceLabel, 150, "[source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 300, "[source excerpt detail omitted]");
-    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 90), 240, "[latest observation detail omitted]");
+    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 90), 160, "[latest observation detail omitted]");
     appendBudgeted(
-      "PARTIAL FINDINGS (not terminal-only): preserve useful source-backed people and organization review leads selected by the Investigator, not every result. Company leads use the exact observed organization name and associated public HTTPS URL; person leads use the exact observed name, stated role or null, and associated public HTTPS URL. Cards are unverified leads, not identity, role, ownership, wealth, HNWI, relationship or contact evidence. Search snippets are leads, not evidence; failed/blocked fetches are unobserved. After a successful visit/browser_fetch, findings bind to that exact fetched URL and only claims the page supports. Higher admission requires one successfully fetched claim-grade source binding name, role and ownership/control/equity/investment clue. Target-scoped research owns independent corroboration, falsification, and contact-route verification before any HNWI/contact conclusion. No fixed action sequence.",
-      850, "[review-lead detail omitted]"
+      "DISCOVERY LEAD HANDOFF CONTRACT — PARTIAL FINDINGS (not terminal-only): preserve useful source-backed people and organizations selected by the Investigator; never auto-promote. A company lead needs its exact observed business-like name and associated public URL; a person lead needs the exact observed name, role or null, and associated public URL. These are review-only leads, not identity, role, ownership, wealth, HNWI, relationship or contact proof. Search snippets and registry rows are leads, not evidence. Only after a successful visit/browser_fetch may fetched claims bind to the exact observed URL and source span. One successfully fetched claim-grade source is required before stronger admission; target-scoped research needs independent source classes, corroboration and falsification before HNWI, relationship or contact conclusions. Target-stage research tests must match target type (person, organization, trust or asset). Consider inspecting a promising in-scope lead URL next when expected information gain justifies it; no mandatory sequence. Source class, publisher, fetch mechanism and contributor are distinct; unknown is not inferred. Never invent an ID based on a jurisdiction. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction; scanned/image-only PDFs require OCR (unavailable); image-only content is not text evidence. Explain any material deviation from the objective or active scope. Conditional specialist actions may be called only when that exact action is exposed as available. No fixed action sequence.",
+      1_300, "[review-lead and policy detail omitted]"
     );
-    appendBudgeted(terminalEvidenceRule, 240, "[terminal detail omitted]");
-    appendBudgeted(scopeRecoveryRule, 240, "[scope-recovery detail omitted]");
-    appendBudgeted(minimumAvailableActionsSection, 300, "[optional action detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 170, "[conditional capability detail omitted]");
-    appendBudgeted(minimumProviderRule, 140, "[provider detail omitted]");
-    appendBudgeted(minimumRegistryEvidenceRule, 220, "[registry detail omitted]");
-    appendBudgeted(minimumBinaryUrlRule, 220, "[binary detail omitted]");
-    appendBudgeted(leadGuidance, 220, "[lead guidance omitted]");
-    appendBudgeted(aiMemorySection, 140, "[older memory omitted]");
-    appendBudgeted(markerSuffix, 90, "[marker omitted]");
+    appendBudgeted(aiMemorySection, 150, "[older memory omitted]");
+    appendBudgeted(markerSuffix, 80, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
   }
   const optionalTailBudget = Math.max(0, limit - Math.min(240, Math.floor(limit * 0.06)));
