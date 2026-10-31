@@ -618,12 +618,13 @@ async function materializePartialPersonLeadCards(input: {
 
       const existingRows = await tx.select({
         id: entitiesTable.id,
+        type: entitiesTable.type,
         metadata: entitiesTable.metadata,
       }).from(entitiesTable).where(and(
         sql`LOWER(${entitiesTable.name}) = LOWER(${lead.name})`,
         inArray(entitiesTable.type, ["HNWI", "Gatekeeper", "PersonCandidate"]),
       )).limit(32);
-      const sameCase = existingRows.find((row) => {
+      const sameCaseExisting = existingRows.find((row) => {
         try {
           const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
           return Number(metadata.discoveryCaseId) === input.discoveryCaseId;
@@ -631,9 +632,26 @@ async function materializePartialPersonLeadCards(input: {
           return false;
         }
       });
-      // Do not merge a same-name lead into an unrelated existing person, and
-      // do not create a duplicate card just to bypass an identity collision.
-      if (existingRows.length > 0 && !sameCase) return { created: 0, evidenceRows: 0, changed: false, eligible: false };
+      const sameCase = existingRows.find((row) => {
+        try {
+          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          return row.type === "PersonCandidate" && metadata.partialPersonLead === true
+            && Number(metadata.discoveryCaseId) === input.discoveryCaseId;
+        } catch {
+          return false;
+        }
+      });
+      // Never merge on name alone. Keep an existing same-case card; if only
+      // another case has the same name, create a separate provisional lead.
+      if (sameCaseExisting && !sameCase) return { created: 0, evidenceRows: 0, changed: false, eligible: true };
+      const identityCollisionPossible = existingRows.some((row) => {
+        try {
+          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          return Number(metadata.discoveryCaseId) !== input.discoveryCaseId;
+        } catch {
+          return true;
+        }
+      });
       let priorMetadata: Record<string, unknown> = {};
       try {
         const parsed: unknown = sameCase?.metadata ? JSON.parse(sameCase.metadata) : {};
@@ -642,7 +660,7 @@ async function materializePartialPersonLeadCards(input: {
       // A durably admitted candidate is already a stronger version of this
       // card; never downgrade its admission or overwrite its provenance.
       if (sameCase && priorMetadata.admission === "investigator-explicit-promotion") {
-        return { created: 0, evidenceRows: 0, changed: false, eligible: false };
+        return { created: 0, evidenceRows: 0, changed: false, eligible: true };
       }
 
       let entityId = sameCase?.id ?? null;
@@ -650,14 +668,16 @@ async function materializePartialPersonLeadCards(input: {
       const sourceUrls = [...supports.keys()];
       const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
       const verificationLevel = hasFetchedSource ? "fetched_source" : "search_result_lead";
-      const notes = hasFetchedSource
+      const collisionNote = identityCollisionPossible ? "Possible same-name entity in another case; kept separate without identity merging. " : "";
+      const notes = collisionNote + (hasFetchedSource
         ? `PARTIAL PERSON LEAD — a fetched public source supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`
-        : `SEARCH-RESULT PERSON LEAD — a successful public search/registry result supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. The underlying page is not verified; wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`;
+        : `UNVERIFIED PERSON LEAD — a public source observation supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. The source is not treated as claim-grade evidence; role, wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`);
       const metadata = JSON.stringify({
         ...priorMetadata,
         reviewOnly: true,
         partialPersonLead: true,
         roleOnlyLead: Boolean(lead.role),
+        identityCollisionPossible,
         stage: "partial_review",
         admission: priorMetadata.admission ?? (hasFetchedSource ? "source-backed-partial-finding" : "source-observed-person-lead"),
         verificationLevel,
@@ -945,6 +965,14 @@ async function materializePartialOrganizationLeadCards(input: {
         eq(entitiesTable.type, "Corporation"),
         sql`LOWER(${entitiesTable.name}) = LOWER(${name})`,
       )).limit(32);
+      const sameCaseExisting = existingRows.find((row) => {
+        try {
+          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          return Number(metadata.discoveryCaseId) === input.discoveryCaseId;
+        } catch {
+          return false;
+        }
+      });
       const sameCase = existingRows.find((row) => {
         try {
           const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
@@ -954,25 +982,35 @@ async function materializePartialOrganizationLeadCards(input: {
           return false;
         }
       });
-      // Never merge a new partial lead into another case's corporation or
-      // duplicate an existing corporation on a name-only match.
-      if (existingRows.length > 0 && !sameCase) return { created: 0, evidenceRows: 0, changed: false, candidate: null };
+      // Keep an existing same-case card; a same-name entity in another case is
+      // never merged and does not suppress a separate provisional review card.
+      if (sameCaseExisting && !sameCase) return { created: 0, evidenceRows: 0, changed: false, candidate: { name, sourceUrls: [...supports.keys()] } };
+      const identityCollisionPossible = existingRows.some((row) => {
+        try {
+          const metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {};
+          return Number(metadata.discoveryCaseId) !== input.discoveryCaseId;
+        } catch {
+          return true;
+        }
+      });
 
       let entityId = sameCase?.id ?? null;
       let created = false;
       const sourceUrls = [...supports.keys()];
       const hasFetchedSource = [...supports.values()].some((support) => support.verificationLevel === "fetched_source");
       const verificationLevel = hasFetchedSource ? "fetched_source" : "search_result_lead";
-      const notes = hasFetchedSource
-        ? "FETCHED-SOURCE REVIEW LEAD — a fetched public source contains this exact organization name. Ownership/control, business materiality, wealth, and targetability remain unverified."
-        : "SEARCH-RESULT REVIEW LEAD — a successful public search observation contains this exact organization name and an attributable result URL. The underlying page is not verified; ownership/control, business materiality, wealth, and targetability remain unverified.";
+      const collisionNote = identityCollisionPossible ? "Possible same-name entity in another case; kept separate without identity merging. " : "";
+      const notes = collisionNote + (hasFetchedSource
+        ? "FETCHED-SOURCE REVIEW LEAD — a fetched public source contains this organization name. Ownership/control, business materiality, wealth, and targetability remain unverified."
+        : "UNVERIFIED SOURCE REVIEW LEAD — a public source observation supports this organization name. It is not treated as claim-grade evidence; ownership/control, business materiality, wealth, and targetability remain unverified.");
       const metadata = JSON.stringify({
         reviewOnly: true,
         partialOrganizationLead: true,
         stage: "partial_review",
         admission: "source-observed-organization-name",
         verificationLevel,
-        evidenceHierarchy: hasFetchedSource ? "fetched-source-name-only" : "unverified-search-result",
+        evidenceHierarchy: hasFetchedSource ? "fetched-source-name-only" : "unverified-source-observation",
+        identityCollisionPossible,
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
         sourceUrls,
