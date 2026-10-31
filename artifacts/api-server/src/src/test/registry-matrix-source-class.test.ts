@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { REGISTRY_COVERAGE_MATRIX } from "../lib/registry-matrix";
+import { REGISTRY_COVERAGE_MATRIX, resolveRegistryRuntimeMode, resolveRegistryRuntimeNote } from "../lib/registry-matrix";
 
 describe("registry source class catalogue", () => {
   it("classifies every runtime adapter without conflating commercial providers and official registries", () => {
@@ -11,5 +11,10 @@ describe("registry source class catalogue", () => {
     expect(REGISTRY_COVERAGE_MATRIX.find((item) => item.id === "faa")?.sourceClass).toBe("official_registry");
     expect(REGISTRY_COVERAGE_MATRIX.find((item) => item.id === "hmlr-ppd")?.sourceClass).toBe("official_transaction_dataset");
     expect(REGISTRY_COVERAGE_MATRIX.find((item) => item.id === "gleif")?.sourceClass).toBe("authoritative_registry");
+    const faa = REGISTRY_COVERAGE_MATRIX.find((item) => item.id === "faa")!;
+    const hmlr = REGISTRY_COVERAGE_MATRIX.find((item) => item.id === "hmlr-ppd")!;
+    expect(resolveRegistryRuntimeMode(faa, true, false)).toBe("explicit_only");
+    expect(resolveRegistryRuntimeNote(faa, true, false)).toContain("Direct FAA name/N-number search");
+    expect(resolveRegistryRuntimeMode(hmlr, false, false)).toBe("bulk_only");
   });
 });
