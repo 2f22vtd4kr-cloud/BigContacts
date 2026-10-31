@@ -75,7 +75,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
           if (finding.scope !== "organization" || finding.promotionDecision === "reject" || typeof finding.value !== "string") continue;
           const name = finding.value.trim().replace(/\s+/g, " ");
           const identity = normalizeCandidateIdentityName(name);
-          if (name.length < 3 || identity.length < 3) continue;
+          if (!name || !identity) continue;
           const entry = findings.get(identity) ?? { name, urls: new Set<string>(), notes: new Set<string>() };
           if (Array.isArray(finding.sourceUrls)) for (const rawUrl of finding.sourceUrls) {
             const url = normalizeSource(rawUrl);
@@ -106,7 +106,7 @@ export async function reconcileOrganizationReviewCardsForJob(jobId: string): Pro
             if (typeof company.name !== "string" || !Array.isArray(company.sourceUrls)) continue;
             const name = company.name.trim().replace(/\s+/g, " ");
             const identity = normalizeCandidateIdentityName(name);
-            if (name.length < 3 || identity.length < 3) continue;
+            if (!name || !identity) continue;
             // Adapter rows may support a model-selected organization lead, but
             // they never independently select or create a card.
             const normalizedNotes = typeof company.notes === "string" ? company.notes.replace(/\s+/g, " ").trim().slice(0, 240) : "";
@@ -345,7 +345,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           || typeof finding.personName !== "string") continue;
         const name = finding.personName.trim().replace(/\s+/g, " ");
         const role = typeof finding.role === "string" && finding.role.trim() ? finding.role.trim().replace(/\s+/g, " ") : null;
-        if (name.length < 3) continue;
+        if (!name) continue;
         const key = normalizeCandidateIdentityName(name) + "::" + (role ? normalizeCandidateIdentityName(role) : "");
         const entry = findings.get(key) ?? { name, role, urls: new Set<string>() };
         if (Array.isArray(finding.sourceUrls)) for (const rawUrl of finding.sourceUrls) {
