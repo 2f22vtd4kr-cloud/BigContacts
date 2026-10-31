@@ -447,11 +447,13 @@ export function verifyModelAudit(input) {
     const completionTokens = roleCalls.reduce((sum, call) => sum + Number(parseObject(call.response.response).usage?.completion_tokens ?? 0), 0);
     const totalTokens = roleCalls.reduce((sum, call) => sum + Number(parseObject(call.response.response).usage?.total_tokens ?? 0), 0);
     const models = [...new Set(roleRequests.map((request) => request.model).filter((value) => typeof value === "string"))];
+    const actualModels = [...new Set(roleCalls.map((call) => parseObject(call.response.response).model).filter((value) => typeof value === "string"))];
     const providers = [...new Set(roleRequests.map((request) => request.provider).filter((value) => typeof value === "string"))];
     byRole[role] = {
       attempts: roleRequests.length,
       successfulCalls: roleCalls.length,
       models,
+      actualModels,
       providers,
       promptTokens,
       completionTokens,
@@ -464,7 +466,9 @@ export function verifyModelAudit(input) {
   const totalPromptTokens = requiredRoles.reduce((sum, role) => sum + byRole[role].promptTokens, 0);
   const totalCompletionTokens = requiredRoles.reduce((sum, role) => sum + byRole[role].completionTokens, 0);
   const totalLatencyMs = requiredRoles.reduce((sum, role) => sum + byRole[role].latencyMs, 0);
-  const fallbackRoles = requiredRoles.filter((role) => byRole[role].models.length > 1 || byRole[role].providers.length > 1);
+  const fallbackRoles = requiredRoles.filter((role) =>
+    byRole[role].models.length > 1 || byRole[role].actualModels.length > 1 || byRole[role].providers.length > 1,
+  );
   const retryCount = scopedRequests.filter((request) => Number(request.attempt ?? 1) > 1).length;
 
   return {
