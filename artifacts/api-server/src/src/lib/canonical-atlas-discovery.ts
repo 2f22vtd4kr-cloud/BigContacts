@@ -80,7 +80,7 @@ function mergeDurablyAdmittedAtlasTargetSources(
       const name = candidate.name.trim().replace(/\s+/g, " ");
       const identity = normalizeCandidateIdentityName(name);
       const targetType = candidate.targetType === "organization" ? "organization" : "person";
-      if (name.length < 3 || identity.length < 3) continue;
+      if (!name || !identity) continue;
       const validUrls = candidate.sourceUrls
         .map(normalizeSourceUrl)
         .filter((url): url is string => url !== null);
@@ -505,7 +505,7 @@ async function materializePartialPersonLeadCards(input: {
       || !finding.personName?.trim()) continue;
     const name = finding.personName.trim().replace(/\s+/g, " ");
     const role = finding.role?.trim() ? finding.role.trim().replace(/\s+/g, " ") : null;
-    if (name.length < 3) continue;
+    if (!name) continue;
     const identity = normalizeCandidateIdentityName(name) + "::" + (role ? normalizeCandidateIdentityName(role) : "");
     const current = leadMap.get(identity);
     const sourceUrls = [...new Set([
@@ -570,7 +570,7 @@ async function materializePartialPersonLeadCards(input: {
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
     for (const observation of observations) {
-      if (observation.executionStatus !== "success"
+      if (!["success", "partial"].includes(observation.executionStatus)
         || !["visit", "browser_fetch", "web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(observation.action)) continue;
       const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
       if (!sourceUrl || !claimedUrls.has(sourceUrl)) continue;
@@ -852,7 +852,7 @@ async function materializePartialOrganizationLeadCards(input: {
             if (typeof company.name !== "string" || !Array.isArray(company.sourceUrls)) continue;
             const name = company.name.trim().replace(/\s+/g, " ");
             const identity = normalizeCandidateIdentityName(name);
-            if (name.length < 3 || identity.length < 3) continue;
+            if (!name || !identity) continue;
             const notes = typeof company.notes === "string" ? company.notes.replace(/\s+/g, " ").trim().slice(0, 240) : "";
             for (const rawUrl of company.sourceUrls) {
               if (typeof rawUrl !== "string") continue;
@@ -915,7 +915,7 @@ async function materializePartialOrganizationLeadCards(input: {
       spanStart: number; spanEnd: number; verificationLevel: "fetched_source" | "search_result_lead";
     }>();
     for (const observation of observations) {
-      if (observation.execution !== "success"
+      if (!["success", "partial"].includes(observation.execution)
         || !["visit", "browser_fetch", "web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(observation.action)) continue;
       const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
       if (!sourceUrl || !claimedUrls.has(sourceUrl)) continue;
