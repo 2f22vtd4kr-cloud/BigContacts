@@ -34,7 +34,7 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface HarvestedPerson {
+export interface HarvestedPerson {
   name: string;
   nationality: string;
   location?: string;
@@ -606,7 +606,7 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
 
 // ── Record builder — HarvestedPerson → InsertEntity ──────────────────────────
 
-function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: string } {
+export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { entity: InsertEntity; key: string } {
   const key = dedupKey(person.name, person.signals.jurisdiction);
 
   // Registry participation, officer roles and filings are discovery leads, not
@@ -1027,7 +1027,7 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
         continue;
       }
 
-      const { entity, key } = buildEntity(person);
+      const { entity, key } = buildWesternRegistryPersonCandidate(person);
 
       if (seenBatchKeys.has(key) || await isDuplicate(key)) {
         skipped++;
