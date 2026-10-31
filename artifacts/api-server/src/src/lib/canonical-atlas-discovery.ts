@@ -1828,19 +1828,20 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
-      "BOSS OPENING CONTROL DIRECTION:",
+      "BOSS FINAL OPENING DECISION:",
       openingDirectionResolution.status === "approved"
-        ? "The Right-hand-approved first direction above defines the opening scope only; it remains a research hypothesis, not source evidence. Reports, other directions, and uncertainties are unverified context, not evidence."
-        : "No active opening direction was authorized (" + openingDirectionResolution.reason + "). Research the base objective without treating unapproved Boss directions as active scope; if the scope needs revision, return control to Boss/Right-hand. Boss reports, directions, and uncertainties are not source evidence.",
-      openingDirectionResolution.status === "approved" && compactControlText(boss.report, 1_200) ? "Report: " + compactControlText(boss.report, 1_200) : "",
-      openingDirectionResolution.status === "approved" && Array.isArray(boss.nextDirections) && boss.nextDirections.length ? "Next directions: " + JSON.stringify(boss.nextDirections).slice(0, 1_200) : "",
-      openingDirectionResolution.status === "approved" && Array.isArray(boss.uncertainties) && boss.uncertainties.length ? "Uncertainties: " + JSON.stringify(boss.uncertainties).slice(0, 800) : "",
-      openingDirectionResolution.status === "approved" ? "RIGHT-HAND OPENING REVIEW (advisory):" : "",
-      "Right-hand opening approval: " + (rightHand.approval ?? "reject"),
-      openingDirectionResolution.status === "approved" && compactControlText(rightHand.decision, 300) ? "Decision: " + compactControlText(rightHand.decision, 300) : "",
-      openingDirectionResolution.status === "approved" && compactControlText(rightHand.reason, 800) ? "Reason: " + compactControlText(rightHand.reason, 800) : "",
-      openingDirectionResolution.status === "approved" && rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",
-      "These control-plane observations are not source evidence. Choose tools, providers, queries, visits, and stopping points yourself within the approved scope; if that scope is unsupported or infeasible, report why and return control to Boss/Right-hand for a revised scope.",
+        ? "Groq Boss adopted this validated opening direction. It is an active research hypothesis, not source evidence."
+        : "Groq Boss chose to continue the human base objective without activating its initial direction. Do not treat unselected Boss hypotheses as active scope.",
+      "Boss action: " + openingBossDecision.action,
+      openingDirectionResolution.status === "approved" ? "Boss-adjudicated direction: " + openingDirectionResolution.direction : "",
+      compactControlText(openingBossDecision.reason, 800) ? "Boss rationale: " + compactControlText(openingBossDecision.reason, 800) : "",
+      "RIGHT-HAND INDEPENDENT ADVICE (non-authoritative):",
+      "Right-hand status: " + rightHand.status,
+      compactControlText(rightHand.decision, 300) ? "Recommendation: " + compactControlText(rightHand.decision, 300) : "",
+      compactControlText(rightHand.reason, 800) ? "Reason: " + compactControlText(rightHand.reason, 800) : "",
+      rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",
+      rightHand.error ? "Advice unavailable / invalid: " + compactControlText(rightHand.error, 300) : "",
+      "Boss has already weighed this advice and owns the final scope decision. These control-plane observations are not source evidence. Choose tools, providers, queries, visits, and stopping points yourself; if the active objective is unsupported or infeasible, report why and return control to Boss for a revised decision.",
     ].filter(Boolean).join("\n");
     failureStage = "job_state_or_lease";
     await assertAtlasJobActive(atlasJobId);
@@ -1848,7 +1849,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       progress: 1,
       atlasPhase: 1,
       message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`,
-      result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }),
+      result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, openingBossDecision, discoveryCaseId }),
     });
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
