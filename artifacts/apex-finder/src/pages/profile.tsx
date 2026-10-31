@@ -1107,7 +1107,7 @@ export default function ApexProfile() {
                 const evidence = sourceEvidence.find((item) => (item.sourceUrl ?? item.url) === url) ?? {};
                 const sourceName = typeof evidence.sourceName === "string" && evidence.sourceName.trim()
                   ? evidence.sourceName.trim()
-                  : (() => { try { return new URL(url).hostname.replace(/^www\\./i, ""); } catch { return "Unknown source"; } })();
+                  : (() => { try { return new URL(url).hostname.replace(/^www\./i, ""); } catch { return "Unknown source"; } })();
                 const contributor = typeof evidence.sourceContributor === "string" && evidence.sourceContributor.trim()
                   ? evidence.sourceContributor.trim()
                   : "Not supplied";
