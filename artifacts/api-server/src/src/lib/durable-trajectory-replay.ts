@@ -54,10 +54,10 @@ export function replayInvestigatorTrajectoryEvents(
     const stringArray = (value: unknown): string[] =>
       Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
     const findings = Array.isArray(payload.findings)
-      ? payload.findings.filter((item) => objectValue(item) !== null) as AgenticTrajectoryRecord["findings"]
+      ? payload.findings.filter((item) => objectValue(item) !== null) as unknown as AgenticTrajectoryRecord["findings"]
       : [];
     const sourceBindings = Array.isArray(payload.sourceBindings)
-      ? payload.sourceBindings.filter((item) => objectValue(item) !== null) as NonNullable<AgenticTrajectoryRecord["sourceBindings"]>
+      ? payload.sourceBindings.filter((item) => objectValue(item) !== null) as unknown as NonNullable<AgenticTrajectoryRecord["sourceBindings"]>
       : [];
 
     records.push({
