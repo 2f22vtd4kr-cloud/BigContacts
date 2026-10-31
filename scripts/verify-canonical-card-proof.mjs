@@ -238,6 +238,26 @@ export function verifyCanonicalCardProof(input) {
   const entities = getEntities(input?.entitiesPayload);
   const leads = Array.isArray(input?.dashboard?.leads) ? input.dashboard.leads : [];
   const events = Array.isArray(input?.caseEvents) ? input.caseEvents : [];
+  const jobEvents = events.filter((event) =>
+    event?.actorRole === "head_investigator" && eventPayload(event).jobId === jobId,
+  );
+  const toolObservations = jobEvents.filter((event) => event?.eventType === "tool_observation");
+  const executionCounts = {};
+  const observedSourceUrls = [];
+  let duplicateActionBlocks = 0;
+  for (const event of toolObservations) {
+    const payload = eventPayload(event);
+    const execution = String(payload.execution ?? "unknown");
+    executionCounts[execution] = (executionCounts[execution] ?? 0) + 1;
+    observedSourceUrls.push(
+      ...(Array.isArray(payload.observedUrls) ? payload.observedUrls : []),
+      ...(Array.isArray(payload.leadUrls) ? payload.leadUrls : []),
+    );
+    const observation = typeof payload.observation === "string" ? payload.observation : "";
+    if (execution === "blocked" && /repeat_action_guard|duplicate/i.test(observation)) duplicateActionBlocks += 1;
+  }
+  const normalizedObservedUrls = observedSourceUrls.map(normalizeHttpsUrl).filter(Boolean);
+  const uniqueObservedUrls = [...new Set(normalizedObservedUrls)];
 
   for (const lead of leads) {
     if (!isRecord(lead)) continue;
@@ -280,6 +300,15 @@ export function verifyCanonicalCardProof(input) {
       selectedSourceUrls: selectedEvidence.selectedSourceUrls,
       allowedInvestigatorCapabilities: [...investigatorCapabilities],
       investigatorSelected: true,
+      investigatorExecutionMetrics: {
+        toolObservations: toolObservations.length,
+        executionCounts,
+        duplicateActionBlocks,
+        sourceUrlObservations: normalizedObservedUrls.length,
+        uniqueSourceUrlCount: uniqueObservedUrls.length,
+        repeatedSourceUrlObservations: normalizedObservedUrls.length - uniqueObservedUrls.length,
+        uniqueSourceUrls: uniqueObservedUrls,
+      },
       investigatorPromotion: "promote",
       selectionEventId: selectedEvidence.selectionEventId,
       sourceEventId: selectedEvidence.sourceEventId,
