@@ -947,7 +947,7 @@ async function materializePartialOrganizationLeadCards(input: {
       const previous = supports.get(sourceUrl);
       if (!previous || (previous.verificationLevel === "search_result_lead" && verificationLevel === "fetched_source")) {
         supports.set(sourceUrl, {
-          sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt,
+          sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt, action: observation.action,
           spanText: exactSpan && span ? span.text : "",
           spanStart: exactSpan && span ? span.start : null,
           spanEnd: exactSpan && span ? span.end : null,
