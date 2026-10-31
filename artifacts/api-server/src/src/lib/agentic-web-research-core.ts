@@ -1809,8 +1809,8 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
     findings.push({
       vectorType: vector,
       value: selectedName,
-      personName: personName || null,
-      role,
+      personName: personLead ? personName : null,
+      role: personLead ? role : null,
       scope: personLead ? "candidate" : "organization",
       sourceUrls,
       note: cleanText(f.note, 400) || "Investigator-selected provisional review lead; source and relevance require target-scoped verification.",
