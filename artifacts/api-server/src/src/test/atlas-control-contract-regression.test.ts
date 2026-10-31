@@ -959,12 +959,13 @@ describe("Boss-adjudicated opening direction", () => {
 });
 
 describe("scope-recovery control feedback delivery", () => {
-  it("survives report compaction and is passed to both advisory Right-hand and Boss control prompts", () => {
+  it("survives report compaction while preserving the complete review-target inventory for Boss", () => {
     const feedback = "No-progress scope-recovery feedback (control state, not research evidence): 3 Investigator actions were blocked before outbound execution. Do not prescribe a fixed target, sector, query, provider, source, tool, or action sequence.";
     const compacted = JSON.parse(compactAtlasInvestigatorReport(JSON.stringify({ scopeRecoveryFeedback: feedback }))) as Record<string, unknown>;
     expect(compacted.scopeRecoveryFeedback).toBe(feedback);
     expect(controlSource).toContain("scopeRecoveryFeedback: boundedText(parsed.scopeRecoveryFeedback, 1_200)");
     expect(controlSource).toContain("When supplied scope-recovery feedback reports repeated preflight blocks");
+    expect(controlSource).toContain("COMPLETE AVAILABLE REVIEW TARGETS (all model-selected durable targets; exact names and types; no top-N truncation)");
     expect(controlSource).toContain("const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState });");
     expect(controlSource).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, rightHand });");
   });
