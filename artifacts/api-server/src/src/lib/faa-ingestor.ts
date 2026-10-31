@@ -113,30 +113,40 @@ function stateCentroid(state: string): { latitude: number; longitude: number } |
 }
 
 function titleCase(s: string): string {
-  return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+  return s.trim().replace(/\s+/g, " ").toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
 }
 
 /**
- * FAA MASTER.txt stores ALL person names as "LASTNAME FIRSTNAME [MIDDLE...]" in ALL-CAPS.
- * For individual registrants (typeReg === "1") we reverse to "First [Middle] Last" and
- * apply title-case. Corporate registrants (LLCs, governments, etc.) are title-cased only.
- *
- * Examples (typeReg="1"):
- *   "SCHEUER WALTER"       → "Walter Scheuer"
- *   "LEEDS RICHARD BRIAN"  → "Richard Brian Leeds"
- *   "VAN DEN BERG JOHN"    → "John Van Den Berg"
- *
- * Examples (typeReg="7"):
- *   "WELLS FARGO BANK NA"  → "Wells Fargo Bank Na"  (untouched — not a person)
+ * Parse one FAA comma-delimited record while respecting quoted commas and escaped quotes.
+ * MASTER.txt is not a pipe-delimited file and names may contain commas.
  */
-export function normalizeFaaName(rawName: string, typeReg: string): string {
-  const titled = titleCase(rawName.trim());
-  if (typeReg !== "1") return titled;           // non-individual — title-case only
-  const spaceIdx = titled.indexOf(" ");
-  if (spaceIdx === -1) return titled;            // single-word name — leave as-is
-  const lastName = titled.slice(0, spaceIdx);
-  const rest     = titled.slice(spaceIdx + 1);
-  return `${rest} ${lastName}`;
+export function parseFaaMasterCsvRecord(line: string): string[] {
+  const fields: string[] = [];
+  let value = "";
+  let quoted = false;
+  for (let index = 0; index < line.length; index++) {
+    const char = line[index]!;
+    if (char === '"') {
+      if (quoted && line[index + 1] === '"') {
+        value += '"';
+        index++;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (char === "," && !quoted) {
+      fields.push(value.trim());
+      value = "";
+    } else {
+      value += char;
+    }
+  }
+  fields.push(value.trim());
+  return fields;
+}
+
+/** Keep FAA's registrant order; the raw name is retained for model-led resolution. */
+export function normalizeFaaName(rawName: string, _typeReg: string): string {
+  return titleCase(rawName);
 }
 
 function aircraftLabel(typeEngine: string, typeAircraft: string): string {
@@ -148,46 +158,148 @@ function aircraftLabel(typeEngine: string, typeAircraft: string): string {
   return "Multi-Engine";
 }
 
-function bayesianScore(typeEngine: string, typeAircraft: string): number {
-  // Turbine jets/turbofans = highest wealth signal
-  if (typeEngine === "4" || typeEngine === "5") return 0.82;
-  if (typeEngine === "2" || typeEngine === "3") return 0.70;
-  if (typeAircraft === ROTORCRAFT) return 0.65;
-  return 0.52; // multi-engine piston
+function faaDateToIso(value: string): string | null {
+  const normalized = value.trim().replace(/\//g, "-");
+  return /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : null;
 }
 
-// Corporate name suffixes / keywords that reliably indicate a legal entity, not a person.
-// Applied after titleCase() so we match normal capitalisation.
-const COMPANY_INDICATORS = [
-  /\bLlc\b/, /\bL\.L\.C\./, /\bLlp\b/, /\bL\.L\.P\./,
-  /\bInc\.?\b/, /\bCorp\.?\b/, /\bLtd\.?\b/, /\bLimited\b/,
-  /\bPlc\b/, /\bGmbh\b/, /\bS\.A\.\b/, /\bB\.V\.\b/, /\bN\.V\.\b/,
-  /\bL\.P\.\b/, /\bPartners\b/, /\bPartnership\b/,
-  /\bHoldings\b/, /\bHolding\b/,
-  /\bTrust\b/, /\bTrustee\b/, /\bFoundation\b/,
-  /\bCapital\b/, /\bFund\b/, /\bGroup\b/,
-  /\bManagement\b/, /\bAdvisors\b/, /\bAdvisory\b/,
-  /\bProperties\b/, /\bRealty\b/, /\bEstate\b(?!s of)/,
-  /\bVentures\b/, /\bEnterprises\b/, /\bIndustries\b/,
-  /\bTechnologies\b/, /\bSolutions\b/, /\bServices\b/,
-  /\bAeronautics?\b/, /\bAviation\b/, /\bAircraft\b/,
-  /\bAssociates\b/, /\bConsulting\b/, /\bInvestments\b/,
-  /\bFinancial\b/, /\bAcquisition\b/, /\bCo\.\b/,
-  /\bFamily Office\b/, /\bFam Ofc\b/,
-];
+export function buildFaaRegistrantEntity(input: {
+  nNumber: string;
+  registrantTypeCode: string;
+  registrantName: string;
+  fractionalOwnershipFlag: string;
+  statusCode: string;
+  typeAircraft: string;
+  typeEngine: string;
+  yearManufactured: string;
+  serialNumber: string;
+  state: string;
+  country: string;
+  mailingAddress: string;
+  otherRegistrantNames: string[];
+  lastActivityDate: string;
+}): InsertEntity | null {
+  const classification = classifyFaaRegistrant(input.registrantTypeCode, {
+    fractionalOwnershipFlag: input.fractionalOwnershipFlag,
+    statusCode: input.statusCode,
+  });
+  if (!classification.entityType || !isStructurallyValidCandidateName(input.registrantName)) return null;
 
-/**
- * Classify FAA registrant as HNWI or Corporation based on:
- * - typeReg=7 (LLC) → always Corporation
- * - typeReg=1 (Individual) → always HNWI
- * - typeReg=2/4/9 → Corporation if name has corporate indicators, HNWI otherwise
- */
-function classifyFaaEntityType(typeReg: string, name: string): "HNWI" | "Corporation" {
-  if (typeReg === "1") return "HNWI";           // FAA-confirmed individual
-  if (typeReg === "7") return "Corporation";    // LLC = legal entity, always
-  // For partnerships (2), co-owned (4), non-citizen co-owned (9):
-  const hasCorporateIndicator = COMPANY_INDICATORS.some((re) => re.test(name));
-  return hasCorporateIndicator ? "Corporation" : "HNWI";
+  const name = normalizeFaaName(input.registrantName, input.registrantTypeCode);
+  const isPersonCandidate = classification.entityType === "PersonCandidate";
+  return {
+    name,
+    type: classification.entityType,
+    nationality: input.country || "US",
+    knownResidences: null,
+    sourceRegistries: JSON.stringify(["FAA Releasable Aircraft Database"]),
+    bayesianScore: classification.bayesianScore,
+    estimatedNetWorth: null,
+    isHot: false,
+    contactMethod: "FAA registrant record — no direct professional contact route observed",
+    notes: `FAA ${classification.registrantTypeLabel.toLowerCase()} registrant for aircraft N${input.nNumber}; registered-to association is not a beneficial-ownership conclusion.`,
+    metadata: JSON.stringify({
+      source: "faa-aircraft-registry",
+      nNumber: `N${input.nNumber}`,
+      registrantTypeCode: classification.registrantTypeCode,
+      registrantTypeLabel: classification.registrantTypeLabel,
+      registrantKind: classification.registrantKind,
+      identityStatus: classification.identityStatus,
+      ownershipStatus: classification.ownershipStatus,
+      beneficialOwnershipStatus: classification.beneficialOwnershipStatus,
+      fractionalOwnershipStatus: classification.fractionalOwnershipStatus,
+      registrationStatus: classification.registrationStatus,
+      confidence: classification.confidence,
+      reviewOnly: true,
+      wealthStatus: classification.wealthStatus,
+      hnwiQualificationStatus: classification.hnwiQualificationStatus,
+      estimatedNetWorth: null,
+      bayesianScore: 0.05,
+      assetSignal: classifyFaaAssetSignal(input.typeEngine, input.typeAircraft),
+      personalWealthEvidence: false,
+      nameValidationStatus: "pending_investigator_resolution",
+      nameNormalizationStatus: "title_case_only_raw_order_preserved",
+      rawRegistrantName: input.registrantName,
+      otherRegistrantNames: input.otherRegistrantNames,
+      registrantMailingAddress: input.mailingAddress || null,
+      registrantState: input.state || null,
+      country: input.country || "US",
+      typeAircraft: input.typeAircraft,
+      typeEngine: input.typeEngine,
+      serialNumber: input.serialNumber,
+      yearManufactured: input.yearManufactured,
+      lastActivityDate: faaDateToIso(input.lastActivityDate),
+      sourceUrl: "https://registry.faa.gov/database/ReleasableAircraft.zip",
+      sourceFieldSemantics: "FAA registrant type identifies the registration applicant; it does not establish ultimate beneficial ownership or personal wealth.",
+      candidateKind: isPersonCandidate ? "individual_registrant_candidate" : "legal_entity_registrant_candidate",
+    }),
+  };
+}
+
+export function buildFaaAircraftAsset(input: {
+  nNumber: string;
+  registrantTypeCode: string;
+  registrantName: string;
+  fractionalOwnershipFlag: string;
+  statusCode: string;
+  typeAircraft: string;
+  typeEngine: string;
+  yearManufactured: string;
+  serialNumber: string;
+  manufacturerModelCode: string;
+  engineModelCode: string;
+  state: string;
+  country: string;
+  otherRegistrantNames: string[];
+  lastActivityDate: string;
+  expirationDate: string;
+  uniqueId: string;
+}): InsertAsset {
+  const classification = classifyFaaRegistrant(input.registrantTypeCode, {
+    fractionalOwnershipFlag: input.fractionalOwnershipFlag,
+    statusCode: input.statusCode,
+  });
+  const label = aircraftLabel(input.typeEngine, input.typeAircraft);
+  return {
+    category: "Aviation",
+    identifier: `N${input.nNumber}`,
+    jurisdiction: "FAA, US",
+    description: `${label} — N${input.nNumber}${input.yearManufactured ? ` (${input.yearManufactured})` : ""}`,
+    sourceRegistry: "FAA Releasable Aircraft Database",
+    lastActivityDate: faaDateToIso(input.lastActivityDate) ?? undefined,
+    estimatedValue: null,
+    metadata: JSON.stringify({
+      source: "faa-aircraft-registry",
+      nNumber: `N${input.nNumber}`,
+      registrantName: input.registrantName,
+      otherRegistrantNames: input.otherRegistrantNames,
+      registrantTypeCode: classification.registrantTypeCode,
+      registrantTypeLabel: classification.registrantTypeLabel,
+      registrantKind: classification.registrantKind,
+      identityStatus: classification.identityStatus,
+      ownershipStatus: classification.ownershipStatus,
+      beneficialOwnershipStatus: classification.beneficialOwnershipStatus,
+      fractionalOwnershipStatus: classification.fractionalOwnershipStatus,
+      registrationStatus: classification.registrationStatus,
+      assetSignal: classifyFaaAssetSignal(input.typeEngine, input.typeAircraft),
+      personalWealthEvidence: false,
+      wealthStatus: "not_assessed",
+      hnwiQualificationStatus: classification.hnwiQualificationStatus,
+      reviewOnly: true,
+      typeAircraft: input.typeAircraft,
+      typeEngine: input.typeEngine,
+      manufacturerModelCode: input.manufacturerModelCode,
+      engineModelCode: input.engineModelCode,
+      serialNumber: input.serialNumber,
+      yearManufactured: input.yearManufactured,
+      registrantState: input.state || null,
+      country: input.country || "US",
+      expirationDate: faaDateToIso(input.expirationDate),
+      uniqueId: input.uniqueId || null,
+      sourceUrl: "https://registry.faa.gov/database/ReleasableAircraft.zip",
+      sourceFieldSemantics: "Registrant is the FAA registration applicant; no beneficial-owner or market-value conclusion is made.",
+    }),
+  };
 }
 
 async function isCacheStale(): Promise<boolean> {
