@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { deriveRegistryIngestionAssessment } from "../lib/registry-ingestion-policy";
+import { deriveRegistryIngestionAssessment, filterRegistryIngestionBatchRows, registryPersonCandidateNames } from "../lib/registry-ingestion-policy";
 
 function requireRegistryIngestionSource(): string {
   return fs.readFileSync(path.resolve(process.cwd(), "src/src/lib/western-hnwi-ingestion.ts"), "utf8");
@@ -78,5 +78,69 @@ describe("public-registry evidence remains a low-confidence lead", () => {
     expect(assessment.recentActivityDays).toBe(400);
     expect(assessment.lastObservedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(assessment.wealthStatus).toBe("not_assessed");
+  });
+});
+
+
+describe("registry ingestion batch preserves normalized person candidates", () => {
+  it("collects PersonCandidate names after registry types are normalized", () => {
+    const rows = [
+      { name: "Ada Lovelace", type: "PersonCandidate" },
+      { name: "Grace Hopper", type: "HNWI" },
+      { name: "Katherine Johnson", type: "Gatekeeper" },
+      { name: "Northstar Holdings", type: "Corporation" },
+      { name: "Northstar Family Trust", type: "Trust" },
+      { name: null, type: "PersonCandidate" },
+    ];
+
+    expect(registryPersonCandidateNames(rows)).toEqual([
+      "Ada Lovelace",
+      "Grace Hopper",
+      "Katherine Johnson",
+    ]);
+  });
+
+  it("retains validated PersonCandidate rows in broad registry seeding without promoting them", () => {
+    const rows = [
+      { id: 1, name: "Ada Lovelace", type: "PersonCandidate" },
+      { id: 2, name: "Unvalidated Candidate", type: "PersonCandidate" },
+      { id: 3, name: "Northstar Holdings", type: "Corporation" },
+      { id: 4, name: "Northstar Family Trust", type: "Trust" },
+    ];
+    const retained = filterRegistryIngestionBatchRows(
+      rows,
+      new Set(["Ada Lovelace"]),
+      false,
+    );
+
+    expect(retained).toEqual([
+      rows[0],
+      rows[2],
+      rows[3],
+    ]);
+    expect(retained[0]?.type).toBe("PersonCandidate");
+    expect(deriveRegistryIngestionAssessment(retained[0]!.type)).toMatchObject({
+      reviewOnly: true,
+      wealthStatus: "unverified",
+      confidence: "LOW",
+      hasGatekeeperConnection: false,
+    });
+  });
+
+  it("preserves person-only admission while keeping company/trust rows out of that budget", () => {
+    const rows = [
+      { name: "Ada Lovelace", type: "PersonCandidate" },
+      { name: "Northstar Holdings", type: "Corporation" },
+      { name: "Northstar Family Trust", type: "Trust" },
+    ];
+
+    expect(filterRegistryIngestionBatchRows(rows, new Set(["Ada Lovelace"]), true))
+      .toEqual([rows[0]]);
+  });
+
+  it("wires normalized candidate collection and the tested filter into the real batch flush", () => {
+    const source = requireRegistryIngestionSource();
+    expect(source).toContain("registryPersonCandidateNames(entityBatch)");
+    expect(source).toContain("filterRegistryIngestionBatchRows(entityBatch, validNames, preferPersons)");
   });
 });
