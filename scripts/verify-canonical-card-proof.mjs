@@ -365,9 +365,13 @@ export function verifyResearchEvidenceRows(input) {
       entityId: Number(row.entityId),
       sessionId: Number(row.sessionId),
       claimType: row.claimType,
+      sourceName: typeof row.sourceName === "string" ? row.sourceName : null,
+      sourceDomain: typeof row.sourceDomain === "string" ? row.sourceDomain : null,
       sourceUrl,
       status: row.status,
       confidence: Number(row.confidence),
+      verificationLevel: typeof metadata.verificationLevel === "string" ? metadata.verificationLevel : null,
+      reviewOnly: metadata.reviewOnly === true || metadata.partialReview === true,
       supportingEventId,
     });
   }
