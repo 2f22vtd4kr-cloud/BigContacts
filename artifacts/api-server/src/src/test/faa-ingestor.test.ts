@@ -126,6 +126,8 @@ describe("legacy FAA registrant repair", () => {
     expect(repair).toContain("ELSE 'Other' END");
     expect(repair).toContain('eq(entitiesTable.sourceRegistries, JSON.stringify(["FAA Releasable Aircraft Database"]))');
     expect(repair).toContain('eq(relationshipsTable.notes, "FAA aircraft registration")');
+    expect(repair).toContain("legacyOwnerPairs.has");
+    expect(repair).toContain("const repairAssets = legacyAssets.filter");
   });
 });
 
