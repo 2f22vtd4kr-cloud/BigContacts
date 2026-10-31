@@ -21,9 +21,9 @@ import { sql } from "drizzle-orm";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
 import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
-import { deriveRegistryIngestionAssessment, filterRegistryIngestionBatchRows, registryPersonCandidateNames } from "./registry-ingestion-policy";
+import { deriveRegistryIngestionAssessment } from "./registry-ingestion-policy";
 import { logger } from "./logger";
-import { filterHumanNamesWithLLM, isDeterministicallySafeHumanName } from "./llm-name-validator";
+import { isStructurallyValidCandidateName } from "./llm-name-validator-policy";
 import {
   getRandomDiscoveryRegistries,
   normalizeUnverifiedRegistryType,
@@ -625,7 +625,7 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
  * SEC 13D/13G filers include individuals, LPs, funds, and public companies —
  * we must not tag all of them as HNWI or the hot-leads feed fills with noise.
  */
-export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trust" {
+export function classifyEntityType(name: string): "PersonCandidate" | "Corporation" | "Trust" {
   const n = name.trim();
   // Trusts and foundations first (highest specificity)
   if (/\b(Trust|Trustee|Foundation|Fiduciary|Settlement|Estate\s+of)\b/i.test(n)) return "Trust";
@@ -652,7 +652,7 @@ export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trus
   if (/\b(Federal|Municipal|County\s+of|City\s+of|State\s+of|Department\s+of|Dept\.?\s+of|Authority|Administration|Agency)\b/i.test(n)) return "Corporation";
   // University / academic / non-profit markers
   if (/\b(University|College|Institute|Hospital|Medical\s+Center|Health\s+System|Church|Diocese|Synagogue|Mosque)\b/i.test(n)) return "Corporation";
-  return "HNWI";
+  return "PersonCandidate";
 }
 
 // ── Record builder — HarvestedPerson → InsertEntity ──────────────────────────
@@ -662,8 +662,10 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
 
   // Registry participation, officer roles and filings are discovery leads, not
   // adjudicated personal wealth or a verified contact route.
-  const classifiedType = classifyEntityType(person.name);
-  const entityType = classifiedType === "Trust" ? "Trust" : normalizeUnverifiedRegistryType(classifiedType);
+  // The source parser has already identified this as a person-role/registrant row.
+  // Preserve it as a provisional candidate; neither a name heuristic nor a registry
+  // filing is enough to assert HNWI qualification.
+  const entityType = "PersonCandidate";
   const registryAssessment = deriveRegistryIngestionAssessment(entityType);
   const prior = registryAssessment.prior;
   const bayesianScore = computeBayesianScore(prior, {
@@ -714,7 +716,7 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
     bayesianScore,
     nationality: person.nationality,
     estimatedNetWorth: null, // unknown until enriched via MCTS research
-    knownResidences: person.location ?? null,
+    knownResidences: null,
     linkedinUrl: null,
     phone: null,
     email: null,
@@ -726,6 +728,9 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
       lastVerified: undefined,
       proximityScore: registryAssessment.proximityScore,
       country: person.signals.jurisdiction,
+      registryLocation: person.location ?? null,
+      nameValidationStatus: "pending_investigator_resolution",
+      hnwiQualificationStatus: "unverified",
       confidence: registryAssessment.confidence,
       lastObservedAt: registryAssessment.lastObservedAt,
       westernIngest: true,
@@ -936,31 +941,33 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
   const flushBatch = async () => {
     if (entityBatch.length === 0) return;
     try {
-      // LLM validation: secondary filter for any names that slipped past the regex.
-      // Runs a single Groq batch call per flush. Fail-open — if Groq is unavailable,
-      // all candidates are accepted (matching prior behaviour).
-      const candidateNames = registryPersonCandidateNames(entityBatch);
-      let validNames = new Set(await filterHumanNamesWithLLM(candidateNames));
-      // Registry officer/director paths already passed looksLikePerson. If Groq
-      // is unavailable, fail-closed LLM would zero out the entire preferPersons
-      // admission budget — fall back to deterministic human-name safety only.
-      if (preferPersons && validNames.size === 0 && candidateNames.length > 0) {
-        validNames = new Set(
-          candidateNames.filter((n) => isDeterministicallySafeHumanName(n)),
-        );
-        if (validNames.size > 0) {
-          logger.warn(
-            { kept: validNames.size, total: candidateNames.length },
-            "preferPersons admission: Groq unavailable — using deterministic human-name gate only",
-          );
-        }
-      }
+      // Registry source schemas identify person-role records before this point.
+      // Mass seeding preserves those records as provisional PersonCandidate cards;
+      // the canonical Investigator later decides whether the exact identity and
+      // HNWI qualification are supported. Structural validation rejects only
+      // malformed/placeholder strings, never language, script, word-count or name-style.
       const preCount = entityBatch.length;
-      entityBatch = filterRegistryIngestionBatchRows(entityBatch, validNames, preferPersons);
+      entityBatch = entityBatch.filter((row) => {
+        if (preferPersons && (row.type === "Corporation" || row.type === "Trust" || row.type === "Corp")) return false;
+        if (row.type === "Corporation" || row.type === "Trust" || row.type === "Corp") return true;
+        return isStructurallyValidCandidateName(row.name);
+      });
+      entityBatch = entityBatch.map((row) => {
+        if (row.type !== "PersonCandidate") return row;
+        let metadata: Record<string, unknown> = {};
+        try { metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; } catch { /* preserve the row with fresh safe metadata */ }
+        return {
+          ...row,
+          metadata: JSON.stringify({
+            ...metadata,
+            nameValidationStatus: "pending_investigator_resolution",
+            hnwiQualificationStatus: "unverified",
+            reviewOnly: true,
+          }),
+        };
+      });
       const rejected = preCount - entityBatch.length;
-      if (rejected > 0) {
-        logger.info({ rejected }, "LLM name validator: rejected non-human names from batch");
-      }
+      if (rejected > 0) logger.info({ rejected }, "Registry seed: discarded only malformed or placeholder candidate names");
 
       if (entityBatch.length === 0) return;
       // DB-level + within-batch dedupe on normalized person name.
@@ -976,7 +983,7 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
       entityBatch = deduped;
       if (entityBatch.length) {
         const existing = await db.execute(
-          sql`SELECT id, name FROM entities WHERE type IN ('HNWI','Gatekeeper') ORDER BY id DESC LIMIT 8000`,
+          sql`SELECT id, name FROM entities WHERE type IN ('HNWI','Gatekeeper','PersonCandidate') ORDER BY id DESC LIMIT 8000`,
         );
         const rows = (existing as any).rows ?? (existing as any) ?? [];
         const existingKeys = new Set(
