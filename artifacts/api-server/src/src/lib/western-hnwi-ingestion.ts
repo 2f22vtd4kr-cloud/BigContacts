@@ -17,13 +17,14 @@
  */
 
 import { db, entitiesTable, assetsTable } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import type { InsertEntity, InsertAsset } from "@workspace/db";
 import { computeBayesianScore } from "./bayesian-scorer";
-import { isDuplicate, markSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
+import { isDuplicate, batchMarkSeen, updateJob, appendJobLog, clearDedup } from "./job-queue";
 import { deriveRegistryIngestionAssessment, filterRegistryIngestionBatchRows, registryPersonCandidateNames } from "./registry-ingestion-policy";
 import { logger } from "./logger";
-import { filterHumanNamesWithLLM, isDeterministicallySafeHumanName } from "./llm-name-validator";
+import { isStructurallyValidCandidateName } from "./llm-name-validator-policy";
+import { validateRegistryCandidateNamesWithLLM } from "./llm-name-validator";
 import {
   getRandomDiscoveryRegistries,
   normalizeUnverifiedRegistryType,
@@ -34,7 +35,7 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface HarvestedPerson {
+export interface HarvestedPerson {
   name: string;
   nationality: string;
   location?: string;
@@ -59,12 +60,12 @@ function sleep(ms: number): Promise<void> {
 }
 
 function normalizeName(name: string): string {
-  return name.toLowerCase().replace(/[^a-z]/g, "");
+  return name.normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 }
 
-/** Registry adapters must never admit missing-name placeholders. */
+/** Reject only malformed/placeholders; preserve every usable Unicode candidate for model-led resolution. */
 export function isPlaceholderRegistryName(name: string): boolean {
-  return /^(unknown|unnamed|anonymous|n\/a|not available|entity\s+\d+|unknown company)$/i.test(name.trim());
+  return !isStructurallyValidCandidateName(name);
 }
 
 /**
@@ -80,23 +81,9 @@ export function isPlaceholderRegistryName(name: string): boolean {
  *   "Warren Buffett"      → "Warren Buffett"  (unchanged)
  */
 function normalizeEdgarName(raw: string): string {
-  // Strip "ET AL" / "et al" suffix before processing (means "and others" in SEC filings)
-  const cleaned = raw.trim().replace(/\s+ET\s+AL\.?$/i, "").trim();
-  const t = cleaned;
-  if (!t) return t;
-  const tc = (s: string) =>
-    s.length <= 2 ? s.toUpperCase() : s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-  // If name is all-caps (EDGAR format), reverse LAST → end
-  if (t === t.toUpperCase() && /[A-Z]{2}/.test(t)) {
-    const parts = t.split(/\s+/);
-    if (parts.length >= 2) {
-      const [last, ...rest] = parts as [string, ...string[]];
-      return [...rest, last].map(tc).join(" ");
-    }
-    return tc(t);
-  }
-  // Mixed case: just title-case each word
-  return t.split(/\s+/).map(tc).join(" ");
+  // Preserve registry order; name-part parsing and identity resolution belong
+  // to the Investigator, not a first-token surname heuristic.
+  return raw.trim().replace(/\s+/g, " ").toLowerCase().replace(/\b\p{L}/gu, (c) => c.toUpperCase());
 }
 
 /** Rough heuristic: does this look like a person name (not a fund/company)? */
@@ -134,9 +121,9 @@ function sanitizeChName(raw: string): string {
     .trim();
 }
 
-/** Build a deterministic dedup key */
+/** Versioned dedup key: re-evaluate legacy rows after the new candidate policy. */
 function dedupKey(name: string, jurisdiction: string): string {
-  return `${normalizeName(name)}:${jurisdiction.toLowerCase()}`;
+  return `western:v2:${normalizeName(name)}:${jurisdiction.toLowerCase()}`;
 }
 
 // ── Harvester 1: SEC EDGAR SC 13D/G — US beneficial owners ──────────────────
@@ -618,13 +605,8 @@ async function* harvestCompaniesHouseOfficers(maxCount: number): AsyncGenerator<
   }
 }
 
-// ── Entity type classifier — prevents SEC filers being blindly tagged HNWI ───
+// ── Record builder — HarvestedPerson → InsertEntity ──────────────────────────
 
-/**
- * Classify an entity as HNWI, Corporation, or Trust based on name patterns.
- * SEC 13D/13G filers include individuals, LPs, funds, and public companies —
- * we must not tag all of them as HNWI or the hot-leads feed fills with noise.
- */
 export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trust" {
   const n = name.trim();
   // Trusts and foundations first (highest specificity)
@@ -655,15 +637,15 @@ export function classifyEntityType(name: string): "HNWI" | "Corporation" | "Trus
   return "HNWI";
 }
 
-// ── Record builder — HarvestedPerson → InsertEntity ──────────────────────────
-
-function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: string } {
+export function buildWesternRegistryPersonCandidate(person: HarvestedPerson): { entity: InsertEntity; key: string } {
   const key = dedupKey(person.name, person.signals.jurisdiction);
 
   // Registry participation, officer roles and filings are discovery leads, not
   // adjudicated personal wealth or a verified contact route.
-  const classifiedType = classifyEntityType(person.name);
-  const entityType = classifiedType === "Trust" ? "Trust" : normalizeUnverifiedRegistryType(classifiedType);
+  // The source parser has already identified this as a person-role/registrant row.
+  // Preserve it as a provisional candidate; neither a name heuristic nor a registry
+  // filing is enough to assert HNWI qualification.
+  const entityType = "PersonCandidate";
   const registryAssessment = deriveRegistryIngestionAssessment(entityType);
   const prior = registryAssessment.prior;
   const bayesianScore = computeBayesianScore(prior, {
@@ -714,7 +696,7 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
     bayesianScore,
     nationality: person.nationality,
     estimatedNetWorth: null, // unknown until enriched via MCTS research
-    knownResidences: person.location ?? null,
+    knownResidences: null,
     linkedinUrl: null,
     phone: null,
     email: null,
@@ -726,6 +708,9 @@ function buildEntity(person: HarvestedPerson): { entity: InsertEntity; key: stri
       lastVerified: undefined,
       proximityScore: registryAssessment.proximityScore,
       country: person.signals.jurisdiction,
+      registryLocation: person.location ?? null,
+      nameValidationStatus: "pending_investigator_resolution",
+      hnwiQualificationStatus: "unverified",
       confidence: registryAssessment.confidence,
       lastObservedAt: registryAssessment.lastObservedAt,
       westernIngest: true,
@@ -873,7 +858,7 @@ export interface IngestionResult {
 export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<IngestionResult> {
   const { targetCount, batchSize = 100, jobId, clearDedupFirst = false } = opts;
   // Small Atlas admission budgets must not be burned on random company shells.
-  const preferPersons = Boolean(opts.preferPersons) || (targetCount > 0 && targetCount <= 10);
+  const preferPersons = Boolean(opts.preferPersons);
   const t0 = Date.now();
   let inserted = 0, skipped = 0, errors = 0;
 
@@ -932,74 +917,82 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
 
   // ── Batch state ──────────────────────────────────────────────────────────────
   let entityBatch: InsertEntity[] = [];
+  let entityBatchKeys: string[] = [];
+  const seenBatchKeys = new Set<string>();
 
   const flushBatch = async () => {
     if (entityBatch.length === 0) return;
     try {
-      // LLM validation: secondary filter for any names that slipped past the regex.
-      // Runs a single Groq batch call per flush. Fail-open — if Groq is unavailable,
-      // all candidates are accepted (matching prior behaviour).
-      const candidateNames = registryPersonCandidateNames(entityBatch);
-      let validNames = new Set(await filterHumanNamesWithLLM(candidateNames));
-      // Registry officer/director paths already passed looksLikePerson. If Groq
-      // is unavailable, fail-closed LLM would zero out the entire preferPersons
-      // admission budget — fall back to deterministic human-name safety only.
-      if (preferPersons && validNames.size === 0 && candidateNames.length > 0) {
-        validNames = new Set(
-          candidateNames.filter((n) => isDeterministicallySafeHumanName(n)),
-        );
-        if (validNames.size > 0) {
-          logger.warn(
-            { kept: validNames.size, total: candidateNames.length },
-            "preferPersons admission: Groq unavailable — using deterministic human-name gate only",
-          );
-        }
-      }
-      const preCount = entityBatch.length;
-      entityBatch = filterRegistryIngestionBatchRows(entityBatch, validNames, preferPersons);
-      const rejected = preCount - entityBatch.length;
-      if (rejected > 0) {
-        logger.info({ rejected }, "LLM name validator: rejected non-human names from batch");
-      }
+      // Registry source schemas identify person-role records before this point.
+      // Mass seeding preserves provisional candidates; canonical Investigator
+      // later resolves identity, role, relationships and HNWI qualification.
+      const paired = entityBatch.map((entity, index) => ({ entity, key: entityBatchKeys[index] ?? "" }));
+      const personNames = registryPersonCandidateNames(entityBatch);
+      const structuralNames = new Set(personNames.filter(isStructurallyValidCandidateName));
+      const nameValidation = await validateRegistryCandidateNamesWithLLM(personNames);
+      // Provider failure is not a negative judgment: retain only structurally
+      // usable source-designated people as review-only candidates, and record
+      // that the model check was unavailable. A successful empty response is
+      // a real model rejection and does not persist those person rows.
+      const validNames = nameValidation.status === "validated"
+        ? new Set(nameValidation.validNames)
+        : structuralNames;
+      const retainedEntities = new Set(filterRegistryIngestionBatchRows(entityBatch, validNames, preferPersons));
+      const usable = paired.filter(({ entity }) =>
+        retainedEntities.has(entity) && isStructurallyValidCandidateName(entity.name),
+      );
+      const usableKeys = usable.map(({ key }) => key).filter(Boolean);
+      const seenNames = new Set<string>();
+      const deduped = usable.filter(({ entity }) => {
+        const key = `${entity.type}:${normalizeName(entity.name)}`;
+        if (seenNames.has(key)) return false;
+        seenNames.add(key);
+        return true;
+      }).map(({ entity }) => entity);
 
-      if (entityBatch.length === 0) return;
-      // DB-level + within-batch dedupe on normalized person name.
-      const before = entityBatch.length;
-      const seenBatch = new Set<string>();
-      const deduped: typeof entityBatch = [];
-      for (const e of entityBatch) {
-        const k = normalizeName(e.name ?? "");
-        if (!k || seenBatch.has(k)) continue;
-        seenBatch.add(k);
-        deduped.push(e);
-      }
-      entityBatch = deduped;
-      if (entityBatch.length) {
-        const existing = await db.execute(
-          sql`SELECT id, name FROM entities WHERE type IN ('HNWI','Gatekeeper') ORDER BY id DESC LIMIT 8000`,
-        );
-        const rows = (existing as any).rows ?? (existing as any) ?? [];
-        const existingKeys = new Set(
-          (Array.isArray(rows) ? rows : []).map((r: any) => normalizeName(String(r.name ?? ""))),
-        );
-        entityBatch = entityBatch.filter((e) => !existingKeys.has(normalizeName(e.name ?? "")));
-      }
-      const dropped = before - entityBatch.length;
-      if (dropped > 0) {
-        skipped += dropped;
-        logger.info({ dropped }, "DB/batch dedupe: skipped duplicate person names");
-      }
-      if (entityBatch.length === 0) return;
-      const insertedRows = await db
-        .insert(entitiesTable)
-        .values(entityBatch)
-        .returning({ id: entitiesTable.id });
-      inserted += insertedRows.length;
+      const rowsToInsert = deduped.map((row) => {
+        if (row.type !== "PersonCandidate") return row;
+        let metadata: Record<string, unknown> = {};
+        try { metadata = row.metadata ? JSON.parse(row.metadata) as Record<string, unknown> : {}; } catch { /* retain source row; replace malformed metadata safely */ }
+        return {
+          ...row,
+          metadata: JSON.stringify({
+            ...metadata,
+            nameValidationStatus: nameValidation.status === "validated"
+              ? "model_name_shape_checked_pending_identity_resolution"
+              : "provider_unavailable_structural_only_pending_identity_resolution",
+            hnwiQualificationStatus: "unverified",
+            reviewOnly: true,
+          }),
+        };
+      });
+
+      const result = await db.transaction(async (tx) => {
+        if (rowsToInsert.length === 0) return { insertedCount: 0, existingCount: 0 };
+        const names = [...new Set(rowsToInsert.map((row) => row.name))];
+        const existing = await tx.select({ name: entitiesTable.name, type: entitiesTable.type })
+          .from(entitiesTable)
+          .where(inArray(entitiesTable.name, names));
+        const existingKeys = new Set(existing.map((row) => `${row.type}:${normalizeName(row.name)}`));
+        const fresh = rowsToInsert.filter((row) => !existingKeys.has(`${row.type}:${normalizeName(row.name)}`));
+        const insertedRows = fresh.length > 0
+          ? await tx.insert(entitiesTable).values(fresh).returning({ id: entitiesTable.id })
+          : [];
+        return { insertedCount: insertedRows.length, existingCount: rowsToInsert.length - fresh.length };
+      });
+
+      // Dedup state is committed only after the DB transaction succeeded.
+      // If this write fails, the next run still has DB-level name dedup as a guard.
+      if (usableKeys.length > 0) await batchMarkSeen(usableKeys);
+      inserted += result.insertedCount;
+      skipped += result.existingCount + (paired.length - usable.length) + (usable.length - deduped.length);
+      entityBatch = [];
+      entityBatchKeys = [];
     } catch (err: any) {
       errors += entityBatch.length;
-      logger.warn({ err: err.message }, "Batch insert failed");
+      logger.error({ err: err.message, batchSize: entityBatch.length }, "Registry batch persistence failed; dedup keys were not committed");
+      throw new Error(`Western registry batch persistence failed: ${err.message}`);
     }
-    entityBatch = [];
   };
 
   // ── Random live-registry discovery pass ─────────────────────────────────────
@@ -1042,12 +1035,13 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
           continue;
         }
         const { entity, key } = buildRegistryEntity(result, registry);
-        if (await isDuplicate(key)) {
+        if (seenBatchKeys.has(key) || await isDuplicate(key)) {
           skipped++;
           continue;
         }
-        await markSeen(key);
+        seenBatchKeys.add(key);
         entityBatch.push(entity);
+        entityBatchKeys.push(key);
         randomDiscoveryInserted++;
         if (entityBatch.length >= batchSize) await flushBatch();
       }
@@ -1076,15 +1070,16 @@ export async function runWesternHnwiIngestion(opts: IngestionOptions): Promise<I
         continue;
       }
 
-      const { entity, key } = buildEntity(person);
+      const { entity, key } = buildWesternRegistryPersonCandidate(person);
 
-      if (await isDuplicate(key)) {
+      if (seenBatchKeys.has(key) || await isDuplicate(key)) {
         skipped++;
         continue;
       }
-      await markSeen(key);
+      seenBatchKeys.add(key);
 
       entityBatch.push(entity);
+      entityBatchKeys.push(key);
       sourceInserted++;
 
       if (entityBatch.length >= batchSize) {
