@@ -5518,6 +5518,16 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // Last-resort budgeting shortens optional prose, never by clipping the
       // required output contract or newest trajectory/lead tail. Proper-name
       // geography and source class alternatives are preserved by the scope compactor.
+      const hasInScopeLeadForEmergencyFollowUp = Boolean(
+        input.mode === "discovery"
+        && (
+          (latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0)
+          || (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) > 0
+        ),
+      );
+      const shortestLeadFollowUp = hasInScopeLeadForEmergencyFollowUp
+        ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched."
+        : "";
       const minimalTail = buildLatestRecordTail(24, 2);
       const minimalFallback = [
         finalEmergencyAssignment,
@@ -5634,16 +5644,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       if (hardMinimumPrompt.length <= maxUserPromptChars) return finalizeEmergencyPrompt(hardMinimumPrompt);
       // Preserve atomic evidence URLs even when the provider ceiling is unusually small.
       // This last form uses fewer trajectory fields and keeps the complete output envelope.
-      const hasInScopeLeadForEmergencyFollowUp = Boolean(
-        input.mode === "discovery"
-        && (
-          (latestRecord && belongsToActiveScope(latestRecord) && (latestRecord.leadUrls?.length ?? 0) > 0)
-          || (carryForwardSuccessfulSearch?.leadUrls?.length ?? 0) > 0
-        ),
-      );
-      const shortestLeadFollowUp = hasInScopeLeadForEmergencyFollowUp
-        ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search. The Investigator retains action choice; this is advisory, not evidence or a mandated next action. Search-result URLs remain leads until fetched."
-        : "";
+
       const ultraCompactEmergencyPrompt = [
         finalEmergencyAssignment,
         finalEmergencyObjective,
