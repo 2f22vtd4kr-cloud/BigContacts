@@ -244,7 +244,7 @@ export function hasDiscoveryOwnershipLeadSignal(input: {
 }): boolean {
   const person = normalizeTargetabilityText(input.personName);
   const role = normalizeTargetabilityText(input.role);
-  if (person.length < 3 || !role) return false;
+  if (!person || !role) return false;
   return input.observations.some((observation) => {
     if (observation.execution !== "success" || !["visit", "browser_fetch"].includes(observation.action)) return false;
     if (!isClaimGradeDiscoverySourceUrl(observation.sourceUrl)) return false;
@@ -273,7 +273,7 @@ export function hasCredibleDiscoveryWealthPotentialSignal(input: {
 }): boolean {
   const person = normalizeTargetabilityText(input.personName);
   const role = normalizeTargetabilityText(input.role);
-  if (person.length < 3 || !role) return false;
+  if (!person || !role) return false;
 
   // A role proves professional identity/control, not wealth. Admission also
   // requires the observed public source to bind this exact person to a
