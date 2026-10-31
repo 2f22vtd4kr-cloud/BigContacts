@@ -222,10 +222,10 @@ export function classifyFaaRegistrant(
 
   let registrationStatus: FaaRegistrationStatus = "unknown";
   if (["V", "N", "T"].includes(statusCode)) registrationStatus = "valid";
+  else if (["A", "S", "R", "1", "2", "3", "4", "5", "8", "10", "11", "12", "14", "15", "19", "20", "24", "25", "26", "28"].includes(statusCode)) registrationStatus = "pending";
   else if (["7", "17", "18"].includes(statusCode)) registrationStatus = "sale_reported";
-  else if (["D", "13", "16", "27", "29"].includes(statusCode)) registrationStatus = "expired";
-  else if (["M", "9", "21", "22", "W"].includes(statusCode)) registrationStatus = "revoked_or_invalid";
-  else if (["R", "19", "20"].includes(statusCode)) registrationStatus = "pending";
+  else if (["D", "13", "16", "23", "27", "29"].includes(statusCode)) registrationStatus = "expired";
+  else if (["E", "M", "W", "X", "Y", "Z", "6", "9", "21", "22"].includes(statusCode)) registrationStatus = "revoked_or_invalid";
 
   return {
     ...policy,
