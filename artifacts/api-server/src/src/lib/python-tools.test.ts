@@ -112,6 +112,34 @@ describe("canonical Python tool adapters", () => {
     expect(outcome.execution?.status).toBe("completed");
   });
 
+  it("preserves per-service Holehe errors and rate limits as inconclusive, not negative, results", async () => {
+    mockedExecute.mockResolvedValueOnce(result("holehe", "partial", {
+      found: [
+        { name: "Positive Service", domain: "positive.example", exists: true, error: false, rateLimit: false },
+        { name: "Rate Limited Service", domain: "limited.example", exists: false, error: false, rateLimit: true },
+        { name: "Errored Service", domain: "error.example", exists: false, error: true, rateLimit: false },
+        { name: "Negative Service", domain: "negative.example", exists: false, error: false, rateLimit: false },
+      ],
+      totalChecked: 4,
+      totalFound: 1,
+    }, "Holehe returned 1 service error and 1 rate-limit event."));
+
+    const outcome = await runHolehe("research@example.test");
+
+    expect(outcome.execution?.status).toBe("partial");
+    expect(outcome.found).toMatchObject([
+      { name: "Positive Service", exists: true },
+      { name: "Rate Limited Service", exists: false, error: true, rateLimit: true },
+      { name: "Errored Service", exists: false, error: true },
+      { name: "Negative Service", exists: false },
+    ]);
+    // The canonical ReAct summary uses error to distinguish an inconclusive
+    // service response from a genuine negative/unknown platform result.
+    expect(outcome.found[1]?.error).toBe(true);
+    expect(outcome.found[2]?.error).toBe(true);
+    expect(outcome.found[3]?.error).toBeUndefined();
+  });
+
   it("preserves the worker's full bounded Holehe result set", async () => {
     const platforms = Array.from({ length: 150 }, (_, index) => ({
       name: "Service " + index, domain: "service-" + index + ".test", exists: false, error: false, rateLimit: false,
