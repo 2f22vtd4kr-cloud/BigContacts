@@ -94,7 +94,7 @@ function extractPinnedDurableUrlInventory(rawContext: unknown): string {
   return parts.join("\n");
 }
 
-export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject"; promotionReason?: string };
+export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; reviewOnly?: true; promotionDecision?: "promote" | "reject"; promotionReason?: string };
 
 export type CompactRegistryCompanyLead = { name: string; sourceUrls: string[]; notes: string | null };
 
@@ -1828,6 +1828,7 @@ function parsePartialFindings(rawFindings: unknown): AgenticFinding[] {
       scope: personLead ? "candidate" : "organization",
       sourceUrls,
       note: cleanText(f.note, 400) || "Investigator-selected provisional review lead; source and relevance require target-scoped verification.",
+      reviewOnly: true,
       promotionDecision: undefined,
       promotionReason: undefined,
     });
