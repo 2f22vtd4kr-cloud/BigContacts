@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  areCompatibleWesternRegistryEntityTypes,
   buildWesternRegistryPersonCandidate,
   isPlaceholderRegistryName,
   type HarvestedPerson,
@@ -26,6 +27,14 @@ function candidate(name: string): HarvestedPerson {
 }
 
 describe("Western registry mass-seed admission", () => {
+  it("deduplicates legacy HNWI/Gatekeeper rows against new PersonCandidate rows without cross-type collisions", () => {
+    expect(areCompatibleWesternRegistryEntityTypes("HNWI", "PersonCandidate")).toBe(true);
+    expect(areCompatibleWesternRegistryEntityTypes("Gatekeeper", "PersonCandidate")).toBe(true);
+    expect(areCompatibleWesternRegistryEntityTypes("PersonCandidate", "HNWI")).toBe(true);
+    expect(areCompatibleWesternRegistryEntityTypes("Corporation", "PersonCandidate")).toBe(false);
+    expect(areCompatibleWesternRegistryEntityTypes("Trust", "Corporation")).toBe(false);
+  });
+
   it("keeps multilingual and single-token names as provisional model-review candidates", () => {
     expect(isPlaceholderRegistryName("Джон Смит")).toBe(false);
     expect(isPlaceholderRegistryName("李")).toBe(false);
