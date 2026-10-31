@@ -133,14 +133,13 @@ describe("Groq Investigator runtime contract", () => {
       warning: expect.stringMatching(/attempted before.*repeat remains a valid research choice/i),
     });
 
+    // Publisher/source-class choices are Investigator strategy, not a
+    // deterministic query-input gate. Structurally unsafe filters stay blocked.
     for (const query of [
       "family office sustainability startup founder site:cnbc.com",
       "family office sustainability startup founder site:markets.businessinsider.com",
     ]) {
-      expect(validateDiscoverySearchQuery(query, []), query).toMatchObject({
-        allowed: false,
-        reason: expect.stringContaining("broad press-publisher-only search"),
-      });
+      expect(validateDiscoverySearchQuery(query, []), query).toEqual({ allowed: true });
     }
 
     expect(validateDiscoverySearchQuery('site:investing.cnbc.com "SolarEdge" founder acquisition', [])).toEqual({ allowed: true });
