@@ -935,7 +935,7 @@ describe("Boss-adjudicated opening direction", () => {
     expect(openingResolution).toBeGreaterThan(invalidBossGuard);
     expect(investigatorObjective).toBeGreaterThan(openingResolution);
     expect(canonicalDiscoverySource).toContain('currentAction: "groq-boss-opening-stop"');
-    expect(canonicalDiscoverySource).toContain("Right-hand advice is");
+    expect(canonicalDiscoverySource).toContain("Boss has already weighed this advice and owns the final scope decision.");
     expect(canonicalDiscoverySource).not.toContain("Groq Right-hand unavailable; failing closed");
     expect(canonicalDiscoverySource).not.toContain('currentAction: "groq-right-hand-unavailable"');
   });
