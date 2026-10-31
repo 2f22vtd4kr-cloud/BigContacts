@@ -573,11 +573,10 @@ async function materializePartialPersonLeadCards(input: {
       if (observation.executionStatus !== "success"
         || !["visit", "browser_fetch", "web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(observation.action)) continue;
       const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
-      if (!sourceUrl || !claimedUrls.has(sourceUrl)
-        || (observation.verificationLevel === "fetched_source" && !isClaimGradeDiscoverySourceUrl(sourceUrl))) continue;
-      // The exact person name and page-stated role must co-occur in the same
-      // observed source text and bind to the exact source URL. A search result
-      // creates only a review lead; fetched text improves its evidence tier.
+      if (!sourceUrl || !claimedUrls.has(sourceUrl)) continue;
+      // The model-selected person and same-job observed URL establish a
+      // provisional lead. Exact name/role span matching and claim-grade source
+      // classification improve the evidence tier but never veto card creation.
       const span = observation.verificationLevel === "fetched_source"
         ? (lead.role ? bindExactSourceSpan(observation.observation, lead.role, lead.name, 320) : bindExactSourceSpan(observation.observation, lead.name, undefined, 320))
         : (lead.role ? bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.role, lead.name, 320) : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320));
@@ -878,7 +877,6 @@ async function materializePartialOrganizationLeadCards(input: {
       ...input.findings
         .filter((finding) => finding.scope === "organization"
           && finding.promotionDecision !== "reject"
-          && !finding.personName?.trim() && !finding.role?.trim()
           && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name))
         .flatMap((finding) => finding.sourceUrls)
         .map(normalizeSourceUrl)
@@ -896,11 +894,10 @@ async function materializePartialOrganizationLeadCards(input: {
       if (observation.execution !== "success"
         || !["visit", "browser_fetch", "web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(observation.action)) continue;
       const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
-      if (!sourceUrl || !claimedUrls.has(sourceUrl)
-        || (observation.verificationLevel === "fetched_source" && !isClaimGradeDiscoverySourceUrl(sourceUrl))) continue;
-      // Exact-name support must appear in the actual model-visible observation
-      // text, never just in the finding or the URL. Search-only support remains
-      // review-grade and is not silently upgraded to fetched evidence.
+      if (!sourceUrl || !claimedUrls.has(sourceUrl)) continue;
+      // The model-selected finding and same-job observed URL establish the
+      // review lead's provenance. Exact-span parsing and claim-grade publisher
+      // classification grade evidence only; neither can veto provisional cards.
       const span = observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
         ? bindExactSourceSpan(observation.observation, name)
         : bindExactSourceSpanToUrl(observation.observation, sourceUrl, name);
