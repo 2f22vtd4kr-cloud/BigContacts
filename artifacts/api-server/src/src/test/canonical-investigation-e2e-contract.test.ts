@@ -176,6 +176,8 @@ describe("canonical investigation end-to-end acceptance proof", () => {
       totalPromptTokens: 300,
       totalCompletionTokens: 60,
       totalTokens: 360,
+      tokensPerVerifiedCard: 360,
+      successfulCallsPerVerifiedCard: 3,
       totalLatencyMs: 300,
       fallbackRoles: [],
       byRole: {
