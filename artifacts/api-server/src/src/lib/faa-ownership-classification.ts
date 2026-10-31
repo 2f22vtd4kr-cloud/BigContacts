@@ -59,7 +59,7 @@ export type FaaRegistrantClassification = {
   isHot: false;
 };
 
-type RegistrantPolicy = Omit<FaaRegistrantClassification, "registrantTypeCode">;
+type RegistrantPolicy = Omit<FaaRegistrantClassification, "registrantTypeCode" | "fractionalOwnershipStatus" | "registrationStatus">;
 
 const REGISTRANT_POLICIES: Readonly<Record<string, RegistrantPolicy>> = {
   "1": {
