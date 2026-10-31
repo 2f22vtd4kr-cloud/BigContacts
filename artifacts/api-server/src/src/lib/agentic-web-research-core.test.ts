@@ -23,6 +23,9 @@ describe("canonical Atlas discovery path isolation", () => {
     expect(canonicalAtlasLaunchRouteSource).toContain("runCanonicalAtlasPipeline");
     expect(canonicalCaseDiscoveryRouteSource).toContain("runCanonicalAtlasPipeline");
     expect(canonicalAtlasLaunchRouteSource).not.toContain("runDiscoveryAgent");
+    expect(canonicalAtlasDiscoverySource).not.toContain('from "./discovery-agent"');
+    expect(canonicalAtlasDiscoverySource).not.toContain("runDiscoveryAgent");
+    expect(canonicalAtlasDiscoverySource).not.toContain("discovery-intake");
     expect(canonicalAtlasLaunchRouteSource).not.toContain("discovery-intake");
     expect(canonicalCaseDiscoveryRouteSource).not.toContain("runDiscoveryAgent");
     expect(legacyAtlasLaunchRouteSource).toContain('res.status(410)');
