@@ -11,6 +11,7 @@ import {
   normalizeAtlasRightHandControl,
   normalizeAtlasRightHandControlResponse,
   buildAtlasRightHandControlPrompt,
+  buildAtlasRightHandPinnedControlState,
   compactAtlasInvestigatorReport,
   normalizeAtlasOpeningRightHandApprovalReview,
   validateAtlasOpeningRightHandApprovalReview,
@@ -343,6 +344,72 @@ describe("Right-hand advisory authority", () => {
       rightHand: { status: "unavailable", decision: null, reason: null, direction: null, confidence: null, model: "none", error: "provider unavailable" },
     });
     expect(prompt).toContain("If Right-hand is unavailable, make an independent Boss decision");
+  });
+});
+
+
+describe("complete Boss review-target inventory", () => {
+  it("shows every admitted target to Boss and hides the target list from Right-hand", () => {
+    const candidates = Array.from({ length: 12 }, (_, index) => ({
+      name: "Review Candidate " + (index + 1),
+      role: index % 2 ? "Director" : null,
+      sourceUrls: ["https://example.org/source/" + (index + 1)],
+      targetType: index % 2 ? "organization" as const : "person" as const,
+    }));
+    const pinned = buildAtlasPinnedControlState({
+      activeScope: "Objective-led public-company and person discovery.",
+      leadInventory: {
+        searchResultLeadUrlCount: 1,
+        successfullyFetchedLeadUrlCount: 0,
+        unfetchedLeadUrlCount: 1,
+        failedLeadUrlCount: 0,
+        blockedLeadUrlCount: 0,
+        unfetchedLeadUrls: [leadUrl],
+        failedLeadUrls: [],
+        blockedLeadUrls: [],
+      },
+      admittedCandidates: candidates,
+      findings: [],
+    });
+
+    expect(pinned).toContain("COMPLETE AVAILABLE REVIEW TARGETS (12)");
+    expect(pinned).toContain("Review Candidate 12");
+    const rightHandState = buildAtlasRightHandPinnedControlState(pinned);
+    expect(rightHandState).not.toContain("Review Candidate 12");
+    expect(rightHandState).toContain("UNFETCHED");
+
+    const bossPrompt = buildAtlasBossControlPrompt({
+      investigatorReport: "A partial execution selected these review candidates.",
+      compactState: "Historical context.",
+      pinnedControlState: pinned,
+      rightHand: { status: "completed", decision: "continue", reason: "Review candidates exist.", direction: null, confidence: 0.7, model: "test", error: null },
+    });
+    expect(bossPrompt).toContain("Review Candidate 12");
+    expect(bossPrompt).toContain("EARLY REVIEW-TARGET JUDGMENT");
+  });
+
+  it("fails visibly instead of truncating an oversized complete target inventory", () => {
+    const candidates = Array.from({ length: 120 }, (_, index) => ({
+      name: "Review Candidate " + index + " with a deliberately long but realistic company or person name",
+      role: "Relevant public professional role",
+      sourceUrls: ["https://example.org/source/" + index],
+      targetType: "organization" as const,
+    }));
+    expect(() => buildAtlasPinnedControlState({
+      activeScope: "Broad investigation objective.",
+      leadInventory: {
+        searchResultLeadUrlCount: 0,
+        successfullyFetchedLeadUrlCount: 0,
+        unfetchedLeadUrlCount: 0,
+        failedLeadUrlCount: 0,
+        blockedLeadUrlCount: 0,
+        unfetchedLeadUrls: [],
+        failedLeadUrls: [],
+        blockedLeadUrls: [],
+      },
+      admittedCandidates: candidates,
+      findings: [],
+    })).toThrow("refusing to select from a truncated subset");
   });
 });
 
