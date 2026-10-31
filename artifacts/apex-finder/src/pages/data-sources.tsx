@@ -69,17 +69,14 @@ const SOURCES: SourceDef[] = [
   // ── Phase 1: existing sources ──────────────────────────────────────────────
   {
     id: "western-multi-registry",
-    label: "Western Multi-Registry Seed",
+    label: "Western Multi-Registry Pipeline",
     description: "One composite batch pipeline covering SEC EDGAR SC 13D/G and DEF 14A, BRREG Norway, shuffled public-registry discovery, and Companies House UK when its API key is configured. This is not a source-isolated SEC, BRREG, or Companies House run.",
     kind: "ingestor",
     Icon: Layers,
     color: "#10B981",
     bg: "rgba(16,185,129,0.1)",
     phase: 1,
-    endpoint: "/api/ingest/western-hnwi",
-    jobType: "western-hnwi",
-    bodyParams: { targetCount: 1000 },
-    note: "Composite source set; check the job log for sources actually enabled and any skipped/failed source families. Companies House requires COMPANIES_HOUSE_API_KEY.",
+    note: "Informational catalogue entry only; this page does not start an ingestion job. Check the job log for source families actually enabled/skipped. Companies House requires COMPANIES_HOUSE_API_KEY.",
   },
   {
     id: "faa",
