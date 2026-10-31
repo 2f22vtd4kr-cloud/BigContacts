@@ -12,6 +12,8 @@ import { readApiJson } from "@/lib/api-json";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type SourceStatus = "live" | "running" | "idle" | "failed" | "coming-soon";
+type SeedJobType = "western-hnwi" | "faa" | "land-registry";
+type SeedLaneStatus = "checking" | "idle" | "active" | "unknown";
 type SourceKind   = "ingestor" | "enricher";
 type SourcePhase  = 1 | 8 | 9 | 10 | 11;
 
@@ -53,7 +55,7 @@ interface SourceDef {
 
 interface JobState {
   jobId: string;
-  status: "queued" | "running" | "done" | "failed";
+  status: "queued" | "running" | "done" | "failed" | "cancelled";
   progress: number;
   inserted: number;
   skipped: number;
@@ -71,17 +73,20 @@ const SOURCES: SourceDef[] = [
     id: "western-multi-registry",
     label: "Western Multi-Registry Pipeline",
     description: "One composite batch pipeline covering SEC EDGAR SC 13D/G and DEF 14A, BRREG Norway, shuffled public-registry discovery, and Companies House UK when its API key is configured. This is not a source-isolated SEC, BRREG, or Companies House run.",
+    endpoint: "/api/ingest/western-hnwi",
+    jobType: "western-hnwi",
+    bodyParams: { targetCount: 10000, batchSize: 100 },
     kind: "ingestor",
     Icon: Layers,
     color: "#10B981",
     bg: "rgba(16,185,129,0.1)",
     phase: 1,
-    note: "Informational catalogue entry only; this page does not start an ingestion job. Check the job log for source families actually enabled/skipped. Companies House requires COMPANIES_HOUSE_API_KEY.",
+    note: "Start and monitor this pipeline in the Mass Seed Operations panel. It creates provisional source-backed candidates; HNWI status is not assumed. Companies House requires COMPANIES_HOUSE_API_KEY.",
   },
   {
     id: "faa",
     label: "FAA Aircraft Registry",
-    description: "All US-registered turbine and multi-engine aircraft owners — the highest-confidence private jet data set available publicly.",
+    description: "FAA aircraft registrations: aircraft asset leads plus provisional individual/legal-entity registrant candidates. Registration does not prove beneficial ownership or personal wealth.",
     kind: "ingestor",
     Icon: Plane,
     color: "#F59E0B",
@@ -91,7 +96,7 @@ const SOURCES: SourceDef[] = [
     endpoint: "/api/ingest/faa",
     jobType: "faa",
     bodyParams: { maxRecords: 30000 },
-    note: "~70MB download from registry.faa.gov",
+    note: "Start and monitor in Mass Seed Operations. Individual registrants remain unverified PersonCandidates; co-owned and government records remain asset-only.",
   },
   {
     id: "gleif",
@@ -1107,6 +1112,295 @@ function SourceQualityPanel() {
 // ─── Enrichment Coverage Stats ───────────────────────────────────────────────
 
 
+// ─── Operator bulk-seed controls ──────────────────────────────────────────────
+
+type SeedLane = {
+  status: SeedLaneStatus;
+  job: JobState | null;
+  error?: string;
+};
+
+const SEED_CONFIGS: Array<{
+  type: SeedJobType;
+  title: string;
+  description: string;
+  endpoint: string;
+  countKey: "targetCount" | "maxRecords";
+  min: number;
+  max: number;
+  initial: number;
+  accent: string;
+}> = [
+  {
+    type: "western-hnwi",
+    title: "Western registry candidates",
+    description: "SEC EDGAR, BRREG, Companies House when configured, and shuffled public-registry discovery. Person-role rows remain provisional candidates; the Investigator resolves identity and HNWI qualification later.",
+    endpoint: "/api/ingest/western-hnwi",
+    countKey: "targetCount",
+    min: 100,
+    max: 50000,
+    initial: 10000,
+    accent: "#10B981",
+  },
+  {
+    type: "faa",
+    title: "FAA aircraft + registrants",
+    description: "Seed current/pending high-signal aircraft asset leads and individually identified registrant candidates. Co-owned/government/unknown records remain asset-only; no personal wealth or beneficial ownership is inferred.",
+    endpoint: "/api/ingest/faa",
+    countKey: "maxRecords",
+    min: 100,
+    max: 100000,
+    initial: 30000,
+    accent: "#F59E0B",
+  },
+  {
+    type: "land-registry",
+    title: "UK property transactions",
+    description: "Seed high-value PPD transaction assets only. Purchaser identity is not disclosed by this dataset; the job never manufactures people/companies from addresses.",
+    endpoint: "/api/ingest/land-registry",
+    countKey: "maxRecords",
+    min: 100,
+    max: 500000,
+    initial: 50000,
+    accent: "#38BDF8",
+  },
+];
+
+function normalizeSeedJob(value: any, fallbackId?: string): JobState | null {
+  if (!value || typeof value !== "object") return null;
+  const status = ["queued", "running", "done", "failed", "cancelled"].includes(value.status)
+    ? value.status
+    : "queued";
+  return {
+    jobId: String(value.jobId ?? value.id ?? fallbackId ?? ""),
+    status,
+    progress: Math.max(0, Math.min(100, Number(value.progress ?? 0) || 0)),
+    inserted: Number(value.inserted ?? 0) || 0,
+    skipped: Number(value.skipped ?? 0) || 0,
+    errors: Number(value.errors ?? 0) || 0,
+    message: String(value.message ?? "Job status available."),
+    finishedAt: value.finishedAt ? String(value.finishedAt) : undefined,
+    log: Array.isArray(value.log) ? value.log.map((line: unknown) => String(line)) : [],
+  };
+}
+
+function MassSeedOperationsPanel() {
+  const [limits, setLimits] = useState<Record<SeedJobType, number>>({
+    "western-hnwi": 10000,
+    faa: 30000,
+    "land-registry": 50000,
+  });
+  const [lanes, setLanes] = useState<Record<SeedJobType, SeedLane>>({
+    "western-hnwi": { status: "checking", job: null },
+    faa: { status: "checking", job: null },
+    "land-registry": { status: "checking", job: null },
+  });
+  const [starting, setStarting] = useState<Partial<Record<SeedJobType, boolean>>>({});
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await Promise.all(SEED_CONFIGS.map(async (config) => {
+        try {
+          const active = await apiGet(`/api/ingest/job/active/${config.type}`);
+          const jobId = active?.jobId ? String(active.jobId) : undefined;
+          let job = normalizeSeedJob(active?.job, jobId);
+          if (jobId) {
+            try {
+              const detail = await apiGet(`/api/ingest/job/${encodeURIComponent(jobId)}`);
+              job = normalizeSeedJob(detail, jobId) ?? job;
+            } catch {
+              // Keep the active-lock response; a transient log read must not
+              // turn a known-running job into an assumed-idle lane.
+            }
+          }
+          setLanes((current) => ({
+            ...current,
+            [config.type]: {
+              status: active?.active ? "active" : "idle",
+              job,
+            },
+          }));
+        } catch (error) {
+          setLanes((current) => ({
+            ...current,
+            [config.type]: {
+              ...current[config.type],
+              status: "unknown",
+              error: error instanceof Error ? error.message : "Job state unavailable",
+            },
+          }));
+        }
+      }));
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    void refresh();
+    const timer = setInterval(() => { void refresh(); }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const start = async (config: typeof SEED_CONFIGS[number]) => {
+    setStarting((current) => ({ ...current, [config.type]: true }));
+    setLanes((current) => ({
+      ...current,
+      [config.type]: { ...current[config.type], status: "checking", error: undefined },
+    }));
+    try {
+      const response = await apiPost(config.endpoint, {
+        [config.countKey]: limits[config.type],
+        ...(config.type === "western-hnwi" ? { batchSize: 100 } : {}),
+      });
+      const jobId = String(response?.jobId ?? "");
+      setLanes((current) => ({
+        ...current,
+        [config.type]: {
+          status: jobId ? "active" : "unknown",
+          job: jobId ? {
+            jobId,
+            status: "queued",
+            progress: 0,
+            inserted: 0,
+            skipped: 0,
+            errors: 0,
+            message: String(response?.message ?? "Seed job accepted."),
+          } : null,
+          error: jobId ? undefined : "The API accepted no job ID; active state cannot be confirmed.",
+        },
+      }));
+      if (!jobId) await refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unable to start seed job";
+      setLanes((current) => ({
+        ...current,
+        [config.type]: { ...current[config.type], status: "unknown", error: message },
+      }));
+      // A 409 means an existing job owns the lane; probe it instead of retrying.
+      await refresh();
+    } finally {
+      setStarting((current) => ({ ...current, [config.type]: false }));
+    }
+  };
+
+  return (
+    <section className="rounded-2xl border border-primary/20 bg-card/35 p-4 md:p-5 space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2">
+            <Database className="h-4 w-4 text-primary" aria-hidden />
+            <h3 className="text-sm font-semibold text-foreground">Mass Seed Operations</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 max-w-3xl">
+            Launch bounded registry batches and monitor their real job state. These jobs create source-backed candidate and asset records;
+            they do not certify HNWI status, beneficial ownership, identity or personal net worth.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          disabled={refreshing}
+          className="inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-mono text-muted-foreground hover:text-foreground disabled:opacity-50"
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5", refreshing && "animate-spin")} />
+          Refresh job state
+        </button>
+      </div>
+
+      <div className="grid gap-3 grid-cols-1 xl:grid-cols-3">
+        {SEED_CONFIGS.map((config) => {
+          const lane = lanes[config.type];
+          const job = lane.job;
+          const isRunning = lane.status === "active" || job?.status === "queued" || job?.status === "running";
+          const busy = Boolean(starting[config.type]);
+          const canStart = lane.status === "idle" && !isRunning && !busy;
+          return (
+            <div key={config.type} className="min-w-0 rounded-xl border border-border/70 bg-background/50 p-3.5 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h4 className="text-sm font-semibold text-foreground">{config.title}</h4>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed mt-1">{config.description}</p>
+                </div>
+                <span className="shrink-0 inline-flex items-center gap-1.5 text-[10px] font-mono uppercase tracking-wide text-muted-foreground">
+                  <span className={cn("h-1.5 w-1.5 rounded-full", lane.status === "active" ? "bg-emerald-400 animate-pulse" : lane.status === "unknown" ? "bg-amber-400" : "bg-muted-foreground/50")} />
+                  {lane.status === "checking" ? "checking" : lane.status === "active" ? "active" : lane.status === "unknown" ? "unknown" : job?.status ?? "idle"}
+                </span>
+              </div>
+
+              <label className="block text-[10px] font-mono uppercase tracking-wider text-muted-foreground">
+                Maximum records
+                <input
+                  type="number"
+                  min={config.min}
+                  max={config.max}
+                  step={100}
+                  value={limits[config.type]}
+                  onChange={(event) => {
+                    const value = Number(event.target.value);
+                    setLimits((current) => ({
+                      ...current,
+                      [config.type]: Number.isFinite(value) ? Math.max(config.min, Math.min(config.max, Math.floor(value))) : config.min,
+                    }));
+                  }}
+                  className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono text-foreground outline-none focus:border-primary"
+                />
+                <span className="mt-1 block text-[10px] normal-case tracking-normal text-muted-foreground/70">
+                  {config.min.toLocaleString()}–{config.max.toLocaleString()} per run
+                </span>
+              </label>
+
+              <button
+                type="button"
+                onClick={() => void start(config)}
+                disabled={!canStart}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-xs font-semibold text-black transition-opacity disabled:cursor-not-allowed disabled:opacity-35"
+                style={{ background: config.accent }}
+              >
+                {busy || lane.status === "checking" ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : isRunning ? <Activity className="h-3.5 w-3.5" /> : <Database className="h-3.5 w-3.5" />}
+                {busy ? "Starting…" : isRunning ? "Job running" : lane.status === "unknown" ? "State unknown — blocked" : lane.status === "checking" ? "Checking…" : "Start seed"}
+              </button>
+
+              {lane.error && (
+                <p role="alert" className="text-[10px] text-amber-500 break-words">{lane.error}</p>
+              )}
+
+              {job && (
+                <div className="space-y-2 border-t border-border/60 pt-3">
+                  <div className="flex items-center justify-between gap-2 text-[10px] font-mono">
+                    <span className="text-muted-foreground truncate">Job {job.jobId.slice(0, 12)}</span>
+                    <span className={cn(job.status === "done" ? "text-emerald-500" : job.status === "failed" ? "text-red-500" : "text-muted-foreground")}>{job.status}</span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${job.progress}%`, background: config.accent }} />
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-mono text-muted-foreground">
+                    <span>{job.inserted.toLocaleString()} inserted</span>
+                    <span>{job.skipped.toLocaleString()} skipped</span>
+                    <span>{job.errors.toLocaleString()} errors</span>
+                    <span>{Math.round(job.progress)}%</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground break-words">{job.message}</p>
+                  {job.log && job.log.length > 0 && (
+                    <div className="max-h-28 overflow-auto rounded-md bg-black/20 p-2 space-y-1">
+                      {job.log.slice(-6).map((line, index) => (
+                        <p key={index} className="text-[10px] font-mono text-muted-foreground break-all">{line}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 // ─── Per-source card ──────────────────────────────────────────────────────────
 
 function SourceCard({ src }: { src: SourceDef }) {
@@ -1240,6 +1534,7 @@ export default function DataSources() {
           icon={Globe}
           accent="text-primary"
         >
+          <MassSeedOperationsPanel />
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
             {ingestors.map((src) => (
               <SourceCard key={src.id} src={src} />
