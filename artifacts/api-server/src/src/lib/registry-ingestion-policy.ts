@@ -38,3 +38,42 @@ export function deriveRegistryIngestionAssessment(
     wealthStatus: personCandidate ? "unverified" : "not_assessed",
   };
 }
+
+
+/**
+ * Return the names that need person-name validation before a registry batch is
+ * persisted. Unverified registry classifications are deliberately normalised
+ * to PersonCandidate before this point; the legacy labels remain included for
+ * compatibility with callers that still pass them.
+ */
+export type RegistryIngestionBatchRow = {
+  name?: string | null;
+  type?: string | null;
+};
+
+export function registryPersonCandidateNames(
+  rows: readonly RegistryIngestionBatchRow[],
+): string[] {
+  return rows
+    .filter((row) => ["PersonCandidate", "HNWI", "Gatekeeper"].includes(row.type ?? ""))
+    .map((row) => typeof row.name === "string" ? row.name : "")
+    .filter((name) => name.trim().length > 0);
+}
+
+/**
+ * Apply the same persistence policy after person-name validation. Company and
+ * trust records remain eligible for broad registry seeding; person candidates
+ * survive only when their exact name passed the existing validation gate.
+ */
+export function filterRegistryIngestionBatchRows<T extends RegistryIngestionBatchRow>(
+  rows: readonly T[],
+  validPersonNames: ReadonlySet<string>,
+  preferPersons: boolean,
+): T[] {
+  return rows.filter((row) => {
+    const type = row.type ?? "";
+    if (preferPersons && (type === "Corporation" || type === "Trust")) return false;
+    if (type === "Corporation" || type === "Trust") return true;
+    return validPersonNames.has(typeof row.name === "string" ? row.name : "");
+  });
+}
