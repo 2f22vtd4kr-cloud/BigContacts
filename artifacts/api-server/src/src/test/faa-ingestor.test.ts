@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   buildFaaAircraftAsset,
@@ -113,3 +114,16 @@ describe("FAA registration status semantics", () => {
     expect(classifyFaaRegistrant("1", { statusCode }).registrationStatus).toBe(expected);
   });
 });
+
+describe("legacy FAA registrant repair", () => {
+  it("never reclassifies co-owned, government, or unknown legacy registrants as people or corporations", () => {
+    const source = readFileSync(new URL("../lib/faa-ingestor.ts", import.meta.url), "utf8");
+    const start = source.indexOf("async function repairLegacyFaaOwnershipSemantics");
+    const end = source.indexOf("async function flushBatch", start);
+    const repair = source.slice(start, end);
+    expect(repair).toContain("= '1' THEN 'PersonCandidate'");
+    expect(repair).toContain("IN ('2','3','7','8') THEN 'Corporation'");
+    expect(repair).toContain("ELSE 'Other' END");
+  });
+});
+
