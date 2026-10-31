@@ -42,9 +42,11 @@ describe("terminal review-card reconciliation", () => {
     expect(reconciler).not.toContain("extractSearchResultCompanyLeadFindings");
     expect(reconciler).not.toContain("organizationLabelFromUrl(url)");
 
+    const organizationStart = canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards");
+    const organizationEnd = canonicalAtlas.indexOf("\nasync function ", organizationStart + 1);
     const organizationMaterializer = canonicalAtlas.slice(
-      canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
-      canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+      organizationStart,
+      organizationEnd >= 0 ? organizationEnd : undefined,
     );
     expect(organizationMaterializer).toContain("Persist only organization leads explicitly selected in Investigator findings");
     expect(organizationMaterializer).toContain('finding.scope !== "organization"');
@@ -265,6 +267,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(organizationMaterializer).not.toContain('payload.execution !== "success"');
     expect(organizationMaterializer).not.toContain("if (existingRows.length > 0 && !sameCase)");
     expect(organizationMaterializer).toContain("identityCollisionPossible");
+    expect(organizationMaterializer).toContain("isContactLikeOrganizationReviewValue(name)");
     expect(organizationMaterializer).toContain("does not suppress a separate provisional review card");
     expect(reconcilerSource).toContain('if (!url) continue;');
     expect(reconcilerSource).toContain('fetched && isClaimGradeDiscoverySourceUrl(url) ? "fetched_source" : "search_result_lead"');
