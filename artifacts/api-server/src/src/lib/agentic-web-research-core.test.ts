@@ -32,6 +32,12 @@ describe("canonical Atlas discovery path isolation", () => {
   });
 });
 
+describe("review and claim finding separation", () => {
+  it("does not merge a provisional review lead into a claim-grade finding with the same identity", () => {
+    expect(agenticCoreSource).toContain('f.reviewOnly === true ? "review" : "claim"');
+  });
+});
+
 describe("model-owned review-lead selection", () => {
   it("does not create company findings from search-result titles in deterministic runtime code", () => {
     expect(agenticCoreSource).not.toContain("extractSearchResultCompanyLeadFindings");
