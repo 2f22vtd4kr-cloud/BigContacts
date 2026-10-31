@@ -123,7 +123,7 @@ export function reviewLeadFindingsForTrajectory(
       ...finding,
       sourceUrls: [...new Set((finding.sourceUrls ?? [])
         .map(normalizedObservedUrl)
-        .filter((url): url is string => Boolean(url) && url.startsWith("https://") && observedPublicUrls.has(url)))],
+        .filter((url): url is string => url !== null && url.startsWith("https://") && observedPublicUrls.has(url)))],
     }))
     .filter((finding) => finding.sourceUrls.length > 0);
 }
