@@ -6,6 +6,8 @@ describe("review-card source provenance UI contract", () => {
     const profile = readFileSync(new URL("../pages/profile.tsx", import.meta.url), "utf8");
     expect(profile).toContain("Publisher/source domain:");
     expect(profile).toContain("Source class:");
+    expect(profile).toContain("Registry adapter source");
+    expect(profile).toContain("Unclassified public source");
     expect(profile).toContain("Contributor:");
     expect(profile).toContain("Observed via:");
     expect(profile).toContain("Independent corroboration:");
