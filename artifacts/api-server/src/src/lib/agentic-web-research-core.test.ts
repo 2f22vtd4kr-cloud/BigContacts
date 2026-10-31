@@ -14,6 +14,20 @@ const agenticCoreSource = readFileSync(resolve(process.cwd(), "src/src/lib/agent
 const canonicalAtlasDiscoverySource = readFileSync(resolve(process.cwd(), "src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 const bureauAgenticPassSource = readFileSync(resolve(process.cwd(), "src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const researchLeadCardReconciliationSource = readFileSync(resolve(process.cwd(), "src/src/lib/research-lead-card-reconciliation.ts"), "utf8");
+const canonicalAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
+const canonicalCaseDiscoveryRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/research/canonical-case-discovery.ts"), "utf8");
+const legacyAtlasLaunchRouteSource = readFileSync(resolve(process.cwd(), "src/src/routes/atlas.ts"), "utf8");
+
+describe("canonical Atlas discovery path isolation", () => {
+  it("routes live Atlas launches through the model-owned canonical pipeline, not legacy deterministic discovery", () => {
+    expect(canonicalAtlasLaunchRouteSource).toContain("runCanonicalAtlasPipeline");
+    expect(canonicalCaseDiscoveryRouteSource).toContain("runCanonicalAtlasPipeline");
+    expect(canonicalAtlasLaunchRouteSource).not.toContain("runDiscoveryAgent");
+    expect(canonicalAtlasLaunchRouteSource).not.toContain("discovery-intake");
+    expect(canonicalCaseDiscoveryRouteSource).not.toContain("runDiscoveryAgent");
+    expect(legacyAtlasLaunchRouteSource).toContain('res.status(410)');
+  });
+});
 
 describe("model-owned review-lead selection", () => {
   it("does not create company findings from search-result titles in deterministic runtime code", () => {
