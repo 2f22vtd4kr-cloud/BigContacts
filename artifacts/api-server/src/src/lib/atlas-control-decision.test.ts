@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET,
@@ -330,3 +331,18 @@ describe("Atlas Right-hand opening review normalization", () => {
     expect(normalizeAtlasOpeningRightHandApprovalReview({ decision: "x", reason: "y" })).toBeNull();
   });
 });
+
+describe("Right-hand advisory authority", () => {
+  it("does not veto Boss decisions when Right-hand is unavailable on a later turn", () => {
+    const source = readFileSync(new URL("./atlas-control-decision.ts", import.meta.url), "utf8");
+    expect(source).toContain("Right-hand is advisory on every turn");
+    expect(source).not.toContain('if (rightHand.status !== "completed" && !input.rightHandOverride) return finalize');
+    const prompt = buildAtlasBossControlPrompt({
+      investigatorReport: compactAtlasInvestigatorReport(reportWithUnfetchedLead()),
+      compactState: "Durable case state is available.",
+      rightHand: { status: "unavailable", decision: null, reason: null, direction: null, confidence: null, model: "none", error: "provider unavailable" },
+    });
+    expect(prompt).toContain("If Right-hand is unavailable, make an independent Boss decision");
+  });
+});
+
