@@ -49,6 +49,21 @@ describe("registry candidate name model gate", () => {
     expect(rejected).toEqual({ status: "validated", validNames: [] });
   });
 
+  it("treats out-of-range and duplicate model indices as unavailable, not as an empty rejection", async () => {
+    for (const content of ["[999]", "[1,1]"]) {
+      const result = await validateRegistryCandidateNamesWithLLM(
+        ["Ada Lovelace"],
+        {
+          keys: ["test-secret"],
+          fetchImpl: async () => new Response(JSON.stringify({
+            choices: [{ message: { content } }],
+          }), { status: 200, headers: { "Content-Type": "application/json" } }),
+        },
+      );
+      expect(result).toEqual({ status: "unavailable", validNames: [] });
+    }
+  });
+
   it("does not misreport malformed provider output as a negative candidate judgment", async () => {
     const result = await validateRegistryCandidateNamesWithLLM(
       ["Ada Lovelace"],
