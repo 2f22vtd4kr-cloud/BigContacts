@@ -857,6 +857,38 @@ describe("partial model findings", () => {
     }]);
   });
 
+  it("does not discard short but valid model-selected person or organization names", () => {
+    const parsed = parseAgentAction(JSON.stringify({
+      action: "web_search",
+      query: "Li 3M leadership",
+      provider: "serper",
+      hypothesis: "A short person or company name may identify a relevant lead.",
+      purpose: "Preserve the Investigator's selected leads for verification.",
+      expectedInformationGain: 0.5,
+      findings: [
+        {
+          vectorType: "other",
+          value: "Li",
+          personName: "Li",
+          role: null,
+          scope: "candidate",
+          sourceUrls: ["https://example.org/profile"],
+          note: "Investigator-selected person lead.",
+        },
+        {
+          vectorType: "other",
+          value: "3M",
+          personName: null,
+          role: null,
+          scope: "organization",
+          sourceUrls: ["https://example.org/company"],
+          note: "Investigator-selected organization lead.",
+        },
+      ],
+    }), ["web_search"]);
+    expect(parsed?.partialFindings.map((finding) => finding.value)).toEqual(["Li", "3M"]);
+  });
+
   it("preserves an unpromoted lead when the Investigator stops", () => {
     const finding = {
       vectorType: "other",
