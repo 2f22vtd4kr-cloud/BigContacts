@@ -31,3 +31,29 @@ describe("dashboard source-card snippet honesty", () => {
     expect(reviewCardSource).toContain("Open gaps · ");
   });
 });
+
+
+const dataSources = readFileSync(new URL("../pages/data-sources.tsx", import.meta.url), "utf8");
+
+describe("Western registry seed source-catalogue honesty", () => {
+  it("exposes the composite Western batch as one action rather than three false source-specific actions", () => {
+    expect(dataSources).toContain('id: "western-multi-registry"');
+    expect(dataSources).toContain('label: "Western Multi-Registry Pipeline"');
+    expect(dataSources).toContain("this page does not start an ingestion job");
+    expect(dataSources).not.toContain('endpoint: "/api/ingest/western-hnwi"');
+    expect(dataSources).toContain("SEC EDGAR SC 13D/G and DEF 14A");
+    expect(dataSources).toContain("BRREG Norway");
+    expect(dataSources).toContain("Companies House UK when its API key is configured");
+    expect(dataSources).toContain("not a source-isolated SEC, BRREG, or Companies House run");
+    expect(dataSources).not.toContain('id: "sec-edgar"');
+    expect(dataSources).not.toContain('id: "companies-house"');
+    expect(dataSources).not.toContain('id: "brreg"');
+  });
+
+  it("keeps FAA and Land Registry as distinct bulk-ingestion actions", () => {
+    expect(dataSources).toContain('id: "faa"');
+    expect(dataSources).toContain('endpoint: "/api/ingest/faa"');
+    expect(dataSources).toContain('id: "land-registry"');
+    expect(dataSources).toContain('endpoint: "/api/ingest/land-registry"');
+  });
+});
