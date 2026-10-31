@@ -697,7 +697,7 @@ async function materializePartialPersonLeadCards(input: {
         role: lead.role,
         sourceUrl: sourceUrls[0],
         sourceUrls,
-        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt })),
+        sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt, sourceName: support.sourceName, sourceClass: support.sourceClass, sourceContributor: support.sourceContributor })),
         limitations: ["HNWI/wealth status not established", "ownership/control and materiality not established", "professional approach route not verified"],
       });
       if (!entityId) {
@@ -848,6 +848,7 @@ async function materializePartialOrganizationLeadCards(input: {
       const observations: Array<{
         action: string; execution: string; verificationLevel: "fetched_source" | "search_result_lead";
         sourceUrl: string; observation: string; eventId: number; createdAt: Date; sourceUrlBoundByAdapter?: boolean;
+        sourceName?: string; sourceClass?: string; sourceContributor?: string | null;
       }> = [];
 
       // Registry adapter rows are supporting observations only. They may
@@ -873,6 +874,9 @@ async function materializePartialOrganizationLeadCards(input: {
                 action: "registry_search", execution: "success", verificationLevel: "search_result_lead",
                 sourceUrl: rawUrl, observation: name + (notes ? " — " + notes : ""),
                 eventId: event.id, createdAt: event.createdAt, sourceUrlBoundByAdapter: true,
+                sourceName: typeof company.sourceName === "string" ? company.sourceName : undefined,
+                sourceClass: typeof company.sourceClass === "string" ? company.sourceClass : undefined,
+                sourceContributor: typeof company.sourceContributor === "string" ? company.sourceContributor : null,
               });
             }
           }
@@ -924,7 +928,7 @@ async function materializePartialOrganizationLeadCards(input: {
       // Investigator already selected the organization in a structured finding.
     ]);
     const supports = new Map<string, {
-      sourceUrl: string; eventId: number; createdAt: Date; action: string; spanText: string;
+      sourceUrl: string; eventId: number; createdAt: Date; action: string; sourceName?: string; sourceClass?: string; sourceContributor?: string | null; spanText: string;
       spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
