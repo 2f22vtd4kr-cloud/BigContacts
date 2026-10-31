@@ -315,8 +315,6 @@ async function isCacheStale(): Promise<boolean> {
 
 // ── Batch flush ───────────────────────────────────────────────────────────────
 
-type FaaBatchRow = { asset: InsertAsset; entity: InsertEntity | null };
-
 async function repairLegacyFaaOwnershipSemantics(): Promise<void> {
   await db.transaction(async (tx) => {
     const legacyAssets = await tx.select({
@@ -581,8 +579,6 @@ export async function runFaaIngestion(params: FaaIngestionParams): Promise<FaaIn
   const batchRows: FaaBatchRow[] = [];
   const pendingDedup: string[] = [];
   let candidateEntitiesInserted = 0;
-  let lineNum = 0;
-  let lastProgressLine = 0;
 
   for await (const line of rl) {
     lineNum++;
