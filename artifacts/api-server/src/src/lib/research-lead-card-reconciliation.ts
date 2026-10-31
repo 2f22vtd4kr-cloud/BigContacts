@@ -1,7 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchSessionsTable, researchEvidenceTable } from "@workspace/db";
 import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
-import { isGenericDiscoveryMetadataTitle } from "./agentic-web-research-core";
 import { isClaimGradeDiscoverySourceUrl } from "./candidate-source-url-union";
 import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { sanitizeUrlForEvidence } from "./url-privacy";
@@ -331,7 +330,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       .from(researchCaseEventsTable)
       .where(and(eq(researchCaseEventsTable.caseId, researchCase.id), inArray(researchCaseEventsTable.eventType, ["tool_observation", "decision"])))
       .orderBy(researchCaseEventsTable.id);
-    const findings = new Map<string, { name: string; role: string; urls: Set<string> }>();
+    const findings = new Map<string, { name: string; role: string | null; urls: Set<string> }>();
     const observations: Array<{ url: string; text: string; eventId: number; createdAt: Date; verificationLevel: "fetched_source" | "search_result_lead" }> = [];
     for (const event of events) {
       const payload = parseObject(event.payload);
@@ -340,11 +339,11 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
         if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
         const finding = raw as Record<string, unknown>;
         if (finding.scope !== "candidate" || finding.promotionDecision === "reject"
-          || typeof finding.personName !== "string" || typeof finding.role !== "string" || typeof finding.value !== "string") continue;
+          || typeof finding.personName !== "string") continue;
         const name = finding.personName.trim().replace(/\s+/g, " ");
-        const role = finding.role.trim().replace(/\s+/g, " ");
-        if (name.length < 3 || role.length < 2) continue;
-        const key = normalizeCandidateIdentityName(name) + "::" + normalizeCandidateIdentityName(role);
+        const role = typeof finding.role === "string" && finding.role.trim() ? finding.role.trim().replace(/\s+/g, " ") : null;
+        if (name.length < 3) continue;
+        const key = normalizeCandidateIdentityName(name) + "::" + (role ? normalizeCandidateIdentityName(role) : "");
         const entry = findings.get(key) ?? { name, role, urls: new Set<string>() };
         if (Array.isArray(finding.sourceUrls)) for (const rawUrl of finding.sourceUrls) {
           const url = normalizeSource(rawUrl);
@@ -373,9 +372,9 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
       for (const observation of observations) {
         if (!lead.urls.has(observation.url)) continue;
         const span = observation.verificationLevel === "fetched_source"
-          ? bindExactSourceSpan(observation.text, lead.role, lead.name, 320)
-          : bindExactSourceSpanToUrl(observation.text, observation.url, lead.role, lead.name, 320);
-        const verificationLevel = span?.exact && span.subjectMatched && span.valueMatched
+          ? (lead.role ? bindExactSourceSpan(observation.text, lead.role, lead.name, 320) : bindExactSourceSpan(observation.text, lead.name, undefined, 320))
+          : (lead.role ? bindExactSourceSpanToUrl(observation.text, observation.url, lead.role, lead.name, 320) : bindExactSourceSpanToUrl(observation.text, observation.url, lead.name, undefined, 320));
+        const verificationLevel = span?.exact && (!lead.role || (span.subjectMatched && span.valueMatched))
           ? observation.verificationLevel
           : "search_result_lead" as const;
         const prior = supports.get(observation.url);
@@ -429,8 +428,8 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           }
         }
         const notes = hasFetched
-          ? `PARTIAL PERSON LEAD — a public source directly associates this person with the role “${lead.role}”. Wealth potential and a suitable approach route remain unverified.`
-          : `SEARCH-RESULT PERSON LEAD — search result associates this person with the role “${lead.role}”. Fetch and corroborate before relying on it.`;
+          ? `PARTIAL PERSON LEAD — a fetched public source supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Wealth potential and a suitable approach route remain unverified.`
+          : `SEARCH-RESULT PERSON LEAD — a search result supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Fetch and corroborate before relying on it.`;
         const metadata = JSON.stringify({
           ...prior, reviewOnly: true, partialPersonLead: true, roleOnlyLead: true, stage: "partial_review",
           admission: prior.admission ?? "source-observed-person-role",
@@ -463,7 +462,7 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
             const priorEvidenceMetadata = parseObject(priorEvidence.metadata) ?? {};
             if (isFetched && priorEvidenceMetadata.verificationLevel !== "fetched_source") {
               await tx.update(researchEvidenceTable).set({
-                claim: "A successfully fetched public-source observation co-binds this exact person name and role; wealth potential and contactability remain unverified.",
+                claim: lead.role ? "A successfully fetched public-source observation co-binds this exact person name and role; wealth potential and contactability remain unverified." : "A successfully fetched public-source observation supports this person name; role, wealth potential, and contactability remain unverified.",
                 observedAt: support.createdAt, freshnessScore: 1,
                 metadata: JSON.stringify({
                   ...priorEvidenceMetadata, partialReview: true, role: lead.role, verificationLevel: "fetched_source",
@@ -490,8 +489,8 @@ export async function reconcilePersonReviewCardsForJob(jobId: string): Promise<{
           await tx.insert(researchEvidenceTable).values({
             sessionId: session.id, entityId, claimType: "partial_person_role_lead",
             claim: isFetched
-              ? "A successfully fetched public-source observation co-binds this exact person name and role; wealth potential and contactability remain unverified."
-              : "A source observation co-binds this exact person name and role; wealth potential and contactability remain unverified.",
+              ? (lead.role ? "A successfully fetched public-source observation co-binds this exact person name and role; wealth potential and contactability remain unverified." : "A successfully fetched public-source observation supports this person name; role, wealth potential, and contactability remain unverified.")
+              : (lead.role ? "A source observation supports this person and role lead; wealth potential and contactability remain unverified." : "A source observation supports this person-name lead; role, wealth potential, and contactability remain unverified."),
             value: lead.name, sourceName: "canonical-agentic-discovery", sourceUrl: support.url,
             sourceDomain: new URL(support.url).hostname, status: "review", confidence: 0.25,
             observedAt: support.createdAt, freshnessScore: isFetched ? 1 : 0.5,
