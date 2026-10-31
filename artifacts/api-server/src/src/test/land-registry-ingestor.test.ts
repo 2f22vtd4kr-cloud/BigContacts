@@ -3,7 +3,7 @@ import { buildLandRegistryTransactionAsset, parsePpdCsvRecord } from "../lib/lan
 
 describe("HMLR PPD CSV parsing", () => {
   it("preserves commas inside quoted address fields", () => {
-    const parsed = parsePpdCsvRecord('"tx-1",2450000,"2026-05-12 00:00","SW1A 1AA",D,,F,12,,"King's Road, Chelsea",,,London,Greater London,A,A');
+    const parsed = parsePpdCsvRecord("\"tx-1\",2450000,\"2026-05-12 00:00\",\"SW1A 1AA\",D,,F,12,,\"King's Road, Chelsea\",,,London,Greater London,A,A");
     expect(parsed[0]).toBe("tx-1");
     expect(parsed[9]).toBe("King's Road, Chelsea");
     expect(parsed[13]).toBe("Greater London");
