@@ -1405,20 +1405,6 @@ async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa
   return result ? { ...result, text: sanitizeUrlOccurrences(result.text, result.urls), urls: result.urls.map((url) => sanitizeUrlForEvidence(url)), provider } : { text: `${provider} returned no usable result.`, urls: [], provider, status: "error" };
 }
 
-  const normalized = title.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
-  // Search-result titles often append a page descriptor to a placeholder. Strip
-  // only common page labels before applying the narrow generic-name guard.
-  const identityTitle = normalized.replace(/\s+(?:officers?|directors?|leadership|management|company profile|business profile|contact(?: details)?|overview|company information|business information)$/, "").trim();
-  return /^(?:case|example|sample|test|demo|placeholder|unknown|unnamed|generic|company|business|organization|organisation)(?: (?:co|company|corp|corporation|inc|incorporated|limited|ltd|llc|group|holdings?))?$/.test(identityTitle)
-    || /^(?:company|business|organization|organisation) (?:name|target|lead|entity)$/.test(identityTitle);
-}
-
-/**
- * Deterministic extraction is limited to the provider's exact result title and
- * exact result URL. It never manufactures a name from a hostname and creates
- * only a review-only company lead; the fetched page and any person/wealth claims
- * remain unverified. The Investigator still owns the research strategy.
- */
 export function isPdfPageResponse(url: string, contentType: string | null, contentDisposition: string | null = null): boolean {
   if (contentType && /^(?:application\/pdf|application\/x-pdf)(?:\s*;|$)/i.test(contentType.trim())) return true;
   if (contentDisposition && /filename\*?\s*=\s*(?:UTF-8''|["']?)[^;"'\r\n]*\.pdf(?:["';\s]|$)/i.test(contentDisposition)) return true;
