@@ -3683,8 +3683,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(urlInventory, 500, "[additional source URLs omitted whole; durable events remain authoritative]");
     appendBudgeted(fetchedSourceLabel, 180, "[source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 340, "[source excerpt detail omitted]");
-    appendBudgeted(header + " " + (compactObservation || compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 90)), 240, "[latest observation detail omitted]");
-    appendBudgeted(compactRecordSummary.join("\n\n"), 200, "[older trajectory detail omitted]");
+    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 90), 240, "[latest observation detail omitted]");
+    appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 200, "[older trajectory detail omitted]");
     appendBudgeted(aiMemorySection, 140, "[older memory omitted]");
     appendBudgeted(markerSuffix, 90, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
