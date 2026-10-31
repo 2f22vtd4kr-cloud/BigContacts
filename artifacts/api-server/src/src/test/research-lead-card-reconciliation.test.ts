@@ -43,7 +43,7 @@ describe("terminal review-card reconciliation", () => {
 
     const organizationMaterializer = canonicalAtlas.slice(
       canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
-      canonicalAtlas.indexOf("export async function checkpointCanonicalDiscoveryFindings"),
+      canonicalAtlas.indexOf("export async function runCanonicalAtlasPipeline"),
     );
     expect(organizationMaterializer).toContain("Persist only organization leads explicitly selected in Investigator findings");
     expect(organizationMaterializer).toContain('finding.scope !== "organization"');
@@ -138,6 +138,18 @@ describe("terminal review-card reconciliation", () => {
     expect(strictAdmissionLoop).toBeGreaterThanOrEqual(0);
     expect(partialPeopleCall).toBeLessThan(strictAdmissionLoop);
     expect(partialOrganizationsCall).toBeLessThan(strictAdmissionLoop);
+  });
+
+
+  it("stores source class, contributor, fetch mechanism and corroboration as separate provenance fields", () => {
+    expect(canonicalAtlas).toContain('sourceClass: "unclassified_public_source"');
+    expect(canonicalAtlas).toContain("sourceContributor: null");
+    expect(canonicalAtlas).toContain("sourceMechanism: support.observationAction");
+    expect(canonicalAtlas).toContain('independentCorroborationStatus: "not_assessed"');
+    expect(canonicalAtlas).not.toContain('sourceName: "canonical-agentic-discovery"');
+    expect(reconciler).toContain('sourceClass: "unclassified_public_source"');
+    expect(reconciler).toContain("sourceContributor: null");
+    expect(reconciler).toContain('independentCorroborationStatus: "not_assessed"');
   });
 
   it("keeps public business-relevant relationship research separate from private intimate or health-data contact hunting", () => {
