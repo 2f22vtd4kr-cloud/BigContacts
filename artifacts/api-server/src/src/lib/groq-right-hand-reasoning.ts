@@ -266,7 +266,6 @@ async function requestImpl(system:string,user:string,format?:Record<string,unkno
  }
  if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
   const structuredResponseFormat=responseFormat(format);
-  const telemetryContext = { role: "right_hand" as const, capability: "groq-right-hand", jobId: auditContext?.jobId ?? null, caseId: auditContext?.caseId ?? null, targetDigest: auditContext?.targetDigest ?? null, iteration: auditContext?.iteration ?? null, decisionId: auditContext?.decisionId ?? null, cognitiveTask: auditContext?.cognitiveTask ?? "control_advisory" };
   const telemetryContext = {
     role: "right_hand" as const,
     capability: "groq-right-hand",
