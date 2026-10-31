@@ -758,36 +758,6 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
 
   // Structural/provider-syntax checks only. Query content and source class are
   // model-owned research choices, not runtime admission or relevance policy.
-  if (/(?:^|\\s)site:\\s*\\.[a-z0-9-]+(?:\\s|$)/i.test(normalized)) {
-    return { allowed: false, reason: "Discovery query contains a malformed bare site filter. Use a concrete hostname or remove the site operator; no provider request was made." };
-  }
-
-  // Block literal templates so they cannot waste provider quota.
-  const placeholderQuery = /(?:\\[\\s*(?:companyname|company(?:\\s+name)?|domain|company\\s+website)\\s*\\]|\\{\\{\\s*(?:companyname|company(?:\\s+name)?|domain)\\s*\\}\\}|(?:^|[^\\p{L}\\p{N}.-])example\\.(?:com|org|net|co\\.[a-z]{2})(?![\\p{L}\\p{N}.-]))/iu;
-  if (placeholderQuery.test(query)) {
-    return { allowed: false, reason: "Discovery search contains a template placeholder or reserved example domain. Replace it with the actual entity/source anchor; no provider request was made." };
-  }
-
-  if (priorQueries.some((prior) => normalizeDiscoverySearchQuery(prior) === normalized)) {
-    return {
-      allowed: true,
-      warning: "This normalized query has been attempted before. A repeat remains a valid research choice; the repeat-action guard considers provider, locale, market, and newly fetched evidence separately.",
-    };
-  }
-  return { allowed: true };
-}
-export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true; warning?: string } | { allowed: false; reason: string } {
-  const normalized = normalizeDiscoverySearchQuery(query);
-  if (!normalized) return { allowed: false, reason: "Discovery search query is empty." };
-  if (hasPressPublisherSiteFilter(query) && !/["“][^"”]*\p{Lu}[\p{L}\p{M}\p{N}&'.’\-]{2,}[^"”]*["”]/u.test(query)) {
-    return {
-      allowed: false,
-      reason: "Discovery rejected a broad press-publisher-only search without an exact named person/business anchor. News stories can support a source-grounded lead, but the publisher or its broad topic is not the target or a reachability route; remove the outlet filter or quote the exact named entity. No provider request was made.",
-    };
-  }
-
-  // Structural/provider-syntax checks only. Query content is intentionally not
-  // classified by English keywords, entity lists, role lists, or sector vocabularies.
   if (/(?:^|\s)site:\s*\.[a-z0-9-]+(?:\s|$)/i.test(normalized)) {
     return { allowed: false, reason: "Discovery query contains a malformed bare site filter. Use a concrete hostname or remove the site operator; no provider request was made." };
   }
