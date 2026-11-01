@@ -110,7 +110,7 @@ export function renderAtlasCapabilityGuidanceCompact(
   const selectable = capabilities.filter((c) => c.investigatorSelectable !== false);
   const webProviders = [...new Set(selectable.filter((c) => c.action === "web_search").map((c) => c.id.replace("search.", "")))];
   const webOption = webProviders.length
-    ? [`- web.search (web_search): providers=${webProviders.join("|")}; neutral first-discovery option; snippets are leads, not proof`]
+    ? [`- web.search (web_search): providers=${webProviders.join("|")}; neutral first-discovery option; snippets are leads, answers are not primary evidence, and semantic relevance is not identity`]
     : [];
   const remaining = selectable
     .filter((c) => c.action !== "web_search")
