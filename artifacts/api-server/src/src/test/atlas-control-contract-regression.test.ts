@@ -270,7 +270,7 @@ describe("Atlas control-plane contract regression", () => {
       rightHand: { status: "completed", decision: "pivot_discovery", reason: "The current scope is blocked.", direction: "Shift to a sector-specific approach in a chosen region.", confidence: 0.8, model: "openai/gpt-oss-120b", error: null },
     });
     expect(bossPrompt).toContain("A pivot must be self-contained and executable");
-    expect(bossPrompt).toContain("do not invent, compare, or broaden geography");
+    expect(bossPrompt).toContain("do not broaden or switch jurisdictions as a discovery exercise");
   });
 
   it("requires both opening and ongoing Right-hand reviews to flag unsupported scope", () => {
