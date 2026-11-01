@@ -5,7 +5,7 @@ import {
 } from "./agentic-web-research-core";
 
 describe("Investigator target and source grounding guardrails", () => {
-  it("keeps the complete current objective out of lossy historical memory for ordinary discovery turns", () => {
+  it("keeps ordinary discovery target-neutral and grounds target-specific names in observations", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE:",
       ...Array.from({ length: 15 }, (_, index) =>
@@ -26,7 +26,7 @@ describe("Investigator target and source grounding guardrails", () => {
       actionAllowlist: ["web_search", "parallel_web_search", "registry_search", "parallel_registry_search", "visit", "done"],
     });
 
-    expect(prompt).toContain(objective);
+    expect(prompt).toContain("DISCOVERY MODE: no person or entity target is implied.");
     expect(prompt).toContain("TARGET-NAME GROUNDING");
     expect(prompt).toContain("If no target name has been observed, formulate an open discovery hypothesis");
     expect(prompt).not.toContain("The full objective is represented in Boss-generated memory");
