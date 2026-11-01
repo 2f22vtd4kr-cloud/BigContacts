@@ -601,7 +601,7 @@ async function searchBolagsverketSweden(
   signal?: AbortSignal,
 ): Promise<RegistryResult[]> {
   if (signal?.aborted) throw new Error("cancelled");
-  const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: bolagsverket-sweden has no supported direct-search integration configured. The previous implementation used an undocumented third-party Allabolag endpoint and mislabeled results as Bolagsverket records. Use web_search/parallel_web_search for Swedish company discovery, fetch observed source pages, use Sweden's SNI classification rather than assuming UK SIC labels, and verify beneficial-owner disclosures separately; do not assume a Swedish Companies House-style PSC record.");
+  const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: bolagsverket-sweden has no supported direct-search integration configured. The previous implementation used an undocumented third-party Allabolag endpoint and mislabeled results as Bolagsverket records. Use web_search/parallel_web_search for Swedish company discovery, fetch observed source pages, use Sweden's SNI classification rather than assuming UK SIC labels, and verify beneficial-owner disclosures separately; do not assume beneficial-ownership fields are available unless the source documents them.");
   Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
   throw error;
 }
