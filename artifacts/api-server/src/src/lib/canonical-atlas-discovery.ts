@@ -1972,7 +1972,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       "No source observations or admitted candidates exist yet. Select one useful company, person, or asset target from any enabled registry/asset register or public-web result; one observed target is enough to begin target-scoped research.",
       "Do not compare sectors or geographies, broaden or invent jurisdiction, or follow a fixed source itinerary. Choose each query, source, tool, visit, pivot, and stopping point yourself.",
       "Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes. Model hypotheses, confidence, Boss rationale, and Right-hand advice are not source evidence.",
-    ].join("\\n");
+    ].join("\n");
     failureStage = "job_state_or_lease";
     await assertAtlasJobActive(atlasJobId);
     await updateJob(atlasJobId, {
