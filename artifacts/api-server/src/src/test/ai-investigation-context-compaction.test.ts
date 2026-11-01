@@ -68,4 +68,30 @@ describe("AI investigation context compaction", () => {
     await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBeNull();
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(1);
   });
+
+  it("treats each compaction input as a partial segment and preserves search-lead provenance", async () => {
+    const sourceUrl = "https://registry.example/entities";
+    const source = [
+      "CURRENT CASE OBJECTIVE / ACTIVE BOSS SCOPE: Identify under-the-radar people with credible wealth potential and public professional routes.",
+      "TRAJECTORY: a successful web search returned snippets and lead URLs, but no page was successfully fetched.",
+      "LEAD_URLS: " + sourceUrl,
+      "SEARCH RESULTS: " + "A search-result snippet contains a named entity and a possible role; this remains a lead until fetched. ".repeat(18),
+    ].join("\n");
+    const summary = "Search-only lead: a result snippet mentions a named entity and possible role; no page was fetched. URL: " + sourceUrl;
+    bossMocks.generateGroqBossText.mockResolvedValueOnce({
+      model: "mock-boss-model",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+
+    const prompt = String(bossMocks.generateGroqBossText.mock.calls[0]?.[1] ?? "");
+    expect(prompt).toContain("one chunk or segment of a larger case memory");
+    expect(prompt).toContain("Never say that the human objective or approved scope was not provided");
+    expect(prompt).toContain("unverified search leads");
+    expect(prompt).toContain("successful visit/browser_fetch");
+  });
+
 });
