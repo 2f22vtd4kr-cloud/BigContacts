@@ -16,6 +16,7 @@ describe("canonical case-event append lock ordering", () => {
     const sourceRoot = resolve(process.cwd(), "src/src");
     const sourceFiles = listTypeScriptSources(sourceRoot);
     let checked = 0;
+    const violations: string[] = [];
     for (const filePath of sourceFiles) {
       const source = readFileSync(filePath, "utf8");
       const starts = [...source.matchAll(/db\.transaction\(async\s*\(?\s*tx\s*\)?\s*=>\s*\{/g)]
@@ -30,11 +31,10 @@ describe("canonical case-event append lock ordering", () => {
         checked += 1;
         const lock = block.indexOf("lockResearchCaseEventAppendStream(tx,");
         const insert = block.indexOf("tx.insert(researchCaseEventsTable)");
-        expect(lock, relative(sourceRoot, filePath) + ": event-writing transaction must acquire the per-case advisory lock").toBeGreaterThanOrEqual(0);
-        expect(lock).toBeLessThan(rowLock);
-        expect(lock).toBeLessThan(insert);
+        if (lock < 0 || lock > rowLock || lock > insert) violations.push(relative(sourceRoot, filePath));
       }
     }
     expect(checked).toBeGreaterThanOrEqual(20);
+    expect(violations, "event-writing transactions with row locks must acquire the per-case advisory lock first").toEqual([]);
   });
 });
