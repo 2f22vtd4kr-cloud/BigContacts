@@ -3,6 +3,7 @@ import { resolveGroqBossModel, generateGroqBossText } from "./groq-boss";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { and, desc, eq } from "drizzle-orm";
+import { lockResearchCaseEventAppendStream } from "./research-case-event-iteration";
 import { compactInvestigationContext, compactPromptSectionPreservingUrlTokens, type CompactionFinding } from "./investigation-context-compaction";
 import { logger } from "./logger";
 import { describeThrownProviderError } from "./provider-error-diagnostics";
@@ -682,6 +683,7 @@ export function buildAtlasControlEventPayload(input: { decision: AtlasControlDec
 async function persistControlDecision(input: { caseId: number; controlTurn: number; decision: AtlasControlDecision; jobId?: string | null }): Promise<boolean> {
   try {
     await db.transaction(async (tx) => {
+      await lockResearchCaseEventAppendStream(tx, input.caseId);
       const [caseRow] = await tx.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, input.caseId)).for("update").limit(1);
       if (!caseRow) throw new Error(`Atlas discovery case ${input.caseId} does not exist.`);
       if (caseRow.status !== "active") throw new Error(`Atlas discovery case ${input.caseId} is no longer active; refusing stale control persistence.`); if (input.jobId) { let durableFile: Record<string, unknown>; try { durableFile = JSON.parse(caseRow.caseFile ?? "{}") as Record<string, unknown>; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); } if (String(durableFile.jobId ?? durableFile.atlasJobId ?? "") !== input.jobId) throw new Error(`Atlas discovery case ${input.caseId} is owned by another job; refusing stale control persistence.`); }
