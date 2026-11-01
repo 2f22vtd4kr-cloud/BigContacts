@@ -1111,7 +1111,10 @@ describe("Investigator prompt architecture", () => {
 
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
     const expectedActions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
-    expect(prompt).toContain("AVAILABLE ACTIONS: " + expectedActions.join(" | ") + ".");
+    const actionLine = prompt.split("\\n").find((line) => line.startsWith("AVAILABLE ACTIONS:")) ?? "";
+    const advertisedActions = actionLine.replace("AVAILABLE ACTIONS: ", "").replace(/\\.$/, "").split(" | ").filter(Boolean);
+    expect(new Set(advertisedActions)).toEqual(new Set(expectedActions));
+    expect(advertisedActions).toHaveLength(expectedActions.length);
     expect(prompt).not.toContain("footprint_email");
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
@@ -2984,7 +2987,7 @@ Choose each next action yourself from the available capabilities and observed ev
       vi.unstubAllEnvs();
     }
     expect(buildActionParseFailureObservation("invalid_action_arguments action=registry_search missing=registry"))
-      .toContain('For the UK Companies House adapter, the exact ID is "companies-house"');
+      .toContain("Use the exact ID from the configured choices; do not substitute labels or omit registry");
   });
 
   it("classifies malformed and ambiguous Investigator envelopes without persisting response text", () => {
