@@ -219,7 +219,7 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).not.toContain("Verify the named person's role and ownership");
     expect(prompt).not.toContain("HUMAN OBJECTIVE: The complete current human objective is in COMPLETE DISCOVERY STATE");
     expect(prompt).toContain("Choose only continue_discovery or stop.");
-    expect(prompt).toContain("Right-hand advice");
+    expect(prompt).toContain("RIGHT-HAND ADVICE");
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
   });
 
