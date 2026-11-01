@@ -3,9 +3,10 @@ import { resolveGroqBossModel, generateGroqBossText } from "./groq-boss";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { and, desc, eq } from "drizzle-orm";
+import { lockResearchCaseEventAppendStream } from "./research-case-event-iteration";
 import { compactInvestigationContext, compactPromptSectionPreservingUrlTokens, type CompactionFinding } from "./investigation-context-compaction";
 import { logger } from "./logger";
-import { describeThrownProviderError } from "./provider-error-diagnostics";
+import { describeThrownProviderError, safeThrownErrorMessagePreview } from "./provider-error-diagnostics";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { getAvailableRegistryIds } from "./registry-client";
 import { retainCompletePublicHttpUrlForPrompt } from "./url-privacy";
@@ -679,12 +680,13 @@ export function buildAtlasControlEventPayload(input: { decision: AtlasControlDec
   };
 }
 
-async function persistControlDecision(input: { caseId: number; controlTurn: number; decision: AtlasControlDecision; jobId?: string | null }): Promise<boolean> {
+async function persistControlDecision(input: { caseId: number; controlTurn: number; decision: AtlasControlDecision; jobId?: string | null }): Promise<{ persisted: boolean; error: string | null }> {
   try {
     await db.transaction(async (tx) => {
+      await lockResearchCaseEventAppendStream(tx, input.caseId);
       const [caseRow] = await tx.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, input.caseId)).for("update").limit(1);
       if (!caseRow) throw new Error(`Atlas discovery case ${input.caseId} does not exist.`);
-      if (caseRow.status !== "active") throw new Error(`Atlas discovery case ${input.caseId} is no longer active; refusing stale control persistence.`); if (input.jobId) { let durableFile: Record<string, unknown>; try { durableFile = JSON.parse(caseRow.caseFile ?? "{}") as Record<string, unknown>; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); } if (String(durableFile.jobId ?? durableFile.atlasJobId ?? "") !== input.jobId) throw new Error(`Atlas discovery case ${input.caseId} is owned by another job; refusing stale control persistence.`); }
+      if (caseRow.status !== "active") throw new Error(`Atlas discovery case ${input.caseId} is no longer active; refusing stale control persistence.`); if (input.jobId) { let durableFile: Record<string, unknown>; try { durableFile = JSON.parse(caseRow.caseFile ?? "{}") as Record<string, unknown>; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); } if (String(durableFile.atlasJobId ?? durableFile.jobId ?? "") !== input.jobId) throw new Error(`Atlas discovery case ${input.caseId} is owned by another job; refusing stale control persistence.`); }
       const payload = buildAtlasControlEventPayload({ decision: input.decision, controlTurn: input.controlTurn, jobId: input.jobId });
       const payloadJson = JSON.stringify(payload);
       const correlationKey = `atlas-control:case:${input.caseId}:job:${input.jobId ?? "legacy"}:turn:${input.controlTurn}`;
@@ -701,8 +703,14 @@ async function persistControlDecision(input: { caseId: number; controlTurn: numb
       caseFile.atlasControlDecisions = history;
       await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(caseFile), updatedAt: new Date() }).where(eq(researchCasesTable.id, input.caseId));
     });
-    return true;
-  } catch (error) { logger.error({ caseId: input.caseId, controlTurn: input.controlTurn, diagnostic: describeThrownProviderError(error) }, "Failed to persist Atlas control decision"); return false; }
+    return { persisted: true, error: null };
+  } catch (error) {
+    const diagnostic = describeThrownProviderError(error);
+    const runtimePreview = safeThrownErrorMessagePreview(error);
+    const safeError = `Failed to persist Atlas control decision (class=${diagnostic.errorName}; code=${diagnostic.errorCode ?? diagnostic.causeCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"}${runtimePreview ? `; runtime=${runtimePreview}` : ""}).`;
+    logger.error({ caseId: input.caseId, controlTurn: input.controlTurn, diagnostic, runtimePreview }, "Failed to persist Atlas control decision");
+    return { persisted: false, error: safeError };
+  }
 }
 
 export function compactAtlasInvestigatorReport(rawInput: string | null | undefined): string {
@@ -799,7 +807,7 @@ export type AtlasRightHandAdvisoryOverride = {
 export async function decideAtlasNextAction(input: { objective: string; admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType }>; discoveryStatus: string; discoveryTrajectory: string[]; discoveryTrajectoryRecords?: TrajectoryRecordInput[]; discoveryFindings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>; priorAction?: AtlasControlAction | null; priorCandidate?: string | null; priorCandidateType?: AtlasTargetType | null; caseId: number; controlTurn: number; jobId?: string | null; investigatorReport?: string; pinnedControlState?: string; rightHandOverride?: AtlasRightHandAdvisoryOverride }): Promise<AtlasControlDecision> {
   if (!Number.isSafeInteger(input.caseId) || input.caseId <= 0) throw new Error("Atlas control decision requires a valid durable caseId.");
   if (!Number.isSafeInteger(input.controlTurn) || input.controlTurn <= 0) throw new Error("Atlas control decision requires a valid positive controlTurn.");
-  const finalize = async (decision: AtlasControlDecision): Promise<AtlasControlDecision> => { const persisted = await persistControlDecision({ caseId: input.caseId, controlTurn: input.controlTurn, decision, jobId: input.jobId }); if (persisted) return decision; return { status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Atlas control decision could not be durably persisted; transition is fail-closed.", confidence: null, rightHand: decision.rightHand, bossModel: decision.bossModel, error: safeControlError(new Error("Atlas control decision persistence failure"), "Failed to persist Atlas control decision.") }; };
+  const finalize = async (decision: AtlasControlDecision): Promise<AtlasControlDecision> => { const persisted = await persistControlDecision({ caseId: input.caseId, controlTurn: input.controlTurn, decision, jobId: input.jobId }); if (persisted.persisted) return decision; return { status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Atlas control decision could not be durably persisted; transition is fail-closed.", confidence: null, rightHand: decision.rightHand, bossModel: decision.bossModel, error: persisted.error ?? "Failed to persist Atlas control decision." }; };
   const candidateTargets = input.admittedCandidates;
   const targetDigest = candidateTargets.length
     ? createHash("sha256").update(candidateTargets.map((candidate) => `${candidate.targetType ?? "person"}:${candidate.name.trim().toLowerCase()}`).sort().join("\\n")).digest("hex").slice(0, 16)

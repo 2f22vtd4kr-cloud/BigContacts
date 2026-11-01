@@ -213,7 +213,9 @@ function diagnosticPart(value: unknown): Record<string, unknown> | null {
  */
 export function safeThrownErrorSummary(prefix: string, error: unknown): string {
   const diagnostic = describeThrownProviderError(error);
-  return `${prefix} (class=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`;
+  const code = diagnostic.errorCode ?? diagnostic.causeCode ?? "none";
+  const runtimePreview = safeThrownErrorMessagePreview(error);
+  return `${prefix} (class=${diagnostic.errorName}; code=${code}; digest=${diagnostic.messageDigest ?? "none"}${runtimePreview ? `; runtime=${runtimePreview}` : ""})`;
 }
 
 export function describeThrownProviderError(error: unknown): ProviderThrownDiagnostic {

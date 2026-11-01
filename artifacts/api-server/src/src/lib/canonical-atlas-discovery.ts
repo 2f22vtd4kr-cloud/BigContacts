@@ -21,7 +21,7 @@ import {
   MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
 } from "./canonical-investigator-provider-recovery";
-import { nextResearchCaseEventIteration } from "./research-case-event-iteration";
+import { lockResearchCaseEventAppendStream, nextResearchCaseEventIteration } from "./research-case-event-iteration";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
@@ -144,6 +144,7 @@ async function persistAcceptedAtlasDiscoveryObjective(input: {
   };
   const payloadJson = JSON.stringify(payload);
   await db.transaction(async (tx) => {
+    await lockResearchCaseEventAppendStream(tx, input.caseId);
     const [lockedCase] = await tx.select({
       caseType: researchCasesTable.caseType,
       status: researchCasesTable.status,
@@ -1364,6 +1365,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }
       failureStage = "case_persistence";
       await db.transaction(async (tx) => {
+        await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
         const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration })
           .from(researchCasesTable)
           .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
@@ -1419,6 +1421,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     ): Promise<void> => {
       failureStage = "case_persistence";
       await db.transaction(async (tx) => {
+        await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
         const [lockedCase] = await tx.select({
           status: researchCasesTable.status,
           currentAction: researchCasesTable.currentAction,
@@ -1549,6 +1552,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }
       failureStage = "case_persistence";
       await db.transaction(async (tx) => {
+        await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
         const [lockedCase] = await tx.select({
           status: researchCasesTable.status,
           currentAction: researchCasesTable.currentAction,
@@ -1674,6 +1678,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     evidenceRows += priorCardReconciliation.evidenceRows;
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
+      await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
       // Serialize the opening event against the durable cancellation fence.
       // Whichever transaction acquires the case row first wins the ordering;
       // a cancelled case can never receive a new opening event afterward.
@@ -1800,6 +1805,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // review is also recorded; it is not an automatic stop/veto.
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
+      await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
         .from(researchCasesTable)
         .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
@@ -1861,6 +1867,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         "BOSS INITIAL HYPOTHESES (unverified, not evidence): " + JSON.stringify(boss.nextDirections ?? []),
         "RIGHT-HAND AUTHORITY: advisory only. Boss must evaluate its recommendation and owns the final decision.",
         "Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead.",
+        "STRATEGY COMPARISON CONTRACT: Compare the human objective baseline with at least two materially different plausible hypotheses when the supplied evidence supports them. For each, state source-backed rationale, expected organization yield, decision-maker/person yield, verifiability, and the key disconfirming test. Do not invent source coverage or expand geography/industry merely to manufacture alternatives. If no alternative has a defensible evidence advantage, preserve the human objective and state the evidence gap.",
+        "REGISTRY EPISTEMIC LIMIT: A filing proves only the fields it explicitly reports. Never infer beneficial ownership, equity, wealth, family control, or personal contactability from a registered officer, agent, or company filing. Treat documented officer roles as professional connections, not ownership; require direct official evidence for ownership claims.",
         "The human mission and realistic-targetability rules outrank Boss next-directions. Compare proposed directions with the human objective and observed sources; test whether any proposed direction has a defensible advantage over plausible alternatives.",
       ].join("\n"),
       rightHandOverride: {
@@ -1873,11 +1881,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         error: rightHand.error,
       },
     });
-    await assertAtlasJobActive(atlasJobId);
     if (openingBossDecision.status !== "completed") {
-      failureStage = "oversight_control_decision";
+      failureStage = openingBossDecision.error?.startsWith("Failed to persist Atlas control decision") ? "control_event_persistence" : "oversight_control_decision";
       throw new Error("Groq Boss could not make a valid final opening decision after Right-hand advice: " + (openingBossDecision.error ?? openingBossDecision.reason ?? "unknown Boss control failure"));
     }
+    failureStage = "job_state_or_lease";
+    await assertAtlasJobActive(atlasJobId);
 
     const initialBossDirection = Array.isArray(boss.nextDirections) ? boss.nextDirections[0] : null;
     const openingDirectionResolution = resolveBossAdjudicatedOpeningDirection({
@@ -1970,6 +1979,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     });
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
+      await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
         .from(researchCasesTable)
         .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
@@ -2030,6 +2040,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       await assertAtlasJobActive(atlasJobId);
       failureStage = "case_persistence";
       await db.transaction(async (tx) => {
+        await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
         const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`)).for("update").limit(1);
         if (!locked) throw new Error("Canonical discovery admission projection lost its active case fence.");
         let lockedCaseFile: Record<string, any> = {};
@@ -2187,6 +2198,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await assertAtlasJobActive(atlasJobId);
         failureStage = "control_event_persistence";
         await db.transaction(async (tx) => {
+          await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
           const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
             .from(researchCasesTable)
             .where(and(
@@ -2337,6 +2349,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           await assertAtlasJobActive(atlasJobId);
           failureStage = "control_event_persistence";
           await db.transaction(async (tx) => {
+            await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
             const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile })
               .from(researchCasesTable)
               .where(and(
@@ -2476,6 +2489,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const failureMessage = `Canonical Investigator continuation stopped before a usable new research pass; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
           failureStage = "case_persistence";
           await db.transaction(async (tx) => {
+            await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
             const [lockedCase] = await tx.select({
               status: researchCasesTable.status,
               iteration: researchCasesTable.iteration,
@@ -2755,11 +2769,16 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
               : "canonical-atlas-failed";
     const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
     const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
+    // The control-decision persistence diagnostic is constructed entirely from allowlisted fields
+    // (class, SQLSTATE, digest, and an optional safe runtime preview). Preserve it for operators;
+    // all other unexpected exception messages remain digest-only.
+    const safeControlPersistenceFailure = rawMessage.includes("Failed to persist Atlas control decision (class=") && rawMessage.length <= 1_000;
+    const safeFailureSummary = safeControlPersistenceFailure ? rawMessage : safeThrownErrorSummary("Canonical Atlas discovery failed", error);
     const message = cancelled
       ? `Canonical Atlas discovery cancelled; outcome incomplete. (${diagnosticSuffix})`
       : jobStateUnavailable
         ? `Canonical Atlas job state unavailable; discovery stopped without claiming cancellation. (${diagnosticSuffix})`
-        : `${safeThrownErrorSummary("Canonical Atlas discovery failed", error)} (${diagnosticSuffix})`;
+        : `${safeFailureSummary} (${diagnosticSuffix})`;
     let failureStatePersistenceFailed = false;
     try {
       await db.update(researchCasesTable).set({

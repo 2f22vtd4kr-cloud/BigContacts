@@ -16,6 +16,7 @@ import { ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT, validateAtlasOpeningRi
 import { getAvailableDistinctInvestigatorCapabilities, getAvailableInvestigatorCapabilities, getInvestigatorCredentialAliases, type InvestigatorCapability } from "./investigator-capability-registry";
 import { AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, deriveProviderBoundedActTimeoutMs, isTransientInvestigatorCapacityError, type AgenticTrajectoryRecord } from "./agentic-web-research-core";
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
+import { lockResearchCaseEventAppendStream } from "./research-case-event-iteration";
 import { sanitizeObservableValue } from "./url-privacy";
 import { delCachePattern } from "./redis";
 import { buildCanonicalSeededTargetBinding, classifyCanonicalSeededTargetType } from "./canonical-seeded-target";
@@ -270,6 +271,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     evidence: seededEvidenceRows,
   });
   await db.transaction(async (tx) => {
+    await lockResearchCaseEventAppendStream(tx, caseRow.id);
     const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType, targetEntityId: researchCasesTable.targetEntityId, iteration: researchCasesTable.iteration, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
       .from(researchCasesTable).where(eq(researchCasesTable.id, caseRow.id)).for("update").limit(1);
     if (!locked || locked.caseType !== "target" || locked.targetEntityId !== target.id || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(locked.currentAction ?? ""))) {
@@ -349,6 +351,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         throw new Error(boss.error ?? "Groq Boss did not select a valid alternate Investigator capability for target recovery.");
       }
       const reassignedCaseState = await db.transaction(async (tx) => {
+        await lockResearchCaseEventAppendStream(tx, caseRow.id);
         const [locked] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration })
           .from(researchCasesTable).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`)).for("update").limit(1);
         if (!locked || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? ""))) throw new Error("Canonical Atlas target case is no longer active; refusing Investigator reassignment.");
@@ -375,6 +378,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       investigatorLlm = opening.investigatorLlm; if (!investigatorLlm) { await db.update(researchCasesTable).set({ status: "review", currentAction: "groq-boss-opening-assignment-failed", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)); await publishJob( { status: "failed", progress: 1, message: `Groq Boss did not select a usable Investigator for ${target.name}; no fallback permitted.`, result: JSON.stringify({ caseId: caseRow.id, opening }) }); return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review", exhaustedInvestigatorLlm: [], investigatorLlm }; }
       contextDocument = compactInvestigationContext({ raw: `${contextDocument}\n\n## Groq Boss opening state\nmodel=${opening.model}\nselectedInvestigator=${investigatorLlm}\nreport=${opening.report}\nnextDirections=${opening.nextDirections.join(" | ")}\nuncertainties=${opening.uncertainties.join(" | ")}` }); caseState.contextDocument = contextDocument; caseState.investigatorLlm = investigatorLlm; const [openingProjection] = await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseState), directorMode: "groq_boss_active", directorModel: opening.model, currentAction: "investigator-act-1", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)).returning({ id: researchCasesTable.id }); if (!openingProjection?.id) throw new Error("Canonical Atlas target case was cancelled before Boss opening projection.");
        await db.transaction(async (tx) => {
+         await lockResearchCaseEventAppendStream(tx, caseRow.id);
          const [locked] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`)).for("update").limit(1);
          if (!locked || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? ""))) throw new Error("Canonical Atlas target case is no longer active; refusing Boss opening event after cancellation.");
          await tx.insert(researchCaseEventsTable).values({
@@ -408,6 +412,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review", exhaustedInvestigatorLlm: [], investigatorLlm };
       }
        await db.transaction(async (tx) => {
+         await lockResearchCaseEventAppendStream(tx, caseRow.id);
          const [locked] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`)).for("update").limit(1);
          if (!locked || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? ""))) throw new Error("Canonical Atlas target case is no longer active; refusing Right-hand opening event after cancellation.");
          await tx.insert(researchCaseEventsTable).values({
@@ -480,6 +485,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         findings: contextFindings,
       });
       const nextCaseState = await db.transaction(async (tx) => {
+        await lockResearchCaseEventAppendStream(tx, caseRow.id);
         const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
           .from(researchCasesTable).where(eq(researchCasesTable.id, caseRow.id)).for("update").limit(1);
         if (!locked?.caseFile || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(locked.currentAction ?? ""))) {
