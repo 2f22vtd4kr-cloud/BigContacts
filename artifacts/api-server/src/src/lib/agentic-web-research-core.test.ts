@@ -2984,7 +2984,7 @@ Choose each next action yourself from the available capabilities and observed ev
       vi.unstubAllEnvs();
     }
     expect(buildActionParseFailureObservation("invalid_action_arguments action=registry_search missing=registry"))
-      .toContain('For the UK Companies House adapter, the exact ID is "companies-house"');
+      .toContain("Use the exact ID from the configured choices; do not substitute labels or omit registry");
   });
 
   it("classifies malformed and ambiguous Investigator envelopes without persisting response text", () => {
