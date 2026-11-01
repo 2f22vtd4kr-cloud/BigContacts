@@ -2382,6 +2382,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           }, { isolationLevel: "serializable" });
           continue;
         }
+        // A valid model-directed transition resets the repeated-invalid-decision
+        // guard. The guard is consecutive and never constrains a new valid strategy.
+        lastRejectedPivotKey = "";
+        repeatedRejectedPivotCount = 0;
         failureStage = "orchestration";
         const directedObjective = resolvedObjective.objective;
         const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
