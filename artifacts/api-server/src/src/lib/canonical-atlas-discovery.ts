@@ -957,7 +957,7 @@ async function materializePartialOrganizationLeadCards(input: {
     const claimedUrls = new Set([
       ...input.findings
         .filter((finding) => finding.scope === "organization"
-          && finding.promotionDecision !== "reject"
+          && finding.promotionDecision === "promote"
           && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name))
         .flatMap((finding) => finding.sourceUrls)
         .map(normalizeSourceUrl)
