@@ -593,12 +593,12 @@ async function materializePartialPersonLeadCards(input: {
       const span = restrictedCommunitySource
         ? null
         : observation.verificationLevel === "fetched_source"
-          ? (lead.role ? bindExactSourceSpan(observation.observation, lead.role, lead.name, 320) : bindExactSourceSpan(observation.observation, lead.name, undefined, 320))
-          : (lead.role ? bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.role, lead.name, 320) : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320));
-      const exactSpan = !restrictedCommunitySource && Boolean(span?.exact && (!lead.role || (span.subjectMatched && span.valueMatched)));
-      // The Investigator selected this lead. Exact-span parsing grades the
-      // observation; it must not veto the model's provisional card decision.
-      // Community pages are URL-only references and never claim-grade evidence.
+          ? bindExactSourceSpan(observation.observation, lead.name, undefined, 320)
+          : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320);
+      // A same-run URL is not enough. The actual result/page observation must
+      // contain the exact person name before it can support a review card.
+      const exactSpan = !restrictedCommunitySource && Boolean(span?.exact);
+      if (!restrictedCommunitySource && !exactSpan) continue;
       const verificationLevel = !restrictedCommunitySource && exactSpan && span
         && observation.verificationLevel === "fetched_source"
         && isClaimGradeDiscoverySourceUrl(sourceUrl)
@@ -690,8 +690,8 @@ async function materializePartialPersonLeadCards(input: {
       const notes = collisionNote + (onlyRestrictedCommunitySources
         ? RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE + " The person name/role remains an unverified review lead; independently corroborate identity and role before promotion."
         : hasFetchedSource
-          ? `PARTIAL PERSON LEAD — a fetched public source supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. Wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`
-          : `UNVERIFIED PERSON LEAD — a public source observation supports this Investigator-selected person lead${lead.role ? " and role “" + lead.role + "”" : ""}. The source is not treated as claim-grade evidence; role, wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`)
+          ? `PARTIAL PERSON LEAD — a fetched public source contains this exact person name. Any proposed role, wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`
+          : `UNVERIFIED PERSON LEAD — a public source observation contains this exact person name. The source is not treated as claim-grade evidence; any proposed role, wealth, ownership/control, materiality, and an appropriate public professional approach route remain unverified.`)
         + (hasRestrictedCommunitySource && !onlyRestrictedCommunitySources ? " " + RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE : "");
       const metadata = JSON.stringify({
         ...priorMetadata,
@@ -704,7 +704,9 @@ async function materializePartialPersonLeadCards(input: {
         verificationLevel,
         discoveryCaseId: input.discoveryCaseId,
         atlasJobId: input.atlasJobId,
-        role: lead.role,
+        role: null,
+        proposedRole: lead.role,
+        roleVerified: false,
         sourceUrl: sourceUrls[0],
         sourceUrls,
         sourceAttributions: [...supports.values()].map((support) => buildDiscoverySourceAttribution({ sourceUrl: support.sourceUrl, action: support.action, observedAt: support.createdAt })),
@@ -770,8 +772,8 @@ async function materializePartialPersonLeadCards(input: {
           entityId,
           claimType: "partial_person_role_lead",
           claim: support.verificationLevel === "fetched_source"
-            ? (lead.role ? "A fetched public source co-binds this exact person name and page-stated role; wealth, ownership/control, and targetability remain unverified." : "A fetched public source supports this person name; role, wealth, ownership/control, and targetability remain unverified.")
-            : (lead.role ? "A successful public search/registry observation supports this person and role lead; the underlying page, wealth, ownership/control, and targetability remain unverified." : "A successful public search/registry observation supports this person-name lead; the underlying page, role, wealth, ownership/control, and targetability remain unverified."),
+            ? "A fetched public source contains this exact person name; role, wealth, ownership/control, and targetability remain unverified."
+            : "A successful public search/registry observation contains this exact person name; the underlying page, role, wealth, ownership/control, and targetability remain unverified.",
           value: lead.name,
           sourceName: new URL(support.sourceUrl).hostname,
           sourceUrl: support.sourceUrl,
@@ -787,7 +789,9 @@ async function materializePartialPersonLeadCards(input: {
             discoveryCaseId: input.discoveryCaseId,
             atlasJobId: input.atlasJobId,
             supportingEventId: support.eventId,
-            role: lead.role,
+            role: null,
+            proposedRole: lead.role,
+            roleVerified: false,
             sourceSpan: support.spanVerified ? support.spanText : null,
             sourceSpanVerified: support.spanVerified,
             sourceSpanNote: support.spanVerified ? null : "Investigator-selected person lead; exact source span not independently isolated.",
@@ -805,7 +809,7 @@ async function materializePartialPersonLeadCards(input: {
     materialized += persisted.created;
     evidenceRows += persisted.evidenceRows;
     wroteDurableState ||= persisted.changed;
-    if (persisted.eligible) candidates.push({ name: lead.name, role: lead.role, sourceUrls: [...supports.keys()] });
+    if (persisted.eligible) candidates.push({ name: lead.name, role: null, sourceUrls: [...supports.keys()] });
   }
   if (wroteDurableState) {
     await Promise.all([
@@ -970,6 +974,9 @@ async function materializePartialOrganizationLeadCards(input: {
           ? bindExactSourceSpan(observation.observation, name)
           : bindExactSourceSpanToUrl(observation.observation, sourceUrl, name);
       const exactSpan = !restrictedCommunitySource && Boolean(span?.exact);
+      // A result URL alone cannot substantiate a company name. Require the
+      // exact organization name in the observed result/page text.
+      if (!restrictedCommunitySource && !exactSpan) continue;
       const verificationLevel = !restrictedCommunitySource && exactSpan && span
         && observation.verificationLevel === "fetched_source"
         && isClaimGradeDiscoverySourceUrl(sourceUrl)
@@ -1725,7 +1732,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     failureStage = "right_hand_opening_review";
     const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
       runGroqRightHandFreeJson(
-        `Independently review Groq Boss's opening Atlas hypotheses against the exact human objective. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified hypothesis, not evidence): ${boss.report ?? ""}. Initial directions (unverified hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Assess whether one available source-attributed company/person/asset lead should be investigated now, whether it fits the human objective, and whether any concrete source/tool constraint blocks it. Do not propose a broader geographic area, region comparison, or jurisdiction expansion. You cannot browse and must not treat confidence as evidence. Do not choose tools, select the Investigator, or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to keep, revise, or stop. A disagreement is advice, not a veto. Return concise decision, reason, focusLanes and confidence.`,
+        `Independently review Groq Boss's opening Atlas hypotheses against the exact human objective. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified hypothesis, not evidence): ${boss.report ?? ""}. Initial directions (unverified hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. No source observation or admitted candidate exists yet. Assess whether the Investigator should begin one immediate target-first discovery action using any currently callable registry/asset register or public-web search. Do not claim a candidate exists, treat Boss hypotheses or confidence as evidence, or name/privilege any registry or jurisdiction absent explicit human scope. Do not propose a broader geographic area, region comparison, or jurisdiction expansion. You cannot browse and must not treat confidence as evidence. Do not choose tools, select the Investigator, or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to keep, revise, or stop. A disagreement is advice, not a veto. Return concise decision, reason, focusLanes and confidence.`,
         "You are Groq Right-hand. You independently advise Groq Boss; you do not authorize or veto the opening, choose tools, or replace the Investigator. Boss will evaluate your advice and make the final decision. Return ONE JSON object only.",
         ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
         (raw) => {
@@ -1867,7 +1874,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         "BOSS INITIAL HYPOTHESES (unverified, not evidence): " + JSON.stringify(boss.nextDirections ?? []),
         "RIGHT-HAND AUTHORITY: advisory only. Boss must evaluate its recommendation and owns the final decision.",
         "Flag unsupported company/person/asset premises rather than repeating them as facts. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead.",
-        "STRATEGY COMPARISON CONTRACT: Compare the human objective baseline with at least two materially different plausible hypotheses when the supplied evidence supports them. For each, state source-backed rationale, expected organization yield, decision-maker/person yield, verifiability, and the key disconfirming test. Do not invent source coverage or expand geography/industry merely to manufacture alternatives. If no alternative has a defensible evidence advantage, preserve the human objective and state the evidence gap.",
+        "OPENING TARGET CONTRACT: No source observations or admitted candidates exist yet. Make one simple control decision to let the selected Investigator begin discovery. Do not compare alternatives, invent a candidate, or repeat a model hypothesis as fact. Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run and exact target text is supported by that observation. The Investigator selects one useful target from any currently callable registry/asset register or public-web result; no source preference or jurisdiction assumption.",
         "REGISTRY EPISTEMIC LIMIT: A filing proves only the fields it explicitly reports. Never infer beneficial ownership, equity, wealth, family control, or personal contactability from a registered officer, agent, or company filing. Treat documented officer roles as professional connections, not ownership; require direct official evidence for ownership claims.",
         "The human mission and realistic-targetability rules outrank Boss next-directions. Compare proposed directions with the human objective and observed sources; test whether any proposed direction has a defensible advantage over plausible alternatives.",
       ].join("\n"),
