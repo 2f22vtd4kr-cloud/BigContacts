@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ATLAS_BOSS_CONTROL_PROMPT_BUDGET,
+  ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT,
   ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,
   atlasLeadUtilizationLaw,
@@ -175,6 +176,13 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("unfetchedLeadUrls");
     expect(prompt).toContain("A blocked request cannot support a claim that a registry or sector lacks ownership information.");
     expect(prompt).toContain("Do not prescribe a fixed provider, query, tool, source class, or action sequence.");
+  });
+
+  it("restricts the opening Boss response to start or stop with no target or direction", () => {
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.action.enum).toEqual(["continue_discovery", "stop"]);
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.candidateName.type).toBe("null");
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.candidateType.type).toBe("null");
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.direction.type).toBe("null");
   });
 
   it("fits the full opening objective without duplicating it in pinned control state", () => {
