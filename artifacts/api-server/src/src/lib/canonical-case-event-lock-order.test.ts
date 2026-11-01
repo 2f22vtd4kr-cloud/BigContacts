@@ -15,7 +15,7 @@ const eventWriterPaths = [
 function assertEventTransactionsLockBeforeRow(relativePath: string): number {
   const filePath = path.resolve(process.cwd(), relativePath);
   const source = fs.readFileSync(filePath, "utf8");
-  const starts = [...source.matchAll(/(?:await\\s+)?db\\.transaction\\(async\\s*\\(tx\\)\\s*=>\\s*\\{/g)]
+  const starts = [...source.matchAll(/(?:await\s+)?db\.transaction\(async\s*\(tx\)\s*=>\s*\{/g)]
     .map((match) => match.index ?? -1);
   let checked = 0;
   for (let index = 0; index < starts.length; index += 1) {
