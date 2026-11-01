@@ -1860,7 +1860,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         "Boss report (unverified control hypothesis, not source evidence): " + compactControlText(boss.report, 1_200),
         "BOSS INITIAL HYPOTHESES (unverified, not evidence): " + JSON.stringify(boss.nextDirections ?? []),
         "RIGHT-HAND AUTHORITY: advisory only. Boss must evaluate its recommendation and owns the final decision.",
-        "Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead.",
+        "Flag unsupported company/person/asset premises rather than repeating them as facts. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead.",
         "The human mission and realistic-targetability rules outrank Boss next-directions. Compare proposed directions with the human objective and observed sources; test whether any proposed direction has a defensible advantage over plausible alternatives.",
       ].join("\n"),
       rightHandOverride: {
