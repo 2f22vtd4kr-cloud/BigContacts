@@ -10,6 +10,7 @@ import { enablePermanentRedis } from "../../lib/redis";
 import { withProviderScope } from "../../lib/provider-gate";
 import { safeThrownErrorSummary } from "../../lib/provider-error-diagnostics";
 import { classifyActiveJobLaneStatus } from "../../lib/job-queue-terminal-policy";
+import { lockResearchCaseEventAppendStream } from "../../lib/research-case-event-iteration";
 const router = Router();
 const cancellationFenceSql = (caseId: number) => sql`NOT (status = 'cancelled' OR (status = 'review' AND current_action IN ('canonical-atlas-cancelled','canonical-lease-lost','canonical-continuation-cancelled'))) AND id = ${caseId}`;
 function parseFile(raw: string | null): Record<string, any> | null { try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; } }
@@ -215,6 +216,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
       : `${nextContextRaw.slice(0, 16_000)}\n\n[CONTINUATION CONTEXT BOUND: middle detail omitted; durable case state remains authoritative]\n\n${nextContextRaw.slice(-16_000)}`;
     const continuationEventKey = `target-continuation:case:${caseId}:job:${jobId}:turn:${controlTurn}`;
     await db.transaction(async (tx) => {
+      await lockResearchCaseEventAppendStream(tx, caseId);
       const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
       if (!locked || locked.caseType !== "target" || locked.targetEntityId !== current.targetEntityId) throw Object.assign(new Error("Target continuation case binding changed before authorization projection."), { statusCode: 409 });
       if (locked.status === "complete" || locked.status === "cancelled" || (locked.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled"].includes(String(locked.currentAction ?? "")))) throw Object.assign(new Error(locked.status === "complete" ? "Target continuation case is durably complete and cannot be resumed." : "Target continuation case is durably cancelled and cannot be resumed."), { statusCode: 409, cancellationFence: true });
