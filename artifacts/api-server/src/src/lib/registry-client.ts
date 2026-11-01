@@ -178,6 +178,21 @@ export function getAvailableRegistryIds(): RegistryId[] {
   return REGISTRY_IDS.filter(isRegistryProviderAvailable);
 }
 
+/**
+ * Registry IDs are presented to language models as neutral choices. Randomizing
+ * prompt/schema order avoids a stable positional advantage for any one adapter;
+ * runtime validation must continue to use getAvailableRegistryIds().
+ */
+export function getAvailableRegistryIdsForPrompt(rng: () => number = Math.random): RegistryId[] {
+  const ids = getAvailableRegistryIds();
+  for (let i = ids.length - 1; i > 0; i -= 1) {
+    const raw = rng();
+    const j = Math.max(0, Math.min(i, Math.floor((Number.isFinite(raw) ? raw : 0) * (i + 1))));
+    [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+  }
+  return ids;
+}
+
 
 export const RANDOM_DISCOVERY_REGISTRIES = [
   "sec-edgar", "companies-house", "brreg", "ares-czechia", "bodacc-france", "gleif",
