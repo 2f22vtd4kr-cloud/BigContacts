@@ -1731,7 +1731,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     failureStage = "right_hand_opening_review";
     const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
       runGroqRightHandFreeJson(
-        `Independently review Groq Boss's opening Atlas hypotheses against the exact human objective. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report (unverified hypothesis, not evidence): ${boss.report ?? ""}. Initial directions (unverified hypotheses, not evidence): ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. No source observation or admitted candidate exists yet. Assess whether the Investigator should begin one immediate target-first discovery action using any currently callable registry/asset register or public-web search. Do not claim a candidate exists, treat Boss hypotheses or confidence as evidence, or name/privilege any registry or jurisdiction absent explicit human scope. Do not propose a broader geographic area, region comparison, or jurisdiction expansion. You cannot browse and must not treat confidence as evidence. Do not choose tools, select the Investigator, or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to keep, revise, or stop. A disagreement is advice, not a veto. Return concise decision, reason, focusLanes and confidence.`,
+        `Independently review the exact human objective and the opening control state. Objective: ${discoveryObjective}. Boss selected Investigator capability: ${boss.investigatorLlm}. No Investigator action has executed; there are no source observations or admitted candidates yet. Assess only whether the selected Investigator should begin one immediate target-first discovery action or whether a concrete runtime constraint prevents it. Do not propose a named person, company, asset, registry, provider, country, or jurisdiction. All enabled registries/asset registers and public-web search are neutral options; the Investigator selects the actual target and source from returned observations. You cannot browse and must not treat confidence as evidence. Do not choose tools, select the Investigator, or authorize/deny execution. Give Boss your independent recommendation and rationale; Boss alone decides whether to start discovery or stop. A disagreement is advice, not a veto. Return concise decision, reason, focusLanes and confidence.`,
         "You are Groq Right-hand. You independently advise Groq Boss; you do not authorize or veto the opening, choose tools, or replace the Investigator. Boss will evaluate your advice and make the final decision. Return ONE JSON object only.",
         ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,
         (raw) => {
@@ -1861,16 +1861,14 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       jobId: atlasJobId,
       investigatorReport: JSON.stringify({
         stage: "opening_adjudication",
-        bossInitialReport: boss.report ?? null,
-        bossInitialDirections: boss.nextDirections ?? [],
-        bossUncertainties: boss.uncertainties ?? [],
-        instruction: "This is the opening adjudication before the first Investigator action. Evaluate the Right-hand advice and make the final Boss decision. You may continue with the initial direction, pivot to a validated alternative you choose, continue the human base objective without adopting any direction, or stop.",
+        bossInitialReport: null,
+        bossInitialDirections: [],
+        bossUncertainties: [],
+        instruction: "This is the opening adjudication before the first Investigator action. Evaluate the Right-hand advice and make the final Boss decision: start target-first discovery under the exact human objective, or stop only for a concrete blocker. There are no source-backed candidates or directions to adopt yet.",
       }),
       pinnedControlState: [
         "OPENING CONTROL STATE (authoritative): Boss has selected the Investigator capability but has not yet activated an opening research direction.",
         "OBJECTIVE SOURCE: The complete current human objective is in COMPLETE DISCOVERY STATE; do not add geography absent from it.",
-        "Boss report (unverified control hypothesis, not source evidence): " + compactControlText(boss.report, 1_200),
-        "BOSS INITIAL HYPOTHESES (unverified, not evidence): " + JSON.stringify(boss.nextDirections ?? []),
         "RIGHT-HAND AUTHORITY: advisory only. Boss must evaluate its recommendation and owns the final decision.",
         "Flag unsupported company/person/asset premises rather than repeating them as facts. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead.",
         "OPENING TARGET CONTRACT: No source observations or admitted candidates exist yet. Make one simple control decision to let the selected Investigator begin discovery. Do not compare alternatives, invent a candidate, or repeat a model hypothesis as fact. Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run and exact target text is supported by that observation. The Investigator selects one useful target from any currently callable registry/asset register or public-web result; no source preference or jurisdiction assumption.",
