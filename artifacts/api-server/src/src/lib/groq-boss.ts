@@ -238,7 +238,7 @@ function tokenWindowWaitMs(response: Response, body: string): number | null {
   try {
     const parsed = JSON.parse(body) as { error?: { message?: unknown } };
     const message = typeof parsed.error?.message === "string" ? parsed.error.message : "";
-    const match = message.match(/(?:please\\s+)?try again in\\s+(\\d+(?:\\.\\d+)?)\\s*(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m)\\b/i);
+    const match = message.match(/(?:please\s+)?try again in\s+(\d+(?:\.\d+)?)\s*(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m)\b/i);
     if (!match) return null;
     const amount = Number(match[1]);
     if (!Number.isFinite(amount) || amount < 0) return null;
