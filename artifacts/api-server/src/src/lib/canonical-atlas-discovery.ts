@@ -1939,33 +1939,6 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       return { phase: 0, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
     }
 
-    const approvedOpeningDirection = openingDirectionResolution.status === "approved"
-      ? openingDirectionResolution.direction
-      : "";
-    if (approvedOpeningDirection) {
-      const openingObjective = resolveBossDirectedDiscoveryObjective({
-        action: "continue_discovery",
-        baseObjective: discoveryObjective,
-        currentObjective: activeDiscoveryObjective,
-        direction: approvedOpeningDirection,
-      });
-      if (!openingObjective.valid) {
-        failureStage = "model_action_validation";
-        throw new Error("Groq Boss-adjudicated opening direction failed canonical objective validation: " + openingObjective.reason);
-      }
-      failureStage = "control_event_persistence";
-      await persistAcceptedAtlasDiscoveryObjective({
-        caseId: discoveryCaseId,
-        jobId: atlasJobId,
-        controlTurn: 1,
-        action: "continue_discovery",
-        direction: openingObjective.direction,
-        baseObjective: discoveryObjective,
-        previousObjective: activeDiscoveryObjective,
-        activeObjective: openingObjective.objective,
-      });
-      activeDiscoveryObjective = openingObjective.objective;
-    }
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
       "BOSS FINAL OPENING DECISION: target-first discovery is authorized under the exact human objective; no candidate or research direction was selected.",
