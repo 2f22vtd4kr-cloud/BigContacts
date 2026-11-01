@@ -602,7 +602,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain('targetType: "person" as const');
     expect(canonicalSource).toContain("const organizationTargets = partialOrganizations.candidates");
     expect(canonicalSource).toContain('.filter(({ targetEligibleForResearch }) => targetEligibleForResearch)');
-    expect(canonicalSource).toContain('finding.promotionDecision !== "promote"');
+    expect(canonicalSource).toContain('finding.promotionDecision === "reject"');
+    expect(canonicalSource).toContain('finding.promotionDecision !== "reject"');
     expect(canonicalSource).toContain("payload.runId !== input.discoveryRunId");
     expect(canonicalSource).toContain('support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true');
     expect(canonicalSource).toContain('targetType: "organization" as const');
