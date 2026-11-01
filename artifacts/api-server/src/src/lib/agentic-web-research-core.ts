@@ -1721,7 +1721,7 @@ export function buildActionParseFailureObservation(parseFailure: string): string
     return `The previous model response was not a usable action object (${failure}); no tool ran. If choosing parallel_web_search, include "searches" as an array of 2–4 objects. Every search object must include a non-empty "query", "provider" (serper, tavily, or exa), "registry":null, "locale" (string or null), "market" (string or null), and "purpose" (string or null for that nested web-search item). Otherwise choose another permitted action. ${rationaleContract} Return every required top-level field; null only action-irrelevant scalar fields and [] only action-irrelevant arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=registry_search/.test(failure)) {
-    const configuredRegistryIds = getAvailableRegistryIds().join(", ") || "none";
+    const configuredRegistryIds = getAvailableRegistryIdsForPrompt().join(", ") || "none";
     return `The previous model response was not a usable action object (${failure}); no tool ran. For registry_search, provide both a non-empty "query" and a "registry" value that exactly matches one configured ID [${configuredRegistryIds}]. Use the exact ID from the configured choices; do not substitute labels or omit registry. Do not invent IDs or infer preference from option order. If no listed registry fits the active scope, choose another permitted action. ${rationaleContract} Return every required top-level field; null only action-irrelevant scalar fields and [] only action-irrelevant arrays. Return exactly one JSON object and no prose.`;
   }
   if (/action=browser_fetch/.test(failure)) {
@@ -2720,7 +2720,7 @@ const AGENTIC_ACTION_SCHEMA = {
         ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items,
         properties: {
           ...AGENTIC_STRUCTURED_SCHEMA.properties.searches.items.properties,
-          registry: { type: ["string", "null"], enum: [...getAvailableRegistryIds(), null] },
+          registry: { type: ["string", "null"], enum: [...getAvailableRegistryIdsForPrompt(), null] },
         },
       },
     },
