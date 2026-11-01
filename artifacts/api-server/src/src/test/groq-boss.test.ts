@@ -17,17 +17,17 @@ describe("Groq Boss discovery prompt grounding", () => {
   });
 
 
-  it("compares opening hypotheses without privileging Companies House or prescribing a research itinerary", () => {
+  it("selects one immediate target without registry or geography bias", () => {
     const prompt = buildGroqBossDiscoveryPrompt({
       objective: "Discover under-the-radar people with credible wealth potential and realistic public contact routes.",
       motivation: "Identify source-backed ownership, assets, and approach paths.",
     }, ["groq-investigator-1"]);
-    expect(prompt).toContain("Compare materially different, mission-consistent hypotheses");
-    expect(prompt).toContain("Do not prefer a registry merely because its adapter is callable");
-    expect(prompt).toContain("Companies House is only an illustrative UK-specific example, not a default or preferred source");
-    expect(prompt).toContain("This is comparative judgment, not a fixed research itinerary");
-    expect(canonicalAtlasDiscoverySource).toContain("defensible advantage over plausible alternatives");
-    expect(caseBureauSource).toContain("Companies House is only an illustrative UK-specific example, not a default or preferred source");
+    expect(prompt).toContain("Choose one concrete, testable company/person/asset lead");
+    expect(prompt).toContain("All enabled registries and web search are neutral discovery options");
+    expect(prompt).toContain("Preserve geographic constraints only when the human explicitly supplied them");
+    expect(prompt).toContain("A useful candidate is enough");
+    expect(canonicalAtlasDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions");
+    expect(caseBureauSource).toContain("Start by selecting a concrete company, person, or asset candidate");
   });
 
   it("uses medium reasoning for the opening discovery assignment", () => {
