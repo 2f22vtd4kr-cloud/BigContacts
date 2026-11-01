@@ -378,7 +378,7 @@ function buildBossPlanResponseFormat(availableInvestigators: readonly Investigat
   };
 }
 
-function buildBossDiscoveryResponseFormat(availableInvestigators: readonly InvestigatorCapability[]): Record<string, unknown> {
+export function buildBossDiscoveryResponseFormat(availableInvestigators: readonly InvestigatorCapability[]): Record<string, unknown> {
   return {
     type: "text", mime_type: "application/json",
     schema: {
@@ -386,25 +386,9 @@ function buildBossDiscoveryResponseFormat(availableInvestigators: readonly Inves
       properties: {
         report: { type: "string" },
         investigatorLlm: { type: "string", enum: [...availableInvestigators] },
-        candidates: {
-          type: "array", maxItems: 6,
-          items: {
-            type: "object",
-            properties: {
-              name: { type: "string" }, type: { type: "string" }, relevance: { type: "string" }, reachability: { type: "string" },
-              sourceUrls: { type: "array", items: { type: "string" }, maxItems: 8 },
-              contactEvidence: { type: "array", maxItems: 8, items: {
-                type: "object",
-                properties: { vectorType: { type: "string" }, value: { type: "string" }, scope: { type: "string", enum: ["person","organization","unknown"] }, personName: { type: ["string","null"] }, role: { type: ["string","null"] }, sourceUrls: { type: "array", items: { type: "string" }, maxItems: 6 }, note: { type: ["string","null"] } },
-                required: ["vectorType","value","scope","personName","role","sourceUrls","note"], additionalProperties: false,
-              } },
-            },
-            required: ["name","type","relevance","reachability","sourceUrls","contactEvidence"], additionalProperties: false,
-          },
-        },
         nextDirections: { type: "array", items: { type: "string" }, maxItems: 8 }, uncertainties: { type: "array", items: { type: "string" }, maxItems: 8 },
       },
-      required: ["report","investigatorLlm","candidates","nextDirections","uncertainties"], additionalProperties: false,
+      required: ["report","investigatorLlm","nextDirections","uncertainties"], additionalProperties: false,
     },
   };
 }
@@ -424,7 +408,7 @@ export function parseBossDiscoveryResponse(raw: string, allowedInvestigators: re
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
     const object = parsed as Record<string, unknown>;
-    const allowed = new Set(["report", "investigatorLlm", "candidates", "nextDirections", "uncertainties"]);
+    const allowed = new Set(["report", "investigatorLlm", "nextDirections", "uncertainties"]);
     const required = [...allowed];
     if (Object.keys(object).some((key) => !allowed.has(key)) || required.some((key) => !Object.prototype.hasOwnProperty.call(object, key))) {
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
@@ -442,32 +426,10 @@ export function parseBossDiscoveryResponse(raw: string, allowedInvestigators: re
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
 
-    if (!Array.isArray(object.candidates) || object.candidates.length > 6) {
-      return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
-    }
-    const candidates = object.candidates.flatMap((candidateValue) => {
-      if (!candidateValue || typeof candidateValue !== "object" || Array.isArray(candidateValue)) return [];
-      const candidate = candidateValue as Record<string, unknown>;
-      const candidateKeys = ["name", "type", "relevance", "reachability", "sourceUrls", "contactEvidence"];
-      const candidateAllowed = new Set(candidateKeys);
-      if (Object.keys(candidate).some((key) => !candidateAllowed.has(key)) || candidateKeys.some((key) => !Object.prototype.hasOwnProperty.call(candidate, key))) return [];
-      const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
-      const type = typeof candidate.type === "string" ? candidate.type.trim() : "";
-      const relevance = typeof candidate.relevance === "string" ? candidate.relevance.trim() : "";
-      const reachability = typeof candidate.reachability === "string" ? candidate.reachability.trim() : "";
-      const sourceUrls = Array.isArray(candidate.sourceUrls) && candidate.sourceUrls.length <= 8 && candidate.sourceUrls.every((url) => typeof url === "string" && /^https?:\/\//i.test(url))
-        ? candidate.sourceUrls as string[]
-        : null;
-      const contactEvidence = parseDiscoveryContactEvidenceStrict(candidate.contactEvidence);
-      // A short name can be a legitimate person or organization identifier (for example, Li or 3M).
-      // Identity quality is established by the model's selected target and source evidence, not a length heuristic.
-      if (!name || !type || !relevance || !reachability || !sourceUrls || !contactEvidence) return [];
-      return [{ name, type, relevance, reachability, sourceUrls, contactEvidence }];
-    });
-    if (candidates.length !== object.candidates.length) {
-      return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
-    }
-    return { report, candidates, investigatorLlm, nextDirections, uncertainties };
+    // Boss has no browsing capability. It cannot create source-backed candidates,
+    // source URLs, relationships, or contact evidence; those enter only through
+    // Investigator observations and deterministic admission.
+    return { report, candidates: [], investigatorLlm, nextDirections, uncertainties };
   } catch {
     return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
   }
@@ -536,11 +498,11 @@ export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, avai
 This is a shared case-context review. Read the current investigation progress and investigator reports below
 before deciding what should be researched next. The case context is the durable shared record for this Bureau.
 Internal memory, storage, and workflow terminology are infrastructure concepts only—not a company, sector, geography, or research lead. Derive research directions from the human mission and observed source evidence; do not turn wording from these instructions into a research premise.
-If the objective does not specify an industry, organization, person, or geography, you may propose a testable starting hypothesis, but explicitly label it as a hypothesis rather than an established fact or something supplied by the objective. The Investigator should test that hypothesis against observed public evidence and pivot if it is unsupported.
-You have no web access and must not use or request Google Search grounding. Do not wait for a preselected entity.
-Recommend one immediately executable discovery move. Start by selecting a concrete company, person, or asset candidate from any currently callable official registry/asset register or public-web result. One useful source-backed candidate is enough to begin target-scoped research; do not run a preliminary broad-geography exercise, compare regions, or invent a jurisdiction. Preserve geographic constraints only when the human explicitly supplied them. The Investigator chooses the source, query, and action; no fixed itinerary.
+If the objective does not specify an industry, organization, person, or geography, do not invent a named target. You may describe the kind of public evidence the Investigator should seek, but label any idea as an unverified hypothesis.
+You have no web access and must not use or request Google Search grounding. Do not claim to have discovered, checked, fetched, or verified any company, person, asset, URL, ownership fact, relationship, valuation, or contact route.
+OPENING DISCOVERY: make the control decision that allows the selected Investigator to begin one immediate target-first discovery action. The Investigator, not Boss, selects a concrete company, person, or asset only after an actual result is returned by a currently callable registry/asset register or public-web search. A single useful observed target is enough; do not compare sectors or regions, invent a jurisdiction, or prescribe a source itinerary.
 Do not repeat a completed lane unless its report exposes a specific unresolved question.
-OPENING TARGET SELECTION: do not spend the opening decision comparing broad sectors, regions, or jurisdictions. Choose one concrete, testable company/person/asset lead that can be found now through a currently callable registry or public-web search. All enabled registries and web search are neutral discovery options; select by the actual target/evidence fit, not source familiarity, country, adapter order, or brand recognition. Do not name or privilege a particular registry in the prompt. A useful candidate is enough; Boss can then authorize target-scoped verification.
+SOURCE-NEUTRALITY: all currently enabled registries/asset registers and public-web search are equal, neutral options. Do not name, rank, or privilege a particular registry, provider, country, or jurisdiction unless the human explicitly supplied that scope or the runtime capability layer returned it as available and relevant.
 REGISTRY FEASIBILITY: use only registry adapters actually present in the runtime's available tool/registry list. Do not assume a generic state Secretary-of-State adapter or unverified member/equity/revenue fields exist. When the Right-hand explicitly rejects a proposed source because its adapter or fields are unavailable, do not send the rejected direction to the Investigator and do not stop solely because the first direction was rejected; choose another callable source that can investigate the same target and human-supplied scope, or use public-web search. Do not change geography merely because one adapter is unavailable. Keep this a model-owned choice; do not prescribe a target or search sequence.
 Investigator capability availability at this moment: ${JSON.stringify(availableInvestigators)}. Select only an available capability; the harness will not substitute a different Investigator after your decision.
 The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence
@@ -552,32 +514,12 @@ Current shared case context:
 ${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigator reports exist; this is the opening brief."}
 Return ONLY JSON in this shape:
      {
-  "report": "concise evidence-led opening assessment",
+  "report": "concise opening control assessment; do not claim any target has been discovered",
   "investigatorLlm": "one capability from the available runtime Investigator registry",
-  "candidates": [
-    {
-      "name": "candidate name",
-      "type": "person | company | investment_group | intermediary",
-      "relevance": "why this candidate fits the mission",
-      "reachability": "realistic public route or unresolved",
-       "sourceUrls": ["exact URLs supporting this candidate"],
-       "contactEvidence": [
-         {
-           "vectorType": "email | phone | linkedin | twitter | instagram | telegram | website | organization_contact | other",
-           "value": "exact publicly reported value",
-           "scope": "person | organization | unknown",
-           "personName": "person attributed to the route or null",
-           "role": "role at the organization or null",
-           "sourceUrls": ["exact URLs that visibly support this route"],
-           "note": "attribution or verification caveat"
-         }
-       ]
-    }
-  ],
-  "nextDirections": ["bounded next investigation direction"],
-  "uncertainties": ["identity, attribution, or access uncertainty"]
+  "nextDirections": ["one concise instruction for the Investigator to begin source-neutral target-first discovery; no named candidate, registry, jurisdiction, URL, or contact detail"],
+  "uncertainties": ["evidence gaps that the Investigator must resolve from actual source observations"]
 }
-Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
+Boss output is control guidance, never a discovery or evidence record. Never invent or output candidate names, source URLs, contact details, ownership, relationships, or wealth claims.`;
 }
 
 export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promise<GeminiBossDiscoveryResult> {
