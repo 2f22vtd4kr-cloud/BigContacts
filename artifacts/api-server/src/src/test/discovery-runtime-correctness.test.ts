@@ -36,8 +36,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("bossDirection: null");
     expect(canonicalDiscoverySource).toContain("initialBossDirection: null");
     expect(canonicalDiscoverySource).toContain('openingBossDecision.action !== "continue_discovery" && openingBossDecision.action !== "stop"');
-    expect(canonicalDiscoverySource).toContain('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
-    expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = openingObjective.objective");
+    expect(canonicalDiscoverySource).not.toContain("approvedOpeningDirection");
+    expect(canonicalDiscoverySource).not.toContain("activeDiscoveryObjective = openingObjective.objective");
     expect(canonicalDiscoverySource).toContain("controlTurn: 1");
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
     expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION: target-first discovery is authorized under the exact human objective; no candidate or research direction was selected.");
@@ -132,14 +132,14 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("decision: rightHand.decision");
     expect(canonicalSource).toContain("authority: \"advisory_only\"");
     expect(canonicalSource).not.toContain("rightHand.approval");
-    expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
-    const approvedOpeningStart = canonicalSource.indexOf('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
-    const persistedOpeningScope = canonicalSource.indexOf("controlTurn: 1", approvedOpeningStart);
-    const firstInvestigatorAct = canonicalSource.indexOf("let discovery = await runBureauAgenticWebPass", approvedOpeningStart);
-    expect(canonicalSource).toContain("persistAcceptedAtlasDiscoveryObjective({");
-    expect(canonicalSource).toContain("activeDiscoveryObjective = openingObjective.objective");
-    expect(persistedOpeningScope).toBeGreaterThan(approvedOpeningStart);
-    expect(firstInvestigatorAct).toBeGreaterThan(persistedOpeningScope);
+    const openingObjectiveStart = canonicalSource.indexOf("const openingInvestigatorObjective = [");
+    const firstInvestigatorAct = canonicalSource.indexOf("let discovery = await runBureauAgenticWebPass", openingObjectiveStart);
+    const openingControlSection = canonicalSource.slice(openingCallStart, firstInvestigatorAct);
+    expect(openingObjectiveStart).toBeGreaterThan(openingCallStart);
+    expect(firstInvestigatorAct).toBeGreaterThan(openingObjectiveStart);
+    expect(openingControlSection).toContain("Only actual same-run Investigator tool observations may establish candidate names");
+    expect(openingControlSection).not.toContain("approvedOpeningDirection");
+    expect(openingControlSection).not.toContain("persistAcceptedAtlasDiscoveryObjective");
   });
 
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
