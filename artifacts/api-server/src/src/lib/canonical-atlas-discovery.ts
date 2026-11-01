@@ -592,7 +592,7 @@ async function materializePartialPersonLeadCards(input: {
       const restrictedCommunitySource = isRestrictedCommunitySourceUrl(sourceUrl);
       const span = restrictedCommunitySource
         ? null
-        : observation.verificationLevel === "fetched_source"
+        : observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
           ? bindExactSourceSpan(observation.observation, lead.name, undefined, 320)
           : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320);
       // A same-run URL is not enough. The actual result/page observation must
