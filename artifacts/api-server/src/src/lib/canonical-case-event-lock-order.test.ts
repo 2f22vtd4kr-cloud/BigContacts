@@ -18,7 +18,7 @@ describe("canonical case-event append lock ordering", () => {
     let checked = 0;
     for (const filePath of sourceFiles) {
       const source = readFileSync(filePath, "utf8");
-      const starts = [...source.matchAll(/db\\.transaction\\(async\\s*\\(?\\s*tx\\s*\\)?\\s*=>\\s*\\{/g)]
+      const starts = [...source.matchAll(/db\.transaction\(async\s*\(?\s*tx\s*\)?\s*=>\s*\{/g)]
         .map((match) => match.index ?? -1);
       for (let index = 0; index < starts.length; index += 1) {
         const start = starts[index]!;
