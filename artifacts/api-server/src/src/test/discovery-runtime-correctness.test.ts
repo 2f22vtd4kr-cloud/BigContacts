@@ -46,14 +46,14 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("If the Boss wording explicitly orders dependent source stages");
     expect(researchCoreSource).toContain("explain any material deviation");
   });
-  it("compares model-selected anchors by evidence yield, targetability, novelty, and cost without fixing a sector", () => {
-    expect(bossDiscoverySource).toContain("compare a small set of plausible hypotheses by commercial relevance");
-    expect(bossDiscoverySource).toContain("expected research cost");
-    expect(bossDiscoverySource).toContain("not the biggest or most famous entity");
-    expect(researchCoreSource).toContain("compare a small set of plausible non-famous business/sector hypotheses");
-    expect(researchCoreSource).toContain("strongest expected evidence/value hypothesis");
-    expect(researchCoreSource).toContain("change the hypothesis or source class rather than paraphrasing the same query");
-    expect(researchCoreSource).toContain("no fixed sequence");
+  it("selects one source-backed target without geography-first exploration or source preference", () => {
+    expect(bossDiscoverySource).toContain("one immediately executable discovery move");
+    expect(bossDiscoverySource).toContain("All enabled registries and web search are neutral discovery options");
+    expect(bossDiscoverySource).toContain("A useful candidate is enough");
+    expect(researchCoreSource).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY");
+    expect(researchCoreSource).toContain("All enabled registries and public-web search are neutral options");
+    expect(researchCoreSource).toContain("do not broaden geography");
+    expect(researchCoreSource).toContain("no named default, fixed source order, or broad discovery exercise");
   });
 
   it("does not retain the retired deterministic Atlas orchestrator", () => {
@@ -1010,7 +1010,7 @@ describe("Apex research runtime readiness hardening", () => {
       searches: [],
     }))).toContain("searches_min=1");
     expect(researchCoreSource).toContain('required: ["query","provider","registry","locale","market","purpose"]');
-    expect(researchCoreSource).toContain('registry: { type: ["string","null"], enum: ["sec-edgar"');
+    expect(researchCoreSource).toContain('registry: { type: ["string", "null"], enum: [...getAvailableRegistryIdsForPrompt(), null]');
   });
 
 
