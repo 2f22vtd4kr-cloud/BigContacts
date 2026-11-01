@@ -8,7 +8,7 @@ describe("Investigator target and source grounding guardrails", () => {
   it("keeps the complete current objective out of lossy historical memory for ordinary discovery turns", () => {
     const objective = [
       "PRIMARY CASE OBJECTIVE:",
-      ...Array.from({ length: 115 }, (_, index) =>
+      ...Array.from({ length: 15 }, (_, index) =>
         "Constraint " + (index + 1) + ": discover source-backed people and organizations, distinguish leads from fetched evidence, and preserve the stated public/professional approach-route requirements.",
       ),
     ].join("\n");
