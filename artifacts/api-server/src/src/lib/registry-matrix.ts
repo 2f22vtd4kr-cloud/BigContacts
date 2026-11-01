@@ -352,10 +352,11 @@ export const REGISTRY_COVERAGE_MATRIX: readonly RegistryCoverage[] = [
  * itinerary; the live action schema remains authoritative.
  */
 export function renderRegistryCoverageGuidance(availableIds: readonly string[]): string {
-  const available = new Set(availableIds);
   const clip = (value: string, max = 92): string => value.length <= max ? value : value.slice(0, max - 1) + "…";
-  return REGISTRY_COVERAGE_MATRIX
-    .filter((entry) => entry.runtimeAdapterImplemented && available.has(entry.id))
+  const entriesById = new Map(REGISTRY_COVERAGE_MATRIX.map((entry) => [entry.id, entry]));
+  return availableIds
+    .map((id) => entriesById.get(id))
+    .filter((entry): entry is RegistryCoverage => Boolean(entry?.runtimeAdapterImplemented))
     .map((entry) => [
       entry.id + " — " + entry.label + " (" + entry.jurisdiction + ")",
       "entity=" + clip(entry.entityIdentifier, 70),
