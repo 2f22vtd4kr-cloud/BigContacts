@@ -76,7 +76,7 @@ const COMPACT_CAPABILITY_GUIDANCE: Record<string, string> = {
   "search.exa": "provider=exa; semantic discovery; relevance is not identity",
   "web.visit": "inspect source; PDFs bounded; JS/challenge pages may fail",
   "web.browser_fetch": "browser retrieval when HTTP fails; high cost",
-  "registry.search": "Choose any enabled registry matching the current hypothesis; all enabled registries are neutral options; registry role ≠ ownership or personal contact",
+  "registry.search": "Choose any enabled registry matching the current hypothesis; all enabled registries are neutral options; legal role ≠ personal contact; registry role ≠ ownership",
   "registry.search.batch": "2–4 complementary registries; no blind sweeps/fixed order",
   "domain.lookup": "RDAP/WHOIS; privacy/proxy may obscure owner",
   "domain.harvest": "verified domain only; public contact/infrastructure leads",
