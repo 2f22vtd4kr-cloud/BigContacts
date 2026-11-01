@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { Request, Response } from "express";
 import { advanceLoginAttemptWindow } from "../routes/operator-auth";
 import {
-  createOperatorSessionToken, createRequireOperatorAuth, isOperatorAuthorized,
+  createOperatorSessionToken, createRequireOperatorAuth, isOperatorAuthorized, isOperatorAuthBypassed,
   missingOperatorAuthNames, readOperatorAuthConfig, safeSecretEqual,
   verifyOperatorSessionToken, isTrustedOperatorOrigin, OPERATOR_SESSION_COOKIE, OPERATOR_SESSION_TTL_SECONDS,
   type OperatorAuthConfig,
@@ -59,6 +59,8 @@ describe("operator authentication boundary", () => {
     expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeLessThan(routeSource.indexOf("router.use(entitiesRouter)"));
     expect(uiSource).toContain("<OperatorGate>");
     expect(uiSource).toContain("<AppRouter />");
+    expect(preflightSource).toContain('process.env.NODE_ENV === "development"');
+    expect(preflightSource).toContain("SKIP operator-auth secrets");
     expect(preflightSource).toContain("APEX_API_AUTH_TOKEN");
     expect(preflightSource).toContain("APEX_OPERATOR_PASSWORD");
     expect(preflightSource).toContain("APEX_SESSION_SECRET");
@@ -67,6 +69,24 @@ describe("operator authentication boundary", () => {
   });
 
 
+  it("bypasses operator authentication only in explicit development mode", () => {
+    expect(isOperatorAuthBypassed({ NODE_ENV: "development" })).toBe(true);
+    expect(isOperatorAuthBypassed({ NODE_ENV: "test" })).toBe(false);
+    expect(isOperatorAuthBypassed({ NODE_ENV: "production" })).toBe(false);
+    const guard = createRequireOperatorAuth(() => ({ NODE_ENV: "development" }));
+    const res = response(); let next = 0;
+    guard(request({ method: "POST", path: "/research/launch" }), res.value, (() => { next += 1; }) as never);
+    expect(res.result.statusCode).toBe(200);
+    expect(next).toBe(1);
+  });
+  it("still fails closed in production when the three operator secrets are absent", () => {
+    const guard = createRequireOperatorAuth(() => ({ NODE_ENV: "production" }));
+    const res = response(); let next = 0;
+    guard(request(), res.value, (() => { next += 1; }) as never);
+    expect(res.result.statusCode).toBe(503);
+    expect((res.result.body as { code: string }).code).toBe("OPERATOR_AUTH_NOT_CONFIGURED");
+    expect(next).toBe(0);
+  });
   it("fails closed when a required secret is missing or too short", () => {
     expect(readOperatorAuthConfig({ ...ENV, APEX_API_AUTH_TOKEN: "short" })).toBeNull();
     expect(missingOperatorAuthNames({ ...ENV, APEX_SESSION_SECRET: "" })).toContain("APEX_SESSION_SECRET");
