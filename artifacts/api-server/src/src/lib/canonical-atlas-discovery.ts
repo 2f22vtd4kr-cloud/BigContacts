@@ -592,7 +592,7 @@ async function materializePartialPersonLeadCards(input: {
       const restrictedCommunitySource = isRestrictedCommunitySourceUrl(sourceUrl);
       const span = restrictedCommunitySource
         ? null
-        : observation.verificationLevel === "fetched_source" || observation.sourceUrlBoundByAdapter
+        : observation.verificationLevel === "fetched_source" || observation.action === "registry_search" || observation.action === "parallel_registry_search"
           ? bindExactSourceSpan(observation.observation, lead.name, undefined, 320)
           : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320);
       // A same-run URL is not enough. The actual result/page observation must
@@ -1940,7 +1940,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       : "";
     if (approvedOpeningDirection) {
       const openingObjective = resolveBossDirectedDiscoveryObjective({
-        action: openingBossDecision.action === "pivot_discovery" ? "pivot_discovery" : "continue_discovery",
+        action: "continue_discovery",
         baseObjective: discoveryObjective,
         currentObjective: activeDiscoveryObjective,
         direction: approvedOpeningDirection,
@@ -1954,7 +1954,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         caseId: discoveryCaseId,
         jobId: atlasJobId,
         controlTurn: 1,
-        action: openingBossDecision.action === "pivot_discovery" ? "pivot_discovery" : "continue_discovery",
+        action: "continue_discovery",
         direction: openingObjective.direction,
         baseObjective: discoveryObjective,
         previousObjective: activeDiscoveryObjective,
