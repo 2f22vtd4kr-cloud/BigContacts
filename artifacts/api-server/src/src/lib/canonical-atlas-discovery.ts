@@ -1867,6 +1867,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         "BOSS INITIAL HYPOTHESES (unverified, not evidence): " + JSON.stringify(boss.nextDirections ?? []),
         "RIGHT-HAND AUTHORITY: advisory only. Boss must evaluate its recommendation and owns the final decision.",
         "Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts. Internal memory, storage, and workflow terminology is not a research lead.",
+        "STRATEGY COMPARISON CONTRACT: Compare the human objective baseline with at least two materially different plausible hypotheses when the supplied evidence supports them. For each, state source-backed rationale, expected organization yield, decision-maker/person yield, verifiability, and the key disconfirming test. Do not invent source coverage or expand geography/industry merely to manufacture alternatives. If no alternative has a defensible evidence advantage, preserve the human objective and state the evidence gap.",
+        "REGISTRY EPISTEMIC LIMIT: A filing proves only the fields it explicitly reports. Never infer beneficial ownership, equity, wealth, family control, or personal contactability from a registered officer, agent, or company filing. Treat documented officer roles as professional connections, not ownership; require direct official evidence for ownership claims.",
         "The human mission and realistic-targetability rules outrank Boss next-directions. Compare proposed directions with the human objective and observed sources; test whether any proposed direction has a defensible advantage over plausible alternatives.",
       ].join("\n"),
       rightHandOverride: {
