@@ -52,13 +52,14 @@ describe("source-grounded Boss opening contract", () => {
       objective: "Find source-backed business owners and practical professional routes.",
       motivation: "Identify useful private-company leads.",
     }, [investigator]);
-    expect(prompt).toContain("Do not claim to have discovered, checked, fetched, or verified");
-    expect(prompt).toContain("one immediate target-first discovery action");
-    expect(prompt).toContain("Do not name, rank, or privilege a particular registry");
     expect(prompt).toContain("select an available Investigator execution capability");
+    expect(prompt).toContain("Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction.");
+    expect(prompt).toContain("Do not invent or imply that any target has been discovered.");
+    expect(prompt).toContain("The Investigator will begin target-first discovery under the exact human objective");
+    expect(prompt).toContain("Any enabled registry/asset register and public-web search are equal, neutral discovery options");
+    expect(prompt).toContain("Do not add geographic scope or a source preference.");
     expect(prompt).not.toContain("Geographic premise");
     expect(prompt).not.toContain("Global");
-    expect(prompt).toContain("all currently enabled registries/asset registers and public-web search are equal, neutral options");
     expect(prompt).not.toContain("Companies House");
     expect(prompt).not.toContain("sourceUrls");
     expect(prompt).not.toContain("contactEvidence");
