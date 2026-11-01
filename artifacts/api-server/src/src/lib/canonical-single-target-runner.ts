@@ -412,6 +412,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review", exhaustedInvestigatorLlm: [], investigatorLlm };
       }
        await db.transaction(async (tx) => {
+         await lockResearchCaseEventAppendStream(tx, caseRow.id);
          const [locked] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(and(eq(researchCasesTable.id, caseRow.id), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`)).for("update").limit(1);
          if (!locked || locked.status !== "active" || ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? ""))) throw new Error("Canonical Atlas target case is no longer active; refusing Right-hand opening event after cancellation.");
          await tx.insert(researchCaseEventsTable).values({
