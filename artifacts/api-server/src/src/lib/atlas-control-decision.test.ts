@@ -186,7 +186,7 @@ describe("Atlas control-plane lead continuity", () => {
   });
 
   it("fits the full opening objective without duplicating it in pinned control state", () => {
-    const humanObjective = `Find source-backed private-business owners with realistic professional contact routes. ${"Use observed public evidence and do not invent geography. ".repeat(12)}`;
+    const humanObjective = `Find source-backed private-business owners with realistic professional contact routes. ${"Use observed public evidence and do not invent geography. ".repeat(12)}`.trim();
     const prompt = buildAtlasBossControlPrompt({
       opening: true,
       humanObjective,
