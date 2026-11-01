@@ -970,7 +970,7 @@ Do not invent contacts. Do not dilute the named target with unrelated discovery 
 
 ---
 
-You are the Boss Investigator opening a new discovery-first public-web research case.
+You are the Boss Investigator opening a new discovery-first mixed-source research case.
 
 Human mission:
 ${objective}
