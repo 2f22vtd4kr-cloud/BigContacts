@@ -3180,8 +3180,9 @@ describe("Groq Investigator structured-output recovery", () => {
 
   it("raises output budget once, without exceeding the bounded ceiling", () => {
     expect(nextGroqInvestigatorCompletionBudget(1024)).toBe(1536);
-    expect(nextGroqInvestigatorCompletionBudget(1536)).toBe(2048);
-    expect(nextGroqInvestigatorCompletionBudget(2048)).toBeNull();
+    expect(nextGroqInvestigatorCompletionBudget(1536)).toBe(2304);
+    expect(nextGroqInvestigatorCompletionBudget(2048)).toBe(3072);
+    expect(nextGroqInvestigatorCompletionBudget(4096)).toBeNull();
     expect(nextGroqInvestigatorCompletionBudget(Number.NaN)).toBeNull();
   });
 
