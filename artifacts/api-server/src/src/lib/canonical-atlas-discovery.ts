@@ -852,7 +852,7 @@ async function materializePartialOrganizationLeadCards(input: {
   const seenNames = new Set<string>();
   const leadNames: string[] = [];
   for (const finding of input.findings) {
-    if (finding.scope !== "organization" || finding.promotionDecision !== "promote") continue;
+    if (finding.scope !== "organization" || finding.promotionDecision === "reject") continue;
     const name = finding.value.trim().replace(/\s+/g, " ");
     const identity = normalizeCandidateIdentityName(name);
     if (!name || !identity || isContactLikeOrganizationReviewValue(name) || seenNames.has(identity)) continue;
@@ -957,7 +957,7 @@ async function materializePartialOrganizationLeadCards(input: {
     const claimedUrls = new Set([
       ...input.findings
         .filter((finding) => finding.scope === "organization"
-          && finding.promotionDecision === "promote"
+          && finding.promotionDecision !== "reject"
           && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name))
         .flatMap((finding) => finding.sourceUrls)
         .map(normalizeSourceUrl)
