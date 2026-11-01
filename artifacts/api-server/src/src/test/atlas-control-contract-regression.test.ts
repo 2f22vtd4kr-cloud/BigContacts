@@ -64,8 +64,10 @@ describe("Atlas control-plane contract regression", () => {
       geography: "Public web; geography chosen from the evidence.",
     }, []);
     expect(prompt).not.toContain("durable tree shaft");
-    expect(prompt).toContain("infrastructure concepts only");
-    expect(prompt).toContain("explicitly label it as a hypothesis");
+    expect(prompt).toContain("This opening call has exactly one responsibility: select an available Investigator execution capability.");
+    expect(prompt).toContain("Do not invent or imply that any target has been discovered.");
+    expect(prompt).not.toContain("Geographic premise");
+    expect(prompt).not.toContain("Global");
   });
 
   it("keeps the audit's generic wealth mission in discovery mode and still recognizes explicit targets", () => {
@@ -75,18 +77,20 @@ describe("Atlas control-plane contract regression", () => {
       motivation: "Find evidence-backed people with realistic public routes.",
       geography: "No geography supplied; do not invent or broaden one.",
     }, []);
-    expect(discoveryPrompt).toContain("new discovery-first mixed-source research case");
-    expect(discoveryPrompt).toContain("one immediately executable discovery move");
-    expect(discoveryPrompt).toContain("do not run a preliminary broad-geography exercise");
-    expect(discoveryPrompt).toContain("Preserve geographic constraints only when the human explicitly supplied them");
+    expect(discoveryPrompt).toContain(genericObjective);
+    expect(discoveryPrompt).toContain("The Investigator will begin target-first discovery under the exact human objective");
+    expect(discoveryPrompt).toContain("Do not compare sectors, geographies, or strategies.");
+    expect(discoveryPrompt).toContain("Do not add geographic scope or a source preference.");
     expect(discoveryPrompt).not.toContain("TARGET-LOCKED public-web research case");
+    expect(discoveryPrompt).not.toContain("Choose one concrete, testable company/person/asset lead");
 
     const namedTargetPrompt = buildGroqBossDiscoveryPrompt({
       objective: "Find public contact routes for Alice Smith at Acme Capital.",
       motivation: "Verify identity and route attribution from public sources.",
       geography: "Public web.",
     }, []);
-    expect(namedTargetPrompt).toContain("TARGET-LOCKED public-web research case");
+    expect(namedTargetPrompt).toContain("Find public contact routes for Alice Smith at Acme Capital.");
+    expect(namedTargetPrompt).not.toContain("TARGET-LOCKED public-web research case");
   });
 
   it("passes the canonical Right-hand control validator into the adapter's bounded model fallback", () => {
@@ -274,10 +278,12 @@ describe("Atlas control-plane contract regression", () => {
   });
 
   it("requires both opening and ongoing Right-hand reviews to flag unsupported scope", () => {
-    expect(canonicalDiscoverySource).toContain("Boss report (unverified control hypothesis, not source evidence)");
+    expect(canonicalDiscoverySource).toContain("Independently review the exact human objective and the opening control state.");
+    expect(canonicalDiscoverySource).toContain("No Investigator action has executed; there are no source observations or admitted candidates yet.");
     expect(canonicalDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human.");
     expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
-    expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules outrank Boss next-directions");
+    expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules govern.");
+    expect(canonicalDiscoverySource).toContain("Do not compare alternative strategies or introduce a direction before the Investigator returns an actual source observation.");
     expect(controlSource).toContain("If a useful source-attributed company/person/asset target is already available, recommend investigating it now.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
   });
@@ -336,7 +342,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain("ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain("ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain("runGroqRightHandFreeJson(");
-    expect(controlSource).toContain("generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
+    expect(controlSource).toContain("responseFormat: input.opening ? ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT : ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain('required: ["decision", "reason", "direction", "confidence"]');
     expect(controlSource).toContain('action: { type: "string", enum: ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"] }');
     expect(controlSource).toContain('required: ["action", "candidateName", "candidateType", "direction", "reason", "confidence"]');
@@ -607,9 +613,9 @@ describe("Atlas control-plane contract regression", () => {
 
   it("treats the opening Right-hand review as advice that Boss must adjudicate", () => {
     const valid = {
-      decision: "The proposed direction is too narrow; compare the stated sector with a materially different local hypothesis.",
+      decision: "Start one immediate source-neutral target-first discovery action.",
       reason: "The cited source-class advantage has not been substantiated.",
-      focusLanes: ["test source feasibility", "compare alternative sectors"],
+      focusLanes: ["begin target-first discovery", "verify one observed candidate"],
       confidence: 0.86,
     };
     expect(validateAtlasOpeningRightHandReview(valid)).toBe(true);
@@ -620,7 +626,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("rightHandOverride: {");
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");
     expect(canonicalDiscoverySource).toContain("bossAction: openingBossDecision.action");
-    expect(canonicalDiscoverySource).toContain("bossDirection: openingBossDecision.direction");
+    expect(canonicalDiscoverySource).toContain("bossDirection: null");
+    expect(canonicalDiscoverySource).toContain("initialBossDirection: null");
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     const reviewCall = canonicalDiscoverySource.indexOf("const rightHandRaw = await import");
     const bossDecisionCall = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
@@ -944,16 +951,17 @@ describe("Boss-adjudicated opening direction", () => {
     expect(openingResolution).toBeGreaterThan(invalidBossGuard);
     expect(investigatorObjective).toBeGreaterThan(openingResolution);
     expect(canonicalDiscoverySource).toContain('currentAction: "groq-boss-opening-stop"');
-    expect(canonicalDiscoverySource).toContain("Boss has already weighed this advice and owns the final scope decision.");
+    expect(canonicalDiscoverySource).toContain("RIGHT-HAND REVIEW: advisory only.");
     expect(canonicalDiscoverySource).not.toContain("Groq Right-hand unavailable; failing closed");
     expect(canonicalDiscoverySource).not.toContain('currentAction: "groq-right-hand-unavailable"');
   });
 
   it("does not leak unselected Boss hypotheses as active Investigator scope", () => {
     expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
-    expect(canonicalDiscoverySource).toContain("Do not treat unselected Boss hypotheses as active scope.");
-    expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" ? "Boss-adjudicated direction: " + openingDirectionResolution.direction');
-    expect(canonicalDiscoverySource).toContain("RIGHT-HAND INDEPENDENT ADVICE (non-authoritative):");
+    expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
+    expect(canonicalDiscoverySource).not.toContain("openingDirectionResolution.status === \"approved\"");
+    expect(canonicalDiscoverySource).not.toContain("Boss-adjudicated direction:");
+    expect(canonicalDiscoverySource).toContain("RIGHT-HAND REVIEW: advisory only.");
     expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
   });
 });
@@ -967,7 +975,7 @@ describe("scope-recovery control feedback delivery", () => {
     expect(controlSource).toContain("When supplied scope-recovery feedback reports repeated preflight blocks");
     expect(controlSource).toContain("COMPLETE AVAILABLE REVIEW TARGETS (all model-selected durable targets; exact names and types; no top-N truncation)");
     expect(controlSource).toContain("const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState });");
-    expect(controlSource).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, rightHand });");
+    expect(controlSource).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, opening: input.opening, humanObjective: input.objective, rightHand });");
   });
 });
 
@@ -990,8 +998,8 @@ describe("unresolved template placeholder rejection at the opening boundary", ()
 
   it("keeps unselected Boss hypotheses out of the active Investigator objective", () => {
     expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
-    expect(canonicalDiscoverySource).toContain("Do not treat unselected Boss hypotheses as active scope.");
-    expect(canonicalDiscoverySource).toContain("RIGHT-HAND INDEPENDENT ADVICE (non-authoritative):");
+    expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
+    expect(canonicalDiscoverySource).toContain("RIGHT-HAND REVIEW: advisory only.");
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
   });

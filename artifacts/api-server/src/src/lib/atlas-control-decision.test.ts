@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ATLAS_BOSS_CONTROL_PROMPT_BUDGET,
+  ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT,
   ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,
   atlasLeadUtilizationLaw,
@@ -177,9 +178,18 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("Do not prescribe a fixed provider, query, tool, source class, or action sequence.");
   });
 
+  it("restricts the opening Boss response to start or stop with no target or direction", () => {
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.action.enum).toEqual(["continue_discovery", "stop"]);
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.candidateName.type).toBe("null");
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.candidateType.type).toBe("null");
+    expect(ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT.schema.properties.direction.type).toBe("null");
+  });
+
   it("fits the full opening objective without duplicating it in pinned control state", () => {
-    const humanObjective = `Find source-backed private-business owners with realistic professional contact routes. ${"Use observed public evidence and do not invent geography. ".repeat(34)}`;
+    const humanObjective = `Find source-backed private-business owners with realistic professional contact routes. ${"Use observed public evidence and do not invent geography. ".repeat(12)}`.trim();
     const prompt = buildAtlasBossControlPrompt({
+      opening: true,
+      humanObjective,
       investigatorReport: JSON.stringify({
         stage: "opening_adjudication",
         bossInitialReport: "One unverified candidate hypothesis.",
@@ -204,6 +214,12 @@ describe("Atlas control-plane lead continuity", () => {
     });
 
     expect(prompt).toContain(humanObjective);
+    expect(prompt.split(humanObjective).length - 1).toBe(1);
+    expect(prompt).not.toContain("One unverified candidate hypothesis");
+    expect(prompt).not.toContain("Verify the named person's role and ownership");
+    expect(prompt).not.toContain("HUMAN OBJECTIVE: The complete current human objective is in COMPLETE DISCOVERY STATE");
+    expect(prompt).toContain("Choose only continue_discovery or stop.");
+    expect(prompt).toContain("RIGHT-HAND ADVICE");
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
   });
 

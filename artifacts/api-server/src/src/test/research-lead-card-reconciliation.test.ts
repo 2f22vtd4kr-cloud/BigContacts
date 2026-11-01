@@ -111,7 +111,9 @@ describe("terminal review-card reconciliation", () => {
     );
     expect(personMaterializer).toContain("payload.leadUrls");
     expect(personMaterializer).toContain('const searched = action === "web_search" || action === "parallel_web_search"');
-    expect(personMaterializer).toContain("bindExactSourceSpan(observation.observation, lead.role, lead.name, 320)");
+    expect(personMaterializer).toContain("bindExactSourceSpan(observation.observation, lead.name, undefined, 320)");
+    expect(personMaterializer).toContain("bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320)");
+    expect(personMaterializer).toContain("bindExactRegistryLeadName(observation.observation, sourceUrl, lead.name)");
     expect(personMaterializer).toContain("role: string | null");
     expect(personMaterializer).not.toContain("!finding.role?.trim()");
     expect(personMaterializer).toContain('!["success", "partial"].includes(observation.executionStatus)');
@@ -122,7 +124,10 @@ describe("terminal review-card reconciliation", () => {
     expect(personMaterializer).toContain("identityCollisionPossible");
     expect(personMaterializer).toContain("create a separate provisional lead");
     expect(personMaterializer).not.toContain('payload.execution !== "success"');
-    expect(personMaterializer).toContain('roleOnlyLead: Boolean(lead.role)');
+    expect(personMaterializer).toContain("role: null");
+    expect(personMaterializer).toContain("proposedRole: lead.role");
+    expect(personMaterializer).toContain("roleVerified: false");
+    expect(personMaterializer).toContain("roleOnlyLead: false");
     expect(personMaterializer).toContain('claimType: "partial_person_role_lead"');
     expect(personMaterializer).toContain('verificationLevel === "search_result_lead"');
     expect(personMaterializer).not.toContain("hasDiscoveryOwnershipLeadSignal");
@@ -327,7 +332,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(control).not.toContain("input.admittedCandidates.slice(0, 8)");
     expect(control).toContain("COMPLETE AVAILABLE REVIEW TARGETS");
     expect(control).toContain("const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState });");
-    expect(control).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, rightHand });");
+    expect(control).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, opening: input.opening, humanObjective: input.objective, rightHand });");
     expect(control).toContain("will fail visibly if the complete exact target inventory cannot fit");
     const registryLeadObservationBlock = organizationMaterializer.slice(
       organizationMaterializer.indexOf("if (registry &&"),

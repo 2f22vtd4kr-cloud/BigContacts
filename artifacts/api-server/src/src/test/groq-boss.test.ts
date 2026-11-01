@@ -11,9 +11,10 @@ import { generateGroqBossText } from "../lib/groq-boss";
 describe("Groq Boss discovery prompt grounding", () => {
   it("keeps internal case-memory wording from becoming a false research anchor", () => {
     expect(caseBureauSource).not.toContain("durable tree shaft");
-    expect(caseBureauSource).toContain("The case context is the durable shared record for this Bureau.");
-    expect(caseBureauSource).toContain("Internal memory, storage, and workflow terminology are infrastructure concepts only");
-    expect(caseBureauSource).toContain("do not turn wording from these instructions into a research premise.");
+    expect(caseBureauSource).toContain("This opening call has exactly one responsibility: select an available Investigator execution capability.");
+    expect(caseBureauSource).toContain("Do not invent or imply that any target has been discovered.");
+    expect(caseBureauSource).toContain('required: ["investigatorLlm"]');
+    expect(caseBureauSource).not.toContain("report: parsed.report || generated.raw");
   });
 
 
@@ -22,12 +23,14 @@ describe("Groq Boss discovery prompt grounding", () => {
       objective: "Discover under-the-radar people with credible wealth potential and realistic public contact routes.",
       motivation: "Identify source-backed ownership, assets, and approach paths.",
     }, ["groq-investigator-1"]);
-    expect(prompt).toContain("Choose one concrete, testable company/person/asset lead");
-    expect(prompt).toContain("All enabled registries and web search are neutral discovery options");
-    expect(prompt).toContain("Preserve geographic constraints only when the human explicitly supplied them");
-    expect(prompt).toContain("A useful candidate is enough");
+    expect(prompt).toContain("select an available Investigator execution capability");
+    expect(prompt).toContain("Any enabled registry/asset register and public-web search are equal, neutral discovery options");
+    expect(prompt).toContain("Do not compare sectors, geographies, or strategies.");
+    expect(prompt).toContain("Do not add geographic scope or a source preference.");
+    expect(prompt).toContain("Discover under-the-radar people with credible wealth potential and realistic public contact routes.");
+    expect(prompt).not.toContain("Choose one concrete, testable company/person/asset lead");
     expect(canonicalAtlasDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions");
-    expect(caseBureauSource).toContain("Start by selecting a concrete company, person, or asset candidate");
+    expect(canonicalAtlasDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names");
   });
 
   it("uses medium reasoning for the opening discovery assignment", () => {
@@ -250,53 +253,42 @@ describe("Groq Boss token-window recovery", () => {
 });
 
 
-describe("Groq Boss model-selected discovery candidates", () => {
-  it("preserves short but valid person and company names with source-backed candidate structure", () => {
+describe("Groq Boss assignment-only opening response", () => {
+  it("accepts only an available Investigator capability and never parses model-supplied candidates", () => {
     const parsed = parseBossDiscoveryResponse(JSON.stringify({
-      report: "Two source-attributed review leads were selected for further assessment.",
       investigatorLlm: "groq-investigator-1",
-      nextDirections: [],
-      uncertainties: [],
-      candidates: [
-        {
-          name: "Li",
-          type: "person",
-          relevance: "A public filing links this person to the stated mission.",
-          reachability: "A public professional route remains to be verified.",
-          sourceUrls: ["https://example.org/person/li"],
-          contactEvidence: [],
-        },
-        {
-          name: "3M",
-          type: "company",
-          relevance: "The company is directly relevant to the stated mission.",
-          reachability: "Its official public website is available for target research.",
-          sourceUrls: ["https://example.org/company/3m"],
-          contactEvidence: [],
-        },
-      ],
     }), ["groq-investigator-1"]);
 
     expect(parsed.investigatorLlm).toBe("groq-investigator-1");
-    expect(parsed.candidates.map((candidate) => candidate.name)).toEqual(["Li", "3M"]);
-  });
+    expect(parsed.report).toContain("No source observations exist yet");
+    expect(parsed.candidates).toEqual([]);
+    expect(parsed.nextDirections).toEqual([]);
+    expect(parsed.uncertainties).toEqual([]);
 
-  it("continues to reject empty candidate names rather than admitting malformed identities", () => {
-    const parsed = parseBossDiscoveryResponse(JSON.stringify({
-      report: "A malformed candidate was returned.",
+    const fabricated = parseBossDiscoveryResponse(JSON.stringify({
       investigatorLlm: "groq-investigator-1",
-      candidates: [{
-        name: "   ",
-        type: "person",
-        relevance: "A possible lead.",
-        reachability: "Unknown.",
-        sourceUrls: ["https://example.org/person"],
-        contactEvidence: [],
-      }],
-      nextDirections: [],
+      report: "Two source-attributed review leads were selected.",
+      candidates: [
+        { name: "Li", type: "person", sourceUrls: ["https://example.org/person/li"], contactEvidence: [] },
+        { name: "3M", type: "company", sourceUrls: ["https://example.org/company/3m"], contactEvidence: [] },
+      ],
+      nextDirections: ["Verify the people and companies."],
       uncertainties: [],
     }), ["groq-investigator-1"]);
 
+    expect(fabricated.investigatorLlm).toBeNull();
+    expect(fabricated.candidates).toEqual([]);
+    expect(fabricated.nextDirections).toEqual([]);
+  });
+
+  it("rejects malformed assignment responses and never preserves raw model text", () => {
+    const parsed = parseBossDiscoveryResponse(JSON.stringify({
+      investigatorLlm: "groq-investigator-1",
+      candidates: [{ name: "   ", type: "person", sourceUrls: ["https://example.org/person"], contactEvidence: [] }],
+    }), ["groq-investigator-1"]);
+
+    expect(parsed.investigatorLlm).toBeNull();
+    expect(parsed.report).toBe("");
     expect(parsed.candidates).toEqual([]);
   });
 });

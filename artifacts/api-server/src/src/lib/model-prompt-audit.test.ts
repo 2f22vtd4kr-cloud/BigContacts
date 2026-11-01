@@ -55,7 +55,7 @@ describe("model prompt audit", () => {
     const visibleRunAudit = 'APEX_MODEL_AUDIT_FILE = "audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-11-01_FRESH_PROJECT_IMPORT_RUN_01.md"';
     for (const config of [artifactConfig, workspaceConfig]) {
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
-      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
+      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
       expect(config).toContain(visibleRunAudit);
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "true"');
@@ -406,7 +406,7 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(0);
   });
 
-  it("retains contact data in a visible audits/ destination only with explicit development opt-ins", () => {
+  it("redacts contact data in a visible audits/ destination even if contact retention is misconfigured", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
     const writes: Array<{ path: string; contents: string }> = [];
@@ -421,9 +421,10 @@ describe("model prompt audit", () => {
     expect(requestId).toBeTruthy();
     expect(writes).toHaveLength(1);
     expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_VISIBLE_OPT_IN_TEST.md"));
-    expect(writes[0]?.contents).toContain("person@example.org");
-    expect(writes[0]?.contents).toContain("+1 (415) 555-0100");
-    expect(writes[0]?.contents).not.toContain("[REDACTED_CONTACT_DATA]");
+    expect(writes[0]?.contents).toContain("[REDACTED_EMAIL]");
+    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
+    expect(writes[0]?.contents).not.toContain("person@example.org");
+    expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
     for (const secret of [
       "gsk_123456789012345678901234",
       "private_token_value",
@@ -433,7 +434,7 @@ describe("model prompt audit", () => {
     ]) expect(writes[0]?.contents).not.toContain(secret);
   });
 
-  it("retains explicitly opted-in contact data in visible responses while omitting private reasoning", () => {
+  it("redacts contact data in visible responses while omitting private reasoning", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
     const writes: Array<{ path: string; contents: string }> = [];
@@ -462,8 +463,10 @@ describe("model prompt audit", () => {
 
     expect(writes).toHaveLength(1);
     expect(writes[0]?.path).toBe(resolve(workspaceRoot, "audits/APEX_ATLAS_SEQUENTIAL_AUDIT_VISIBLE_RESPONSE_REDACTION_TEST.md"));
-    expect(writes[0]?.contents).toContain("jane.doe@example.org");
-    expect(writes[0]?.contents).toContain("+1 (415) 555-0100");
+    expect(writes[0]?.contents).toContain("[REDACTED_EMAIL]");
+    expect(writes[0]?.contents).toContain("[REDACTED_PHONE]");
+    expect(writes[0]?.contents).not.toContain("jane.doe@example.org");
+    expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
     expect(writes[0]?.contents).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
   });
 

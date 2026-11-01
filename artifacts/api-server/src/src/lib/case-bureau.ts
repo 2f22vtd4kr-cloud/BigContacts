@@ -378,33 +378,15 @@ function buildBossPlanResponseFormat(availableInvestigators: readonly Investigat
   };
 }
 
-function buildBossDiscoveryResponseFormat(availableInvestigators: readonly InvestigatorCapability[]): Record<string, unknown> {
+export function buildBossDiscoveryResponseFormat(availableInvestigators: readonly InvestigatorCapability[]): Record<string, unknown> {
   return {
     type: "text", mime_type: "application/json",
     schema: {
       type: "object",
       properties: {
-        report: { type: "string" },
         investigatorLlm: { type: "string", enum: [...availableInvestigators] },
-        candidates: {
-          type: "array", maxItems: 6,
-          items: {
-            type: "object",
-            properties: {
-              name: { type: "string" }, type: { type: "string" }, relevance: { type: "string" }, reachability: { type: "string" },
-              sourceUrls: { type: "array", items: { type: "string" }, maxItems: 8 },
-              contactEvidence: { type: "array", maxItems: 8, items: {
-                type: "object",
-                properties: { vectorType: { type: "string" }, value: { type: "string" }, scope: { type: "string", enum: ["person","organization","unknown"] }, personName: { type: ["string","null"] }, role: { type: ["string","null"] }, sourceUrls: { type: "array", items: { type: "string" }, maxItems: 6 }, note: { type: ["string","null"] } },
-                required: ["vectorType","value","scope","personName","role","sourceUrls","note"], additionalProperties: false,
-              } },
-            },
-            required: ["name","type","relevance","reachability","sourceUrls","contactEvidence"], additionalProperties: false,
-          },
-        },
-        nextDirections: { type: "array", items: { type: "string" }, maxItems: 8 }, uncertainties: { type: "array", items: { type: "string" }, maxItems: 8 },
       },
-      required: ["report","investigatorLlm","candidates","nextDirections","uncertainties"], additionalProperties: false,
+      required: ["investigatorLlm"], additionalProperties: false,
     },
   };
 }
@@ -424,81 +406,29 @@ export function parseBossDiscoveryResponse(raw: string, allowedInvestigators: re
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
     const object = parsed as Record<string, unknown>;
-    const allowed = new Set(["report", "investigatorLlm", "candidates", "nextDirections", "uncertainties"]);
-    const required = [...allowed];
-    if (Object.keys(object).some((key) => !allowed.has(key)) || required.some((key) => !Object.prototype.hasOwnProperty.call(object, key))) {
+    const allowed = new Set(["investigatorLlm"]);
+    if (Object.keys(object).some((key) => !allowed.has(key)) || !Object.prototype.hasOwnProperty.call(object, "investigatorLlm")) {
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
-    const report = typeof object.report === "string" ? object.report.trim() : "";
     const available = allowedInvestigators;
     const investigatorLlm = typeof object.investigatorLlm === "string" && available.includes(object.investigatorLlm as InvestigatorCapability) ? object.investigatorLlm as InvestigatorCapability : null;
-    const nextDirections = Array.isArray(object.nextDirections) && object.nextDirections.length <= 8 && object.nextDirections.every((value) => typeof value === "string" && value.trim())
-      ? uniqueStrings(object.nextDirections, 8)
-      : null;
-    const uncertainties = Array.isArray(object.uncertainties) && object.uncertainties.length <= 8 && object.uncertainties.every((value) => typeof value === "string" && value.trim())
-      ? uniqueStrings(object.uncertainties, 8)
-      : null;
-    if (!report || !investigatorLlm || !nextDirections || !uncertainties) {
+    if (!investigatorLlm) {
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
 
-    if (!Array.isArray(object.candidates) || object.candidates.length > 6) {
-      return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
-    }
-    const candidates = object.candidates.flatMap((candidateValue) => {
-      if (!candidateValue || typeof candidateValue !== "object" || Array.isArray(candidateValue)) return [];
-      const candidate = candidateValue as Record<string, unknown>;
-      const candidateKeys = ["name", "type", "relevance", "reachability", "sourceUrls", "contactEvidence"];
-      const candidateAllowed = new Set(candidateKeys);
-      if (Object.keys(candidate).some((key) => !candidateAllowed.has(key)) || candidateKeys.some((key) => !Object.prototype.hasOwnProperty.call(candidate, key))) return [];
-      const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
-      const type = typeof candidate.type === "string" ? candidate.type.trim() : "";
-      const relevance = typeof candidate.relevance === "string" ? candidate.relevance.trim() : "";
-      const reachability = typeof candidate.reachability === "string" ? candidate.reachability.trim() : "";
-      const sourceUrls = Array.isArray(candidate.sourceUrls) && candidate.sourceUrls.length <= 8 && candidate.sourceUrls.every((url) => typeof url === "string" && /^https?:\/\//i.test(url))
-        ? candidate.sourceUrls as string[]
-        : null;
-      const contactEvidence = parseDiscoveryContactEvidenceStrict(candidate.contactEvidence);
-      // A short name can be a legitimate person or organization identifier (for example, Li or 3M).
-      // Identity quality is established by the model's selected target and source evidence, not a length heuristic.
-      if (!name || !type || !relevance || !reachability || !sourceUrls || !contactEvidence) return [];
-      return [{ name, type, relevance, reachability, sourceUrls, contactEvidence }];
-    });
-    if (candidates.length !== object.candidates.length) {
-      return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
-    }
-    return { report, candidates, investigatorLlm, nextDirections, uncertainties };
+    // The opening Boss call is assignment-only. It cannot inject a target,
+    // direction, source, relationship, wealth claim, or contact route into the
+    // discovery record. The human objective remains the Investigator's scope.
+    return {
+      report: "No source observations exist yet; awaiting Investigator target-first discovery.",
+      candidates: [],
+      investigatorLlm,
+      nextDirections: [],
+      uncertainties: [],
+    };
   } catch {
     return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
   }
-}
-
-function parseDiscoveryContactEvidenceStrict(value: unknown): DiscoveryContactEvidence[] | null {
-  if (!Array.isArray(value) || value.length > 8) return null;
-  const allowed = new Set(["vectorType", "value", "scope", "personName", "role", "sourceUrls", "note"]);
-  const validVectors = new Set<DiscoveryContactEvidence["vectorType"]>([
-    "email", "phone", "linkedin", "twitter", "instagram", "telegram", "website", "organization_contact", "other",
-  ]);
-  const evidence = value.flatMap((item) => {
-    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
-    const record = item as Record<string, unknown>;
-    const required = ["vectorType", "value", "scope", "personName", "role", "sourceUrls", "note"];
-    if (Object.keys(record).some((key) => !allowed.has(key)) || required.some((key) => !Object.prototype.hasOwnProperty.call(record, key))) return [];
-    const valueText = typeof record.value === "string" ? record.value.trim() : "";
-    const vectorType = typeof record.vectorType === "string" && validVectors.has(record.vectorType as DiscoveryContactEvidence["vectorType"])
-      ? record.vectorType as DiscoveryContactEvidence["vectorType"]
-      : null;
-    const scope = record.scope === "person" || record.scope === "organization" || record.scope === "unknown" ? record.scope : null;
-    const personName = record.personName === null ? null : typeof record.personName === "string" && record.personName.trim() ? record.personName.trim().slice(0, 200) : null;
-    const role = record.role === null ? null : typeof record.role === "string" && record.role.trim() ? record.role.trim().slice(0, 200) : null;
-    const sourceUrls = Array.isArray(record.sourceUrls) && record.sourceUrls.length <= 6 && record.sourceUrls.every((url) => typeof url === "string" && /^https?:\/\//i.test(url))
-      ? record.sourceUrls as string[]
-      : null;
-    const note = record.note === null ? null : typeof record.note === "string" && record.note.trim() ? record.note.trim().slice(0, 500) : null;
-    if (!valueText || !vectorType || !scope || !sourceUrls || note === undefined) return [];
-    return [{ vectorType, value: valueText.slice(0, 500), scope, personName, role, sourceUrls, note }];
-  });
-  return evidence.length === value.length ? evidence : null;
 }
 
 
@@ -531,53 +461,19 @@ export type GroqBossDiscoveryInput = {
 
 export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, availableInvestigators: readonly InvestigatorCapability[]): string {
   const excluded = new Set(input.excludedInvestigatorLlm ?? []);
-  return `${buildBossOpeningPrompt(input)}
+  return `You are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
 
-This is a shared case-context review. Read the current investigation progress and investigator reports below
-before deciding what should be researched next. The case context is the durable shared record for this Bureau.
-Internal memory, storage, and workflow terminology are infrastructure concepts only—not a company, sector, geography, or research lead. Derive research directions from the human mission and observed source evidence; do not turn wording from these instructions into a research premise.
-If the objective does not specify an industry, organization, person, or geography, you may propose a testable starting hypothesis, but explicitly label it as a hypothesis rather than an established fact or something supplied by the objective. The Investigator should test that hypothesis against observed public evidence and pivot if it is unsupported.
-You have no web access and must not use or request Google Search grounding. Do not wait for a preselected entity.
-Recommend one immediately executable discovery move. Start by selecting a concrete company, person, or asset candidate from any currently callable official registry/asset register or public-web result. One useful source-backed candidate is enough to begin target-scoped research; do not run a preliminary broad-geography exercise, compare regions, or invent a jurisdiction. Preserve geographic constraints only when the human explicitly supplied them. The Investigator chooses the source, query, and action; no fixed itinerary.
-Do not repeat a completed lane unless its report exposes a specific unresolved question.
-OPENING TARGET SELECTION: do not spend the opening decision comparing broad sectors, regions, or jurisdictions. Choose one concrete, testable company/person/asset lead that can be found now through a currently callable registry or public-web search. All enabled registries and web search are neutral discovery options; select by the actual target/evidence fit, not source familiarity, country, adapter order, or brand recognition. Do not name or privilege a particular registry in the prompt. A useful candidate is enough; Boss can then authorize target-scoped verification.
-REGISTRY FEASIBILITY: use only registry adapters actually present in the runtime's available tool/registry list. Do not assume a generic state Secretary-of-State adapter or unverified member/equity/revenue fields exist. When the Right-hand explicitly rejects a proposed source because its adapter or fields are unavailable, do not send the rejected direction to the Investigator and do not stop solely because the first direction was rejected; choose another callable source that can investigate the same target and human-supplied scope, or use public-web search. Do not change geography merely because one adapter is unavailable. Keep this a model-owned choice; do not prescribe a target or search sequence.
-Investigator capability availability at this moment: ${JSON.stringify(availableInvestigators)}. Select only an available capability; the harness will not substitute a different Investigator after your decision.
-The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence
-and do not let it select a target. The Investigator owns the research trajectory within the stated mission; no fixed lane order or research sequence is imposed.
-Excluded Investigator capabilities for this decision: ${JSON.stringify([...excluded])}. These exclusions are control-plane safety state, not a research instruction; never select an excluded capability.
-Starting lane: ${input.startingLane ?? "not specified"}
-Right-hand advisor note: ${JSON.stringify(input.rightHandAdvice ?? null)}
-Current shared case context:
-${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigator reports exist; this is the opening brief."}
-Return ONLY JSON in this shape:
-     {
-  "report": "concise evidence-led opening assessment",
-  "investigatorLlm": "one capability from the available runtime Investigator registry",
-  "candidates": [
-    {
-      "name": "candidate name",
-      "type": "person | company | investment_group | intermediary",
-      "relevance": "why this candidate fits the mission",
-      "reachability": "realistic public route or unresolved",
-       "sourceUrls": ["exact URLs supporting this candidate"],
-       "contactEvidence": [
-         {
-           "vectorType": "email | phone | linkedin | twitter | instagram | telegram | website | organization_contact | other",
-           "value": "exact publicly reported value",
-           "scope": "person | organization | unknown",
-           "personName": "person attributed to the route or null",
-           "role": "role at the organization or null",
-           "sourceUrls": ["exact URLs that visibly support this route"],
-           "note": "attribution or verification caveat"
-         }
-       ]
-    }
-  ],
-  "nextDirections": ["bounded next investigation direction"],
-  "uncertainties": ["identity, attribution, or access uncertainty"]
-}
-Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
+You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
+
+The Investigator will begin target-first discovery under the exact human objective after this assignment. Any enabled registry/asset register and public-web search are equal, neutral discovery options; the Investigator chooses the source and target from actual returned observations. Do not add geographic scope or a source preference.
+
+Human objective (context only; do not reinterpret or expand it): ${input.objective.trim()}
+Human motivation (context only): ${input.motivation.trim()}
+Available Investigator capabilities: ${JSON.stringify(availableInvestigators)}
+Excluded capabilities (never select): ${JSON.stringify([...excluded])}
+
+Return exactly one JSON object with this shape and no additional properties:
+{ "investigatorLlm": "one capability from the available Investigator list" }`;
 }
 
 export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promise<GeminiBossDiscoveryResult> {
@@ -636,19 +532,19 @@ export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promi
         status: "unavailable",
         model: generated.model,
         investigatorLlm: null,
-        report: parsed.report || generated.raw,
-        candidates: parsed.candidates,
+        report: "Opening Boss response rejected: expected assignment-only Investigator selection; no target or source claims were accepted.",
+        candidates: [],
         citations: [],
-        nextDirections: parsed.nextDirections,
-        uncertainties: parsed.uncertainties,
-        error: "Groq Boss selected an Investigator capability that is not currently configured; no deterministic substitution is permitted.",
+        nextDirections: [],
+        uncertainties: [],
+        error: "Groq Boss opening response did not match the assignment-only schema or selected an unavailable Investigator capability; no candidate/source claims were accepted.",
       };
     }
     return {
       status: "completed",
       model: generated.model,
       investigatorLlm: parsed.investigatorLlm,
-      report: parsed.report || generated.raw,
+      report: parsed.report,
       candidates: parsed.candidates,
       citations: [],
       nextDirections: parsed.nextDirections,

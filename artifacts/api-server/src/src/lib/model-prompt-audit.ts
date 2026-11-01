@@ -107,10 +107,10 @@ export function resolveModelAuditFilePath(
 }
 
 /**
- * Contact data is retained in private local audit locations by explicit opt-in.
- * A visible audits/ destination additionally requires both the development-only
- * visible-file opt-in and the separate contact-data opt-in. This keeps normal
- * tracked audits redacted while allowing a user-authorized, per-run audit.
+ * Contact data is retained only in private local audit locations or an
+ * explicitly configured path outside the repository. Tracked audits/ files
+ * always redact email/phone values, even if a misconfigured environment sets
+ * the contact-data opt-in.
  */
 function shouldIncludeContactDataForAuditFile(
   env: AuditEnvironment,
@@ -127,12 +127,7 @@ function shouldIncludeContactDataForAuditFile(
 
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
   return normalizedRelativePath.startsWith("private-audits/")
-    || normalizedRelativePath.startsWith(".local/audits/")
-    || (
-      env.NODE_ENV === "development"
-      && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true"
-      && normalizedRelativePath.startsWith("audits/")
-    );
+    || normalizedRelativePath.startsWith(".local/audits/");
 }
 
 function resolveSafeModelAuditFilePath(

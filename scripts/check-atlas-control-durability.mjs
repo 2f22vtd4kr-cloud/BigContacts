@@ -2,6 +2,11 @@
 import fs from "node:fs";
 const control = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-decision.ts", "utf8");
 const atlas = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
+const bossDiscovery = fs.readFileSync("artifacts/api-server/src/src/lib/case-bureau.ts", "utf8");
+const controlDecision = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-decision.ts", "utf8");
+const openingReviewPromptStart = atlas.indexOf("Independently review the exact human objective");
+const openingReviewPromptEnd = atlas.indexOf("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,", openingReviewPromptStart);
+const openingReviewPrompt = openingReviewPromptStart >= 0 && openingReviewPromptEnd > openingReviewPromptStart ? atlas.slice(openingReviewPromptStart, openingReviewPromptEnd) : "";
 const targetRunner = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
 const terminalAuthority = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-terminal-authority.ts", "utf8");
 const continuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts", "utf8");
@@ -41,8 +46,17 @@ const checks = [
   ["opening control persistence failure is not masked by a later lease assertion", atlas.includes('openingBossDecision.error?.startsWith("Failed to persist Atlas control decision") ? "control_event_persistence" : "oversight_control_decision"') && atlas.indexOf("if (openingBossDecision.status !== \"completed\")") < atlas.indexOf("await assertAtlasJobActive(atlasJobId);", atlas.indexOf("const openingBossDecision"))],
   ["opening objective is not duplicated into the non-trimmable Boss pin", atlas.includes("OBJECTIVE SOURCE: The complete current human objective is in COMPLETE DISCOVERY STATE") && !atlas.includes('"HUMAN OBJECTIVE: " + activeDiscoveryObjective')],
   ["opening Boss prompt construction has an accurate non-persistence failure stage", atlas.includes('failureStage = "control_prompt_construction";\n    const openingBossDecision = await decideAtlasNextAction(')],
-  ["Boss action and direction, not Right-hand approval, resolve opening scope", /resolveBossAdjudicatedOpeningDirection\(\{[\s\S]{0,300}bossAction:\s*openingBossDecision\.action[\s\S]{0,300}bossDirection:\s*openingBossDecision\.direction/.test(atlas) && !atlas.includes("rightHand.approval")],
-  ["opening strategy compares materially different hypotheses without inventing geography", atlas.includes("STRATEGY COMPARISON CONTRACT") && atlas.includes("at least two materially different plausible hypotheses") && atlas.includes("Do not invent source coverage or expand geography/industry")],
+  ["opening scope is decided by Boss action; Right-hand remains advisory and no opening direction is adopted", /resolveBossAdjudicatedOpeningDirection\(\{[\s\S]{0,300}bossAction:\s*openingBossDecision\.action[\s\S]{0,300}bossDirection:\s*null[\s\S]{0,200}initialBossDirection:\s*null/.test(atlas) && atlas.includes("openingBossDecision.action !== \"continue_discovery\"") && !atlas.includes("rightHand.approval")],
+  ["opening target-first decision does not force multi-hypothesis strategy comparison", !atlas.includes("STRATEGY COMPARISON CONTRACT") && atlas.includes("OPENING TARGET CONTRACT") && atlas.includes("one useful target")],
+  ["opening Boss uses a lean objective-preserving prompt and restricted start/stop schema", atlas.includes("opening: true") && controlDecision.includes("ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT") && controlDecision.includes("HUMAN OBJECTIVE (complete and authoritative") && controlDecision.includes("humanObjective")],
+  ["Boss opening response schema is assignment-only and rejects raw candidate claims", bossDiscovery.includes('required: ["investigatorLlm"]') && bossDiscovery.includes("no target or source claims were accepted") && !bossDiscovery.includes("report: parsed.report || generated.raw")],
+  ["Boss opening hypotheses cannot be treated as source-backed candidates", atlas.includes("Do not propose a named person, company, asset, registry, provider, country, or jurisdiction") && atlas.includes("no source preference or jurisdiction assumption")],
+  ["Right-hand opening review does not consume Boss-generated target/source hypotheses", openingReviewPrompt.length > 0 && !openingReviewPrompt.includes("boss.report") && openingReviewPrompt.includes("there are no source observations or admitted candidates yet")],
+  ["opening Boss decision cannot pivot or select a candidate before Investigator observations", atlas.includes('openingBossDecision.action !== "continue_discovery" && openingBossDecision.action !== "stop"') && atlas.includes("initialBossDirection: null")],
+  ["person review cards require the exact name in a same-run source observation", atlas.includes("actual result/page observation must") && atlas.includes("contain the exact person name before it can support a review card")],
+  ["registry person leads bind the name to the exact registry row URL", atlas.includes("bindExactRegistryLeadName(observation.observation, sourceUrl, lead.name)")],
+  ["organization review cards require the exact name in a same-run source observation", atlas.includes("exact organization name in the observed result/page text")],
+  ["unverified person roles remain proposals rather than verified entity roles", atlas.includes("proposedRole: lead.role") && atlas.includes("roleVerified: false") && atlas.includes("role: null")],
   ["registry evidence cannot be inflated into ownership or wealth claims", atlas.includes("REGISTRY EPISTEMIC LIMIT") && atlas.includes("require direct official evidence for ownership claims")],
   ["canonical Atlas fails closed on invalid Right-hand oversight JSON", /rightHandRaw\.status === ["\']completed["\'][\s\S]{0,800}JSON\.parse/.test(atlas)],
   ["discovery-only completion requires Investigator terminal done", /discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE"/.test(atlas)],

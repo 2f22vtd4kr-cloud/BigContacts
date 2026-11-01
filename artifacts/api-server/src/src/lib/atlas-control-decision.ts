@@ -326,6 +326,25 @@ export const ATLAS_BOSS_CONTROL_RESPONSE_FORMAT = {
   },
 } as const;
 
+/** Opening Boss may only start discovery or stop; no target/direction exists yet. */
+export const ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT = {
+  type: "text",
+  mime_type: "application/json",
+  schema: {
+    type: "object",
+    properties: {
+      action: { type: "string", enum: ["continue_discovery", "stop"] },
+      candidateName: { type: "null" },
+      candidateType: { type: "null" },
+      direction: { type: "null" },
+      reason: { type: "string" },
+      confidence: { type: "number" },
+    },
+    required: ["action", "candidateName", "candidateType", "direction", "reason", "confidence"],
+    additionalProperties: false,
+  },
+} as const;
+
 const ATLAS_RIGHT_HAND_PROMPT_MAX_CHARS = 14_000;
 const ATLAS_RIGHT_HAND_PROMPT_RESERVE_CHARS = 1_024;
 export const ATLAS_RIGHT_HAND_PROMPT_BUDGET = ATLAS_RIGHT_HAND_PROMPT_MAX_CHARS - ATLAS_RIGHT_HAND_PROMPT_RESERVE_CHARS;
@@ -483,7 +502,33 @@ export function buildAtlasRightHandControlPrompt(input: { investigatorReport: st
   }
   return prompt;
 }
-export function buildAtlasBossControlPrompt(input: { investigatorReport: string; compactState: string; pinnedControlState?: string; rightHand: { status: "completed" | "unavailable"; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null } }): string {
+export function buildAtlasBossControlPrompt(input: { investigatorReport: string; compactState: string; pinnedControlState?: string; opening?: boolean; humanObjective?: string; rightHand: { status: "completed" | "unavailable"; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null } }): string {
+  if (input.opening) {
+    const humanObjective = input.humanObjective?.trim() ?? "";
+    if (!humanObjective) throw new Error("Atlas opening Boss prompt requires the complete human objective.");
+    const advice = {
+      status: input.rightHand.status,
+      recommendation: input.rightHand.decision,
+      confidence: input.rightHand.confidence,
+      unavailable: input.rightHand.status !== "completed",
+    };
+    const prompt = [
+      "APEX ATLAS — OPENING CONTROL DECISION",
+      "You are Groq Boss. This is the first control decision, before any Investigator action. Choose only continue_discovery or stop. Candidate selection, target research, pivots, and source selection are not available at this stage.",
+      "HUMAN OBJECTIVE (complete and authoritative; do not shorten, reinterpret, add geography, or add a source preference):",
+      humanObjective,
+      "OPENING STATE: no Investigator action has executed; there are no source observations or admitted candidates. If no concrete runtime blocker prevents execution, choose continue_discovery under the exact human objective. Do not compare strategies, sectors, or geographies.",
+      "SOURCE-NEUTRALITY: after this decision, the Investigator selects one useful company, person, or asset from any enabled registry/asset register or public-web result. All enabled registries and public-web search are equal, neutral options. One observed target is enough.",
+      "EVIDENCE BOUNDARY: Boss and Right-hand output, hypotheses, confidence, and rationale are not source evidence. Only actual same-run Investigator tool observations can establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.",
+      "RIGHT-HAND ADVICE (advisory only; no free-form rationale or focus lanes are passed as evidence):",
+      JSON.stringify(advice),
+      "Return exactly one JSON object. action must be continue_discovery or stop. candidateName, candidateType, and direction must all be null. reason must explain only the start/stop decision; confidence must be a number from 0 to 1.",
+    ].join("\n\n");
+    if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
+      throw new Error("Atlas opening Boss prompt cannot fit while preserving the complete human objective and opening control contract.");
+    }
+    return prompt;
+  }
   const fixedPrefix = `APEX ATLAS — ${apexOrientationCompact("boss")}
 
 You are Groq Boss. Choose the NEXT research action from current evidence; this is a control decision, not a fixed workflow phase.
@@ -804,7 +849,7 @@ export type AtlasRightHandAdvisoryOverride = {
   error: string | null;
 };
 
-export async function decideAtlasNextAction(input: { objective: string; admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType }>; discoveryStatus: string; discoveryTrajectory: string[]; discoveryTrajectoryRecords?: TrajectoryRecordInput[]; discoveryFindings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>; priorAction?: AtlasControlAction | null; priorCandidate?: string | null; priorCandidateType?: AtlasTargetType | null; caseId: number; controlTurn: number; jobId?: string | null; investigatorReport?: string; pinnedControlState?: string; rightHandOverride?: AtlasRightHandAdvisoryOverride }): Promise<AtlasControlDecision> {
+export async function decideAtlasNextAction(input: { objective: string; admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[]; targetType?: AtlasTargetType }>; discoveryStatus: string; discoveryTrajectory: string[]; discoveryTrajectoryRecords?: TrajectoryRecordInput[]; discoveryFindings: Array<{ value: string; personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>; priorAction?: AtlasControlAction | null; priorCandidate?: string | null; priorCandidateType?: AtlasTargetType | null; caseId: number; controlTurn: number; jobId?: string | null; investigatorReport?: string; pinnedControlState?: string; opening?: boolean; rightHandOverride?: AtlasRightHandAdvisoryOverride }): Promise<AtlasControlDecision> {
   if (!Number.isSafeInteger(input.caseId) || input.caseId <= 0) throw new Error("Atlas control decision requires a valid durable caseId.");
   if (!Number.isSafeInteger(input.controlTurn) || input.controlTurn <= 0) throw new Error("Atlas control decision requires a valid positive controlTurn.");
   const finalize = async (decision: AtlasControlDecision): Promise<AtlasControlDecision> => { const persisted = await persistControlDecision({ caseId: input.caseId, controlTurn: input.controlTurn, decision, jobId: input.jobId }); if (persisted.persisted) return decision; return { status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Atlas control decision could not be durably persisted; transition is fail-closed.", confidence: null, rightHand: decision.rightHand, bossModel: decision.bossModel, error: persisted.error ?? "Failed to persist Atlas control decision." }; };
@@ -842,8 +887,8 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
   // decide whether the mission remains safe and feasible without that advice.
   // Right-hand is advisory on every turn. Its failure is passed to Boss as context; only Boss unavailability or an invalid Boss contract is fail-closed.
   const selection = await resolveGroqBossModel(); if (!selection?.model) return finalize({ status: "unavailable", action: "stop", candidateName: null, direction: null, reason: "Groq Boss unavailable; Atlas transition is fail-closed rather than deterministic.", confidence: null, rightHand, bossModel: null, error: "No Groq Boss model available." });
-  const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, rightHand });
-  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: 1024, thinkingLevel: "medium", jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_decision" });
+  const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, opening: input.opening, humanObjective: input.objective, rightHand });
+  try { const generated = await generateGroqBossText(selection, prompt, { responseFormat: input.opening ? ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT : ATLAS_BOSS_CONTROL_RESPONSE_FORMAT, maxOutputTokens: 1024, thinkingLevel: "medium", jobId: input.jobId ?? null, caseId: input.caseId, targetDigest, iteration: input.controlTurn, decisionId, cognitiveTask: "control_decision" });
     if (!generated.raw) {
       const failureCategory = classifyAtlasBossGenerationFailure(generated);
       const failure = formatAtlasBossGenerationFailure(generated);

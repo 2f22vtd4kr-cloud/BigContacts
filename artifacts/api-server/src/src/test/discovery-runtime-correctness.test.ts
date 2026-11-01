@@ -24,7 +24,7 @@ describe("discovery runtime architecture", () => {
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
   });
 
-  it("binds the Boss-adjudicated opening direction into the real first Investigator scope", () => {
+  it("limits the opening Boss decision to start or stop without selecting a target or direction", () => {
     expect(canonicalDiscoverySource).toContain("resolveBossAdjudicatedOpeningDirection({");
     expect(canonicalDiscoverySource).toContain("rightHandOverride: {");
     expect(canonicalDiscoverySource).toContain("decision: rightHand.decision");
@@ -33,12 +33,14 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");
     expect(canonicalDiscoverySource).toContain("bossAction: openingBossDecision.action");
-    expect(canonicalDiscoverySource).toContain("bossDirection: openingBossDecision.direction");
-    expect(canonicalDiscoverySource).toContain('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
-    expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = openingObjective.objective");
+    expect(canonicalDiscoverySource).toContain("bossDirection: null");
+    expect(canonicalDiscoverySource).toContain("initialBossDirection: null");
+    expect(canonicalDiscoverySource).toContain('openingBossDecision.action !== "continue_discovery" && openingBossDecision.action !== "stop"');
+    expect(canonicalDiscoverySource).not.toContain("approvedOpeningDirection");
+    expect(canonicalDiscoverySource).not.toContain("activeDiscoveryObjective = openingObjective.objective");
     expect(canonicalDiscoverySource).toContain("controlTurn: 1");
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
-    expect(canonicalDiscoverySource).toContain("Boss chose to continue the human base objective without activating its initial direction.");
+    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION: target-first discovery is authorized under the exact human objective; no candidate or research direction was selected.");
     // Target-stage Right-hand authorization remains a separate contract; it is not
     // an approval gate for the discovery-opening Boss adjudication.
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {');
@@ -47,9 +49,10 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("explain any material deviation");
   });
   it("selects one source-backed target without geography-first exploration or source preference", () => {
-    expect(bossDiscoverySource).toContain("one immediately executable discovery move");
-    expect(bossDiscoverySource).toContain("All enabled registries and web search are neutral discovery options");
-    expect(bossDiscoverySource).toContain("A useful candidate is enough");
+    expect(bossDiscoverySource).toContain("This opening call has exactly one responsibility: select an available Investigator execution capability.");
+    expect(bossDiscoverySource).toContain("Any enabled registry/asset register and public-web search are equal, neutral discovery options");
+    expect(bossDiscoverySource).toContain("Do not compare sectors, geographies, or strategies.");
+    expect(bossDiscoverySource).toContain("Do not add geographic scope or a source preference.");
     expect(researchCoreSource).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY");
     expect(researchCoreSource).toContain("All enabled registries and public-web search are neutral options");
     expect(researchCoreSource).toContain("do not broaden geography");
@@ -87,8 +90,9 @@ describe("discovery runtime architecture", () => {
     expect(rightHandCall).toBeGreaterThan(-1);
     expect(bossCall).toBeLessThan(rightHandCall);
     const rightHandSource = canonicalSource.slice(rightHandCall, rightHandCall + 2200);
-    expect(rightHandSource).toContain("boss.report");
-    expect(rightHandSource).toContain("boss.nextDirections");
+    expect(rightHandSource).toContain("No Investigator action has executed; there are no source observations or admitted candidates yet.");
+    expect(rightHandSource).not.toContain("boss.report");
+    expect(rightHandSource).not.toContain("boss.nextDirections");
   });
 
   it("preserves and narrowly recovers terminal Right-hand opening failures", () => {
@@ -100,14 +104,20 @@ describe("discovery runtime architecture", () => {
     expect(canonicalContinuationSource).toContain("errors:Math.max(1,Number(priorJob?.errors??0))");
   });
 
-  it("propagates the opening Boss and Right-hand control data into the first Investigator objective", () => {
+  it("keeps model-generated hypotheses out of the first Investigator objective", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("const openingInvestigatorObjective = [");
-    expect(canonicalSource).toContain("boss.report");
-    expect(canonicalSource).toContain("boss.nextDirections");
-    expect(canonicalSource).toContain("boss.uncertainties");
-    expect(canonicalSource).toContain("rightHand.decision");
-    expect(canonicalSource).toContain("rightHand.reason");
+    const openingObjectiveStart = canonicalSource.indexOf("const openingInvestigatorObjective = [");
+    const openingObjectiveEnd = canonicalSource.indexOf('].join("\\n");', openingObjectiveStart);
+    expect(openingObjectiveStart).toBeGreaterThan(-1);
+    expect(openingObjectiveEnd).toBeGreaterThan(openingObjectiveStart);
+    const openingObjective = canonicalSource.slice(openingObjectiveStart, openingObjectiveEnd);
+    expect(openingObjective).toContain("No source observations or admitted candidates exist yet.");
+    expect(openingObjective).toContain("Only actual same-run Investigator tool observations may establish candidate names");
+    expect(openingObjective).not.toContain("boss.report");
+    expect(openingObjective).not.toContain("boss.nextDirections");
+    expect(openingObjective).not.toContain("rightHand.reason");
+    expect(openingObjective).not.toContain("rightHand.focusLanes");
     expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
     const openingCallStart = canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery(");
     const openingCallEnd = canonicalSource.indexOf("let consecutiveInvestigatorProviderUnavailable", openingCallStart);
@@ -122,14 +132,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("decision: rightHand.decision");
     expect(canonicalSource).toContain("authority: \"advisory_only\"");
     expect(canonicalSource).not.toContain("rightHand.approval");
-    expect(canonicalSource).toContain("const approvedOpeningDirection = openingDirectionResolution.status === \"approved\"");
-    const approvedOpeningStart = canonicalSource.indexOf('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
-    const persistedOpeningScope = canonicalSource.indexOf("controlTurn: 1", approvedOpeningStart);
-    const firstInvestigatorAct = canonicalSource.indexOf("let discovery = await runBureauAgenticWebPass", approvedOpeningStart);
-    expect(canonicalSource).toContain("persistAcceptedAtlasDiscoveryObjective({");
-    expect(canonicalSource).toContain("activeDiscoveryObjective = openingObjective.objective");
-    expect(persistedOpeningScope).toBeGreaterThan(approvedOpeningStart);
-    expect(firstInvestigatorAct).toBeGreaterThan(persistedOpeningScope);
+    expect(canonicalSource).not.toContain("approvedOpeningDirection");
+    expect(canonicalSource).not.toContain("activeDiscoveryObjective = openingObjective.objective");
   });
 
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
