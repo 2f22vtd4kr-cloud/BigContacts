@@ -1111,7 +1111,9 @@ describe("Investigator prompt architecture", () => {
 
     const availableBrowserProviders = getAvailableBrowserFetchProviders();
     const expectedActions = ["web_search", "parallel_web_search", "parallel_registry_search", "visit", ...(availableBrowserProviders.length ? ["browser_fetch"] : []), "registry_search", "domain_lookup", "done"];
-    expect(prompt).toContain("AVAILABLE ACTIONS: " + expectedActions.join(" | ") + ".");
+    const advertisedActions = prompt.match(/AVAILABLE ACTIONS: ([^\\n]+)\\./)?.[1]?.split(" | ") ?? [];
+    expect(new Set(advertisedActions)).toEqual(new Set(expectedActions));
+    expect(advertisedActions).toHaveLength(expectedActions.length);
     expect(prompt).not.toContain("footprint_email");
     expect(prompt).not.toContain("footprint_username_maigret");
     expect(prompt).not.toContain("harvest_domain");
