@@ -384,11 +384,9 @@ export function buildBossDiscoveryResponseFormat(availableInvestigators: readonl
     schema: {
       type: "object",
       properties: {
-        report: { type: "string" },
         investigatorLlm: { type: "string", enum: [...availableInvestigators] },
-        uncertainties: { type: "array", items: { type: "string" }, maxItems: 8 },
       },
-      required: ["report","investigatorLlm","uncertainties"], additionalProperties: false,
+      required: ["investigatorLlm"], additionalProperties: false,
     },
   };
 }
@@ -408,25 +406,26 @@ export function parseBossDiscoveryResponse(raw: string, allowedInvestigators: re
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
     const object = parsed as Record<string, unknown>;
-    const allowed = new Set(["report", "investigatorLlm", "uncertainties"]);
-    const required = [...allowed];
-    if (Object.keys(object).some((key) => !allowed.has(key)) || required.some((key) => !Object.prototype.hasOwnProperty.call(object, key))) {
+    const allowed = new Set(["investigatorLlm"]);
+    if (Object.keys(object).some((key) => !allowed.has(key)) || !Object.prototype.hasOwnProperty.call(object, "investigatorLlm")) {
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
-    const report = typeof object.report === "string" ? object.report.trim() : "";
     const available = allowedInvestigators;
     const investigatorLlm = typeof object.investigatorLlm === "string" && available.includes(object.investigatorLlm as InvestigatorCapability) ? object.investigatorLlm as InvestigatorCapability : null;
-    const uncertainties = Array.isArray(object.uncertainties) && object.uncertainties.length <= 8 && object.uncertainties.every((value) => typeof value === "string" && value.trim())
-      ? uniqueStrings(object.uncertainties, 8)
-      : null;
-    if (!report || !investigatorLlm || !uncertainties) {
+    if (!investigatorLlm) {
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
 
-    // Boss has no browsing capability. It cannot create source-backed candidates,
-    // source URLs, directions naming targets/sources, relationships, or contact
-    // evidence. Those enter only through Investigator observations and admission.
-    return { report, candidates: [], investigatorLlm, nextDirections: [], uncertainties };
+    // The opening Boss call is assignment-only. It cannot inject a target,
+    // direction, source, relationship, wealth claim, or contact route into the
+    // discovery record. The human objective remains the Investigator's scope.
+    return {
+      report: "No source observations exist yet; awaiting Investigator target-first discovery.",
+      candidates: [],
+      investigatorLlm,
+      nextDirections: [],
+      uncertainties: [],
+    };
   } catch {
     return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
   }
@@ -483,11 +482,9 @@ Current shared case context:
 ${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigator reports exist; this is the opening brief."}
 Return ONLY JSON in this shape:
      {
-  "report": "concise opening control assessment; no target has been discovered",
-  "investigatorLlm": "one capability from the available runtime Investigator registry",
-  "uncertainties": ["evidence gaps that must be resolved from actual source observations"]
+  "investigatorLlm": "one capability from the available runtime Investigator registry"
 }
-Do not output candidates, next directions, registry/provider names, source URLs, contact details, ownership, relationships, or wealth claims.
+This is an assignment-only control response. Do not output a report, target, candidate, direction, registry/provider name, jurisdiction, source URL, contact detail, ownership, relationship, valuation, or wealth claim.
 Boss output is control guidance, never a discovery or evidence record. Never invent or output candidate names, source URLs, contact details, ownership, relationships, or wealth claims.`;
 }
 
