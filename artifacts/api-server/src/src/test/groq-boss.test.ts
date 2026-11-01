@@ -24,7 +24,7 @@ describe("Groq Boss discovery prompt grounding", () => {
     }, ["groq-investigator-1"]);
     expect(prompt).toContain("Choose one concrete, testable company/person/asset lead");
     expect(prompt).toContain("All enabled registries and web search are neutral discovery options");
-    expect(prompt).toContain("do not invent a jurisdiction");
+    expect(prompt).toContain("Preserve geographic constraints only when the human explicitly supplied them");
     expect(prompt).toContain("A useful candidate is enough");
     expect(canonicalAtlasDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions");
     expect(caseBureauSource).toContain("Start by selecting a concrete company, person, or asset candidate");
