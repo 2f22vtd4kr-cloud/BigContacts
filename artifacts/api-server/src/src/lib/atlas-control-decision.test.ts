@@ -180,6 +180,8 @@ describe("Atlas control-plane lead continuity", () => {
   it("fits the full opening objective without duplicating it in pinned control state", () => {
     const humanObjective = `Find source-backed private-business owners with realistic professional contact routes. ${"Use observed public evidence and do not invent geography. ".repeat(34)}`;
     const prompt = buildAtlasBossControlPrompt({
+      opening: true,
+      humanObjective,
       investigatorReport: JSON.stringify({
         stage: "opening_adjudication",
         bossInitialReport: "One unverified candidate hypothesis.",
@@ -204,6 +206,12 @@ describe("Atlas control-plane lead continuity", () => {
     });
 
     expect(prompt).toContain(humanObjective);
+    expect(prompt.split(humanObjective).length - 1).toBe(1);
+    expect(prompt).not.toContain("One unverified candidate hypothesis");
+    expect(prompt).not.toContain("Verify the named person's role and ownership");
+    expect(prompt).not.toContain("HUMAN OBJECTIVE: The complete current human objective is in COMPLETE DISCOVERY STATE");
+    expect(prompt).toContain("Choose only continue_discovery or stop.");
+    expect(prompt).toContain("Right-hand advice");
     expect(prompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
   });
 
