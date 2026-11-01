@@ -48,6 +48,8 @@ describe("operator authentication boundary", () => {
     const routeSource = fs.readFileSync(path.resolve(process.cwd(), "src/src/routes/index.ts"), "utf8");
     const uiSource = fs.readFileSync(path.resolve(process.cwd(), "../apex-finder/src/App.tsx"), "utf8");
     const preflightSource = fs.readFileSync(path.resolve(process.cwd(), "../../scripts/replit-preflight.mjs"), "utf8");
+    const replitConfig = fs.readFileSync(path.resolve(process.cwd(), "../../.replit"), "utf8");
+    const apiPackage = fs.readFileSync(path.resolve(process.cwd(), "package.json"), "utf8");
 
     expect(appSource).toContain('app.use("/api",router)');
     expect(appSource).not.toContain("apiAuthMiddleware");
@@ -59,6 +61,10 @@ describe("operator authentication boundary", () => {
     expect(routeSource.indexOf("router.use(requireOperatorAuth)")).toBeLessThan(routeSource.indexOf("router.use(entitiesRouter)"));
     expect(uiSource).toContain("<OperatorGate>");
     expect(uiSource).toContain("<AppRouter />");
+    expect(replitConfig).toContain("[userenv.development]");
+    expect(replitConfig).toContain('NODE_ENV = "development"');
+    expect(replitConfig).toContain('run = "bash scripts/replit-boot.sh"');
+    expect(apiPackage).toContain('"dev": "export NODE_ENV=development');
     expect(preflightSource).toContain('process.env.NODE_ENV === "development"');
     expect(preflightSource).toContain("SKIP operator-auth secrets");
     expect(preflightSource).toContain("APEX_API_AUTH_TOKEN");
