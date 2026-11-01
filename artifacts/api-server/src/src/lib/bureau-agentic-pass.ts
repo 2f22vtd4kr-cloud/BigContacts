@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { logger } from "./logger";
-import { resolveMonotonicResearchCaseIteration } from "./research-case-event-iteration";
+import { lockResearchCaseEventAppendStream, resolveMonotonicResearchCaseIteration } from "./research-case-event-iteration";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
 import { buildDurableUrlInventoryFromEventPayloads, compactDurableDiscoveryRecords, hasDurableUrlProjectionOmissions as hasDurableUrlProjectionOmissionsHelper } from "./durable-discovery-projection";
 import { replayInvestigatorTrajectoryEvents } from "./durable-trajectory-replay";
@@ -210,6 +210,7 @@ async function persistDiscoveryTrajectory(caseId:number,input:{objective?:string
   const memoryProjection={caseType:current.caseType,jobId:current.jobId,runId:input.runId,runIds:nextRunIds,atlasControlDecisions:current.atlasControlDecisions,admittedCandidates:current.admittedCandidates,openQuestions:current.openQuestions,evidenceState:durableEvidenceState,bossState:current.bossState,rightHandState:current.rightHandState,investigatorLlm:input.investigatorLlm??result.model,iterations:nextIteration,searches:(Number(current.searches)||0)+incrementalSearches,visits:(Number(current.visits)||0)+incrementalVisits,stopReason:input.finalize?result.stopReason:current.stopReason};
   const contextDocument=["CANONICAL ATLAS DISCOVERY CASE",`INVESTIGATOR: ${input.investigatorLlm??result.model}`,`JOB: ${input.jobId??"none"}`,`RUN: ${input.runId}`,`OBJECTIVE: ${input.objective??""}`,"DURABLE CASE MEMORY PROJECTION:",JSON.stringify(memoryProjection),"BOUNDED TRAJECTORY PROJECTION (complete observations remain in research_case_events):",JSON.stringify(durableProjectionRecords)].join("\n");
   await db.transaction(async(tx)=>{
+    await lockResearchCaseEventAppendStream(tx, caseId);
     const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
     if (!locked?.caseFile) throw new Error(`Discovery case ${caseId} disappeared during trajectory persistence.`);
     let lockedCase: Record<string, any>;
