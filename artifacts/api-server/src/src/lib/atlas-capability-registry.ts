@@ -71,9 +71,9 @@ export function capabilityForAction(action: string): AtlasCapability[] {
  * presentation-only guidance; it does not select or order the research strategy.
  */
 const COMPACT_CAPABILITY_GUIDANCE: Record<string, string> = {
-  "search.serper": "provider=serper; snippets are leads; duplicates happen",
-  "search.tavily": "provider=tavily; answers are leads, not primary evidence",
-  "search.exa": "provider=exa; semantic discovery; relevance is not identity",
+  "search.serper": "Public-web search; providers=serper|tavily|exa; snippets are leads; duplicates happen",
+  "search.tavily": "Public-web search; providers=serper|tavily|exa; answers are leads, not primary evidence",
+  "search.exa": "Public-web search; providers=serper|tavily|exa; semantic discovery; relevance is not identity",
   "web.visit": "inspect source; PDFs bounded; JS/challenge pages may fail",
   "web.browser_fetch": "browser retrieval when HTTP fails; high cost",
   "registry.search": "Choose any enabled registry matching the current hypothesis; all enabled registries are neutral options; legal role ≠ personal contact; registry role ≠ ownership",
@@ -103,9 +103,23 @@ export function exposeAttestedCapabilities(
   );
 }
 
-export function renderAtlasCapabilityGuidanceCompact(capabilities: readonly AtlasCapability[] = ATLAS_CAPABILITIES): string {
-  return capabilities
-    .filter((c) => c.investigatorSelectable !== false)
-    .map((c) => `- ${c.id} (${c.action}): ${COMPACT_CAPABILITY_GUIDANCE[c.id] ?? (c.decisionGuidance ?? c.purpose).slice(0, 60)}`)
-    .join("\n");
+export function renderAtlasCapabilityGuidanceCompact(
+  capabilities: readonly AtlasCapability[] = ATLAS_CAPABILITIES,
+  rng: () => number = Math.random,
+): string {
+  const selectable = capabilities.filter((c) => c.investigatorSelectable !== false);
+  const webProviders = [...new Set(selectable.filter((c) => c.action === "web_search").map((c) => c.id.replace("search.", "")))];
+  const webOption = webProviders.length
+    ? [`- web.search (web_search): providers=${webProviders.join("|")}; neutral first-discovery option; snippets are leads, not proof`]
+    : [];
+  const remaining = selectable
+    .filter((c) => c.action !== "web_search")
+    .map((c) => `- ${c.id} (${c.action}): ${COMPACT_CAPABILITY_GUIDANCE[c.id] ?? (c.decisionGuidance ?? c.purpose).slice(0, 60)}`);
+  const options = [...webOption, ...remaining];
+  for (let i = options.length - 1; i > 0; i -= 1) {
+    const raw = rng();
+    const j = Math.max(0, Math.min(i, Math.floor((Number.isFinite(raw) ? raw : 0) * (i + 1))));
+    [options[i], options[j]] = [options[j]!, options[i]!];
+  }
+  return options.join("\n");
 }
