@@ -21,7 +21,7 @@ import {
   MAX_CONSECUTIVE_INVESTIGATOR_PROVIDER_UNAVAILABLE,
   MAX_CONSECUTIVE_INVESTIGATOR_TOKEN_CAPACITY_FAILURES,
 } from "./canonical-investigator-provider-recovery";
-import { nextResearchCaseEventIteration } from "./research-case-event-iteration";
+import { lockResearchCaseEventAppendStream, nextResearchCaseEventIteration } from "./research-case-event-iteration";
 import { describeThrownProviderError, safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { classifyInvestigatorEpisodeFailure, hasExecutedInvestigatorResearchAction, summarizeAtlasDiscoveryResearchHealth } from "./investigator-episode-health";
 import { classifyCanonicalAtlasFailure, isRecoverableRightHandOpeningFailure, type AtlasFailureStage } from "./canonical-atlas-failure-diagnostics";
@@ -144,6 +144,7 @@ async function persistAcceptedAtlasDiscoveryObjective(input: {
   };
   const payloadJson = JSON.stringify(payload);
   await db.transaction(async (tx) => {
+    await lockResearchCaseEventAppendStream(tx, input.caseId);
     const [lockedCase] = await tx.select({
       caseType: researchCasesTable.caseType,
       status: researchCasesTable.status,
@@ -1364,6 +1365,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }
       failureStage = "case_persistence";
       await db.transaction(async (tx) => {
+        await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
         const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration })
           .from(researchCasesTable)
           .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
@@ -1419,6 +1421,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     ): Promise<void> => {
       failureStage = "case_persistence";
       await db.transaction(async (tx) => {
+        await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
         const [lockedCase] = await tx.select({
           status: researchCasesTable.status,
           currentAction: researchCasesTable.currentAction,
@@ -1549,6 +1552,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }
       failureStage = "case_persistence";
       await db.transaction(async (tx) => {
+        await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
         const [lockedCase] = await tx.select({
           status: researchCasesTable.status,
           currentAction: researchCasesTable.currentAction,
@@ -1674,6 +1678,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     evidenceRows += priorCardReconciliation.evidenceRows;
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
+      await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
       // Serialize the opening event against the durable cancellation fence.
       // Whichever transaction acquires the case row first wins the ordering;
       // a cancelled case can never receive a new opening event afterward.
@@ -1800,6 +1805,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // review is also recorded; it is not an automatic stop/veto.
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
+      await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
         .from(researchCasesTable)
         .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
@@ -2030,6 +2036,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       await assertAtlasJobActive(atlasJobId);
       failureStage = "case_persistence";
       await db.transaction(async (tx) => {
+        await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
         const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`)).for("update").limit(1);
         if (!locked) throw new Error("Canonical discovery admission projection lost its active case fence.");
         let lockedCaseFile: Record<string, any> = {};
@@ -2187,6 +2194,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await assertAtlasJobActive(atlasJobId);
         failureStage = "control_event_persistence";
         await db.transaction(async (tx) => {
+          await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
           const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
             .from(researchCasesTable)
             .where(and(
@@ -2337,6 +2345,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           await assertAtlasJobActive(atlasJobId);
           failureStage = "control_event_persistence";
           await db.transaction(async (tx) => {
+            await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
             const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction, caseFile: researchCasesTable.caseFile })
               .from(researchCasesTable)
               .where(and(
@@ -2476,6 +2485,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           const failureMessage = `Canonical Investigator continuation stopped before a usable new research pass; case preserved for review. (${errorSummary}; failureDomain=${diagnostic.domain}; failureKind=${diagnostic.kind})`;
           failureStage = "case_persistence";
           await db.transaction(async (tx) => {
+            await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
             const [lockedCase] = await tx.select({
               status: researchCasesTable.status,
               iteration: researchCasesTable.iteration,
