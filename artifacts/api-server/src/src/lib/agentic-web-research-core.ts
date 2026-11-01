@@ -5487,7 +5487,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // admission/falsification laws remain non-discardable.
       const finalEmergencyAssignment = [
         ...(input.mode === "discovery" ? [
-          "APEX INVESTIGATOR — DISCOVERY MODE: no person or entity target is implied. Target-specific names must come from the human objective or actual same-case search, registry, or fetched-page observations, never model-generated memory. The Investigator chooses actions by evidence and information gain; no fixed sequence.",
+          "APEX INVESTIGATOR — DISCOVERY MODE: no person or entity target is implied. Target-specific names must come from the human brief or same-case observations, never model memory.",
         ] : [
           "APEX INVESTIGATOR: follow the active case objective and Boss-approved scope; choose actions from AVAILABLE ACTIONS by evidence and information gain, with no fixed action sequence.",
         ]),
