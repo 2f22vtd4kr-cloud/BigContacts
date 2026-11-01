@@ -386,9 +386,9 @@ export function buildBossDiscoveryResponseFormat(availableInvestigators: readonl
       properties: {
         report: { type: "string" },
         investigatorLlm: { type: "string", enum: [...availableInvestigators] },
-        nextDirections: { type: "array", items: { type: "string" }, maxItems: 8 }, uncertainties: { type: "array", items: { type: "string" }, maxItems: 8 },
+        uncertainties: { type: "array", items: { type: "string" }, maxItems: 8 },
       },
-      required: ["report","investigatorLlm","nextDirections","uncertainties"], additionalProperties: false,
+      required: ["report","investigatorLlm","uncertainties"], additionalProperties: false,
     },
   };
 }
@@ -408,7 +408,7 @@ export function parseBossDiscoveryResponse(raw: string, allowedInvestigators: re
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
     const object = parsed as Record<string, unknown>;
-    const allowed = new Set(["report", "investigatorLlm", "nextDirections", "uncertainties"]);
+    const allowed = new Set(["report", "investigatorLlm", "uncertainties"]);
     const required = [...allowed];
     if (Object.keys(object).some((key) => !allowed.has(key)) || required.some((key) => !Object.prototype.hasOwnProperty.call(object, key))) {
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
@@ -416,20 +416,17 @@ export function parseBossDiscoveryResponse(raw: string, allowedInvestigators: re
     const report = typeof object.report === "string" ? object.report.trim() : "";
     const available = allowedInvestigators;
     const investigatorLlm = typeof object.investigatorLlm === "string" && available.includes(object.investigatorLlm as InvestigatorCapability) ? object.investigatorLlm as InvestigatorCapability : null;
-    const nextDirections = Array.isArray(object.nextDirections) && object.nextDirections.length <= 8 && object.nextDirections.every((value) => typeof value === "string" && value.trim())
-      ? uniqueStrings(object.nextDirections, 8)
-      : null;
     const uncertainties = Array.isArray(object.uncertainties) && object.uncertainties.length <= 8 && object.uncertainties.every((value) => typeof value === "string" && value.trim())
       ? uniqueStrings(object.uncertainties, 8)
       : null;
-    if (!report || !investigatorLlm || !nextDirections || !uncertainties) {
+    if (!report || !investigatorLlm || !uncertainties) {
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
 
     // Boss has no browsing capability. It cannot create source-backed candidates,
-    // source URLs, relationships, or contact evidence; those enter only through
-    // Investigator observations and deterministic admission.
-    return { report, candidates: [], investigatorLlm, nextDirections, uncertainties };
+    // source URLs, directions naming targets/sources, relationships, or contact
+    // evidence. Those enter only through Investigator observations and admission.
+    return { report, candidates: [], investigatorLlm, nextDirections: [], uncertainties };
   } catch {
     return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
   }
@@ -514,11 +511,11 @@ Current shared case context:
 ${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigator reports exist; this is the opening brief."}
 Return ONLY JSON in this shape:
      {
-  "report": "concise opening control assessment; do not claim any target has been discovered",
+  "report": "concise opening control assessment; no target has been discovered",
   "investigatorLlm": "one capability from the available runtime Investigator registry",
-  "nextDirections": ["one concise instruction for the Investigator to begin source-neutral target-first discovery; no named candidate, registry, jurisdiction, URL, or contact detail"],
-  "uncertainties": ["evidence gaps that the Investigator must resolve from actual source observations"]
+  "uncertainties": ["evidence gaps that must be resolved from actual source observations"]
 }
+Do not output candidates, next directions, registry/provider names, source URLs, contact details, ownership, relationships, or wealth claims.
 Boss output is control guidance, never a discovery or evidence record. Never invent or output candidate names, source URLs, contact details, ownership, relationships, or wealth claims.`;
 }
 
