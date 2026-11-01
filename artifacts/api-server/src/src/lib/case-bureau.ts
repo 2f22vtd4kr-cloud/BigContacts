@@ -432,34 +432,6 @@ export function parseBossDiscoveryResponse(raw: string, allowedInvestigators: re
   }
 }
 
-function parseDiscoveryContactEvidenceStrict(value: unknown): DiscoveryContactEvidence[] | null {
-  if (!Array.isArray(value) || value.length > 8) return null;
-  const allowed = new Set(["vectorType", "value", "scope", "personName", "role", "sourceUrls", "note"]);
-  const validVectors = new Set<DiscoveryContactEvidence["vectorType"]>([
-    "email", "phone", "linkedin", "twitter", "instagram", "telegram", "website", "organization_contact", "other",
-  ]);
-  const evidence = value.flatMap((item) => {
-    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
-    const record = item as Record<string, unknown>;
-    const required = ["vectorType", "value", "scope", "personName", "role", "sourceUrls", "note"];
-    if (Object.keys(record).some((key) => !allowed.has(key)) || required.some((key) => !Object.prototype.hasOwnProperty.call(record, key))) return [];
-    const valueText = typeof record.value === "string" ? record.value.trim() : "";
-    const vectorType = typeof record.vectorType === "string" && validVectors.has(record.vectorType as DiscoveryContactEvidence["vectorType"])
-      ? record.vectorType as DiscoveryContactEvidence["vectorType"]
-      : null;
-    const scope = record.scope === "person" || record.scope === "organization" || record.scope === "unknown" ? record.scope : null;
-    const personName = record.personName === null ? null : typeof record.personName === "string" && record.personName.trim() ? record.personName.trim().slice(0, 200) : null;
-    const role = record.role === null ? null : typeof record.role === "string" && record.role.trim() ? record.role.trim().slice(0, 200) : null;
-    const sourceUrls = Array.isArray(record.sourceUrls) && record.sourceUrls.length <= 6 && record.sourceUrls.every((url) => typeof url === "string" && /^https?:\/\//i.test(url))
-      ? record.sourceUrls as string[]
-      : null;
-    const note = record.note === null ? null : typeof record.note === "string" && record.note.trim() ? record.note.trim().slice(0, 500) : null;
-    if (!valueText || !vectorType || !scope || !sourceUrls || note === undefined) return [];
-    return [{ vectorType, value: valueText.slice(0, 500), scope, personName, role, sourceUrls, note }];
-  });
-  return evidence.length === value.length ? evidence : null;
-}
-
 
 /**
  * Opening Boss request for a discovery case. This is deliberately separate
