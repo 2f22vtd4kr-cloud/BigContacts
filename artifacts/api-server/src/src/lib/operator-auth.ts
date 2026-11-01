@@ -7,6 +7,11 @@ export const OPERATOR_AUTH_MIN_LENGTHS = { APEX_API_AUTH_TOKEN: 32, APEX_OPERATO
 export type OperatorAuthConfig = { apiToken: string; operatorPassword: string; sessionSecret: string };
 const REQUIRED_NAMES = Object.keys(OPERATOR_AUTH_MIN_LENGTHS) as Array<keyof typeof OPERATOR_AUTH_MIN_LENGTHS>;
 
+/** Development is an explicit server-side mode; never derive this from request input. */
+export function isOperatorAuthBypassed(env: Record<string, string | undefined> = process.env): boolean {
+  return env.NODE_ENV === "development";
+}
+
 export function missingOperatorAuthNames(env: Record<string, string | undefined> = process.env): string[] {
   return REQUIRED_NAMES.filter((name) => (env[name]?.trim() ?? "").length < OPERATOR_AUTH_MIN_LENGTHS[name]);
 }
@@ -118,6 +123,7 @@ export function createRequireOperatorAuth(envProvider: () => Record<string, stri
     if (publicRoute(req)) return next();
     res.setHeader("Cache-Control", "no-store");
     const env = envProvider();
+    if (isOperatorAuthBypassed(env)) return next();
     const config = readOperatorAuthConfig(env);
     if (!config) {
       return res.status(503).json({ code: "OPERATOR_AUTH_NOT_CONFIGURED", error: "Operator authentication is not configured.", userError: authError("OPERATOR_AUTH_NOT_CONFIGURED") });
