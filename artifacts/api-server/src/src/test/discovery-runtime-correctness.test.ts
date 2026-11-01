@@ -33,7 +33,9 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");
     expect(canonicalDiscoverySource).toContain("bossAction: openingBossDecision.action");
-    expect(canonicalDiscoverySource).toContain("bossDirection: openingBossDecision.direction");
+    expect(canonicalDiscoverySource).toContain("bossDirection: null");
+    expect(canonicalDiscoverySource).toContain("initialBossDirection: null");
+    expect(canonicalDiscoverySource).toContain('openingBossDecision.action !== "continue_discovery" && openingBossDecision.action !== "stop"');
     expect(canonicalDiscoverySource).toContain('const approvedOpeningDirection = openingDirectionResolution.status === "approved"');
     expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = openingObjective.objective");
     expect(canonicalDiscoverySource).toContain("controlTurn: 1");
@@ -47,9 +49,10 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).toContain("explain any material deviation");
   });
   it("selects one source-backed target without geography-first exploration or source preference", () => {
-    expect(bossDiscoverySource).toContain("one immediately executable discovery move");
-    expect(bossDiscoverySource).toContain("All enabled registries and web search are neutral discovery options");
-    expect(bossDiscoverySource).toContain("A useful candidate is enough");
+    expect(bossDiscoverySource).toContain("This opening call has exactly one responsibility: select an available Investigator execution capability.");
+    expect(bossDiscoverySource).toContain("Any enabled registry/asset register and public-web search are equal, neutral discovery options");
+    expect(bossDiscoverySource).toContain("Do not compare sectors, geographies, or strategies.");
+    expect(bossDiscoverySource).toContain("Do not add geographic scope or a source preference.");
     expect(researchCoreSource).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY");
     expect(researchCoreSource).toContain("All enabled registries and public-web search are neutral options");
     expect(researchCoreSource).toContain("do not broaden geography");
@@ -87,8 +90,9 @@ describe("discovery runtime architecture", () => {
     expect(rightHandCall).toBeGreaterThan(-1);
     expect(bossCall).toBeLessThan(rightHandCall);
     const rightHandSource = canonicalSource.slice(rightHandCall, rightHandCall + 2200);
-    expect(rightHandSource).toContain("boss.report");
-    expect(rightHandSource).toContain("boss.nextDirections");
+    expect(rightHandSource).toContain("No Investigator action has executed; there are no source observations or admitted candidates yet.");
+    expect(rightHandSource).not.toContain("boss.report");
+    expect(rightHandSource).not.toContain("boss.nextDirections");
   });
 
   it("preserves and narrowly recovers terminal Right-hand opening failures", () => {
@@ -100,14 +104,20 @@ describe("discovery runtime architecture", () => {
     expect(canonicalContinuationSource).toContain("errors:Math.max(1,Number(priorJob?.errors??0))");
   });
 
-  it("propagates the opening Boss and Right-hand control data into the first Investigator objective", () => {
+  it("keeps model-generated hypotheses out of the first Investigator objective", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("const openingInvestigatorObjective = [");
-    expect(canonicalSource).toContain("boss.report");
-    expect(canonicalSource).toContain("boss.nextDirections");
-    expect(canonicalSource).toContain("boss.uncertainties");
-    expect(canonicalSource).toContain("rightHand.decision");
-    expect(canonicalSource).toContain("rightHand.reason");
+    const openingObjectiveStart = canonicalSource.indexOf("const openingInvestigatorObjective = [");
+    const openingObjectiveEnd = canonicalSource.indexOf("].join(\\"\\n\\");", openingObjectiveStart);
+    expect(openingObjectiveStart).toBeGreaterThan(-1);
+    expect(openingObjectiveEnd).toBeGreaterThan(openingObjectiveStart);
+    const openingObjective = canonicalSource.slice(openingObjectiveStart, openingObjectiveEnd);
+    expect(openingObjective).toContain("No source observations or admitted candidates exist yet.");
+    expect(openingObjective).toContain("Only actual same-run Investigator tool observations may establish candidate names");
+    expect(openingObjective).not.toContain("boss.report");
+    expect(openingObjective).not.toContain("boss.nextDirections");
+    expect(openingObjective).not.toContain("rightHand.reason");
+    expect(openingObjective).not.toContain("rightHand.focusLanes");
     expect(canonicalSource).toContain("objective: openingInvestigatorObjective");
     const openingCallStart = canonicalSource.indexOf("discovery = await runDiscoveryWithQuotaRecovery(");
     const openingCallEnd = canonicalSource.indexOf("let consecutiveInvestigatorProviderUnavailable", openingCallStart);
