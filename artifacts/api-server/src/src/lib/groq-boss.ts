@@ -229,7 +229,29 @@ function tokenWindowWaitMs(response: Response, body: string): number | null {
   const seconds = Number(retryAfter);
   if (Number.isFinite(seconds) && seconds >= 0) return Math.floor(seconds * 1_000);
   const date = Date.parse(retryAfter);
-  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : null;
+  if (Number.isFinite(date)) return Math.max(0, date - Date.now());
+
+  // Some Groq 429 responses include a precise TPM reset only in the JSON error
+  // message (for example, "Please try again in 8.9775s"). Use that bounded
+  // provider hint when reset headers are absent; never infer a wait for a
+  // different 429 category or rotate the selected role/model.
+  try {
+    const parsed = JSON.parse(body) as { error?: { message?: unknown } };
+    const message = typeof parsed.error?.message === "string" ? parsed.error.message : "";
+    const match = message.match(/(?:please\\s+)?try again in\\s+(\\d+(?:\\.\\d+)?)\\s*(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m)\\b/i);
+    if (!match) return null;
+    const amount = Number(match[1]);
+    if (!Number.isFinite(amount) || amount < 0) return null;
+    const unit = match[2]!.toLowerCase();
+    const multiplier = /^(?:milliseconds?|msecs?|ms)$/.test(unit)
+      ? 1
+      : /^(?:minutes?|mins?|m)$/.test(unit)
+        ? 60_000
+        : 1_000;
+    return Math.ceil(amount * multiplier);
+  } catch {
+    return null;
+  }
 }
 
 function boundedBossPrompt(prompt: string, maximum: number): string | null {
