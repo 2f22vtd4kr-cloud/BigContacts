@@ -586,9 +586,9 @@ async function materializePartialPersonLeadCards(input: {
         || !["visit", "browser_fetch", "web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(observation.action)) continue;
       const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
       if (!sourceUrl || !claimedUrls.has(sourceUrl)) continue;
-      // The model-selected person and same-job observed URL establish a
-      // provisional lead. Exact name/role span matching and claim-grade source
-      // classification improve the evidence tier but never veto card creation.
+      // The model-selected person name is only a hypothesis. It becomes a
+      // provisional lead only when this run's actual source observation contains
+      // that exact name; role/wealth/contact claims remain separate gates.
       const restrictedCommunitySource = isRestrictedCommunitySourceUrl(sourceUrl);
       const span = restrictedCommunitySource
         ? null
@@ -697,7 +697,7 @@ async function materializePartialPersonLeadCards(input: {
         ...priorMetadata,
         reviewOnly: true,
         partialPersonLead: true,
-        roleOnlyLead: Boolean(lead.role),
+        roleOnlyLead: false,
         identityCollisionPossible,
         stage: "partial_review",
         admission: priorMetadata.admission ?? (hasFetchedSource ? "source-backed-partial-finding" : "source-observed-person-lead"),
@@ -964,9 +964,8 @@ async function materializePartialOrganizationLeadCards(input: {
         || !["visit", "browser_fetch", "web_search", "parallel_web_search", "registry_search", "parallel_registry_search"].includes(observation.action)) continue;
       const sourceUrl = normalizeSourceUrl(observation.sourceUrl);
       if (!sourceUrl || !claimedUrls.has(sourceUrl)) continue;
-      // The model-selected finding and same-job observed URL establish the
-      // review lead's provenance. Exact-span parsing and claim-grade publisher
-      // classification grade evidence only; neither can veto provisional cards.
+      // The Investigator's selected organization remains a hypothesis until
+      // its exact name is present in this same-run source observation.
       const restrictedCommunitySource = isRestrictedCommunitySourceUrl(sourceUrl);
       const span = restrictedCommunitySource
         ? null
