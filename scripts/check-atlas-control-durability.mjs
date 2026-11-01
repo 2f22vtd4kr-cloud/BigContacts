@@ -2,6 +2,7 @@
 import fs from "node:fs";
 const control = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-decision.ts", "utf8");
 const atlas = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
+const bossDiscovery = fs.readFileSync("artifacts/api-server/src/src/lib/case-bureau.ts", "utf8");
 const openingReviewPromptStart = atlas.indexOf("Independently review the exact human objective");
 const openingReviewPromptEnd = atlas.indexOf("ATLAS_OPENING_RIGHT_HAND_REVIEW_RESPONSE_FORMAT,", openingReviewPromptStart);
 const openingReviewPrompt = openingReviewPromptStart >= 0 && openingReviewPromptEnd > openingReviewPromptStart ? atlas.slice(openingReviewPromptStart, openingReviewPromptEnd) : "";
@@ -46,6 +47,7 @@ const checks = [
   ["opening Boss prompt construction has an accurate non-persistence failure stage", atlas.includes('failureStage = "control_prompt_construction";\n    const openingBossDecision = await decideAtlasNextAction(')],
   ["opening scope is decided by Boss action; Right-hand remains advisory and no opening direction is adopted", /resolveBossAdjudicatedOpeningDirection\(\{[\s\S]{0,300}bossAction:\s*openingBossDecision\.action[\s\S]{0,300}bossDirection:\s*null[\s\S]{0,200}initialBossDirection:\s*null/.test(atlas) && atlas.includes("openingBossDecision.action !== \"continue_discovery\"") && !atlas.includes("rightHand.approval")],
   ["opening target-first decision does not force multi-hypothesis strategy comparison", !atlas.includes("STRATEGY COMPARISON CONTRACT") && atlas.includes("OPENING TARGET CONTRACT") && atlas.includes("one useful target")],
+  ["Boss opening response schema is assignment-only and rejects raw candidate claims", bossDiscovery.includes('required: ["investigatorLlm"]') && bossDiscovery.includes("no target or source claims were accepted") && !bossDiscovery.includes("report: parsed.report || generated.raw")],
   ["Boss opening hypotheses cannot be treated as source-backed candidates", atlas.includes("Do not propose a named person, company, asset, registry, provider, country, or jurisdiction") && atlas.includes("no source preference or jurisdiction assumption")],
   ["Right-hand opening review does not consume Boss-generated target/source hypotheses", openingReviewPrompt.length > 0 && !openingReviewPrompt.includes("boss.report") && openingReviewPrompt.includes("there are no source observations or admitted candidates yet")],
   ["opening Boss decision cannot pivot or select a candidate before Investigator observations", atlas.includes('openingBossDecision.action !== "continue_discovery" && openingBossDecision.action !== "stop"') && atlas.includes("initialBossDirection: null")],
