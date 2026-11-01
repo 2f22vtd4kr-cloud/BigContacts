@@ -16,10 +16,10 @@ const checkpointSource = canonicalAtlas.slice(canonicalAtlas.indexOf("export asy
 describe("terminal review-card reconciliation", () => {
   it("chooses source classes by expected information gain and jurisdiction, not a registry-first habit", () => {
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION");
-    expect(orientation).toContain("There is no fixed provider or registry-first sequence");
-    expect(orientation).toContain("Companies House is a UK/Great Britain register");
+    expect(orientation).toContain("registry search and public-web search are equal, neutral first-discovery options");
+    expect(orientation).toContain("Preserve geographic scope only when the human supplied it");
     expect(orientation).toContain("not a substitute for US state Secretary-of-State filings");
-    expect(orientation).toContain("ordinary web search is often the better first move");
+    expect(orientation).toContain("Any enabled registry may seed the first company, person, or asset candidate");
     expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
   });
 
@@ -96,9 +96,9 @@ describe("terminal review-card reconciliation", () => {
     expect(agenticCore).toContain('YOU decide whether any observed organization is worth preserving as a provisional review card');
     expect(agenticCore).toContain("Leave promotionDecision unset for a review-only company card");
     expect(agenticCore).toContain('Search snippets are leads, not claim-grade evidence');
-    expect(agenticCore).toContain("MIXED DISCOVERY: compare model-selected local/sector web hypotheses with relevant official business, ownership, transaction and public-asset sources; choose by information gain, never a fixed order, and do not repeat one registry after no new hit.");
-    expect(agenticCore).toContain("SOURCE-NEUTRAL RESEARCH: compare plausible hypotheses and choose complementary source classes");
-    expect(agenticCore).toContain("never default to Companies House or query registries merely because they are available");
+    expect(agenticCore).toContain("SOURCE-NEUTRAL MIXED TARGET DISCOVERY: do not conduct a preliminary strategy exercise, compare broad sectors, or expand geography.");
+    expect(agenticCore).toContain("All enabled registries and public-web search are neutral options");
+    expect(agenticCore).not.toContain("Companies House is UK-only");
     expect(agenticCore).not.toContain("Use parallel web searches and, where corporate records are relevant, 2–4 registry queries");
     expect(agenticCore).toContain('YOU decide whether an observed organization is worth a provisional review-only company card');
   });
