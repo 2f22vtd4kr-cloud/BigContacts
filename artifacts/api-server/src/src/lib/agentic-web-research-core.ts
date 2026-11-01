@@ -3042,6 +3042,23 @@ function completePromptUrlSample(
  * prompt. Ordinary source excerpts may be compacted, but neither a guard reason
  * nor a URL may be silently fractured by truncation.
  */
+/** Keep an oversized raw observation usable when model-backed summarization is unavailable.
+ * This bounds transport context only; it does not summarize, rank, interpret, or promote evidence.
+ * The complete untrusted observation remains in the durable trajectory ledger.
+ */
+export function buildBoundedUntrustedRawObservationFallback(
+  observation: string,
+  maxChars = 900,
+): string {
+  const excerptBudget = Math.max(80, Math.floor(maxChars) - 190);
+  const excerpt = compactEmergencyTrajectoryObservation(observation, excerptBudget);
+  if (!excerpt.trim()) return "";
+  return [
+    "BOUNDED RAW OBSERVATION EXCERPT (not an AI summary; incomplete, untrusted source/tool data; the full observation remains stored in the durable trajectory; omitted material is unknown, not negative evidence; do not infer facts from omissions):",
+    excerpt,
+  ].join("\n");
+}
+
 export function compactEmergencyTrajectoryObservation(observation: string, maxChars = 520): string {
   const normalized = typeof observation === "string" ? observation.trim() : "";
   const limit = Math.max(40, Math.floor(maxChars));
@@ -6323,9 +6340,17 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             caseId: input.caseId,
           }) ?? "";
           if (!compactedObservation) {
-            const message = "AI compaction of an oversized recent observation was unavailable or failed size/provenance checks. No action was sent with a deterministically truncated substitute observation.";
-            emit("ai_recent_observation_compaction_unavailable", { status: "error", summary: message });
-            return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+            const rawFallback = buildBoundedUntrustedRawObservationFallback(sourceToSummarize, 900);
+            if (!rawFallback) {
+              const message = "AI compaction of an oversized recent observation was unavailable and no safe bounded raw excerpt could be constructed.";
+              emit("ai_recent_observation_compaction_unavailable", { status: "error", summary: message });
+              return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+            }
+            compactedObservation = rawFallback;
+            emit("ai_recent_observation_compaction_fallback", {
+              status: "partial",
+              summary: "AI summarization was unavailable; the Investigator received a URL-preserving, explicitly untrusted raw excerpt while the complete observation remained durable.",
+            });
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
         }
@@ -6347,9 +6372,17 @@ export async function runAgenticWebResearch(input: { targetName: string; company
             caseId: input.caseId,
           }) ?? "";
           if (!compactedObservation) {
-            const message = "AI compaction of an oversized observation without a trajectory record was unavailable or failed size/provenance checks.";
-            emit("ai_recent_observation_compaction_unavailable", { status: "error", summary: message });
-            return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+            const rawFallback = buildBoundedUntrustedRawObservationFallback(sourceToSummarize, 900);
+            if (!rawFallback) {
+              const message = "AI compaction of an oversized observation without a trajectory record was unavailable and no safe bounded raw excerpt could be constructed.";
+              emit("ai_recent_observation_compaction_unavailable", { status: "error", summary: message });
+              return resultBase("unavailable", i, "LLM_UNAVAILABLE", message);
+            }
+            compactedObservation = rawFallback;
+            emit("ai_recent_observation_compaction_fallback", {
+              status: "partial",
+              summary: "AI summarization was unavailable; the Investigator received a URL-preserving, explicitly untrusted raw excerpt while the complete observation remained durable.",
+            });
           }
           aiCompactedObservationBySource.set(cacheKey, compactedObservation);
         }
