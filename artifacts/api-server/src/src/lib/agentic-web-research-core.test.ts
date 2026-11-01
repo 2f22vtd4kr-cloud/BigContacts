@@ -3185,7 +3185,22 @@ describe("Groq Investigator structured-output recovery", () => {
     expect(nextGroqInvestigatorCompletionBudget(Number.NaN)).toBeNull();
   });
 
-  it("retries explicit truncation with a larger completion budget before changing response format", () => {
+  it("retries HTTP 200 finish_reason=length with a larger budget and never treats it as quota failure", () => {
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 200, providerCode: null, providerMessage: "", finishReason: "length",
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048,
+    })).toEqual({ action: "increase_completion_budget", nextMaxCompletionTokens: 3072 });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 200, providerCode: null, providerMessage: "", finishReason: "length",
+      responseFormat: "json_schema", completionBudgetRetryUsed: true, currentMaxCompletionTokens: 3072,
+    })).toEqual({ action: "fail" });
+    expect(chooseGroqInvestigatorOutputRecovery({
+      status: 200, providerCode: null, providerMessage: "", finishReason: "stop",
+      responseFormat: "json_schema", completionBudgetRetryUsed: false, currentMaxCompletionTokens: 2048,
+    })).toEqual({ action: "fail" });
+  });
+
+  it("retries explicit HTTP 400 truncation with a larger completion budget before changing response format", () => {
     expect(chooseGroqInvestigatorOutputRecovery({
       status: 400, providerCode: "json_validate_failed",
       providerMessage: "max_completion_tokens reached; output was truncated; increase max_completion_tokens",
