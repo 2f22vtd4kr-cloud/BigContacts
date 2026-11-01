@@ -201,7 +201,7 @@ export const RANDOM_DISCOVERY_REGISTRIES = [
 ] as const satisfies readonly RegistryId[];
 
 export function getRandomDiscoveryRegistries(): RegistryId[] {
-  return RANDOM_DISCOVERY_REGISTRIES.filter(isRegistryProviderAvailable);
+  return getAvailableRegistryIdsForPrompt();
 }
 
 function firstRegistryRecordName(...candidates: unknown[]): string | null {
