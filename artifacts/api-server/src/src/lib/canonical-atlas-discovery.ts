@@ -1862,6 +1862,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       caseId: discoveryCaseId,
       controlTurn: 1,
       jobId: atlasJobId,
+      opening: true,
       investigatorReport: JSON.stringify({
         stage: "opening_adjudication",
         bossInitialReport: null,
