@@ -230,7 +230,11 @@ describe("canonical Atlas organization target selection", () => {
   });
 
   it("connects only persisted same-case Corporation review leads to the organization target kind", () => {
-    expect(canonicalAtlas).toContain("const organizationTargets = partialOrganizations.candidates.map");
+    expect(canonicalAtlas).toContain("const organizationTargets = partialOrganizations.candidates");
+    expect(canonicalAtlas).toContain('.filter(({ targetEligibleForResearch }) => targetEligibleForResearch)');
+    expect(canonicalAtlas).toContain('finding.promotionDecision !== "promote"');
+    expect(canonicalAtlas).toContain("payload.runId !== input.discoveryRunId");
+    expect(canonicalAtlas).toContain('support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true');
     expect(canonicalAtlas).toContain('targetType: "organization" as const');
     expect(canonicalAtlas).toContain("metadata.partialOrganizationLead === true");
     expect(canonicalAtlas).toContain("inArray(entitiesTable.type, eligibleEntityTypes)");
@@ -252,7 +256,7 @@ describe("canonical Atlas organization target selection", () => {
     expect(canonicalAtlas).not.toContain("admittedCandidateSources = mergeDurablyAdmittedCandidateSources");
   });
 
-  it("keeps worthwhile search-result person and organization leads as review cards and Boss-selectable research targets", () => {
+  it("keeps worthwhile search-result leads as review cards but gates company target handoff on verification", () => {
     const personMaterializer = canonicalAtlas.slice(
       canonicalAtlas.indexOf("async function materializePartialPersonLeadCards"),
       canonicalAtlas.indexOf("async function materializePartialOrganizationLeadCards"),
@@ -270,7 +274,9 @@ describe("canonical Atlas organization target selection", () => {
     const control = readFileSync(new URL("../lib/atlas-control-decision.ts", import.meta.url), "utf8");
     const reconcilerSource = readFileSync(new URL("../lib/research-lead-card-reconciliation.ts", import.meta.url), "utf8");
 
-    // Claim-grade classification controls evidence tier, never card creation.
+    // Search-result leads can remain review cards, but only a fetched claim-grade
+    // page or a structured registry adapter record can authorize company research.
+    // This preserves model-owned discovery while preventing snippet-only targets.
 
     expect(organizationMaterializer).toContain('&& isClaimGradeDiscoverySourceUrl(sourceUrl)');
     expect(organizationMaterializer).not.toContain('&& !isClaimGradeDiscoverySourceUrl(sourceUrl)');
