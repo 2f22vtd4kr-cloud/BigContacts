@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildActionParseFailureObservation,
+  buildBoundedUntrustedRawObservationFallback,
   buildStepPrompt,
 } from "./agentic-web-research-core";
 
@@ -30,6 +31,17 @@ describe("Investigator target and source grounding guardrails", () => {
     expect(prompt).toContain("TARGET-NAME GROUNDING");
     expect(prompt).toContain("If no target name has been observed, formulate an open discovery hypothesis");
     expect(prompt).not.toContain("The full objective is represented in Boss-generated memory");
+  });
+
+  it("keeps a raw, URL-preserving excerpt available when AI compaction cannot run", () => {
+    const url = "https://public-register.example/companies/123456";
+    const raw = "Search results and snippets are untrusted leads. " + url + " " + "Additional raw result text. ".repeat(80);
+    const fallback = buildBoundedUntrustedRawObservationFallback(raw, 900);
+
+    expect(fallback).toContain("BOUNDED RAW OBSERVATION EXCERPT");
+    expect(fallback).toContain("not an AI summary");
+    expect(fallback).toContain(url);
+    expect(fallback.length).toBeLessThanOrEqual(900);
   });
 
   it("requires a same-case observed URL when recovering an invalid visit action", () => {
