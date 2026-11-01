@@ -1876,7 +1876,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         "Flag unsupported company/person/asset premises rather than repeating them as facts. Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human. Internal memory, storage, and workflow terminology is not a research lead.",
         "OPENING TARGET CONTRACT: No source observations or admitted candidates exist yet. Make one simple control decision to let the selected Investigator begin discovery. Do not compare alternatives, invent a candidate, or repeat a model hypothesis as fact. Candidate names, URLs, relationships, ownership, wealth, and contact routes may enter the candidate/evidence graph only after an Investigator tool observation is recorded for this run and exact target text is supported by that observation. The Investigator selects one useful target from any currently callable registry/asset register or public-web result; no source preference or jurisdiction assumption.",
         "REGISTRY EPISTEMIC LIMIT: A filing proves only the fields it explicitly reports. Never infer beneficial ownership, equity, wealth, family control, or personal contactability from a registered officer, agent, or company filing. Treat documented officer roles as professional connections, not ownership; require direct official evidence for ownership claims.",
-        "The human mission and realistic-targetability rules outrank Boss next-directions. Compare proposed directions with the human objective and observed sources; test whether any proposed direction has a defensible advantage over plausible alternatives.",
+        "The human mission and realistic-targetability rules govern. Do not compare alternative strategies or introduce a direction before the Investigator returns an actual source observation.",
       ].join("\n"),
       rightHandOverride: {
         status: rightHand.status,
@@ -1895,11 +1895,17 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     failureStage = "job_state_or_lease";
     await assertAtlasJobActive(atlasJobId);
 
-    const initialBossDirection = Array.isArray(boss.nextDirections) ? boss.nextDirections[0] : null;
+    // Before the first Investigator observation, the opening control turn may
+    // only start discovery or stop. Boss cannot pivot to a named target/source
+    // or smuggle an unverified hypothesis into the active research objective.
+    if (openingBossDecision.action !== "continue_discovery" && openingBossDecision.action !== "stop") {
+      failureStage = "model_action_validation";
+      throw new Error("Opening Boss decision must start target-first discovery or stop; candidate selection and pivots require Investigator source observations.");
+    }
     const openingDirectionResolution = resolveBossAdjudicatedOpeningDirection({
       bossAction: openingBossDecision.action,
-      bossDirection: openingBossDecision.direction,
-      initialBossDirection,
+      bossDirection: null,
+      initialBossDirection: null,
     });
     if (openingDirectionResolution.status === "invalid") {
       failureStage = "model_action_validation";
