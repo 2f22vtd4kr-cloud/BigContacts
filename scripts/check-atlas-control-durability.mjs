@@ -50,6 +50,7 @@ const checks = [
   ["Right-hand opening review does not consume Boss-generated target/source hypotheses", openingReviewPrompt.length > 0 && !openingReviewPrompt.includes("boss.report") && openingReviewPrompt.includes("there are no source observations or admitted candidates yet")],
   ["opening Boss decision cannot pivot or select a candidate before Investigator observations", atlas.includes('openingBossDecision.action !== "continue_discovery" && openingBossDecision.action !== "stop"') && atlas.includes("initialBossDirection: null")],
   ["person review cards require the exact name in a same-run source observation", atlas.includes("actual result/page observation must") && atlas.includes("contain the exact person name before it can support a review card")],
+  ["registry person leads bind the name to the exact registry row URL", atlas.includes("bindExactRegistryLeadName(observation.observation, sourceUrl, lead.name)")],
   ["organization review cards require the exact name in a same-run source observation", atlas.includes("exact organization name in the observed result/page text")],
   ["unverified person roles remain proposals rather than verified entity roles", atlas.includes("proposedRole: lead.role") && atlas.includes("roleVerified: false") && atlas.includes("role: null")],
   ["registry evidence cannot be inflated into ownership or wealth claims", atlas.includes("REGISTRY EPISTEMIC LIMIT") && atlas.includes("require direct official evidence for ownership claims")],
