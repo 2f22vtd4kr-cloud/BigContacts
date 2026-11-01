@@ -44,10 +44,19 @@ describe("Atlas capability prompt guidance", () => {
     const guidance = renderAtlasCapabilityGuidanceCompact();
 
     expect(guidance).toContain("snippets are leads");
-    expect(guidance).toContain("answers are leads, not primary evidence");
+    expect(guidance).toContain("answers are not primary evidence");
     expect(guidance).toContain("JS/challenge pages may fail");
     expect(guidance).toContain("legal role ≠ personal contact");
     expect(guidance).toContain("privacy/proxy may obscure owner");
+    expect(guidance).toContain("web.search (web_search): providers=serper|tavily|exa");
+    expect(guidance).toContain("neutral first-discovery option");
+    expect(guidance).not.toContain("- search.tavily (web_search)");
+    expect(guidance).not.toContain("- search.exa (web_search)");
+
+    const firstOrder = renderAtlasCapabilityGuidanceCompact(undefined, () => 0);
+    const secondOrder = renderAtlasCapabilityGuidanceCompact(undefined, () => 0.999999);
+    expect(firstOrder).not.toEqual(secondOrder);
+
   });
 });
 
