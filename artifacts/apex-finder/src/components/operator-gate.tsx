@@ -2,19 +2,21 @@ import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from
 
 const API = "/api";
 type GateStatus = "checking" | "authenticated" | "signed-out" | "unconfigured" | "unreachable";
-type SessionResponse = { configured?: boolean; authenticated?: boolean; code?: string; error?: string };
+type SessionResponse = { configured?: boolean; authenticated?: boolean; developmentBypass?: boolean; code?: string; error?: string };
 
 export function OperatorGate({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<GateStatus>("checking");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [developmentBypass, setDevelopmentBypass] = useState(false);
 
   const checkSession = useCallback(async () => {
     setStatus("checking"); setMessage("");
     try {
       const response = await fetch(API + "/auth/session", { credentials: "same-origin", cache: "no-store" });
       const data = await response.json().catch(() => ({} as SessionResponse)) as SessionResponse;
+      setDevelopmentBypass(data.developmentBypass === true);
       if (response.status === 503 || data.code === "OPERATOR_AUTH_NOT_CONFIGURED") {
         setStatus("unconfigured"); setMessage(data.error ?? "Operator sign-in is not configured for this API instance.");
       } else if (response.ok && data.authenticated === true) {
@@ -82,12 +84,12 @@ export function OperatorGate({ children }: { children: ReactNode }) {
 
   if (status === "authenticated") return (
     <div className="relative">
-      <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-3 z-[80] sm:bottom-5 sm:right-5">
+      {!developmentBypass ? <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-3 z-[80] sm:bottom-5 sm:right-5">
         <button type="button" onClick={() => void logout()} disabled={busy}
           className="rounded-full border border-stone-700/80 bg-[#101722]/95 px-3 py-2 text-[10px] font-semibold tracking-wide text-stone-300 shadow-lg backdrop-blur transition hover:border-lime-300/50 hover:text-lime-200 disabled:opacity-60">
           {busy ? "Signing out…" : "Sign out"}
         </button>
-      </div>
+      </div> : null}
       {children}
       {message ? <p role="alert" className="fixed right-3 top-14 z-[80] max-w-xs rounded-lg border border-rose-400/30 bg-[#101722]/95 px-3 py-2 text-xs text-rose-200 shadow-lg">{message}</p> : null}
     </div>
