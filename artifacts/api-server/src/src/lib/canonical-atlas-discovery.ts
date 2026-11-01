@@ -233,7 +233,12 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   const partialPeople = await materializePartialPersonLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
   materialized += partialPeople.materialized;
   evidenceRows += partialPeople.evidenceRows;
-  const partialOrganizations = await materializePartialOrganizationLeadCards({ findings: input.findings, atlasJobId: input.atlasJobId, discoveryCaseId: input.discoveryCaseId });
+  const partialOrganizations = await materializePartialOrganizationLeadCards({
+    findings: input.findings,
+    atlasJobId: input.atlasJobId,
+    discoveryRunId: input.discoveryRunId,
+    discoveryCaseId: input.discoveryCaseId,
+  });
   materialized += partialOrganizations.materialized;
   evidenceRows += partialOrganizations.evidenceRows;
 
@@ -384,9 +389,11 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   const partialPersonTargets = partialPeople.candidates
     .filter(({ name }) => !strictPersonIdentities.has(normalizeCandidateIdentityName(name)))
     .map(({ name, role, sourceUrls }) => ({ name, sourceUrls, targetType: "person" as const, role }));
-  const organizationTargets = partialOrganizations.candidates.map(({ name, sourceUrls }) => ({
-    name, sourceUrls, targetType: "organization" as const, role: null,
-  }));
+  const organizationTargets = partialOrganizations.candidates
+    .filter(({ targetEligibleForResearch }) => targetEligibleForResearch)
+    .map(({ name, sourceUrls }) => ({
+      name, sourceUrls, targetType: "organization" as const, role: null,
+    }));
   const targetCandidates = [...personTargets, ...partialPersonTargets, ...organizationTargets];
   return { names: targetCandidates.map(({ name }) => name), candidates: targetCandidates, materialized, evidenceRows };
 }
@@ -836,15 +843,16 @@ function isContactLikeOrganizationReviewValue(value: string): boolean {
 async function materializePartialOrganizationLeadCards(input: {
   findings: AgenticFinding[];
   atlasJobId: string;
+  discoveryRunId: string;
   discoveryCaseId: number;
-}): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; sourceUrls: string[] }> }> {
+}): Promise<{ materialized: number; evidenceRows: number; candidates: Array<{ name: string; sourceUrls: string[]; targetEligibleForResearch: boolean }> }> {
   // Persist only organization leads explicitly selected in Investigator findings.
   // They remain distinct from person candidates and imply no ownership, wealth,
   // or HNWI status.
   const seenNames = new Set<string>();
   const leadNames: string[] = [];
   for (const finding of input.findings) {
-    if (finding.scope !== "organization" || finding.promotionDecision === "reject") continue;
+    if (finding.scope !== "organization" || finding.promotionDecision !== "promote") continue;
     const name = finding.value.trim().replace(/\s+/g, " ");
     const identity = normalizeCandidateIdentityName(name);
     if (!name || !identity || isContactLikeOrganizationReviewValue(name) || seenNames.has(identity)) continue;
@@ -869,7 +877,7 @@ async function materializePartialOrganizationLeadCards(input: {
         args?: Record<string, unknown>;
         observation?: string; runId?: string;
       };
-      if (payload.jobId !== input.atlasJobId) return [];
+      if (payload.jobId !== input.atlasJobId || payload.runId !== input.discoveryRunId) return [];
       const action = payload.action ?? "";
       const fetched = action === "visit" || action === "browser_fetch";
       const searched = action === "web_search" || action === "parallel_web_search"
@@ -944,7 +952,7 @@ async function materializePartialOrganizationLeadCards(input: {
   let materialized = 0;
   let evidenceRows = 0;
   let wroteDurableState = false;
-  const candidates: Array<{ name: string; sourceUrls: string[] }> = [];
+  const candidates: Array<{ name: string; sourceUrls: string[]; targetEligibleForResearch: boolean }> = [];
   for (const name of leadNames) {
     const claimedUrls = new Set([
       ...input.findings
@@ -958,7 +966,7 @@ async function materializePartialOrganizationLeadCards(input: {
       // Investigator already selected the organization in a structured finding.
     ]);
     const supports = new Map<string, {
-      sourceUrl: string; eventId: number; createdAt: Date; action: string; sourceName?: string; sourceClass?: string; sourceContributor?: string | null; restrictedCommunitySource: boolean; spanText: string;
+      sourceUrl: string; eventId: number; createdAt: Date; action: string; sourceName?: string; sourceClass?: string; sourceContributor?: string | null; sourceUrlBoundByAdapter?: boolean; restrictedCommunitySource: boolean; spanText: string;
       spanStart: number | null; spanEnd: number | null; spanVerified: boolean;
       verificationLevel: "fetched_source" | "search_result_lead";
     }>();
@@ -989,6 +997,7 @@ async function materializePartialOrganizationLeadCards(input: {
         supports.set(sourceUrl, {
           sourceUrl, eventId: observation.eventId, createdAt: observation.createdAt, action: observation.action,
           sourceName: observation.sourceName, sourceClass: observation.sourceClass, sourceContributor: restrictedCommunitySource ? null : observation.sourceContributor,
+          sourceUrlBoundByAdapter: observation.sourceUrlBoundByAdapter === true,
           restrictedCommunitySource,
           spanText: exactSpan && span ? span.text : "",
           spanStart: exactSpan && span ? span.start : null,
@@ -1163,7 +1172,15 @@ async function materializePartialOrganizationLeadCards(input: {
 
     materialized += persisted.created;
     evidenceRows += persisted.evidenceRows;
-    if (persisted.candidate) candidates.push(persisted.candidate);
+    if (persisted.candidate) candidates.push({
+      ...persisted.candidate,
+      // Search snippets preserve review leads but cannot launch target research.
+      // Require either a claim-grade fetched page or a structured registry
+      // adapter record that binds this exact name to its returned source URL.
+      targetEligibleForResearch: [...supports.values()].some((support) =>
+        !support.restrictedCommunitySource
+        && (support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true)),
+    });
     wroteDurableState ||= persisted.changed;
   }
   if (wroteDurableState) {
