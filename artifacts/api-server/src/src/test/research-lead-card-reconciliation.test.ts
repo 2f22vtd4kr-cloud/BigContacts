@@ -18,7 +18,7 @@ describe("terminal review-card reconciliation", () => {
     expect(orientation).toContain("SOURCE SELECTION & JURISDICTION");
     expect(orientation).toContain("registry search and public-web search are equal, neutral first-discovery options");
     expect(orientation).toContain("Preserve geographic scope only when the human supplied it");
-    expect(orientation).toContain("not a substitute for US state Secretary-of-State filings");
+    expect(orientation).not.toContain("Companies House");
     expect(orientation).toContain("Any enabled registry may seed the first company, person, or asset candidate");
     expect(orientation).toContain("You decide which observed people and organizations are worth preserving as provisional review cards");
   });
