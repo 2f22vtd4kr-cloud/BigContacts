@@ -342,7 +342,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain("ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain("ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain("runGroqRightHandFreeJson(");
-    expect(controlSource).toContain("generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
+    expect(controlSource).toContain("responseFormat: input.opening ? ATLAS_BOSS_OPENING_CONTROL_RESPONSE_FORMAT : ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain('required: ["decision", "reason", "direction", "confidence"]');
     expect(controlSource).toContain('action: { type: "string", enum: ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"] }');
     expect(controlSource).toContain('required: ["action", "candidateName", "candidateType", "direction", "reason", "confidence"]');
@@ -951,14 +951,14 @@ describe("Boss-adjudicated opening direction", () => {
     expect(openingResolution).toBeGreaterThan(invalidBossGuard);
     expect(investigatorObjective).toBeGreaterThan(openingResolution);
     expect(canonicalDiscoverySource).toContain('currentAction: "groq-boss-opening-stop"');
-    expect(canonicalDiscoverySource).toContain("Boss has already weighed this advice and owns the final scope decision.");
+    expect(canonicalDiscoverySource).toContain("RIGHT-HAND REVIEW: advisory only.");
     expect(canonicalDiscoverySource).not.toContain("Groq Right-hand unavailable; failing closed");
     expect(canonicalDiscoverySource).not.toContain('currentAction: "groq-right-hand-unavailable"');
   });
 
   it("does not leak unselected Boss hypotheses as active Investigator scope", () => {
     expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION:");
-    expect(canonicalDiscoverySource).toContain("Do not treat unselected Boss hypotheses as active scope.");
+    expect(canonicalDiscoverySource).toContain("Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes.");
     expect(canonicalDiscoverySource).toContain('openingDirectionResolution.status === "approved" ? "Boss-adjudicated direction: " + openingDirectionResolution.direction');
     expect(canonicalDiscoverySource).toContain("RIGHT-HAND INDEPENDENT ADVICE (non-authoritative):");
     expect(canonicalDiscoverySource).not.toContain("Right-hand opening approval:");
@@ -974,7 +974,7 @@ describe("scope-recovery control feedback delivery", () => {
     expect(controlSource).toContain("When supplied scope-recovery feedback reports repeated preflight blocks");
     expect(controlSource).toContain("COMPLETE AVAILABLE REVIEW TARGETS (all model-selected durable targets; exact names and types; no top-N truncation)");
     expect(controlSource).toContain("const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState });");
-    expect(controlSource).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, rightHand });");
+    expect(controlSource).toContain("const prompt = buildAtlasBossControlPrompt({ investigatorReport, compactState, pinnedControlState: input.pinnedControlState, opening: input.opening, humanObjective: input.objective, rightHand });");
   });
 });
 
