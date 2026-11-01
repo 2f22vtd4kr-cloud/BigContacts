@@ -183,14 +183,18 @@ export function getAvailableRegistryIds(): RegistryId[] {
  * prompt/schema order avoids a stable positional advantage for any one adapter;
  * runtime validation must continue to use getAvailableRegistryIds().
  */
-export function getAvailableRegistryIdsForPrompt(rng: () => number = Math.random): RegistryId[] {
-  const ids = getAvailableRegistryIds();
-  for (let i = ids.length - 1; i > 0; i -= 1) {
+export function shuffleRegistryIdsForPrompt(ids: readonly RegistryId[], rng: () => number = Math.random): RegistryId[] {
+  const shuffled = [...ids];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
     const raw = rng();
     const j = Math.max(0, Math.min(i, Math.floor((Number.isFinite(raw) ? raw : 0) * (i + 1))));
-    [ids[i], ids[j]] = [ids[j]!, ids[i]!];
+    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
   }
-  return ids;
+  return shuffled;
+}
+
+export function getAvailableRegistryIdsForPrompt(rng: () => number = Math.random): RegistryId[] {
+  return shuffleRegistryIdsForPrompt(getAvailableRegistryIds(), rng);
 }
 
 
