@@ -30,6 +30,7 @@ import { normalizeCandidateIdentityName } from "./identity-text-match";
 import { candidateRoleCorroborationSources, hasDiscoveryOwnershipLeadSignal, isClaimGradeDiscoverySourceUrl, mergeDurablyAdmittedCandidateSources } from "./candidate-source-url-union";
 import { sanitizeUrlForEvidence } from "./url-privacy";
 import { bindExactSourceSpan, bindExactSourceSpanToUrl } from "./research-epistemic-vnext";
+import { bindExactRegistryLeadName } from "./registry-result-source-binding";
 import { delCachePattern } from "./redis";
 import { logger } from "./logger";
 import { buildDiscoverySourceAttribution, isRestrictedCommunitySourceUrl, RESTRICTED_COMMUNITY_SOURCE_MANUAL_REVIEW_NOTE } from "./discovery-source-attribution";
@@ -592,9 +593,11 @@ async function materializePartialPersonLeadCards(input: {
       const restrictedCommunitySource = isRestrictedCommunitySourceUrl(sourceUrl);
       const span = restrictedCommunitySource
         ? null
-        : observation.verificationLevel === "fetched_source" || observation.action === "registry_search" || observation.action === "parallel_registry_search"
+        : observation.verificationLevel === "fetched_source"
           ? bindExactSourceSpan(observation.observation, lead.name, undefined, 320)
-          : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320);
+          : observation.action === "registry_search" || observation.action === "parallel_registry_search"
+            ? bindExactRegistryLeadName(observation.observation, sourceUrl, lead.name)
+            : bindExactSourceSpanToUrl(observation.observation, sourceUrl, lead.name, undefined, 320);
       // A same-run URL is not enough. The actual result/page observation must
       // contain the exact person name before it can support a review card.
       const exactSpan = !restrictedCommunitySource && Boolean(span?.exact);
