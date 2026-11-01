@@ -274,10 +274,12 @@ describe("Atlas control-plane contract regression", () => {
   });
 
   it("requires both opening and ongoing Right-hand reviews to flag unsupported scope", () => {
-    expect(canonicalDiscoverySource).toContain("Boss report (unverified control hypothesis, not source evidence)");
+    expect(canonicalDiscoverySource).toContain("Independently review the exact human objective and the opening control state.");
+    expect(canonicalDiscoverySource).toContain("No Investigator action has executed; there are no source observations or admitted candidates yet.");
     expect(canonicalDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human.");
     expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
-    expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules outrank Boss next-directions");
+    expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules govern.");
+    expect(canonicalDiscoverySource).toContain("Do not compare alternative strategies or introduce a direction before the Investigator returns an actual source observation.");
     expect(controlSource).toContain("If a useful source-attributed company/person/asset target is already available, recommend investigating it now.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
   });
@@ -607,9 +609,9 @@ describe("Atlas control-plane contract regression", () => {
 
   it("treats the opening Right-hand review as advice that Boss must adjudicate", () => {
     const valid = {
-      decision: "The proposed direction is too narrow; compare the stated sector with a materially different local hypothesis.",
+      decision: "Start one immediate source-neutral target-first discovery action.",
       reason: "The cited source-class advantage has not been substantiated.",
-      focusLanes: ["test source feasibility", "compare alternative sectors"],
+      focusLanes: ["begin target-first discovery", "verify one observed candidate"],
       confidence: 0.86,
     };
     expect(validateAtlasOpeningRightHandReview(valid)).toBe(true);
@@ -620,7 +622,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(canonicalDiscoverySource).toContain("rightHandOverride: {");
     expect(canonicalDiscoverySource).toContain("const openingBossDecision = await decideAtlasNextAction({");
     expect(canonicalDiscoverySource).toContain("bossAction: openingBossDecision.action");
-    expect(canonicalDiscoverySource).toContain("bossDirection: openingBossDecision.direction");
+    expect(canonicalDiscoverySource).toContain("bossDirection: null");
+    expect(canonicalDiscoverySource).toContain("initialBossDirection: null");
     expect(canonicalDiscoverySource).not.toContain("rightHand.approval");
     const reviewCall = canonicalDiscoverySource.indexOf("const rightHandRaw = await import");
     const bossDecisionCall = canonicalDiscoverySource.indexOf("const openingBossDecision = await decideAtlasNextAction(");
