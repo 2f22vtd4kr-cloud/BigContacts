@@ -2659,20 +2659,10 @@ async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapa
   return withProviderRole("investigator", () => llmStepImpl(prompt, selectedInvestigatorLlm, parentSignal, cognitiveTask, jobId, caseId, actionAllowlist, targetName, iteration));
 }
 function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.length) return "(none yet)"; return findings.map((f) => `- ${f.vectorType}: ${f.value} (${f.scope})${f.personName ? ` person=${f.personName}` : ""}${f.role ? ` role=${f.role}` : ""}${f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : ""}`).join("\n"); }
-function shufflePromptOptions<T>(values: readonly T[], rng: () => number = Math.random): T[] {
-  const shuffled = [...values];
-  for (let i = shuffled.length - 1; i > 0; i -= 1) {
-    const raw = rng();
-    const j = Math.max(0, Math.min(i, Math.floor((Number.isFinite(raw) ? raw : 0) * (i + 1))));
-    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
-  }
-  return shuffled;
-}
-
 const AGENTIC_STRUCTURED_SCHEMA = {
   type: "object",
   properties: {
-    action: { type: "string", enum: shufflePromptOptions(MODEL_SELECTABLE_AGENT_ACTIONS) },
+    action: { type: "string", enum: [...MODEL_SELECTABLE_AGENT_ACTIONS] },
     // Keep the provider-facing strict schema to Groq's documented structural
     // subset. The runtime parser remains authoritative for action/provider
     // combinations and cardinality, so those safety checks are not weakened.
@@ -2755,7 +2745,7 @@ export function structuredActionResponseFormat(model: string, actionAllowlist?: 
     ...AGENTIC_STRUCTURED_SCHEMA,
     properties: {
       ...AGENTIC_STRUCTURED_SCHEMA.properties,
-      action: { type: "string", enum: shufflePromptOptions(availableActions) },
+      action: { type: "string", enum: availableActions },
       provider: { type: ["string", "null"], enum: providerEnum },
       registry: { type: ["string", "null"], enum: availableRegistryEnum },
       searches: {
@@ -4908,7 +4898,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const terminalContractGuidance = "RESEARCH TERMINAL GATE (authoritative): done only when contract passes: minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; allowOpenQuestions=" + terminalContract.allowOpenQuestions + "; allowHighSeverityContradictions=" + terminalContract.allowHighSeverityContradictions + ". " + (terminalContract.requireFalsification ? "Falsification requirement: at least one successful external action must explicitly attempt to disprove, refute, find counter-evidence, rule out the leading claim, or test an alternative hypothesis via hypothesis/purpose/query; repeated corroboration alone does not count. " : "") + "This states the stopping condition, not a prescribed action sequence.";
   const researchContract = "MISSION PRIORITY: The case objective and realistic-targetability gate outrank Boss/Right-hand suggestions that conflict with the mission or policy. Reject a fame/ranking/global-brand executive path unless it traces to a reachable local owner/operator/distributor/franchise/concession. ACTIVE PIVOT: when compatible with the mission, the latest Boss-approved pivot defines the current scope; prior trajectory is historical evidence, not a standing search instruction. Stay within that scope unless observed evidence directly falsifies it or makes it infeasible, and report why before requesting a new scope. This constrains scope, not tool or provider choice. If the Boss wording explicitly orders dependent source stages (for example, a member directory before an ownership registry), do not advance to the later stage until a first-stage page has been fetched successfully; search result URLs alone do not complete the first stage. If that source fails, try another observed first-stage source or return control to Boss/Right-hand if the stage is infeasible. Otherwise the Investigator chooses action order freely. RESEARCH CONTRACT: you own the research trajectory. Choose the next action from the available capabilities using evidence, expected information gain, identity discrimination, source independence, and cost; no fixed sequence.";
   const actionLiveness = "ACTION LIVENESS: block exact normalized repeats with unchanged hypothesis/purpose and no new evidence. A changed rationale, provider/market/resource, or new evidence can justify revisiting. This prevents redundancy, not a preferred action sequence. SOURCE-NEUTRAL MIXED TARGET DISCOVERY: do not conduct a preliminary strategy exercise, compare broad sectors, or expand geography. Pick one concrete company, person, or asset candidate from a currently available official registry/asset register or public-web search, then preserve it as a source-attributed review lead when relevant. All enabled registries and public-web search are neutral options; randomize option order and choose only by fit to the human objective and the actual evidence opportunity. Do not name, rank, or privilege a registry in the prompt. A single useful candidate is enough; target-scoped research can deepen it. Parallelize registry queries only when several independently fit the same live hypothesis and add distinct information. Search any relevant language/script. Registry hits and snippets are leads, not verified evidence.";
-  const availableActionsGuidance = "AVAILABLE ACTIONS: " + shufflePromptOptions(availableActions).join(" | ") + ".";
+  const availableActionsGuidance = "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".";
   // Always retain tool awareness, but never imply execution capability unless the
   // current turn's allowlist actually includes that exact action.
   const hasAvailableSpecialistOsintAction = (input.actionAllowlist ?? []).some((action) => action.startsWith("footprint_") || action === "harvest_domain") || availableActions.some((action) => action.startsWith("footprint_") || action === "harvest_domain");
