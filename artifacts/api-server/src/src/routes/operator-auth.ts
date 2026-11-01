@@ -2,7 +2,7 @@ import { Router, type Request, type Response } from "express";
 import {
   createOperatorSessionToken, isOperatorAuthorized, missingOperatorAuthNames,
   OPERATOR_AUTH_MIN_LENGTHS, OPERATOR_SESSION_COOKIE, OPERATOR_SESSION_TTL_SECONDS,
-  readOperatorAuthConfig, safeSecretEqual, isTrustedOperatorOrigin,
+  readOperatorAuthConfig, safeSecretEqual, isTrustedOperatorOrigin, isOperatorAuthBypassed,
 } from "../lib/operator-auth";
 
 const router = Router();
@@ -63,6 +63,7 @@ function clearSessionCookie(res: Response): void {
 }
 router.get("/auth/session", (req: Request, res: Response): void => {
   noStore(res);
+  if (isOperatorAuthBypassed()) { res.status(200).json({ configured: true, authenticated: true, developmentBypass: true }); return; }
   const config = readOperatorAuthConfig();
   if (!config) { missingConfigResponse(res); return; }
   res.status(200).json({ configured: true, authenticated: isOperatorAuthorized(req, config) });
@@ -98,6 +99,7 @@ router.post("/auth/login", (req: Request, res: Response): void => {
 });
 router.post("/auth/logout", (req: Request, res: Response): void => {
   noStore(res);
+  if (isOperatorAuthBypassed()) { res.status(200).json({ configured: true, authenticated: true, developmentBypass: true }); return; }
   if (!isTrustedOperatorOrigin(req)) {
     res.status(403).json({ code: "OPERATOR_ORIGIN_REJECTED", error: "A trusted Origin is required for sign-out." });
     return;
