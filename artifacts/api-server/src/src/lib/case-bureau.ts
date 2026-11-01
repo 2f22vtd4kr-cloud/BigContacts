@@ -901,7 +901,7 @@ const SPECIALISTS: BureauSpecialist[] = [
 ];
 
 export const DEFAULT_DISCOVERY_OBJECTIVE =
-  "Find realistic potential investor routes for a startup founder seeking conversations with genuinely wealthy, relevant people in Western countries.";
+  "Find realistic potential investor routes for a startup founder seeking conversations with genuinely wealthy, relevant people. Do not assume or expand a geographic scope unless the human supplies one.";
 
 export const DEFAULT_DISCOVERY_MOTIVATION =
   "The founder has invested substantial personal time and money into a startup and wants practical paths to present the idea to real potential investors, not celebrity names or unreachable institutions.";
@@ -1383,7 +1383,7 @@ function buildActions(file: Omit<ResearchCaseFile, "actionQueue" | "nextBestActi
       title: "Map ownership and structure",
       purpose: "Trace operators, parent groups, entities, directors, and beneficial-owner hypotheses.",
       specialistId: "structure",
-      tools: ["GLEIF", "OpenOwnership", "Companies House", "EDGAR", "OCCRP Aleph"],
+      tools: ["official company and asset registries", "public filings", "ownership datasets"],
       priority: 92,
       status: "queued",
       rationale: "Structure evidence is still sparse.",
