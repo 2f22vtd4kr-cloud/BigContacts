@@ -28,10 +28,6 @@ task = "shell.exec"
 args = "npm exec --yes --package=pnpm@9.15.9 -- pnpm install --frozen-lockfile && bash scripts/replit-boot.sh"
 waitForPort = 8080
 
-[[ports]]
-localPort = 8080
-externalPort = 80
-
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
