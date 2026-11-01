@@ -544,7 +544,7 @@ export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promi
       status: "completed",
       model: generated.model,
       investigatorLlm: parsed.investigatorLlm,
-      report: parsed.report || generated.raw,
+      report: parsed.report,
       candidates: parsed.candidates,
       citations: [],
       nextDirections: parsed.nextDirections,
