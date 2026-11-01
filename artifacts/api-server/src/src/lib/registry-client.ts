@@ -178,6 +178,25 @@ export function getAvailableRegistryIds(): RegistryId[] {
   return REGISTRY_IDS.filter(isRegistryProviderAvailable);
 }
 
+/**
+ * Registry IDs are presented to language models as neutral choices. Randomizing
+ * prompt/schema order avoids a stable positional advantage for any one adapter;
+ * runtime validation must continue to use getAvailableRegistryIds().
+ */
+export function shuffleRegistryIdsForPrompt(ids: readonly RegistryId[], rng: () => number = Math.random): RegistryId[] {
+  const shuffled = [...ids];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const raw = rng();
+    const j = Math.max(0, Math.min(i, Math.floor((Number.isFinite(raw) ? raw : 0) * (i + 1))));
+    [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
+  }
+  return shuffled;
+}
+
+export function getAvailableRegistryIdsForPrompt(rng: () => number = Math.random): RegistryId[] {
+  return shuffleRegistryIdsForPrompt(getAvailableRegistryIds(), rng);
+}
+
 
 export const RANDOM_DISCOVERY_REGISTRIES = [
   "sec-edgar", "companies-house", "brreg", "ares-czechia", "bodacc-france", "gleif",
@@ -186,7 +205,7 @@ export const RANDOM_DISCOVERY_REGISTRIES = [
 ] as const satisfies readonly RegistryId[];
 
 export function getRandomDiscoveryRegistries(): RegistryId[] {
-  return RANDOM_DISCOVERY_REGISTRIES.filter(isRegistryProviderAvailable);
+  return getAvailableRegistryIdsForPrompt();
 }
 
 function firstRegistryRecordName(...candidates: unknown[]): string | null {
@@ -582,7 +601,7 @@ async function searchBolagsverketSweden(
   signal?: AbortSignal,
 ): Promise<RegistryResult[]> {
   if (signal?.aborted) throw new Error("cancelled");
-  const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: bolagsverket-sweden has no supported direct-search integration configured. The previous implementation used an undocumented third-party Allabolag endpoint and mislabeled results as Bolagsverket records. Use web_search/parallel_web_search for Swedish company discovery, fetch observed source pages, use Sweden's SNI classification rather than assuming UK SIC labels, and verify beneficial-owner disclosures separately; do not assume a Swedish Companies House-style PSC record.");
+  const error = new Error("REGISTRY_ADAPTER_UNAVAILABLE: bolagsverket-sweden has no supported direct-search integration configured. The previous implementation used an undocumented third-party Allabolag endpoint and mislabeled results as Bolagsverket records. Use web_search/parallel_web_search for Swedish company discovery, fetch observed source pages, use Sweden's SNI classification rather than assuming UK SIC labels, and verify beneficial-owner disclosures separately; do not assume beneficial-ownership fields are available unless the source documents them.");
   Object.assign(error, { code: "REGISTRY_ADAPTER_UNAVAILABLE" });
   throw error;
 }

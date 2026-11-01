@@ -69,16 +69,16 @@ describe("Atlas control-plane contract regression", () => {
   });
 
   it("keeps the audit's generic wealth mission in discovery mode and still recognizes explicit targets", () => {
-    const genericObjective = "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary contact routes for later target-scoped research. People—not companies or executive prestige—are the target; companies are leads. Prefer private, mid-market, regional and family businesses; their owners/operators/founders/shareholders; investors and private-capital principals; beneficial/controlling owners; and concession, franchise or license holders. Look for public evidence of ownership/equity/investment/control, material business/property assets or a business exit, and a plausible way to approach the person through public professional or business channels. Do not infer wealth from seniority alone. Do not default to celebrities, billionaire/richest lists, Fortune 500, or global household-brand leadership. A global brand is relevant only when evidence points to a realistic local owner/operator/distributor/franchisee/concession-holder or similar intermediary. Start from a concrete business/sector/geography, use local-language terms and English when useful, test hypotheses with independent evidence, and pivot after generic or repetitive results. The Investigator chooses each action; no fixed sequence. Promote only exact named people whose role, wealth-potential basis, and realistic approach route are source-supported. Never invent a person, relationship, wealth fact, contact, or URL.";
+    const genericObjective = "Discover under-the-radar people with credible wealth potential and realistic public/professional/intermediary contact routes for later target-scoped research. People—not companies or executive prestige—are the target; companies are leads. Prefer private, mid-market, regional and family businesses; their owners/operators/founders/shareholders; investors and private-capital principals; beneficial/controlling owners; and concession, franchise or license holders. Look for public evidence of ownership/equity/investment/control, material business/property assets or a business exit, and a plausible way to approach the person through public professional or business channels. Do not infer wealth from seniority alone. Do not default to celebrities, billionaire/richest lists, Fortune 500, or global household-brand leadership. A global brand is relevant only when evidence points to a realistic local owner/operator/distributor/franchisee/concession-holder or similar intermediary. Do not spend the opening phase comparing sectors or geographic areas. Select one concrete company, person, or asset candidate from any currently enabled registry/asset register or public-web query that fits the human objective; a single useful candidate is enough to begin target-scoped research. Use only geography explicitly supplied by the human; otherwise do not invent or broaden a jurisdiction. The Investigator chooses each action; no fixed sequence. Promote only exact named people whose role, wealth-potential basis, and realistic approach route are source-supported. Never invent a person, relationship, wealth fact, contact, or URL.";
     const discoveryPrompt = buildGroqBossDiscoveryPrompt({
       objective: genericObjective,
       motivation: "Find evidence-backed people with realistic public routes.",
-      geography: "Public web; geography selected by the research objective.",
+      geography: "No geography supplied; do not invent or broaden one.",
     }, []);
-    expect(discoveryPrompt).toContain("new discovery-first public-web research case");
-    expect(discoveryPrompt).toContain("one subject/sector, one geography/jurisdiction, and a relevant public source class");
-    expect(discoveryPrompt).toContain("first search query must name the subject, geography, and source class");
-    expect(discoveryPrompt).toContain("follow-up URL/resource actions must use a source already observed from an aligned search");
+    expect(discoveryPrompt).toContain("new discovery-first mixed-source research case");
+    expect(discoveryPrompt).toContain("one immediately executable discovery move");
+    expect(discoveryPrompt).toContain("do not run a preliminary broad-geography exercise");
+    expect(discoveryPrompt).toContain("Preserve geographic constraints only when the human explicitly supplied them");
     expect(discoveryPrompt).not.toContain("TARGET-LOCKED public-web research case");
 
     const namedTargetPrompt = buildGroqBossDiscoveryPrompt({
@@ -260,9 +260,9 @@ describe("Atlas control-plane contract regression", () => {
   it("requires concrete, executable pivot directions in both ongoing control prompts", () => {
     const investigatorReport = "No-progress scope-recovery feedback: six actions were blocked before any outbound request.";
     const rightHandPrompt = buildAtlasRightHandControlPrompt({ investigatorReport, compactState: "No source-backed findings or admitted candidates." });
-    expect(rightHandPrompt).toContain("direction field itself must name one substantive subject/sector hypothesis");
-    expect(rightHandPrompt).toContain("one actual geography/jurisdiction");
-    expect(rightHandPrompt).toContain("a chosen region");
+    expect(rightHandPrompt).toContain("name the concrete subject or unresolved evidence question");
+    expect(rightHandPrompt).toContain("do not invent, compare, or broaden geography");
+    expect(rightHandPrompt).not.toContain("a chosen region");
 
     const bossPrompt = buildAtlasBossControlPrompt({
       investigatorReport,
@@ -270,15 +270,15 @@ describe("Atlas control-plane contract regression", () => {
       rightHand: { status: "completed", decision: "pivot_discovery", reason: "The current scope is blocked.", direction: "Shift to a sector-specific approach in a chosen region.", confidence: 0.8, model: "openai/gpt-oss-120b", error: null },
     });
     expect(bossPrompt).toContain("A pivot must be self-contained and executable");
-    expect(bossPrompt).toContain("a chosen region");
+    expect(bossPrompt).toContain("do not broaden or switch jurisdictions as a discovery exercise");
   });
 
   it("requires both opening and ongoing Right-hand reviews to flag unsupported scope", () => {
     expect(canonicalDiscoverySource).toContain("Boss report (unverified control hypothesis, not source evidence)");
-    expect(canonicalDiscoverySource).toContain("Flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
+    expect(canonicalDiscoverySource).toContain("Do not propose geographic expansion or alternative jurisdictions unless explicitly requested by the human.");
     expect(canonicalDiscoverySource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
     expect(canonicalDiscoverySource).toContain("The human mission and realistic-targetability rules outrank Boss next-directions");
-    expect(controlSource).toContain("Compare proposed directions with the human objective and observed sources; test whether the proposed direction has a defensible advantage over plausible alternatives; flag unsupported sectors, geographies, company premises, or targets rather than repeating them as facts.");
+    expect(controlSource).toContain("If a useful source-attributed company/person/asset target is already available, recommend investigating it now.");
     expect(controlSource).toContain("Internal memory, storage, and workflow terminology is not a research lead.");
   });
 
