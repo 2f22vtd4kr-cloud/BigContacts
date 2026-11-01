@@ -1172,15 +1172,22 @@ async function materializePartialOrganizationLeadCards(input: {
 
     materialized += persisted.created;
     evidenceRows += persisted.evidenceRows;
-    if (persisted.candidate) candidates.push({
-      ...persisted.candidate,
-      // Search snippets preserve review leads but cannot launch target research.
-      // Require either a claim-grade fetched page or a structured registry
-      // adapter record that binds this exact name to its returned source URL.
-      targetEligibleForResearch: [...supports.values()].some((support) =>
-        !support.restrictedCommunitySource
-        && (support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true)),
-    });
+    if (persisted.candidate) {
+      const explicitlyPromotedByInvestigator = input.findings.some((finding) =>
+        finding.scope === "organization"
+        && finding.promotionDecision === "promote"
+        && normalizeCandidateIdentityName(finding.value) === normalizeCandidateIdentityName(name));
+      candidates.push({
+        ...persisted.candidate,
+        // A model-selected review lead is not automatically a research target.
+        // Require the Investigator's explicit promote decision AND either a
+        // claim-grade fetched page or a structured registry adapter record that
+        // binds this exact name to its returned source URL.
+        targetEligibleForResearch: explicitlyPromotedByInvestigator && [...supports.values()].some((support) =>
+          !support.restrictedCommunitySource
+          && (support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true)),
+      });
+    }
     wroteDurableState ||= persisted.changed;
   }
   if (wroteDurableState) {
