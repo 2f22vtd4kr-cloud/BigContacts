@@ -16,7 +16,7 @@ describe("canonical Atlas ownership/provenance seam guards", () => {
   it("binds canonical discovery control persistence to the current job", () => {
     const source = read("src/src/lib/atlas-control-decision.ts");
     expect(source).toContain("jobId?: string | null");
-    expect(source).toContain("durableFile.jobId ?? durableFile.atlasJobId");
+    expect(source).toContain("durableFile.atlasJobId ?? durableFile.jobId");
     expect(source).toContain("atlas-control:case:");
     expect(source).toContain(":job:");
   });
