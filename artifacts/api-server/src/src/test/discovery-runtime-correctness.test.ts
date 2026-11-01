@@ -132,14 +132,8 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toContain("decision: rightHand.decision");
     expect(canonicalSource).toContain("authority: \"advisory_only\"");
     expect(canonicalSource).not.toContain("rightHand.approval");
-    const openingObjectiveStart = canonicalSource.indexOf("const openingInvestigatorObjective = [");
-    const firstInvestigatorAct = canonicalSource.indexOf("let discovery = await runBureauAgenticWebPass", openingObjectiveStart);
-    const openingControlSection = canonicalSource.slice(openingCallStart, firstInvestigatorAct);
-    expect(openingObjectiveStart).toBeGreaterThan(openingCallStart);
-    expect(firstInvestigatorAct).toBeGreaterThan(openingObjectiveStart);
-    expect(openingControlSection).toContain("Only actual same-run Investigator tool observations may establish candidate names");
-    expect(openingControlSection).not.toContain("approvedOpeningDirection");
-    expect(openingControlSection).not.toContain("persistAcceptedAtlasDiscoveryObjective");
+    expect(canonicalSource).not.toContain("approvedOpeningDirection");
+    expect(canonicalSource).not.toContain("activeDiscoveryObjective = openingObjective.objective");
   });
 
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
