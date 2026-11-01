@@ -108,7 +108,7 @@ describe("discovery runtime architecture", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toContain("const openingInvestigatorObjective = [");
     const openingObjectiveStart = canonicalSource.indexOf("const openingInvestigatorObjective = [");
-    const openingObjectiveEnd = canonicalSource.indexOf("].join(\\"\\n\\");", openingObjectiveStart);
+    const openingObjectiveEnd = canonicalSource.indexOf('].join("\\n");', openingObjectiveStart);
     expect(openingObjectiveStart).toBeGreaterThan(-1);
     expect(openingObjectiveEnd).toBeGreaterThan(openingObjectiveStart);
     const openingObjective = canonicalSource.slice(openingObjectiveStart, openingObjectiveEnd);
