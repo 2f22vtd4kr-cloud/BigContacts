@@ -14,18 +14,20 @@ describe("source-grounded Boss opening contract", () => {
       schema?: { properties?: Record<string, unknown>; required?: string[] };
     };
     expect(format.schema?.properties).not.toHaveProperty("candidates");
+    expect(format.schema?.properties).not.toHaveProperty("nextDirections");
     expect(format.schema?.required).not.toContain("candidates");
+    expect(format.schema?.required).not.toContain("nextDirections");
   });
 
   it("parses only control guidance and never accepts model-generated candidate records", () => {
     const result = parseBossDiscoveryResponse(JSON.stringify({
       report: "No source observations yet; authorize one discovery action.",
       investigatorLlm: investigator,
-      nextDirections: ["Begin one target-first search using any enabled registry or public-web capability."],
       uncertainties: ["A concrete target must come from an observed result."],
     }), [investigator]);
     expect(result.investigatorLlm).toBe(investigator);
     expect(result.candidates).toEqual([]);
+    expect(result.nextDirections).toEqual([]);
 
     const fabricated = parseBossDiscoveryResponse(JSON.stringify({
       report: "James Watt is a lead.",
@@ -38,7 +40,6 @@ describe("source-grounded Boss opening contract", () => {
         sourceUrls: ["https://example.test/profile"],
         contactEvidence: [],
       }],
-      nextDirections: ["Check the named registry."],
       uncertainties: [],
     }), [investigator]);
     expect(fabricated.investigatorLlm).toBeNull();
@@ -52,6 +53,7 @@ describe("source-grounded Boss opening contract", () => {
     }, [investigator]);
     expect(prompt).toContain("Do not claim to have discovered, checked, fetched, or verified");
     expect(prompt).toContain("one immediate target-first discovery action");
+    expect(prompt).toContain("Do not name, rank, or privilege a particular registry");
     expect(prompt).toContain("all currently enabled registries/asset registers and public-web search are equal, neutral options");
     expect(prompt).not.toContain("Companies House");
     expect(prompt).not.toContain("sourceUrls");
