@@ -12,6 +12,7 @@ import { buildClaimSupportGraph, observationsFromSourceUrls, validateClaimSuppor
 import { safeThrownErrorSummary } from "./provider-error-diagnostics";
 import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlsInText } from "./url-privacy";
 import { validateAtlasOpeningRightHandReview, isAtlasConfidenceScore } from "./atlas-control-decision";
+import { lockResearchCaseEventAppendStream } from "./research-case-event-iteration";
 type ActSourceRecord={turn:number;action:string;execution:string;observation?:string;observedUrls:string[];findings:unknown[];model?:string;args?:Record<string,unknown>;stopReason?:string};type ActRecord={turn:number;model:string;action:string;args:Record<string,unknown>;thought?:string;execution:string;observation?:string;observedUrls:string[];findings:unknown[];providerFallback?:string[];stopReason?:string;sourceRecords?:ActSourceRecord[]};
 export type TargetActOversight={status:"completed"|"unavailable";action:"continue"|"redirect"|"stop";direction:string|null;reason:string|null;confidence:number|null;rightHand:{status:"completed"|"unavailable";decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;model:string;error:string|null};bossModel:string|null;error:string|null};
 function compactOversightArgs(args: Record<string, unknown>): Record<string, unknown> {
