@@ -1943,12 +1943,14 @@ function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveT
 }
 
 function groqInvestigatorCompletionBudget(task: ResearchCognitiveTask): number {
-  if (task === "contradiction_resolution" || task === "final_adjudication") return 1536;
+  if (task === "contradiction_resolution" || task === "final_adjudication") return 2048;
   if (task === "contact_extraction") return 1024;
-  return 1024;
+  // Reasoning tokens count against Groq's completion limit. A 1024-token cap
+  // can consume the entire allowance before a structured action is emitted.
+  return 2048;
 }
 
-const MAX_GROQ_INVESTIGATOR_COMPLETION_TOKENS = 2048;
+const MAX_GROQ_INVESTIGATOR_COMPLETION_TOKENS = 4096;
 
 /** Increase output allowance once when Groq explicitly reports a truncated completion. */
 export function nextGroqInvestigatorCompletionBudget(current: number): number | null {
@@ -1979,11 +1981,24 @@ export function chooseGroqInvestigatorOutputRecovery(input: {
   responseFormat: "json_schema" | "json_object";
   completionBudgetRetryUsed: boolean;
   currentMaxCompletionTokens: number;
+  finishReason?: string | null;
 }): GroqInvestigatorOutputRecoveryDecision {
+  // Groq may successfully return HTTP 200 while the model has exhausted its
+  // completion budget on hidden reasoning. Treat finish_reason=length as
+  // output truncation, not provider/key/quota failure.
+  const successfulResponseTruncated = input.status === 200 && input.finishReason === "length";
+  const validationTruncated = input.status === 400
+    && input.providerCode === "json_validate_failed"
+    && isGroqCompletionTruncationMessage(input.providerMessage);
+  if (successfulResponseTruncated || validationTruncated) {
+    if (input.completionBudgetRetryUsed) return { action: "fail" };
+    const nextMaxCompletionTokens = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
+    return nextMaxCompletionTokens === null
+      ? { action: "fail" }
+      : { action: "increase_completion_budget", nextMaxCompletionTokens };
+  }
   if (input.status !== 400 || input.providerCode !== "json_validate_failed") return { action: "fail" };
-
-  const explicitTruncation = isGroqCompletionTruncationMessage(input.providerMessage);
-  if (!input.completionBudgetRetryUsed && (explicitTruncation || input.responseFormat === "json_object")) {
+  if (!input.completionBudgetRetryUsed && input.responseFormat === "json_object") {
     const nextMaxCompletionTokens = nextGroqInvestigatorCompletionBudget(input.currentMaxCompletionTokens);
     if (nextMaxCompletionTokens !== null) return { action: "increase_completion_budget", nextMaxCompletionTokens };
   }
@@ -2504,7 +2519,7 @@ async function callGroqJson(
           break;
         }
 
-        let data: { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };
+        let data: { choices?: Array<{ finish_reason?: string | null; message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };
         try {
           data = JSON.parse(body) as typeof data;
         } catch {
@@ -2527,6 +2542,7 @@ async function callGroqJson(
         }
 
         const raw = data.choices?.[0]?.message?.content?.trim() || "";
+        const finishReason = data.choices?.[0]?.finish_reason ?? null;
         const rateLimits = captureGroqRateLimitSnapshot(quotaAccount, model, response);
         recordAgenticLlmAttempt({
             ...telemetryContext,
@@ -2537,20 +2553,39 @@ async function callGroqJson(
             userPromptChars: workingPrompt.length,
             totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
           status: response.status,
-          success: Boolean(raw),
+          success: Boolean(raw) && finishReason !== "length",
           promptTokens: data.usage?.prompt_tokens,
           cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens,
           completionTokens: data.usage?.completion_tokens,
           totalTokens: data.usage?.total_tokens,
           latencyMs: Date.now() - started,
           retryIndex: attempt,
-          reason: raw ? (jsonObjectFallbackUsed ? "json_object_compatibility_success" : undefined) : "empty_response",
+          reason: finishReason === "length" ? "completion_output_truncated" : raw ? (jsonObjectFallbackUsed ? "json_object_compatibility_success" : undefined) : "empty_response",
           rateLimitRemainingTokens: rateLimits.remainingTokens,
           rateLimitResetTokensMs: rateLimits.resetTokensMs,
           rateLimitRemainingRequests: rateLimits.remainingRequests,
           rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
         });
+        if (finishReason === "length") {
+          const recovery = chooseGroqInvestigatorOutputRecovery({
+            status: response.status,
+            providerCode: null,
+            providerMessage: "",
+            responseFormat: responseFormat.type === "json_schema" ? "json_schema" : "json_object",
+            completionBudgetRetryUsed,
+            currentMaxCompletionTokens: completionTokensOverride ?? groqInvestigatorCompletionBudget(cognitiveTask),
+            finishReason,
+          });
+          if (recovery.action === "increase_completion_budget") {
+            completionBudgetRetryUsed = true;
+            completionTokensOverride = recovery.nextMaxCompletionTokens;
+            continue;
+          }
+          lastProviderError = "completion_output_truncated";
+          return { model, raw: "", error: lastProviderError };
+        }
         if (raw) return { model, raw };
+        lastProviderError = "empty_response";
         break;
       } catch (error: any) {
         if (error instanceof Error && error.message.startsWith("model_prompt_audit_")) {
