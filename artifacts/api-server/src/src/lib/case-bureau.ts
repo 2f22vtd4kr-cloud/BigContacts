@@ -461,31 +461,19 @@ export type GroqBossDiscoveryInput = {
 
 export function buildGroqBossDiscoveryPrompt(input: GroqBossDiscoveryInput, availableInvestigators: readonly InvestigatorCapability[]): string {
   const excluded = new Set(input.excludedInvestigatorLlm ?? []);
-  return `${buildBossOpeningPrompt(input)}
+  return `You are the Apex Atlas Boss. This opening call has exactly one responsibility: select an available Investigator execution capability.
 
-This is a shared case-context review. Read the current investigation progress and investigator reports below
-before deciding what should be researched next. The case context is the durable shared record for this Bureau.
-Internal memory, storage, and workflow terminology are infrastructure concepts only—not a company, sector, geography, or research lead. Derive research directions from the human mission and observed source evidence; do not turn wording from these instructions into a research premise.
-If the objective does not specify an industry, organization, person, or geography, do not invent a named target. You may describe the kind of public evidence the Investigator should seek, but label any idea as an unverified hypothesis.
-You have no web access and must not use or request Google Search grounding. Do not claim to have discovered, checked, fetched, or verified any company, person, asset, URL, ownership fact, relationship, valuation, or contact route.
-OPENING DISCOVERY: make the control decision that allows the selected Investigator to begin one immediate target-first discovery action. The Investigator, not Boss, selects a concrete company, person, or asset only after an actual result is returned by a currently callable registry/asset register or public-web search. A single useful observed target is enough; do not compare sectors or regions, invent a jurisdiction, or prescribe a source itinerary.
-Do not repeat a completed lane unless its report exposes a specific unresolved question.
-SOURCE-NEUTRALITY: all currently enabled registries/asset registers and public-web search are equal, neutral options. Do not name, rank, or privilege a particular registry, provider, country, or jurisdiction unless the human explicitly supplied that scope or the runtime capability layer returned it as available and relevant.
-REGISTRY FEASIBILITY: use only registry adapters actually present in the runtime's available tool/registry list. Do not assume a generic state Secretary-of-State adapter or unverified member/equity/revenue fields exist. When the Right-hand explicitly rejects a proposed source because its adapter or fields are unavailable, do not send the rejected direction to the Investigator and do not stop solely because the first direction was rejected; choose another callable source that can investigate the same target and human-supplied scope, or use public-web search. Do not change geography merely because one adapter is unavailable. Keep this a model-owned choice; do not prescribe a target or search sequence.
-Investigator capability availability at this moment: ${JSON.stringify(availableInvestigators)}. Select only an available capability; the harness will not substitute a different Investigator after your decision.
-The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence
-and do not let it select a target. The Investigator owns the research trajectory within the stated mission; no fixed lane order or research sequence is imposed.
-Excluded Investigator capabilities for this decision: ${JSON.stringify([...excluded])}. These exclusions are control-plane safety state, not a research instruction; never select an excluded capability.
-Starting lane: ${input.startingLane ?? "not specified"}
-Right-hand advisor note: ${JSON.stringify(input.rightHandAdvice ?? null)}
-Current shared case context:
-${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigator reports exist; this is the opening brief."}
-Return ONLY JSON in this shape:
-     {
-  "investigatorLlm": "one capability from the available runtime Investigator registry"
-}
-This is an assignment-only control response. Do not output a report, target, candidate, direction, registry/provider name, jurisdiction, source URL, contact detail, ownership, relationship, valuation, or wealth claim.
-Boss output is control guidance, never a discovery or evidence record. Never invent or output candidate names, source URLs, contact details, ownership, relationships, or wealth claims.`;
+You cannot browse, inspect source records, or execute research tools. Do not choose or name a person, company, asset, registry, provider, country, jurisdiction, query, source URL, contact route, or research direction. Do not compare sectors, geographies, or strategies. Do not invent or imply that any target has been discovered.
+
+The Investigator will begin target-first discovery under the exact human objective after this assignment. Any enabled registry/asset register and public-web search are equal, neutral discovery options; the Investigator chooses the source and target from actual returned observations. Do not add geographic scope or a source preference.
+
+Human objective (context only; do not reinterpret or expand it): ${input.objective.trim()}
+Human motivation (context only): ${input.motivation.trim()}
+Available Investigator capabilities: ${JSON.stringify(availableInvestigators)}
+Excluded capabilities (never select): ${JSON.stringify([...excluded])}
+
+Return exactly one JSON object with this shape and no additional properties:
+{ "investigatorLlm": "one capability from the available Investigator list" }`;
 }
 
 export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promise<GeminiBossDiscoveryResult> {
