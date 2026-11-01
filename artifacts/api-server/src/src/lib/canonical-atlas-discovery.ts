@@ -1881,11 +1881,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         error: rightHand.error,
       },
     });
-    await assertAtlasJobActive(atlasJobId);
     if (openingBossDecision.status !== "completed") {
-      failureStage = "oversight_control_decision";
+      failureStage = openingBossDecision.error?.startsWith("Failed to persist Atlas control decision") ? "control_event_persistence" : "oversight_control_decision";
       throw new Error("Groq Boss could not make a valid final opening decision after Right-hand advice: " + (openingBossDecision.error ?? openingBossDecision.reason ?? "unknown Boss control failure"));
     }
+    failureStage = "job_state_or_lease";
+    await assertAtlasJobActive(atlasJobId);
 
     const initialBossDirection = Array.isArray(boss.nextDirections) ? boss.nextDirections[0] : null;
     const openingDirectionResolution = resolveBossAdjudicatedOpeningDirection({
