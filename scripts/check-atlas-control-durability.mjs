@@ -22,6 +22,8 @@ const checks = [
   ["control decision records control turn", /controlTurn:\s*input\.controlTurn/.test(control)],
   ["control decision persistence is transactional", /await db\.transaction\(async \(tx\) =>/.test(control) && /await tx\.insert\(researchCaseEventsTable\)/.test(control) && /await tx\.update\(researchCasesTable\)/.test(control)],
   ["control case row is locked while persisting", /\.from\(researchCasesTable\)\.where\(eq\(researchCasesTable\.id, input\.caseId\)\)\.for\(\"update\"\)/.test(control)],
+  ["control event stream lock precedes the case row lock", /lockResearchCaseEventAppendStream\(tx, input\.caseId\)/.test(control) && control.indexOf("lockResearchCaseEventAppendStream(tx, input.caseId)") < control.indexOf(".for(\\\"update\\\")")],
+  ["control job binding precedence matches the database trigger", /durableFile\.atlasJobId \?\? durableFile\.jobId/.test(control)],
   ["control replay uses an exact case/job/turn correlation key", /atlas-control:case:\$\{input\.caseId\}:job:\$\{input\.jobId \?\? "legacy"\}:turn:\$\{input\.controlTurn\}/.test(control)],
   ["control replay collision is fail-closed", /Atlas control replay collision/.test(control) && /existingEvent\.payload !== payloadJson/.test(control)],
   ["control decision persistence catches storage failure and returns a privacy-filtered diagnostic", /catch\s*\(error\)[\s\S]*logger\.error[\s\S]*return \{ persisted: false, error: safeError \}/.test(control) && /safeThrownErrorMessagePreview/.test(control)],
