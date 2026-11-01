@@ -538,10 +538,10 @@ before deciding what should be researched next. The case context is the durable 
 Internal memory, storage, and workflow terminology are infrastructure concepts only—not a company, sector, geography, or research lead. Derive research directions from the human mission and observed source evidence; do not turn wording from these instructions into a research premise.
 If the objective does not specify an industry, organization, person, or geography, you may propose a testable starting hypothesis, but explicitly label it as a hypothesis rather than an established fact or something supplied by the objective. The Investigator should test that hypothesis against observed public evidence and pivot if it is unsupported.
 You have no web access and must not use or request Google Search grounding. Do not wait for a preselected entity.
-Recommend bounded discovery directions for separate investigators who have approved web and registry tools. Each next direction should name one subject/sector, one geography/jurisdiction, and a relevant public source class (for example, official registry/filings, a trade directory/association, or company/industry sources); avoid unrelated multi-country or multi-sector sweeps. If a direction names a source class, the first search query must name the subject, geography, and source class; follow-up URL/resource actions must use a source already observed from an aligned search. Rationale, hypothesis, provider, or registry metadata alone does not satisfy scope. The Investigator still chooses each action, provider, and order, and may ask for a new scope if the current one is infeasible.
+Recommend one immediately executable discovery move. Start by selecting a concrete company, person, or asset candidate from any currently callable official registry/asset register or public-web result. One useful source-backed candidate is enough to begin target-scoped research; do not run a preliminary broad-geography exercise, compare regions, or invent a jurisdiction. Preserve geographic constraints only when the human explicitly supplied them. The Investigator chooses the source, query, and action; no fixed itinerary.
 Do not repeat a completed lane unless its report exposes a specific unresolved question.
-OPENING-HYPOTHESIS COMPARISON: for a broad human mission, do not anchor on the first plausible sector/geography/registry that comes to mind. Compare materially different, mission-consistent hypotheses before selecting the opening direction, considering likely person yield, strength of public ownership/asset evidence, realistic contactability, source-family independence/novelty, and actual execution feasibility. Explain the defensible advantage of the selected hypothesis over plausible alternatives; if no option clearly dominates, return a small set of genuinely different alternatives in nextDirections and mark the first as provisional. This is comparative judgment, not a fixed research itinerary: do not prescribe tool calls, provider order, query templates, or a mandatory sequence. Do not prefer a registry merely because its adapter is callable. Companies House is only an illustrative UK-specific example, not a default or preferred source; select it only when the objective-derived geography and evidence opportunity justify it.
-REGISTRY FEASIBILITY: use only registry adapters actually present in the runtime's available tool/registry list. Do not assume a generic state Secretary-of-State adapter or unverified member/equity/revenue fields exist. When the Right-hand explicitly rejects a proposed source because its adapter or fields are unavailable, do not send the rejected direction to the Investigator and do not stop solely because the first direction was rejected; reframe to a distinct feasible source class or jurisdiction consistent with the mission. Keep this a model-owned choice; do not prescribe a target or search sequence.
+OPENING TARGET SELECTION: do not spend the opening decision comparing broad sectors, regions, or jurisdictions. Choose one concrete, testable company/person/asset lead that can be found now through a currently callable registry or public-web search. All enabled registries and web search are neutral discovery options; select by the actual target/evidence fit, not source familiarity, country, adapter order, or brand recognition. Do not name or privilege a particular registry in the prompt. A useful candidate is enough; Boss can then authorize target-scoped verification.
+REGISTRY FEASIBILITY: use only registry adapters actually present in the runtime's available tool/registry list. Do not assume a generic state Secretary-of-State adapter or unverified member/equity/revenue fields exist. When the Right-hand explicitly rejects a proposed source because its adapter or fields are unavailable, do not send the rejected direction to the Investigator and do not stop solely because the first direction was rejected; choose another callable source that can investigate the same target and human-supplied scope, or use public-web search. Do not change geography merely because one adapter is unavailable. Keep this a model-owned choice; do not prescribe a target or search sequence.
 Investigator capability availability at this moment: ${JSON.stringify(availableInvestigators)}. Select only an available capability; the harness will not substitute a different Investigator after your decision.
 The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence
 and do not let it select a target. The Investigator owns the research trajectory within the stated mission; no fixed lane order or research sequence is imposed.
@@ -867,7 +867,7 @@ const SPECIALISTS: BureauSpecialist[] = [
     id: "structure",
     title: "Ownership & Structure Investigator",
     mission: "Map operators, parent groups, directors, beneficial ownership, and named principals.",
-    tools: ["GLEIF", "OpenOwnership", "Companies House", "EDGAR", "OCCRP Aleph"],
+    tools: ["official company and asset registries", "public filings", "ownership datasets"],
     status: "ready",
   },
   {
@@ -901,12 +901,12 @@ const SPECIALISTS: BureauSpecialist[] = [
 ];
 
 export const DEFAULT_DISCOVERY_OBJECTIVE =
-  "Find realistic potential investor routes for a startup founder seeking conversations with genuinely wealthy, relevant people in Western countries.";
+  "Find realistic potential investor routes for a startup founder seeking conversations with genuinely wealthy, relevant people. Do not assume or expand a geographic scope unless the human supplies one.";
 
 export const DEFAULT_DISCOVERY_MOTIVATION =
   "The founder has invested substantial personal time and money into a startup and wants practical paths to present the idea to real potential investors, not celebrity names or unreachable institutions.";
 
-export const DEFAULT_DISCOVERY_GEOGRAPHY = "Western countries, prioritizing realistic regional and professional access over fame.";
+export const DEFAULT_DISCOVERY_GEOGRAPHY = "No geographic restriction supplied; do not invent or broaden one.";
 
 export const DEFAULT_DISCOVERY_EXCLUSIONS = [
   "Do not invent people, companies, wealth, contact details, relationships, or source claims.",
@@ -970,7 +970,7 @@ Do not invent contacts. Do not dilute the named target with unrelated discovery 
 
 ---
 
-You are the Boss Investigator opening a new discovery-first public-web research case.
+You are the Boss Investigator opening a new discovery-first mixed-source research case.
 
 Human mission:
 ${objective}
@@ -983,7 +983,7 @@ ${geography}
 
 Research broadly and begin with discovery. Do not assume a target company or person in advance. Look for real companies, founders, investors, family offices, investment groups, business owners, operators, advisors, portfolio relationships, and other plausible routes that could lead to a useful investor conversation.
 
-The goal is practical proximity to a real decision-maker, not fame alone. Before selecting an anchor, compare a small set of plausible hypotheses by commercial relevance, public ownership/materiality-record availability, likelihood of a defensible named-person route, novelty, and expected research cost. Start with the strongest expected evidence/value per action—not the biggest or most famous entity—then test the hypothesis and pivot after bounded negative or inaccessible-source evidence. Evaluate each route using observed evidence, identity/attribution strength, and practical reachability. Do not impose a category order or predetermined research path. Search public web sources only and preserve exact source URLs and what each source proves.
+The goal is practical proximity to a real decision-maker, not fame alone. Select one concrete company, person, or asset candidate that fits the human objective and can be surfaced now through any enabled registry/asset register or public-web search. A single useful source-backed candidate is enough to begin target-scoped research. Registries and web search are equal, neutral first-discovery options; do not prefer a source family, provider, or registry by name or prompt order. Do not conduct a preliminary sector/geography comparison or broaden geography; use only geographic scope explicitly supplied by the human. Evaluate the selected lead using observed evidence, identity/attribution strength, and practical reachability. Do not impose a category order or predetermined research path. Preserve exact source URLs and what each source proves.
 
 Opening research must:
 1. Discover promising candidates rather than force a preselected target.
@@ -1383,7 +1383,7 @@ function buildActions(file: Omit<ResearchCaseFile, "actionQueue" | "nextBestActi
       title: "Map ownership and structure",
       purpose: "Trace operators, parent groups, entities, directors, and beneficial-owner hypotheses.",
       specialistId: "structure",
-      tools: ["GLEIF", "OpenOwnership", "Companies House", "EDGAR", "OCCRP Aleph"],
+      tools: ["official company and asset registries", "public filings", "ownership datasets"],
       priority: 92,
       status: "queued",
       rationale: "Structure evidence is still sparse.",
