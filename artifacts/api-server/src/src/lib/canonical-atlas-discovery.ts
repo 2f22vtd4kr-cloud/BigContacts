@@ -2769,11 +2769,16 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
               : "canonical-atlas-failed";
     const failureDiagnostic = classifyCanonicalAtlasFailure({ stage: failureStage, error, cancelled, jobStateUnavailable, jobMissing, jobStateMismatch, leaseLost });
     const diagnosticSuffix = `stage=${failureStage}; failureDomain=${failureDiagnostic.domain}; failureKind=${failureDiagnostic.kind}`;
+    // The control-decision persistence diagnostic is constructed entirely from allowlisted fields
+    // (class, SQLSTATE, digest, and an optional safe runtime preview). Preserve it for operators;
+    // all other unexpected exception messages remain digest-only.
+    const safeControlPersistenceFailure = rawMessage.includes("Failed to persist Atlas control decision (class=") && rawMessage.length <= 1_000;
+    const safeFailureSummary = safeControlPersistenceFailure ? rawMessage : safeThrownErrorSummary("Canonical Atlas discovery failed", error);
     const message = cancelled
       ? `Canonical Atlas discovery cancelled; outcome incomplete. (${diagnosticSuffix})`
       : jobStateUnavailable
         ? `Canonical Atlas job state unavailable; discovery stopped without claiming cancellation. (${diagnosticSuffix})`
-        : `${safeThrownErrorSummary("Canonical Atlas discovery failed", error)} (${diagnosticSuffix})`;
+        : `${safeFailureSummary} (${diagnosticSuffix})`;
     let failureStatePersistenceFailed = false;
     try {
       await db.update(researchCasesTable).set({
