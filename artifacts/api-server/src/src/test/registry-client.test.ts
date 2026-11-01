@@ -1,3 +1,4 @@
+import { shuffleRegistryIdsForPrompt, type RegistryId } from "../lib/registry-client";
 describe("language-neutral registry query construction", () => {
   it("passes native-script Atoka queries unchanged and does not force English", () => {
     const queries = [
@@ -419,5 +420,19 @@ describe("FAA Aircraft Registry adapter", () => {
   it("makes FAA a selectable registry and a mixed-source discovery option", () => {
     expect(REGISTRY_IDS).toContain("faa"); expect(getAvailableRegistryIds()).toContain("faa"); expect(getRandomDiscoveryRegistries()).toContain("faa");
     expect(REGISTRY_COVERAGE_MATRIX.find((entry) => entry.id === "faa")?.runtimeAdapterImplemented).toBe(true);
+  });
+});
+
+
+describe("neutral registry prompt ordering", () => {
+  it("randomizes prompt order without dropping, duplicating, or preferring a registry", () => {
+    const ids = ["sec-edgar", "companies-house", "brreg", "faa"] as RegistryId[];
+    const first = shuffleRegistryIdsForPrompt(ids, () => 0);
+    const second = shuffleRegistryIdsForPrompt(ids, () => 0.999999);
+    expect(new Set(first)).toEqual(new Set(ids));
+    expect(new Set(second)).toEqual(new Set(ids));
+    expect(first).not.toEqual(second);
+    expect(first).toHaveLength(ids.length);
+    expect(second).toHaveLength(ids.length);
   });
 });
