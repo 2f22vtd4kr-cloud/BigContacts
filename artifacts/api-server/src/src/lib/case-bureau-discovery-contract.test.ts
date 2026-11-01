@@ -13,19 +13,20 @@ describe("source-grounded Boss opening contract", () => {
     const format = buildBossDiscoveryResponseFormat([investigator]) as {
       schema?: { properties?: Record<string, unknown>; required?: string[] };
     };
+    expect(format.schema?.properties).not.toHaveProperty("report");
     expect(format.schema?.properties).not.toHaveProperty("candidates");
     expect(format.schema?.properties).not.toHaveProperty("nextDirections");
+    expect(format.schema?.required).not.toContain("report");
     expect(format.schema?.required).not.toContain("candidates");
     expect(format.schema?.required).not.toContain("nextDirections");
   });
 
   it("parses only control guidance and never accepts model-generated candidate records", () => {
     const result = parseBossDiscoveryResponse(JSON.stringify({
-      report: "No source observations yet; authorize one discovery action.",
       investigatorLlm: investigator,
-      uncertainties: ["A concrete target must come from an observed result."],
     }), [investigator]);
     expect(result.investigatorLlm).toBe(investigator);
+    expect(result.report).toContain("No source observations exist yet");
     expect(result.candidates).toEqual([]);
     expect(result.nextDirections).toEqual([]);
 
