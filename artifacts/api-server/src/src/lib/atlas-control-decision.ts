@@ -523,7 +523,7 @@ export function buildAtlasBossControlPrompt(input: { investigatorReport: string;
       "RIGHT-HAND ADVICE (advisory only; no free-form rationale or focus lanes are passed as evidence):",
       JSON.stringify(advice),
       "Return exactly one JSON object. action must be continue_discovery or stop. candidateName, candidateType, and direction must all be null. reason must explain only the start/stop decision; confidence must be a number from 0 to 1.",
-    ].join("\\n\\n");
+    ].join("\n\n");
     if (prompt.length > ATLAS_BOSS_CONTROL_PROMPT_BUDGET) {
       throw new Error("Atlas opening Boss prompt cannot fit while preserving the complete human objective and opening control contract.");
     }
