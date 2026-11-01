@@ -1,20 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { parseBossDiscoveryResponse } from "../lib/case-bureau";
 
-describe("Boss discovery short identifiers", () => {
-  it("accepts legitimate short person and organization names without a length heuristic", () => {
+describe("Boss opening assignment contract", () => {
+  it("accepts a configured Investigator capability without parsing any short or long target identity", () => {
     const parsed = parseBossDiscoveryResponse(JSON.stringify({
-      report: "The objective supports investigating these two public subjects.",
       investigatorLlm: "groq-investigator-20b",
-      candidates: [
-        { name: "Li", type: "person", relevance: "A source identifies a relevant person.", reachability: "A public professional route may exist.", sourceUrls: ["https://example.org/person"], contactEvidence: [] },
-        { name: "3M", type: "organization", relevance: "The company is the direct target.", reachability: "Its public corporate site is available.", sourceUrls: ["https://example.org/company"], contactEvidence: [] },
-      ],
-      nextDirections: ["Verify the person and company independently."],
-      uncertainties: [],
     }), ["groq-investigator-20b"]);
 
-    expect(parsed.candidates.map((candidate) => candidate.name)).toEqual(["Li", "3M"]);
-    expect(parsed.candidates.map((candidate) => candidate.type)).toEqual(["person", "organization"]);
+    expect(parsed.investigatorLlm).toBe("groq-investigator-20b");
+    expect(parsed.report).toContain("No source observations exist yet");
+    expect(parsed.candidates).toEqual([]);
+    expect(parsed.nextDirections).toEqual([]);
+    expect(parsed.uncertainties).toEqual([]);
+  });
+
+  it("rejects model-supplied person/company names and source URLs regardless of name length", () => {
+    const parsed = parseBossDiscoveryResponse(JSON.stringify({
+      investigatorLlm: "groq-investigator-20b",
+      candidates: [
+        { name: "Li", type: "person", sourceUrls: ["https://example.org/person"], contactEvidence: [] },
+        { name: "3M", type: "organization", sourceUrls: ["https://example.org/company"], contactEvidence: [] },
+      ],
+    }), ["groq-investigator-20b"]);
+
+    expect(parsed.investigatorLlm).toBeNull();
+    expect(parsed.candidates).toEqual([]);
+    expect(parsed.report).toBe("");
   });
 });
