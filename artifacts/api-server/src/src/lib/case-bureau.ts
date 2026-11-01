@@ -532,12 +532,12 @@ export async function runGroqBossDiscovery(input: GroqBossDiscoveryInput): Promi
         status: "unavailable",
         model: generated.model,
         investigatorLlm: null,
-        report: parsed.report || generated.raw,
-        candidates: parsed.candidates,
+        report: "Opening Boss response rejected: expected assignment-only Investigator selection; no target or source claims were accepted.",
+        candidates: [],
         citations: [],
-        nextDirections: parsed.nextDirections,
-        uncertainties: parsed.uncertainties,
-        error: "Groq Boss selected an Investigator capability that is not currently configured; no deterministic substitution is permitted.",
+        nextDirections: [],
+        uncertainties: [],
+        error: "Groq Boss opening response did not match the assignment-only schema or selected an unavailable Investigator capability; no candidate/source claims were accepted.",
       };
     }
     return {
