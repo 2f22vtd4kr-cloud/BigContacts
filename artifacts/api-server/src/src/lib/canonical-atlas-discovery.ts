@@ -1967,21 +1967,12 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }
     const openingInvestigatorObjective = [
       activeDiscoveryObjective,
-      "BOSS FINAL OPENING DECISION:",
-      openingDirectionResolution.status === "approved"
-        ? "Groq Boss adopted this validated opening direction. It is an active research hypothesis, not source evidence."
-        : "Groq Boss chose to continue the human base objective without activating its initial direction. Do not treat unselected Boss hypotheses as active scope.",
-      "Boss action: " + openingBossDecision.action,
-      openingDirectionResolution.status === "approved" ? "Boss-adjudicated direction: " + openingDirectionResolution.direction : "",
-      compactControlText(openingBossDecision.reason, 800) ? "Boss rationale: " + compactControlText(openingBossDecision.reason, 800) : "",
-      "RIGHT-HAND INDEPENDENT ADVICE (non-authoritative):",
-      "Right-hand status: " + rightHand.status,
-      compactControlText(rightHand.decision, 300) ? "Recommendation: " + compactControlText(rightHand.decision, 300) : "",
-      compactControlText(rightHand.reason, 800) ? "Reason: " + compactControlText(rightHand.reason, 800) : "",
-      rightHand.focusLanes.length ? "Focus lanes: " + JSON.stringify(rightHand.focusLanes).slice(0, 600) : "",
-      rightHand.error ? "Advice unavailable / invalid: " + compactControlText(rightHand.error, 300) : "",
-      "Boss has already weighed this advice and owns the final scope decision. These control-plane observations are not source evidence. Choose tools, providers, queries, visits, and stopping points yourself; if the active objective is unsupported or infeasible, report why and return control to Boss for a revised decision.",
-    ].filter(Boolean).join("\n");
+      "BOSS FINAL OPENING DECISION: target-first discovery is authorized under the exact human objective; no candidate or research direction was selected.",
+      "RIGHT-HAND REVIEW: advisory only. No target, source, provider, registry, country, jurisdiction, or geography suggestion from a model is active scope.",
+      "No source observations or admitted candidates exist yet. Select one useful company, person, or asset target from any enabled registry/asset register or public-web result; one observed target is enough to begin target-scoped research.",
+      "Do not compare sectors or geographies, broaden or invent jurisdiction, or follow a fixed source itinerary. Choose each query, source, tool, visit, pivot, and stopping point yourself.",
+      "Only actual same-run Investigator tool observations may establish candidate names, source URLs, relationships, ownership, wealth, or contact routes. Model hypotheses, confidence, Boss rationale, and Right-hand advice are not source evidence.",
+    ].join("\\n");
     failureStage = "job_state_or_lease";
     await assertAtlasJobActive(atlasJobId);
     await updateJob(atlasJobId, {
