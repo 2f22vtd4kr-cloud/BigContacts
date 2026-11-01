@@ -2237,6 +2237,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         lastDecisionAt: new Date(),
         updatedAt: new Date(),
       }).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`));
+      if (decision.action !== "continue_discovery" && decision.action !== "pivot_discovery") {
+        lastRejectedPivotKey = "";
+        repeatedRejectedPivotCount = 0;
+      }
       finalControlAction = decision.action;
       if (decision.status !== "completed") {
         const terminalMessage = decision.reason || decision.error || "Atlas control decision became unavailable; discovery stopped fail-closed for review.";
