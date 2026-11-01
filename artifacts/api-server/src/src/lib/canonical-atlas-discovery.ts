@@ -1976,6 +1976,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     });
     failureStage = "case_persistence";
     await db.transaction(async (tx) => {
+      await lockResearchCaseEventAppendStream(tx, discoveryCaseId);
       const [lockedCase] = await tx.select({ status: researchCasesTable.status, currentAction: researchCasesTable.currentAction })
         .from(researchCasesTable)
         .where(and(eq(researchCasesTable.id, discoveryCaseId), sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`))
