@@ -92,6 +92,7 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("Never say that the human objective or approved scope was not provided");
     expect(prompt).toContain("unverified search leads");
     expect(prompt).toContain("successful visit/browser_fetch");
+    expect(bossMocks.generateGroqBossText.mock.calls[0]?.[2]?.maxOutputTokens).toBeGreaterThanOrEqual(900);
   });
 
 });
