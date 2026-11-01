@@ -232,7 +232,8 @@ describe("canonical Atlas organization target selection", () => {
   it("connects only persisted same-case Corporation review leads to the organization target kind", () => {
     expect(canonicalAtlas).toContain("const organizationTargets = partialOrganizations.candidates");
     expect(canonicalAtlas).toContain('.filter(({ targetEligibleForResearch }) => targetEligibleForResearch)');
-    expect(canonicalAtlas).toContain('finding.promotionDecision !== "promote"');
+    expect(canonicalAtlas).toContain('finding.promotionDecision === "reject"');
+    expect(canonicalAtlas).toContain('finding.promotionDecision !== "reject"');
     expect(canonicalAtlas).toContain("payload.runId !== input.discoveryRunId");
     expect(canonicalAtlas).toContain('support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true');
     expect(canonicalAtlas).toContain('targetType: "organization" as const');
