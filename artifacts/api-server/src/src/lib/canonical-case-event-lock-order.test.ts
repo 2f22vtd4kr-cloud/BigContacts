@@ -7,7 +7,7 @@ const controlPath = path.resolve(process.cwd(), "src/src/lib/atlas-control-decis
 
 function assertEventTransactionsLockBeforeRow(): void {
   const source = fs.readFileSync(canonicalPath, "utf8");
-  const starts = [...source.matchAll(/await db\\.transaction\\(async \\(tx\\) => \\{/g)].map((match) => match.index ?? -1);
+  const starts = [...source.matchAll(/await db\.transaction\(async \(tx\) => \{/g)].map((match) => match.index ?? -1);
   let eventTransactions = 0;
   for (const start of starts) {
     const end = source.indexOf('}, { isolationLevel: "serializable" });', start);
