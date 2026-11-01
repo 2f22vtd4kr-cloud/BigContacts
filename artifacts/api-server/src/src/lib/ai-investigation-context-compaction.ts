@@ -124,7 +124,7 @@ async function requestSummary(
 
     const selection = await resolveGroqBossModel();
     if (selection.status !== "resolved" || !selection.model) return null;
-    const outputBudget = Math.min(3_000, Math.max(350, Math.ceil(maxChars / 2)));
+    const outputBudget = Math.min(3_000, Math.max(900, Math.ceil(maxChars * 0.8)));
     const result = await generateGroqBossText(selection, prompt, {
       responseFormat: { type: "json_object" },
       maxOutputTokens: outputBudget,
@@ -141,7 +141,7 @@ async function requestSummary(
       // the original, complete source segment.
       const repairSource = source;
       const retryPrompt = buildSummaryPrompt(
-        "PRIOR SUMMARY / SOURCE TO COMPACT:\n" + repairSource,
+        "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + repairSource,
         maxChars,
         true,
       );
@@ -198,13 +198,13 @@ export async function summarizeInvestigatorContextWithBoss(
 
   const partialTarget = Math.min(1_600, Math.max(900, Math.floor((maxChars * 1.5) / sourceChunks.length)));
   const partialSummaries: string[] = [];
-  // Keep provider concurrency low while avoiding a needless serial wait for every
-  // independent source segment. Each chunk is summarized from its complete text.
-  for (let offset = 0; offset < sourceChunks.length; offset += 2) {
-    const batch = sourceChunks.slice(offset, offset + 2);
-    const summaries = await Promise.all(batch.map((chunk) => requestSummary(chunk, chunk, partialTarget, input)));
-    if (summaries.some((summary) => !summary)) return null;
-    partialSummaries.push(...summaries as string[]);
+  // Boss compaction shares the control model's TPM budget with opening and
+  // oversight decisions. Serialize independent segments to avoid a burst of
+  // concurrent summary reservations; the Investigator still owns research actions.
+  for (const chunk of sourceChunks) {
+    const summary = await requestSummary(chunk, chunk, partialTarget, input);
+    if (!summary) return null;
+    partialSummaries.push(summary);
   }
 
   const promptInputBudget = Math.max(2_000, config.maximumPromptChars - SUMMARY_PROMPT_RESERVE_CHARS);
@@ -241,12 +241,12 @@ export async function summarizeInvestigatorContextWithBoss(
     const reduced: string[] = [];
     for (let offset = 0; offset < batches.length; offset += 2) {
       const currentBatch = batches.slice(offset, offset + 2);
-      const values = await Promise.all(currentBatch.map((batch) => {
+      for (const batch of currentBatch) {
         const batchSource = combine(batch);
-        return requestSummary(batchSource, batchSource, nextTarget, input);
-      }));
-      if (values.some((summary) => !summary)) return null;
-      reduced.push(...values as string[]);
+        const summary = await requestSummary(batchSource, batchSource, nextTarget, input);
+        if (!summary) return null;
+        reduced.push(summary);
+      }
     }
     summaries = reduced;
   }
