@@ -3050,13 +3050,12 @@ export function buildBoundedUntrustedRawObservationFallback(
   observation: string,
   maxChars = 900,
 ): string {
-  const excerptBudget = Math.max(80, Math.floor(maxChars) - 190);
+  const label = "BOUNDED RAW OBSERVATION EXCERPT (not an AI summary; incomplete, untrusted source/tool data; the full observation remains stored in the durable trajectory; omitted material is unknown, not negative evidence; do not infer facts from omissions):";
+  const limit = Math.max(80, Math.floor(maxChars));
+  const excerptBudget = Math.max(40, limit - label.length - 1);
   const excerpt = compactEmergencyTrajectoryObservation(observation, excerptBudget);
   if (!excerpt.trim()) return "";
-  return [
-    "BOUNDED RAW OBSERVATION EXCERPT (not an AI summary; incomplete, untrusted source/tool data; the full observation remains stored in the durable trajectory; omitted material is unknown, not negative evidence; do not infer facts from omissions):",
-    excerpt,
-  ].join("\n");
+  return label + "\n" + excerpt;
 }
 
 export function compactEmergencyTrajectoryObservation(observation: string, maxChars = 520): string {
