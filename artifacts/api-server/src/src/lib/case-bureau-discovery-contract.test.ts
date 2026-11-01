@@ -55,6 +55,9 @@ describe("source-grounded Boss opening contract", () => {
     expect(prompt).toContain("Do not claim to have discovered, checked, fetched, or verified");
     expect(prompt).toContain("one immediate target-first discovery action");
     expect(prompt).toContain("Do not name, rank, or privilege a particular registry");
+    expect(prompt).toContain("select an available Investigator execution capability");
+    expect(prompt).not.toContain("Geographic premise");
+    expect(prompt).not.toContain("Global");
     expect(prompt).toContain("all currently enabled registries/asset registers and public-web search are equal, neutral options");
     expect(prompt).not.toContain("Companies House");
     expect(prompt).not.toContain("sourceUrls");
