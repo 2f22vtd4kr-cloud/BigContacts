@@ -24,7 +24,7 @@ const checks = [
   ["control case row is locked while persisting", /\.from\(researchCasesTable\)\.where\(eq\(researchCasesTable\.id, input\.caseId\)\)\.for\(\"update\"\)/.test(control)],
   ["control replay uses an exact case/job/turn correlation key", /atlas-control:case:\$\{input\.caseId\}:job:\$\{input\.jobId \?\? "legacy"\}:turn:\$\{input\.controlTurn\}/.test(control)],
   ["control replay collision is fail-closed", /Atlas control replay collision/.test(control) && /existingEvent\.payload !== payloadJson/.test(control)],
-  ["control decision persistence catches storage failure", /catch\s*\(error\).*logger\.error[\s\S]*return false/.test(control)],
+  ["control decision persistence catches storage failure and returns a privacy-filtered diagnostic", /catch\\s*\\(error\\)[\\s\\S]*logger\\.error[\\s\\S]*return \\{ persisted: false, error: safeError \\}/.test(control) && /safeThrownErrorMessagePreview/.test(control)],
   ["control decision persistence exposes durable failure", /Failed to persist Atlas control decision/.test(control)],
   ["control decision finalization converts persistence failure into fail-closed stop", /const persisted = await persistControlDecision/.test(control) && /transition is fail-closed/.test(control)],
   ["control decision requires durable case ID", /caseId:\s*number;/.test(control) && /requires a valid durable caseId/.test(control)],
