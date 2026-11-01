@@ -24,7 +24,7 @@ describe("discovery runtime architecture", () => {
     expect(discoverySource).not.toMatch(/force[_-]?dig|forced.*search|fixed.*url.*sequence/i);
   });
 
-  it("binds the Boss-adjudicated opening direction into the real first Investigator scope", () => {
+  it("limits the opening Boss decision to start or stop without selecting a target or direction", () => {
     expect(canonicalDiscoverySource).toContain("resolveBossAdjudicatedOpeningDirection({");
     expect(canonicalDiscoverySource).toContain("rightHandOverride: {");
     expect(canonicalDiscoverySource).toContain("decision: rightHand.decision");
@@ -40,7 +40,7 @@ describe("discovery runtime architecture", () => {
     expect(canonicalDiscoverySource).toContain("activeDiscoveryObjective = openingObjective.objective");
     expect(canonicalDiscoverySource).toContain("controlTurn: 1");
     expect(canonicalDiscoverySource).toContain("objective: openingInvestigatorObjective");
-    expect(canonicalDiscoverySource).toContain("Boss chose to continue the human base objective without activating its initial direction.");
+    expect(canonicalDiscoverySource).toContain("BOSS FINAL OPENING DECISION: target-first discovery is authorized under the exact human objective; no candidate or research direction was selected.");
     // Target-stage Right-hand authorization remains a separate contract; it is not
     // an approval gate for the discovery-opening Boss adjudication.
     expect(atlasControlDecisionSource).toContain('export function validateAtlasOpeningRightHandReview(value: Record<string, unknown> | null): boolean {');
