@@ -93,4 +93,12 @@ describe("canonical Atlas lease-read diagnostics", () => {
       error: new Error("unexpected local invariant failure"),
     })).toEqual({ domain: "lease_job_state", kind: "unexpected_exception" });
   });
+
+  it("classifies an unavailable Investigator episode without a local provider record as an upstream model failure", () => {
+    expect(classifyCanonicalAtlasFailure({
+      stage: "investigator_episode",
+      error: new Error("investigator_episode_unavailable_without_provider_record"),
+    })).toEqual({ domain: "model_provider", kind: "provider_unavailable" });
+  });
+
 });

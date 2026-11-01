@@ -212,6 +212,47 @@ describe("Groq Boss token-window recovery", () => {
     expect(fetchMock.mock.calls[1]?.[1]).toBeTruthy();
   });
 
+  it("uses Groq's explicit TPM retry hint when reset headers are absent", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-body-retry-hint-key";
+    vi.useFakeTimers();
+    let calls = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(JSON.stringify({
+          error: {
+            type: "tokens",
+            code: "rate_limit_exceeded",
+            message: "Rate limit reached for tokens per minute. Please try again in 8.9775s.",
+          },
+        }), { status: 429 });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const pending = generateGroqBossText(
+      {
+        model: "openai/gpt-oss-120b",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 1,
+        candidateModels: ["openai/gpt-oss-120b"],
+        keyName: "GROQ_BOSS_API_KEY",
+      },
+      "Return a small JSON decision.",
+    );
+    await Promise.resolve();
+    await vi.runAllTimersAsync();
+    const result = await pending;
+
+    expect(result.raw).toBe('{"decision":"proceed"}');
+    expect(result.error).toBeNull();
+    expect(calls).toBe(2);
+    expect(fetchMock.mock.calls[1]?.[1]).toBeTruthy();
+  });
+
   it("fails closed without retrying when the token reset exceeds the bounded recovery window", async () => {
     process.env.GROQ_BOSS_API_KEY = "test-groq-boss-long-reset-key";
     let calls = 0;

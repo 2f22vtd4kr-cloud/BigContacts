@@ -195,6 +195,13 @@ export function classifyCanonicalAtlasFailure(input: {
     && /\binvestigator_episode_no_action\b/.test(error.message)) {
     return { domain: "model_action", kind: "no_usable_action" };
   }
+  // LLM_UNAVAILABLE can be caused by model-backed context compaction as well as
+  // an Investigator decision request. It is an upstream model-service failure,
+  // not an unexpected application/programming exception.
+  if ((input.stage === "investigator_episode" || input.stage === "orchestration")
+    && /\binvestigator_episode_unavailable_without_provider_record\b/.test(error.message)) {
+    return { domain: "model_provider", kind: "provider_unavailable" };
+  }
   const isModelProviderStage = input.stage === "boss_opening_request"
     || input.stage === "right_hand_opening_review"
     || input.stage === "oversight_control_decision";
