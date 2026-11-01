@@ -3329,7 +3329,8 @@ describe("action-level durable review-card checkpoints", () => {
   });
 
   it("never advances a search-snippet-only organization lead into target-scoped research", () => {
-    expect(canonicalAtlasDiscoverySource).toContain('finding.promotionDecision !== "promote"');
+    expect(canonicalAtlasDiscoverySource).toContain('finding.promotionDecision === "reject"');
+    expect(canonicalAtlasDiscoverySource).toContain('finding.promotionDecision !== "reject"');
     expect(canonicalAtlasDiscoverySource).toContain('payload.runId !== input.discoveryRunId');
     expect(canonicalAtlasDiscoverySource).toContain('targetEligibleForResearch');
     expect(canonicalAtlasDiscoverySource).toContain('support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true');
