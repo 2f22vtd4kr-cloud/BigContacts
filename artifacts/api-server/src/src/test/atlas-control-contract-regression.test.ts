@@ -64,8 +64,10 @@ describe("Atlas control-plane contract regression", () => {
       geography: "Public web; geography chosen from the evidence.",
     }, []);
     expect(prompt).not.toContain("durable tree shaft");
-    expect(prompt).toContain("infrastructure concepts only");
-    expect(prompt).toContain("explicitly label it as a hypothesis");
+    expect(prompt).toContain("This opening call has exactly one responsibility: select an available Investigator execution capability.");
+    expect(prompt).toContain("Do not invent or imply that any target has been discovered.");
+    expect(prompt).not.toContain("Geographic premise");
+    expect(prompt).not.toContain("Global");
   });
 
   it("keeps the audit's generic wealth mission in discovery mode and still recognizes explicit targets", () => {
@@ -75,18 +77,20 @@ describe("Atlas control-plane contract regression", () => {
       motivation: "Find evidence-backed people with realistic public routes.",
       geography: "No geography supplied; do not invent or broaden one.",
     }, []);
-    expect(discoveryPrompt).toContain("new discovery-first mixed-source research case");
-    expect(discoveryPrompt).toContain("one immediately executable discovery move");
-    expect(discoveryPrompt).toContain("do not run a preliminary broad-geography exercise");
-    expect(discoveryPrompt).toContain("Preserve geographic constraints only when the human explicitly supplied them");
+    expect(discoveryPrompt).toContain(genericObjective);
+    expect(discoveryPrompt).toContain("The Investigator will begin target-first discovery under the exact human objective");
+    expect(discoveryPrompt).toContain("Do not compare sectors, geographies, or strategies.");
+    expect(discoveryPrompt).toContain("Do not add geographic scope or a source preference.");
     expect(discoveryPrompt).not.toContain("TARGET-LOCKED public-web research case");
+    expect(discoveryPrompt).not.toContain("Choose one concrete, testable company/person/asset lead");
 
     const namedTargetPrompt = buildGroqBossDiscoveryPrompt({
       objective: "Find public contact routes for Alice Smith at Acme Capital.",
       motivation: "Verify identity and route attribution from public sources.",
       geography: "Public web.",
     }, []);
-    expect(namedTargetPrompt).toContain("TARGET-LOCKED public-web research case");
+    expect(namedTargetPrompt).toContain("Find public contact routes for Alice Smith at Acme Capital.");
+    expect(namedTargetPrompt).not.toContain("TARGET-LOCKED public-web research case");
   });
 
   it("passes the canonical Right-hand control validator into the adapter's bounded model fallback", () => {
