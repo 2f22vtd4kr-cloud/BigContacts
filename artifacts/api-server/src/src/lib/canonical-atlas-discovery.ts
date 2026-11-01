@@ -1843,7 +1843,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // turn there are no admitted targets or Investigator observations yet.
     // A Right-hand outage is passed through as context; a Boss outage or invalid
     // Boss action remains fail-closed.
-    failureStage = "control_event_persistence";
+    failureStage = "control_prompt_construction";
     const openingBossDecision = await decideAtlasNextAction({
       objective: activeDiscoveryObjective,
       admittedCandidates: [],
@@ -1862,7 +1862,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }),
       pinnedControlState: [
         "OPENING CONTROL STATE (authoritative): Boss has selected the Investigator capability but has not yet activated an opening research direction.",
-        "HUMAN OBJECTIVE: " + activeDiscoveryObjective,
+        "OBJECTIVE SOURCE: The complete current human objective is in COMPLETE DISCOVERY STATE; do not add geography absent from it.",
         "Boss report (unverified control hypothesis, not source evidence): " + compactControlText(boss.report, 1_200),
         "BOSS INITIAL HYPOTHESES (unverified, not evidence): " + JSON.stringify(boss.nextDirections ?? []),
         "RIGHT-HAND AUTHORITY: advisory only. Boss must evaluate its recommendation and owns the final decision.",

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
+  ATLAS_BOSS_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT,
   atlasLeadUtilizationLaw,
@@ -175,6 +176,37 @@ describe("Atlas control-plane lead continuity", () => {
     expect(prompt).toContain("A blocked request cannot support a claim that a registry or sector lacks ownership information.");
     expect(prompt).toContain("Do not prescribe a fixed provider, query, tool, source class, or action sequence.");
   });
+
+  it("fits the full opening objective without duplicating it in pinned control state", () => {
+    const humanObjective = `Find source-backed private-business owners with realistic professional contact routes. ${"Use observed public evidence and do not invent geography. ".repeat(34)}`;
+    const prompt = buildAtlasBossControlPrompt({
+      investigatorReport: JSON.stringify({
+        stage: "opening_adjudication",
+        bossInitialReport: "One unverified candidate hypothesis.",
+        bossInitialDirections: ["Verify the named person's role and ownership from fetched public sources."],
+        bossUncertainties: ["Ownership and contact details are not evidence until independently observed."],
+      }),
+      compactState: `# Apex Atlas — Investigation Context\n## Objective\n${humanObjective}\n## Discovery status\nOpening review is complete; no Investigator action has executed.`,
+      pinnedControlState: [
+        "OPENING CONTROL STATE: Boss has not activated a research direction.",
+        "OBJECTIVE SOURCE: The complete current human objective is in COMPLETE DISCOVERY STATE; do not add geography absent from it.",
+        "Initial hypotheses are unverified and are not evidence.",
+      ].join("\n"),
+      rightHand: {
+        status: "completed",
+        decision: "recommend",
+        reason: "One in-scope hypothesis can be checked against observed evidence.",
+        direction: null,
+        confidence: 0.8,
+        model: "test-model",
+        error: null,
+      },
+    });
+
+    expect(prompt).toContain(humanObjective);
+    expect(prompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
+  });
+
   it("grounds both supervisors in runtime registry capabilities and evidence-backed field assumptions", () => {
     const law = atlasRegistryFeasibilityLaw();
     expect(law).toContain("RUNTIME-CALLABLE REGISTRY IDS");

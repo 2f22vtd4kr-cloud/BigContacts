@@ -56,6 +56,7 @@ export type AtlasFailureStage =
   | "boss_opening_request"
   | "right_hand_opening_review"
   | "oversight_control_decision"
+  | "control_prompt_construction"
   | "investigator_episode"
   | "model_action_validation"
   | "tool_execution"
@@ -73,6 +74,8 @@ export function atlasFailureDomainForStage(stage: AtlasFailureStage): AtlasFailu
     case "right_hand_opening_review":
     case "oversight_control_decision":
       return "model_provider";
+    case "control_prompt_construction":
+      return "unexpected_programming_error";
     case "model_action_validation":
       return "model_action";
     case "tool_execution":

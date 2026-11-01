@@ -369,6 +369,7 @@ describe("canonical failure diagnostics", () => {
     expect(classifyCanonicalAtlasFailure({ stage: "model_action_validation", error: new Error("rejected URL") })).toEqual({ domain: "model_action", kind: "invalid_contract" });
     expect(classifyCanonicalAtlasFailure({ stage: "external_page_fetch", error: new Error("Outbound response exceeds 2000000 byte limit") })).toEqual({ domain: "external_page_fetch", kind: "response_size_limit" });
     expect(classifyCanonicalAtlasFailure({ stage: "case_persistence", error: new Error("database write failed") })).toEqual({ domain: "persistence_database", kind: "unexpected_exception" });
+    expect(classifyCanonicalAtlasFailure({ stage: "control_prompt_construction", error: new Error("Atlas Boss prompt cannot fit while preserving its pinned authoritative case state.") })).toEqual({ domain: "unexpected_programming_error", kind: "unexpected_exception" });
     expect(classifyCanonicalAtlasFailure({ stage: "investigator_episode", error: new Error("unexpected") })).toEqual({ domain: "unexpected_programming_error", kind: "unexpected_exception" });
     expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("ignored"), leaseLost: true })).toEqual({ domain: "lease_job_state", kind: "lease_lost" });
     expect(classifyCanonicalAtlasFailure({ stage: "orchestration", error: new Error("ignored"), cancelled: true })).toEqual({ domain: "lease_job_state", kind: "cancelled" });
