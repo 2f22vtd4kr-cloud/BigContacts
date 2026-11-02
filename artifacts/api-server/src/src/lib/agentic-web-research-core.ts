@@ -3297,8 +3297,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       + (omittedInventoryUrlCount ? " " + omittedInventoryUrlCount + " additional URL(s) omitted whole; immutable case-event ledger remains authoritative." : "")
     : "";
   const isDiscoveryPrompt = mode === "discovery" || (mode !== "target" && /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base));
+  const minimumRelevanceMarker = isDiscoveryPrompt
+    ? "MODEL-OWNED RELEVANCE SELF-CHECK: connect the source/query to a plausible local owner/operator, under-the-radar business, material asset, or ownership/investment/transaction signal. A generic publisher homepage or global-brand executive list alone is off-mission without a grounded local link. The Investigator chooses sources/actions; no fixed sequence."
+    : "";
   const minimumTargetabilityMarker = isDiscoveryPrompt
-    ? "DISCOVERY TARGETABILITY: people remain the ultimate mission; an organization may be selected as a provisional review target when it offers a useful route to owners/operators/investors. MODEL-OWNED RELEVANCE SELF-CHECK: explain the plausible link from this source/query to an under-the-radar business, local owner/operator, material asset, or ownership/investment/transaction signal. A generic publisher homepage or global-brand executive list alone is off-mission without a grounded local link. The Investigator chooses sources and actions; no fixed sequence. Do not infer personal wealth from company prestige."
+    ? "DISCOVERY TARGETABILITY: people remain the ultimate mission; an organization may be selected as a provisional review target when it offers a useful route to owners/operators/investors. Do not infer personal wealth from company prestige."
     : "";
   const protectedRuleCandidates = [
     "Press/profile pages may support a named person or organization review lead when you judge it relevant; the page itself is not a contact route unless it provides a legitimate public professional contact path.",
@@ -3312,6 +3315,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     "After successful visit/browser_fetch, YOU decide whether an organization named in the fetched text is worth a provisional review card. If selected, retain that fetched URL and describe only what the page establishes; a material ownership/transaction fact is not required merely to preserve the card.",
     "After a successful web/parallel/registry search, YOU decide whether an observed organization is worth a provisional review card. If selected, emit scope=organization with its exact observed name and a public HTTPS URL associated with that observation; snippets are leads, not evidence.",
     "Third-party people-search/profile-directory aggregators are leads only; CONTACT FACTS (observed, not attributed) are not identity evidence.",
+    minimumRelevanceMarker,
     minimumTargetabilityMarker,
   ];
   const protectedRules = isInvestigatorPrompt
@@ -3733,6 +3737,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
+    // The model-owned relevance decision survives the final prompt tier; keep it
+    // ahead of optional recovery narration so budget pressure cannot erase it.
+    appendBudgeted(minimumRelevanceMarker, 420, "[discovery relevance rule omitted]");
     // Boss-generated historical memory is required context, not expendable
     // narration. Reserve its complete text before optional diagnostics/URLs.
     if (aiMemorySection) {
