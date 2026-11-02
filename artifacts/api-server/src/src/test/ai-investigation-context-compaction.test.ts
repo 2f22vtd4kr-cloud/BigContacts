@@ -61,9 +61,12 @@ describe("AI investigation context compaction", () => {
     expect(repairPrompt).not.toContain("PRIOR_SUMMARY_ONLY_SENTINEL");
     const firstOptions = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
     const repairOptions = bossMocks.generateGroqBossText.mock.calls[1]?.[2];
-    expect(firstOptions?.maxOutputTokens).toBe(378);
-    expect(repairOptions?.maxOutputTokens).toBe(317);
+    expect(firstOptions?.maxOutputTokens).toBe(600);
+    expect(repairOptions?.maxOutputTokens).toBe(504);
     expect(repairOptions?.maxOutputTokens).toBeLessThan(firstOptions?.maxOutputTokens ?? Infinity);
+    for (const options of [firstOptions, repairOptions]) {
+      expect((options?.responseFormat as any)?.json_schema?.schema?.properties?.summary).toHaveProperty("maxLength", 900);
+    }
   });
 
   it("fails closed when the model cannot produce required working memory", async () => {
