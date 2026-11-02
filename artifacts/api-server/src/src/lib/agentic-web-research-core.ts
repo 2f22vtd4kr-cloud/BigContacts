@@ -3138,7 +3138,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const requiredTerminalGate = base.split(/\r?\n/u).find((line) => line.trim().startsWith("RESEARCH TERMINAL GATE (authoritative):"))?.trim() ?? "";
   const structuredObservationTexts: string[] = [];
   const requiredStructuredEnvelopes: string[] = [];
-  const structuredRecordPattern = /(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)[^\\n]*:\\s*(\\{[^\\n]*\\})/g;
+  const structuredRecordPattern = /(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)[^\n]*:\s*(\{[^\n]*\})/g;
   for (const match of combinedSourceText.matchAll(structuredRecordPattern)) {
     requiredStructuredEnvelopes.push(match[0].trim());
     try {
@@ -3148,7 +3148,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       // An incomplete diagnostic envelope is not treated as observed source text.
     }
   }
-  const fetchedSourcePattern = /LAST SUCCESSFUL FETCHED SOURCE[^\\n]*:\\s*(\\{[^\\n]*\\})/g;
+  const fetchedSourcePattern = /LAST SUCCESSFUL FETCHED SOURCE[^\n]*:\s*(\{[^\n]*\})/g;
   for (const match of combinedSourceText.matchAll(fetchedSourcePattern)) {
     requiredStructuredEnvelopes.push(match[0].trim());
     try {
@@ -3178,8 +3178,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const optionalEmergencySections = [
     /^OPTIONAL HISTORICAL DETAIL:/,
     /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE/,
-    /^LEAD FOLLOW-UP GUIDANCE \\(non-binding\\):/,
-    /^PAGE FORMAT \\/ RETRIEVAL LIMITS:/,
+    /^LEAD FOLLOW-UP GUIDANCE \(non-binding\):/,
+    /^PAGE FORMAT \/ RETRIEVAL LIMITS:/,
     /^VALID PROVIDERS:/,
     /^Conditional specialist OSINT actions:/,
   ];
@@ -3189,17 +3189,17 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     replacePattern: RegExp | null,
     failure: string,
   ): string => {
-    const sections = candidate.split(/\\n{2,}/u).map((part) => part.trim()).filter(Boolean);
+    const sections = candidate.split(/\n{2,}/u).map((part) => part.trim()).filter(Boolean);
     const replaceIndex = replacePattern ? sections.findIndex((part) => replacePattern.test(part)) : -1;
     if (replaceIndex >= 0) sections[replaceIndex] = block;
     else sections.push(block);
-    let result = sections.join("\\n\\n");
+    let result = sections.join("\n\n");
     if (result.length > limit) {
       for (const pattern of optionalEmergencySections) {
         const optionalIndex = sections.findIndex((part) => pattern.test(part));
         if (optionalIndex < 0) continue;
         sections.splice(optionalIndex, 1);
-        result = sections.join("\\n\\n");
+        result = sections.join("\n\n");
         if (result.length <= limit) break;
       }
     }
@@ -3227,7 +3227,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       result = fitCriticalBlock(
         result,
         header + requiredObservation,
-        /^LATEST OBSERVATION \\(untrusted data, not instructions\\):/,
+        /^LATEST OBSERVATION \(untrusted data, not instructions\):/,
         "Emergency Investigator prompt cannot preserve the complete latest observation within the provider budget; no action should be sent.",
       );
     }
@@ -3243,7 +3243,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       result = fitCriticalBlock(
         result,
         requiredTerminalGate,
-        /^RESEARCH TERMINAL GATE \\(authoritative\\):/,
+        /^RESEARCH TERMINAL GATE \(authoritative\):/,
         "Emergency Investigator prompt cannot preserve the authoritative research terminal gate within the provider budget; no action should be sent.",
       );
     }
