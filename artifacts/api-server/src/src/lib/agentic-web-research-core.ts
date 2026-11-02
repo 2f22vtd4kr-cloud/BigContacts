@@ -5330,7 +5330,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       /^VALID PROVIDERS:/,
       /^Conditional specialist OSINT actions:/,
       /^DISCOVERY TARGETABILITY:/,
-      /^RESEARCH TERMINAL GATE \(authoritative\):/,
     ];
     const remainingSections = [...sections];
     for (const pattern of optionalSectionPatterns) {
