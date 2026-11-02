@@ -3230,6 +3230,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     /^PAGE FORMAT \/ RETRIEVAL LIMITS:/,
     /^BINARY URL POLICY:/,
     /^LEAD FOLLOW-UP GUIDANCE \(non-binding\):/,
+    /^ACTION LIVENESS:/,
+    /^DISCOVERY TARGETABILITY:/,
+    /^MODEL-OWNED RELEVANCE SELF-CHECK:/,
+    /^Third-party people-search\/profile-directory aggregators/,
     /^Never use placeholders/,
   ];
   const fitCriticalBlock = (
@@ -3245,10 +3249,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     let result = sections.join("\n\n");
     if (result.length > limit) {
       for (const pattern of optionalEmergencySections) {
-        const optionalIndex = sections.findIndex((part) => pattern.test(part));
-        if (optionalIndex < 0) continue;
-        sections.splice(optionalIndex, 1);
-        result = sections.join("\n\n");
+        let optionalIndex = sections.findIndex((part) => pattern.test(part));
+        while (optionalIndex >= 0 && result.length > limit) {
+          sections.splice(optionalIndex, 1);
+          result = sections.join("\n\n");
+          optionalIndex = sections.findIndex((part) => pattern.test(part));
+        }
         if (result.length <= limit) break;
       }
     }
@@ -3942,7 +3948,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     // the semantic admission rules and runtime capability truth before spending
     // the remaining budget on verbose observations or historical detail.
     const minimumInvestigatorEvidenceContract =
-      "DISCOVERY LEAD HANDOFF CONTRACT: Choose worthwhile person/org review leads, not every result. Preserve exact observed name and associated public HTTPS URL; role may be null. Search-only person leads stay LOW-CONFIDENCE REVIEW-ONLY (search_result_lead); infer no ownership, wealth, relationship, HNWI status or contact route. Snippets are leads, not evidence; failed/blocked fetches are unobserved. Higher admission requires a successful claim-grade fetch binding name and role to ownership/control/equity/investment evidence. After fetch, sourceUrls contains only that fetched URL and claims cite its exact span. Before promotion, target research independently corroborates/falsifies material business, asset or exit signals and verifies a legitimate professional route.";
+      "DISCOVERY LEAD HANDOFF CONTRACT: Choose worthwhile person/org review leads, not every result. Preserve exact observed name and associated public HTTPS URL; role may be null. Search-only person leads stay LOW-CONFIDENCE REVIEW-ONLY (search_result_lead); infer no ownership, wealth, relationship, HNWI status or contact route. Snippets are leads, not evidence; failed/blocked fetches are unobserved. Higher admission requires a successful claim-grade fetch binding name and role to ownership/control/equity/investment evidence. After fetch, sourceUrls contains only that fetched URL and claims cite its exact span. People remain the mission; organizations are provisional routes, not wealth proof. Before promotion, target research independently corroborates/falsifies material business, asset or exit signals and verifies a legitimate professional route.";
     appendBudgeted(minimumInvestigatorEvidenceContract, 820, "[review-lead detail omitted]");
     appendBudgeted(scopeRecoveryRule, 360, "[scope recovery detail omitted]");
     appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability detail omitted]");
