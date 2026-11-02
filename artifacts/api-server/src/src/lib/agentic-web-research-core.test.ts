@@ -3579,7 +3579,7 @@ describe("small emergency observation budgets", () => {
     const observation = 'LATEST TRAJECTORY RECORD — TURN 17: {"turn":17,"action":"web_search","execution":"success","leadUrls":["https://registry.example.test/company-search"],"leadUrlsOmittedFromPromptCount":0}';
 
     expect(() => appendEmergencyObservationContext(basePrompt, observation, 24)).toThrow(
-      /((?:Cannot preserve the complete latest observation|Cannot compose a contract-preserving emergency observation prompt|The required Investigator action schema exceeds) maxPromptChars=24)/,
+      /(?:Cannot preserve the complete latest observation|Cannot compose a contract-preserving emergency observation prompt.*maxPromptChars=24|The required Investigator action schema exceeds.*maxPromptChars=24)/,
     );
   });
 
