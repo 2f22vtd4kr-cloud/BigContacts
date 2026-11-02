@@ -608,6 +608,7 @@ export function emitModelPromptAuditResponse(
     requestAuditPaths.delete(input.requestId);
     return true;
   } catch {
+    requestAuditPaths.delete(input.requestId);
     process.stderr.write("[atlas_model_prompt_audit] append failed; model response was not written to the audit file.\n");
     return false;
   }
