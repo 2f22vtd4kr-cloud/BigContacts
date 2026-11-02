@@ -312,12 +312,12 @@ describe("model prompt audit", () => {
       APEX_CAPTURE_MODEL_PROMPTS: "true",
       APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true",
       APEX_CAPTURE_MODEL_PROMPTS_IN_TEST: "true",
-      APEX_MODEL_AUDIT_FILE: ".local/audits/APEX_ATLAS_MODEL_AUDIT_TEST.md",
+      APEX_MODEL_AUDIT_FILE: "private-audits/APEX_ATLAS_MODEL_AUDIT_TEST.md",
     };
     const requestWrites: Array<{ path: string; contents: string }> = [];
     emitModelPromptAudit(input, env, (path, contents) => requestWrites.push({ path, contents }), apiPackageCwd);
     expect(requestWrites).toHaveLength(1);
-    expect(requestWrites[0]?.path).toBe(resolve(workspaceRoot, ".local/audits/APEX_ATLAS_MODEL_AUDIT_TEST.md"));
+    expect(requestWrites[0]?.path).toBe(resolve(workspaceRoot, "private-audits/APEX_ATLAS_MODEL_AUDIT_TEST.md"));
     expect(requestWrites[0]?.contents).toContain("person@example.org");
     expect(requestWrites[0]?.contents).toContain("+1 (415) 555-0100");
     expect(requestWrites[0]?.contents).not.toContain("gsk_123456789012345678901234");
@@ -352,7 +352,7 @@ describe("model prompt audit", () => {
     }, env, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
 
     expect(writes).toHaveLength(1);
-    expect(writes[0]?.path).toBe(resolve(workspaceRoot, ".local/audits/APEX_ATLAS_MODEL_AUDIT_TEST.md"));
+    expect(writes[0]?.path).toBe(resolve(workspaceRoot, "private-audits/APEX_ATLAS_MODEL_AUDIT_TEST.md"));
     const captured = writes[0]?.contents ?? "";
     expect(captured).toContain("jane.doe@example.org");
     expect(captured).toContain("+1 (415) 555-0100");
