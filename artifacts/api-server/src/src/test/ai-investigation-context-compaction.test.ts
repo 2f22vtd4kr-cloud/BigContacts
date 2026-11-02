@@ -111,6 +111,7 @@ describe("AI investigation context compaction", () => {
         },
       },
     });
+    expect((options?.responseFormat as any)?.json_schema?.schema?.properties?.summary).not.toHaveProperty("maxLength");
   });
 
 });
