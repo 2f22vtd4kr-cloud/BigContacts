@@ -74,7 +74,10 @@ export function shouldCreateInvestigatorResearchMemory(input: {
   priorContextChars: number;
 }): boolean {
   if (input.hasExistingMemory || input.historicalRecordCount <= 0) return false;
-  return input.sourceChars > 3_500 || input.priorContextChars > 800 || input.historicalRecordCount > 6;
+  // Any older record will be reduced by the bounded archive projection below.
+  // Hand it to Boss first, even when the raw payload is small: the compactor
+  // returns small inputs losslessly and semantically summarizes larger ones.
+  return true;
 }
 
 function positiveBounded(raw: string | undefined, fallback: number, min: number, max: number): number {
