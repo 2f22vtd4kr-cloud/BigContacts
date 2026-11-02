@@ -3489,6 +3489,16 @@ describe("prompt composition recovery integrity", () => {
     expect(recovery).not.toContain("boundInvestigatorPromptSection");
     expect(recovery).not.toContain("history.slice(-3)");
   });
+
+  it("does not deterministically excerpt Boss historical memory when the emergency prompt is over budget", () => {
+    const start = agenticCoreSource.indexOf("// Historical memory is a semantic summary, not raw evidence.");
+    const end = agenticCoreSource.indexOf("throw new Error(", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const recovery = agenticCoreSource.slice(start, end);
+    expect(recovery).not.toContain("boundInvestigatorPromptSection(memorySection, memoryBudget)");
+    expect(recovery).toContain("historicalMemory");
+  });
 });
 
 describe("small emergency observation budgets", () => {
