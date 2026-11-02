@@ -3294,7 +3294,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     for (const value of optionalCriticalObservations) {
       if (!value || result.includes(value)) continue;
       try {
-        result = fitCriticalBlock(result, header + value, /^LATEST OBSERVATION \\(untrusted data, not instructions\\):/,
+        result = fitCriticalBlock(result, header + value, /^LATEST OBSERVATION \(untrusted data, not instructions\):/,
           "Emergency Investigator prompt cannot preserve the complete latest observation within the provider budget; no action should be sent.");
       } catch {
         // Preserve the bounded prompt projection; the full observation remains durable.
