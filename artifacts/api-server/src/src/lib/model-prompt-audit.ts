@@ -34,10 +34,12 @@ type AuditEnvironment = {
   APEX_CAPTURE_MODEL_PROMPTS?: string;
   /** Additional explicit opt-in required to write test telemetry into any audit file. */
   APEX_CAPTURE_MODEL_PROMPTS_IN_TEST?: string;
-  /** Explicit per-run opt-in for retaining contact values in the visible audit file. */
+  /** Explicit opt-in for retaining source contact values in audit output. */
   APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA?: string;
   /** Narrow development-only opt-in for one explicitly authorized visible audit. */
   APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE?: string;
+  /** Second opt-in for contact values in a starred visible sequential audit. */
+  APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA?: string;
   APEX_MODEL_AUDIT_FILE?: string;
   VITEST?: string;
   VITEST_POOL_ID?: string;
@@ -107,10 +109,9 @@ export function resolveModelAuditFilePath(
 }
 
 /**
- * Contact data is retained only in private local audit locations or an
- * explicitly configured path outside the repository. Tracked audits/ files
- * always redact email/phone values, even if a misconfigured environment sets
- * the contact-data opt-in.
+ * Contact data is retained by default only in private local audit locations or
+ * an explicitly configured path outside the repository. A visible report needs
+ * separate development, visible-file, contact-data, and starred-audit opt-ins.
  */
 function shouldIncludeContactDataForAuditFile(
   env: AuditEnvironment,
@@ -126,8 +127,15 @@ function shouldIncludeContactDataForAuditFile(
   if (isOutsideWorkspace) return true;
 
   const normalizedRelativePath = relativePath.replace(/\\/g, "/");
-  return normalizedRelativePath.startsWith("private-audits/")
-    || normalizedRelativePath.startsWith(".local/audits/");
+  if (
+    normalizedRelativePath.startsWith("private-audits/")
+    || normalizedRelativePath.startsWith(".local/audits/")
+  ) return true;
+
+  return env.NODE_ENV === "development"
+    && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true"
+    && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA === "true"
+    && normalizedRelativePath.startsWith("audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_");
 }
 
 function resolveSafeModelAuditFilePath(
@@ -384,8 +392,8 @@ function longestBacktickRun(value: string): number {
 /**
  * Opt-in development trace of model-visible requests and responses. Credentials are
  * always redacted and provider-private reasoning fields are omitted. Source-published
- * email/phone values are retained only for explicit opt-in to private ignored audit paths;
- * tracked/visible audit destinations continue to redact contact values or refuse raw capture.
+ * email/phone values require private audit storage or a second explicit opt-in for a
+ * starred visible sequential audit.
  */
 export function emitModelPromptAudit(
   input: AuditInput,

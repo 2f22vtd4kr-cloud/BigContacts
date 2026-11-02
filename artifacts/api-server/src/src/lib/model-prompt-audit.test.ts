@@ -52,13 +52,14 @@ describe("model prompt audit", () => {
     expect(serviceRun).toBe("cd ../.. && bash scripts/replit-boot.sh");
     const workspaceConfig = readFileSync(resolve(workspaceRoot, ".replit"), "utf8");
 
-    const visibleRunAudit = 'APEX_MODEL_AUDIT_FILE = "audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-11-01_FRESH_PROJECT_IMPORT_RUN_01.md"';
+    const visibleRunAudit = 'APEX_MODEL_AUDIT_FILE = "audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-11-02_FRESH_PROJECT_IMPORT_RUN_01.md"';
     for (const config of [artifactConfig, workspaceConfig]) {
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
-      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
+      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
       expect(config).toContain(visibleRunAudit);
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "true"');
+      expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "true"');
     }
     const gitignore = readFileSync(resolve(workspaceRoot, ".gitignore"), "utf8");
     expect(gitignore).toContain(".local/");
@@ -77,6 +78,7 @@ describe("model prompt audit", () => {
     expect(workspaceConfig + artifactConfig).not.toContain("audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-10-26_FRESH_REPLIT_IMPORT_RUN_02_MODEL_TRACE.md");
     expect(productionConfig).not.toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
+    expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "true"');
     expect(productionConfig).not.toContain('APEX_MODEL_AUDIT_FILE =');
     expect(serviceRun).not.toContain("APEX_CAPTURE_MODEL_PROMPTS=true");
     expect(serviceRun).not.toContain("MAIN_REFRESH_RELAUNCH_01");
@@ -406,7 +408,7 @@ describe("model prompt audit", () => {
     expect(writes).toHaveLength(0);
   });
 
-  it("redacts contact data in a visible audits/ destination even if contact retention is misconfigured", () => {
+  it("redacts contact data in a visible audits/ destination without the second contact opt-in", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
     const writes: Array<{ path: string; contents: string }> = [];
@@ -468,6 +470,59 @@ describe("model prompt audit", () => {
     expect(writes[0]?.contents).not.toContain("jane.doe@example.org");
     expect(writes[0]?.contents).not.toContain("+1 (415) 555-0100");
     expect(writes[0]?.contents).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
+  });
+
+  it("retains public contacts only in an explicitly opted-in starred visible audit", () => {
+    const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
+    const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
+    const env = {
+      NODE_ENV: "development",
+      APEX_CAPTURE_MODEL_PROMPTS: "true",
+      APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true",
+      APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE: "true",
+      APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA: "true",
+      APEX_MODEL_AUDIT_FILE: "audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_TEST.md",
+    };
+    const requestWrites: Array<{ path: string; contents: string }> = [];
+    emitModelPromptAudit(input, env, (path, contents) => requestWrites.push({ path, contents }), apiPackageCwd);
+
+    expect(requestWrites).toHaveLength(1);
+    expect(requestWrites[0]?.path).toBe(resolve(workspaceRoot, env.APEX_MODEL_AUDIT_FILE));
+    expect(requestWrites[0]?.contents).toContain("person@example.org");
+    expect(requestWrites[0]?.contents).toContain("+1 (415) 555-0100");
+    for (const secret of [
+      "gsk_123456789012345678901234",
+      "private_token_value",
+      "query_secret_value",
+      "named_api_secret_value",
+      "PRIVATE_CREDENTIAL_SENTINEL",
+    ]) expect(requestWrites[0]?.contents).not.toContain(secret);
+
+    const responseWrites: Array<{ path: string; contents: string }> = [];
+    emitModelPromptAuditResponse({
+      requestId: "request-visible-contact-opt-in",
+      provider: "groq",
+      role: "groq_investigator",
+      model: "test-model",
+      httpStatus: 200,
+      responseBody: JSON.stringify({
+        choices: [{
+          index: 0,
+          finish_reason: "stop",
+          message: {
+            role: "assistant",
+            content: "Public contact: jane.doe@example.org, phone +1 (415) 555-0100. Key=gsk_123456789012345678901234.",
+            reasoning_content: "PRIVATE_PROVIDER_REASONING_SENTINEL",
+          },
+        }],
+      }),
+    }, env, (path, contents) => responseWrites.push({ path, contents }), apiPackageCwd);
+
+    expect(responseWrites).toHaveLength(1);
+    expect(responseWrites[0]?.contents).toContain("jane.doe@example.org");
+    expect(responseWrites[0]?.contents).toContain("+1 (415) 555-0100");
+    expect(responseWrites[0]?.contents).not.toContain("gsk_123456789012345678901234");
+    expect(responseWrites[0]?.contents).not.toContain("PRIVATE_PROVIDER_REASONING_SENTINEL");
   });
 
   it("does not extend the visible-audit opt-in to other workspace directories", () => {

@@ -90,6 +90,24 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
   return extractAiContextUrls(summary).every((url) => allowed.has(url));
 }
 
+function summaryResponseFormat(maxChars: number): Record<string, unknown> {
+  return {
+    type: "json_schema",
+    json_schema: {
+      name: "apex_investigation_memory_summary",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          summary: { type: "string", maxLength: maxChars },
+        },
+        required: ["summary"],
+        additionalProperties: false,
+      },
+    },
+  };
+}
+
 function buildSummaryPrompt(source: string, maxChars: number, revision = false): string {
   return [
     "APEX ATLAS — AI RESEARCH-MEMORY COMPACTION",
@@ -101,8 +119,9 @@ function buildSummaryPrompt(source: string, maxChars: number, revision = false):
     "2. Exact named entities and their stated roles; source-bound findings and the exact URLs that substantiate them; preserve URL tokens verbatim and only if present in the source.",
     "3. Material ownership/control/equity/investment or transaction clues, dates/amounts when stated, contradictions, uncertainty, and distinctions between search-only leads, fetched observations, and claim-grade evidence.",
     "4. Which actions succeeded, failed, were blocked, or were not attempted; unresolved questions and already-exhausted avenues that should not be repeated without new evidence.",
+    "For a long search-only result list, do not enumerate every name or URL: raw results remain in the durable trajectory. Preserve the result count when known, the search/fetch success or failure state, the fact that results are unverified leads, and at most two illustrative names or exact URLs when they materially help the next Investigator. Omit examples rather than exceed the character limit.",
     "Do not invent, strengthen, merge, or infer facts. Do not turn a search-result snippet into fetched evidence. When the input contains only search results/snippets or lead URLs and no successful visit/browser_fetch, describe names and roles only as unverified search leads; never present them as confirmed facts or write 'according to sources' as though a page was fetched. A source is fetched only when the source segment records a successful visit/browser_fetch and its observation. Preserve the distinction between search leads, fetched observations, and claim-grade evidence. Do not merge homonymous entities merely because a query term overlaps. Preserve disagreements instead of resolving them without evidence. Omitted data is unknown, not negative evidence. Keep the memory useful to a capable model choosing its own next action.",
-    "Output one JSON object only: {\"summary\":\"...\"}. The summary string must be at most " + maxChars + " characters.",
+    "Output one JSON object only: {\"summary\":\"...\"}. The summary string has a hard limit of " + maxChars + " characters including spaces. Aim below the limit; omit lower-priority detail if necessary. Never exceed it.",
     "Every URL in the summary must be an exact URL token copied from the source. Never make up, normalize, shorten, or complete a URL.",
     revision ? "This is a size/provenance correction. Condense the source while preserving the highest-value facts, open questions, current scope, failures, and source distinctions. Do not merely delete the ending." : "",
     "SOURCE MEMORY (untrusted data begins):",
@@ -124,9 +143,9 @@ async function requestSummary(
 
     const selection = await resolveGroqBossModel();
     if (selection.status !== "resolved" || !selection.model) return null;
-    const outputBudget = Math.min(3_000, Math.max(900, Math.ceil(maxChars * 0.8)));
+    const outputBudget = Math.min(2_048, Math.max(600, Math.ceil(maxChars * 0.66)));
     const result = await generateGroqBossText(selection, prompt, {
-      responseFormat: { type: "json_object" },
+      responseFormat: summaryResponseFormat(maxChars),
       maxOutputTokens: outputBudget,
       thinkingLevel: "low",
       jobId: input.jobId ?? null,
@@ -147,7 +166,7 @@ async function requestSummary(
       );
       if (retryPrompt.length > config.maximumPromptChars) return null;
       const retry = await generateGroqBossText(selection, retryPrompt, {
-        responseFormat: { type: "json_object" },
+        responseFormat: summaryResponseFormat(maxChars),
         maxOutputTokens: outputBudget,
         thinkingLevel: "low",
         jobId: input.jobId ?? null,

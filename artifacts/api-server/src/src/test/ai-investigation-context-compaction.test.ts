@@ -92,7 +92,20 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("Never say that the human objective or approved scope was not provided");
     expect(prompt).toContain("unverified search leads");
     expect(prompt).toContain("successful visit/browser_fetch");
-    expect(bossMocks.generateGroqBossText.mock.calls[0]?.[2]?.maxOutputTokens).toBeGreaterThanOrEqual(900);
+    expect(prompt).toContain("do not enumerate every name or URL");
+    const options = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
+    expect(options?.maxOutputTokens).toBe(600);
+    expect(options?.responseFormat).toMatchObject({
+      type: "json_schema",
+      json_schema: {
+        strict: true,
+        schema: {
+          properties: { summary: { type: "string", maxLength: 900 } },
+          required: ["summary"],
+          additionalProperties: false,
+        },
+      },
+    });
   });
 
 });
