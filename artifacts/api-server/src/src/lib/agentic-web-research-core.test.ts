@@ -3327,6 +3327,15 @@ describe("action-level durable review-card checkpoints", () => {
     expect(canonicalAtlasDiscoverySource).toContain('"source-backed-partial-finding"');
     expect(canonicalAtlasDiscoverySource).toContain('stage: "partial_review"');
   });
+
+  it("never advances a search-snippet-only organization lead into target-scoped research", () => {
+    expect(canonicalAtlasDiscoverySource).toContain('finding.promotionDecision === "reject"');
+    expect(canonicalAtlasDiscoverySource).toContain('finding.promotionDecision !== "reject"');
+    expect(canonicalAtlasDiscoverySource).toContain('payload.runId !== input.discoveryRunId');
+    expect(canonicalAtlasDiscoverySource).toContain('targetEligibleForResearch');
+    expect(canonicalAtlasDiscoverySource).toContain('support.verificationLevel === "fetched_source" || support.sourceUrlBoundByAdapter === true');
+    expect(canonicalAtlasDiscoverySource).toContain('.filter(({ targetEligibleForResearch }) => targetEligibleForResearch)');
+  });
 });
 
 
