@@ -3411,7 +3411,7 @@ describe("single fetched page organization identity", () => {
 
 describe("latest fetched source evidence survives emergency Investigator compaction", () => {
   it("keeps a source fact near the end of a long successful page observation", () => {
-    const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(20) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
+    const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(38) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
     const compact = compactEmergencyTrajectoryObservation(observation, 700);
     expect(compact.length).toBeLessThanOrEqual(700);
     expect(compact).toContain("Fetched official company filing");
@@ -3419,7 +3419,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
   });
 
   it("keeps fetched page facts and organization partial-finding instructions in the model prompt", () => {
-    const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(20) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
+    const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(38) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
     const objective = "Discover public-source leads for under-the-radar business owners and operators.";
     const prompt = buildStepPrompt({
       targetName: "",
