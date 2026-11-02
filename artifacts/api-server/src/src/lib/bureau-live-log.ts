@@ -49,6 +49,22 @@ function caseKey(caseId: string) {
   return `apex:bureau:live:case:${caseId}`;
 }
 
+function jobKey(jobId: string) {
+  return `apex:bureau:live:job:${jobId}`;
+}
+
+export function isValidBureauJobId(value: unknown): value is string {
+  return typeof value === "string"
+    && value.length > 0
+    && value.length <= 128
+    && /^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(value);
+}
+
+export function bureauEventListKey(options?: { jobId?: string | null; caseId?: string | null }): string {
+  if (options?.jobId && isValidBureauJobId(options.jobId)) return jobKey(options.jobId);
+  return options?.caseId ? caseKey(options.caseId) : GLOBAL_KEY;
+}
+
 function mirrorState(jobId: string): MirrorWindow {
   const existing = mirrorWindows.get(jobId);
   const now = Date.now();
@@ -106,6 +122,12 @@ export async function publishBureauEvent(
     pipe.lpush(GLOBAL_KEY, payload);
     pipe.ltrim(GLOBAL_KEY, 0, CAP - 1);
     pipe.expire(GLOBAL_KEY, TTL_SEC);
+    if (event.jobId && isValidBureauJobId(event.jobId)) {
+      const jk = jobKey(event.jobId);
+      pipe.lpush(jk, payload);
+      pipe.ltrim(jk, 0, CAP - 1);
+      pipe.expire(jk, TTL_SEC);
+    }
     if (event.caseId) {
       const ck = caseKey(event.caseId);
       pipe.lpush(ck, payload);
@@ -153,16 +175,21 @@ export async function publishBureauEvent(
 
 export async function listBureauEvents(options?: {
   caseId?: string | null;
+  jobId?: string | null;
   limit?: number;
 }): Promise<BureauLiveEvent[]> {
+  if (options?.jobId !== undefined && options.jobId !== null && !isValidBureauJobId(options.jobId)) return [];
   const limit = Math.min(Math.max(options?.limit ?? 80, 1), CAP);
-  const key = options?.caseId ? caseKey(options.caseId) : GLOBAL_KEY;
+  const key = bureauEventListKey(options);
   const raw = await withPermanentClient((rc) => rc.lrange(key, 0, limit - 1), [] as string[]);
   const out: BureauLiveEvent[] = [];
   for (const line of raw) {
     try {
       const parsed = JSON.parse(line) as BureauLiveEvent;
-      if (parsed && typeof parsed.timestamp === "string" && parsed.title) out.push(parsed);
+      if (!parsed || typeof parsed.timestamp !== "string" || !parsed.title) continue;
+      if (options?.jobId && parsed.jobId !== options.jobId) continue;
+      if (options?.caseId && parsed.caseId !== options.caseId) continue;
+      out.push(parsed);
     } catch {
       /* skip */
     }

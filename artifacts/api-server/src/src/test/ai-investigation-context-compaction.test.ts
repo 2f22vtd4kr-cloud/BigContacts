@@ -59,6 +59,11 @@ describe("AI investigation context compaction", () => {
     expect(repairPrompt).toContain("SOURCE_END_SENTINEL");
     expect(repairPrompt).toContain("appointed director on 2024-06-12");
     expect(repairPrompt).not.toContain("PRIOR_SUMMARY_ONLY_SENTINEL");
+    const firstOptions = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
+    const repairOptions = bossMocks.generateGroqBossText.mock.calls[1]?.[2];
+    expect(firstOptions?.maxOutputTokens).toBe(378);
+    expect(repairOptions?.maxOutputTokens).toBe(317);
+    expect(repairOptions?.maxOutputTokens).toBeLessThan(firstOptions?.maxOutputTokens ?? Infinity);
   });
 
   it("fails closed when the model cannot produce required working memory", async () => {
@@ -94,13 +99,13 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("successful visit/browser_fetch");
     expect(prompt).toContain("do not enumerate every name or URL");
     const options = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
-    expect(options?.maxOutputTokens).toBe(600);
+    expect(options?.maxOutputTokens).toBe(378);
     expect(options?.responseFormat).toMatchObject({
       type: "json_schema",
       json_schema: {
         strict: true,
         schema: {
-          properties: { summary: { type: "string", maxLength: 900 } },
+          properties: { summary: { type: "string" } },
           required: ["summary"],
           additionalProperties: false,
         },

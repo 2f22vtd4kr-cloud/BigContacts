@@ -40,7 +40,7 @@ const input = {
 };
 
 describe("model prompt audit", () => {
-  it("keeps the authorized per-run model trace in the visible starred audit path", () => {
+  it("keeps the per-run model trace visible while redacting public contact data by default", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const artifactConfig = readFileSync(
       resolve(workspaceRoot, "artifacts/api-server/.replit-artifact/artifact.toml"),
@@ -52,14 +52,16 @@ describe("model prompt audit", () => {
     expect(serviceRun).toBe("cd ../.. && bash scripts/replit-boot.sh");
     const workspaceConfig = readFileSync(resolve(workspaceRoot, ".replit"), "utf8");
 
-    const visibleRunAudit = 'APEX_MODEL_AUDIT_FILE = "audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-11-02_FRESH_PROJECT_IMPORT_RUN_01.md"';
+    const visibleRunAudit = 'APEX_MODEL_AUDIT_FILE = "audits/★_STARRED_APEX_ATLAS_SEQUENTIAL_AUDIT_2026-11-02_FRESH_PROJECT_IMPORT_RUN_02.md"';
     for (const config of [artifactConfig, workspaceConfig]) {
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
-      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
+      expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "false"');
+      expect(config).not.toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
       expect(config).toContain(visibleRunAudit);
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS_IN_TEST = "false"');
       expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE = "true"');
-      expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "true"');
+      expect(config).toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "false"');
+      expect(config).not.toContain('APEX_MODEL_AUDIT_ALLOW_VISIBLE_CONTACT_DATA = "true"');
     }
     const gitignore = readFileSync(resolve(workspaceRoot, ".gitignore"), "utf8");
     expect(gitignore).toContain(".local/");

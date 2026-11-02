@@ -64,16 +64,17 @@ function mapBureauPayload(parsed: any, _atlasLive: boolean): BureauDeskEvent {
  */
 export function useBureauLiveDesk(
   eventLog: BureauDeskEvent[] | undefined,
-  opts?: { enabled?: boolean; pollMs?: number; atlasLive?: boolean },
+  opts?: { enabled?: boolean; pollMs?: number; atlasLive?: boolean; jobId?: string | null },
 ) {
   const enabled = opts?.enabled !== false;
   const atlasLive = Boolean(opts?.atlasLive);
+  const jobId = opts?.jobId ?? null;
   const pollMs = opts?.pollMs ?? 8_000;
   const [bureauEvents, setBureauEvents] = useState<BureauDeskEvent[]>([]);
 
   useEffect(() => {
     if (!enabled) return;
-    if (!atlasLive) {
+    if (!atlasLive || !jobId) {
       setBureauEvents([]);
       return;
     }
@@ -89,7 +90,7 @@ export function useBureauLiveDesk(
       const myController = new AbortController();
       controller = myController;
       try {
-        const res = await fetch(`${base}/api/ingest/bureau-events?limit=40`, {
+        const res = await fetch(`${base}/api/ingest/bureau-events?jobId=${encodeURIComponent(jobId)}&limit=40`, {
           credentials: "same-origin",
           signal: myController.signal,
           cache: "no-store",
@@ -123,7 +124,7 @@ export function useBureauLiveDesk(
       controller = null;
       window.clearInterval(id);
     };
-  }, [enabled, pollMs, atlasLive]);
+  }, [enabled, pollMs, atlasLive, jobId]);
 
   const terminalEvents = useMemo(() => {
     const fromLog = Array.isArray(eventLog) ? eventLog : [];

@@ -56,6 +56,7 @@ interface AutoPipelineScheduler {
 }
 
 interface AtlasLiveState {
+  jobId?: string;
   runStatus: "queued" | "running" | "paused" | "done" | "failed" | "cancelled";
   phase: number;
   phaseLabel: string;
@@ -1527,7 +1528,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   };
 
   const [deskOn, setDeskOn] = useState(false);
-  const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, atlasLive: Boolean(isLive) });
+  const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, atlasLive: Boolean(isLive), jobId: atlasState?.jobId });
   // Idle: keep Live Desk closed so it does not leave a blank column under Launch.
   // Live: open automatically so tool windows are visible.
   useEffect(() => {
@@ -2591,6 +2592,7 @@ export default function IntelligenceReactorPage() {
         const atlasTelemetry = parseAtlasTelemetry(jobData.atlasTelemetry);
         nextAtlasState = {
           ...structured,
+          jobId: atlasPoll.jobId,
           entityProgress: jobData.entityProgress != null ? Number(jobData.entityProgress) : null,
           entityTotal: jobData.entityTotal != null ? Number(jobData.entityTotal) : null,
           currentEntities: structuredNames.length > 0 ? structuredNames : structured.currentEntities,

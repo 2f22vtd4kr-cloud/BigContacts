@@ -10,6 +10,7 @@
 
 import { Router, type Request, type Response } from "express";
 import {
+  isValidBureauJobId,
   listBureauEvents,
   sseComment,
   sseSend,
@@ -26,9 +27,15 @@ const SNAPSHOT_VISIBLE_LIMIT = 50;
 
 router.get("/ingest/bureau-events", async (req: Request, res: Response): Promise<void> => {
   const caseId = typeof req.query.caseId === "string" ? req.query.caseId : null;
+  const rawJobId = req.query.jobId;
+  const jobId = typeof rawJobId === "string" ? rawJobId : null;
+  if (rawJobId !== undefined && !isValidBureauJobId(jobId)) {
+    res.status(400).json({ error: "jobId must be a valid job identifier." });
+    return;
+  }
   const parsedLimit = Number(req.query.limit);
   const limit = Math.min(200, Math.max(1, Number.isFinite(parsedLimit) ? Math.trunc(parsedLimit) : 80));
-  const events = await listBureauEvents({ caseId, limit });
+  const events = await listBureauEvents({ caseId, jobId, limit });
   res.json({
     events,
     count: events.length,
@@ -38,6 +45,12 @@ router.get("/ingest/bureau-events", async (req: Request, res: Response): Promise
 
 router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise<void> => {
   const caseId = typeof req.query.caseId === "string" ? req.query.caseId : null;
+  const rawJobId = req.query.jobId;
+  const jobId = typeof rawJobId === "string" ? rawJobId : null;
+  if (rawJobId !== undefined && !isValidBureauJobId(jobId)) {
+    res.status(400).json({ error: "jobId must be a valid job identifier." });
+    return;
+  }
   writeSseHeaders(res);
   res.write(`retry: 3000\n\n`);
 
@@ -72,12 +85,13 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
     // Seed de-duplication from the entire retained window, but show only the
     // latest 50 as initial context. Otherwise the next poll can replay old
     // pre-connection backlog after the initial snapshot.
-    const retained = await listBureauEvents({ caseId, limit: STREAM_READ_CAP });
+    const retained = await listBureauEvents({ caseId, jobId, limit: STREAM_READ_CAP });
     if (closed) return;
     for (const event of retained) remember(event.id);
     sseSend(res, "snapshot", {
       events: retained.slice(0, SNAPSHOT_VISIBLE_LIMIT),
       caseId,
+      jobId,
       serverTime: new Date().toISOString(),
     });
   };
@@ -87,7 +101,7 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
     if (closed || tickInProgress) return;
     tickInProgress = true;
     try {
-      const events = await listBureauEvents({ caseId, limit: STREAM_READ_CAP });
+      const events = await listBureauEvents({ caseId, jobId, limit: STREAM_READ_CAP });
       if (closed) return;
       // Redis returns newest-first. Reverse only the unseen subset so the client
       // receives a causal oldest -> newest burst when several actions arrived
@@ -112,7 +126,7 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
   hbId = setInterval(() => {
     if (closed) return;
     sseComment(res, "ping");
-    sseSend(res, "heartbeat", { serverTime: new Date().toISOString(), caseId });
+    sseSend(res, "heartbeat", { serverTime: new Date().toISOString(), caseId, jobId });
   }, HEARTBEAT_MS);
 });
 

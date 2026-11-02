@@ -50,6 +50,26 @@ describe("review and claim finding separation", () => {
   });
 });
 
+describe("model-owned discovery relevance reasoning", () => {
+  it("asks the Investigator to justify objective fit without selecting a source, target, or action", () => {
+    const input = {
+      targetName: "",
+      objective: "Find under-the-radar owners and operators with source-backed business or asset signals.",
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      actionAllowlist: ["web_search", "visit"],
+    };
+    const discoveryPrompt = buildStepPrompt({ ...input, mode: "discovery" });
+    expect(discoveryPrompt).toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
+    expect(discoveryPrompt).toContain("generic publisher homepage");
+    expect(discoveryPrompt).toContain("The Investigator chooses sources/actions; no fixed sequence.");
+    const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
+    expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
+  });
+});
+
 describe("model-owned review-lead selection", () => {
   it("does not create company findings from search-result titles in deterministic runtime code", () => {
     expect(agenticCoreSource).not.toContain("extractSearchResultCompanyLeadFindings");
