@@ -3158,8 +3158,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const suppliedCriticalObservations = (criticalObservations ?? [])
     .map((value) => typeof value === "string" ? value.trim() : "")
     .filter(Boolean);
+  const requiredObservationCandidates = criticalObservations !== undefined
+    ? suppliedCriticalObservations
+    : structuredObservationTexts.length ? structuredObservationTexts : [observation];
   const requiredObservations = [...new Set(
-    (suppliedCriticalObservations.length ? suppliedCriticalObservations : structuredObservationTexts.length ? structuredObservationTexts : [observation])
+    requiredObservationCandidates
       .map((value) => typeof value === "string" ? value.trim() : "")
       .filter(Boolean),
   )];
