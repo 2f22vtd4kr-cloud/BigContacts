@@ -71,7 +71,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("grounded local link");
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
-    expect(discoveryPrompt).toContain("No registry/provider is preferred; choose by objective fit and evidence opportunity.");
+    expect(discoveryPrompt).toContain("No registry is preferred; choose by evidence.");
     expect(discoveryPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
