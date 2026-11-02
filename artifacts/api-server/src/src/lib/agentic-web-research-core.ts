@@ -3254,15 +3254,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       );
     }
     if (suppliedMemory && !result.includes(aiMemorySection)) {
-      const escapedMemory = suppliedMemory.replace(/[.*+?^$()|[\]{}\\]/g, "\\    if (suppliedMemory && !result.includes(aiMemorySection)) {
-      result = fitCriticalBlock(
-        result,
-        aiMemorySection,
-        /^AI-COMPACTED HISTORICAL RESEARCH MEMORY/,
-        "Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory within the provider budget; no action should be sent.",
-      );
-    }");
-      const memorySectionAlreadyPresent = new RegExp(escapedMemory, "s").test(result);
+      const escapedMemory = suppliedMemory.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const memorySectionAlreadyPresent = result.includes(suppliedMemory);
       result = fitCriticalBlock(
         result,
         aiMemorySection,
