@@ -24,7 +24,7 @@
 - Historical case memory is assembled from the complete structured intelligence state, findings, prior history, durable URL inventory, prior queries, control context, and historical trajectory records before AI summarization.
 - Boss LLM semantic compaction chooses which information to retain. Transport chunking preserves source segments; the application validates summary size and URL provenance.
 - Oversized recent observations are also sent through Boss semantic compaction. If compaction is unavailable or fails validation, the Investigator turn returns unavailable; code does not silently replace the observation with a deterministic excerpt.
-- Deterministic limits remain for prompt assembly, provider budgets, URL-safe transport, and bounded working-context projections. These controls are not substitutes for the AI summaries of historical memory or oversized recent observations.
+- Deterministic limits remain for prompt assembly, provider budgets, URL-safe transport, and bounded working-context projections. These controls are not substitutes for the AI summaries of historical memory or oversized recent observations. If rich prompt composition still fails after its contract-preserving recovery tiers, the turn now fails closed instead of sending deterministically clipped raw observations or history.
 - Model-generated summaries remain explicitly lossy/untrusted context. The human objective, active Boss scope, same-case observations, and durable evidence ledger remain authoritative.
 
 ## Validation evidence
