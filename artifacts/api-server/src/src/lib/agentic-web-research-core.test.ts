@@ -64,7 +64,7 @@ describe("model-owned discovery relevance reasoning", () => {
     const discoveryPrompt = buildStepPrompt({ ...input, mode: "discovery" });
     expect(discoveryPrompt).toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
     expect(discoveryPrompt).toContain("generic publisher homepage");
-    expect(discoveryPrompt).toContain("The Investigator chooses sources/actions; no fixed sequence.");
+    expect(discoveryPrompt).toContain("Investigator chooses sources/actions; no fixed sequence.");
     expect(discoveryPrompt).toContain("objective/scope govern");
     expect(discoveryPrompt).toContain("same-case evidence");
     expect(discoveryPrompt).not.toContain("local owner/operator");
