@@ -86,7 +86,7 @@ describe("model prompt audit", () => {
     expect(serviceRun).not.toContain("MAIN_REFRESH_RELAUNCH_01");
   });
 
-  it("keeps each request and response in a sanitized job-specific private audit file", () => {
+  it("keeps separate jobs in separate sanitized private audit files and pairs each response", () => {
     const workspaceRoot = fileURLToPath(new URL("../../../../../", import.meta.url));
     const apiPackageCwd = resolve(workspaceRoot, "artifacts/api-server");
     const writes: Array<{ path: string; contents: string }> = [];
@@ -96,14 +96,22 @@ describe("model prompt audit", () => {
       APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA: "true",
       APEX_MODEL_AUDIT_FILE: "private-audits/APEX_ATLAS_MODEL_AUDIT_2026-11-02_{jobId}.md",
     };
-    const requestId = emitModelPromptAudit(
+    const firstRequestId = emitModelPromptAudit(
       { ...input, jobId: "job/with:unsafe chars" },
       env,
       (path, contents) => writes.push({ path, contents }),
       apiPackageCwd,
     );
-    expect(requestId).toBeTruthy();
-    emitModelPromptAuditResponse({
+    const secondRequestId = emitModelPromptAudit(
+      { ...input, jobId: "job-2" },
+      env,
+      (path, contents) => writes.push({ path, contents }),
+      apiPackageCwd,
+    );
+    expect(firstRequestId).toBeTruthy();
+    expect(secondRequestId).toBeTruthy();
+
+    const response = (requestId: string | null) => emitModelPromptAuditResponse({
       requestId,
       provider: "groq",
       role: "groq_investigator",
@@ -111,12 +119,18 @@ describe("model prompt audit", () => {
       httpStatus: 200,
       responseBody: JSON.stringify({ choices: [{ message: { role: "assistant", content: "visible completion" } }] }),
     }, env, (path, contents) => writes.push({ path, contents }), apiPackageCwd);
+    expect(response(firstRequestId)).toBe(true);
+    expect(response(secondRequestId)).toBe(true);
 
-    const expectedPath = resolve(workspaceRoot, "private-audits/APEX_ATLAS_MODEL_AUDIT_2026-11-02_job_with_unsafe_chars.md");
-    expect(writes).toHaveLength(2);
-    expect(writes[0]?.path).toBe(expectedPath);
-    expect(writes[1]?.path).toBe(expectedPath);
-    expect(writes[1]?.contents).toContain("atlas_model_response");
+    const firstPath = resolve(workspaceRoot, "private-audits/APEX_ATLAS_MODEL_AUDIT_2026-11-02_job_with_unsafe_chars.md");
+    const secondPath = resolve(workspaceRoot, "private-audits/APEX_ATLAS_MODEL_AUDIT_2026-11-02_job-2.md");
+    expect(writes).toHaveLength(4);
+    expect(writes[0]?.path).toBe(firstPath);
+    expect(writes[1]?.path).toBe(secondPath);
+    expect(writes[2]?.path).toBe(firstPath);
+    expect(writes[3]?.path).toBe(secondPath);
+    expect(writes[2]?.contents).toContain("atlas_model_response");
+    expect(writes[3]?.contents).toContain("atlas_model_response");
   });
 
   it("does not capture test-runner telemetry from a development environment without the separate test opt-in", () => {
