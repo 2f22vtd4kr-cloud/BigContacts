@@ -3156,7 +3156,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       }
       result = next;
     }
-    if (suppliedMemory && !result.includes(suppliedMemory)) {
+    if (suppliedMemory && !result.includes(aiMemorySection)) {
       const next = [result, aiMemorySection].filter(Boolean).join("\n\n");
       if (next.length > limit) {
         throw new Error("Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory within the provider budget; no action should be sent.");
