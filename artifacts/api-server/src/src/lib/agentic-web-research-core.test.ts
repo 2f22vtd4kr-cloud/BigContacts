@@ -66,7 +66,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("generic publisher homepage");
     expect(discoveryPrompt).toContain("No fixed action sequence.");
     expect(discoveryPrompt).toContain("objective/scope govern");
-    expect(discoveryPrompt).toContain("same-case evidence");
+    expect(discoveryPrompt).toContain("same-case evidence link");
     expect(discoveryPrompt).not.toContain("local owner/operator");
     expect(discoveryPrompt).not.toContain("grounded local link");
     expect(discoveryPrompt).not.toContain("local/sector web");
