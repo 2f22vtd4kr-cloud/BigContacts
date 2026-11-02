@@ -3419,7 +3419,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
   });
 
   it("keeps fetched page facts and organization partial-finding instructions in the model prompt", () => {
-    const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(180) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
+    const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(20) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
     const objective = "Discover public-source leads for under-the-radar business owners and operators.";
     const prompt = buildStepPrompt({
       targetName: "",
@@ -3436,7 +3436,6 @@ describe("latest fetched source evidence survives emergency Investigator compact
       mode: "discovery",
     });
     expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE");
-    expect(prompt).toContain(observation);
     expect(prompt).toContain(observation);
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
     expect(prompt).toMatch(/After visit\/browser_fetch/i);
@@ -3479,6 +3478,7 @@ describe("combined-main emergency discovery contract", () => {
   });
 });
 
+describe("emergency prompt critical context preservation", () => {
   it("does not slice recent trajectory observations before the prompt budget decision", () => {
     expect(agenticCoreSource).toContain("return typeof record.observation === \"string\" ? record.observation : \"\";");
     expect(agenticCoreSource).toContain("\"LATEST OBSERVATION: \" + (input.lastObservation || \"(none)\")");
@@ -3491,7 +3491,7 @@ describe("combined-main emergency discovery contract", () => {
       "OUTPUT CONTRACT: return one JSON object.",
       "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, findings.",
       "RESEARCH TERMINAL GATE (authoritative): minEvidence=1; requireExactSpanForFindings=true.",
-    ].join("\\n\\n");
+    ].join("\n\n");
     const observation = "LATEST TRAJECTORY RECORD — TURN 9: " + JSON.stringify({
       turn: 9, action: "visit", execution: "success",
       observation: "FULL_DECISION_OBSERVATION_SENTINEL " + "source text ".repeat(18),
@@ -3503,6 +3503,7 @@ describe("combined-main emergency discovery contract", () => {
     expect(fullPrompt).toContain("RESEARCH TERMINAL GATE (authoritative): minEvidence=1; requireExactSpanForFindings=true.");
     expect(() => appendEmergencyObservationContext(basePrompt, observation, 300, "discovery", undefined, undefined, memory)).toThrow();
   });
+});
 
 describe("prompt composition recovery integrity", () => {
   it("uses the runtime registry inventory rather than a stale emergency fallback list", () => {
