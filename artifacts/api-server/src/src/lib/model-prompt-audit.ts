@@ -442,13 +442,13 @@ export function emitModelPromptAudit(
       env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
     );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\n");
       return null;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
     write(
       auditPath,
-      `\\n\\n### Model request ${requestId}\\n\\n${fence}json\\n${serialized}\\n${fence}\\n`,
+      `\n\n### Model request ${requestId}\n\n${fence}json\n${serialized}\n${fence}\n`,
     );
     if (requestAuditPaths.size >= 4_096) {
       const oldestRequestId = requestAuditPaths.keys().next().value;
@@ -597,13 +597,13 @@ export function emitModelPromptAuditResponse(
       );
     if (!auditPath) {
       requestAuditPaths.delete(input.requestId);
-      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\n");
       return false;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
     write(
       auditPath,
-      `\\n\\n### Model response ${input.requestId}\\n\\n${fence}json\\n${serialized}\\n${fence}\\n`,
+      `\n\n### Model response ${input.requestId}\n\n${fence}json\n${serialized}\n${fence}\n`,
     );
     requestAuditPaths.delete(input.requestId);
     return true;
