@@ -99,19 +99,19 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("successful visit/browser_fetch");
     expect(prompt).toContain("do not enumerate every name or URL");
     const options = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
-    expect(options?.maxOutputTokens).toBe(378);
+    expect(options?.maxOutputTokens).toBe(600);
     expect(options?.responseFormat).toMatchObject({
       type: "json_schema",
       json_schema: {
         strict: true,
         schema: {
-          properties: { summary: { type: "string" } },
+          properties: { summary: { type: "string", maxLength: 900 } },
           required: ["summary"],
           additionalProperties: false,
         },
       },
     });
-    expect((options?.responseFormat as any)?.json_schema?.schema?.properties?.summary).not.toHaveProperty("maxLength");
+    expect((options?.responseFormat as any)?.json_schema?.schema?.properties?.summary).toHaveProperty("maxLength", 900);
   });
 
 });
