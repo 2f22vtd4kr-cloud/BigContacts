@@ -3137,23 +3137,41 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const suppliedScope = typeof activeScope === "string" ? activeScope.trim() : "";
   const requiredTerminalGate = base.split(/\r?\n/u).find((line) => line.trim().startsWith("RESEARCH TERMINAL GATE (authoritative):"))?.trim() ?? "";
   const structuredObservationTexts: string[] = [];
-  const requiredStructuredEnvelopes: string[] = [];
+  const requiredRecordMetadata: Array<{ label: string; fields: Record<string, unknown>; replacePattern: RegExp }> = [];
   const structuredRecordPattern = /(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)[^\n]*:\s*(\{[^\n]*\})/g;
   for (const match of combinedSourceText.matchAll(structuredRecordPattern)) {
-    requiredStructuredEnvelopes.push(match[0].trim());
     try {
       const parsed = JSON.parse(match[1]) as Record<string, unknown>;
       if (typeof parsed.observation === "string" && parsed.observation.trim()) structuredObservationTexts.push(parsed.observation.trim());
+      const fields = Object.fromEntries(["turn", "action", "execution", "stopReason", "failureDomain", "failureKind"]
+        .filter((key) => parsed[key] !== undefined && parsed[key] !== null)
+        .map((key) => [key, parsed[key]]));
+      if (Object.keys(fields).length) {
+        requiredRecordMetadata.push({
+          label: "LATEST TRAJECTORY RECORD METADATA: " + JSON.stringify(fields),
+          fields,
+          replacePattern: /^LATEST (?:PRIOR )?TRAJECTORY RECORD METADATA:/,
+        });
+      }
     } catch {
       // An incomplete diagnostic envelope is not treated as observed source text.
     }
   }
   const fetchedSourcePattern = /LAST SUCCESSFUL FETCHED SOURCE[^\n]*:\s*(\{[^\n]*\})/g;
   for (const match of combinedSourceText.matchAll(fetchedSourcePattern)) {
-    requiredStructuredEnvelopes.push(match[0].trim());
     try {
       const parsed = JSON.parse(match[1]) as Record<string, unknown>;
       if (typeof parsed.observation === "string" && parsed.observation.trim()) structuredObservationTexts.push(parsed.observation.trim());
+      const fields = Object.fromEntries(["turn", "action", "execution"]
+        .filter((key) => parsed[key] !== undefined && parsed[key] !== null)
+        .map((key) => [key, parsed[key]]));
+      if (Object.keys(fields).length) {
+        requiredRecordMetadata.push({
+          label: "FETCHED SOURCE METADATA: " + JSON.stringify(fields),
+          fields,
+          replacePattern: /^FETCHED SOURCE METADATA:/,
+        });
+      }
     } catch {
       // An incomplete fetched-source envelope is not treated as observed source text.
     }
@@ -3161,9 +3179,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const suppliedCriticalObservations = (criticalObservations ?? [])
     .map((value) => typeof value === "string" ? value.trim() : "")
     .filter(Boolean);
-  // Structured emergency envelopes already carry action metadata and their
-  // observation fields. Protect the full envelope once, rather than appending
-  // the serialized wrapper again as if it were a second plain observation.
+  // Structured envelopes already carry action metadata and their observation
+  // fields. Preserve those decision-critical parts without duplicating an entire
+  // serialized wrapper when the emergency projection already has a record summary.
   const plainCriticalObservations = suppliedCriticalObservations.filter((value) =>
     !/(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD|LAST SUCCESSFUL FETCHED SOURCE)/.test(value),
   );
@@ -3178,7 +3196,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const optionalEmergencySections = [
     /^OPTIONAL HISTORICAL DETAIL:/,
     /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE/,
-    /^LEAD FOLLOW-UP GUIDANCE \(non-binding\):/,
     /^PAGE FORMAT \/ RETRIEVAL LIMITS:/,
     /^VALID PROVIDERS:/,
     /^Conditional specialist OSINT actions:/,
@@ -3208,17 +3225,16 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   };
   const ensureCriticalContext = (candidate: string): string => {
     let result = candidate;
-    for (const envelope of [...new Set(requiredStructuredEnvelopes)]) {
-      const jsonEscapedEnvelope = JSON.stringify(envelope).slice(1, -1);
-      if (result.includes(envelope) || result.includes(jsonEscapedEnvelope)) continue;
-      const replacePattern = envelope.startsWith("LAST SUCCESSFUL FETCHED SOURCE")
-        ? /^LAST SUCCESSFUL FETCHED SOURCE/
-        : /^LATEST (?:PRIOR )?TRAJECTORY RECORD/;
+    for (const metadata of requiredRecordMetadata) {
+      const alreadyPresent = Object.entries(metadata.fields).every(([key, value]) =>
+        result.includes(JSON.stringify(key) + ":" + JSON.stringify(value)),
+      );
+      if (alreadyPresent) continue;
       result = fitCriticalBlock(
         result,
-        envelope,
-        replacePattern,
-        "Emergency Investigator prompt cannot preserve the complete latest trajectory record within the provider budget; no action should be sent.",
+        metadata.label,
+        metadata.replacePattern,
+        "Emergency Investigator prompt cannot preserve the latest action metadata within the provider budget; no action should be sent.",
       );
     }
     for (const requiredObservation of requiredObservations) {
