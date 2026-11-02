@@ -3169,7 +3169,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const ensureCriticalContext = (candidate: string): string => {
     let result = candidate;
     const appendRequired = (label: string, value: string, failure: string) => {
-      if (!value || result.includes(value)) return;
+      const jsonEscapedValue = value ? JSON.stringify(value).slice(1, -1) : "";
+      // A full observation can already be preserved inside a JSON trajectory
+      // envelope. Recognize its escaped representation before appending it again;
+      // otherwise the same durable context is duplicated and can falsely exceed
+      // the provider budget.
+      if (!value || result.includes(value) || (jsonEscapedValue && result.includes(jsonEscapedValue))) return;
       const next = [result, label, value].filter(Boolean).join("\n\n");
       if (next.length > limit) throw new Error(failure);
       result = next;
