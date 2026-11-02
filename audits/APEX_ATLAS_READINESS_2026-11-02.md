@@ -13,7 +13,7 @@
 
 ## Changes now present on main
 
-1. Private model traces can retain source-published email and phone fields under the development-only `private-audits/` path. The path is gitignored. Credential/token redaction remains active, provider-private reasoning remains excluded, and the visible sequential audit remains separate.
+1. Private model traces can retain source-published email and phone fields under the development-only `private-audits/` path. The path is gitignored, and `{jobId}` is expanded to a sanitized job-specific filename so request and response records from separate runs do not share one file. Credential/token redaction remains active, provider-private reasoning remains excluded, and the visible sequential audit remains separate.
 2. Discovery prompts no longer require a plausible local-owner route or a defined sector/geography before a source is considered relevant. The Investigator retains target, source, provider, query, and action-order choice, subject to the human objective and active scope.
 3. Run-02 context-integrity corrections from #806 preserve same-case URL grounding, distinguish lossy AI memory from evidence/authority, treat search-only snippets as unverified leads, and fail closed when AI semantic compaction cannot produce a valid summary.
 4. Run-readiness corrections from #807 include strict JSON-schema compatibility for the Boss compactor, application-side summary-size validation, retry against original source with a smaller output budget, and job-scoped audit feeds.
