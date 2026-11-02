@@ -6428,13 +6428,18 @@ export async function runAgenticWebResearch(input: { targetName: string; company
                 targetName: name || "",
                 companyName: input.companyName,
                 objective,
-                history: history.slice(-3).map((entry) => String(entry).slice(0, 900)),
-                trajectoryRecords: [],
+                // Boss memory already carries the semantic history. Preserve the
+                // complete recent, model-facing trajectory and current URL ledger;
+                // never replace them with fixed-size history excerpts or empty state.
+                history: [],
+                trajectoryRecords: promptTrajectoryRecords,
                 lastObservation: promptLastObservation,
-                findings: [],
+                findings: sanitizeObservableValue(findings),
                 priorContext: input.priorContext ? sanitizeUrlsInText(input.priorContext) : undefined,
-                durableUrlInventory: undefined,
-                intelligenceContext: "RESEARCH INTELLIGENCE STATE is unavailable for this turn. Use only the stated objective and visible observations; do not infer omitted evidence or treat missing context as a negative finding.",
+                durableUrlInventory: input.durableUrlInventory,
+                intelligenceContext: aiCompactedHistoricalContext
+                  ? "Current structured intelligence has been integrated into the Boss-generated historical memory above; the durable evidence ledger remains authoritative, and omitted details are not negative evidence."
+                  : renderIntelligenceContext(intelligenceState),
                 mode: input.mode,
                 actionAllowlist: actionAllowlistForTurn,
                 aiCompactedHistoricalContext: aiCompactedHistoricalContext || undefined,
