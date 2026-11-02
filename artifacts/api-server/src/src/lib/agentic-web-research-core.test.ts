@@ -3485,6 +3485,14 @@ describe("emergency prompt critical context preservation", () => {
     expect(agenticCoreSource).not.toContain("compactEmergencyTrajectoryObservation(suppliedObservation, 420)");
   });
 
+  it("does not drop the final character of a base prompt when no observation or schema marker exists", () => {
+    const basePrompt = "Mission text without a schema marker.";
+    const observation = "SIMPLE_OBSERVATION_SENTINEL";
+    const prompt = appendEmergencyObservationContext(basePrompt, observation, 1_000);
+    expect(prompt).toContain(basePrompt);
+    expect(prompt).toContain(observation);
+  });
+
   it("preserves complete latest observations and Boss memory or fails closed when the provider budget cannot hold them", () => {
     const basePrompt = [
       "APEX INVESTIGATOR",
