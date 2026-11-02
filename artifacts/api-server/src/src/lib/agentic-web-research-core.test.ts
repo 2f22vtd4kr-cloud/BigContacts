@@ -3478,6 +3478,11 @@ describe("combined-main emergency discovery contract", () => {
 });
 
 describe("prompt composition recovery integrity", () => {
+  it("uses the runtime registry inventory rather than a stale emergency fallback list", () => {
+    expect(agenticCoreSource).not.toContain("RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): sec-edgar, gleif, ytj-finland");
+    expect(agenticCoreSource).toContain('"RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): " + registryIds.trim()');
+  });
+
   it("fails closed rather than sending deterministic excerpts of decision-critical observations or history", () => {
     const start = agenticCoreSource.indexOf("} catch (promptCompositionError) {");
     const end = agenticCoreSource.indexOf("// Historical memory is required working context", start);
