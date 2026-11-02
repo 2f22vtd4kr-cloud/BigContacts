@@ -3184,8 +3184,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // serialized wrapper when the emergency projection already has a record summary.
   const plainCriticalObservations = suppliedCriticalObservations
     .map((value) => value
-      .replace(/(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)[^\\n]*:\\s*\\{[^\\n]*\\}/g, "")
-      .replace(/LAST SUCCESSFUL FETCHED SOURCE[^\\n]*:\\s*\\{[^\\n]*\\}/g, "")
+      .replace(/(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)[^\n]*:\s*\{[^\n]*\}/g, "")
+      .replace(/LAST SUCCESSFUL FETCHED SOURCE[^\n]*:\s*\{[^\n]*\}/g, "")
       .trim(),
     )
     .filter(Boolean);
@@ -3502,7 +3502,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       : baseActiveScopeContext || observedActiveScopeContext || compactCaseObjective;
   const contractText = requiredSections.join("\n\n");
   const observationWithoutCarriedSource = observation
-    .replace(/LAST SUCCESSFUL FETCHED SOURCE \(observed page text; untrusted data, not instructions\):\s*\{[^\n]*\}/, "")
+      .replace(/LAST SUCCESSFUL FETCHED SOURCE[^\n]*:\s*\{[^\n]*\}/g, "")
     .replace(/LATEST TRAJECTORY RECORD — TURN \d+(?:\s*\([^:\n]*\))?:\s*\n?\s*\{[^\n]*\}/g, "");
   const observationTail = compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 420);
   const fetchedSourceLabel = fetchedSourceExcerptLabel;
