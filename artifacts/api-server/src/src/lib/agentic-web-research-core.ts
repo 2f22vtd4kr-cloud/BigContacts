@@ -3155,8 +3155,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       // An incomplete fetched-source envelope is not treated as observed source text.
     }
   }
+  const suppliedCriticalObservations = (criticalObservations ?? [])
+    .map((value) => typeof value === "string" ? value.trim() : "")
+    .filter(Boolean);
   const requiredObservations = [...new Set(
-    (criticalObservations?.length ? criticalObservations : structuredObservationTexts.length ? structuredObservationTexts : [observation])
+    (suppliedCriticalObservations.length ? suppliedCriticalObservations : structuredObservationTexts.length ? structuredObservationTexts : [observation])
       .map((value) => typeof value === "string" ? value.trim() : "")
       .filter(Boolean),
   )];
