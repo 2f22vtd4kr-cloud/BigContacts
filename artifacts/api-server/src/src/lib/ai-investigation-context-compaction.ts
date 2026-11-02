@@ -90,7 +90,7 @@ function summaryUrlsAreGrounded(summary: string, source: string): boolean {
   return extractAiContextUrls(summary).every((url) => allowed.has(url));
 }
 
-function summaryResponseFormat(): Record<string, unknown> {
+function summaryResponseFormat(maxChars: number): Record<string, unknown> {
   return {
     type: "json_schema",
     json_schema: {
@@ -99,7 +99,7 @@ function summaryResponseFormat(): Record<string, unknown> {
       schema: {
         type: "object",
         properties: {
-          summary: { type: "string" },
+          summary: { type: "string", maxLength: maxChars },
         },
         required: ["summary"],
         additionalProperties: false,
@@ -143,9 +143,11 @@ async function requestSummary(
 
     const selection = await resolveGroqBossModel();
     if (selection.status !== "resolved" || !selection.model) return null;
-    const outputBudget = Math.min(2_048, Math.max(320, Math.ceil(maxChars * 0.42)));
+    // 600 output tokens are sufficient for a 900-character summary while
+    // keeping generation bounded; the schema enforces the exact character cap.
+    const outputBudget = Math.min(2_048, Math.max(320, Math.ceil(maxChars * (2 / 3))));
     const result = await generateGroqBossText(selection, prompt, {
-      responseFormat: summaryResponseFormat(),
+      responseFormat: summaryResponseFormat(maxChars),
       maxOutputTokens: outputBudget,
       thinkingLevel: "low",
       jobId: input.jobId ?? null,
@@ -167,7 +169,7 @@ async function requestSummary(
       if (retryPrompt.length > config.maximumPromptChars) return null;
       const repairOutputBudget = Math.max(256, Math.floor(outputBudget * 0.84));
       const retry = await generateGroqBossText(selection, retryPrompt, {
-        responseFormat: summaryResponseFormat(),
+        responseFormat: summaryResponseFormat(maxChars),
         maxOutputTokens: repairOutputBudget,
         thinkingLevel: "low",
         jobId: input.jobId ?? null,
