@@ -3182,9 +3182,13 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Structured envelopes already carry action metadata and their observation
   // fields. Preserve those decision-critical parts without duplicating an entire
   // serialized wrapper when the emergency projection already has a record summary.
-  const plainCriticalObservations = suppliedCriticalObservations.filter((value) =>
-    !/(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD|LAST SUCCESSFUL FETCHED SOURCE)/.test(value),
-  );
+  const plainCriticalObservations = suppliedCriticalObservations
+    .map((value) => value
+      .replace(/(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)[^\\n]*:\\s*\\{[^\\n]*\\}/g, "")
+      .replace(/LAST SUCCESSFUL FETCHED SOURCE[^\\n]*:\\s*\\{[^\\n]*\\}/g, "")
+      .trim(),
+    )
+    .filter(Boolean);
   const requiredObservationCandidates = criticalObservations !== undefined
     ? [...structuredObservationTexts, ...plainCriticalObservations]
     : structuredObservationTexts.length ? structuredObservationTexts : [observation];
