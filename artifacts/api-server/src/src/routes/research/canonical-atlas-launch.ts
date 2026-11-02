@@ -124,6 +124,23 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
       });
       return;
     }
+    if (body.discoveryObjective !== undefined && typeof body.discoveryObjective !== "string") {
+      res.status(400).json({
+        error: "discoveryObjective must be a string when supplied.",
+        code: "INVALID_DISCOVERY_OBJECTIVE",
+      });
+      return;
+    }
+    const discoveryObjective = typeof body.discoveryObjective === "string"
+      ? body.discoveryObjective.trim()
+      : "";
+    if (discoveryObjective.length > MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS) {
+      res.status(400).json({
+        error: `discoveryObjective must not exceed ${MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS} characters.`,
+        code: "DISCOVERY_OBJECTIVE_TOO_LONG",
+      });
+      return;
+    }
 
     const schema = await checkAtlasSchemaReadiness();
     if (!schema.ready) {
@@ -202,6 +219,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
             targetCount,
             researchDepth,
             targetTimeoutMs,
+            ...(discoveryObjective ? { discoveryObjective } : {}),
             ...(discoveryContext ? { discoveryContext } : {}),
           });
         }
@@ -246,7 +264,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
     message: singleTargetId ? `Canonical single-target investigation started (job: ${atlasJobId}).` : `Canonical model-owned discovery started (job: ${atlasJobId}).`,
-    options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs, discoveryContextIncluded: Boolean(discoveryContext) },
+    options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs, discoveryObjectiveIncluded: Boolean(discoveryObjective), discoveryContextIncluded: Boolean(discoveryContext) },
   });
   } catch (error) {
     const diagnostic = describeThrownProviderError(error);

@@ -11,6 +11,7 @@ export type LaunchAtlasOptions = {
   targetCount?: number;
   researchDepth?: "fast" | "standard" | "deep";
   singleTargetId?: number;
+  discoveryObjective?: string;
 };
 
 export type LaunchAtlasResult = {
@@ -36,6 +37,7 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
     targetCount: opts.targetCount ?? (isSingle ? 1 : 3),
     researchDepth: opts.researchDepth ?? "standard",
     targetTimeoutMs: 420_000,
+    ...(opts.discoveryObjective?.trim() ? { discoveryObjective: opts.discoveryObjective.trim() } : {}),
     ...(isSingle ? { singleTargetId: opts.singleTargetId } : {}),
   };
 

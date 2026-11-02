@@ -43,6 +43,12 @@ if (!canonicalLauncher.includes("parseCanonicalSingleTargetId(body)") ||
   console.error("ATLAS INPUT NORMALIZATION FAIL: invalid explicit single-target IDs can fall through into full discovery");
   failed = true;
 }
+if (!canonicalLauncher.includes('body.discoveryObjective !== undefined && typeof body.discoveryObjective !== "string"') ||
+    !canonicalLauncher.includes("discoveryObjective.length > MAX_CANONICAL_ATLAS_DISCOVERY_CONTEXT_CHARS") ||
+    !canonicalLauncher.includes("...(discoveryObjective ? { discoveryObjective } : {})")) {
+  console.error("ATLAS INPUT NORMALIZATION FAIL: bounded model-owned discovery objective is not validated and forwarded");
+  failed = true;
+}
 // atlas.ts is now a compatibility quarantine stub. Keep the route-shape check
 // but bind it to the exported router name and require an explicit 410 response.
 if (!legacyAtlas.includes('atlasRouter.post("/ingest/atlas-run"') || !legacyAtlas.includes("res.status(410)")) {
