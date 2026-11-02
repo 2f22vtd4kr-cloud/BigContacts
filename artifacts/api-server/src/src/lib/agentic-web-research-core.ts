@@ -3204,8 +3204,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const optionalEmergencySections = [
     /^OPTIONAL HISTORICAL DETAIL:/,
     /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE/,
-    /^PAGE FORMAT \/ RETRIEVAL LIMITS:/,
-    /^VALID PROVIDERS:/,
     /^Conditional specialist OSINT actions:/,
   ];
   const fitCriticalBlock = (
@@ -3256,10 +3254,19 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       );
     }
     if (suppliedMemory && !result.includes(aiMemorySection)) {
+      const escapedMemory = suppliedMemory.replace(/[.*+?^$()|[\]{}\\]/g, "\\    if (suppliedMemory && !result.includes(aiMemorySection)) {
       result = fitCriticalBlock(
         result,
         aiMemorySection,
         /^AI-COMPACTED HISTORICAL RESEARCH MEMORY/,
+        "Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory within the provider budget; no action should be sent.",
+      );
+    }");
+      const memorySectionAlreadyPresent = new RegExp(escapedMemory, "s").test(result);
+      result = fitCriticalBlock(
+        result,
+        aiMemorySection,
+        memorySectionAlreadyPresent ? new RegExp(escapedMemory, "s") : /^AI-COMPACTED HISTORICAL RESEARCH MEMORY/,
         "Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory within the provider budget; no action should be sent.",
       );
     }
