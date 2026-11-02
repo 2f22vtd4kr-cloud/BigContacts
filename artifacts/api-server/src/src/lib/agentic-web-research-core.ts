@@ -3158,8 +3158,15 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const suppliedCriticalObservations = (criticalObservations ?? [])
     .map((value) => typeof value === "string" ? value.trim() : "")
     .filter(Boolean);
+  // Structured emergency envelopes already carry action metadata and the
+  // observation text. Do not require the entire serialized envelope a second
+  // time as a separate raw observation; preserve its parsed observation field.
+  // Plain current/correction observations remain independently protected.
+  const plainCriticalObservations = suppliedCriticalObservations.filter((value) =>
+    !/(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD|LAST SUCCESSFUL FETCHED SOURCE)/.test(value),
+  );
   const requiredObservationCandidates = criticalObservations !== undefined
-    ? suppliedCriticalObservations
+    ? [...structuredObservationTexts, ...plainCriticalObservations]
     : structuredObservationTexts.length ? structuredObservationTexts : [observation];
   const requiredObservations = [...new Set(
     requiredObservationCandidates
