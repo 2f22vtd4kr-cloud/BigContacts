@@ -108,6 +108,17 @@ export function resolveModelAuditFilePath(
   return resolve(workspaceRootFrom(cwd), configuredPath);
 }
 
+/** Expand an explicit per-job filename token without allowing job IDs to alter the audit directory. */
+function resolveModelAuditFilePathForJob(configuredPath: string, jobId: string | null | undefined): string {
+  if (!configuredPath.includes("{jobId}")) return configuredPath;
+  const safeJobId = typeof jobId === "string" && jobId.trim()
+    ? jobId.trim().replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80) || "unscoped"
+    : "unscoped";
+  return configuredPath.split("{jobId}").join(safeJobId);
+}
+
+const requestAuditPaths = new Map<string, string>();
+
 /**
  * Contact data is retained by default only in private local audit locations or
  * an explicitly configured path outside the repository. A visible report needs
@@ -424,20 +435,26 @@ export function emitModelPromptAudit(
   const serialized = JSON.stringify(record, null, 2);
   const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
   try {
+    const configuredPath = resolveModelAuditFilePathForJob(env.APEX_MODEL_AUDIT_FILE!, input.jobId);
     const auditPath = resolveSafeModelAuditFilePath(
-      env.APEX_MODEL_AUDIT_FILE!,
+      configuredPath,
       cwd,
       env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
     );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\n");
+      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\\n");
       return null;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
     write(
       auditPath,
-      `\n\n### Model request ${requestId}\n\n${fence}json\n${serialized}\n${fence}\n`,
+      `\\n\\n### Model request ${requestId}\\n\\n${fence}json\\n${serialized}\\n${fence}\\n`,
     );
+    if (requestAuditPaths.size >= 4_096) {
+      const oldestRequestId = requestAuditPaths.keys().next().value;
+      if (oldestRequestId) requestAuditPaths.delete(oldestRequestId);
+    }
+    requestAuditPaths.set(requestId, auditPath);
     return requestId;
   } catch {
     process.stderr.write("[atlas_model_prompt_audit] append failed; model request was not written to the audit file.\n");
@@ -571,20 +588,24 @@ export function emitModelPromptAuditResponse(
   const serialized = JSON.stringify(record, null, 2);
   const fence = "`".repeat(Math.max(3, longestBacktickRun(serialized) + 1));
   try {
-    const auditPath = resolveSafeModelAuditFilePath(
-      env.APEX_MODEL_AUDIT_FILE!,
-      cwd,
-      env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
-    );
+    const configuredPath = resolveModelAuditFilePathForJob(env.APEX_MODEL_AUDIT_FILE!, null);
+    const auditPath = requestAuditPaths.get(input.requestId)
+      ?? resolveSafeModelAuditFilePath(
+        configuredPath,
+        cwd,
+        env.NODE_ENV === "development" && env.APEX_MODEL_AUDIT_ALLOW_VISIBLE_FILE === "true",
+      );
     if (!auditPath) {
-      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\n");
+      requestAuditPaths.delete(input.requestId);
+      process.stderr.write("[atlas_model_prompt_audit] refused workspace model-audit path; use private-audits/, .local/audits/, or an explicitly opted-in audits/ destination.\\n");
       return false;
     }
     if (write === appendFileSync) mkdirSync(dirname(auditPath), { recursive: true });
     write(
       auditPath,
-      `\n\n### Model response ${input.requestId}\n\n${fence}json\n${serialized}\n${fence}\n`,
+      `\\n\\n### Model response ${input.requestId}\\n\\n${fence}json\\n${serialized}\\n${fence}\\n`,
     );
+    requestAuditPaths.delete(input.requestId);
     return true;
   } catch {
     process.stderr.write("[atlas_model_prompt_audit] append failed; model response was not written to the audit file.\n");
