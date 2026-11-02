@@ -3123,7 +3123,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // The emergency caller may repeat a durable trajectory envelope already
   // present in base. De-duplicate that exact envelope before budgeting; retain
   // any distinct correction text that accompanied it.
-  const repeatedEnvelopePattern = /(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD|LAST SUCCESSFUL FETCHED SOURCE[^\\n]*):\\s*\\{[^\\n]*\\}/g;
+  const repeatedEnvelopePattern = /(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD|LAST SUCCESSFUL FETCHED SOURCE[^\n]*):\s*\{[^\n]*\}/g;
   for (const match of observation.matchAll(repeatedEnvelopePattern)) {
     if (match[0] && base.includes(match[0])) observation = observation.replace(match[0], "").trim();
   }
@@ -3147,7 +3147,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const suppliedMemory = typeof aiHistoricalMemory === "string" ? aiHistoricalMemory.trim() : "";
   const suppliedScope = typeof activeScope === "string" ? activeScope.trim() : "";
   const requiredTerminalGate = base.split(/\r?\n/u).find((line) => line.trim().startsWith("RESEARCH TERMINAL GATE (authoritative):"))?.trim() ?? "";
-  const structuredObservationTexts: string[] = [];
   const requiredRecordMetadata: Array<{ label: string; fields: Record<string, unknown>; replacePattern: RegExp }> = [];
   const structuredRecordPattern = /(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)[^\n]*:\s*(\{[^\n]*\})/g;
   const structuredRecordMatches = [...structuredSourceText.matchAll(structuredRecordPattern)];
@@ -3155,7 +3154,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   if (latestStructuredRecordMatch) {
     try {
       const parsed = JSON.parse(latestStructuredRecordMatch[1]) as Record<string, unknown>;
-      if (typeof parsed.observation === "string" && parsed.observation.trim()) structuredObservationTexts.push(parsed.observation.trim());
       const fields = Object.fromEntries(["turn", "action", "execution", "stopReason", "failureDomain", "failureKind"]
         .filter((key) => parsed[key] !== undefined && parsed[key] !== null)
         .map((key) => [key, parsed[key]]));
@@ -3176,7 +3174,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   if (latestFetchedSourceMatch) {
     try {
       const parsed = JSON.parse(latestFetchedSourceMatch[1]) as Record<string, unknown>;
-      if (typeof parsed.observation === "string" && parsed.observation.trim()) structuredObservationTexts.push(parsed.observation.trim());
       const fields = Object.fromEntries(["turn", "action", "execution"]
         .filter((key) => parsed[key] !== undefined && parsed[key] !== null)
         .map((key) => [key, parsed[key]]));
