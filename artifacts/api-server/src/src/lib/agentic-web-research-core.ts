@@ -3374,7 +3374,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const fallbackRuleCandidates = [
     "No fixed action sequence; the Investigator chooses actions.",
     "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
-    "RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): sec-edgar, gleif, ytj-finland, borme-spain, zefix-switzerland, atoka-italy, cvr-denmark, ares-czechia, kbo-belgium, brreg, bodacc-france, faa.",
     minimumRelevanceMarker,
     "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); these are also described as OCR-required; encrypted/password-protected and malformed PDFs are distinct structured extraction failures.",
     "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
@@ -5343,20 +5342,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         break;
       }
     }
-    // Historical memory is a semantic summary, not raw evidence. If the full
+    // Historical memory is a semantic summary, not raw evidence. If the complete
     // summary cannot fit beside the protected action schema/current scope/source,
-    // retain a URL-safe head/tail excerpt rather than aborting the Investigator.
-    const withoutMemory = remainingSections
-      .filter((part) => !/^AI-COMPACTED HISTORICAL RESEARCH MEMORY/.test(part))
-      .join("\\n\\n");
-    const memoryBudget = maxUserPromptChars - withoutMemory.length - 2;
-    if (memoryBudget >= 80) {
-      const compactMemory = boundInvestigatorPromptSection(memorySection, memoryBudget);
-      const compactedWithMemory = insertMemory(remainingSections.filter((part) => !/^AI-COMPACTED HISTORICAL RESEARCH MEMORY/.test(part)));
-      const compactedSections = compactedWithMemory.replace(memorySection, compactMemory);
-      if (compactedSections.length <= maxUserPromptChars) return compactedSections;
-    }
-    throw new Error("Emergency Investigator prompt cannot preserve the required action contract and a bounded Boss-memory summary within the provider budget; no action should be sent.");
+    // fail closed rather than deterministically clipping the model's summary.
+    throw new Error("Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory alongside the required action contract within the provider budget; no action should be sent.");
   };
   const stateMarker = "\n\nCANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):\n";
   const outputMarker = "\nOUTPUT CONTRACT:";

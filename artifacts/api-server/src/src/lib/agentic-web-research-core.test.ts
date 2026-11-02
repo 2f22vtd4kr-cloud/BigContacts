@@ -3478,6 +3478,11 @@ describe("combined-main emergency discovery contract", () => {
 });
 
 describe("prompt composition recovery integrity", () => {
+  it("uses the runtime registry inventory rather than a stale emergency fallback list", () => {
+    expect(agenticCoreSource).not.toContain("RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): sec-edgar, gleif, ytj-finland");
+    expect(agenticCoreSource).toContain('"RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): " + registryIds.trim()');
+  });
+
   it("fails closed rather than sending deterministic excerpts of decision-critical observations or history", () => {
     const start = agenticCoreSource.indexOf("} catch (promptCompositionError) {");
     const end = agenticCoreSource.indexOf("// Historical memory is required working context", start);
@@ -3488,6 +3493,16 @@ describe("prompt composition recovery integrity", () => {
     expect(recovery).toContain('return resultBase("error", i, "UNEXPECTED_ERROR", message);');
     expect(recovery).not.toContain("boundInvestigatorPromptSection");
     expect(recovery).not.toContain("history.slice(-3)");
+  });
+
+  it("does not deterministically excerpt Boss historical memory when the emergency prompt is over budget", () => {
+    const start = agenticCoreSource.indexOf("// Historical memory is a semantic summary, not raw evidence.");
+    const end = agenticCoreSource.indexOf("const stateMarker", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const recovery = agenticCoreSource.slice(start, end);
+    expect(recovery).not.toContain("boundInvestigatorPromptSection(memorySection, memoryBudget)");
+    expect(recovery).toContain("throw new Error(\"Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory");
   });
 });
 
