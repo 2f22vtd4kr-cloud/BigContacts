@@ -3500,6 +3500,7 @@ describe("emergency prompt critical context preservation", () => {
     const fullPrompt = appendEmergencyObservationContext(basePrompt, observation, 5_600, "discovery", undefined, undefined, memory);
     expect(fullPrompt).toContain(observation);
     expect(fullPrompt).toContain(memory);
+    expect(fullPrompt).toContain("AI-COMPACTED HISTORICAL RESEARCH MEMORY");
     expect(fullPrompt.match(/BOSS_MEMORY_SENTINEL/g)).toHaveLength(1);
     expect(fullPrompt).toContain("RESEARCH TERMINAL GATE (authoritative): minEvidence=1; requireExactSpanForFindings=true.");
     expect(() => appendEmergencyObservationContext(basePrompt, observation, 300, "discovery", undefined, undefined, memory)).toThrow();
