@@ -5349,14 +5349,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const withoutMemory = remainingSections
       .filter((part) => !/^AI-COMPACTED HISTORICAL RESEARCH MEMORY/.test(part))
       .join("\\n\\n");
-    const memoryBudget = maxUserPromptChars - withoutMemory.length - 2;
-    if (memoryBudget >= 80) {
-      const compactMemory = boundInvestigatorPromptSection(memorySection, memoryBudget);
-      const compactedWithMemory = insertMemory(remainingSections.filter((part) => !/^AI-COMPACTED HISTORICAL RESEARCH MEMORY/.test(part)));
-      const compactedSections = compactedWithMemory.replace(memorySection, compactMemory);
-      if (compactedSections.length <= maxUserPromptChars) return compactedSections;
-    }
-    throw new Error("Emergency Investigator prompt cannot preserve the required action contract and a bounded Boss-memory summary within the provider budget; no action should be sent.");
+    throw new Error("Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory alongside the required action contract within the provider budget; no action should be sent.");
   };
   const stateMarker = "\n\nCANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):\n";
   const outputMarker = "\nOUTPUT CONTRACT:";
