@@ -3139,9 +3139,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const structuredObservationTexts: string[] = [];
   const requiredRecordMetadata: Array<{ label: string; fields: Record<string, unknown>; replacePattern: RegExp }> = [];
   const structuredRecordPattern = /(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)[^\n]*:\s*(\{[^\n]*\})/g;
-  for (const match of combinedSourceText.matchAll(structuredRecordPattern)) {
+  const structuredRecordMatches = [...combinedSourceText.matchAll(structuredRecordPattern)];
+  const latestStructuredRecordMatch = structuredRecordMatches.at(-1);
+  if (latestStructuredRecordMatch) {
     try {
-      const parsed = JSON.parse(match[1]) as Record<string, unknown>;
+      const parsed = JSON.parse(latestStructuredRecordMatch[1]) as Record<string, unknown>;
       if (typeof parsed.observation === "string" && parsed.observation.trim()) structuredObservationTexts.push(parsed.observation.trim());
       const fields = Object.fromEntries(["turn", "action", "execution", "stopReason", "failureDomain", "failureKind"]
         .filter((key) => parsed[key] !== undefined && parsed[key] !== null)
@@ -3158,9 +3160,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     }
   }
   const fetchedSourcePattern = /LAST SUCCESSFUL FETCHED SOURCE[^\n]*:\s*(\{[^\n]*\})/g;
-  for (const match of combinedSourceText.matchAll(fetchedSourcePattern)) {
+  const fetchedSourceMatches = [...combinedSourceText.matchAll(fetchedSourcePattern)];
+  const latestFetchedSourceMatch = fetchedSourceMatches.at(-1);
+  if (latestFetchedSourceMatch) {
     try {
-      const parsed = JSON.parse(match[1]) as Record<string, unknown>;
+      const parsed = JSON.parse(latestFetchedSourceMatch[1]) as Record<string, unknown>;
       if (typeof parsed.observation === "string" && parsed.observation.trim()) structuredObservationTexts.push(parsed.observation.trim());
       const fields = Object.fromEntries(["turn", "action", "execution"]
         .filter((key) => parsed[key] !== undefined && parsed[key] !== null)
