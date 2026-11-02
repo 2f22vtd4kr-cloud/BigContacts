@@ -61,11 +61,11 @@ describe("AI investigation context compaction", () => {
     expect(repairPrompt).not.toContain("PRIOR_SUMMARY_ONLY_SENTINEL");
     const firstOptions = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
     const repairOptions = bossMocks.generateGroqBossText.mock.calls[1]?.[2];
-    expect(firstOptions?.maxOutputTokens).toBe(600);
-    expect(repairOptions?.maxOutputTokens).toBe(504);
+    expect(firstOptions?.maxOutputTokens).toBe(261);
+    expect(repairOptions?.maxOutputTokens).toBe(220);
     expect(repairOptions?.maxOutputTokens).toBeLessThan(firstOptions?.maxOutputTokens ?? Infinity);
     for (const options of [firstOptions, repairOptions]) {
-      expect((options?.responseFormat as any)?.json_schema?.schema?.properties?.summary).toHaveProperty("maxLength", 900);
+      expect((options?.responseFormat as any)?.json_schema?.schema?.properties?.summary).not.toHaveProperty("maxLength");
     }
   });
 
@@ -102,19 +102,19 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("successful visit/browser_fetch");
     expect(prompt).toContain("do not enumerate every name or URL");
     const options = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
-    expect(options?.maxOutputTokens).toBe(600);
+    expect(options?.maxOutputTokens).toBe(261);
     expect(options?.responseFormat).toMatchObject({
       type: "json_schema",
       json_schema: {
         strict: true,
         schema: {
-          properties: { summary: { type: "string", maxLength: 900 } },
+          properties: { summary: { type: "string" } },
           required: ["summary"],
           additionalProperties: false,
         },
       },
     });
-    expect((options?.responseFormat as any)?.json_schema?.schema?.properties?.summary).toHaveProperty("maxLength", 900);
+    expect((options?.responseFormat as any)?.json_schema?.schema?.properties?.summary).not.toHaveProperty("maxLength");
   });
 
 });
