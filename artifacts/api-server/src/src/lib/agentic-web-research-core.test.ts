@@ -3477,6 +3477,20 @@ describe("combined-main emergency discovery contract", () => {
   });
 });
 
+describe("prompt composition recovery integrity", () => {
+  it("fails closed rather than sending deterministic excerpts of decision-critical observations or history", () => {
+    const start = agenticCoreSource.indexOf("} catch (promptCompositionError) {");
+    const end = agenticCoreSource.indexOf("// Historical memory is required working context", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const recovery = agenticCoreSource.slice(start, end);
+    expect(recovery).toContain("No action was sent with a deterministically excerpted observation or history.");
+    expect(recovery).toContain('return resultBase("error", i, "UNEXPECTED_ERROR", message);');
+    expect(recovery).not.toContain("boundInvestigatorPromptSection");
+    expect(recovery).not.toContain("history.slice(-3)");
+  });
+});
+
 describe("small emergency observation budgets", () => {
   it("never exceeds a budget too small to fit the middle-omission marker", () => {
     const observation = "a fetched page observation with useful text";
