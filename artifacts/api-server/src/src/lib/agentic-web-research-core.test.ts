@@ -3511,6 +3511,20 @@ describe("prompt composition recovery integrity", () => {
     expect(agenticCoreSource).toContain('"RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): " + registryIds.trim()');
   });
 
+  it("rebuilds after memory compaction with complete recent trajectory and durable URL state", () => {
+    const start = agenticCoreSource.indexOf("prompt = usedPromptRecoveryFallback");
+    const end = agenticCoreSource.indexOf(": buildStepPrompt({", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const fallback = agenticCoreSource.slice(start, end);
+    expect(fallback).toContain("history: []");
+    expect(fallback).toContain("trajectoryRecords: promptTrajectoryRecords");
+    expect(fallback).toContain("findings: sanitizeObservableValue(findings)");
+    expect(fallback).toContain("durableUrlInventory: input.durableUrlInventory");
+    expect(fallback).not.toContain("history.slice(-3)");
+    expect(fallback).not.toContain("slice(0, 900)");
+  });
+
   it("fails closed rather than sending deterministic excerpts of decision-critical observations or history", () => {
     const start = agenticCoreSource.indexOf("} catch (promptCompositionError) {");
     const end = agenticCoreSource.indexOf("// Historical memory is required working context", start);
