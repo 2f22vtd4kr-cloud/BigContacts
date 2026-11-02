@@ -3497,7 +3497,7 @@ describe("prompt composition recovery integrity", () => {
     expect(end).toBeGreaterThan(start);
     const recovery = agenticCoreSource.slice(start, end);
     expect(recovery).not.toContain("boundInvestigatorPromptSection(memorySection, memoryBudget)");
-    expect(recovery).toContain("historicalMemory");
+    expect(recovery).toContain("complete Boss-generated historical memory");
   });
 });
 
