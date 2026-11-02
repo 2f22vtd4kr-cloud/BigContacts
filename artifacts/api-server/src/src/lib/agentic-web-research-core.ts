@@ -3214,10 +3214,12 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       return normalized;
     })
     .filter((value) => Boolean(value) && !base.includes(value) && !observation.includes(value));
-  const hasStructuredObservationEnvelope = structuredObservationTexts.length > 0
-    || /LATEST TRAJECTORY RECORD|LAST SUCCESSFUL FETCHED SOURCE/.test(observation);
-  const requiredObservations = !hasStructuredObservationEnvelope && plainCriticalObservations.length === 0 && observation
-    ? [observation]
+  let requiredObservationText = observation;
+  for (const match of observation.matchAll(repeatedEnvelopePattern)) {
+    if (match[0]) requiredObservationText = requiredObservationText.replace(match[0], "").trim();
+  }
+  const requiredObservations = requiredObservationText && !base.includes(requiredObservationText)
+    ? [requiredObservationText]
     : [];
   const optionalCriticalObservations = [...new Set([...structuredObservationTexts, ...plainCriticalObservations])];
   const optionalStructuredEnvelopes = [...requiredStructuredEnvelopes];
