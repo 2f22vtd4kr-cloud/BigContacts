@@ -69,6 +69,7 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).toContain("same-case evidence");
     expect(discoveryPrompt).not.toContain("local owner/operator");
     expect(discoveryPrompt).not.toContain("grounded local link");
+    expect(discoveryPrompt).not.toContain("local/sector web");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
   });
