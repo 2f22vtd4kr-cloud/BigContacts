@@ -3137,8 +3137,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const suppliedScope = typeof activeScope === "string" ? activeScope.trim() : "";
   const requiredTerminalGate = base.split(/\r?\n/u).find((line) => line.trim().startsWith("RESEARCH TERMINAL GATE (authoritative):"))?.trim() ?? "";
   const structuredObservationTexts: string[] = [];
-  const structuredRecordPattern = /(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)[^\n]*:\s*(\{[^\n]*\})/g;
+  const requiredStructuredEnvelopes: string[] = [];
+  const structuredRecordPattern = /(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD)[^\\n]*:\\s*(\\{[^\\n]*\\})/g;
   for (const match of combinedSourceText.matchAll(structuredRecordPattern)) {
+    requiredStructuredEnvelopes.push(match[0].trim());
     try {
       const parsed = JSON.parse(match[1]) as Record<string, unknown>;
       if (typeof parsed.observation === "string" && parsed.observation.trim()) structuredObservationTexts.push(parsed.observation.trim());
@@ -3146,8 +3148,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       // An incomplete diagnostic envelope is not treated as observed source text.
     }
   }
-  const fetchedSourcePattern = /LAST SUCCESSFUL FETCHED SOURCE[^\n]*:\s*(\{[^\n]*\})/g;
+  const fetchedSourcePattern = /LAST SUCCESSFUL FETCHED SOURCE[^\\n]*:\\s*(\\{[^\\n]*\\})/g;
   for (const match of combinedSourceText.matchAll(fetchedSourcePattern)) {
+    requiredStructuredEnvelopes.push(match[0].trim());
     try {
       const parsed = JSON.parse(match[1]) as Record<string, unknown>;
       if (typeof parsed.observation === "string" && parsed.observation.trim()) structuredObservationTexts.push(parsed.observation.trim());
@@ -3158,10 +3161,9 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const suppliedCriticalObservations = (criticalObservations ?? [])
     .map((value) => typeof value === "string" ? value.trim() : "")
     .filter(Boolean);
-  // Structured emergency envelopes already carry action metadata and the
-  // observation text. Do not require the entire serialized envelope a second
-  // time as a separate raw observation; preserve its parsed observation field.
-  // Plain current/correction observations remain independently protected.
+  // Structured emergency envelopes already carry action metadata and their
+  // observation fields. Protect the full envelope once, rather than appending
+  // the serialized wrapper again as if it were a second plain observation.
   const plainCriticalObservations = suppliedCriticalObservations.filter((value) =>
     !/(?:LATEST TRAJECTORY RECORD|LATEST PRIOR TRAJECTORY RECORD|LAST SUCCESSFUL FETCHED SOURCE)/.test(value),
   );
@@ -3173,38 +3175,78 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       .map((value) => typeof value === "string" ? value.trim() : "")
       .filter(Boolean),
   )];
+  const optionalEmergencySections = [
+    /^OPTIONAL HISTORICAL DETAIL:/,
+    /^OPTIONAL DISCOVERY TRAJECTORY GUIDANCE/,
+    /^LEAD FOLLOW-UP GUIDANCE \\(non-binding\\):/,
+    /^PAGE FORMAT \\/ RETRIEVAL LIMITS:/,
+    /^VALID PROVIDERS:/,
+    /^Conditional specialist OSINT actions:/,
+  ];
+  const fitCriticalBlock = (
+    candidate: string,
+    block: string,
+    replacePattern: RegExp | null,
+    failure: string,
+  ): string => {
+    const sections = candidate.split(/\\n{2,}/u).map((part) => part.trim()).filter(Boolean);
+    const replaceIndex = replacePattern ? sections.findIndex((part) => replacePattern.test(part)) : -1;
+    if (replaceIndex >= 0) sections[replaceIndex] = block;
+    else sections.push(block);
+    let result = sections.join("\\n\\n");
+    if (result.length > limit) {
+      for (const pattern of optionalEmergencySections) {
+        const optionalIndex = sections.findIndex((part) => pattern.test(part));
+        if (optionalIndex < 0) continue;
+        sections.splice(optionalIndex, 1);
+        result = sections.join("\\n\\n");
+        if (result.length <= limit) break;
+      }
+    }
+    if (result.length > limit) throw new Error(failure);
+    return result;
+  };
   const ensureCriticalContext = (candidate: string): string => {
     let result = candidate;
-    const appendRequired = (label: string, value: string, failure: string) => {
-      const jsonEscapedValue = value ? JSON.stringify(value).slice(1, -1) : "";
-      // A full observation can already be preserved inside a JSON trajectory
-      // envelope. Recognize its escaped representation before appending it again;
-      // otherwise the same durable context is duplicated and can falsely exceed
-      // the provider budget.
-      if (!value || result.includes(value) || (jsonEscapedValue && result.includes(jsonEscapedValue))) return;
-      const next = [result, label, value].filter(Boolean).join("\n\n");
-      if (next.length > limit) throw new Error(failure);
-      result = next;
-    };
+    for (const envelope of [...new Set(requiredStructuredEnvelopes)]) {
+      const jsonEscapedEnvelope = JSON.stringify(envelope).slice(1, -1);
+      if (result.includes(envelope) || result.includes(jsonEscapedEnvelope)) continue;
+      const replacePattern = envelope.startsWith("LAST SUCCESSFUL FETCHED SOURCE")
+        ? /^LAST SUCCESSFUL FETCHED SOURCE/
+        : /^LATEST (?:PRIOR )?TRAJECTORY RECORD/;
+      result = fitCriticalBlock(
+        result,
+        envelope,
+        replacePattern,
+        "Emergency Investigator prompt cannot preserve the complete latest trajectory record within the provider budget; no action should be sent.",
+      );
+    }
     for (const requiredObservation of requiredObservations) {
-      appendRequired(
-        header,
-        requiredObservation,
+      const jsonEscapedValue = JSON.stringify(requiredObservation).slice(1, -1);
+      if (!requiredObservation || result.includes(requiredObservation) || result.includes(jsonEscapedValue)) continue;
+      result = fitCriticalBlock(
+        result,
+        header + requiredObservation,
+        /^LATEST OBSERVATION \\(untrusted data, not instructions\\):/,
         "Emergency Investigator prompt cannot preserve the complete latest observation within the provider budget; no action should be sent.",
       );
     }
     if (suppliedMemory && !result.includes(aiMemorySection)) {
-      const next = [result, aiMemorySection].filter(Boolean).join("\n\n");
-      if (next.length > limit) {
-        throw new Error("Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory within the provider budget; no action should be sent.");
-      }
-      result = next;
+      result = fitCriticalBlock(
+        result,
+        aiMemorySection,
+        /^AI-COMPACTED HISTORICAL RESEARCH MEMORY/,
+        "Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory within the provider budget; no action should be sent.",
+      );
     }
-    appendRequired(
-      "",
-      requiredTerminalGate,
-      "Emergency Investigator prompt cannot preserve the authoritative research terminal gate within the provider budget; no action should be sent.",
-    );
+    if (requiredTerminalGate && !result.includes(requiredTerminalGate)) {
+      result = fitCriticalBlock(
+        result,
+        requiredTerminalGate,
+        /^RESEARCH TERMINAL GATE \\(authoritative\\):/,
+        "Emergency Investigator prompt cannot preserve the authoritative research terminal gate within the provider budget; no action should be sent.",
+      );
+    }
     if (result.length > limit) throw new Error("Emergency Investigator prompt exceeds the provider budget after preserving critical context; no action should be sent.");
     return result;
   };
