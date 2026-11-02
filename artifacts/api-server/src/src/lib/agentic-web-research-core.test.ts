@@ -3411,7 +3411,7 @@ describe("single fetched page organization identity", () => {
 
 describe("latest fetched source evidence survives emergency Investigator compaction", () => {
   it("keeps a source fact near the end of a long successful page observation", () => {
-    const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(180) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
+    const observation = "Fetched official company filing: INTRODUCTORY COVER TEXT. " + "background context ".repeat(20) + "OWNERSHIP FACT SENTINEL: the filing states the transaction involved a majority stake in SAMPLE MANUFACTURING LTD.";
     const compact = compactEmergencyTrajectoryObservation(observation, 700);
     expect(compact.length).toBeLessThanOrEqual(700);
     expect(compact).toContain("Fetched official company filing");
@@ -3436,6 +3436,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
       mode: "discovery",
     });
     expect(prompt).toContain("LAST SUCCESSFUL FETCHED SOURCE EXCERPT");
+    expect(prompt).toContain(observation);
     expect(prompt).toContain("OWNERSHIP FACT SENTINEL");
     expect(prompt).toMatch(/After visit\/browser_fetch/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
@@ -3476,6 +3477,12 @@ describe("combined-main emergency discovery contract", () => {
     expect(prompt).not.toMatch(/local owner\/operator|grounded local link|local\/sector web|defined sector and geography/i);
   });
 });
+
+  it("does not slice recent trajectory observations before the prompt budget decision", () => {
+    expect(agenticCoreSource).toContain("return typeof record.observation === \"string\" ? record.observation : \"\";");
+    expect(agenticCoreSource).toContain("\"LATEST OBSERVATION: \" + (input.lastObservation || \"(none)\")");
+    expect(agenticCoreSource).not.toContain("compactEmergencyTrajectoryObservation(suppliedObservation, 420)");
+  });
 
   it("preserves complete latest observations and Boss memory or fails closed when the provider budget cannot hold them", () => {
     const basePrompt = [
@@ -3572,7 +3579,7 @@ describe("small emergency observation budgets", () => {
     const observation = 'LATEST TRAJECTORY RECORD — TURN 17: {"turn":17,"action":"web_search","execution":"success","leadUrls":["https://registry.example.test/company-search"],"leadUrlsOmittedFromPromptCount":0}';
 
     expect(() => appendEmergencyObservationContext(basePrompt, observation, 24)).toThrow(
-      /(?:Cannot compose a contract-preserving emergency observation prompt|The required Investigator action schema exceeds) maxPromptChars=24/,
+      /((?:Cannot preserve the complete latest observation|Cannot compose a contract-preserving emergency observation prompt|The required Investigator action schema exceeds) maxPromptChars=24)/,
     );
   });
 
