@@ -3298,7 +3298,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     : "";
   const isDiscoveryPrompt = mode === "discovery" || (mode !== "target" && /DISCOVERY PROGRESS GATE|DISCOVERY TARGETABILITY GATE|DISCOVERY LEAD HANDOFF CONTRACT/.test(base));
   const minimumTargetabilityMarker = isDiscoveryPrompt
-    ? "DISCOVERY TARGETABILITY: people remain the ultimate mission; an organization may be selected as a provisional review target when investigating it is a useful route to its owners/operators/investors. Do not infer personal wealth from company prestige."
+    ? "DISCOVERY TARGETABILITY: people remain the ultimate mission; an organization may be selected as a provisional review target when it offers a useful route to owners/operators/investors. MODEL-OWNED RELEVANCE SELF-CHECK: explain the plausible link from this source/query to an under-the-radar business, local owner/operator, material asset, or ownership/investment/transaction signal. A generic publisher homepage or global-brand executive list alone is off-mission without a grounded local link. The Investigator chooses sources and actions; no fixed sequence. Do not infer personal wealth from company prestige."
     : "";
   const protectedRuleCandidates = [
     "Press/profile pages may support a named person or organization review lead when you judge it relevant; the page itself is not a contact route unless it provides a legitimate public professional contact path.",
