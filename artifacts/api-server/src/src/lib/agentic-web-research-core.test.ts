@@ -3671,7 +3671,7 @@ describe("small emergency observation budgets", () => {
     expect(agenticCoreSource).not.toContain("compactEmergencyTrajectoryObservation(suppliedObservation, 420)");
     expect(agenticCoreSource).toContain("emergencyTrajectoryRecordSummary,");
     expect(agenticCoreSource).toContain(
-      "appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars, input.mode, extractBossPivotDirectionForCompactPrompt(input.objective), registryIdList, aiHistoricalMemory)",
+      "appendEmergencyObservationContext(basePrompt, emergencyObservation || suppliedObservation, maxUserPromptChars, input.mode, extractBossPivotDirectionForCompactPrompt(input.objective), registryIdList, aiHistoricalMemory, [suppliedObservation, latestRecord?.observation ?? \"\", latestSuccessfulFetchRecord?.observation ?? \"\"])",
     );
   });
 
