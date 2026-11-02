@@ -33,7 +33,8 @@ describe("investigator context compaction", () => {
     expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 0, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(false);
   });
 
-  it("compacts long control context only when there is actual historical research to summarize", () => {
+  it("routes every older record through Boss before the deterministic archive projection can omit detail", () => {
+    expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 1, sourceChars: 1_200, priorContextChars: 0 })).toBe(true);
     expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 2, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(true);
     expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: true, historicalRecordCount: 2, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(false);
   });
