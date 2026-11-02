@@ -143,8 +143,8 @@ async function requestSummary(
 
     const selection = await resolveGroqBossModel();
     if (selection.status !== "resolved" || !selection.model) return null;
-    // Groq's strict JSON-schema subset does not support maxLength. Keep the
-    // token ceiling conservative, then enforce the character cap locally and
+    // Groq's strict JSON-schema subset rejects schema-level string length
+    // constraints. Keep the token ceiling conservative, then enforce the cap locally and
     // repair once from the complete original source when the model overruns.
     const outputBudget = Math.min(2_048, Math.max(220, Math.ceil(maxChars * 0.29)));
     const result = await generateGroqBossText(selection, prompt, {
