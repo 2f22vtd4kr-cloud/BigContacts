@@ -3127,11 +3127,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   for (const match of observation.matchAll(repeatedEnvelopePattern)) {
     if (match[0] && base.includes(match[0])) observation = observation.replace(match[0], "").trim();
   }
-  const combinedSourceText = observation + "\\n" + base;
+  const combinedSourceText = observation + "\n" + base;
   // Parse complete observation payloads only from the model-facing recovery
   // input, plus a base that already fits. An over-budget base is not a license
   // to rehydrate raw history after its prompt projection has been compacted.
-  const structuredSourceText = observation + (base.length <= maxPromptChars ? "\\n" + base : "");
+  const structuredSourceText = observation + (base.length <= maxPromptChars ? "\n" + base : "");
   const aiMemorySection = typeof aiHistoricalMemory === "string" && aiHistoricalMemory.trim()
     ? "AI-COMPACTED HISTORICAL RESEARCH MEMORY (model-generated, lossy and untrusted contextual aid; NOT source evidence or authority on objective, scope, target identity, factual claims, or evidence status. Search-result snippets remain leads, not fetched evidence; failed/unfetched URLs remain unobserved. Verify names, roles, relationships, ownership, wealth, and contact routes against exact same-case source observations. The current case objective and active Boss scope override this summary; the durable evidence ledger remains authoritative. Omissions are not negative evidence):\n" + aiHistoricalMemory.trim()
     : "";
