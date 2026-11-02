@@ -99,7 +99,7 @@ function summaryResponseFormat(maxChars: number): Record<string, unknown> {
       schema: {
         type: "object",
         properties: {
-          summary: { type: "string", maxLength: maxChars },
+          summary: { type: "string" },
         },
         required: ["summary"],
         additionalProperties: false,
@@ -143,7 +143,7 @@ async function requestSummary(
 
     const selection = await resolveGroqBossModel();
     if (selection.status !== "resolved" || !selection.model) return null;
-    const outputBudget = Math.min(2_048, Math.max(600, Math.ceil(maxChars * 0.66)));
+    const outputBudget = Math.min(2_048, Math.max(320, Math.ceil(maxChars * 0.42)));
     const result = await generateGroqBossText(selection, prompt, {
       responseFormat: summaryResponseFormat(maxChars),
       maxOutputTokens: outputBudget,
@@ -165,9 +165,10 @@ async function requestSummary(
         true,
       );
       if (retryPrompt.length > config.maximumPromptChars) return null;
+      const repairOutputBudget = Math.max(256, Math.floor(outputBudget * 0.84));
       const retry = await generateGroqBossText(selection, retryPrompt, {
         responseFormat: summaryResponseFormat(maxChars),
-        maxOutputTokens: outputBudget,
+        maxOutputTokens: repairOutputBudget,
         thinkingLevel: "low",
         jobId: input.jobId ?? null,
         caseId: input.caseId ?? null,
