@@ -3495,6 +3495,16 @@ describe("prompt composition recovery integrity", () => {
     expect(recovery).not.toContain("history.slice(-3)");
   });
 
+  it("never drops the authoritative research terminal gate as optional emergency narration", () => {
+    const start = agenticCoreSource.indexOf("const optionalSectionPatterns = [");
+    const end = agenticCoreSource.indexOf("];", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const optionalSections = agenticCoreSource.slice(start, end);
+    expect(optionalSections).not.toContain("RESEARCH TERMINAL GATE");
+    expect(agenticCoreSource).toContain("RESEARCH TERMINAL GATE (authoritative): minEvidence=");
+  });
+
   it("does not deterministically excerpt Boss historical memory when the emergency prompt is over budget", () => {
     const start = agenticCoreSource.indexOf("// Historical memory is a semantic summary, not raw evidence.");
     const end = agenticCoreSource.indexOf("const stateMarker", start);
