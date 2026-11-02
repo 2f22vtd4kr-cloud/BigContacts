@@ -3374,7 +3374,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const fallbackRuleCandidates = [
     "No fixed action sequence; the Investigator chooses actions.",
     "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
-    "RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): sec-edgar, gleif, ytj-finland, borme-spain, zefix-switzerland, atoka-italy, cvr-denmark, ares-czechia, kbo-belgium, brreg, bodacc-france, faa.",
     minimumRelevanceMarker,
     "PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction for text-bearing PDF documents; browser_fetch is HTML-oriented and does not extract PDF text; for a PDF URL or response, use visit instead. Scanned/image-only PDFs require OCR (unavailable); these are also described as OCR-required; encrypted/password-protected and malformed PDFs are distinct structured extraction failures.",
     "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.",
