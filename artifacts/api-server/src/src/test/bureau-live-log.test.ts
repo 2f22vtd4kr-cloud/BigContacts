@@ -4,7 +4,25 @@ import {
   tryParseBureauLogLine,
   createBureauEvent,
   formatBureauEventLine,
+  bureauEventListKey,
+  isValidBureauJobId,
 } from "../lib/bureau-live-log";
+
+describe("job-scoped Bureau event indexing", () => {
+  it("uses the unique job key ahead of potentially reused case IDs", () => {
+    expect(bureauEventListKey({ jobId: "9ee68ca4-acff-473e-aa9a-a907f9f1ea4b", caseId: "1" }))
+      .toBe("apex:bureau:live:job:9ee68ca4-acff-473e-aa9a-a907f9f1ea4b");
+    expect(bureauEventListKey({ caseId: "1" })).toBe("apex:bureau:live:case:1");
+    expect(bureauEventListKey()).toBe("apex:bureau:live:events");
+  });
+
+  it("validates job IDs before using them in Redis keys", () => {
+    expect(isValidBureauJobId("job_123-abc")).toBe(true);
+    expect(isValidBureauJobId("../global")).toBe(false);
+    expect(isValidBureauJobId("")).toBe(false);
+    expect(isValidBureauJobId("x".repeat(129))).toBe(false);
+  });
+});
 
 describe("bureau-live-log classification", () => {
   it("drops short and heartbeat noise", () => {
