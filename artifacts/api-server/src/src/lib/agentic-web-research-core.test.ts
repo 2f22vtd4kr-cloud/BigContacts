@@ -3493,6 +3493,16 @@ describe("emergency prompt critical context preservation", () => {
     expect(prompt).toContain(observation);
   });
 
+  it("recognizes a complete observation already preserved inside a JSON trajectory envelope", () => {
+    const rawObservation = "DECISION_OBSERVATION_SENTINEL with exact source facts";
+    const envelope = "LATEST TRAJECTORY RECORD — TURN 3: " + JSON.stringify({ turn: 3, action: "visit", execution: "success", observation: rawObservation });
+    const basePrompt = ["APEX INVESTIGATOR", "OUTPUT CONTRACT: return one JSON object.", "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, findings.", envelope].join("\n\n");
+    const prompt = appendEmergencyObservationContext(basePrompt, envelope, basePrompt.length + 200, "discovery", undefined, undefined, undefined, [rawObservation]);
+    expect(prompt).toContain(envelope);
+    expect(prompt).toContain(rawObservation);
+    expect(prompt.length).toBeLessThanOrEqual(basePrompt.length + 200);
+  });
+
   it("preserves complete latest observations and Boss memory or fails closed when the provider budget cannot hold them", () => {
     const basePrompt = [
       "APEX INVESTIGATOR",
