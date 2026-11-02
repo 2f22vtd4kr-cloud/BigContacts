@@ -52,7 +52,7 @@ describe("model prompt audit", () => {
     expect(serviceRun).toBe("cd ../.. && bash scripts/replit-boot.sh");
     const workspaceConfig = readFileSync(resolve(workspaceRoot, ".replit"), "utf8");
 
-    const visibleRunAudit = 'APEX_MODEL_AUDIT_FILE = ".local/audits/APEX_ATLAS_MODEL_AUDIT_2026-11-02_RUN_02.md"';
+    const visibleRunAudit = 'APEX_MODEL_AUDIT_FILE = "private-audits/APEX_ATLAS_MODEL_AUDIT_2026-11-02_RUN_02.md"';
     for (const config of [artifactConfig, workspaceConfig]) {
       expect(config).toContain('APEX_CAPTURE_MODEL_PROMPTS = "true"');
       expect(config).toContain('APEX_MODEL_AUDIT_INCLUDE_CONTACT_DATA = "true"');
@@ -64,6 +64,7 @@ describe("model prompt audit", () => {
     }
     const gitignore = readFileSync(resolve(workspaceRoot, ".gitignore"), "utf8");
     expect(gitignore).toContain(".local/");
+    expect(gitignore).toContain("/private-audits/");
     const runtimeProofWorkflow = readFileSync(
       resolve(workspaceRoot, ".github/workflows/apex-canonical-runtime-proof.yml"),
       "utf8",
