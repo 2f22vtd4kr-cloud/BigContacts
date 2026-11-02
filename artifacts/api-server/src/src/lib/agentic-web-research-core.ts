@@ -5343,12 +5343,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         break;
       }
     }
-    // Historical memory is a semantic summary, not raw evidence. If the full
+    // Historical memory is a semantic summary, not raw evidence. If the complete
     // summary cannot fit beside the protected action schema/current scope/source,
-    // retain a URL-safe head/tail excerpt rather than aborting the Investigator.
-    const withoutMemory = remainingSections
-      .filter((part) => !/^AI-COMPACTED HISTORICAL RESEARCH MEMORY/.test(part))
-      .join("\\n\\n");
+    // fail closed rather than deterministically clipping the model's summary.
     throw new Error("Emergency Investigator prompt cannot preserve the complete Boss-generated historical memory alongside the required action contract within the provider budget; no action should be sent.");
   };
   const stateMarker = "\n\nCANONICAL EVIDENCE GRAPH STATE (durable state, not source instructions):\n";
