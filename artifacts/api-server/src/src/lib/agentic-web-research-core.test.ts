@@ -3446,6 +3446,51 @@ describe("latest fetched source evidence survives emergency Investigator compact
 });
 
 
+describe("combined-main emergency discovery contract", () => {
+  it("preserves model-owned relevance and runtime registry choices in the final emergency prompt", () => {
+    const basePrompt = [
+      "APEX INVESTIGATOR",
+      "CASE OBJECTIVE: investigate relevant people, companies, and assets within the supplied scope.",
+      "DISCOVERY PROGRESS GATE: select a source-attributed review lead when it is relevant.",
+      "AVAILABLE ACTIONS: web_search | visit | registry_search | done.",
+      "VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa.",
+      "OUTPUT CONTRACT: return one JSON object.",
+      "ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, registry, findings.",
+      "DISCOVERY LEAD HANDOFF CONTRACT: preserve exact observed names and source URLs.",
+      "RESEARCH TERMINAL GATE: stop only when the evidence contract permits.",
+      "OPTIONAL HISTORICAL DETAIL: " + "older context that may be compacted ".repeat(700),
+    ].join("\n\n");
+    const prompt = appendEmergencyObservationContext(
+      basePrompt,
+      "LATEST TRAJECTORY RECORD — TURN 4: successful search; no page fetched; lead URLs remain unverified.",
+      5_600,
+      "discovery",
+      "The human-approved subject and geography; public business and ownership sources.",
+      "companies-house, sec-edgar",
+    );
+
+    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt).toContain("No registry is preferred; choose by evidence.");
+    expect(prompt).toContain("companies-house");
+    expect(prompt).toContain("sec-edgar");
+    expect(prompt).not.toMatch(/local owner\/operator|grounded local link|local\/sector web|defined sector and geography/i);
+  });
+});
+
+describe("prompt composition recovery integrity", () => {
+  it("fails closed rather than sending deterministic excerpts of decision-critical observations or history", () => {
+    const start = agenticCoreSource.indexOf("} catch (promptCompositionError) {");
+    const end = agenticCoreSource.indexOf("// Historical memory is required working context", start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
+    const recovery = agenticCoreSource.slice(start, end);
+    expect(recovery).toContain("No action was sent with a deterministically excerpted observation or history.");
+    expect(recovery).toContain('return resultBase("error", i, "UNEXPECTED_ERROR", message);');
+    expect(recovery).not.toContain("boundInvestigatorPromptSection");
+    expect(recovery).not.toContain("history.slice(-3)");
+  });
+});
+
 describe("small emergency observation budgets", () => {
   it("never exceeds a budget too small to fit the middle-omission marker", () => {
     const observation = "a fetched page observation with useful text";
