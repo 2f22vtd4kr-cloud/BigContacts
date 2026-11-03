@@ -117,7 +117,7 @@ describe("AI investigation context compaction", () => {
   });
 
   it("keeps intermediate multi-chunk summaries above the 900-character failure floor", async () => {
-    const source = "CASE MEMORY START\\n" + "x".repeat(12_500);
+    const source = "CASE MEMORY START " + "x".repeat(12_500);
     const firstChunkSummary = "A".repeat(1_049);
     const secondChunkSummary = "B".repeat(800);
     const finalSummary = "The merged memory preserves the key facts and evidence-state distinctions.";
