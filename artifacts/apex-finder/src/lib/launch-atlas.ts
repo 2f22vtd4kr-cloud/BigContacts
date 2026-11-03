@@ -7,6 +7,10 @@ import { isMockMode } from "@/lib/dev-mock-data";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
+/** Default case objective used by the normal UI launch; operators can edit it before starting. */
+export const DEFAULT_ATLAS_DISCOVERY_OBJECTIVE = "Identify real operating companies and their current business decision-makers for B2B prospecting. No sector or country is specified; keep discovery broad. A source-backed operating company is a valid finding even if its decision-maker remains unresolved; preserve its company card and state the gap. Identify people only when fetched public company or professional sources support their current decision-maker role and company connection. Seek legitimate public professional or company contact routes when published; do not use private or personal contact details or infer wealth. Treat snippets and search results as unverified leads, not evidence. Let Boss and Investigator choose targets, hypotheses, providers, sources, queries, actions, pivots and stopping from evidence; do not impose a fixed research sequence.";
+
+
 export type LaunchAtlasOptions = {
   targetCount?: number;
   researchDepth?: "fast" | "standard" | "deep";
@@ -37,7 +41,7 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
     targetCount: opts.targetCount ?? (isSingle ? 1 : 3),
     researchDepth: opts.researchDepth ?? "standard",
     targetTimeoutMs: 420_000,
-    ...(opts.discoveryObjective?.trim() ? { discoveryObjective: opts.discoveryObjective.trim() } : {}),
+    discoveryObjective: opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE,
     ...(isSingle ? { singleTargetId: opts.singleTargetId } : {}),
   };
 
