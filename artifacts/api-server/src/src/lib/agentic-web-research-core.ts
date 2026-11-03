@@ -14,7 +14,7 @@ import { sanitizeObservableValue, sanitizeUrlForEvidence, sanitizeUrlOccurrences
 import { classifyExternalProvider, runProviderCall, withProviderRetryOwnership, withProviderRole } from "./provider-gate";
 import { isLocalProviderQuotaError, isTokenPerDayQuotaError } from "./provider-error-diagnostics";
 import { classifyCanonicalAtlasFailure, classifyInvestigatorProviderError, classifyRegistryAdapterFailure, type AtlasFailureDomain, type AtlasFailureKind } from "./canonical-atlas-failure-diagnostics";
-import { boundInvestigatorPromptSection, buildInvestigatorContext, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory } from "./investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildInvestigatorContext, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, compactPromptSectionPreservingUrlTokens, shouldCreateInvestigatorResearchMemory } from "./investigation-context-compaction";
 import { summarizeInvestigatorContextWithBoss } from "./ai-investigation-context-compaction";
 import { ATLAS_CAPABILITIES, exposeAttestedCapabilities, renderAtlasCapabilityGuidanceCompact } from "./atlas-capability-registry";
 import { getAvailablePythonOsintActions, refreshPythonOsintToolAvailability } from "./python-osint-worker-client";
@@ -2070,11 +2070,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
   if (prefix && prefixBudget >= 120) {
     // At the provider boundary, exact source URLs must survive whenever they can
     // fit. Prefer the URL-aware reducer instead of generic head/tail extraction.
-    boundedPrefix = compactPromptSectionPreservingUrlTokens(
-      prefix,
-      prefixBudget,
-      "[auxiliary context omitted whole; durable case events remain authoritative]",
-    );
+    boundedPrefix = boundInvestigatorPromptSection(prefix, prefixBudget);
     if (boundedPrefix.length > prefixBudget) boundedPrefix = "";
   }
   const result = [boundedPrefix, protectedSuffix].filter(Boolean).join(separator);
@@ -3009,8 +3005,10 @@ export function compactEmergencyInvestigatorObjective(rawObjective: string): str
     advisoryDirection = extractBossOpeningDirectionForCompactPrompt(raw);
   }
 
-  const compactBaseText = baseObjective.length > 90 ? baseObjective.slice(0, 87).trimEnd() + "..." : baseObjective;
-  const compactBase = compactBaseText ? "CASE OBJECTIVE: " + compactBaseText : "";
+  // Keep the entire human objective. Provider-size recovery may remove only
+  // auxiliary context; it must fail closed if the mission and action schema
+  // cannot fit together.
+  const compactBase = buildAuthoritativeCaseObjectiveBlock(baseObjective);
   const compactDirection = advisoryDirection
     ? "BOSS ADVISORY DIRECTION (not a fixed action sequence): ACTIVE SCOPE CONSTRAINT: "
       + compactActiveBossScope(advisoryDirection, 240)
@@ -4874,9 +4872,12 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     && /^(?:case\s+co|case\s+company|default\s+company|test\s+company)$/i.test(rawCompanyName);
   // Generic case labels including Case Co are metadata, not actual target entities; never use them as discovery entity anchors.
   const aiHistoricalMemory = input.aiCompactedHistoricalContext?.trim() ?? "";
-  const currentObjectiveContext = input.objective.length <= 3_500
-    ? input.objective
-    : "The full objective exceeds the direct prompt budget. The separately mounted case objective remains authoritative; the AI-generated historical memory is contextual only and must not redefine, narrow, or replace it.";
+  const authoritativeCaseObjective = buildAuthoritativeCaseObjectiveBlock(input.objective);
+  const activeBossDirection = extractBossPivotDirectionForCompactPrompt(input.objective)
+    || extractBossOpeningDirectionForCompactPrompt(input.objective);
+  const activeBossScopeSection = activeBossDirection
+    ? "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n" + activeBossDirection
+    : "";
   const currentControlContext = (input.priorContext?.length ?? 0) <= 800
     ? (input.priorContext ?? "")
     : "Long prior control context is represented in Boss-generated memory; the current objective and active scope remain authoritative.";
@@ -4885,7 +4886,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : "";
   const workingContext = aiHistoricalMemory
     ? [
-        "CURRENT CASE OBJECTIVE / ACTIVE BOSS SCOPE (authoritative; current, not historical):\n" + currentObjectiveContext,
         "CURRENT CONTROL / OVERSIGHT CONTEXT (fresh for this turn; never replaced by historical memory):\n" + currentControlContext,
         buildInvestigatorContext({
           targetName: input.targetName,
@@ -4907,7 +4907,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     : buildInvestigatorContext({
         targetName: input.targetName,
         companyName: genericDiscoveryCompanyLabel ? null : input.companyName,
-        objective: input.objective,
+        objective: "",
         history: input.history,
         trajectoryRecords: input.trajectoryRecords,
         lastObservation: input.lastObservation,
@@ -4962,6 +4962,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
 
   const composedPrompt = [
     assignment,
+    authoritativeCaseObjective,
+    activeBossScopeSection,
     "",
     researchContract,
     actionLiveness,
@@ -5249,6 +5251,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const hasLeadFollowupContext = !(carryForwardSuccessfulSearch?.leadUrls?.length)
       || carryForwardSuccessfulSearch.leadUrls.some((url) => normalizedBase.includes(url));
     const hasHistoricalMemoryContext = !aiHistoricalMemory.trim() || normalizedBase.includes(aiHistoricalMemory.trim());
+    const hasAuthoritativeObjective = !authoritativeCaseObjective || containsVerbatimCaseObjective(normalizedBase);
     const hasGeographicScope = requiredGeographies.every((geography) => normalizedBase.toLowerCase().includes(geography.toLowerCase()));
     const requiresRecoveryContext = Boolean(
       latestRecord
@@ -5271,6 +5274,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       && hasFetchedSourceContext
       && hasLeadFollowupContext
       && hasHistoricalMemoryContext
+      && hasAuthoritativeObjective
       && hasGeographicScope
     ) return normalizedBase;
     // The final provider-boundary pass runs a second compaction only when a
@@ -5400,6 +5404,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // Drop advisory/auxiliary material before falling back to a minimal prompt.
       const emergencyPrefix = [
         emergencyAssignment,
+        authoritativeCaseObjective,
+        activeBossScopeSection,
         researchContract,
         actionLiveness,
         availableActionsGuidance,
@@ -5443,8 +5449,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactOutputContract = "OUTPUT CONTRACT: Return exactly one root JSON object; no prose. REQUIRED FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Null only fields irrelevant to the chosen action; [] for unused arrays. Except action=done, hypothesis/purpose must be non-empty and expectedInformationGain a number in [0,1]; only done may null them. Use valid schema enums and runtime registry IDs. INACTIVE ACTION FIELD SHAPE: {\"url\":null,\"searches\":[],\"findings\":[]}. Parallel web searches require 2–4 objects with query/provider/locale/market/purpose. Each finding requires vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason.";
       const compactResearchContract = "MISSION PRIORITY: the human objective and realistic-targetability gate outrank conflicting advice. Preserve supplied geography; if none was supplied, do not invent or broaden one. A block, no-hit, or unavailable source is not negative evidence. After failure, revise the failed source/query dimension; do not broaden geography or switch jurisdictions. Companies, people and assets are distinct target classes; web and enabled registries have neutral standing, no named default, fixed source order, or broad discovery exercise. Use only advertised adapters and observed/grounded follow-up URLs. Search snippets are leads, not evidence. visit supports text-bearing PDFs; browser_fetch is HTML-only. Scanned/encrypted/malformed PDF failure is unobserved.";
       const compactActionLiveness = "ACTION LIVENESS: Block exact repeats unless hypothesis/purpose, provider/market/resource, or new evidence changes.";
-      const compactDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY: follow the active case objective and Boss-approved scope. People, companies and assets are distinct target classes; prioritize those the objective names. Do not impose ownership/wealth criteria unless the objective requires them. Preserve relevant provisional leads; tie each hypothesis/source to the entity, role, relationship or materiality required by the objective. Prestige/rankings alone are not targets. Choose sources and actions freely; no fixed sequence. Preserve supplied geography and never invent a jurisdiction.": null;
-      const minimalDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY: follow the active objective and Boss scope; prioritize its named target classes. Do not impose wealth/ownership criteria unless required. Preserve relevant review leads, tie sources to the role/relationship/materiality the objective requires, and choose evidence-led actions without a fixed sequence. Do not invent geography or targets.": null;
+      const descriptorSearchGuidance = "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: for wealth/person discovery, words such as lesser-known or under-the-radar and generic nouns such as people/entities describe the desired result, not a search query or target. Do not submit a query that merely repeats or paraphrases the mission. Before searching, formulate a concrete, falsifiable public-evidence hypothesis linked to the active objective, such as ownership/control/equity/investment, a material business/property asset, operating/franchise/concession rights, or a transaction/exit. These are evidence-signal categories, not a query, target, provider, source, or action sequence; choose the exact subject, terms, source and next action yourself from evidence and available capabilities. Other objectives use their own evidence criteria.";
+      const compactDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY: follow the active case objective and Boss-approved scope. People, companies and assets are distinct target classes; prioritize those the objective names. Do not impose ownership/wealth criteria unless the objective requires them. Preserve relevant provisional leads; tie each hypothesis/source to the entity, role, relationship or materiality required by the objective. Prestige/rankings alone are not targets. Choose sources and actions freely; no fixed sequence. Preserve supplied geography and never invent a jurisdiction. " + descriptorSearchGuidance : null;
+      const minimalDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY: follow the active objective and Boss scope; prioritize its named target classes. Do not impose wealth/ownership criteria unless required. Preserve relevant review leads, tie sources to the role/relationship/materiality the objective requires, and choose evidence-led actions without a fixed sequence. Do not invent geography or targets. " + descriptorSearchGuidance : null;
       const minimalDiscoveryAdmissionContract = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF: preserve relevant exact-name organization and person leads as review-only cards with observed public HTTPS URLs. Organization search-only notes must say search_result_lead/page not fetched and no ownership/wealth/person/contact conclusion. Person search-only notes must include LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; and no ownership/wealth/role/identity/contact claim. Do not wait for fetch or ownership clues before preserving a provisional person lead. After visit/browser_fetch, bind sourceUrls=[that fetched URL only] to the exact fetched source span. Qualification follows the active objective: B2B decision-makers need fetched current role, company connection and public/professional route; wealth/investor targets also need ownership/control/equity/investment and credible wealth-potential evidence. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Never invent." : null;
       const compactLivenessGuidance = discoveryLivenessAdvisory ? "OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available): this suggestion does not mandate visiting, browsing, or any particular provider." : null;
       const compactBossQuestion = extractBossPivotDirectionForCompactPrompt(input.objective ?? "")
@@ -5459,7 +5466,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         : "";
       const minimalEmergencyPrefix = [
         emergencyAssignment,
-        compactCaseObjective,
+        authoritativeCaseObjective,
+        activeBossScopeSection,
         compactResearchContract,
         compactActionLiveness,
         availableActionsGuidance,
@@ -5492,18 +5500,10 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         "Conditional specialist OSINT actions are permitted ONLY when the exact action appears in ACTION ALLOWLIST and AVAILABLE ACTIONS this turn; otherwise unavailable.",
         "DISCOVERY LEAD HANDOFF CONTRACT / PARTIAL FINDINGS (not terminal-only): preserve relevant model-selected company/person review leads on the action that reveals them; use the exact observed name and associated public HTTPS URL; a person's role may be null when unknown. A review lead is not proof of wealth, ownership, identity or contact. Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence. Other objectives use their own criteria. Never infer wealth from seniority. After a successful visit/browser_fetch, sourceUrls=[that fetched URL only]; claims bind to the exact fetched source span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion; it matches the admitted target type (person, organization, trust, or asset) and independently corroborates/falsifies the lead. SCOPE GUARD BLOCKED ACTION is a control state, not negative evidence; explain any material deviation; failure is not disproof. RUNTIME-AVAILABLE REGISTRY IDS ONLY (RUNTIME-CALLABLE REGISTRY IDS): never invent an ID based on a jurisdiction; unavailable/failed is not a no-hit. PAGE FORMAT / RETRIEVAL LIMITS: visit supports bounded text extraction; password-protected and malformed PDFs are distinct failures; scanned/image-only PDFs require OCR (unavailable). LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when useful; action choice remains with the Investigator. RESEARCH TERMINAL GATE (authoritative): minEvidence=" + terminalContract.minEvidence + "; minIndependentSourceUnits=" + terminalContract.minIndependentSourceUnits + "; requireExactSpanForFindings=" + terminalContract.requireExactSpanForFindings + "; requireFalsification=" + terminalContract.requireFalsification + "; do not claim done unless the gate passes.",
       ].join(" ");
-      const finalEmergencyObjective = input.objective?.trim()
-        ? (() => {
-            const compactObjective = compactEmergencyInvestigatorObjective(input.objective);
-            const caseObjective = compactObjective.split("BOSS ADVISORY DIRECTION", 1)[0]?.trim() ?? "";
-            const activeScope = extractBossPivotDirectionForCompactPrompt(input.objective ?? "")
-              || extractBossOpeningDirectionForCompactPrompt(input.objective ?? "");
-            return [
-              caseObjective,
-              ...(activeScope ? ["ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 420) + "; BOSS ADVISORY DIRECTION (not a fixed action sequence)"] : []),
-            ].filter(Boolean).join("\n");
-          })()
-        : "";
+      const finalEmergencyObjective = [
+        authoritativeCaseObjective,
+        activeBossScopeSection,
+      ].filter(Boolean).join("\n");
       const finalEmergencyPrefix = [
         finalEmergencyAssignment,
         finalEmergencyObjective,
@@ -5542,13 +5542,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // duplicative case-objective summary rather than truncate the pivot.
       const activeScope = extractBossPivotDirectionForCompactPrompt(input.objective ?? "")
         || extractBossOpeningDirectionForCompactPrompt(input.objective ?? "");
-      const buildObjectiveAndScope = (objectiveChars: number, scopeChars: number) => [
-        input.objective?.trim()
-          ? "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective, objectiveChars)
-          : "CASE OBJECTIVE: source-backed public research aligned with the active case objective; never invent evidence.",
-        activeScope ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, scopeChars) : "",
-      ].filter(Boolean).join("\n");
-      const boundedMinimumObjective = buildObjectiveAndScope(220, 140);
+      const buildObjectiveAndScope = () => [
+        authoritativeCaseObjective,
+        activeBossScopeSection,
+      ].filter(Boolean).join("\n\n");
+      const boundedMinimumObjective = buildObjectiveAndScope();
       const smallestEmergencyPrefix = [
         finalEmergencyAssignment,
         boundedMinimumObjective,
