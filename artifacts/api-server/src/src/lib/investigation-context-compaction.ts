@@ -335,17 +335,23 @@ function extractEmbeddedBossDirection(raw: string, start: number): string {
  * The prompt builder keeps only the first 2,000 objective characters, so a
  * Boss-directed question must not be appended after large state/history blobs.
  */
+/**
+ * Compose the complete primary objective and current Boss direction. This helper
+ * has a hard safety ceiling, but it never truncates either instruction: if the
+ * complete mission cannot fit, fail closed so no model receives a rewritten
+ * objective or a silently narrowed scope.
+ */
 export function buildBoundedInvestigatorObjective(input: {
   base: string;
   direction?: string | null;
   maxChars?: number;
 }): string {
-  const maxChars = Math.min(1_900, Math.max(1_000, Math.floor(input.maxChars ?? 1_800)));
+  const maxChars = Math.min(24_000, Math.max(1_000, Math.floor(input.maxChars ?? 12_000)));
   const pivotMarker = "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:";
-  const objectiveLabel = "PRIMARY CASE OBJECTIVE:\n";
+  const objectiveLabel = "PRIMARY CASE OBJECTIVE:\\n";
   const compactPivotMarker = "CURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):";
-  const decisionLawMarker = "\n\nChoose each next action yourself from the available capabilities and observed evidence.";
-  const directionSuffixMarker = "\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue.";
+  const decisionLawMarker = "\\n\\nChoose each next action yourself from the available capabilities and observed evidence.";
+  const directionSuffixMarker = "\\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue.";
 
   const primaryIndex = input.base.indexOf(objectiveLabel);
   const structuredPivotIndex = input.base.indexOf(compactPivotMarker);
@@ -355,8 +361,7 @@ export function buildBoundedInvestigatorObjective(input: {
   let embeddedDirection = "";
 
   // The per-act runtime may pass this builder its own prior output. Parse the
-  // structured representation before bounding again, rather than nesting or
-  // truncating away the current Boss question.
+  // structured representation before composing the next complete instruction.
   if (primaryIndex >= 0 || structuredPivotIndex >= 0) {
     const baseStart = primaryIndex >= 0 ? primaryIndex + objectiveLabel.length : 0;
     const baseBoundaries = [structuredPivotIndex, decisionLawIndex, legacyPivotIndex]
@@ -381,32 +386,20 @@ export function buildBoundedInvestigatorObjective(input: {
   }
 
   const requestedDirection = input.direction?.trim() || embeddedDirection;
-  const directionPrefix = "\n\nCURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\n";
-  const directionSuffix = "\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue.";
-  const decisionLaw = "\n\nChoose each next action yourself from the available capabilities and observed evidence. Treat the Boss-directed question as a hypothesis, not a factual guarantee or tool plan: verify its premises against observed public evidence; if contradicted or reliant on inaccessible/nonpublic data, state that and pivot to a feasible public-source question. Keep each action directly relevant to the current question: pursue its named filing, entity, registry, or evidence anchor, or explicitly report the observed reason it is infeasible before pivoting. Do not silently replace domain-specific terms with unrelated homonyms or meanings. Do not follow a prescribed tool order; prioritize information gain, identity discrimination, source independence, and the primary case objective.";
-  // Reserve space for the primary objective, the decision-law suffix and a
-  // useful amount of base-objective evidence before choosing direction length.
-  const directionBudget = Math.max(0, Math.min(
-    700,
-    maxChars - objectiveLabel.length - directionPrefix.length - directionSuffix.length - decisionLaw.length - 100,
-  ));
-  const direction = requestedDirection.slice(0, directionBudget);
-  const directionBlock = direction ? directionPrefix + direction + directionSuffix : "";
-  const baseBudget = Math.max(0, maxChars - objectiveLabel.length - directionBlock.length - decisionLaw.length);
-  let boundedBase = baseText;
-  if (boundedBase.length > baseBudget) {
-    const marker = "\n[OBJECTIVE MIDDLE OMITTED; preserve the case objective and Boss question above working history]\n";
-    if (baseBudget <= marker.length + 4) {
-      boundedBase = boundedBase.slice(0, baseBudget);
-    } else {
-      const available = baseBudget - marker.length;
-      const head = Math.ceil(available * 0.62);
-      boundedBase = boundedBase.slice(0, head).trimEnd()
-        + marker
-        + boundedBase.slice(-(available - head)).trimStart();
-    }
+  const directionPrefix = "\\n\\nCURRENT BOSS-DIRECTED RESEARCH QUESTION (scope constraint, not a fixed tool sequence):\\n";
+  const directionSuffix = "\\nPursue this question unless observed evidence directly disproves it or makes it impossible to pursue.";
+  const decisionLaw = "\\n\\nChoose each next action yourself from the available capabilities and observed evidence. Treat the Boss-directed question as a hypothesis, not a factual guarantee or tool plan: verify its premises against observed public evidence; if contradicted or reliant on inaccessible/nonpublic data, state that and pivot to a feasible public-source question. Keep each action directly relevant to the current question: pursue its named filing, entity, registry, or evidence anchor, or explicitly report the observed reason it is infeasible before pivoting. Do not silently replace domain-specific terms with unrelated homonyms or meanings. Do not follow a prescribed tool order; prioritize information gain, identity discrimination, source independence, and the primary case objective.";
+  const directionBlock = requestedDirection
+    ? directionPrefix + requestedDirection + directionSuffix
+    : "";
+  const composed = objectiveLabel + baseText + directionBlock + decisionLaw;
+
+  if (composed.length > maxChars) {
+    throw new Error(
+      "Cannot preserve the complete Investigator objective and Boss direction within maxChars=" + maxChars + ".",
+    );
   }
-  return (objectiveLabel + boundedBase + directionBlock + decisionLaw).slice(0, maxChars);
+  return composed;
 }
 
 export function buildInvestigatorContext(input: InvestigatorContextInput): string {
