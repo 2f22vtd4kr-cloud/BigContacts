@@ -90,6 +90,8 @@ describe("Apex Atlas prompt budget optimization", () => {
       expect(prompt).toContain("wealth/investor targets also need source-backed ownership/control/equity/investment");
       expect(prompt).not.toContain("people are the ultimate mission");
       expect(prompt).not.toContain("People—not companies or executive prestige");
+      expect(prompt).not.toContain("owner/operator, ownership/investment or transaction signal");
+      expect(prompt).not.toContain("Seek source-backed ownership/equity/control/investment clues during target research");
     }
   });
 
