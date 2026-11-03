@@ -2071,7 +2071,12 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     // At the provider boundary, exact source URLs must survive whenever they can
     // fit. Prefer the URL-aware reducer instead of generic head/tail extraction.
     boundedPrefix = boundInvestigatorPromptSection(prefix, prefixBudget);
-    if (boundedPrefix.length > prefixBudget) boundedPrefix = "";
+    if (boundedPrefix.length > prefixBudget) {
+      if (containsVerbatimCaseObjective(boundedPrefix)) {
+        throw new Error("Cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
+      }
+      boundedPrefix = "";
+    }
   }
   const result = [boundedPrefix, protectedSuffix].filter(Boolean).join(separator);
   if (result.length > limit || !result.includes("ALL REQUIRED TOP-LEVEL FIELDS:")) {
