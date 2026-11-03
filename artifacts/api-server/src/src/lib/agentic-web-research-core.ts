@@ -3515,7 +3515,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       // otherwise the prior summary retains it only to have the minimal-tail
       // builder silently discard it before the model request is finalized.
       if (typeof parsed.observation === "string" && parsed.observation.trim()) {
-        compactRecord.observation = compactEmergencyTrajectoryObservation(parsed.observation, 100);
+        compactRecord.observation = compactEmergencyTrajectoryObservation(parsed.observation, 300);
       }
       for (const key of ["leadUrlsOmittedFromPromptCount", "observedUrlsOmittedFromPromptCount", "failureDomain", "failureKind"]) {
         if (parsed[key] !== undefined) compactRecord[key] = parsed[key];
