@@ -3079,6 +3079,7 @@ export function compactEmergencyTrajectoryObservation(observation: string, maxCh
     if (mismatch) {
       const geographyGuidance = /\bquery geography\b/i.test(mismatch)
         ? " The query field itself must include the geographic term from that scope; market/locale metadata or registry-domain text alone do not satisfy this check."
+        : "";
       return preserveSourceAlongsideGuard(
         `SCOPE GUARD BLOCKED ACTION (no request): ${mismatch}. market/locale metadata alone is insufficient; query field itself must include the geographic term. Request new scope from Boss/Right-hand when needed. ${geographyGuidance} Fetch only observed aligned URLs; choose an in-scope registry adapter; do not retry unchanged.${activeScope}`,
       );
@@ -3582,6 +3583,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       ? fetchedSourceClaimExcerpt
       : fetchedSourceExcerpt
         ? boundInvestigatorPromptSection(fetchedSourceExcerpt, 100)
+        : "";
     const compactRecordSummary = minimumDurableRecordSummaries.slice(-1);
     const compactLeadGuidance = hasSearchLeadContext
       ? "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads, not evidence until fetched. This is not evidence or a mandated next action."
