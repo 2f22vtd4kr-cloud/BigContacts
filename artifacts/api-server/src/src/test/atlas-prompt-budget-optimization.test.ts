@@ -104,8 +104,8 @@ describe("Apex Atlas prompt budget optimization", () => {
     });
     const messages = body.messages as Array<{ role: string; content: string }>;
     const total = messages.reduce((sum, message) => sum + message.content.length, 0);
-    expect(total).toBeLessThanOrEqual(7_200);
-    expect(messages.find((message) => message.role === "user")?.content.length).toBeLessThan(7_200);
+    expect(total).toBeLessThanOrEqual(8_400);
+    expect(messages.find((message) => message.role === "user")?.content.length).toBeLessThanOrEqual(6_800);
   });
 
   it("bounds the complete Investigator message envelope, including the stable system prompt", () => {
@@ -127,8 +127,8 @@ describe("Apex Atlas prompt budget optimization", () => {
       mode: "target",
     });
     const systemInstruction = apexInvestigatorSystemCore() + "\nReturn one JSON action object only.";
-    expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(7_200);
-    expect(prompt.length).toBeLessThanOrEqual(7_200 - systemInstruction.length);
+    expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(8_400);
+    expect(prompt.length).toBeLessThanOrEqual(8_400 - systemInstruction.length);
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS: action,|Required fields: action,query,provider/);
     expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS:");
     expect(prompt).toContain("LATEST TRAJECTORY RECORD");

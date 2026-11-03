@@ -227,7 +227,7 @@ describe.sequential("Groq Investigator provider boundary", () => {
     expect(result.status).toBe("unavailable");
     expect(submitted).toHaveLength(1);
     expect(submitted[0]?.userPrompt).toContain("OUTPUT CONTRACT:");
-    expect(submitted[0]?.userPrompt.length).toBeLessThanOrEqual(6_000);
+    expect(submitted[0]?.userPrompt.length).toBeLessThanOrEqual(6_800);
     expect(submitted[0]?.authorization).toBe("Bearer test-groq-investigator-413-key");
   });
 

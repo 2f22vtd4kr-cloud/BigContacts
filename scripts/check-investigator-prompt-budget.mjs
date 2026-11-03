@@ -9,7 +9,7 @@ const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-burea
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
-assert(/MAX_PROVIDER_PROMPT_CHARS = 8_400/.test(core), "final Investigator provider prompt ceiling must be 7,200 characters");
+assert(/MAX_PROVIDER_PROMPT_CHARS = 8_400/.test(core), "final Investigator provider prompt ceiling must be 8,400 characters");
 assert(/maxChars: 3_500/.test(core), "working Investigator context must use the tighter 3,500-character budget");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /1_200,\n  \);/.test(core), "intelligence state must be bounded to 1,200 characters");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(promptCapabilities\), availablePythonActions\.size > 0 \? 2_200 : 1_000\)/.test(core), "worker capability guidance gets a bounded expansion only when those tools are attested");
