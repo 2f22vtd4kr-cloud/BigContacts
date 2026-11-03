@@ -225,9 +225,13 @@ export async function summarizeInvestigatorContextWithBoss(
 ): Promise<string | null> {
   const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
   if (!source) return "";
-  // An explicit omission marker means the objective is already incomplete; do not
-  // ask Boss to summarize or silently carry that corrupted mission context forward.
-  if (OBJECTIVE_OMISSION_MARKER.test(source)) return null;
+  // Only inspect the explicitly authoritative objective section. Public-page
+  // observations are untrusted data and may quote this marker without corrupting
+  // the actual case objective; those observations must remain eligible for AI compaction.
+  const objectiveSection = source.match(
+    /(?:^|\n)CURRENT CASE OBJECTIVE\s*\/\s*APPROVED BOSS SCOPE(?:\s*\(authoritative\))?:\s*([\s\S]*?)(?=\n[A-Z][A-Z0-9 /()_-]{4,}:\s*(?:\n|$)|$)/i,
+  );
+  if (objectiveSection && OBJECTIVE_OMISSION_MARKER.test(objectiveSection[1])) return null;
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
   const maxChars = Math.min(MAX_SUMMARY_CHARS, Math.max(MIN_SUMMARY_CHARS, requested));
   if (source.length <= maxChars) return source;
