@@ -1155,7 +1155,7 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(prompt).toMatch(/people, not companies\/prestige|People—not companies|DISCOVERY TARGETABILITY/i);
-    expect(prompt).toMatch(/ownership\/equity\/control|ownership\/control\/equity\/investment clue/i);
+    expect(prompt).toMatch(/ownership\/control\/equity\/investment/i);
     expect(prompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority|seniority is not wealth/i);
     expect(prompt).toMatch(/LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD|PERSON REVIEW/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
