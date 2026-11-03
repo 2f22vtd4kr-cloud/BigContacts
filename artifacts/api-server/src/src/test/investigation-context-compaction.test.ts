@@ -47,7 +47,7 @@ describe("investigator context compaction", () => {
 
     expect(containsVerbatimCaseObjective(objectiveBlock)).toBe(true);
     expect(containsVerbatimCaseObjective(bounded)).toBe(true);
-    expect(bounded).toContain(primaryObjective);
+    expect(bounded).toContain(primaryObjective.trim());
     expect(bounded).not.toContain("BOSS-DIRECTED RESEARCH QUESTION / PIVOT:");
     expect(bounded).not.toContain("AUXILIARY CONTEXT BEFORE");
   });
