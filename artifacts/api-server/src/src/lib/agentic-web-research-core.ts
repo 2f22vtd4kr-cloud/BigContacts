@@ -2037,6 +2037,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
   }
 
   const prefix = normalized.slice(0, outputStart).trim();
+  const requiresVerbatimObjective = containsVerbatimCaseObjective(prefix);
   const suffix = normalized.slice(outputStart).trim();
   const latestMarker = "\n\nLATEST TRAJECTORY RECORD";
   const latestStart = suffix.lastIndexOf(latestMarker);
@@ -2079,6 +2080,9 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
     }
   }
   const result = [boundedPrefix, protectedSuffix].filter(Boolean).join(separator);
+  if (requiresVerbatimObjective && !containsVerbatimCaseObjective(result)) {
+    throw new Error("Cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
+  }
   if (result.length > limit || !result.includes("ALL REQUIRED TOP-LEVEL FIELDS:")) {
     throw new Error("Cannot compose a contract-preserving Investigator provider prompt within maxPromptChars=" + limit + ".");
   }
