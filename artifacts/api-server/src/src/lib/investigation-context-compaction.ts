@@ -570,12 +570,67 @@ export function compactInvestigationContext(input: {
  * It preserves the beginning (institutional/task contract) and end (latest state/action
  * instructions) while shrinking the middle. Durable records are unaffected.
  */
+export const VERBATIM_CASE_OBJECTIVE_BEGIN = "<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>";
+export const VERBATIM_CASE_OBJECTIVE_END = "<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>";
+
+/**
+ * Extract the human-authored primary objective from a composed case objective
+ * and wrap it as a non-compacting prompt section. Boss directions, opening
+ * decisions and prior-attempt notes remain separate contextual instructions.
+ */
+export function buildAuthoritativeCaseObjectiveBlock(rawObjective: string): string {
+  const raw = typeof rawObjective === "string" ? rawObjective.trim() : "";
+  if (!raw) return "";
+
+  const primaryMarker = "PRIMARY CASE OBJECTIVE:";
+  const primaryIndex = raw.indexOf(primaryMarker);
+  let objective = primaryIndex >= 0 ? raw.slice(primaryIndex + primaryMarker.length).trim() : raw;
+  const boundary = objective.search(
+    /\n(?:BOSS-DIRECTED RESEARCH QUESTION \/ PIVOT:|CURRENT BOSS-DIRECTED RESEARCH QUESTION(?: \(scope constraint, not a fixed tool sequence\))?:|BOSS OPENING CONTROL DIRECTION(?: \(advisory, not a fixed research sequence\))?:|BOSS FINAL OPENING DECISION:|RIGHT-HAND (?:OPENING )?REVIEW(?: \(advisory\))?:|PRIOR-ATTEMPT CONTEXT(?: \([^)]*\))?:|RECENT PRIOR ACTS(?: \([^)]*\))?:|Choose each next action yourself from the available capabilities and observed evidence\.)/i,
+  );
+  if (boundary >= 0) objective = objective.slice(0, boundary).trim();
+  if (!objective) return "";
+
+  return [
+    "CASE OBJECTIVE: verbatim human objective; authoritative and not model-generated",
+    VERBATIM_CASE_OBJECTIVE_BEGIN,
+    objective,
+    VERBATIM_CASE_OBJECTIVE_END,
+  ].join("\n");
+}
+
+export function containsVerbatimCaseObjective(value: string): boolean {
+  return value.includes(VERBATIM_CASE_OBJECTIVE_BEGIN) && value.includes(VERBATIM_CASE_OBJECTIVE_END);
+}
+
 /** Bound an auxiliary model-state section without deleting the durable state behind it. */
 export function boundInvestigatorPromptSection(value: string, maxChars = 6_000): string {
   const normalized = typeof value === "string" ? value.trim() : "";
   const marker = "[AUXILIARY CONTEXT BOUND: middle omitted; URL edges omitted whole; full state durable]";
   const requested = Number.isFinite(maxChars) ? Math.floor(maxChars) : 6_000;
   const bounded = Math.max(marker.length + 2, Math.min(12_000, requested));
+
+  // The human objective is authoritative, not auxiliary context. Keep its
+  // complete marked block intact and compact only the surrounding material.
+  const objectiveStart = normalized.indexOf(VERBATIM_CASE_OBJECTIVE_BEGIN);
+  const objectiveEnd = objectiveStart >= 0
+    ? normalized.indexOf(VERBATIM_CASE_OBJECTIVE_END, objectiveStart)
+    : -1;
+  if (objectiveStart >= 0 && objectiveEnd >= objectiveStart) {
+    const headingStart = Math.max(0, normalized.lastIndexOf("CASE OBJECTIVE:", objectiveStart));
+    const blockEnd = objectiveEnd + VERBATIM_CASE_OBJECTIVE_END.length;
+    const objectiveBlock = normalized.slice(headingStart, blockEnd).trim();
+    const surrounding = [
+      normalized.slice(0, headingStart).trim(),
+      normalized.slice(blockEnd).trim(),
+    ].filter(Boolean).join("\n\n");
+    if (!surrounding) return objectiveBlock;
+    const remaining = bounded - objectiveBlock.length - 2;
+    if (remaining <= marker.length + 1) return objectiveBlock;
+    const compactedSurrounding = compactPromptSectionPreservingUrlTokens(surrounding, remaining, marker);
+    return [objectiveBlock, compactedSurrounding].filter(Boolean).join("\n\n");
+  }
+
   return compactPromptSectionPreservingUrlTokens(normalized, bounded, marker);
 }
 
