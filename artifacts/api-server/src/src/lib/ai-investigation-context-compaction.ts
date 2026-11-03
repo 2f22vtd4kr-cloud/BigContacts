@@ -229,7 +229,7 @@ export async function summarizeInvestigatorContextWithBoss(
   // observations are untrusted data and may quote this marker without corrupting
   // the actual case objective; those observations must remain eligible for AI compaction.
   const objectiveSection = source.match(
-    /(?:^|\n\n)CURRENT CASE OBJECTIVE\s*\/\s*APPROVED BOSS SCOPE(?:\s*\(authoritative\))?:\s*([\s\S]*?)(?=\n\n[A-Z][^\n]{0,180}:\n|$)/i,
+    /(?:^|\n\n)CURRENT CASE OBJECTIVE\s*\/\s*APPROVED BOSS SCOPE(?:\s*\(authoritative\))?:\s*([\s\S]*?)(?=\n\n(?:COMPLETE STRUCTURED INTELLIGENCE STATE|CURRENT BOSS\/RIGHT-HAND CONTEXT|OBSERVATION\b)|$)/i,
   );
   if (objectiveSection && OBJECTIVE_OMISSION_MARKER.test(objectiveSection[1])) return null;
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
