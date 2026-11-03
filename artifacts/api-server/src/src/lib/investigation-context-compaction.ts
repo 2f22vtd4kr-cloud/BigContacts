@@ -330,6 +330,14 @@ function extractEmbeddedBossDirection(raw: string, start: number): string {
   return remainder.slice(0, boundary >= 0 ? boundary : undefined).trim();
 }
 
+const OBJECTIVE_OMISSION_MARKER = /\[(?:OBJECTIVE|CASE OBJECTIVE)\s+MIDDLE OMITTED\b|\[(?:MIDDLE OF )?OBJECTIVE(?: MIDDLE)? OMITTED\b/i;
+
+function assertCompleteCaseObjective(value: string, label: string): void {
+  if (OBJECTIVE_OMISSION_MARKER.test(value)) {
+    throw new Error(label + " contains an objective-omission marker; refusing to send a partial case objective to an Investigator.");
+  }
+}
+
 /**
  * Compose the complete primary objective and current Boss direction. This helper
  * has a hard safety ceiling, but it never truncates either instruction: if the
@@ -341,6 +349,8 @@ export function buildBoundedInvestigatorObjective(input: {
   direction?: string | null;
   maxChars?: number;
 }): string {
+  assertCompleteCaseObjective(input.base, "Investigator objective");
+  if (input.direction) assertCompleteCaseObjective(input.direction, "Boss direction");
   const maxChars = Math.min(24_000, Math.max(1_000, Math.floor(input.maxChars ?? 12_000)));
   const pivotMarker = "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:";
   const objectiveLabel = "PRIMARY CASE OBJECTIVE:\n";
@@ -567,6 +577,7 @@ export const VERBATIM_CASE_OBJECTIVE_END = "<<<APEX_VERBATIM_CASE_OBJECTIVE_END>
  */
 export function buildAuthoritativeCaseObjectiveBlock(rawObjective: string): string {
   const raw = typeof rawObjective === "string" ? rawObjective.trim() : "";
+  assertCompleteCaseObjective(raw, "Authoritative case objective");
   if (!raw) return "";
 
   const primaryMarker = "PRIMARY CASE OBJECTIVE:";
