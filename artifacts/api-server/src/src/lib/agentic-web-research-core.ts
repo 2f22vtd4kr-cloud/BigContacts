@@ -6387,7 +6387,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
       if (aiCompactedHistoricalContext && !prompt.includes(aiCompactedHistoricalContext)) {
         const shorterMemory = await summarizeInvestigatorContextWithBoss({
           rawContext: aiCompactedHistoricalContext,
-          maxChars: 900,
+          maxChars: 1_200,
           jobId: input.jobId,
           caseId: input.caseId,
         });
