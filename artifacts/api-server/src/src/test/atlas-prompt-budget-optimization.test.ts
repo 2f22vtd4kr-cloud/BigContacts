@@ -44,7 +44,7 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(context).toContain("RESEARCH FRONTIER");
   });
 
-  it("keeps a live-sized Boss-compacted latest observation intact when historical memory is mounted", () => {
+  it("keeps both ends of a live-sized Boss-compacted latest observation through both prompt assembly paths", () => {
     const observation = "LATEST_OBSERVATION_START " + "x".repeat(1_005 - "LATEST_OBSERVATION_START ".length - "LATEST_OBSERVATION_END".length) + "LATEST_OBSERVATION_END";
     expect(observation.length).toBeGreaterThan(900);
     expect(observation.length).toBeLessThan(1_200);

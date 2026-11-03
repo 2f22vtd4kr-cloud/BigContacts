@@ -5238,7 +5238,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     }
     return parts.join("\n\n");
   };
-  const latestRecordTail = buildLatestRecordTail(220, 3);
+  const latestRecordTail = buildLatestRecordTail(520, 3);
   const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length));
   const finalizeEmergencyPrompt = (basePrompt: string): string => {
     const normalizedBase = basePrompt.trim();
