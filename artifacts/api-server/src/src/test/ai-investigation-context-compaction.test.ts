@@ -133,6 +133,12 @@ describe("AI investigation context compaction", () => {
     expect(extractAiContextUrls(`${sourceUrl}:`)).toEqual([`${sourceUrl}:`]);
   });
 
+  it("treats JSON-escaped LF and CRLF sequences as URL field boundaries", () => {
+    const sourceUrl = "https://source.example/records/ownership-42";
+    expect(extractAiContextUrls(sourceUrl + String.raw`\nCheck the next field`)).toEqual([sourceUrl]);
+    expect(extractAiContextUrls(sourceUrl + String.raw`\r\nNext field: additional context`)).toEqual([sourceUrl]);
+  });
+
   it("fails closed when the model cannot produce required working memory", async () => {
     const source = "CANONICAL CASE MEMORY " + "Named source facts and unresolved questions. ".repeat(45);
     bossMocks.generateGroqBossText.mockRejectedValueOnce(new Error("mock provider unavailable"));

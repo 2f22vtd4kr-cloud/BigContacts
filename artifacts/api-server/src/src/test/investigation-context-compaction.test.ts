@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { extractAiContextUrls, splitAiContextIntoChunks } from "../lib/ai-investigation-context-compaction";
-import { boundInvestigatorPromptSection, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildAuthoritativeCaseObjectiveBlock, containsVerbatimCaseObjective, buildBoundedInvestigatorObjective, buildInvestigatorContext, compactCanonicalDiscoveryContinuationContext, compactInvestigationContext, compactPromptSectionPreservingUrlTokens, getInvestigatorContextBudget, shouldCreateInvestigatorResearchMemory, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("AI-driven investigation memory compaction transport", () => {
   it("splits only for transport and retains every source character and repeated URL", () => {
@@ -29,6 +29,29 @@ describe("AI-driven investigation memory compaction transport", () => {
 });
 
 describe("investigator context compaction", () => {
+  it("keeps the complete human objective intact when auxiliary prompt sections are bounded", () => {
+    const primaryObjective = "Discover lesser-known people with credible wealth potential. "
+      + "The objective's evidence requirements and public/professional contact constraints remain authoritative. ".repeat(18);
+    const compositeObjective = [
+      "PRIMARY CASE OBJECTIVE:",
+      primaryObjective,
+      "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+      "Test one current evidence hypothesis without prescribing a source or action sequence.",
+      "BOSS FINAL OPENING DECISION: proceed.",
+    ].join("\n");
+    const objectiveBlock = buildAuthoritativeCaseObjectiveBlock(compositeObjective);
+    const bounded = boundInvestigatorPromptSection(
+      "AUXILIARY CONTEXT BEFORE\n\n" + objectiveBlock + "\n\nAUXILIARY CONTEXT AFTER",
+      120,
+    );
+
+    expect(containsVerbatimCaseObjective(objectiveBlock)).toBe(true);
+    expect(containsVerbatimCaseObjective(bounded)).toBe(true);
+    expect(bounded).toContain(primaryObjective.trim());
+    expect(bounded).not.toContain("BOSS-DIRECTED RESEARCH QUESTION / PIVOT:");
+    expect(bounded).not.toContain("AUXILIARY CONTEXT BEFORE");
+  });
+
   it("does not invoke AI memory compaction on a fresh first turn with no historical Investigator records", () => {
     expect(shouldCreateInvestigatorResearchMemory({ hasExistingMemory: false, historicalRecordCount: 0, sourceChars: 12_000, priorContextChars: 4_000 })).toBe(false);
   });

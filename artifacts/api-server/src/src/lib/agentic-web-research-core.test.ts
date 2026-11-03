@@ -72,6 +72,10 @@ describe("model-owned discovery relevance reasoning", () => {
     expect(discoveryPrompt).not.toContain("local/sector web");
     expect(discoveryPrompt).not.toContain("defined sector and geography");
     expect(discoveryPrompt).toContain("No registry is preferred; choose by evidence.");
+    expect(discoveryPrompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
+    expect(discoveryPrompt).toContain("concrete, falsifiable public-evidence hypothesis");
+    expect(discoveryPrompt).toContain("These are signal categories, not a query, target, source, provider, jurisdiction, or action sequence");
+    expect(discoveryPrompt).not.toMatch(/must search (?:Companies House|SEC EDGAR|FAA)/i);
     expect(discoveryPrompt).not.toContain("randomize option order");
     const targetPrompt = buildStepPrompt({ ...input, mode: "target" });
     expect(targetPrompt).not.toContain("MODEL-OWNED RELEVANCE SELF-CHECK");
@@ -1080,6 +1084,36 @@ describe("Investigator prompt architecture", () => {
     expect(target).not.toContain("DISCOVERY TARGETABILITY GATE");
   });
 
+
+  it("keeps the complete human discovery objective separate from the Boss pivot", () => {
+    const primaryObjective = "Discover lesser-known people with credible wealth potential and realistic public/professional/intermediary contact routes. "
+      + "Companies are valid research leads but do not establish any owner's wealth. "
+      + "Assess source-backed ownership, equity, investment, control, material business/property assets, exits, and public/professional approach routes. ".repeat(16);
+    const pivot = "Test the ownership or operating-control hypothesis for a concrete company using independently selected public evidence.";
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: [
+        "PRIMARY CASE OBJECTIVE:",
+        primaryObjective,
+        "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
+        pivot,
+        "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
+      ].join("\n"),
+      history: [],
+      trajectoryRecords: [],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+    });
+
+    expect(prompt).toContain("<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>");
+    expect(prompt).toContain(primaryObjective.trim());
+    expect(prompt).toContain("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>");
+    expect(prompt).toContain(pivot);
+    expect(prompt).not.toContain("OBJECTIVE MIDDLE OMITTED");
+    expect(prompt).not.toContain("[AUXILIARY CONTEXT BOUND:");
+    expect(prompt).toContain("MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES");
+  });
 
   it("preserves the complete multiline Boss pivot in the emergency compact objective", () => {
     expect(extractBossPivotDirectionForCompactPrompt(
