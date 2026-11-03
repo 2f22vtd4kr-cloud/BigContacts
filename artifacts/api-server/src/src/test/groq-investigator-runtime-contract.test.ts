@@ -216,7 +216,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("only done may null them");
     expect(submitted).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
     expect(submitted).toContain("avoid generic wealth/net-worth/private-equity-profile searches alone unless in scope");
-    expect(submitted).toContain("AUTONOMY: Investigator models own research decisions: invent queries, choose pages/tools, pivot, stop.");
+    expect(submitted).toContain("Investigator chooses actions; no fixed recovery sequence.");
+    expect(submitted).toContain("MISSION PRIORITY: the human objective and realistic-targetability gate outrank conflicting advice.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
     expect(submitted).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route");
     expect(submitted).toContain('"url":null');
