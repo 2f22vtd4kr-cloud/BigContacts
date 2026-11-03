@@ -592,9 +592,8 @@ export function buildAuthoritativeCaseObjectiveBlock(rawObjective: string): stri
   if (!objective) return "";
 
   return [
-    "CASE OBJECTIVE: verbatim human objective; authoritative and not model-generated",
     VERBATIM_CASE_OBJECTIVE_BEGIN,
-    objective,
+    "CASE OBJECTIVE: " + objective,
     VERBATIM_CASE_OBJECTIVE_END,
   ].join("\n");
 }
