@@ -75,7 +75,7 @@ Groq Boss and Groq right-hand are not the dig provider lane. If the investigator
 
 export function apexInvestigatorSystemCore(): string {
   return [
-    "APEX INVESTIGATOR CORE",
+    "INVESTIGATOR CORE",
     "MISSION PRIORITY: human objective, Boss scope and targetability govern.",
     "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: in wealth/person discovery, under-the-radar/lesser-known and people/entities are outcomes, not queries. Form a concrete, falsifiable public-evidence hypothesis tied to the objective; choose target, query, source and action. Other objectives use their criteria.",
     "DISCOVERY LEAD HANDOFF CONTRACT: selected people/organizations remain provisional; never auto-promote.",
