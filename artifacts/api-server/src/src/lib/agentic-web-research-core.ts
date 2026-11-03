@@ -319,7 +319,7 @@ type AgentAction = { action: "web_search"; query: string; provider: "serper" | "
 type ParsedAgentAction = AgentAction & { partialFindings: AgenticFinding[] };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
 const MAX_ITER = 64;
-export const MAX_CONSECUTIVE_ACTION_PARSE_FAILURES = 2; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const MAX_PROVIDER_PROMPT_CHARS = 7_200; const INVESTIGATOR_SYSTEM_PROMPT = () => apexInvestigatorSystemCore() + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096); export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000);
+export const MAX_CONSECUTIVE_ACTION_PARSE_FAILURES = 2; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const MAX_PROVIDER_PROMPT_CHARS = 8_400; const INVESTIGATOR_SYSTEM_PROMPT = () => apexInvestigatorSystemCore() + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const MAX_QUEUED_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_MAX_WAITERS, 128, 1, 4_096); export const AGENTIC_PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 125_000, 55_000, 10 * 60_000);
 const MIN_GROQ_INFERENCE_BUDGET_MS = 30_000;
 export function deriveProviderBoundedActTimeoutMs(remainingMs: number, providerDecisionBudgetMs = AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, maxActMs = 180_000): number {
   const remaining = Number.isFinite(remainingMs) ? Math.max(0, Math.floor(remainingMs)) : 0;
@@ -2086,7 +2086,7 @@ function boundInvestigatorProviderPrompt(prompt: string, maxChars: number): stri
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask; actionAllowlist?: readonly string[] }): Record<string, unknown> {
   const { model, prompt, cognitiveTask, actionAllowlist } = input;
   const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
-  const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - systemPrompt.length));
+  const maxUserPromptChars = Math.max(1_000, Math.min(6_800, MAX_PROVIDER_PROMPT_CHARS - systemPrompt.length));
   const boundedPrompt = boundInvestigatorProviderPrompt(prompt, maxUserPromptChars);
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
   const responseFormat = structuredActionResponseFormat(model, actionAllowlist);
@@ -2657,7 +2657,7 @@ async function llmStepImpl(prompt: string, selectedInvestigatorLlm: Investigator
   }
   try {
     const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
-    const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars));
+    const maxUserPromptChars = Math.max(1_000, Math.min(6_800, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars));
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
     let boundedPrompt = prompt;
     if (prompt.length > maxUserPromptChars) {
@@ -5227,7 +5227,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     return parts.join("\n\n");
   };
   const latestRecordTail = buildLatestRecordTail(520, 3);
-  const maxUserPromptChars = Math.max(1_000, Math.min(5_600, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length));
+  const maxUserPromptChars = Math.max(1_000, Math.min(6_800, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length));
   const finalizeEmergencyPrompt = (basePrompt: string): string => {
     const normalizedBase = basePrompt.trim();
     const activeScopeForRecovery = extractBossPivotDirectionForCompactPrompt(input.objective ?? "");

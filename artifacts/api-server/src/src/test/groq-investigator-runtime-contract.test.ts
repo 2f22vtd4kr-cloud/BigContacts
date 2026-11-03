@@ -218,12 +218,12 @@ describe("Groq Investigator runtime contract", () => {
     expect(submitted).toContain("Avoid generic wealth/net-worth/private-equity-profile searches alone");
     expect(submitted).toContain("AUTONOMY: Investigator models own research decisions: invent queries, choose pages/tools, pivot, stop.");
     expect(submitted).toContain("RESEARCH TERMINAL GATE (authoritative)");
-    expect(submitted).toMatch(/Target-stage research tests material business\/asset\/exit signals, independently corroborates or falsifies/i);
+    expect(submitted).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route");
     expect(submitted).toContain('"url":null');
     expect(submitted).toContain("Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose");
     expect(submitted).toContain("Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason");
     expect(submitted).toContain('"searches":[],"findings":[]');
-    expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(7_200);
+    expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(8_400);
   });
 
   it("rejects nullable top-level rationale fields on non-terminal research actions", () => {
@@ -269,7 +269,7 @@ describe("Groq Investigator runtime contract", () => {
     });
     const messages = body.messages as Array<{ content: string }>;
 
-    expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(7_200);
+    expect(messages.reduce((total, message) => total + message.content.length, 0)).toBeLessThanOrEqual(8_400);
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
