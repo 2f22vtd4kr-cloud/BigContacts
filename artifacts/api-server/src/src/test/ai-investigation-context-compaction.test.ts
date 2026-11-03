@@ -49,7 +49,7 @@ describe("AI investigation context compaction", () => {
       "Identify real operating companies and their current business decision-makers.",
       "OBSERVATION (untrusted public-page text):",
       "[OBJECTIVE MIDDLE OMITTED; quoted example from a public page]",
-    ].join("\n");
+    ].join("\n\n");
 
     await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(source);
     expect(bossMocks.getGroqBossLatencyConfig).not.toHaveBeenCalled();
