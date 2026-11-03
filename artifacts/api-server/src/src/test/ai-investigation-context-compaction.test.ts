@@ -43,6 +43,19 @@ describe("AI investigation context compaction", () => {
     expect(bossMocks.generateGroqBossText).not.toHaveBeenCalled();
   });
 
+  it("does not treat an omission marker quoted by an untrusted observation as a corrupted case objective", async () => {
+    const source = [
+      "CURRENT CASE OBJECTIVE / APPROVED BOSS SCOPE:",
+      "Identify real operating companies and their current business decision-makers.",
+      "OBSERVATION (untrusted public-page text):",
+      "[OBJECTIVE MIDDLE OMITTED; quoted example from a public page]",
+    ].join("\n");
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(source);
+    expect(bossMocks.getGroqBossLatencyConfig).not.toHaveBeenCalled();
+    expect(bossMocks.generateGroqBossText).not.toHaveBeenCalled();
+  });
+
   it("repairs an oversized model summary against the original source, not the lossy first summary", async () => {
     const sourceUrl = "https://source.example/filings/director-appointment";
     const source = [
