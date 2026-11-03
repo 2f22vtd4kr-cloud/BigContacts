@@ -5336,7 +5336,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const requiredQualification = "Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence";
     const requiredAdditions = [
       !/OUTPUT CONTRACT:[\s\S]*?ALL REQUIRED TOP-LEVEL FIELDS: action,/.test(repaired) ? requiredOutputSchema : "",
-      isDiscoveryPrompt && !repaired.includes(requiredQualification) ? requiredQualification : "",
+      input.mode === "discovery" && !repaired.includes(requiredQualification) ? requiredQualification : "",
     ].filter(Boolean);
     if (requiredAdditions.length) repaired = [repaired.trim(), ...requiredAdditions].filter(Boolean).join("\n\n");
     // Drop only explicitly advisory paragraphs if needed; all required action,
