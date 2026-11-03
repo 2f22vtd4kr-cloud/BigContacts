@@ -331,11 +331,6 @@ function extractEmbeddedBossDirection(raw: string, start: number): string {
 }
 
 /**
- * Compose the short objective field independently from durable history/context.
- * The prompt builder keeps only the first 2,000 objective characters, so a
- * Boss-directed question must not be appended after large state/history blobs.
- */
-/**
  * Compose the complete primary objective and current Boss direction. This helper
  * has a hard safety ceiling, but it never truncates either instruction: if the
  * complete mission cannot fit, fail closed so no model receives a rewritten
