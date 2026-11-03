@@ -5165,7 +5165,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   const buildShortestEmergencyRecordTail = (): string => {
     const parts: string[] = [];
     if (latestRecord) {
-      const compact = compactRecordEnvelope(latestRecord, 8, 2);
+      const compact = compactRecordEnvelope(latestRecord, 300, 2);
       const compactArgs = compact.args as Record<string, unknown> | undefined;
       const boundedArgsHint = typeof compactArgs?.query === "string"
         ? { query: compactArgs.query.slice(0, 100) }
