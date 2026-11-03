@@ -54,7 +54,7 @@ describe("investigator context compaction", () => {
   });
 
   it("preserves a 1,005-character Boss-compacted latest observation when the larger context allowance is explicit", () => {
-    const observation = "OBSERVATION_START " + "source-backed detail ".repeat(45) + "OBSERVATION_END";
+    const observation = "OBSERVATION_START " + "x".repeat(1_005 - "OBSERVATION_START ".length - "OBSERVATION_END".length) + "OBSERVATION_END";
     expect(observation.length).toBeGreaterThan(900);
     expect(observation.length).toBeLessThan(1_200);
     const context = buildInvestigatorContext({

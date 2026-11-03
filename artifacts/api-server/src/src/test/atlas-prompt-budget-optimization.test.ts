@@ -45,7 +45,7 @@ describe("Apex Atlas prompt budget optimization", () => {
   });
 
   it("keeps a live-sized Boss-compacted latest observation intact when historical memory is mounted", () => {
-    const observation = "LATEST_OBSERVATION_START " + "source-backed evidence detail ".repeat(32) + "LATEST_OBSERVATION_END";
+    const observation = "LATEST_OBSERVATION_START " + "x".repeat(1_005 - "LATEST_OBSERVATION_START ".length - "LATEST_OBSERVATION_END".length) + "LATEST_OBSERVATION_END";
     expect(observation.length).toBeGreaterThan(900);
     expect(observation.length).toBeLessThan(1_200);
     const prompt = buildStepPrompt({

@@ -99,7 +99,7 @@ describe("AI investigation context compaction", () => {
   });
 
   it("accepts the 1,005-character recent-observation summary seen in the live case within the expanded bounded limit", async () => {
-    const source = "COMPLETE SOURCE MEMORY\\n" + "Observed facts, source-stage distinctions, and open questions. ".repeat(55);
+    const source = "COMPLETE SOURCE MEMORY\n" + "Observed facts, source-stage distinctions, and open questions. ".repeat(55);
     const summary = "S".repeat(1_005);
     bossMocks.generateGroqBossText.mockResolvedValueOnce({
       model: "mock-boss-model",
