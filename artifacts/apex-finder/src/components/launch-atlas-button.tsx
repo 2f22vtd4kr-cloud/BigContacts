@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { Loader2, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { launchAtlasPipeline, stopAtlasPipeline, type LaunchAtlasOptions } from "@/lib/launch-atlas";
+import { DEFAULT_ATLAS_DISCOVERY_OBJECTIVE, launchAtlasPipeline, stopAtlasPipeline, type LaunchAtlasOptions } from "@/lib/launch-atlas";
 import { useAtlasRun } from "@/lib/use-atlas-run";
 
 type Variant = "primary" | "header" | "reactor" | "ghost";
@@ -47,6 +47,7 @@ export function LaunchAtlasButton({
   const [status, setStatus] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
   const [launchDepth, setLaunchDepth] = useState<"fast" | "standard" | "deep">(opts?.researchDepth ?? "standard");
+  const [launchObjective, setLaunchObjective] = useState(opts?.discoveryObjective ?? DEFAULT_ATLAS_DISCOVERY_OBJECTIVE);
   const { run, refresh } = useAtlasRun(8_000);
 
   const running = (run.active || busy) && run.status !== "paused";
@@ -72,8 +73,13 @@ export function LaunchAtlasButton({
     } catch {
       // Health is advisory; canonical launch remains the authoritative gate.
     }
+    const objective = launchObjective.trim();
+    if (!objective) {
+      setStatus("Enter an investigation objective before launching Apex.");
+      return;
+    }
     setBusy(true);
-    const result = await launchAtlasPipeline({ ...opts, researchDepth: opts?.researchDepth ?? launchDepth });
+    const result = await launchAtlasPipeline({ ...opts, discoveryObjective: objective, researchDepth: opts?.researchDepth ?? launchDepth });
     setBusy(false);
     setStatus(result.message);
     onLaunched?.(result);
@@ -122,16 +128,34 @@ export function LaunchAtlasButton({
   }
 
   return (
-    <div className={cn("flex gap-2 sm:gap-2.5", variant === "primary" && "atlas-launch-primary-root", variant === "header" ? "flex-row items-center justify-end" : "flex-col sm:flex-row sm:items-center")}>
-      {variant !== "header" && !opts?.researchDepth && !inFlight && (
-        <select aria-label="Research depth" data-testid="select-launch-depth" value={launchDepth} onChange={(e) => setLaunchDepth(e.target.value === "deep" ? "deep" : e.target.value === "fast" ? "fast" : "standard")} className="h-12 rounded-lg border border-border bg-background/80 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground" title="fast / standard / deep — free dig budget only">
-          <option value="fast">Depth · fast</option><option value="standard">Depth · standard</option><option value="deep">Depth · deep</option>
-        </select>
+    <div className={cn("flex gap-2 sm:gap-2.5", variant === "primary" && "atlas-launch-primary-root", variant === "header" ? "flex-row items-center justify-end" : "w-full flex-col items-stretch")}>
+      {variant !== "header" && !inFlight && (
+        <label className="flex w-full flex-col gap-1.5">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">Investigation objective</span>
+          <textarea
+            aria-label="Investigation objective"
+            data-testid="textarea-atlas-discovery-objective"
+            value={launchObjective}
+            onChange={(event) => setLaunchObjective(event.target.value)}
+            maxLength={1_200}
+            rows={4}
+            disabled={busy || stopping}
+            className="w-full resize-y rounded-xl border border-border bg-background/80 px-3 py-2.5 text-xs leading-relaxed text-foreground outline-none transition-colors focus:border-primary/60 focus:ring-1 focus:ring-primary/30 disabled:opacity-60"
+          />
+          <span className="text-[10px] leading-relaxed text-muted-foreground">Apex chooses its own targets, sources, providers, queries and next actions from the evidence. You can edit this mission before launching.</span>
+        </label>
       )}
-      <button type="button" onClick={handleLaunch} disabled={busy || stopping} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
-        <span className="relative z-10 inline-flex items-center gap-2">{(busy || running) && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}<span className="whitespace-nowrap">{inFlight ? runningLabel : (label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas"))}</span></span>
-      </button>
-      {variant !== "header" && controls}
+      <div className={cn("flex gap-2 sm:gap-2.5", variant === "header" ? "flex-row items-center justify-end" : "flex-col sm:flex-row sm:items-center")}>
+        {variant !== "header" && !opts?.researchDepth && !inFlight && (
+          <select aria-label="Research depth" data-testid="select-launch-depth" value={launchDepth} onChange={(e) => setLaunchDepth(e.target.value === "deep" ? "deep" : e.target.value === "fast" ? "fast" : "standard")} className="h-12 rounded-lg border border-border bg-background/80 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground" title="fast / standard / deep — free dig budget only">
+            <option value="fast">Depth · fast</option><option value="standard">Depth · standard</option><option value="deep">Depth · deep</option>
+          </select>
+        )}
+        <button type="button" onClick={handleLaunch} disabled={busy || stopping} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
+          <span className="relative z-10 inline-flex items-center gap-2">{(busy || running) && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}<span className="whitespace-nowrap">{inFlight ? runningLabel : (label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas"))}</span></span>
+        </button>
+        {variant !== "header" && controls}
+      </div>
       {status && <p className={cn("w-full text-[10px] leading-relaxed font-mono", variant === "header" && "text-right", status.toLowerCase().includes("failed") || status.toLowerCase().includes("error") ? "text-rose-300" : "text-muted-foreground")} role="status">{status}</p>}
     </div>
   );

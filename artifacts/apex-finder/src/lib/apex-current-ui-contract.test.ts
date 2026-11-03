@@ -5,6 +5,7 @@ const manual = readFileSync(new URL("../pages/manual.tsx", import.meta.url), "ut
 const statusPage = readFileSync(new URL("../pages/status.tsx", import.meta.url), "utf8");
 const dataSources = readFileSync(new URL("../pages/data-sources.tsx", import.meta.url), "utf8");
 const launchButton = readFileSync(new URL("../components/launch-atlas-button.tsx", import.meta.url), "utf8");
+const launchHelper = readFileSync(new URL("./launch-atlas.ts", import.meta.url), "utf8");
 const reactorPage = readFileSync(new URL("../pages/reactor.tsx", import.meta.url), "utf8");
 const mobileReactor = readFileSync(new URL("../components/mobile-reactor-flow.tsx", import.meta.url), "utf8");
 const jobsPage = readFileSync(new URL("../pages/jobs.tsx", import.meta.url), "utf8");
@@ -87,6 +88,16 @@ describe("current Apex UI contract", () => {
     expect(mockData).toContain("groqBoss");
     expect(mockData).toContain("groqRightHand");
     expect(mockData).toContain("theHarvester");
+  });
+
+  it("passes an editable B2B case objective through every normal Atlas UI launch", () => {
+    expect(launchHelper).toContain("DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(launchHelper).toContain("discoveryObjective: opts.discoveryObjective?.trim() || DEFAULT_ATLAS_DISCOVERY_OBJECTIVE");
+    expect(launchHelper).toContain("A source-backed operating company is a valid finding");
+    expect(launchButton).toContain("textarea-atlas-discovery-objective");
+    expect(launchButton).toContain("maxLength={1_200}");
+    expect(launchButton).toContain("discoveryObjective: objective");
+    expect(launchButton).toContain("Apex chooses its own targets, sources, providers, queries and next actions from the evidence");
   });
 
   it("keeps the header launch control free of the aim/crosshair glyph", () => {
