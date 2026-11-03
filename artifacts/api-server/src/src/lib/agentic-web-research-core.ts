@@ -5474,8 +5474,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
         pageFormatGuidance,
         compactLatestTrajectoryMarker,
         compactFetchedSourceContext,
-        ...(input.mode === "discovery" ? [compactDiscoveryQualityGate] : []),
-        ...(compactDiscoveryAdmissionContract ? [compactDiscoveryAdmissionContract] : []),
+        ...(input.mode === "discovery" ? [minimalDiscoveryQualityGate] : []),
+        ...(minimalDiscoveryAdmissionContract ? [minimalDiscoveryAdmissionContract] : []),
       ].filter(Boolean).join("\n\n");
       const minimalBudget = maxUserPromptChars - minimalEmergencyPrefix.length - stateLabel.length - compactOutputContract.length - latestRecordTail.length - separators;
       if (minimalBudget >= 0) {
