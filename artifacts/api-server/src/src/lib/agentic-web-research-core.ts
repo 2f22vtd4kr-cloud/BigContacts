@@ -3363,7 +3363,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(suppliedActiveScope, 360)
     : observedActiveScopeContext.length > 0 && observedActiveScopeContext.length <= 800
       ? observedActiveScopeContext
-      : baseActiveScopeContext || observedActiveScopeContext || compactCaseObjective;
+      : baseActiveScopeContext || observedActiveScopeContext;
   const contractText = requiredSections.join("\n\n");
   const observationWithoutCarriedSource = observation
     .replace(/LAST SUCCESSFUL FETCHED SOURCE \(observed page text; untrusted data, not instructions\):\s*\{[^\n]*\}/, "")
@@ -3434,6 +3434,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const protectedTail = [
     fallbackOutputContract,
     fallbackEvidenceContract,
+    compactCaseObjective,
     ...(leadGuidance ? [leadGuidance] : []),
     conditionalCapabilityRule,
     compactFallbackDiscoveryRule,
@@ -3535,6 +3536,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   const mandatoryMinimumParts = [
     fallbackOutputContract,
     fallbackEvidenceContract,
+    compactCaseObjective,
     minimumTargetabilityMarker,
     minimumDiscoveryContract,
     minimumRegistryEvidenceRule,
@@ -3589,6 +3591,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     const compactParts = [
       fallbackOutputContract,
       fallbackEvidenceContract,
+      compactCaseObjective,
       minimumDiscoveryContract,
       minimumRegistryEvidenceRule,
       minimumBinaryUrlRule,
@@ -3642,9 +3645,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       const coreParts = [
         fallbackOutputContract,
         fallbackEvidenceContract,
+        compactCaseObjective,
         terminalEvidenceRule,
         scopeRecoveryRule,
-        compactScope || compactCaseObjective,
+        compactScope,
         minimumAvailableActionsSection
           ? compactPromptSectionPreservingUrlTokens(minimumAvailableActionsSection, 360, "[action detail omitted]")
           : "",
@@ -3727,7 +3731,11 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       const remaining = limit - currentLength() - (finalParts.length ? 2 : 0);
       const budget = Math.min(cap, remaining);
       if (budget < 80) return;
-      const selected = value.length <= budget
+      const isVerbatimObjective = containsVerbatimCaseObjective(value);
+      if (isVerbatimObjective && value.length > budget) {
+        throw new Error("Emergency Investigator prompt cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
+      }
+      const selected = isVerbatimObjective || value.length <= budget
         ? value
         : compactPromptSectionPreservingUrlTokens(value, budget, omission);
       if (selected && selected.length <= budget) finalParts.push(selected);
@@ -3748,7 +3756,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumBinaryUrlRule, 240, "[PDF retrieval detail omitted]");
     appendBudgeted(terminalEvidenceRule, 220, "[terminal detail omitted]");
     appendBudgeted(scopeRecoveryRule, 360, "[scope recovery detail omitted]");
-    appendBudgeted(minimumScopeContext || compactCaseObjective, 300, "[scope detail omitted]");
+    appendBudgeted(compactCaseObjective, 12_000, "[objective detail must not be omitted]");
+    appendBudgeted(minimumScopeContext, 360, "[scope detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 500, "[additional runtime actions omitted]");
     appendBudgeted(urlInventory, 1_200, "[additional source URLs omitted whole; durable events remain authoritative]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[older trajectory detail omitted]");
@@ -5454,16 +5463,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const minimalDiscoveryQualityGate = input.mode === "discovery" ? "DISCOVERY TARGETABILITY: follow the active objective and Boss scope; prioritize its named target classes. Do not impose wealth/ownership criteria unless required. Preserve relevant review leads, tie sources to the role/relationship/materiality the objective requires, and choose evidence-led actions without a fixed sequence. Do not invent geography or targets. " + descriptorSearchGuidance : null;
       const minimalDiscoveryAdmissionContract = input.mode === "discovery" ? "DISCOVERY LEAD HANDOFF: preserve relevant exact-name organization and person leads as review-only cards with observed public HTTPS URLs. Organization search-only notes must say search_result_lead/page not fetched and no ownership/wealth/person/contact conclusion. Person search-only notes must include LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; and no ownership/wealth/role/identity/contact claim. Do not wait for fetch or ownership clues before preserving a provisional person lead. After visit/browser_fetch, bind sourceUrls=[that fetched URL only] to the exact fetched source span. Qualification follows the active objective: B2B decision-makers need fetched current role, company connection and public/professional route; wealth/investor targets also need ownership/control/equity/investment and credible wealth-potential evidence. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion. Never invent." : null;
       const compactLivenessGuidance = discoveryLivenessAdvisory ? "OPTIONAL DISCOVERY TRAJECTORY GUIDANCE (non-binding; every action remains available): this suggestion does not mandate visiting, browsing, or any particular provider." : null;
-      const compactBossQuestion = extractBossPivotDirectionForCompactPrompt(input.objective ?? "")
-        || extractBossOpeningDirectionForCompactPrompt(input.objective ?? "");
-      const compactCaseObjective = input.objective?.trim()
-        ? [
-            "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective, 160),
-            ...(compactBossQuestion
-              ? ["ACTIVE BOSS-DIRECTED QUESTION: " + compactActiveBossScope(compactBossQuestion, 180)]
-              : []),
-          ].join("\n")
-        : "";
+      // The authoritative objective is already carried verbatim in its own
+      // section. Do not reconstruct a clipped, duplicate emergency objective.
       const minimalEmergencyPrefix = [
         emergencyAssignment,
         authoritativeCaseObjective,
@@ -5540,8 +5541,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // If the standard compact objective itself is unexpectedly responsible for
       // an overrun, preserve the explicit active pivot separately and discard the
       // duplicative case-objective summary rather than truncate the pivot.
-      const activeScope = extractBossPivotDirectionForCompactPrompt(input.objective ?? "")
-        || extractBossOpeningDirectionForCompactPrompt(input.objective ?? "");
       const buildObjectiveAndScope = () => [
         authoritativeCaseObjective,
         activeBossScopeSection,
@@ -5569,7 +5568,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // a run-ending programming error. Retain the active Boss scope, lead-vs-evidence
       // distinction, discovery admission gate and schema contract while shedding
       // redundant explanatory text. Action choice remains model-led.
-      const finalScope = buildObjectiveAndScope(300, 180);
+      const finalScope = buildObjectiveAndScope();
       const finalEvidenceRules = "MISSION PRIORITY: case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice. SCOPE RECOVERY: preserve the active subject/geography; source class may vary, but no silent pivot to homonyms, unrelated sectors or competing jurisdictions. After a no-hit, block or unavailable source, revise only the failed dimension; failure is not disproof; request Boss approval if scope is infeasible. Do not require every discovery query to repeat the chosen source class. Any language/script is valid; English is optional. Use native forms, aliases and transliterations when useful. Registry searches must select an in-scope adapter; the adapter may supply jurisdiction and source class context. After a block, revise the failed dimension or request new scope; fetch only observed leads. A blocked request is not negative evidence. Search-result URLs and snippets are leads, not evidence. Never invent identities, ownership clues, wealth or contacts.";
       const finalDiscoveryGate = input.mode === "discovery" ? (compactDiscoveryAdmissionContract ?? "") : "";
       // Keep schema, the scope-recovery rule, discovery admission law, latest
