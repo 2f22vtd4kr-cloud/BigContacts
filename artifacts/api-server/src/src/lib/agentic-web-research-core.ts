@@ -5328,6 +5328,17 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     if (!repaired.includes(latestFetchedSourceClaimMarker)) {
       repaired = [repaired.trim(), claimBlock].filter(Boolean).join("\n\n");
     }
+    // Re-assert two non-negotiable contracts at the final provider boundary.
+    // Earlier compact tiers may preserve a semantically equivalent paraphrase,
+    // but the machine-facing output envelope and objective-specific qualification
+    // rule must remain explicit and unambiguous.
+    const requiredOutputSchema = "OUTPUT CONTRACT: Return exactly ONE root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings.";
+    const requiredQualification = "Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence";
+    const requiredAdditions = [
+      !/OUTPUT CONTRACT:[\s\S]*?ALL REQUIRED TOP-LEVEL FIELDS: action,/.test(repaired) ? requiredOutputSchema : "",
+      isDiscoveryPrompt && !repaired.includes(requiredQualification) ? requiredQualification : "",
+    ].filter(Boolean);
+    if (requiredAdditions.length) repaired = [repaired.trim(), ...requiredAdditions].filter(Boolean).join("\n\n");
     // Drop only explicitly advisory paragraphs if needed; all required action,
     // objective, scope, qualification and output-schema contracts stay intact.
     const optionalHeadings = [
