@@ -23,7 +23,11 @@ export function extractAiContextUrls(value: string): string[] {
     // (for example, "https://host/post):"), not part of the URL token. Keep a
     // bare trailing colon intact so exact source-token checks stay conservative.
     const rawToken = match[0];
-    const tokenWithoutSentenceColon = /[)\]}]:$/u.test(rawToken) ? rawToken.slice(0, -1) : rawToken;
+    // Model-generated JSON summaries can serialize line boundaries as \\n
+    // or \\r\\n. Treat that sequence as a field boundary, not URL text.
+    const escapedLineBreak = rawToken.search(/(?:\\r)?\\n/u);
+    const serializedToken = escapedLineBreak >= 0 ? rawToken.slice(0, escapedLineBreak) : rawToken;
+    const tokenWithoutSentenceColon = /[)\]}]:$/u.test(serializedToken) ? serializedToken.slice(0, -1) : serializedToken;
     const candidate = tokenWithoutSentenceColon.replace(/[),.;!?\]}]+$/u, "");
     if (candidate) urls.add(candidate);
   }
