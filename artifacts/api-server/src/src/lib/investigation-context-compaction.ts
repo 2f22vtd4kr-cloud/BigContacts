@@ -616,7 +616,9 @@ export function boundInvestigatorPromptSection(value: string, maxChars = 6_000):
     ? normalized.indexOf(VERBATIM_CASE_OBJECTIVE_END, objectiveStart)
     : -1;
   if (objectiveStart >= 0 && objectiveEnd >= objectiveStart) {
-    const headingStart = Math.max(0, normalized.lastIndexOf("CASE OBJECTIVE:", objectiveStart));
+    // The marker is the authoritative block boundary. Any text before it is
+    // auxiliary context, even when it contains an earlier CASE OBJECTIVE label.
+    const headingStart = objectiveStart;
     const blockEnd = objectiveEnd + VERBATIM_CASE_OBJECTIVE_END.length;
     const objectiveBlock = normalized.slice(headingStart, blockEnd).trim();
     const surrounding = [
