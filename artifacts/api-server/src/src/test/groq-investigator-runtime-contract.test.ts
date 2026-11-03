@@ -274,7 +274,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toContain("source class");
     expect(prompt).toMatch(/DISCOVERY (?:ADMISSION|LEAD HANDOFF CONTRACT)/);
-    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source");
+    expect(prompt).toContain("Qualification follows the active objective");
   });
 
   it("uses the GPT-OSS-compatible reasoning contract", () => {
