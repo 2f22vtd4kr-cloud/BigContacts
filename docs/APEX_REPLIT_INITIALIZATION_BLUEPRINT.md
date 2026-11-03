@@ -91,14 +91,12 @@ The startup credential gate checks the active provider names used by the current
 3. GROQ_BOSS_API_KEY
 4. GROQ_RIGHT_HAND_API_KEY
 5. GROQ_INVESTIGATOR_API_KEY
-6. HF_TOKEN
-7. GROQ_INVESTIGATOR_API_KEY_1
-8. REDIS_URL_1
-9. SCRAPFLY_API_KEY
-10. SERPAPI_KEY
-11. SERPER_API_KEY
-12. TAVILY_API_KEY
-13. ZENROWS_API_KEY
+6. GROQ_INVESTIGATOR_API_KEY_1
+7. REDIS_URL_1
+8. SCRAPFLY_API_KEY
+9. SERPER_API_KEY
+10. TAVILY_API_KEY
+11. ZENROWS_API_KEY
 
 Additional numbered Groq Boss, Right-hand, and Investigator credentials are optional runtime slots. Investigator slots are separate selectable capabilities:
 - groq-investigator-1 → GROQ_INVESTIGATOR_API_KEY
@@ -107,6 +105,8 @@ Additional numbered Groq Boss, Right-hand, and Investigator credentials are opti
 - groq-investigator-4 → GROQ_INVESTIGATOR_API_KEY_3
 - groq-investigator-5 → GROQ_INVESTIGATOR_API_KEY_4
 - groq-investigator-6 → GROQ_INVESTIGATOR_API_KEY_5
+- groq-investigator-7 → GROQ_INVESTIGATOR_API_KEY_6
+- groq-investigator-8 → GROQ_INVESTIGATOR_API_KEY_7
 
 Selecting one Investigator capability never silently rotates to another credential.
 
@@ -324,7 +324,7 @@ TAVILY_API_KEY
 ZENROWS_API_KEY
 ```
 
-Optional numbered Groq role credentials may be added as separate runtime slots. Investigator slots map one-to-one to `groq-investigator-1` through `groq-investigator-6`. Never silently rotate an explicitly selected Investigator capability.
+Optional numbered Groq role credentials may be added as separate runtime slots. Investigator slots map one-to-one to `groq-investigator-1` through `groq-investigator-8`; the separate `groq-investigator-20b` capability is a model-scoped GPT-OSS 20B recovery using the base Investigator credential, not an additional credential slot. Never silently rotate an explicitly selected Investigator capability.
 
 `DATABASE_URL` is platform-managed. Never request secret values in chat. Retired Gemini/Mistral/DeepSeek/NVIDIA credentials are not part of the active setup.
 
