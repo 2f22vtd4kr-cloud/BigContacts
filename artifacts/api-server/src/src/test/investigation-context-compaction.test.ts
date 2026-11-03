@@ -38,10 +38,10 @@ describe("investigator context compaction", () => {
       "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
       "Test one current evidence hypothesis without prescribing a source or action sequence.",
       "BOSS FINAL OPENING DECISION: proceed.",
-    ].join("\\n");
+    ].join("\n");
     const objectiveBlock = buildAuthoritativeCaseObjectiveBlock(compositeObjective);
     const bounded = boundInvestigatorPromptSection(
-      "AUXILIARY CONTEXT BEFORE\\n\\n" + objectiveBlock + "\\n\\nAUXILIARY CONTEXT AFTER",
+      "AUXILIARY CONTEXT BEFORE\n\n" + objectiveBlock + "\n\nAUXILIARY CONTEXT AFTER",
       120,
     );
 
