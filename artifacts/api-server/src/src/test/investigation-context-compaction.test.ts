@@ -133,6 +133,20 @@ describe("investigator context compaction", () => {
     expect(context).toContain("REDACTED");
   });
 
+  it("rejects objectives that already contain a middle-omission placeholder instead of treating the placeholder as mission text", () => {
+    const incompleteObjective = [
+      "PRIMARY CASE OBJECTIVE:",
+      "Identify real operating companies and their current business decision-makers.",
+      "[OBJECTIVE MIDDLE OMITTED; preserve the case objective and Boss question above working history]",
+      "Seek public professional contact routes; do not infer wealth.",
+    ].join("\n");
+
+    expect(() => buildAuthoritativeCaseObjectiveBlock(incompleteObjective))
+      .toThrow("objective-omission marker");
+    expect(() => buildBoundedInvestigatorObjective({ base: incompleteObjective, maxChars: 8_000 }))
+      .toThrow("objective-omission marker");
+  });
+
   it("preserves the complete primary objective and Boss direction without middle omission", () => {
     const primaryObjective = "PRIMARY OPERATOR OBJECTIVE BEGIN "
       + "Every objective clause, evidence requirement, and exclusion remains authoritative. ".repeat(24)
