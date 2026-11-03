@@ -5297,8 +5297,9 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const hasLatestRecordContext = !latestRecord || /LATEST TRAJECTORY RECORD/.test(normalizedBase);
     const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope) || normalizedBase.includes(latestQueryExcerpt);
     const hasFetchedSourceContext = !latestSuccessfulFetchRecord
-      || latestSuccessfulFetchRecord === latestRecord
       || /LAST SUCCESSFUL FETCHED SOURCE(?: EXCERPT)?/.test(normalizedBase);
+    const hasFetchedSourceClaimContext = !latestFetchedSourceClaimMarker
+      || normalizedBase.includes("LAST SUCCESSFUL FETCHED SOURCE CLAIM");
     const hasLeadFollowupContext = !(carryForwardSuccessfulSearch?.leadUrls?.length)
       || carryForwardSuccessfulSearch.leadUrls.some((url) => normalizedBase.includes(url));
     const hasHistoricalMemoryContext = !aiHistoricalMemory.trim() || normalizedBase.includes(aiHistoricalMemory.trim());
@@ -5323,6 +5324,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       && hasLatestRecordContext
       && hasLatestQueryContext
       && hasFetchedSourceContext
+      && hasFetchedSourceClaimContext
       && hasLeadFollowupContext
       && hasHistoricalMemoryContext
       && hasAuthoritativeObjective
@@ -5344,7 +5346,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
             observedUrls: latestSuccessfulFetchRecord.observedUrls,
             observationTail: sourceObservation.slice(-320),
           };
-        })())
+        })()) + "\n" + latestFetchedSourceClaimMarker
       : "";
     const recoveryObservation = [
       latestFetchedSourceRecovery,
