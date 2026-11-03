@@ -3736,10 +3736,10 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       const remaining = limit - currentLength() - (finalParts.length ? 2 : 0);
       const budget = Math.min(cap, remaining);
       const isVerbatimObjective = containsVerbatimCaseObjective(value);
-      if (budget < 80) return;
       if (isVerbatimObjective && value.length > budget) {
         throw new Error("Emergency Investigator prompt cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
       }
+      if (budget < 80) return;
       const selected = isVerbatimObjective || value.length <= budget
         ? value
         : compactPromptSectionPreservingUrlTokens(value, budget, omission);
@@ -5703,9 +5703,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const hardMinimumPrompt = [
         finalEmergencyAssignment,
         finalEmergencyObjective,
-        activeBossDirection
-          ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeBossDirection, 260)
-          : authoritativeCaseObjective,
         "SCOPE RECOVERY: preserve Boss-approved subject/geography; source class may vary, but no silent pivot. After a block revise only the failed dimension or request new scope from Boss; failure is not disproof.",
         "AVAILABLE ACTIONS: " + availableActions.join(" | ") + ".",
         compactWorkerCapabilityGuidance,
