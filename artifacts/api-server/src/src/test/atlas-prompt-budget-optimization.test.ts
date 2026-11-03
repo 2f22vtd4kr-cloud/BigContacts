@@ -59,6 +59,12 @@ describe("Apex Atlas prompt budget optimization", () => {
         args: { query: "Joe Aguilar LinkedIn" },
         execution: "success" as const,
         observedUrls: ["https://source.example/search-result"],
+        leadUrls: [
+          "https://source.example/lead-1",
+          "https://source.example/lead-2",
+          "https://source.example/lead-3",
+          "https://source.example/lead-4",
+        ],
         observation,
         findings: [],
       }],
@@ -77,6 +83,7 @@ describe("Apex Atlas prompt budget optimization", () => {
       expect(prompt).toContain("LATEST_OBSERVATION_START");
       expect(prompt).toContain("LATEST_OBSERVATION_END");
       expect(prompt).toContain("https://source.example/search-result");
+      expect(prompt).toContain("https://source.example/lead-1");
     }
   });
 
