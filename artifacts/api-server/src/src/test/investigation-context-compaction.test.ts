@@ -133,35 +133,37 @@ describe("investigator context compaction", () => {
     expect(context).toContain("REDACTED");
   });
 
-  it("preserves the Boss research question after objective/context compaction", () => {
+  it("preserves the complete primary objective and Boss direction without middle omission", () => {
+    const primaryObjective = "PRIMARY OPERATOR OBJECTIVE BEGIN "
+      + "Every objective clause, evidence requirement, and exclusion remains authoritative. ".repeat(24)
+      + "PRIMARY OPERATOR OBJECTIVE END";
+    const direction = "Verify whether the named director is attributable to the target organization using independent official sources. "
+      + "Retain the complete source and identity constraints. ".repeat(8);
     const objective = buildBoundedInvestigatorObjective({
-      base: "PRIMARY OPERATOR OBJECTIVE BEGIN " + "Context ".repeat(1_500) + " PRIMARY OPERATOR OBJECTIVE END",
-      direction: "Verify whether the named director is attributable to the target organization using independent official sources.",
+      base: primaryObjective,
+      direction,
+      maxChars: 8_000,
     });
-    const context = buildInvestigatorContext({
-      targetName: "Target Organization",
-      objective,
-      priorContext: "DURABLE CASE CONTEXT " + "P".repeat(5_000),
-      trajectoryRecords: [{ turn: 12, action: "visit", execution: "success", observedUrls: ["https://official.example/record"], observation: "Existing observed record." }],
-      lastObservation: "Latest observation",
-      findings: [],
-      maxChars: 3_500,
-    });
+    const authoritativeBlock = buildAuthoritativeCaseObjectiveBlock(objective);
 
-    expect(objective.length).toBeLessThanOrEqual(1_900);
-    expect(objective).toContain("PRIMARY CASE OBJECTIVE");
-    expect(objective).toContain("PRIMARY OPERATOR OBJECTIVE BEGIN");
-    expect(objective).toContain("PRIMARY OPERATOR OBJECTIVE END");
+    expect(objective.length).toBeLessThanOrEqual(8_000);
+    expect(objective).toContain(primaryObjective);
+    expect(objective).toContain(direction.trim());
+    expect(objective).not.toContain("OBJECTIVE MIDDLE OMITTED");
     expect(objective).toContain("Treat the Boss-directed question as a hypothesis");
     expect(objective).toContain("feasible public-source question");
     expect(objective).toContain("Keep each action directly relevant to the current question");
     expect(objective).toContain("unrelated homonyms or meanings");
-    expect(objective).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
-    expect(objective).toContain("Verify whether the named director");
-    expect(objective).toContain("Choose each next action yourself");
-    expect(context).toContain("CURRENT BOSS-DIRECTED RESEARCH QUESTION");
-    expect(context).toContain("Verify whether the named director");
-    expect(context).toContain("LATEST TRAJECTORY RECORD");
+    expect(authoritativeBlock).toContain(primaryObjective);
+    expect(authoritativeBlock).not.toContain(direction);
+  });
+
+  it("fails closed rather than silently truncating an objective or Boss direction that exceeds the prompt ceiling", () => {
+    expect(() => buildBoundedInvestigatorObjective({
+      base: "COMPLETE OBJECTIVE " + "x".repeat(2_000),
+      direction: "COMPLETE BOSS DIRECTION " + "y".repeat(2_000),
+      maxChars: 1_800,
+    })).toThrow("Cannot preserve the complete Investigator objective and Boss direction");
   });
 
   it("preserves the structured Boss question when the per-act wrapper bounds it again", () => {

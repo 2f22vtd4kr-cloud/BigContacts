@@ -244,7 +244,7 @@ export async function summarizeInvestigatorContextWithBoss(
   if (!sourceChunks.length) return null;
   if (sourceChunks.length === 1) return requestSummary(source, source, maxChars, input);
 
-  const partialTarget = Math.min(1_600, Math.max(900, Math.floor((maxChars * 1.5) / sourceChunks.length)));
+  const partialTarget = Math.min(1_600, Math.max(1_200, Math.floor((maxChars * 1.5) / sourceChunks.length)));
   const partialSummaries: string[] = [];
   // Boss compaction shares the control model's TPM budget with opening and
   // oversight decisions. Serialize independent segments to avoid a burst of
