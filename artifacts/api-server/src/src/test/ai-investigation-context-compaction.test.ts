@@ -116,6 +116,28 @@ describe("AI investigation context compaction", () => {
     expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps intermediate multi-chunk summaries above the 900-character failure floor", async () => {
+    const source = "CASE MEMORY START\\n" + "x".repeat(12_500);
+    const firstChunkSummary = "A".repeat(1_049);
+    const secondChunkSummary = "B".repeat(800);
+    const finalSummary = "The merged memory preserves the key facts and evidence-state distinctions.";
+    bossMocks.generateGroqBossText
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: firstChunkSummary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: secondChunkSummary }), error: null, attempts: [] })
+      .mockResolvedValueOnce({ model: "mock-boss-model", raw: JSON.stringify({ summary: finalSummary }), error: null, attempts: [] });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(finalSummary);
+
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(3);
+    const firstPrompt = String(bossMocks.generateGroqBossText.mock.calls[0]?.[1] ?? "");
+    const secondPrompt = String(bossMocks.generateGroqBossText.mock.calls[1]?.[1] ?? "");
+    const finalPrompt = String(bossMocks.generateGroqBossText.mock.calls[2]?.[1] ?? "");
+    expect(firstPrompt).toContain("hard limit of 1200 characters");
+    expect(secondPrompt).toContain("hard limit of 1200 characters");
+    expect(finalPrompt).toContain("MEMORY SEGMENT 1:");
+    expect(finalPrompt).toContain("MEMORY SEGMENT 2:");
+  });
+
   it("accepts a source URL followed by closing punctuation without normalizing bare colons", async () => {
     const sourceUrl = "https://source.example/posts/award-42";
     const source = "SOURCE_URL: " + sourceUrl + "\n" + "Observed case details remain in the complete durable source. ".repeat(25);
