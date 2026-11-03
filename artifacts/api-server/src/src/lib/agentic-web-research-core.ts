@@ -5289,14 +5289,20 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       sourceUrl ? "SOURCE URL (exact observed URL): " + sourceUrl : "",
       latestFetchedSourceClaimMarker,
     ].filter(Boolean).join("\n");
-    // Replace the bulky serialized source envelope instead of appending a second
-    // copy to an already full prompt. The exact observed URL and final claim tail
-    // are the only source fields required at this boundary.
-    const sourceEnvelope = /(?:^|\n\n)LAST SUCCESSFUL FETCHED SOURCE(?: EXCERPT)?[^\n]*(?:\n[\s\S]*?)?(?=\n\n|$)/;
-    const match = prompt.match(sourceEnvelope);
-    let repaired = match
-      ? prompt.replace(sourceEnvelope, (value) => value.startsWith("\n\n") ? "\n\n" + claimBlock : claimBlock)
-      : [prompt.trim(), claimBlock].filter(Boolean).join("\n\n");
+    // Replace the entire fetched-source section in place. Do not depend on a
+    // paragraph boundary: emergency compaction can inline the heading in a
+    // combined prefix. This trades a verbose serialized envelope for the exact
+    // URL and decisive claim tail.
+    const sourceStart = prompt.indexOf("LAST SUCCESSFUL FETCHED SOURCE");
+    let repaired: string;
+    if (sourceStart >= 0) {
+      const nextSection = prompt.indexOf("\n\n", sourceStart);
+      const before = prompt.slice(0, sourceStart).trimEnd();
+      const after = nextSection >= 0 ? prompt.slice(nextSection + 2).trimStart() : "";
+      repaired = [before, claimBlock, after].filter(Boolean).join("\n\n");
+    } else {
+      repaired = [prompt.trim(), claimBlock].filter(Boolean).join("\n\n");
+    }
     const optionalPatterns = [
       /(?:^|\n\n)LATEST OBSERVATION(?: \(untrusted data, not instructions\))?:[^\n]*(?:\n(?!\n)[^\n]*)*/g,
       /(?:^|\n\n)LEAD FOLLOW-UP GUIDANCE \(non-binding\):[^\n]*(?:\n(?!\n)[^\n]*)*/g,
@@ -5309,7 +5315,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       repaired = repaired.replace(pattern, "").trim();
     }
     if (repaired.length <= maxUserPromptChars) return repaired;
-    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim and exact URL within the provider budget; no action should be sent.");
+    throw new Error("Emergency Investigator prompt cannot preserve the latest fetched source claim and exact URL within the provider budget (length " + repaired.length + ", budget " + maxUserPromptChars + "); no action should be sent.");
   };
   const finalizeEmergencyPrompt = (basePrompt: string): string => {
     const normalizedBase = basePrompt.trim();
