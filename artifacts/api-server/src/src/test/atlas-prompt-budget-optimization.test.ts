@@ -48,7 +48,7 @@ describe("Apex Atlas prompt budget optimization", () => {
     const observation = "LATEST_OBSERVATION_START " + "x".repeat(1_005 - "LATEST_OBSERVATION_START ".length - "LATEST_OBSERVATION_END".length) + "LATEST_OBSERVATION_END";
     expect(observation.length).toBeGreaterThan(900);
     expect(observation.length).toBeLessThan(1_200);
-    const prompt = buildStepPrompt({
+    const promptInput = {
       targetName: "",
       objective: "Identify real operating companies and their current business decision-makers from public professional evidence.",
       history: [],
@@ -57,21 +57,27 @@ describe("Apex Atlas prompt budget optimization", () => {
         model: "groq:test",
         action: "web_search",
         args: { query: "Joe Aguilar LinkedIn" },
-        execution: "success",
+        execution: "success" as const,
         observedUrls: ["https://source.example/search-result"],
         observation,
         findings: [],
       }],
       lastObservation: observation,
       findings: [],
-      mode: "discovery",
+      mode: "discovery" as const,
+    };
+    const promptWithMemory = buildStepPrompt({
+      ...promptInput,
       aiCompactedHistoricalContext: "Prior Boss-generated memory: the existing fetched source did not establish a decision-maker role.",
       aiCompactedHistoricalThroughTurn: 7,
     });
+    const promptWithoutMemory = buildStepPrompt(promptInput);
 
-    expect(prompt).toContain("LATEST_OBSERVATION_START");
-    expect(prompt).toContain("LATEST_OBSERVATION_END");
-    expect(prompt).toContain("https://source.example/search-result");
+    for (const prompt of [promptWithMemory, promptWithoutMemory]) {
+      expect(prompt).toContain("LATEST_OBSERVATION_START");
+      expect(prompt).toContain("LATEST_OBSERVATION_END");
+      expect(prompt).toContain("https://source.example/search-result");
+    }
   });
 
   it("enforces the message envelope again at the provider request-body boundary", () => {
