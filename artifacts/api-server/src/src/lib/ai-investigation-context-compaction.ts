@@ -11,6 +11,7 @@ const DEFAULT_SUMMARY_CHARS = 2_300;
 const MIN_SUMMARY_CHARS = 900;
 const MAX_SUMMARY_CHARS = 7_000;
 const SUMMARY_PROMPT_RESERVE_CHARS = 2_400;
+const OBJECTIVE_OMISSION_MARKER = /\[(?:OBJECTIVE|CASE OBJECTIVE)\s+MIDDLE OMITTED\b|\[(?:MIDDLE OF )?OBJECTIVE(?: MIDDLE)? OMITTED\b/i;
 
 /**
  * Extract URL tokens for provenance validation. Trailing sentence punctuation
@@ -224,6 +225,9 @@ export async function summarizeInvestigatorContextWithBoss(
 ): Promise<string | null> {
   const source = typeof input.rawContext === "string" ? input.rawContext.trim() : "";
   if (!source) return "";
+  // An explicit omission marker means the objective is already incomplete; do not
+  // ask Boss to summarize or silently carry that corrupted mission context forward.
+  if (OBJECTIVE_OMISSION_MARKER.test(source)) return null;
   const requested = Number.isFinite(input.maxChars) ? Math.floor(input.maxChars!) : DEFAULT_SUMMARY_CHARS;
   const maxChars = Math.min(MAX_SUMMARY_CHARS, Math.max(MIN_SUMMARY_CHARS, requested));
   if (source.length <= maxChars) return source;
