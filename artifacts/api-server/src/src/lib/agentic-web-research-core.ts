@@ -3189,10 +3189,16 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   if (carriedFetchedSourceMatch?.[1]) {
     try {
       const fetchedSource = JSON.parse(carriedFetchedSourceMatch[1]) as Record<string, unknown>;
-      fetchedSourceExcerpt = [fetchedSource.observationHead, fetchedSource.observationTail]
-        .filter((value): value is string => typeof value === "string" && value.length > 0)
-        .join(" … ");
-      fetchedSourceClaimExcerpt = extractEndingClaimSentence(fetchedSource.observationTail);
+      const observedText = typeof fetchedSource.observation === "string"
+        ? fetchedSource.observation
+        : [fetchedSource.observationHead, fetchedSource.observationTail]
+            .filter((value): value is string => typeof value === "string" && value.length > 0)
+            .join(" … ");
+      const observedTail = typeof fetchedSource.observationTail === "string"
+        ? fetchedSource.observationTail
+        : observedText;
+      fetchedSourceExcerpt = observedText;
+      fetchedSourceClaimExcerpt = extractEndingClaimSentence(observedTail);
     } catch {
       fetchedSourceExcerpt = "";
       fetchedSourceClaimExcerpt = "";
