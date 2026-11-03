@@ -3739,37 +3739,25 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
-    // The model-owned relevance decision survives the final prompt tier; keep it
-    // ahead of optional recovery narration so budget pressure cannot erase it.
-    appendBudgeted(minimumRelevanceMarker, 420, "[discovery relevance rule omitted]");
-    // Boss-generated historical memory is required context, not expendable
-    // narration. Reserve its complete text before optional diagnostics/URLs.
-    if (aiMemorySection) {
-      const memoryRemaining = limit - currentLength() - (finalParts.length ? 2 : 0);
-      if (aiMemorySection.length <= memoryRemaining) finalParts.push(aiMemorySection);
-    }
-    // The emergency fallback retains the exact scope, latest durable action,
-    // fetchable URLs, available actions and compact evidence/safety gates.
-    // The last-resort prompt is still a complete Investigator contract. Reserve
-    // the semantic admission rules and runtime capability truth before spending
-    // the remaining budget on verbose observations or historical detail.
+    // Reserve the irreducible model/evidence contracts before optional context.
+    // Keep current source URLs and the latest observation ahead of memory narration.
     const minimumInvestigatorEvidenceContract =
-      "DISCOVERY LEAD HANDOFF: Investigator selects worthwhile person/organization review leads; do not card every result. Preserve exact observed name and associated public HTTPS URL; person role may be null. Search-only person note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no identity/role/ownership/wealth/relationship/HNWI/contact claim. Snippets/URLs are leads, not evidence; failed/blocked fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched current role, company connection and public/professional route; wealth/investor targets need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to its exact source span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.";
+      "DISCOVERY LEAD HANDOFF: Investigator selects relevant person/organization review leads; do not card every result. Preserve exact observed name and associated public HTTPS URL; person role may be null. Search-only person note: LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead; no identity/role/ownership/wealth/relationship/HNWI/contact claim. Snippets/URLs are leads, not evidence; failed/blocked fetches are unobserved. Qualification follows the active objective: B2B decision-makers need a fetched current role, company connection and public/professional route; wealth/investor targets need source-backed ownership/control/equity/investment and credible wealth-potential evidence; other objectives use their criteria. Never infer wealth from seniority. After visit/browser_fetch, sourceUrls=[that fetched URL only] and claims bind to its exact source span. Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion.";
     appendBudgeted(minimumInvestigatorEvidenceContract, 1_000, "[review-lead detail omitted]");
-    appendBudgeted(scopeRecoveryRule, 360, "[scope recovery detail omitted]");
-    appendBudgeted(minimumScopeContext || compactCaseObjective, 300, "[scope detail omitted]");
-    appendBudgeted(minimumAvailableActionsSection, 500, "[additional runtime actions omitted]");
+    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability detail omitted]");
     appendBudgeted(minimumProviderRule, 180, "[provider detail omitted]");
     appendBudgeted(minimumRegistryEvidenceRule, 240, "[registry detail omitted]");
     appendBudgeted(minimumBinaryUrlRule, 240, "[PDF retrieval detail omitted]");
-    appendBudgeted(conditionalCapabilityRule, 220, "[conditional specialist capability detail omitted]");
     appendBudgeted(terminalEvidenceRule, 220, "[terminal detail omitted]");
+    appendBudgeted(scopeRecoveryRule, 360, "[scope recovery detail omitted]");
+    appendBudgeted(minimumScopeContext || compactCaseObjective, 300, "[scope detail omitted]");
+    appendBudgeted(minimumAvailableActionsSection, 500, "[additional runtime actions omitted]");
     appendBudgeted(urlInventory, 1_200, "[additional source URLs omitted whole; durable events remain authoritative]");
     appendBudgeted(minimumDurableRecordSummaries.slice(-1).join("\n\n"), 420, "[older trajectory detail omitted]");
     appendBudgeted(fetchedSourceLabel, 120, "[source label omitted]");
     appendBudgeted(fetchedSourceClaimExcerpt || fetchedSourceExcerpt, 260, "[source excerpt detail omitted]");
-    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 220), 260, "[latest observation detail omitted]");
-    appendBudgeted(leadGuidance, 240, "[lead guidance omitted]");
+    appendBudgeted(header + " " + compactEmergencyTrajectoryObservation(observationWithoutCarriedSource, 260), 300, "[latest observation detail omitted]");
+    appendBudgeted(leadGuidance, 180, "[lead guidance omitted]");
     appendBudgeted(aiMemorySection, 900, "[older memory omitted; durable ledger remains authoritative]");
     appendBudgeted(markerSuffix, 80, "[marker omitted]");
     mandatoryMinimumTail = finalParts.join("\n\n");
