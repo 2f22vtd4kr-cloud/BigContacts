@@ -1098,7 +1098,7 @@ describe("Investigator prompt architecture", () => {
         "BOSS-DIRECTED RESEARCH QUESTION / PIVOT:",
         pivot,
         "Pursue this question unless observed evidence directly disproves it or makes it impossible to pursue.",
-      ].join("\\n"),
+      ].join("\n"),
       history: [],
       trajectoryRecords: [],
       lastObservation: "",
