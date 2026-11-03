@@ -3735,8 +3735,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       if (!value) return;
       const remaining = limit - currentLength() - (finalParts.length ? 2 : 0);
       const budget = Math.min(cap, remaining);
-      if (budget < 80) return;
       const isVerbatimObjective = containsVerbatimCaseObjective(value);
+      if (budget < 80) return;
       if (isVerbatimObjective && value.length > budget) {
         throw new Error("Emergency Investigator prompt cannot preserve the complete human case objective within maxPromptChars=" + limit + ".");
       }
@@ -3750,6 +3750,8 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
       throw new Error("The required Investigator action schema exceeds maxPromptChars=" + limit + ".");
     }
     finalParts.push(fallbackOutputContract);
+    // The authoritative mission outranks auxiliary guidance and memory narration.
+    appendBudgeted(compactCaseObjective, 12_000, "[objective detail must not be omitted]");
     // Reserve the irreducible model/evidence contracts before optional context.
     // Keep current source URLs and the latest observation ahead of memory narration.
     const minimumInvestigatorEvidenceContract =
@@ -3761,7 +3763,6 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     appendBudgeted(minimumBinaryUrlRule, 240, "[PDF retrieval detail omitted]");
     appendBudgeted(terminalEvidenceRule, 220, "[terminal detail omitted]");
     appendBudgeted(scopeRecoveryRule, 360, "[scope recovery detail omitted]");
-    appendBudgeted(compactCaseObjective, 12_000, "[objective detail must not be omitted]");
     appendBudgeted(minimumScopeContext, 360, "[scope detail omitted]");
     appendBudgeted(minimumAvailableActionsSection, 500, "[additional runtime actions omitted]");
     appendBudgeted(urlInventory, 1_200, "[additional source URLs omitted whole; durable events remain authoritative]");
@@ -3776,7 +3777,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   }
   const optionalTailBudget = Math.max(0, limit - Math.min(240, Math.floor(limit * 0.06)));
   let minimumTail = mandatoryMinimumTail;
-  if (compactCaseObjective) {
+  if (compactCaseObjective && !minimumTail.includes(compactCaseObjective)) {
     const candidate = joinPromptParts([minimumTail, compactCaseObjective]);
     if (candidate.length <= optionalTailBudget) minimumTail = candidate;
   }
