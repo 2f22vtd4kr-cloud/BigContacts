@@ -5247,18 +5247,19 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       ? pivotScopeGeographyOptions(activeScopeForRecovery).flat()
       : [];
     const latestQuery = typeof latestRecord?.args?.query === "string" ? latestRecord.args.query.trim() : "";
+    const latestQueryExcerpt = latestQuery.slice(0, 100);
     const latestArgsEnvelope = latestRecord
       ? '"args":' + JSON.stringify(compactLatestArgs(latestRecord.args ?? {}))
       : "";
     const hasRequiredPromptContract = /OUTPUT CONTRACT:/.test(normalizedBase)
       && /ALL REQUIRED TOP-LEVEL FIELDS:/.test(normalizedBase);
     const hasLatestRecordContext = !latestRecord || /LATEST TRAJECTORY RECORD/.test(normalizedBase);
-    const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope) || normalizedBase.includes(latestQuery);
-    const hasFetchedSourceContext = !latestSuccessfulFetchRecord || /LAST SUCCESSFUL FETCHED SOURCE(?: EXCERPT)?/.test(normalizedBase);
+    const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope) || normalizedBase.includes(latestQueryExcerpt);
+    const hasFetchedSourceContext = !latestSuccessfulFetchRecord
+      || latestSuccessfulFetchRecord === latestRecord
+      || /LAST SUCCESSFUL FETCHED SOURCE(?: EXCERPT)?/.test(normalizedBase);
     const hasLeadFollowupContext = !(carryForwardSuccessfulSearch?.leadUrls?.length)
-      || (/LEAD FOLLOW-UP GUIDANCE \(non-binding\)/.test(normalizedBase)
-        && /Search-result URLs remain leads, not evidence until fetched/.test(normalizedBase)
-        && carryForwardSuccessfulSearch.leadUrls.some((url) => normalizedBase.includes(url)));
+      || carryForwardSuccessfulSearch.leadUrls.some((url) => normalizedBase.includes(url));
     const hasHistoricalMemoryContext = !aiHistoricalMemory.trim() || normalizedBase.includes(aiHistoricalMemory.trim());
     const hasGeographicScope = requiredGeographies.every((geography) => normalizedBase.toLowerCase().includes(geography.toLowerCase()));
     const requiresRecoveryContext = Boolean(
