@@ -181,7 +181,7 @@ The repository must not claim live provider success, production readiness, or re
 
 ## 10. Active provider secret contract
 
-The active preflight contract currently checks these 13 provider/integration names:
+The active preflight contract currently checks these 11 provider/integration names (presence only):
 
 ```
 COMPANIES_HOUSE_API_KEY
@@ -189,7 +189,6 @@ EXA_API_KEY
 GROQ_BOSS_API_KEY
 GROQ_RIGHT_HAND_API_KEY
 GROQ_INVESTIGATOR_API_KEY
-HF_TOKEN
 GROQ_INVESTIGATOR_API_KEY_1
 REDIS_URL_1
 SCRAPFLY_API_KEY
@@ -197,6 +196,8 @@ SERPER_API_KEY
 TAVILY_API_KEY
 ZENROWS_API_KEY
 ```
+
+`HF_TOKEN` and `SERPAPI_KEY` are not active required capabilities and are not checked by the current preflight.
 
 Additional role-scoped Groq Boss, Right-hand, and Investigator suffix slots may be configured and are handled by their runtime registries. They are separate capabilities/credentials, not aliases for the base key.
 
