@@ -53,6 +53,33 @@ describe("investigator context compaction", () => {
     expect(context).toContain("RESEARCH FRONTIER");
   });
 
+  it("preserves a 1,005-character Boss-compacted latest observation when the larger context allowance is explicit", () => {
+    const observation = "OBSERVATION_START " + "x".repeat(1_005 - "OBSERVATION_START ".length - "OBSERVATION_END".length) + "OBSERVATION_END";
+    expect(observation.length).toBeGreaterThan(900);
+    expect(observation.length).toBeLessThan(1_200);
+    const context = buildInvestigatorContext({
+      targetName: "",
+      objective: "Continue the current discovery hypothesis using the latest observed evidence.",
+      mode: "discovery",
+      trajectoryRecords: [{
+        turn: 8,
+        action: "web_search",
+        execution: "success",
+        observedUrls: ["https://source.example/search-result"],
+        observation,
+      }],
+      lastObservation: observation,
+      findings: [],
+      maxChars: 2_000,
+      recentObservationChars: 1_200,
+    });
+
+    expect(context.length).toBeLessThanOrEqual(2_000);
+    expect(context).toContain("OBSERVATION_START");
+    expect(context).toContain("OBSERVATION_END");
+    expect(context).toContain("https://source.example/search-result");
+  });
+
   it("redacts URL credentials from reloaded trajectory, findings, and prior context", () => {
     const secret = "context-oauth-secret";
     const context = buildInvestigatorContext({

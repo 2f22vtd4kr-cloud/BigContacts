@@ -44,6 +44,57 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(context).toContain("RESEARCH FRONTIER");
   });
 
+  it("keeps both ends of a live-sized Boss-compacted latest observation through both prompt assembly paths", () => {
+    const observation = "LATEST_OBSERVATION_START " + "x".repeat(1_005 - "LATEST_OBSERVATION_START ".length - "LATEST_OBSERVATION_END".length) + "LATEST_OBSERVATION_END";
+    expect(observation.length).toBeGreaterThan(900);
+    expect(observation.length).toBeLessThan(1_200);
+    const promptInput = {
+      targetName: "",
+      objective: "Identify real operating companies and their current business decision-makers from public professional evidence.",
+      history: [],
+      trajectoryRecords: [{
+        turn: 8,
+        model: "groq:test",
+        action: "web_search",
+        args: { query: "Joe Aguilar LinkedIn" },
+        execution: "success" as const,
+        observedUrls: ["https://source.example/search-result"],
+        leadUrls: [
+          "https://source.example/lead-1",
+          "https://source.example/lead-2",
+          "https://source.example/lead-3",
+          "https://source.example/lead-4",
+        ],
+        observation,
+        findings: [],
+      }],
+      lastObservation: observation,
+      findings: [],
+      mode: "discovery" as const,
+    };
+    const promptWithMemory = buildStepPrompt({
+      ...promptInput,
+      aiCompactedHistoricalContext: "Prior Boss-generated memory: the existing fetched source did not establish a decision-maker role.",
+      aiCompactedHistoricalThroughTurn: 7,
+    });
+    const promptWithoutMemory = buildStepPrompt(promptInput);
+
+    for (const prompt of [promptWithMemory, promptWithoutMemory]) {
+      expect(prompt).toContain("LATEST_OBSERVATION_START");
+      expect(prompt).toContain("LATEST_OBSERVATION_END");
+      expect(prompt).toContain("https://source.example/search-result");
+      expect(prompt).toContain("https://source.example/lead-1");
+      expect(prompt).toContain("Identify real operating companies and their current business decision-makers");
+      expect(prompt).toContain("Follow the active case objective and Boss-approved scope");
+      expect(prompt).toContain("B2B decision-makers need a fetched source binding a current role");
+      expect(prompt).toContain("wealth/investor targets also need source-backed ownership/control/equity/investment");
+      expect(prompt).not.toContain("people are the ultimate mission");
+      expect(prompt).not.toContain("People—not companies or executive prestige");
+      expect(prompt).not.toContain("owner/operator, ownership/investment or transaction signal");
+      expect(prompt).not.toContain("Seek source-backed ownership/equity/control/investment clues during target research");
+    }
+  });
+
   it("enforces the message envelope again at the provider request-body boundary", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",
@@ -53,8 +104,8 @@ describe("Apex Atlas prompt budget optimization", () => {
     });
     const messages = body.messages as Array<{ role: string; content: string }>;
     const total = messages.reduce((sum, message) => sum + message.content.length, 0);
-    expect(total).toBeLessThanOrEqual(7_200);
-    expect(messages.find((message) => message.role === "user")?.content.length).toBeLessThan(7_200);
+    expect(total).toBeLessThanOrEqual(8_400);
+    expect(messages.find((message) => message.role === "user")?.content.length).toBeLessThanOrEqual(6_800);
   });
 
   it("bounds the complete Investigator message envelope, including the stable system prompt", () => {
@@ -76,8 +127,8 @@ describe("Apex Atlas prompt budget optimization", () => {
       mode: "target",
     });
     const systemInstruction = apexInvestigatorSystemCore() + "\nReturn one JSON action object only.";
-    expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(7_200);
-    expect(prompt.length).toBeLessThanOrEqual(7_200 - systemInstruction.length);
+    expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(8_400);
+    expect(prompt.length).toBeLessThanOrEqual(8_400 - systemInstruction.length);
     expect(prompt).toMatch(/ALL REQUIRED TOP-LEVEL FIELDS: action,|Required fields: action,query,provider/);
     expect(prompt).toContain("PAGE FORMAT / RETRIEVAL LIMITS:");
     expect(prompt).toContain("LATEST TRAJECTORY RECORD");

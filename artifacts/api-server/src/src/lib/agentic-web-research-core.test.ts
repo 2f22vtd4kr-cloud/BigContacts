@@ -1071,9 +1071,9 @@ describe("Investigator prompt architecture", () => {
     });
     expect(discovery).toContain("minEvidence=1; minIndependentSourceUnits=1; requireExactSpanForFindings=false; requireFalsification=false");
     expect(discovery).toContain("DISCOVERY LEAD HANDOFF CONTRACT");
-    expect(discovery).toContain("Higher admission requires a successfully fetched claim-grade source");
-    expect(discovery).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
-    expect(discovery).toContain("Target-stage research tests material business/asset/exit signals");
+    expect(discovery).toContain("Qualification follows the active objective");
+    expect(discovery).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
+    expect(discovery).toContain("Target-stage research verifies objective-required role/relationship/materiality");
     expect(discovery).not.toContain("at least one successful external action must explicitly attempt to disprove");
     expect(target).toContain("minEvidence=3; minIndependentSourceUnits=2; requireExactSpanForFindings=true; requireFalsification=true");
     expect(target).not.toContain("DISCOVERY LEAD HANDOFF CONTRACT");
@@ -1131,7 +1131,7 @@ describe("Investigator prompt architecture", () => {
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt.length).toBeLessThanOrEqual(6_800);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD");
     expect(prompt).toContain("TURN 24");
     expect(prompt).toContain('"args":{"query":"generic research 23"}');
@@ -1155,13 +1155,13 @@ describe("Investigator prompt architecture", () => {
     expect(prompt).toMatch(/no fixed action sequence|not a prescribed action sequence|no fixed itinerary/i);
     expect(prompt).not.toMatch(/must visit|must use Companies House/i);
     expect(prompt).toMatch(/people, not companies\/prestige|People—not companies|DISCOVERY TARGETABILITY/i);
-    expect(prompt).toMatch(/ownership\/equity\/control|ownership\/control\/equity\/investment clue/i);
+    expect(prompt).toMatch(/ownership\/control\/equity\/investment/i);
     expect(prompt).toMatch(/never infer wealth from seniority|do not infer wealth from seniority|seniority is not wealth/i);
     expect(prompt).toMatch(/LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD|PERSON REVIEW/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toMatch(/no ownership\/wealth\/relationship\/HNWI(?:\/contact)? claim|no ownership, wealth, relationship, or HNWI(?:\/contact)? claim/i);
-    expect(prompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public professional route/i);
-    expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|independently corroborates or falsifies the lead/i);
+    expect(prompt).toMatch(/CONTACT FACTS \(observed, not attributed\)|contact-route verification|public(?:\/professional| professional) route/i);
+    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|independently corroborates\/falsifies leads/i);
     expect(prompt).toContain("ALL REQUIRED TOP-LEVEL FIELDS");
   });
 
@@ -1229,15 +1229,15 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt.length).toBeLessThanOrEqual(6_800);
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/source[- ]class/i);
     expect(prompt).toContain("OUTPUT CONTRACT:");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|required fields:)\s*action,\s*query,\s*provider/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source");
-    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
-    expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|verifies direct or indirect routes before any promotion/);
+    expect(prompt).toContain("Qualification follows the active objective");
+    expect(prompt).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
+    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
     // The durable working-context projection may retain raw provenance; the explicit latest-action tail must also carry the compact recovery instruction.
   });
 
@@ -1318,16 +1318,16 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt.length).toBeLessThanOrEqual(6_800);
     expect(prompt).toContain("Czech Republic");
     expect(prompt).toContain("Slovakia");
     expect(prompt).toContain("ownership filings or local business registries");
     expect(prompt).toContain("SCOPE GUARD BLOCKED ACTION");
     expect(prompt).toMatch(/(?:VALID PROVIDERS:|PROVIDERS:)\s*web_search/);
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
-    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source");
-    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
-    expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|verifies direct or indirect routes before any promotion/);
+    expect(prompt).toContain("Qualification follows the active objective");
+    expect(prompt).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
+    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
   it("preserves the sector when emergency compaction sees a source-first registry direction", () => {
@@ -2119,14 +2119,14 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt.length).toBeLessThanOrEqual(6_800);
     expect(prompt).toMatch(/(?:ACTIVE BOSS SCOPE:|ACTIVE SCOPE CONSTRAINT:|current Boss-directed research question|Vietnam, Thailand, Indonesia)/i);
     expect(prompt).toContain("Vietnam, Thailand, Indonesia");
     expect(prompt).toContain("transaction announcements, regulatory filings");
     expect(prompt).toMatch(/(?:ALL REQUIRED TOP-LEVEL FIELDS:|OUTPUT CONTRACT: one JSON root object; required fields:)\s*action,/i);
     expect(prompt).toMatch(/DISCOVERY LEAD HANDOFF CONTRACT|PERSON REVIEW|LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD/);
-    expect(prompt).toContain("Target-stage research tests material business/asset/exit signals, independently corroborates or falsifies leads");
-    expect(prompt).toMatch(/Target-stage research tests material business\/asset\/exit signals|verifies direct or indirect routes before any promotion/);
+    expect(prompt).toContain("Target-stage research verifies objective-required role/relationship/materiality, counter-evidence and professional route before promotion");
+    expect(prompt).toMatch(/Target-stage research verifies objective-required role\/relationship\/materiality|verifies direct\/indirect public professional routes before promotion/);
   });
 
   it("allows directly observed official staff pages while excluding third-party people-search aggregators", async () => {
@@ -2136,7 +2136,7 @@ Choose each next action yourself from the available capabilities and observed ev
     // Source eligibility is not HNWI promotion: only an explicit model-promoted,
     // same-source identity/role plus wealth-potential lead can be materialized.
     // Independent corroboration and the realistic contact route remain target-stage work.
-    expect(agenticCoreSource).toContain("Higher admission requires a successfully fetched claim-grade source");
+    expect(agenticCoreSource).toContain("Qualification follows the active objective");
     expect(canonicalAtlasDiscoverySource).toContain("durableEvidence: durableSourceCount >= 1");
     expect(canonicalAtlasDiscoverySource).toContain("hasDiscoveryOwnershipLeadSignal");
     expect(canonicalAtlasDiscoverySource).not.toContain("hasRealisticPersonRouteSource");
@@ -2376,7 +2376,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
     // The final emergency prompt may deliberately discard optional trajectory text to preserve the mandatory action/evidence contract.
-    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt.length).toBeLessThanOrEqual(6_800);
     expect(prompt).toContain("OUTPUT CONTRACT: one root JSON object");
     expect(advisory).not.toContain("must visit");
     expect(advisory).toContain("further searches remain available");
@@ -2750,7 +2750,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt.length).toBeLessThanOrEqual(6_800);
     expect(prompt).toContain("LATEST TRAJECTORY RECORD — TURN 17");
     expect(prompt).toMatch(/LAST SUCCESSFUL SEARCH WITH AVAILABLE LEADS|CARRIED SEARCH LEAD URLS|EXACT DURABLE URL INVENTORY|LEAD_URLS/);
     expect(prompt).toContain("consider inspecting a promising in-scope lead URL next");
@@ -2891,7 +2891,7 @@ Choose each next action yourself from the available capabilities and observed ev
       mode: "discovery",
     });
 
-    expect(prompt.length).toBeLessThanOrEqual(5_600);
+    expect(prompt.length).toBeLessThanOrEqual(6_800);
     expect(prompt).toMatch(/ACTIVE BOSS SCOPE|BOSS-DIRECTED RESEARCH QUESTION|Illinois/);
     expect(prompt).toContain("Illinois");
     expect(prompt).toContain("source classes");
@@ -3440,7 +3440,7 @@ describe("latest fetched source evidence survives emergency Investigator compact
     expect(prompt).toMatch(/After visit\/browser_fetch/i);
     expect(prompt).toMatch(/sourceUrls=\[that fetched URL(?: only)?\]/);
     expect(prompt).toContain("LOW-CONFIDENCE REVIEW-ONLY PERSON LEAD; search_result_lead");
-    expect(prompt).toContain("Higher admission requires a successfully fetched claim-grade source binding name+role+ownership/control/equity/investment clue");
+    expect(prompt).toContain("Qualification follows the active objective: B2B decision-makers need a fetched source binding a current role, company connection and public/professional route; wealth/investor targets also need source-backed ownership/control/equity/investment and credible wealth-potential evidence");
     expect(prompt).not.toContain("review-only PersonCandidate requires exact full name + page-stated role + ownership/control/equity/investment clue");
   });
 });

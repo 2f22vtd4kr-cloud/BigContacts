@@ -98,6 +98,24 @@ describe("AI investigation context compaction", () => {
     expect(repairOptions?.maxOutputTokens).toBeGreaterThan(firstOptions?.maxOutputTokens ?? Infinity);
   });
 
+  it("accepts the 1,005-character recent-observation summary seen in the live case within the expanded bounded limit", async () => {
+    const source = "COMPLETE SOURCE MEMORY\n" + "Observed facts, source-stage distinctions, and open questions. ".repeat(55);
+    const summary = "S".repeat(1_005);
+    bossMocks.generateGroqBossText.mockResolvedValueOnce({
+      model: "mock-boss-model",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 1_200 })).resolves.toBe(summary);
+
+    const prompt = String(bossMocks.generateGroqBossText.mock.calls[0]?.[1] ?? "");
+    expect(prompt).toContain("hard limit of 1200 characters");
+    expect(prompt).toContain("Aim at or below 780 characters");
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(1);
+  });
+
   it("accepts a source URL followed by closing punctuation without normalizing bare colons", async () => {
     const sourceUrl = "https://source.example/posts/award-42";
     const source = "SOURCE_URL: " + sourceUrl + "\n" + "Observed case details remain in the complete durable source. ".repeat(25);
