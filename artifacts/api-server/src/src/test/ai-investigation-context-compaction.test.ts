@@ -12,7 +12,7 @@ vi.mock("../lib/groq-boss", () => ({
   resolveGroqBossModel: bossMocks.resolveGroqBossModel,
 }));
 
-import { summarizeInvestigatorContextWithBoss } from "../lib/ai-investigation-context-compaction";
+import { extractAiContextUrls, summarizeInvestigatorContextWithBoss } from "../lib/ai-investigation-context-compaction";
 
 describe("AI investigation context compaction", () => {
   beforeEach(() => {
@@ -42,7 +42,7 @@ describe("AI investigation context compaction", () => {
     const firstSummary = [
       "PRIOR_SUMMARY_ONLY_SENTINEL",
       "This intermediate summary is too long and has already reduced source details. ".repeat(25),
-      "Source: " + sourceUrl,
+      "Source: " + sourceUrl + "?utm_campaign=summary",
     ].join(" ");
     expect(firstSummary.length).toBeGreaterThan(900);
 
@@ -59,11 +59,60 @@ describe("AI investigation context compaction", () => {
     expect(repairPrompt).toContain("SOURCE_END_SENTINEL");
     expect(repairPrompt).toContain("appointed director on 2024-06-12");
     expect(repairPrompt).not.toContain("PRIOR_SUMMARY_ONLY_SENTINEL");
+    expect(repairPrompt).toContain(`the previous summary was ${firstSummary.length} characters, exceeding the hard limit of 900`);
+    expect(repairPrompt).toContain("URL tokens that were not copied exactly from the source");
+    expect(repairPrompt).toContain("Aim at or below 585 characters");
+    expect(repairPrompt).toContain("Include at most two exact URL tokens");
+    expect(repairPrompt).toContain("Omit commenter names, profile links, and optional detail");
     const firstOptions = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
     const repairOptions = bossMocks.generateGroqBossText.mock.calls[1]?.[2];
-    expect(firstOptions?.maxOutputTokens).toBe(378);
-    expect(repairOptions?.maxOutputTokens).toBe(317);
-    expect(repairOptions?.maxOutputTokens).toBeLessThan(firstOptions?.maxOutputTokens ?? Infinity);
+    expect(firstOptions?.maxOutputTokens).toBe(1_024);
+    expect(repairOptions?.maxOutputTokens).toBe(1_280);
+    expect(repairOptions?.maxOutputTokens).toBeGreaterThanOrEqual(firstOptions?.maxOutputTokens ?? 0);
+  });
+
+  it("increases bounded output headroom after the provider exhausts the first generation budget", async () => {
+    const source = "CANONICAL CASE MEMORY\n" + "Observed source facts and unresolved questions. ".repeat(45);
+    const summary = "The source memory remains available for model-led research.";
+    bossMocks.generateGroqBossText
+      .mockResolvedValueOnce({
+        model: "mock-boss-model",
+        raw: null,
+        error: "json_validate_failed: failedGenerationBudgetExhausted",
+        attempts: [],
+      })
+      .mockResolvedValueOnce({
+        model: "mock-boss-model",
+        raw: JSON.stringify({ summary }),
+        error: null,
+        attempts: [],
+      });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+
+    const firstOptions = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
+    const repairOptions = bossMocks.generateGroqBossText.mock.calls[1]?.[2];
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(2);
+    expect(firstOptions?.maxOutputTokens).toBe(1_024);
+    expect(repairOptions?.maxOutputTokens).toBe(1_280);
+    expect(repairOptions?.maxOutputTokens).toBeGreaterThan(firstOptions?.maxOutputTokens ?? Infinity);
+  });
+
+  it("accepts a source URL followed by closing punctuation without normalizing bare colons", async () => {
+    const sourceUrl = "https://source.example/posts/award-42";
+    const source = "SOURCE_URL: " + sourceUrl + "\n" + "Observed case details remain in the complete durable source. ".repeat(25);
+    const summary = `Observed award post. Source: ${sourceUrl}):`;
+    bossMocks.generateGroqBossText.mockResolvedValueOnce({
+      model: "mock-boss-model",
+      raw: JSON.stringify({ summary }),
+      error: null,
+      attempts: [],
+    });
+
+    await expect(summarizeInvestigatorContextWithBoss({ rawContext: source, maxChars: 900 })).resolves.toBe(summary);
+    expect(bossMocks.generateGroqBossText).toHaveBeenCalledTimes(1);
+    expect(extractAiContextUrls(`${sourceUrl}):`)).toEqual([sourceUrl]);
+    expect(extractAiContextUrls(`${sourceUrl}:`)).toEqual([`${sourceUrl}:`]);
   });
 
   it("fails closed when the model cannot produce required working memory", async () => {
@@ -99,7 +148,7 @@ describe("AI investigation context compaction", () => {
     expect(prompt).toContain("successful visit/browser_fetch");
     expect(prompt).toContain("do not enumerate every name or URL");
     const options = bossMocks.generateGroqBossText.mock.calls[0]?.[2];
-    expect(options?.maxOutputTokens).toBe(378);
+    expect(options?.maxOutputTokens).toBe(1_024);
     expect(options?.responseFormat).toMatchObject({
       type: "json_schema",
       json_schema: {

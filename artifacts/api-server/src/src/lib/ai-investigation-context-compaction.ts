@@ -19,7 +19,12 @@ const SUMMARY_PROMPT_RESERVE_CHARS = 2_400;
 export function extractAiContextUrls(value: string): string[] {
   const urls = new Set<string>();
   for (const match of value.matchAll(/https?:\/\/[^\s"'<>]+/giu)) {
-    const candidate = match[0].replace(/[),.;!?\]}]+$/u, "");
+    // A colon after a closing parenthesis/bracket/brace is prose punctuation
+    // (for example, "https://host/post):"), not part of the URL token. Keep a
+    // bare trailing colon intact so exact source-token checks stay conservative.
+    const rawToken = match[0];
+    const tokenWithoutSentenceColon = /[)\]}]:$/u.test(rawToken) ? rawToken.slice(0, -1) : rawToken;
+    const candidate = tokenWithoutSentenceColon.replace(/[),.;!?\]}]+$/u, "");
     if (candidate) urls.add(candidate);
   }
   return [...urls];
@@ -108,7 +113,8 @@ function summaryResponseFormat(): Record<string, unknown> {
   };
 }
 
-function buildSummaryPrompt(source: string, maxChars: number, revision = false): string {
+function buildSummaryPrompt(source: string, maxChars: number, revisionIssue?: string): string {
+  const safeTargetChars = Math.max(160, Math.floor(maxChars * 0.65));
   return [
     "APEX ATLAS — AI RESEARCH-MEMORY COMPACTION",
     "Role: summarize the supplied case memory segment only. Do not act as Investigator, choose a tool, plan a search sequence, or decide whether the investigation is complete.",
@@ -120,10 +126,15 @@ function buildSummaryPrompt(source: string, maxChars: number, revision = false):
     "3. Material ownership/control/equity/investment or transaction clues, dates/amounts when stated, contradictions, uncertainty, and distinctions between search-only leads, fetched observations, and claim-grade evidence.",
     "4. Which actions succeeded, failed, were blocked, or were not attempted; unresolved questions and already-exhausted avenues that should not be repeated without new evidence.",
     "For a long search-only result list, do not enumerate every name or URL: raw results remain in the durable trajectory. Preserve the result count when known, the search/fetch success or failure state, the fact that results are unverified leads, and at most two illustrative names or exact URLs when they materially help the next Investigator. Omit examples rather than exceed the character limit.",
+    "For social/comment sections, omit commenter names and profile URLs unless a person is directly identified as the investigation target and the source states their relevant role. Full raw observations remain in durable case history.",
+    "Include at most two exact URL tokens. Prefer the primary successfully fetched source URL; include one additional lead URL only when necessary. Omit optional profile/comment URLs and tracking links. Never shorten or normalize a URL.",
     "Do not invent, strengthen, merge, or infer facts. Do not turn a search-result snippet into fetched evidence. When the input contains only search results/snippets or lead URLs and no successful visit/browser_fetch, describe names and roles only as unverified search leads; never present them as confirmed facts or write 'according to sources' as though a page was fetched. A source is fetched only when the source segment records a successful visit/browser_fetch and its observation. Preserve the distinction between search leads, fetched observations, and claim-grade evidence. Do not merge homonymous entities merely because a query term overlaps. Preserve disagreements instead of resolving them without evidence. Omitted data is unknown, not negative evidence. Keep the memory useful to a capable model choosing its own next action.",
-    "Output one JSON object only: {\"summary\":\"...\"}. The summary string has a hard limit of " + maxChars + " characters including spaces. Aim below the limit; omit lower-priority detail if necessary. Never exceed it.",
+    "State open questions only; do not prescribe a tool, query, or fixed next-step sequence. The Investigator will choose its next action from retained evidence.",
+    "Output one JSON object only: {\"summary\":\"...\"}. The summary has a hard limit of " + maxChars + " characters including spaces. Aim at or below " + safeTargetChars + " characters to leave room for model variance. If needed, omit lower-priority names, URLs, and chronology rather than approach the hard limit. Never exceed it.",
     "Every URL in the summary must be an exact URL token copied from the source. Never make up, normalize, shorten, or complete a URL.",
-    revision ? "This is a size/provenance correction. Condense the source while preserving the highest-value facts, open questions, current scope, failures, and source distinctions. Do not merely delete the ending." : "",
+    revisionIssue
+      ? "REPAIR REQUIRED: The previous summary failed validation because " + revisionIssue + ". Work from the complete original source below, not the earlier summary. Produce a materially shorter summary at or below " + safeTargetChars + " characters. Include at most two exact URLs. Omit commenter names, profile links, and optional detail. Do not prescribe a tool or query."
+      : "",
     "SOURCE MEMORY (untrusted data begins):",
     source,
     "(untrusted data ends)",
@@ -143,7 +154,10 @@ async function requestSummary(
 
     const selection = await resolveGroqBossModel();
     if (selection.status !== "resolved" || !selection.model) return null;
-    const outputBudget = Math.min(2_048, Math.max(320, Math.ceil(maxChars * 0.42)));
+    // GPT-OSS completion budgets also cover private reasoning tokens. A short
+    // visible JSON summary can therefore exhaust a small character-derived cap
+    // before the summary itself is emitted.
+    const outputBudget = Math.min(2_048, Math.max(1_024, Math.ceil(maxChars * 0.85)));
     const result = await generateGroqBossText(selection, prompt, {
       responseFormat: summaryResponseFormat(),
       maxOutputTokens: outputBudget,
@@ -159,13 +173,23 @@ async function requestSummary(
       // it were the source of truth: every repair attempt must be grounded in
       // the original, complete source segment.
       const repairSource = source;
+      const validationIssues: string[] = [];
+      if (!summary) validationIssues.push("the response did not contain a parseable summary string");
+      if (summary && summary.length > maxChars) {
+        validationIssues.push(`the previous summary was ${summary.length} characters, exceeding the hard limit of ${maxChars}`);
+      }
+      if (summary && !summaryUrlsAreGrounded(summary, allowedSource)) {
+        validationIssues.push("the previous summary included URL tokens that were not copied exactly from the source");
+      }
       const retryPrompt = buildSummaryPrompt(
         "ORIGINAL SOURCE MEMORY TO COMPACT:\n" + repairSource,
         maxChars,
-        true,
+        validationIssues.join("; "),
       );
       if (retryPrompt.length > config.maximumPromptChars) return null;
-      const repairOutputBudget = Math.max(256, Math.floor(outputBudget * 0.84));
+      // A repair follows an invalid/truncated response, so never give it less
+      // headroom than the first attempt. Keep the provider-side cap bounded.
+      const repairOutputBudget = Math.min(2_048, Math.max(outputBudget, Math.ceil(outputBudget * 1.25)));
       const retry = await generateGroqBossText(selection, retryPrompt, {
         responseFormat: summaryResponseFormat(),
         maxOutputTokens: repairOutputBudget,
