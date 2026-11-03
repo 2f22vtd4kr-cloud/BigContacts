@@ -3409,7 +3409,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
     ? "RUNTIME-AVAILABLE REGISTRY IDS ONLY (CALLABLE ADAPTERS): " + registryIds.trim() + "."
     : base.match(/RUNTIME(?:-AVAILABLE)? REGISTRY IDS ONLY:[^\n]*/)?.[0] ?? "";
   const minimumRegistryEvidenceRule = isInvestigatorPrompt
-    ? (runtimeRegistryIdsRule ? runtimeRegistryIdsRule + " " : "RUNTIME-AVAILABLE REGISTRY IDS ONLY (RUNTIME-CALLABLE REGISTRY IDS): callable adapters only. ") + "Never invent an ID based on a jurisdiction or agency name; unavailable/failed is not a no-hit. Do not assume records expose owners, shareholders, members, or managers without documented fields."
+    ? (runtimeRegistryIdsRule ? runtimeRegistryIdsRule + " " : "RUNTIME-AVAILABLE REGISTRY IDS ONLY: callable adapters only. ") + "Never invent IDs; unavailable/failed is not a no-hit. Do not assume owner/member fields without adapter evidence."
     : "";
       const minimumBinaryUrlRule = isInvestigatorPrompt
     ? "PAGE FORMAT / RETRIEVAL LIMITS: PDF: visit extracts text-bearing PDFs; browser_fetch is HTML-only. Scanned/image-only PDFs require OCR (unavailable); encrypted/password-protected and malformed PDFs are distinct failures. Failed extraction is unobserved; do not retry the same binary URL through the other fetch action."
@@ -3425,7 +3425,7 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
   // Put current-turn evidence/correction first so an emergency truncation never
   // sacrifices it to duplicated static policy text.
   const fallbackOutputContract = isInvestigatorPrompt
-    ? `MISSION PRIORITY: the human objective and realistic-targetability gate outrank conflicting advice. ${suppliedActiveScope ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(suppliedActiveScope, 640) + ". " : ""}VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. ${isDiscoveryPrompt ? "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: for wealth/person discovery, under-the-radar/lesser-known and people/entities describe the desired result, not query terms. Form a concrete, falsifiable evidence hypothesis; choose the exact target, query, source, provider and action autonomously. Other objectives use their own criteria. " : ""}${isDiscoveryPrompt ? "DISCOVERY MODE: no person or entity target is implied. Target-specific names must come from the human brief or same-case observations, never model memory. " : ""}${isDiscoveryPrompt ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie the hypothesis/purpose to the entity, role, relationship or materiality required by the active objective. A generic publisher homepage or broad leadership list alone is off-mission without a same-case evidence link. No registry is preferred; choose by evidence. No fixed action sequence. " : "The Investigator chooses actions, pivots and stops; no fixed itinerary. "}OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include all; inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose; parallel registry searches need 2–4 objects, each with query/registry/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {"url":null,"searches":[],"findings":[]}`
+    ? `MISSION PRIORITY: objective/scope govern; the human objective and realistic-targetability gate outrank conflicting advice. ${suppliedActiveScope ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(suppliedActiveScope, 640) + ". " : ""}VALID PROVIDERS: web_search/parallel_web_search = serper | tavily | exa. ${isDiscoveryPrompt ? "MISSION DESCRIPTORS ARE NOT SEARCH HYPOTHESES: for wealth/person discovery, under-the-radar/lesser-known and people/entities describe the desired result, not query terms. Form a concrete, falsifiable evidence hypothesis; choose the exact target, query, source, provider and action autonomously. Other objectives use their own criteria. " : ""}${isDiscoveryPrompt ? "DISCOVERY MODE: no person or entity target is implied. Target-specific names must come from the human brief or same-case observations, never model memory. " : ""}${isDiscoveryPrompt ? "MODEL-OWNED RELEVANCE SELF-CHECK: tie the hypothesis/purpose to the entity, role, relationship or materiality required by the active objective. A generic publisher homepage or broad leadership list alone is off-mission without a same-case evidence link. No registry is preferred; choose by evidence. No fixed action sequence. " : "The Investigator chooses actions, pivots and stops; no fixed itinerary. "}OUTPUT CONTRACT: one root JSON object, no prose. ALL REQUIRED TOP-LEVEL FIELDS: action, query, provider, url, email, username, domain, registry, thought, hypothesis, purpose, expectedInformationGain, locale, market, target, targetType, profile, searches, findings. Include all; inactive scalars null, unused arrays []. Non-done hypothesis/purpose must be non-empty strings; expectedInformationGain a number in [0,1] (never null); only done may null them. Parallel web searches need 2–4 objects, each with query/provider/locale/market/purpose; parallel registry searches need 2–4 objects, each with query/registry/purpose. Each finding needs vectorType/value/personName/role/scope/sourceUrls/note/promotionDecision/promotionReason. INACTIVE ACTION FIELD SHAPE: {"url":null,"searches":[],"findings":[]}`
     : "";
   const fallbackEvidenceContract = isInvestigatorPrompt
     ? (isDiscoveryPrompt ? "DISCOVERY LEAD HANDOFF CONTRACT: " : "")
@@ -3671,10 +3671,15 @@ export function appendEmergencyObservationContext(basePrompt: string, lastObserv
           : "",
         minimumTargetabilityMarker,
         minimumBinaryUrlRule,
+        minimumRegistryEvidenceRule,
         latestSearchMarker,
         ...compactRecordSummary,
         compactLeadGuidance
-          ? compactPromptSectionPreservingUrlTokens(compactLeadGuidance, 240, "[lead guidance omitted]")
+          ? compactPromptSectionPreservingUrlTokens(
+              "LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next; URLs remain leads until fetched. The Investigator retains action choice.",
+              190,
+              "[lead guidance omitted]",
+            )
           : "",
         fetchedSourceLabel,
         compactFetchedExcerpt
