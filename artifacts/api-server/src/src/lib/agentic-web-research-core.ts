@@ -5442,7 +5442,6 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const compactOrganizationTargetabilityMarker = input.mode === "discovery" ? "An organization is a valid provisional review target when relevant to the active objective; its card does not establish any person's identity, ownership or wealth.": "";
         ? "DISCOVERY LEAD HANDOFF CONTRACT: an organization may be selected as a provisional review target when investigating it is a useful route to identify its owners, operators, founders, or investors; the card does not establish a person or wealth conclusion."
         : "";
-      const compactLeadFollowupGuidance = carryForwardSuccessfulSearch?.leadUrls?.length
         ? " LEAD FOLLOW-UP GUIDANCE (non-binding): consider inspecting a promising in-scope lead URL next when it offers more information than another search; this is not evidence or a mandated next action. The Investigator retains action choice."
         : "";
       const compactFetchedSourceContext = latestSuccessfulFetchRecord
