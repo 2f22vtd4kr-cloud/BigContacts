@@ -42,6 +42,7 @@ import {
 } from "./provider-error-diagnostics";
 export { getAgenticLlmHealth };
 const MAX_PROMPT_URL_CHARS = 512;
+const RECENT_OBSERVATION_COMPACTION_MAX_CHARS = 1_200;
 
 const DURABLE_EXACT_URL_INVENTORY_HEADING = "DURABLE EXACT URL INVENTORY (verbatim values from immutable research_case_events; URLs are leads, not evidence; never reconstruct or shorten):";
 
@@ -4911,7 +4912,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
           findings: [],
           priorContext: undefined,
           mode: input.mode,
-          maxChars: 1_500,
+          maxChars: 2_000,
+          recentObservationChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
         }),
       ].filter(Boolean).join("\n\n")
     : buildInvestigatorContext({
@@ -6317,7 +6319,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         if (!compactedObservation) {
           compactedObservation = await summarizeInvestigatorContextWithBoss({
             rawContext: sourceToSummarize,
-            maxChars: 900,
+            maxChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
             jobId: input.jobId,
             caseId: input.caseId,
           }) ?? "";
@@ -6341,7 +6343,7 @@ export async function runAgenticWebResearch(input: { targetName: string; company
         if (!compactedObservation) {
           compactedObservation = await summarizeInvestigatorContextWithBoss({
             rawContext: sourceToSummarize,
-            maxChars: 900,
+            maxChars: RECENT_OBSERVATION_COMPACTION_MAX_CHARS,
             jobId: input.jobId,
             caseId: input.caseId,
           }) ?? "";

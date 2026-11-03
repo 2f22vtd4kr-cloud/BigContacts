@@ -44,6 +44,36 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(context).toContain("RESEARCH FRONTIER");
   });
 
+  it("keeps a live-sized Boss-compacted latest observation intact when historical memory is mounted", () => {
+    const observation = "LATEST_OBSERVATION_START " + "source-backed evidence detail ".repeat(32) + "LATEST_OBSERVATION_END";
+    expect(observation.length).toBeGreaterThan(900);
+    expect(observation.length).toBeLessThan(1_200);
+    const prompt = buildStepPrompt({
+      targetName: "",
+      objective: "Identify real operating companies and their current business decision-makers from public professional evidence.",
+      history: [],
+      trajectoryRecords: [{
+        turn: 8,
+        model: "groq:test",
+        action: "web_search",
+        args: { query: "Joe Aguilar LinkedIn" },
+        execution: "success",
+        observedUrls: ["https://source.example/search-result"],
+        observation,
+        findings: [],
+      }],
+      lastObservation: observation,
+      findings: [],
+      mode: "discovery",
+      aiCompactedHistoricalContext: "Prior Boss-generated memory: the existing fetched source did not establish a decision-maker role.",
+      aiCompactedHistoricalThroughTurn: 7,
+    });
+
+    expect(prompt).toContain("LATEST_OBSERVATION_START");
+    expect(prompt).toContain("LATEST_OBSERVATION_END");
+    expect(prompt).toContain("https://source.example/search-result");
+  });
+
   it("enforces the message envelope again at the provider request-body boundary", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-20b",

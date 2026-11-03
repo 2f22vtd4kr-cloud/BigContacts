@@ -47,6 +47,8 @@ export interface InvestigatorContextInput {
   priorContext?: string;
   /** Optional model-facing budget override; durable state is unaffected. */
   maxChars?: number;
+  /** Optional larger allowance for a Boss-compacted latest observation. */
+  recentObservationChars?: number;
 }
 
 export interface InvestigatorContextBudget {
@@ -412,6 +414,9 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
   if (input.maxChars !== undefined) {
     budget.maxChars = Math.min(MAX_MAX_CHARS, Math.max(1_000, Math.floor(input.maxChars)));
   }
+  if (input.recentObservationChars !== undefined && Number.isFinite(input.recentObservationChars)) {
+    budget.recentObservationChars = Math.min(3_000, Math.max(600, Math.floor(input.recentObservationChars)));
+  }
   const records = [...input.trajectoryRecords].sort((a, b) => a.turn - b.turn);
   const latestRecordCount = records.length ? 1 : 0;
   const recentStart = Math.max(0, records.length - budget.recentFullRecords - latestRecordCount);
@@ -505,9 +510,12 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
 
   sections.push("CONTEXT MANAGEMENT LAW\nThe complete trajectory and evidence remain durable outside this prompt. This working context is deliberately selective. Do not treat omitted raw detail as negative evidence. Prefer a new discriminating action when the archived index shows an unresolved gap. Do not repeat a failed avenue solely because its raw observation is not visible here. explain any material deviation from the human objective or accepted Boss scope, including the evidence-based reason it was justified.");
 
+  const latestRecordMaxChars = input.recentObservationChars !== undefined
+    ? Math.min(1_400, Math.max(700, Math.floor(budget.maxChars * 0.7)))
+    : Math.min(900, Math.max(700, Math.floor(budget.maxChars * 0.18)));
   const latestSection = records.length
     ? "LATEST TRAJECTORY RECORD (must remain visible to the next Investigator)\n" +
-      compactRecord(records[records.length - 1]!, budget.recentObservationChars, Math.min(900, Math.max(700, Math.floor(budget.maxChars * 0.18))))
+      compactRecord(records[records.length - 1]!, budget.recentObservationChars, latestRecordMaxChars)
     : "LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)");
   const latestReserve = Math.min(budget.maxChars, latestSection.length);
 
