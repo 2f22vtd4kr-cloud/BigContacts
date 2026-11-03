@@ -5253,14 +5253,22 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     const hasRequiredPromptContract = /OUTPUT CONTRACT:/.test(normalizedBase)
       && /ALL REQUIRED TOP-LEVEL FIELDS:/.test(normalizedBase);
     const hasLatestRecordContext = !latestRecord || /LATEST TRAJECTORY RECORD/.test(normalizedBase);
-    const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope);
-    const hasFetchedSourceContext = !latestSuccessfulFetchRecord || /LAST SUCCESSFUL FETCHED SOURCE/.test(normalizedBase);
+    const hasLatestQueryContext = !latestQuery || normalizedBase.includes(latestArgsEnvelope) || normalizedBase.includes(latestQuery);
+    const hasFetchedSourceContext = !latestSuccessfulFetchRecord || /LAST SUCCESSFUL FETCHED SOURCE(?: EXCERPT)?/.test(normalizedBase);
     const hasLeadFollowupContext = !(carryForwardSuccessfulSearch?.leadUrls?.length)
-      || /consider inspecting a promising in-scope lead URL next/.test(normalizedBase)
-        && /not evidence or a mandated next action/.test(normalizedBase);
+      || (/LEAD FOLLOW-UP GUIDANCE \(non-binding\)/.test(normalizedBase)
+        && /Search-result URLs remain leads, not evidence until fetched/.test(normalizedBase)
+        && carryForwardSuccessfulSearch.leadUrls.some((url) => normalizedBase.includes(url)));
     const hasHistoricalMemoryContext = !aiHistoricalMemory.trim() || normalizedBase.includes(aiHistoricalMemory.trim());
     const hasGeographicScope = requiredGeographies.every((geography) => normalizedBase.toLowerCase().includes(geography.toLowerCase()));
-    const hasRecoveryContext = /LATEST OBSERVATION|LATEST TRAJECTORY RECORD|LAST SUCCESSFUL FETCHED SOURCE|EXACT DURABLE URL INVENTORY|PINNED DURABLE URL INVENTORY|SCOPE GUARD BLOCKED ACTION/.test(normalizedBase);
+    const requiresRecoveryContext = Boolean(
+      latestRecord
+      || latestSuccessfulFetchRecord
+      || String(input.lastObservation ?? "").trim()
+      || String(input.durableUrlInventory ?? "").trim()
+    );
+    const hasRecoveryContext = !requiresRecoveryContext
+      || /LATEST OBSERVATION|LATEST TRAJECTORY RECORD|LAST SUCCESSFUL FETCHED SOURCE|EXACT DURABLE URL INVENTORY|PINNED DURABLE URL INVENTORY|SCOPE GUARD BLOCKED ACTION/.test(normalizedBase);
     // appendEmergencyObservationContext has already done the contract-aware
     // reduction on several return paths. Do not run a second lossy reduction
     // over a prompt that already fits and retains its latest action, fetched
