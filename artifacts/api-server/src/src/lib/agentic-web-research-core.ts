@@ -5547,11 +5547,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // If the standard compact objective itself is unexpectedly responsible for
       // an overrun, preserve the explicit active pivot separately and discard the
       // duplicative case-objective summary rather than truncate the pivot.
-      const buildObjectiveAndScope = () => [
+      const buildObjectiveAndScope = (_objectiveChars: number, scopeChars: number) => [
         authoritativeCaseObjective,
-        activeBossScopeSection,
+        activeBossDirection ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeBossDirection, scopeChars) : activeBossScopeSection,
       ].filter(Boolean).join("\n\n");
-      const boundedMinimumObjective = buildObjectiveAndScope();
+      const boundedMinimumObjective = buildObjectiveAndScope(0, 360);
       const smallestEmergencyPrefix = [
         finalEmergencyAssignment,
         boundedMinimumObjective,
@@ -5574,7 +5574,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       // a run-ending programming error. Retain the active Boss scope, lead-vs-evidence
       // distinction, discovery admission gate and schema contract while shedding
       // redundant explanatory text. Action choice remains model-led.
-      const finalScope = buildObjectiveAndScope();
+      const finalScope = buildObjectiveAndScope(0, 360);
       const finalEvidenceRules = "MISSION PRIORITY: case objective and realistic-targetability gate outrank conflicting Boss/Right-hand advice. SCOPE RECOVERY: preserve the active subject/geography; source class may vary, but no silent pivot to homonyms, unrelated sectors or competing jurisdictions. After a no-hit, block or unavailable source, revise only the failed dimension; failure is not disproof; request Boss approval if scope is infeasible. Do not require every discovery query to repeat the chosen source class. Any language/script is valid; English is optional. Use native forms, aliases and transliterations when useful. Registry searches must select an in-scope adapter; the adapter may supply jurisdiction and source class context. After a block, revise the failed dimension or request new scope; fetch only observed leads. A blocked request is not negative evidence. Search-result URLs and snippets are leads, not evidence. Never invent identities, ownership clues, wealth or contacts.";
       const finalDiscoveryGate = input.mode === "discovery" ? (compactDiscoveryAdmissionContract ?? "") : "";
       // Keep schema, the scope-recovery rule, discovery admission law, latest
@@ -5755,13 +5755,11 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
       const absoluteMinimumDiscoveryContext = input.mode === "discovery"
         ? "DISCOVERY LEAD HANDOFF CONTRACT / DISCOVERY PROGRESS GATE / DISCOVERY TARGETABILITY GATE: Follow the active case objective and Boss-approved scope, including explicit overrides. People, operating companies, and assets are distinct target classes; prioritize those the objective names. Do not impose ownership or wealth requirements unless the objective calls for them. Test the qualification facts required by the active objective during target research; preserve relevant provisional review leads without imposing ownership/wealth requirements unless the objective calls for them. Never infer wealth from seniority alone. Honor approved Boss topic/geography; source class may vary by query. MIXED DISCOVERY: in-scope web sources plus relevant public business, professional, ownership, transaction or asset sources as the active objective requires; no registry-first sequence, fixed order or repeat of a no-hit registry. News publishers and articles are evidence leads only, never targets or access routes. Never use placeholders such as CompanyName, companywebsite.com, or example.com. Target-scoped research independently corroborates or falsifies the claims required by the active objective and verifies any relevant public/professional route before qualification or contact-route conclusions. Target-stage research tests the role, relationship, company relevance, materiality and public/professional route required by the active objective, independently corroborates or falsifies the lead, and verifies direct or indirect routes before any promotion."
         : "";
-      const absoluteMinimumObjective = [
-        input.objective?.trim()
-          ? "CASE OBJECTIVE: " + boundInvestigatorPromptSection(input.objective, 120)
-          : "CASE OBJECTIVE: source-backed public research; never invent evidence.",
-        activeScope ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeScope, 260) : "",
-        "SCOPE RECOVERY: preserve Boss-approved subject/geography; source class may vary; no silent pivot. After a block revise only the failed dimension or request Boss scope approval; failure is not disproof.",
-      ].filter(Boolean).join("\n");
+       const absoluteMinimumObjective = [
+         authoritativeCaseObjective,
+         activeBossDirection ? "ACTIVE BOSS SCOPE: " + compactActiveBossScope(activeBossDirection, 260) : activeBossScopeSection,
+         "SCOPE RECOVERY: preserve Boss-approved subject/geography; source class may vary; no silent pivot. After a block revise only the failed dimension or request Boss scope approval; failure is not disproof.",
+       ].filter(Boolean).join("\n");
       // The last-resort tier must reserve room for the latest action and fetched
       // source rather than consuming the entire provider budget with duplicated
       // policy prose. Mandatory schema, review-lead rules, and source provenance
