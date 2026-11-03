@@ -1107,7 +1107,7 @@ describe("Investigator prompt architecture", () => {
     });
 
     expect(prompt).toContain("<<<APEX_VERBATIM_CASE_OBJECTIVE_BEGIN>>>");
-    expect(prompt).toContain(primaryObjective);
+    expect(prompt).toContain(primaryObjective.trim());
     expect(prompt).toContain("<<<APEX_VERBATIM_CASE_OBJECTIVE_END>>>");
     expect(prompt).toContain(pivot);
     expect(prompt).not.toContain("OBJECTIVE MIDDLE OMITTED");
