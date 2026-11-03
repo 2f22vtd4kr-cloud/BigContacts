@@ -148,7 +148,7 @@ describe("investigator context compaction", () => {
 
     expect(objective.length).toBeLessThanOrEqual(8_000);
     expect(objective).toContain(primaryObjective);
-    expect(objective).toContain(direction);
+    expect(objective).toContain(direction.trim());
     expect(objective).not.toContain("OBJECTIVE MIDDLE OMITTED");
     expect(objective).toContain("Treat the Boss-directed question as a hypothesis");
     expect(objective).toContain("feasible public-source question");
