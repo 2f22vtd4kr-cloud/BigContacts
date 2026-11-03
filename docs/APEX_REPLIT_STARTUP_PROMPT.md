@@ -98,12 +98,12 @@ The current preflight checks these active names:
 3. GROQ_BOSS_API_KEY
 4. GROQ_RIGHT_HAND_API_KEY
 5. GROQ_INVESTIGATOR_API_KEY
-7. GROQ_INVESTIGATOR_API_KEY_1
-8. REDIS_URL_1
-9. SCRAPFLY_API_KEY
-11. SERPER_API_KEY
-12. TAVILY_API_KEY
-13. ZENROWS_API_KEY
+6. GROQ_INVESTIGATOR_API_KEY_1
+7. REDIS_URL_1
+8. SCRAPFLY_API_KEY
+9. SERPER_API_KEY
+10. TAVILY_API_KEY
+11. ZENROWS_API_KEY
 
 Additional numbered Groq role credentials are optional runtime slots. Investigator slots are independently selectable capabilities; do not silently substitute another key.
 
