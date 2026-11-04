@@ -166,20 +166,33 @@ MAX_NETWORK_RESPONSE_BYTES 2000000
 Cancellation and timeout propagation must remain intact.
 
 ============================================================
-6. LIVE RESEARCH SMOKE
+6. OPERATOR-CONTROLLED LIVE RESEARCH
 ============================================================
 
-After build, runtime and integrity checks are genuinely green:
+INITIALIZATION AND READINESS VERIFICATION MUST NOT LAUNCH AN INVESTIGATION.
 
+The operator (the Apex owner) will launch the next investigation manually from
+the canonical application UI/API only after reviewing the runtime readiness
+report and deciding to proceed.
+
+During this Replit preparation task:
 1. Verify the desk at / is non-blank.
-2. Query the real entity ledger.
-3. If a real entity already exists, do not create another merely for testing.
-4. If discovery is genuinely needed, use the existing canonical discovery-first path.
-5. For a real target, run the canonical Investigator path with the real application.
-6. Preserve actual trajectory, tool observations, provenance, evidence graphs, claims, contradictions, identity state and oversight decisions.
+2. Query the real entity ledger read-only; do not create an entity or test case.
+3. Verify health, Redis, bureau integrity, authentication and provider readiness.
+4. Verify there are no active jobs, stale locks or conflicting workers using the
+   existing supported read-only status surfaces.
+5. Report the exact main SHA, clean/dirty state, health and blockers.
+6. Stop. Do not submit a discovery request, create a job, queue work, run a
+   smoke investigation, or invoke any research endpoint.
 
-Do not fabricate a result if the provider/network is unavailable.
-A booted API is not a successful investigation.
+Do not reset, clear or mutate an existing lock/job to make the checks pass.
+If an active job or ambiguous lock exists, report it and stop.
+
+After the operator independently launches a real investigation, the normal
+runtime must preserve actual trajectory, tool observations, provenance,
+evidence graphs, claims, contradictions, identity state and oversight decisions.
+Never fabricate a result if the provider/network is unavailable. A booted API
+is not a successful investigation.
 
 ============================================================
 7. RESEARCH CAMPAIGN
